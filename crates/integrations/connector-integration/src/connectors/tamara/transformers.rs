@@ -4,7 +4,7 @@ use crate::connectors::tamara::TamaraRouterData;
 use crate::types::ResponseRouterData;
 use crate::utils;
 use common_enums::EligibilityStatus;
-use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_enums::{AttemptStatus, Currency, ProductType, RefundStatus};
 use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
     Email,
@@ -171,6 +171,13 @@ pub struct TamaraLineItem {
     pub reference_id: String,
     pub sku: String,
     pub total_amount: TamaraAmount,
+    #[serde(rename = "type")]
+    pub item_type: ProductType,
+    pub item_url: Option<String>,
+    pub image_url: Option<String>,
+    pub unit_price: TamaraAmount,
+    pub discount_amount: Option<TamaraAmount>,
+    pub tax_amount: Option<TamaraAmount>,
 }
 
 #[derive(Debug, Serialize)]
@@ -324,45 +331,78 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .resource_common_data
             .get_optional_shipping_or_billing_country_string();
 
+        let to_tamara_amount = |value: MinorUnit, context: &'static str| {
+            converter
+                .convert(value, currency)
+                .map(|amount| TamaraAmount { amount, currency })
+                .change_context(errors::IntegrationError::RequestEncodingFailed {
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(context.to_string()),
+                        ..Default::default()
+                    },
+                })
+        };
+        let optional_amount = |value: Option<MinorUnit>, context: &'static str| {
+            value.map(|v| to_tamara_amount(v, context)).transpose()
+        };
+        fn required_field<T>(
+            value: Option<T>,
+            field_name: &'static str,
+        ) -> Result<T, error_stack::Report<errors::IntegrationError>> {
+            value.ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name,
+                    context: errors::IntegrationErrorContext::default(),
+                }
+            ))
+        }
+
         let items: Vec<TamaraLineItem> = router_data
             .resource_common_data
             .order_details
             .clone()
-            .map(|od| {
-                od.iter()
-                    .enumerate()
-                    .map(|(i, data)| {
-                        let item_amount = converter
-                            .convert(data.amount, currency)
-                            .change_context(errors::IntegrationError::RequestEncodingFailed {
-                                context: errors::IntegrationErrorContext {
-                                    additional_context: Some(
-                                        "Failed to convert line item amount from minor to major units"
-                                            .to_string(),
-                                    ),
-                                    ..Default::default()
-                                },
-                            })?;
-                        Ok(TamaraLineItem {
-                            name: data.product_name.clone(),
-                            quantity: data.quantity,
-                            reference_id: data
-                                .product_id
-                                .clone()
-                                .unwrap_or_else(|| format!("item_{i}")),
-                            sku: data
-                                .product_id
-                                .clone()
-                                .unwrap_or_else(|| format!("item_{i}")),
-                            total_amount: TamaraAmount {
-                                amount: item_amount,
-                                currency,
-                            },
-                        })
-                    })
-                    .collect::<Result<Vec<_>, error_stack::Report<errors::IntegrationError>>>()
+            .filter(|od| !od.is_empty())
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "order_details",
+                    context: errors::IntegrationErrorContext::default(),
+                }
+            ))?
+            .iter()
+            .map(|data| {
+                Ok(TamaraLineItem {
+                    name: data.product_name.clone(),
+                    quantity: data.quantity,
+                    reference_id: required_field(
+                        data.product_id.clone(),
+                        "order_details[].product_id",
+                    )?,
+                    sku: required_field(data.sku.clone(), "order_details[].sku")?,
+                    total_amount: to_tamara_amount(
+                        data.total_amount.unwrap_or(data.amount),
+                        "Failed to convert line item total amount from minor to major units",
+                    )?,
+                    item_type: required_field(
+                        data.product_type.clone(),
+                        "order_details[].product_type",
+                    )?,
+                    item_url: data.product_link.clone(),
+                    image_url: data.product_img_link.clone(),
+                    unit_price: to_tamara_amount(
+                        data.amount,
+                        "Failed to convert line item unit price from minor to major units",
+                    )?,
+                    discount_amount: optional_amount(
+                        data.unit_discount_amount,
+                        "Failed to convert line item discount amount from minor to major units",
+                    )?,
+                    tax_amount: optional_amount(
+                        data.total_tax_amount,
+                        "Failed to convert line item tax amount from minor to major units",
+                    )?,
+                })
             })
-            .unwrap_or(Ok(Vec::new()))?;
+            .collect::<Result<Vec<_>, error_stack::Report<errors::IntegrationError>>>()?;
 
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
