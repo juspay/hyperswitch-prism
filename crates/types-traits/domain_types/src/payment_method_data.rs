@@ -1276,6 +1276,12 @@ pub struct GooglePayDecryptedData {
     pub application_primary_account_number: cards::CardNumber,
     pub cryptogram: Option<Secret<String>>,
     pub eci_indicator: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message_expiration: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth_method: Option<common_enums::GooglePayAuthMethod>,
 }
 
 impl GooglePayDecryptedData {

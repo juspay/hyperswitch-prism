@@ -1010,6 +1010,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let reason = webhook_body.effective_reason();
 
         Ok(RefundWebhookDetailsResponse {
+            refund_amount: None,
             connector_refund_id: webhook_body.tx_id,
             merchant_transaction_id: webhook_body
                 .payload

@@ -280,6 +280,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(RefundWebhookDetailsResponse {
+            refund_amount: None,
             connector_refund_id: Some(webhook_body.psp_reference.clone()),
             merchant_transaction_id: None,
             status,

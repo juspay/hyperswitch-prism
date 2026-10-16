@@ -1060,6 +1060,7 @@ impl TryFrom<&FlywireWebhookBody> for RefundWebhookDetailsResponse {
     fn try_from(body: &FlywireWebhookBody) -> Result<Self, Self::Error> {
         let data = body.parse_refund_data()?;
         Ok(Self {
+            refund_amount: None,
             connector_refund_id: Some(data.refund_id),
             merchant_transaction_id: None,
             status: data.status.to_refund_status(),

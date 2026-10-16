@@ -4628,6 +4628,7 @@ pub(crate) fn get_webhook_reference(
             // connector_dispute_id, so leave it None and surface the parent payment_intent as
             // connector_transaction_id to match HS byte-for-byte.
             WebhookResourceReference::Dispute(DisputeWebhookReference {
+                merchant_transaction_id: None,
                 connector_dispute_id: None,
                 connector_transaction_id: event_object.payment_intent.clone(),
             })
@@ -4798,6 +4799,7 @@ pub(crate) fn build_webhook_refund_response(
     };
 
     Ok(RefundWebhookDetailsResponse {
+        refund_amount: None,
         connector_refund_id: Some(event_object.id.clone()),
         merchant_transaction_id: None,
         status,
@@ -4834,6 +4836,7 @@ pub(crate) fn build_webhook_dispute_response(
         .unwrap_or(common_enums::DisputeStatus::DisputeOpened);
 
     Ok(DisputeWebhookDetailsResponse {
+        connector_transaction_id: None,
         amount,
         currency: event_object.currency,
         dispute_id: event_object.id.clone(),

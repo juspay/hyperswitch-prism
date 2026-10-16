@@ -4321,6 +4321,10 @@ message PaymentMethodAuthenticationServiceAuthenticateResponse {
 
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 13;
+
+  // Observed connector checks and captured money; absent when not reported.
+  optional ConnectorResponseData connector_response = 15;
+  optional Money captured_amount = 16;
 }
 
 // Request message for post-authentication step

@@ -1,0 +1,94 @@
+{
+  "schema": "connector-suite-dependencies/1",
+  "suites": {
+    "RecurringPaymentService/Charge": {
+      "reason": "Use actual vault customer/payment token from completed zero-value SetupRecurring; unsupported CustomerCreate is skipped by existing capability check, never fabricate a customer.",
+      "depends_on": [
+        "MerchantAuthenticationService/CreateServerAuthenticationToken",
+        {
+          "suite": "PaymentService/SetupRecurring",
+          "context_map": {
+            "connector_customer_id": "res.state.connector_customer_id",
+            "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id": "res.mandate_reference_details.connector_mandate_id",
+            "customer.id": "req.customer.id",
+            "customer.connector_customer_id": "res.state.connector_customer_id"
+          }
+        }
+      ],
+      "strict_dependencies": true
+    },
+    "PaymentMethodAuthenticationService/Authenticate": {
+      "reason": "PayPal native Authenticate is its first protocol leg; real OAuth is required, PreAuthenticate is not implemented.",
+      "depends_on": [
+        "MerchantAuthenticationService/CreateServerAuthenticationToken"
+      ],
+      "strict_dependencies": true
+    },
+    "PaymentMethodAuthenticationService/PostAuthenticate": {
+      "reason": "Verify exact native order after browser approval, preserve original context; OAuth and Authenticate are real prerequisites.",
+      "depends_on": [
+        "MerchantAuthenticationService/CreateServerAuthenticationToken",
+        {
+          "suite": "PaymentMethodAuthenticationService/Authenticate",
+          "scenario": "threeds_card_authenticate",
+          "context_map": {
+            "merchant_order_id": "res.merchant_order_id",
+            "connector_order_reference_id": "res.connector_transaction_id",
+            "state": "req.state",
+            "connector_feature_data": "res.connector_feature_data",
+            "authentication_data": "res.authentication_data",
+            "redirection_response.payload.transaction_id": "res.connector_transaction_id"
+          }
+        }
+      ],
+      "strict_dependencies": true
+    },
+    "PaymentService/CompleteAuthorize": {
+      "reason": "This suite invokes Authorize RPC itself. Remove the global monetary Authorize dependency to avoid charging once in the dependency and again in completion; use actual native Authenticate/PostAuthenticate lineage.",
+      "depends_on": [
+        "MerchantAuthenticationService/CreateServerAuthenticationToken",
+        {
+          "suite": "PaymentMethodAuthenticationService/Authenticate",
+          "scenario": "threeds_card_authenticate",
+          "context_map": {
+            "merchant_order_id": "res.merchant_order_id",
+            "state": "req.state",
+            "connector_feature_data": "res.connector_feature_data",
+            "connector_order_id": "res.connector_transaction_id",
+            "redirection_response.payload.transaction_id": "res.connector_transaction_id"
+          }
+        },
+        {
+          "suite": "PaymentMethodAuthenticationService/PostAuthenticate",
+          "scenario": "threeds_card_post_authenticate",
+          "context_map": {
+            "merchant_order_id": "res.merchant_order_id",
+            "state": "req.state",
+            "connector_feature_data": "res.connector_feature_data",
+            "connector_order_id": "res.connector_transaction_id",
+            "authentication_data": "res.authentication_data",
+            "redirection_response": "req.redirection_response"
+          }
+        }
+      ],
+      "strict_dependencies": true
+    },
+    "PaymentService/Get": {
+      "reason": "PayPal Get requires the actual canonical order metadata, including capture context and opaque caller keys; use the actual Authorize response, never a fake resource or independent scalar override.",
+      "depends_on": [
+        "MerchantAuthenticationService/CreateServerAuthenticationToken",
+        {
+          "suite": "PaymentService/Authorize",
+          "scenario": "no3ds_auto_capture_credit_card",
+          "context_map": {
+            "connector_transaction_id": "res.connector_transaction_id",
+            "amount.minor_amount": "req.amount.minor_amount",
+            "amount.currency": "req.amount.currency",
+            "connector_feature_data": "res.connector_feature_data"
+          }
+        }
+      ],
+      "strict_dependencies": true
+    }
+  }
+}

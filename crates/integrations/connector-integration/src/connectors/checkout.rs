@@ -202,6 +202,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
             return Ok(Some(WebhookResourceReference::Dispute(
                 DisputeWebhookReference {
+                    merchant_transaction_id: None,
                     connector_dispute_id: Some(body.data.id),
                     connector_transaction_id: body.data.payment_id,
                 },
@@ -311,6 +312,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )?;
 
         Ok(RefundWebhookDetailsResponse {
+            refund_amount: None,
             // action_id is the refund's PSP identifier
             connector_refund_id: body.data.action_id,
             merchant_transaction_id: None,
@@ -358,6 +360,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         )?;
 
         Ok(DisputeWebhookDetailsResponse {
+            connector_transaction_id: None,
             amount,
             currency,
             dispute_id: body.data.id,

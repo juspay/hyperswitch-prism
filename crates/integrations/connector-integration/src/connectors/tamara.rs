@@ -343,6 +343,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
+                refund_amount: None,
                 connector_refund_id: refund_id,
                 merchant_transaction_id: event.order_reference_id,
                 status: RefundStatus::from(event.event_type),

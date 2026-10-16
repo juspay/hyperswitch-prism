@@ -17,7 +17,7 @@ Contract matches the gates beside it (refusal_gate.py, test_author_gate.py, thre
 stdlib only, exit 0 pass / 1 fail / 2 could-not-evaluate, a JSON report carrying `summary`,
 `inconclusive[]` and `needs_human[]`, and `--replay` for a self-check.
 """
-import argparse, json, os, sys
+import argparse, json, os, sys, subprocess, tempfile
 
 MAX_CURRENT_LINES = 20          # 2.6e_rca.md fix[].current: "<verbatim, <=20 lines, redacted>"
 MAX_EXCERPT_LINES = 20
@@ -57,6 +57,35 @@ def check_brief(doc, plan_item_ids=None, foundation_ids=None):
         "schema=%r unit=%r items=%s" % (schema, doc.get("unit"),
                                         len(items) if isinstance(items, list) else type(items).__name__))
     if not isinstance(items, list):
+        return checks, inc, human
+
+    malformed = [i for i, it in enumerate(items) if not isinstance(it, dict)]
+    add("BRIEF-08", "items_are_objects", not malformed,
+        "non-object entries: %s" % malformed)
+    if malformed:
+        return checks, inc, human
+    invalid_ids = [i for i, it in enumerate(items)
+                   if not isinstance(it.get("item_id"), str) or not it["item_id"].strip()]
+    add("BRIEF-09", "item_ids_are_nonempty_strings", not invalid_ids,
+        "invalid ids at entries: %s" % invalid_ids)
+    if invalid_ids:
+        return checks, inc, human
+
+    malformed_fields = [i for i, it in enumerate(items)
+                        if not isinstance(it.get("file"), str)
+                        or not isinstance(it.get("current"), str)
+                        or not isinstance(it.get("line_start"), int)
+                        or isinstance(it.get("line_start"), bool)
+                        or not isinstance(it.get("line_end"), int)
+                        or isinstance(it.get("line_end"), bool)
+                        or it.get("line_start", 0) < 1
+                        or it.get("line_end", 0) < it.get("line_start", 0)
+                        or not isinstance(it.get("types", []), list)
+                        or any(not isinstance(t, dict) or not isinstance(t.get("signature"), str)
+                               for t in it.get("types", []))]
+    add("BRIEF-10", "field_shapes", not malformed_fields,
+        "malformed fields at entries: %s" % malformed_fields)
+    if malformed_fields:
         return checks, inc, human
 
     missing = [{"i": i, "absent": [f for f in ITEM_FIELDS if not it.get(f)]}
@@ -171,16 +200,86 @@ def main():
     if a.plan:
         try:
             pd = json.load(open(a.plan))
-            plan_ids = [it.get("id") for u in (pd.get("units") or [])
-                        if (a.unit is None or u.get("unit") == a.unit)
-                        for it in (u.get("items") or []) if not it.get("withdrawn")]
+            if not isinstance(pd, dict):
+                raise ValueError("plan must be an object")
+            units = pd.get("units", pd.get("code_units", []))
+            hs_items = pd.get("hs_changes", [])
+            if not isinstance(units, list) or not isinstance(hs_items, list):
+                raise ValueError("units and hs_changes must be arrays")
+            all_items = []
+            selected = []
+            for unit in units:
+                if not isinstance(unit, dict) or not isinstance(unit.get("unit"), str):
+                    raise ValueError("malformed unit")
+                entries = unit.get("items", [])
+                if not isinstance(entries, list):
+                    raise ValueError("unit items must be an array")
+                for it in entries:
+                    if not isinstance(it, dict) or it.get("unit", unit["unit"]) != unit["unit"]:
+                        raise ValueError("malformed or cross-unit plan item")
+                    all_items.append(it)
+                    if a.unit is None or unit["unit"] == a.unit:
+                        selected.append(it)
+            for it in hs_items:
+                if not isinstance(it, dict) or it.get("unit", "__hs__") != "__hs__":
+                    raise ValueError("malformed or cross-unit HS item")
+                all_items.append(it)
+                if a.unit is None or a.unit == "__hs__":
+                    selected.append(it)
+            known_units = {unit["unit"] for unit in units}
+            if hs_items:
+                known_units.add("__hs__")
+            if a.unit is not None and a.unit not in known_units:
+                raise ValueError("unknown selected unit")
+            foundation_entries = pd.get("foundation", [])
+            if not isinstance(foundation_entries, list):
+                raise ValueError("foundation must be an array")
+            all_items += foundation_entries
+            ids = []
+            for it in all_items:
+                if not isinstance(it, dict) or not isinstance(it.get("id"), str) or not it["id"].strip():
+                    raise ValueError("malformed plan item id")
+                ids.append(it["id"])
+            if len(ids) != len(set(ids)):
+                raise ValueError("duplicate plan item id")
+            plan_ids = [it["id"] for it in selected if not it.get("withdrawn")]
             # plan §2 foundation items are carried by the FIRST planned unit's brief
             # (2.3b RULES 1: "NEW implements plan §4[UNIT] (+ §2 for the first unit)"),
             # so they are legitimate brief entries, not invented ones.
             foundation = [it.get("id") for it in (pd.get("foundation") or [])
                           if not it.get("withdrawn")]
+            # Foundation declarations belong to the first canonical planned code
+            # unit. Aggregate validation (no --unit) may include them as before.
+            ordinary_units = [u["unit"] for u in units
+                              if u["unit"] not in ("__hs__", "__finalize__")]
+            if "order" in pd:
+                order = pd["order"]
+                if not isinstance(order, list) or any(
+                    not isinstance(row, dict)
+                    or not isinstance(row.get("unit"), str)
+                    or isinstance(row.get("seq"), bool)
+                    or not ((isinstance(row.get("seq"), int) and row["seq"] >= 0)
+                            or (isinstance(row.get("seq"), str) and row["seq"].isascii()
+                                and row["seq"].isdigit()))
+                    for row in order
+                ):
+                    raise ValueError("malformed canonical unit order")
+                ordinals = [int(row["seq"]) for row in order]
+                if len(ordinals) != len(set(ordinals)):
+                    raise ValueError("duplicate canonical unit ordinal")
+                first_owner = next((row["unit"] for row in sorted(order, key=lambda row: int(row["seq"]))
+                                    if row.get("status") == "planned"
+                                    and row["unit"] in ordinary_units), None)
+            else:
+                # Older plans without order use their canonical unit declaration
+                # order; never grant foundation ownership to HS/finalization.
+                first_owner = next(iter(ordinary_units), None)
+            if a.unit is not None and a.unit != first_owner:
+                foundation = []
         except Exception as e:
-            inc.append("plan unreadable (%s): coverage not checked" % str(e)[:60])
+            return emit({"pass": False, "checks": [], "inconclusive": [],
+                         "needs_human": ["plan invalid: %s" % str(e)[:100]],
+                         "summary": {}}, a.out, 2)
 
     n_items = 0
     if a.brief:
@@ -189,6 +288,10 @@ def main():
         except Exception as e:
             return emit({"pass": False, "checks": [], "inconclusive": [],
                          "needs_human": ["brief unreadable: %s" % str(e)[:80]],
+                         "summary": {}}, a.out, 2)
+        if a.unit and (not isinstance(doc, dict) or doc.get("unit") != a.unit):
+            return emit({"pass": False, "checks": [], "inconclusive": [],
+                         "needs_human": ["brief unit does not match --unit"],
                          "summary": {}}, a.out, 2)
         c, i, h = check_brief(doc, plan_ids, foundation)
         checks += c; inc += i; human += h
@@ -288,6 +391,99 @@ def _replay():
     # blank lines are not records
     c, _, recs = check_fixlog(["", ok_lines[0], "  "])
     assert len(recs) == 1 and all(x["pass"] for x in c)
+
+    # Exercise actual CLI selection and fail-closed validation, not only helpers.
+    with tempfile.TemporaryDirectory(prefix="grace-brief-replay-") as directory:
+        plan_path = os.path.join(directory, "plan.json")
+        brief_path = os.path.join(directory, "brief.json")
+        hs = json.loads(json.dumps(good))
+        hs["unit"] = "__hs__"
+        hs["items"][0]["item_id"] = "P-__hs__-01"
+        plan = {"units": [{"unit": "Refund", "items": [{"id": "P-Refund-01"}]}],
+                "hs_changes": [{"id": "P-__hs__-01", "unit": "__hs__"}], "foundation": []}
+
+        def cli(brief, document, expected, selected_unit="__hs__"):
+            with open(brief_path, "w") as handle:
+                json.dump(brief, handle)
+            with open(plan_path, "w") as handle:
+                json.dump(document, handle)
+            result = subprocess.run([sys.executable, os.path.abspath(__file__), "--brief",
+                                     brief_path, "--plan", plan_path]
+                                    + (["--unit", selected_unit] if selected_unit is not None else []),
+                                    capture_output=True, text=True, check=False)
+            report = json.loads(result.stdout)
+            assert result.returncode == expected, report
+            assert report["pass"] == (expected == 0), report
+
+        cli(hs, plan, 0)
+        scoped = json.loads(json.dumps(plan))
+        scoped["foundation"] = [{"id": "P-foundation-01"}]
+        scoped["units"].append({"unit": "Capture", "items": [{"id": "P-Capture-01"}]})
+        scoped["order"] = [{"seq": 2, "unit": "Capture", "status": "planned"},
+                           {"seq": 1, "unit": "Refund", "status": "planned"}]
+        foundation_item = dict(good["items"][0], item_id="P-foundation-01")
+        first = json.loads(json.dumps(good))
+        first["items"].append(foundation_item)
+        cli(first, scoped, 0, "Refund")
+        numeric_strings = json.loads(json.dumps(scoped))
+        for row in numeric_strings["order"]:
+            row["seq"] = "%02d" % row["seq"]
+        cli(first, numeric_strings, 0, "Refund")
+        malformed_order = json.loads(json.dumps(scoped))
+        malformed_order["order"][0]["seq"] = "first"
+        cli(first, malformed_order, 2, "Refund")
+        for invalid_seq in (-1, True, 1.5):
+            invalid_order = json.loads(json.dumps(scoped))
+            invalid_order["order"][0]["seq"] = invalid_seq
+            cli(first, invalid_order, 2, "Refund")
+        duplicate_order = json.loads(json.dumps(scoped))
+        duplicate_order["order"][0]["seq"] = "00"
+        duplicate_order["order"][1]["seq"] = 0
+        cli(first, duplicate_order, 2, "Refund")
+        later = json.loads(json.dumps(good))
+        later["unit"] = "Capture"
+        later["items"][0]["item_id"] = "P-Capture-01"
+        cli(later, scoped, 0, "Capture")
+        later["items"].append(foundation_item)
+        cli(later, scoped, 1, "Capture")
+        wrong_foundation = json.loads(json.dumps(hs))
+        wrong_foundation["items"].append(foundation_item)
+        cli(wrong_foundation, scoped, 1)
+        aggregate = json.loads(json.dumps(first))
+        aggregate["items"].append(dict(good["items"][0], item_id="P-Capture-01"))
+        aggregate["items"].append(dict(good["items"][0], item_id="P-__hs__-01"))
+        cli(aggregate, scoped, 0, None)
+        empty = dict(hs, unit="MisspelledUnit", items=[])
+        with open(brief_path, "w") as handle:
+            json.dump(empty, handle)
+        with open(plan_path, "w") as handle:
+            json.dump(plan, handle)
+        result = subprocess.run([sys.executable, os.path.abspath(__file__), "--brief",
+                                 brief_path, "--plan", plan_path, "--unit", "MisspelledUnit"],
+                                capture_output=True, text=True, check=False)
+        assert result.returncode == 2 and not json.loads(result.stdout)["pass"]
+        malformed = json.loads(json.dumps(hs))
+        malformed["items"][0]["types"][0]["signature"] = 42
+        cli(malformed, plan, 1)
+        for invalid in ("P-invented-99", "P-Refund-01"):
+            copy = json.loads(json.dumps(hs))
+            copy["items"][0]["item_id"] = invalid
+            cli(copy, plan, 1)
+        copy = json.loads(json.dumps(hs))
+        copy["items"].append(dict(copy["items"][0]))
+        cli(copy, plan, 1)
+        copy = json.loads(json.dumps(hs))
+        copy["items"] = ["malformed"]
+        cli(copy, plan, 1)
+        copy = json.loads(json.dumps(plan))
+        copy["hs_changes"].append(dict(copy["hs_changes"][0]))
+        cli(hs, copy, 2)
+        copy = json.loads(json.dumps(plan))
+        copy["hs_changes"][0]["unit"] = "Refund"
+        cli(hs, copy, 2)
+        copy = json.loads(json.dumps(hs))
+        copy["unit"] = "Refund"
+        cli(copy, plan, 2)
 
     print("replay OK: a path or empty signature fails BRIEF-04, current obeys the fix[] 20-line "
           "cap, plan coverage fails on both invented and dropped items and is inconclusive "

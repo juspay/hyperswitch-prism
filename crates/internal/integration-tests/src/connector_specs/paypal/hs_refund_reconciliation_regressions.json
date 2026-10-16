@@ -1,0 +1,91 @@
+{
+  "schema": "paypal-hs-refund-reconciliation-regressions/1",
+  "finding": "HSR01",
+  "status": "OPEN_BLOCKING_UNRESOLVED",
+  "maximum_evidence_state": "IMPLEMENTED",
+  "implementation_state": "Current HS implementation has confirmed terminal-status downgrade defect; this artifact specifies required regression behavior, not a fix.",
+  "production_fix": "NOT_IMPLEMENTED: HS amendment cap exhausted; no HS source changes authorized in this stage.",
+  "execution_surface": "hs_to_ucs_fault_injection",
+  "execution_status": "NOT_RUN",
+  "cases": [
+    {
+      "case_id": "RSync/HSR01/stored_success_get503",
+      "surface": "hs_to_ucs_fault_injection",
+      "hs_request": {
+        "operation": "forced_refund_sync",
+        "all_keys_required": true
+      },
+      "precondition": {
+        "stored_refund_status": "Success",
+        "refund_id": "BIND_ACTUAL_HS_REFUND_ID",
+        "connector_refund_id": "BIND_ACTUAL_CONNECTOR_REFUND_ID",
+        "integrity": "BIND_EXISTING_REFUND_INTEGRITY"
+      },
+      "fault": {
+        "endpoint": "GET /v2/payments/refunds/{actual_refund_id}",
+        "http_status": 503,
+        "resource_outcome": "UNKNOWN_TRANSPORT_ERROR_NOT_A_NEW_PENDING_RESOURCE"
+      },
+      "assert": {
+        "stored_refund_status_after": "Success",
+        "refund_id_after": "equals_before",
+        "connector_refund_id_after": "equals_before",
+        "integrity_after": "equals_before",
+        "error_context": "retain_actual_error_code_message_and_http_status",
+        "must_not_do": [
+          "downgrade_terminal_status_to_Pending",
+          "fabricate_resource_status_or_money",
+          "erase_known_refund_identifier"
+        ],
+        "stored_refund_amount_after": "equals_before",
+        "stored_currency_after": "equals_before",
+        "error_context_scope": "Actual transport diagnostics only; do not overwrite known terminal resource outcome or fabricate a processor failure."
+      },
+      "execution_status": "NOT_RUN",
+      "evidence_state": "IMPLEMENTED",
+      "bug": "HSR01",
+      "blocking": true
+    },
+    {
+      "case_id": "RSync/HSR01/stored_failure_get401",
+      "surface": "hs_to_ucs_fault_injection",
+      "hs_request": {
+        "operation": "forced_refund_sync",
+        "all_keys_required": true
+      },
+      "precondition": {
+        "stored_refund_status": "Failure",
+        "refund_id": "BIND_ACTUAL_HS_REFUND_ID",
+        "connector_refund_id": "BIND_ACTUAL_CONNECTOR_REFUND_ID",
+        "integrity": "BIND_EXISTING_REFUND_INTEGRITY"
+      },
+      "fault": {
+        "endpoint": "GET /v2/payments/refunds/{actual_refund_id}",
+        "http_status": 401,
+        "resource_outcome": "UNKNOWN_TRANSPORT_ERROR_NOT_A_NEW_PENDING_RESOURCE"
+      },
+      "assert": {
+        "stored_refund_status_after": "Failure",
+        "refund_id_after": "equals_before",
+        "connector_refund_id_after": "equals_before",
+        "integrity_after": "equals_before",
+        "error_context": "retain_actual_error_code_message_and_http_status",
+        "must_not_do": [
+          "downgrade_terminal_status_to_Pending",
+          "fabricate_resource_status_or_money",
+          "erase_known_refund_identifier"
+        ],
+        "stored_refund_amount_after": "equals_before",
+        "stored_currency_after": "equals_before",
+        "error_context_scope": "Actual transport diagnostics only; do not overwrite known terminal resource outcome or fabricate a processor failure."
+      },
+      "execution_status": "NOT_RUN",
+      "evidence_state": "IMPLEMENTED",
+      "bug": "HSR01",
+      "blocking": true
+    }
+  ],
+  "fixture_discipline": "Use actual stored refund ID/connector refund ID and integrity context from an owned HS fixture. Initial stored terminal status is explicit controlled HS test precondition, not a fabricated PayPal resource outcome. No nonexistent previous_status field may be added to UCS proto. Fault injection is transport-only and must preserve observable source/error provenance.",
+  "runner_binding": "Final HS E2E stage owns actual driver/exact command and fault oracle; absent execution report NOT_RUN, never VERIFIED.",
+  "pr_requirement": "HSR01 stays open blocking; name each nonPASS case and actual maximum evidence. No green compile/CI result substitutes for fault oracle."
+}

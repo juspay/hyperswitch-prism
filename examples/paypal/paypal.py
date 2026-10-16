@@ -8,14 +8,14 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import PaymentMethodAuthenticationClient
 from payments import MerchantAuthenticationClient
 from payments import EventClient
-from payments import PaymentMethodAuthenticationClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "create_server_authentication_token", "get", "parse_event", "post_authenticate", "proxy_authorize", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authenticate", "authorize", "capture", "create_client_authentication_token", "create_order", "create_server_authentication_token", "get", "parse_event", "post_authenticate", "proxy_authorize", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -32,6 +32,44 @@ _default_config = sdk_config_pb2.ConnectorConfig(
 
 
 
+def _build_authenticate_request():
+    return payment_pb2.PaymentMethodAuthenticationServiceAuthenticateRequest(
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
+            card=payment_methods_pb2.CardDetails(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_cvc=payment_methods_pb2.SecretString(value="737"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            ),
+        ),
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            shipping_address=payment_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="Jane"),  # Personal Information.
+                last_name=payment_methods_pb2.SecretString(value="Doe"),
+                line1=payment_methods_pb2.SecretString(value="12 Main Street"),  # Address Details.
+                city=payment_methods_pb2.SecretString(value="Seattle"),
+                state=payment_methods_pb2.SecretString(value="WA"),
+                zip_code=payment_methods_pb2.SecretString(value="98101"),
+                country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
+            ),
+            billing_address=payment_pb2.Address(),
+        ),
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authentication_order_context\":{\"version\":1,\"request\":{\"merchant_transaction_id\":\"probe_paypal_native\",\"merchant_order_id\":\"probe_native_order\",\"order_tax_amount\":100,\"shipping_cost\":200,\"setup_future_usage\":\"OFF_SESSION\",\"billing_descriptor\":{\"statement_descriptor\":\"PROBE NATIVE\"},\"l2_l3_data\":{\"order_info\":{\"merchant_order_reference_id\":\"probe_native_l23\",\"order_details\":[]}},\"description\":\"Native safe context probe\"}}}"),  # Connector-specific metadata for the transaction.
+        return_url="https://example.com/3ds-return",  # URLs for Redirection.
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
+
 def _build_authorize_request(capture_method: str):
     return payment_pb2.PaymentServiceAuthorizeRequest(
         merchant_transaction_id="probe_txn_001",  # Identification.
@@ -39,6 +77,8 @@ def _build_authorize_request(capture_method: str):
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
+        order_tax_amount=100,  # Tax amount for the order.
+        shipping_cost=200,  # Cost of shipping for the order.
         payment_method=payment_methods_pb2.PaymentMethod(  # Payment method to be used.
             card=payment_methods_pb2.CardDetails(
                 card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
@@ -50,15 +90,52 @@ def _build_authorize_request(capture_method: str):
         ),
         capture_method=payment_pb2.CaptureMethod.Value(capture_method),  # Method for capturing the payment.
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(),
+            shipping_address=payment_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="Jane"),  # Personal Information.
+                last_name=payment_methods_pb2.SecretString(value="Doe"),
+                line1=payment_methods_pb2.SecretString(value="12 Main Street"),  # Address Details.
+                city=payment_methods_pb2.SecretString(value="Seattle"),
+                state=payment_methods_pb2.SecretString(value="WA"),
+                zip_code=payment_methods_pb2.SecretString(value="98101"),
+                country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
+            ),
+            billing_address=payment_pb2.Address(
+                line2=payment_methods_pb2.SecretString(value="Suite 10"),
+                state=payment_methods_pb2.SecretString(value="WA"),
+            ),
         ),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"),  # Connector-specific feature data for the transaction.
         return_url="https://example.com/return",  # URLs for Redirection and Webhooks.
+        billing_descriptor=payment_pb2.BillingDescriptor(  # Statement Descriptor.
+            statement_descriptor="PROBE DESCRIPTOR",  # Complete description that appears on customers' statements.
+        ),
         state=payment_pb2.ConnectorState(  # State Information.
             access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
                 token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
                 expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
                 token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+        l2_l3_data=payment_pb2.L2L3Data(  # Level 2 / Level 3 data for enhanced payment processing.
+            order_info=payment_pb2.OrderInfo(  # Order-level information.
+                order_details=[  # Line items for the order.
+                    payment_pb2.OrderDetailsWithAmount(
+                        product_name="Probe item",  # Name of the product that is being purchased.
+                        quantity=1,  # The quantity of the product to be purchased.
+                        amount=700,  # Amount per quantity (in minor currency units).
+                        total_tax_amount=100,  # Total tax amount (in minor currency units).
+                        product_id="sku_probe_001",  # ID of the product that is being purchased.
+                        description="Probe line item",  # Description for the item.
+                        unit_of_measure="EACH",  # Unit of measure used for the item quantity.
+                        commodity_code="4900",  # Commodity code describing the product classification.
+                    ),
+                ],
+                merchant_order_reference_id="probe_invoice_001",  # Merchant's internal reference ID for the order.
+                shipping_cost=200,  # Shipping cost for the order (in minor currency units).
+            ),
+            tax_info=payment_pb2.TaxInfo(  # Tax information.
+                order_tax_amount=100,  # Total tax amount for the order (in minor currency units).
             ),
         ),
     )
@@ -71,6 +148,8 @@ def _build_capture_request(connector_transaction_id: str):
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"),  # Connector-specific metadata for the transaction.
+        capture_method=payment_pb2.CaptureMethod.Value("MANUAL"),  # Capture Settings.
         state=payment_pb2.ConnectorState(  # State Information.
             access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
                 token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
@@ -83,6 +162,7 @@ def _build_capture_request(connector_transaction_id: str):
 def _build_create_client_authentication_token_request():
     return payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(
         merchant_client_session_id="probe_sdk_session_001",  # Infrastructure.
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"),
         payment=payment_pb2.PaymentClientAuthenticationContext(
             amount=payment_pb2.Money(
                 minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
@@ -98,6 +178,7 @@ def _build_create_order_request():
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"),  # Connector-specific metadata for the transaction.
         state=payment_pb2.ConnectorState(  # State Information.
             access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
                 token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
@@ -109,6 +190,7 @@ def _build_create_order_request():
 
 def _build_create_server_authentication_token_request():
     return payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest(
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"),  # Connector-specific metadata for the transaction.
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -126,6 +208,7 @@ def _build_get_request(connector_transaction_id: str):
                 token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
             ),
         ),
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"),  # Connector-specific metadata for the transaction.
     )
 
 def _build_parse_event_request():
@@ -156,7 +239,7 @@ def _build_post_authenticate_request():
         address=payment_pb2.PaymentAddress(  # Address Information.
             billing_address=payment_pb2.Address(),
         ),
-        connector_order_reference_id="probe_order_ref_001",
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"),  # Connector-specific metadata for the transaction.
         state=payment_pb2.ConnectorState(  # State Information.
             access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
                 token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
@@ -187,6 +270,7 @@ def _build_proxy_authorize_request():
         capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
         return_url="https://example.com/return",
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"),
         state=payment_pb2.ConnectorState(
             access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
                 token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
@@ -198,9 +282,10 @@ def _build_proxy_authorize_request():
 
 def _build_recurring_charge_request():
     return payment_pb2.RecurringPaymentServiceChargeRequest(
+        merchant_charge_id="probe_paypal_mit_charge",  # Reference ID for tracking.
         connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
-            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
-                connector_mandate_id="probe-mandate-123",
+            network_mandate_id=payment_pb2.NetworkMandateId(
+                network_transaction_id="123456789012345",
             ),
         ),
         amount=payment_pb2.Money(  # Amount Information.
@@ -208,11 +293,28 @@ def _build_recurring_charge_request():
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
         payment_method=payment_methods_pb2.PaymentMethod(  # Optional payment Method Information (for network transaction flows).
-            token=payment_methods_pb2.TokenPaymentMethodType(
-                token=payment_methods_pb2.SecretString(value="probe_pm_token"),  # The token string representing a payment method.
+            card_details_for_network_transaction_id=payment_methods_pb2.CardDetailsForNetworkTransactionId(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),
             ),
         ),
+        metadata=payment_methods_pb2.SecretString(value="{\"paypal_mit\":{\"version\":1,\"previous_network_transaction_reference\":{\"id\":\"123456789012345\",\"network\":\"VISA\",\"date\":\"1014\"}}}"),  # Additional metadata for the connector.
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"),  # Connector-specific metadata for the transaction.
         return_url="https://example.com/recurring-return",
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            shipping_address=payment_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="Jane"),  # Personal Information.
+                last_name=payment_methods_pb2.SecretString(value="Doe"),
+                line1=payment_methods_pb2.SecretString(value="12 Main Street"),  # Address Details.
+                city=payment_methods_pb2.SecretString(value="Seattle"),
+                state=payment_methods_pb2.SecretString(value="WA"),
+                zip_code=payment_methods_pb2.SecretString(value="98101"),
+                country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
+            ),
+        ),
         connector_customer_id="cust_probe_123",
         payment_method_type=payment_pb2.PaymentMethodType.Value("PAY_PAL"),
         off_session=True,  # Behavioral Flags and Preferences.
@@ -221,6 +323,14 @@ def _build_recurring_charge_request():
                 token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
                 expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
                 token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+        billing_descriptor=payment_pb2.BillingDescriptor(  # Billing Descriptor.
+            statement_descriptor="PROBE PAYPAL",  # Complete description that appears on customers' statements.
+        ),
+        l2_l3_data=payment_pb2.L2L3Data(  # Level 2 / Level 3 data for enhanced payment processing.
+            order_info=payment_pb2.OrderInfo(  # Order-level information.
+                merchant_order_reference_id="probe_paypal_mit",  # Merchant's internal reference ID for the order.
             ),
         ),
     )
@@ -235,6 +345,7 @@ def _build_refund_request(connector_transaction_id: str):
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
         reason="customer_request",  # Reason for the refund.
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"),  # Connector-specific metadata for the transaction.
         state=payment_pb2.ConnectorState(  # State data for access token storage and.
             access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
                 token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
@@ -279,6 +390,7 @@ def _build_setup_recurring_request():
         ),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Type of authentication to be used.
         enrolled_for_3ds=False,  # Indicates if the customer is enrolled for 3D Secure.
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"),  # Connector-specific metadata for the transaction.
         return_url="https://example.com/mandate-return",  # URL to redirect after setup.
         setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),  # Indicates future usage intention.
         request_incremental_authorization=False,  # Indicates if incremental authorization is requested.
@@ -299,6 +411,7 @@ def _build_void_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceVoidRequest(
         merchant_void_id="probe_void_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"),  # Connector-specific metadata for the transaction.
         state=payment_pb2.ConnectorState(  # State Information.
             access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
                 token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
@@ -420,6 +533,15 @@ async def process_get_payment(merchant_transaction_id: str, config: sdk_config_p
     return {"status": getattr(get_response, "status", ""), "transaction_id": getattr(get_response, "connector_transaction_id", ""), "error": getattr(get_response, "error", None)}
 
 
+async def process_authenticate(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentMethodAuthenticationService.Authenticate"""
+    paymentmethodauthentication_client = PaymentMethodAuthenticationClient(config)
+
+    authenticate_response = await paymentmethodauthentication_client.authenticate(_build_authenticate_request())
+
+    return {"status": authenticate_response.status}
+
+
 async def process_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Authorize (Card)"""
     payment_client = PaymentClient(config)
@@ -433,7 +555,7 @@ async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.C
     """Flow: PaymentService.Capture"""
     payment_client = PaymentClient(config)
 
-    capture_response = await payment_client.capture(_build_capture_request("probe_connector_txn_001"))
+    capture_response = await payment_client.capture(_build_capture_request("probe_auth_001"))
 
     return {"status": capture_response.status}
 
@@ -469,7 +591,7 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
 
-    get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
+    get_response = await payment_client.get(_build_get_request("probe_cap_001"))
 
     return {"status": get_response.status}
 
@@ -532,7 +654,7 @@ async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.Conn
     """Flow: PaymentService.Void"""
     payment_client = PaymentClient(config)
 
-    void_response = await payment_client.void(_build_void_request("probe_connector_txn_001"))
+    void_response = await payment_client.void(_build_void_request("probe_auth_001"))
 
     return {"status": void_response.status}
 

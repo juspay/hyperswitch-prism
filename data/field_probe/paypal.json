@@ -3,8 +3,56 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: authenticate flow for paypal"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {}
+          },
+          "connector_feature_data": "{\"authentication_order_context\":{\"version\":1,\"request\":{\"merchant_transaction_id\":\"probe_paypal_native\",\"merchant_order_id\":\"probe_native_order\",\"order_tax_amount\":100,\"shipping_cost\":200,\"setup_future_usage\":\"OFF_SESSION\",\"billing_descriptor\":{\"statement_descriptor\":\"PROBE NATIVE\"},\"l2_l3_data\":{\"order_info\":{\"merchant_order_reference_id\":\"probe_native_l23\",\"order_details\":[]}},\"description\":\"Native safe context probe\"}}}",
+          "return_url": "https://example.com/3ds-return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "prefer": "return=representation",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_paypal_native\",\"invoice_id\":\"probe_paypal_native\",\"custom_id\":\"probe_native_order\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"shipping\":{\"currency_code\":\"USD\",\"value\":\"2.00\"}}},\"shipping\":{\"address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"name\":{\"full_name\":\"Jane Doe\"}},\"items\":[{\"name\":\"Purchase\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}}],\"soft_descriptor\":\"PROBE NATIVE\",\"description\":\"Native safe context probe\",\"supplementary_data\":{\"card\":{\"level_2\":{\"invoice_id\":\"probe_native_l23\",\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}},\"level_3\":{\"shipping_amount\":{\"currency_code\":\"USD\",\"value\":\"2.00\"},\"shipping_address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"}}}}}],\"payment_source\":{\"card\":{\"expiry\":\"2030-03\",\"number\":\"4111111111111111\",\"security_code\":\"737\",\"attributes\":{\"vault\":{\"store_in_vault\":\"ON_SUCCESS\",\"usage_type\":\"MERCHANT\",\"permit_multiple_payment_tokens\":false},\"verification\":{\"method\":\"SCA_ALWAYS\"}}}}}"
+        }
       }
     },
     "authorize": {
@@ -13,8 +61,8 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "AchBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Affirm": {
         "status": "not_supported",
@@ -25,8 +73,8 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Alfamart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "AliPayRedirect": {
         "status": "not_supported",
@@ -37,8 +85,92 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "ApplePay": {
-        "status": "error",
-        "error": "Stuck on field: apple_pay_decrypted_data — Missing required field: apple_pay_decrypted_data"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "line2": "Suite 10",
+              "state": "WA"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
+          "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 700,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EACH",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_invoice_001",
+              "shipping_cost": 200
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-m.sandbox.paypal.com/v3/vault/setup-tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "prefer": "return=representation",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"payment_source\":{\"apple_pay\":{\"token\":\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0=\"}}}"
+        }
       },
       "ApplePayDecrypted": {
         "status": "supported",
@@ -48,6 +180,8 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "apple_pay_sdk": {
               "payment_data": {
@@ -73,15 +207,52 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "line2": "Suite 10",
+              "state": "WA"
+            }
           },
           "auth_type": "NO_THREE_DS",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
+            }
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 700,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EACH",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_invoice_001",
+              "shipping_cost": 200
+            },
+            "tax_info": {
+              "order_tax_amount": 100
             }
           }
         },
@@ -92,11 +263,11 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_txn_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"apple_pay\":{\"id\":\"probe_txn_id\",\"decrypted_token\":{\"tokenized_card\":{\"number\":\"4111111111111111\",\"expiry\":\"2030-03\"},\"payment_data_type\":\"3DSECURE\",\"payment_data\":{\"cryptogram\":\"AAAAAA==\",\"eci_indicator\":\"05\"},\"transaction_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"device_manufacturer_id\":\"040010030273\"}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"shipping\":{\"currency_code\":\"USD\",\"value\":\"2.00\"}}},\"shipping\":{\"address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"name\":{\"full_name\":\"Jane Doe\"}},\"items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}}],\"soft_descriptor\":\"PROBE DESCRIPTOR\",\"supplementary_data\":{\"card\":{\"level_2\":{\"invoice_id\":\"probe_invoice_001\",\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}},\"level_3\":{\"shipping_amount\":{\"currency_code\":\"USD\",\"value\":\"2.00\"},\"shipping_address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"line_items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"description\":\"Probe line item\",\"unit_of_measure\":\"EACH\",\"commodity_code\":\"4900\"}]}}}}],\"payment_source\":{\"apple_pay\":{\"id\":\"probe_txn_id\",\"decrypted_token\":{\"tokenized_card\":{\"number\":\"4111111111111111\",\"expiry\":\"2030-03\"},\"payment_data_type\":\"3DSECURE\",\"payment_data\":{\"cryptogram\":\"AAAAAA==\",\"eci_indicator\":\"05\"},\"transaction_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"device_manufacturer_id\":\"040010030273\"}}}}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -108,16 +279,16 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "BacsBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "BcaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Becs": {
         "status": "not_supported",
@@ -128,28 +299,28 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Bizum": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Bluecode": {
         "status": "not_supported",
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Boleto": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Card": {
         "status": "supported",
@@ -159,6 +330,8 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "card": {
               "card_number": "4111111111111111",
@@ -170,15 +343,52 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "line2": "Suite 10",
+              "state": "WA"
+            }
           },
           "auth_type": "NO_THREE_DS",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
+            }
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 700,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EACH",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_invoice_001",
+              "shipping_cost": 200
+            },
+            "tax_info": {
+              "order_tax_amount": 100
             }
           }
         },
@@ -189,11 +399,11 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_txn_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"2030-03\",\"name\":null,\"number\":\"4111111111111111\",\"security_code\":\"737\",\"attributes\":{\"vault\":null,\"verification\":null}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"shipping\":{\"currency_code\":\"USD\",\"value\":\"2.00\"}}},\"shipping\":{\"address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"name\":{\"full_name\":\"Jane Doe\"}},\"items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}}],\"soft_descriptor\":\"PROBE DESCRIPTOR\",\"supplementary_data\":{\"card\":{\"level_2\":{\"invoice_id\":\"probe_invoice_001\",\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}},\"level_3\":{\"shipping_amount\":{\"currency_code\":\"USD\",\"value\":\"2.00\"},\"shipping_address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"line_items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"description\":\"Probe line item\",\"unit_of_measure\":\"EACH\",\"commodity_code\":\"4900\"}]}}}}],\"payment_source\":{\"card\":{\"expiry\":\"2030-03\",\"number\":\"4111111111111111\",\"security_code\":\"737\",\"attributes\":{}}}}"
         }
       },
       "CashappQr": {
@@ -205,8 +415,8 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "ClassicReward": {
         "status": "not_supported",
@@ -221,8 +431,8 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -237,12 +447,12 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Efecty": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Eps": {
         "status": "supported",
@@ -252,23 +462,61 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "eps": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
             "billing_address": {
               "first_name": "John",
+              "line2": "Suite 10",
+              "state": "WA",
               "country_alpha2_code": "US"
             }
           },
           "auth_type": "NO_THREE_DS",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
+            }
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 700,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EACH",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_invoice_001",
+              "shipping_cost": 200
+            },
+            "tax_info": {
+              "order_tax_amount": 100
             }
           }
         },
@@ -279,16 +527,16 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_txn_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"eps\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"shipping\":{\"currency_code\":\"USD\",\"value\":\"2.00\"}}},\"shipping\":{\"address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"name\":{\"full_name\":\"Jane Doe\"}},\"items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}}],\"soft_descriptor\":\"PROBE DESCRIPTOR\",\"supplementary_data\":{\"card\":{\"level_2\":{\"invoice_id\":\"probe_invoice_001\",\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}},\"level_3\":{\"shipping_amount\":{\"currency_code\":\"USD\",\"value\":\"2.00\"},\"shipping_address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"line_items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"description\":\"Probe line item\",\"unit_of_measure\":\"EACH\",\"commodity_code\":\"4900\"}]}}}}],\"payment_source\":{\"eps\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"SET_PROVIDED_ADDRESS\"}}}}"
         }
       },
       "FamilyMart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "GCash": {
         "status": "not_supported",
@@ -302,23 +550,61 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "giropay": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
             "billing_address": {
               "first_name": "John",
+              "line2": "Suite 10",
+              "state": "WA",
               "country_alpha2_code": "US"
             }
           },
           "auth_type": "NO_THREE_DS",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
+            }
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 700,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EACH",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_invoice_001",
+              "shipping_cost": 200
+            },
+            "tax_info": {
+              "order_tax_amount": 100
             }
           }
         },
@@ -329,11 +615,11 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_txn_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"giropay\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"shipping\":{\"currency_code\":\"USD\",\"value\":\"2.00\"}}},\"shipping\":{\"address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"name\":{\"full_name\":\"Jane Doe\"}},\"items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}}],\"soft_descriptor\":\"PROBE DESCRIPTOR\",\"supplementary_data\":{\"card\":{\"level_2\":{\"invoice_id\":\"probe_invoice_001\",\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}},\"level_3\":{\"shipping_amount\":{\"currency_code\":\"USD\",\"value\":\"2.00\"},\"shipping_address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"line_items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"description\":\"Probe line item\",\"unit_of_measure\":\"EACH\",\"commodity_code\":\"4900\"}]}}}}],\"payment_source\":{\"giropay\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"SET_PROVIDED_ADDRESS\"}}}}"
         }
       },
       "Givex": {
@@ -345,8 +631,8 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: PayPal GooglePay encrypted flow"
+        "status": "not_supported",
+        "error": "PayPal REST does not accept an encrypted Google Pay token is not supported by paypal. Use a decrypted Google Pay card credential; client confirmOrder is not a server REST field"
       },
       "GooglePayDecrypted": {
         "status": "supported",
@@ -356,6 +642,8 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "google_pay_sdk": {
               "type": "CARD",
@@ -370,22 +658,60 @@
                   "card_exp_year": "2030",
                   "application_primary_account_number": "4111111111111111",
                   "cryptogram": "AAAAAA==",
-                  "eci_indicator": "05"
+                  "eci_indicator": "05",
+                  "auth_method": "CRYPTOGRAM_3DS"
                 }
               }
             }
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "line2": "Suite 10",
+              "state": "WA"
+            }
           },
           "auth_type": "NO_THREE_DS",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
+            }
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 700,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EACH",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_invoice_001",
+              "shipping_cost": 200
+            },
+            "tax_info": {
+              "order_tax_amount": 100
             }
           }
         },
@@ -396,11 +722,11 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_txn_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"google_pay\":{\"decrypted_token\":{\"message_id\":\"00000000-0000-0000-0000-000000000000\",\"message_expiration\":\"0000000000000\",\"payment_method\":\"CARD\",\"authentication_method\":\"CRYPTOGRAM_3DS\",\"cryptogram\":\"AAAAAA==\",\"eci_indicator\":\"05\",\"card\":{\"number\":\"4111111111111111\",\"expiry\":\"2030-03\"}}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"shipping\":{\"currency_code\":\"USD\",\"value\":\"2.00\"}}},\"shipping\":{\"address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"name\":{\"full_name\":\"Jane Doe\"}},\"items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}}],\"soft_descriptor\":\"PROBE DESCRIPTOR\",\"supplementary_data\":{\"card\":{\"level_2\":{\"invoice_id\":\"probe_invoice_001\",\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}},\"level_3\":{\"shipping_amount\":{\"currency_code\":\"USD\",\"value\":\"2.00\"},\"shipping_address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"line_items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"description\":\"Probe line item\",\"unit_of_measure\":\"EACH\",\"commodity_code\":\"4900\"}]}}}}],\"payment_source\":{\"google_pay\":{\"decrypted_token\":{\"payment_method\":\"CARD\",\"authentication_method\":\"CRYPTOGRAM_3DS\",\"cryptogram\":\"AAAAAA==\",\"eci_indicator\":\"05\",\"card\":{\"number\":\"4111111111111111\",\"expiry\":\"2030-03\"}}}}}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -415,23 +741,61 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "ideal": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
             "billing_address": {
               "first_name": "John",
+              "line2": "Suite 10",
+              "state": "WA",
               "country_alpha2_code": "US"
             }
           },
           "auth_type": "NO_THREE_DS",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
+            }
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 700,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EACH",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_invoice_001",
+              "shipping_cost": 200
+            },
+            "tax_info": {
+              "order_tax_amount": 100
             }
           }
         },
@@ -442,36 +806,36 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_txn_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"ideal\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"shipping\":{\"currency_code\":\"USD\",\"value\":\"2.00\"}}},\"shipping\":{\"address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"name\":{\"full_name\":\"Jane Doe\"}},\"items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}}],\"soft_descriptor\":\"PROBE DESCRIPTOR\",\"supplementary_data\":{\"card\":{\"level_2\":{\"invoice_id\":\"probe_invoice_001\",\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}},\"level_3\":{\"shipping_amount\":{\"currency_code\":\"USD\",\"value\":\"2.00\"},\"shipping_address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"line_items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"description\":\"Probe line item\",\"unit_of_measure\":\"EACH\",\"commodity_code\":\"4900\"}]}}}}],\"payment_source\":{\"ideal\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"SET_PROVIDED_ADDRESS\"}}}}"
         }
       },
       "Indomaret": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "InstantBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "InstantBankTransferFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "InstantBankTransferPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Interac": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "KakaoPay": {
         "status": "not_supported",
@@ -482,24 +846,24 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Lawson": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "LazyPayRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "LocalBankRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "LocalBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "MbWay": {
         "status": "not_supported",
@@ -510,8 +874,8 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "MiniStop": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -522,60 +886,60 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Netbanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "OnlineBankingFpx": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Oxxo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "PagoEfectivo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "PayEasy": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -593,6 +957,8 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "paypal_redirect": {
               "email": "test@example.com"
@@ -600,15 +966,52 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "line2": "Suite 10",
+              "state": "WA"
+            }
           },
           "auth_type": "NO_THREE_DS",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
+            }
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 700,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EACH",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_invoice_001",
+              "shipping_cost": 200
+            },
+            "tax_info": {
+              "order_tax_amount": 100
             }
           }
         },
@@ -619,11 +1022,11 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_txn_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"paypal\":{\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"},\"attributes\":null}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"shipping\":{\"currency_code\":\"USD\",\"value\":\"2.00\"}}},\"shipping\":{\"address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"name\":{\"full_name\":\"Jane Doe\"}},\"items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}}],\"soft_descriptor\":\"PROBE DESCRIPTOR\",\"supplementary_data\":{\"card\":{\"level_2\":{\"invoice_id\":\"probe_invoice_001\",\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}},\"level_3\":{\"shipping_amount\":{\"currency_code\":\"USD\",\"value\":\"2.00\"},\"shipping_address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"line_items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"description\":\"Probe line item\",\"unit_of_measure\":\"EACH\",\"commodity_code\":\"4900\"}]}}}}],\"payment_source\":{\"paypal\":{\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"SET_PROVIDED_ADDRESS\"},\"attributes\":null}}}"
         }
       },
       "PaypalSdk": {
@@ -634,6 +1037,8 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "paypal_sdk": {
               "token": "probe_paypal_sdk_token"
@@ -641,15 +1046,52 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "line2": "Suite 10",
+              "state": "WA"
+            }
           },
           "auth_type": "NO_THREE_DS",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
+            }
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 700,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EACH",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_invoice_001",
+              "shipping_cost": 200
+            },
+            "tax_info": {
+              "order_tax_amount": 100
             }
           }
         },
@@ -660,11 +1102,11 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_txn_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": null
+          "body": "{}"
         }
       },
       "Paysera": {
@@ -676,32 +1118,32 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "RedCompra": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "RedPagos": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "RevolutPay": {
         "status": "not_supported",
@@ -716,24 +1158,24 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Seicomart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Sepa": {
         "status": "not_supported",
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "SepaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "SepaGuaranteedDebit": {
         "status": "not_supported",
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "SevenEleven": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Skrill": {
         "status": "not_supported",
@@ -747,23 +1189,61 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "sofort": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
             "billing_address": {
               "first_name": "John",
+              "line2": "Suite 10",
+              "state": "WA",
               "country_alpha2_code": "US"
             }
           },
           "auth_type": "NO_THREE_DS",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
+            }
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 700,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EACH",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_invoice_001",
+              "shipping_cost": 200
+            },
+            "tax_info": {
+              "order_tax_amount": 100
             }
           }
         },
@@ -774,11 +1254,11 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_txn_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"sofort\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"shipping\":{\"currency_code\":\"USD\",\"value\":\"2.00\"}}},\"shipping\":{\"address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"name\":{\"full_name\":\"Jane Doe\"}},\"items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}}],\"soft_descriptor\":\"PROBE DESCRIPTOR\",\"supplementary_data\":{\"card\":{\"level_2\":{\"invoice_id\":\"probe_invoice_001\",\"tax_total\":{\"currency_code\":\"USD\",\"value\":\"1.00\"}},\"level_3\":{\"shipping_amount\":{\"currency_code\":\"USD\",\"value\":\"2.00\"},\"shipping_address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"line_items\":[{\"name\":\"Probe item\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"7.00\"},\"tax\":{\"currency_code\":\"USD\",\"value\":\"1.00\"},\"description\":\"Probe line item\",\"unit_of_measure\":\"EACH\",\"commodity_code\":\"4900\"}]}}}}],\"payment_source\":{\"sofort\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"SET_PROVIDED_ADDRESS\"}}}}"
         }
       },
       "Swish": {
@@ -790,8 +1270,8 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Trustly": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no supported PayPal Orders payment_source mapping"
       },
       "Twint": {
         "status": "not_supported",
@@ -831,11 +1311,13 @@
         "status": "supported",
         "proto_request": {
           "merchant_capture_id": "probe_capture_001",
-          "connector_transaction_id": "probe_connector_txn_001",
+          "connector_transaction_id": "probe_auth_001",
           "amount_to_capture": {
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
+          "capture_method": "MANUAL",
           "state": {
             "access_token": {
               "token": "probe_access_token",
@@ -851,7 +1333,7 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_capture_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
@@ -864,6 +1346,7 @@
         "status": "supported",
         "proto_request": {
           "merchant_client_session_id": "probe_sdk_session_001",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "domain_context": {
             "payment": {
               "amount": {
@@ -894,6 +1377,7 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "state": {
             "access_token": {
               "token": "probe_access_token",
@@ -909,7 +1393,7 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_order_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
@@ -920,7 +1404,9 @@
     "create_server_authentication_token": {
       "default": {
         "status": "supported",
-        "proto_request": {},
+        "proto_request": {
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"
+        },
         "sample": {
           "url": "https://api-m.sandbox.paypal.com/v1/oauth2/token",
           "method": "Post",
@@ -985,7 +1471,7 @@
         "status": "supported",
         "proto_request": {
           "merchant_transaction_id": "probe_merchant_txn_001",
-          "connector_transaction_id": "probe_connector_txn_001",
+          "connector_transaction_id": "probe_cap_001",
           "amount": {
             "minor_amount": 1000,
             "currency": "USD"
@@ -996,7 +1482,8 @@
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
-          }
+          },
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}"
         },
         "sample": {
           "url": "https://api-m.sandbox.paypal.com/v2/payments/captures/probe_cap_001",
@@ -1005,7 +1492,6 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_merchant_txn_001",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
@@ -1083,7 +1569,7 @@
           "address": {
             "billing_address": {}
           },
-          "connector_order_reference_id": "probe_order_ref_001",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "state": {
             "access_token": {
               "token": "probe_access_token",
@@ -1093,13 +1579,12 @@
           }
         },
         "sample": {
-          "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders/probe_order_ref_001?fields=payment_source",
+          "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders/probe_order_001?fields=payment_source",
           "method": "Get",
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
@@ -1136,6 +1621,7 @@
           "capture_method": "AUTOMATIC",
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "state": {
             "access_token": {
               "token": "probe_access_token",
@@ -1151,28 +1637,29 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_proxy_txn_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_proxy_txn_001\",\"invoice_id\":\"probe_proxy_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_proxy_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"2030-03\",\"name\":null,\"number\":\"{{$card_number}}\",\"security_code\":\"{{$card_cvc}}\",\"attributes\":{\"vault\":null,\"verification\":null}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_proxy_txn_001\",\"invoice_id\":\"probe_proxy_txn_001\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":null}},\"items\":[{\"name\":\"Purchase\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"card\":{\"expiry\":\"2030-03\",\"number\":\"{{$card_number}}\",\"security_code\":\"{{$card_cvc}}\",\"attributes\":{}}}}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Invalid data format: payment_method_data.card.card_number"
+        "status": "not_supported",
+        "error": "A vault-aliased card number is not supported by paypal"
       }
     },
     "recurring_charge": {
       "default": {
         "status": "supported",
         "proto_request": {
+          "merchant_charge_id": "probe_paypal_mit_charge",
           "connector_recurring_payment_id": {
             "mandate_id_type": {
-              "connector_mandate_id": {
-                "connector_mandate_id": "probe-mandate-123"
+              "network_mandate_id": {
+                "network_transaction_id": "123456789012345"
               }
             }
           },
@@ -1181,11 +1668,28 @@
             "currency": "USD"
           },
           "payment_method": {
-            "token": {
-              "token": "probe_pm_token"
+            "card_details_for_network_transaction_id": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_network": "VISA",
+              "card_holder_name": "John Doe"
             }
           },
+          "metadata": "{\"paypal_mit\":{\"version\":1,\"previous_network_transaction_reference\":{\"id\":\"123456789012345\",\"network\":\"VISA\",\"date\":\"1014\"}}}",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "return_url": "https://example.com/recurring-return",
+          "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
           "connector_customer_id": "cust_probe_123",
           "payment_method_type": "PAY_PAL",
           "off_session": true,
@@ -1195,6 +1699,14 @@
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
+          },
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE PAYPAL"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "probe_paypal_mit"
+            }
           }
         },
         "sample": {
@@ -1204,11 +1716,11 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"\",\"invoice_id\":\"\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice \",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"paypal\":{\"vault_id\":\"probe-mandate-123\",\"experience_context\":{\"return_url\":\"https://example.com/recurring-return\",\"cancel_url\":\"https://example.com/recurring-return\",\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_paypal_mit_charge\",\"invoice_id\":\"probe_paypal_mit_charge\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":null}},\"shipping\":{\"address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"},\"name\":{\"full_name\":\"Jane\"}},\"items\":[{\"name\":\"Purchase\",\"quantity\":\"1\",\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}],\"soft_descriptor\":\"PROBE PAYPAL\",\"supplementary_data\":{\"card\":{\"level_2\":{\"invoice_id\":\"probe_paypal_mit\"},\"level_3\":{\"shipping_address\":{\"address_line_1\":\"12 Main Street\",\"postal_code\":\"98101\",\"country_code\":\"US\",\"admin_area_2\":\"Seattle\",\"admin_area_1\":\"WA\"}}}}}],\"payment_source\":{\"card\":{\"number\":\"4111111111111111\",\"expiry\":\"2030-03\",\"name\":\"John Doe\",\"stored_credential\":{\"payment_initiator\":\"MERCHANT\",\"payment_type\":\"UNSCHEDULED\",\"usage\":\"SUBSEQUENT\",\"previous_network_transaction_reference\":{\"id\":\"123456789012345\",\"date\":\"1014\",\"network\":\"VISA\"}}}}}"
         }
       }
     },
@@ -1228,13 +1740,14 @@
         "status": "supported",
         "proto_request": {
           "merchant_refund_id": "probe_refund_001",
-          "connector_transaction_id": "probe_connector_txn_001",
+          "connector_transaction_id": "probe_cap_001",
           "payment_amount": 1000,
           "refund_amount": {
             "minor_amount": 1000,
             "currency": "USD"
           },
           "reason": "customer_request",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "state": {
             "access_token": {
               "token": "probe_access_token",
@@ -1250,11 +1763,11 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_refund_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"}}"
+          "body": "{\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"custom_id\":\"probe_refund_001\",\"note_to_payer\":\"customer_request\"}"
         }
       }
     },
@@ -1280,7 +1793,6 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_refund_001",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
@@ -1317,6 +1829,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "enrolled_for_3ds": false,
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "return_url": "https://example.com/mandate-return",
           "setup_future_usage": "OFF_SESSION",
           "request_incremental_authorization": false,
@@ -1333,17 +1846,17 @@
           }
         },
         "sample": {
-          "url": "https://api-m.sandbox.paypal.com/v3/vault/payment-tokens/",
+          "url": "https://api-m.sandbox.paypal.com/v3/vault/payment-tokens",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_mandate_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"2030-03\",\"name\":null,\"number\":\"4111111111111111\"}}}"
+          "body": "{\"payment_source\":{\"card\":{\"security_code\":\"737\",\"expiry\":\"2030-03\",\"number\":\"4111111111111111\"}}}"
         }
       }
     },
@@ -1356,7 +1869,33 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_supported",
-        "error": "Selected payment method through Paypal is not supported by Paypal"
+        "error": "Selected payment method through Paypal is not supported by Paypal. This payment method has no direct PayPal zero-value vault request carrier"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
       }
     },
     "verify_redirect": {
@@ -1369,7 +1908,8 @@
         "status": "supported",
         "proto_request": {
           "merchant_void_id": "probe_void_001",
-          "connector_transaction_id": "probe_connector_txn_001",
+          "connector_transaction_id": "probe_auth_001",
+          "connector_feature_data": "{\"authorize_id\":\"probe_auth_001\",\"capture_id\":\"probe_cap_001\",\"psync_flow\":\"CAPTURE\",\"order_id\":\"probe_order_001\"}",
           "state": {
             "access_token": {
               "token": "probe_access_token",
@@ -1385,11 +1925,11 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
-            "paypal-request-id": "probe_void_001",
+            "paypal-request-id": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": null
+          "body": "{}"
         }
       }
     }

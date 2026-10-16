@@ -481,6 +481,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let refund_status = RefundStatus::from(&body.status);
 
         Ok(RefundWebhookDetailsResponse {
+            refund_amount: None,
             connector_refund_id: Some(body.id),
             merchant_transaction_id: body.reference.clone(),
             status: refund_status,

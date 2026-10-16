@@ -25,6 +25,7 @@ use grpc_api_types::payments::{
     PaymentServiceVerifyRedirectResponseResponse, PaymentServiceVoidRequest,
     RefundServiceGetRequest,
 };
+use hyperswitch_masking::PeekInterface;
 
 use crate::utils::{
     get_access_token, get_connector_customer_id, get_payment_method_token, get_session_token,
@@ -722,9 +723,12 @@ impl
                 .or_else(|| item.authentication_data.clone()),
             metadata: item.metadata.clone(),
             // Carry connector_feature_data from pre-auth response if available, else from payload
-            connector_feature_data: pre_auth_response
-                .and_then(|r| r.connector_feature_data.clone())
-                .or_else(|| item.connector_feature_data.clone()),
+            connector_feature_data: Some(authentication_order_feature_data(
+                item,
+                pre_auth_response
+                    .and_then(|r| r.connector_feature_data.as_ref())
+                    .or(item.connector_feature_data.as_ref()),
+            )),
             return_url: item.return_url.clone(),
             continue_redirection_url: item.continue_redirection_url.clone(),
             browser_info: item.browser_info.clone(),
@@ -1548,4 +1552,61 @@ impl
             connector_feature_data: item.connector_feature_data.clone(),
         }
     }
+}
+
+fn authentication_order_feature_data(
+    item: &CompositeAuthorizeRequest,
+    existing: Option<&hyperswitch_masking::Secret<String>>,
+) -> hyperswitch_masking::Secret<String> {
+    let mut metadata = match existing {
+        Some(value) => match serde_json::from_str::<serde_json::Value>(value.peek()) {
+            Ok(v) if v.is_object() => v,
+            _ => return value.clone(),
+        },
+        None => serde_json::json!({}),
+    };
+    if metadata.get("authentication_order_context").is_none() {
+        let request = PaymentServiceAuthorizeRequest {
+            merchant_transaction_id: item.merchant_transaction_id.clone(),
+            merchant_order_id: item.merchant_order_id.clone(),
+            order_tax_amount: item.order_tax_amount,
+            shipping_cost: item.shipping_cost,
+            order_details: item.order_details.clone(),
+            setup_future_usage: item.setup_future_usage,
+            billing_descriptor: item.billing_descriptor.clone(),
+            statement_descriptor_name: item.statement_descriptor_name.clone(),
+            statement_descriptor_suffix: item.statement_descriptor_suffix.clone(),
+            l2_l3_data: item.l2_l3_data.clone(),
+            description: item.description.clone(),
+            customer: item.customer.clone(),
+            ..Default::default()
+        };
+        let fields = [
+            "merchant_transaction_id",
+            "merchant_order_id",
+            "order_tax_amount",
+            "shipping_cost",
+            "order_details",
+            "setup_future_usage",
+            "billing_descriptor",
+            "statement_descriptor_name",
+            "statement_descriptor_suffix",
+            "l2_l3_data",
+            "description",
+            "customer",
+        ];
+        let context = match serde_json::to_value(request) {
+            Ok(mut value) => {
+                if let Some(object) = value.as_object_mut() {
+                    object.retain(|key, _| fields.contains(&key.as_str()));
+                }
+                serde_json::json!({"version":1,"request":value})
+            }
+            Err(_) => serde_json::json!({"version":0,"request":{}}),
+        };
+        if let Some(object) = metadata.as_object_mut() {
+            object.insert("authentication_order_context".to_owned(), context);
+        }
+    }
+    metadata.to_string().into()
 }

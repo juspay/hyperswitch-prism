@@ -2886,6 +2886,10 @@ pub struct RefundsResponseData {
 
 #[derive(Debug, Clone)]
 pub struct RefundFlowData {
+    /// Actual connector-observed refund money; absent when the resource omits it.
+    pub response_refund_amount: Option<Money>,
+    /// Corroborated gateway refund ID, retained even when the resource reports failure.
+    pub response_connector_refund_id: Option<String>,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: common_enums::RefundStatus,
     pub refund_id: Option<String>,
@@ -3066,6 +3070,8 @@ pub struct RefundWebhookReference {
 
 #[derive(Debug, Clone)]
 pub struct DisputeWebhookReference {
+    /// Actual merchant invoice/reference echoed by the disputed transaction.
+    pub merchant_transaction_id: Option<String>,
     /// PSP-assigned dispute / chargeback ID.
     pub connector_dispute_id: Option<String>,
     /// PSP-assigned ID of the original payment this dispute belongs to.
@@ -3090,6 +3096,8 @@ pub struct PayoutWebhookReference {
 
 #[derive(Debug, Clone)]
 pub struct RefundWebhookDetailsResponse {
+    /// Actual refund resource money, never inferred from the original payment.
+    pub refund_amount: Option<Money>,
     pub connector_refund_id: Option<String>,
     pub merchant_transaction_id: Option<String>,
     pub status: common_enums::RefundStatus,
@@ -3121,6 +3129,7 @@ pub struct PayoutWebhookDetailsResponse {
 
 #[derive(Debug, Clone)]
 pub struct DisputeWebhookDetailsResponse {
+    pub connector_transaction_id: Option<String>,
     pub amount: StringMinorUnit,
     pub currency: Currency,
     pub dispute_id: String,
@@ -3192,6 +3201,10 @@ pub struct ConnectorWebhookSecrets {
 #[derive(Debug, Clone, Default)]
 pub struct EventContext {
     pub capture_method: Option<common_enums::CaptureMethod>,
+    /// Canonical payment identity from the caller's stored attempt.
+    pub connector_transaction_id: Option<String>,
+    /// Observed authorization/capture identities belonging to that attempt.
+    pub related_connector_transaction_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -3624,6 +3637,18 @@ impl ForeignTryFrom<grpc_api_types::payments::EventContext> for EventContext {
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         use grpc_api_types::payments::event_context::EventContext as EventContextOneof;
 
+        let (connector_transaction_id, related_connector_transaction_ids) =
+            match value.event_context.as_ref() {
+                Some(EventContextOneof::Payment(context)) => (
+                    context.connector_transaction_id.clone(),
+                    context.related_connector_transaction_ids.clone(),
+                ),
+                Some(EventContextOneof::Dispute(context)) => (
+                    context.connector_transaction_id.clone(),
+                    context.related_connector_transaction_ids.clone(),
+                ),
+                _ => (None, Vec::new()),
+            };
         let capture_method = match value.event_context {
             Some(EventContextOneof::Payment(payment_ctx)) => payment_ctx
                 .capture_method
@@ -3644,7 +3669,11 @@ impl ForeignTryFrom<grpc_api_types::payments::EventContext> for EventContext {
             | None => None,
         };
 
-        Ok(Self { capture_method })
+        Ok(Self {
+            capture_method,
+            connector_transaction_id,
+            related_connector_transaction_ids,
+        })
     }
 }
 
@@ -4110,6 +4139,7 @@ impl ConnectorResponseHeaders for DisputeFlowData {
 
 #[derive(Debug, Clone)]
 pub struct VerifyWebhookSourceFlowData {
+    pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,

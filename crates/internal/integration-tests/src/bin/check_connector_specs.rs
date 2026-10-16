@@ -739,7 +739,36 @@ fn main() {
         println!();
     }
 
-    if !phase1_ok
+    let mut dependency_errors = Vec::new();
+    for connector in &spec_connectors {
+        if !specs_root
+            .join(connector)
+            .join("dependency_overrides.json")
+            .is_file()
+        {
+            continue;
+        }
+        if let Ok(suites) =
+            integration_tests::harness::scenario_loader::load_supported_suites_for_connector(
+                connector,
+            )
+        {
+            for suite in suites {
+                if let Err(error) =
+                    integration_tests::harness::scenario_loader::load_suite_spec_for_connector(
+                        &suite, connector,
+                    )
+                {
+                    dependency_errors.push(format!("{connector}/{suite}: {error}"));
+                }
+            }
+        }
+    }
+    for error in &dependency_errors {
+        eprintln!("Invalid connector dependency graph: {error}");
+    }
+    if !dependency_errors.is_empty()
+        || !phase1_ok
         || has_phase2_errors
         || has_unverifiable
         || has_webhook_errors

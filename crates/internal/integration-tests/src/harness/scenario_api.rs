@@ -25,9 +25,9 @@ use uuid::Uuid;
 use crate::harness::{
     auto_gen::resolve_auto_generate,
     connector_override::{
-        apply_connector_overrides, connector_pre_request_http_hook,
-        normalize_tonic_request_for_connector, transform_response_for_connector,
-        PreRequestHttpHook,
+        apply_connector_overrides, bind_external_webhook_delivery_for_execution,
+        connector_pre_request_http_hook, normalize_tonic_request_for_connector,
+        transform_response_for_connector, PreRequestHttpHook,
     },
     credentials::{creds_file_path, load_connector_config},
     metadata::add_connector_metadata,
@@ -37,9 +37,10 @@ use crate::harness::{
         get_the_grpc_req as get_the_grpc_req_impl, is_suite_supported_for_connector,
         load_connector_browser_automation_spec, load_connector_spec,
         load_connector_specific_scenarios, load_default_scenario_name, load_scenario,
-        load_suite_scenarios, load_suite_spec, load_supported_payment_methods_for_connector,
-        load_supported_suites_for_connector, merge_connector_specific_scenarios,
-        scenario_matches_supported_payment_methods, scenario_unsupported_reason,
+        load_suite_scenarios, load_suite_spec, load_suite_spec_for_connector,
+        load_supported_payment_methods_for_connector, load_supported_suites_for_connector,
+        merge_connector_specific_scenarios, scenario_matches_supported_payment_methods,
+        scenario_unsupported_reason,
     },
     scenario_types::{
         BrowserAutomationHook, BrowserAutomationPhase, CliPreRequestHookConfig, ContextMap,
@@ -204,7 +205,7 @@ impl GrpcurlRequest {
         ));
         cmd.push_str(&self.payload);
         cmd.push_str("\nJSON");
-        cmd
+        crate::harness::cred_masking::mask_sensitive_text(&cmd)
     }
 }
 
@@ -1352,7 +1353,100 @@ fn is_unresolved_connector_feature_data(value: &Value) -> bool {
 /// can't be checked this way (e.g. it's inside a `oneof`), is treated as
 /// valid — this is a best-effort filter for the known cross-dependency
 /// leakage shape, not a full schema validator.
-fn suite_request_has_top_level_field(suite: &str, field: &str) -> bool {
+/// Check response roots used by optional dependency overlays against actual typed messages.
+pub(super) fn suite_response_has_top_level_field(suite: &str, field: &str) -> bool {
+    // This entry point checks a root only; the loader validates full paths.
+    if field.is_empty()
+        || !field
+            .bytes()
+            .enumerate()
+            .all(|(i, c)| c == b'_' || c.is_ascii_alphabetic() || (i > 0 && c.is_ascii_digit()))
+    {
+        return false;
+    }
+    fn check<T: DeserializeOwned>(field: &str) -> bool {
+        let probe = serde_json::json!({field:Value::Null});
+        let Ok(serialized) = serde_json::to_string(&probe) else {
+            return false;
+        };
+        let mut ignored = false;
+        let mut deserializer = serde_json::Deserializer::from_str(&serialized);
+        let _: Result<T, _> = serde_ignored::deserialize(&mut deserializer, |_| ignored = true);
+        !ignored
+    }
+    // Use the same actual registry as request validation. Aliases may chain,
+    // but a missing suite, unresolved alias or cycle cannot certify a field.
+    let mut effective_suite = suite.to_owned();
+    let mut visited = std::collections::BTreeSet::new();
+    loop {
+        if !visited.insert(effective_suite.clone()) {
+            return false;
+        }
+        let Ok(spec) = load_suite_spec(&effective_suite) else {
+            return false;
+        };
+        match spec.alias_for {
+            Some(alias) => effective_suite = alias,
+            None => break,
+        }
+    }
+    match effective_suite.as_str() {
+        "EventService/ParseEvent" => check::<grpc_api_types::payments::EventServiceParseResponse>(field),
+        "EventService/HandleEvent" => check::<grpc_api_types::payments::EventServiceHandleResponse>(field),
+        "EventService/NotifyConnector" => check::<grpc_api_types::payments::NotifyConnectorResponse>(field),
+        "PaymentService/Authorize" | "PaymentService/CompleteAuthorize" => check::<grpc_api_types::payments::PaymentServiceAuthorizeResponse>(field),
+        "PaymentService/Get" => check::<grpc_api_types::payments::PaymentServiceGetResponse>(field),
+        "PaymentService/Void" => check::<grpc_api_types::payments::PaymentServiceVoidResponse>(field),
+        "PaymentService/Reverse" => check::<grpc_api_types::payments::PaymentServiceReverseResponse>(field),
+        "PaymentService/Capture" => check::<grpc_api_types::payments::PaymentServiceCaptureResponse>(field),
+        "PaymentService/CreateOrder" => check::<grpc_api_types::payments::PaymentServiceCreateOrderResponse>(field),
+        "PaymentService/Refund" => check::<grpc_api_types::payments::RefundResponse>(field),
+        "PaymentService/IncrementalAuthorization" => check::<grpc_api_types::payments::PaymentServiceIncrementalAuthorizationResponse>(field),
+        "PaymentService/VerifyRedirectResponse" => check::<grpc_api_types::payments::PaymentServiceVerifyRedirectResponseResponse>(field),
+        "PaymentService/SetupRecurring" => check::<grpc_api_types::payments::PaymentServiceSetupRecurringResponse>(field),
+        "PaymentService/TokenAuthorize" => check::<grpc_api_types::payments::PaymentServiceAuthorizeResponse>(field),
+        "PaymentService/TokenSetupRecurring" => check::<grpc_api_types::payments::PaymentServiceSetupRecurringResponse>(field),
+        "PaymentService/ProxyAuthorize" => check::<grpc_api_types::payments::PaymentServiceAuthorizeResponse>(field),
+        "PaymentService/ProxySetupRecurring" => check::<grpc_api_types::payments::PaymentServiceSetupRecurringResponse>(field),
+        "RecurringPaymentService/Charge" => check::<grpc_api_types::payments::RecurringPaymentServiceChargeResponse>(field),
+        "RecurringPaymentService/Revoke" => check::<grpc_api_types::payments::RecurringPaymentServiceRevokeResponse>(field),
+        "RefundService/Get" => check::<grpc_api_types::payments::RefundResponse>(field),
+        "RefundService/VoidPostRefund" => check::<grpc_api_types::payments::RefundResponse>(field),
+        "DisputeService/SubmitEvidence" => check::<grpc_api_types::payments::DisputeServiceSubmitEvidenceResponse>(field),
+        "DisputeService/Get" => check::<grpc_api_types::payments::DisputeResponse>(field),
+        "DisputeService/Defend" => check::<grpc_api_types::payments::DisputeServiceDefendResponse>(field),
+        "DisputeService/Accept" => check::<grpc_api_types::payments::DisputeServiceAcceptResponse>(field),
+        "PaymentMethodService/Tokenize" => check::<grpc_api_types::payments::PaymentMethodServiceTokenizeResponse>(field),
+        "PaymentMethodService/Create" => check::<grpc_api_types::payments::PaymentMethodServiceCreateResponse>(field),
+        "PaymentMethodService/Get" => check::<grpc_api_types::payments::PaymentMethodServiceGetResponse>(field),
+        "PaymentMethodService/Refresh" => check::<grpc_api_types::payments::PaymentMethodServiceRefreshResponse>(field),
+        "PaymentMethodService/Recharge" => check::<grpc_api_types::payments::PaymentMethodServiceRechargeResponse>(field),
+        "PaymentMethodService/Eligibility" => check::<grpc_api_types::payments::PaymentMethodServiceEligibilityResponse>(field),
+        "CustomerService/Create" => check::<grpc_api_types::payments::CustomerServiceCreateResponse>(field),
+        "CustomerService/Get" => check::<grpc_api_types::payments::CustomerServiceGetResponse>(field),
+        "MerchantAuthenticationService/CreateServerAuthenticationToken" => check::<grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>(field),
+        "MerchantAuthenticationService/CreateServerSessionAuthenticationToken" => check::<grpc_api_types::payments::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>(field),
+        "MerchantAuthenticationService/CreateClientAuthenticationToken" => check::<grpc_api_types::payments::MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse>(field),
+        "PaymentMethodAuthenticationService/PreAuthenticate" => check::<grpc_api_types::payments::PaymentMethodAuthenticationServicePreAuthenticateResponse>(field),
+        "PaymentMethodAuthenticationService/Authenticate" => check::<grpc_api_types::payments::PaymentMethodAuthenticationServiceAuthenticateResponse>(field),
+        "PaymentMethodAuthenticationService/PostAuthenticate" => check::<grpc_api_types::payments::PaymentMethodAuthenticationServicePostAuthenticateResponse>(field),
+        "PayoutService/Create" => check::<grpc_api_types::payments::PayoutServiceCreateResponse>(field),
+        "PayoutService/Transfer" => check::<grpc_api_types::payments::PayoutServiceTransferResponse>(field),
+        "PayoutService/Get" => check::<grpc_api_types::payments::PayoutServiceGetResponse>(field),
+        "PayoutService/Void" => check::<grpc_api_types::payments::PayoutServiceVoidResponse>(field),
+        "PayoutService/Stage" => check::<grpc_api_types::payments::PayoutServiceStageResponse>(field),
+        "PayoutService/CreateLink" => check::<grpc_api_types::payments::PayoutServiceCreateLinkResponse>(field),
+        "PayoutService/CreateRecipient" => check::<grpc_api_types::payments::PayoutServiceCreateRecipientResponse>(field),
+        "PayoutService/EnrollDisburseAccount" => check::<grpc_api_types::payments::PayoutServiceEnrollDisburseAccountResponse>(field),
+        "PayoutService/Eligibility" => check::<grpc_api_types::payments::PayoutMethodEligibilityResponse>(field),
+        "SurchargeService/Calculate" => check::<grpc_api_types::payments::SurchargeServiceCalculateResponse>(field),
+        "FraudAndRiskManagementService/PreRiskCheck" => check::<grpc_api_types::payments::FrmServicePreRiskCheckResponse>(field),
+        "FraudAndRiskManagementService/PostRiskCheck" => check::<grpc_api_types::payments::FrmServicePostRiskCheckResponse>(field),
+        _ => false,
+    }
+}
+
+pub(super) fn suite_request_has_top_level_field(suite: &str, field: &str) -> bool {
     fn check<T: DeserializeOwned>(field: &str) -> bool {
         let probe = serde_json::json!({ field: Value::Null });
         let Ok(serialized) = serde_json::to_string(&probe) else {
@@ -1906,6 +2000,16 @@ pub fn build_grpcurl_request_from_payload(
     let merchant_id = merchant_id.unwrap_or(DEFAULT_MERCHANT_ID);
     let tenant_id = tenant_id.unwrap_or(DEFAULT_TENANT_ID);
 
+    let mut execution_payload = grpc_req.clone();
+    if require_auth {
+        bind_external_webhook_delivery_for_execution(
+            connector,
+            suite,
+            scenario,
+            &mut execution_payload,
+        )?;
+    }
+    let grpc_req = &execution_payload;
     let payload = serde_json::to_string_pretty(grpc_req)
         .map_err(|source| ScenarioError::JsonSerialize { source })?;
 
@@ -2140,7 +2244,7 @@ fn execute_grpcurl_from_request(
     Ok(GrpcExecutionResult {
         response_body,
         request_command,
-        response_output,
+        response_output: crate::harness::cred_masking::mask_sensitive_text(&response_output),
         success: output.status.success(),
     })
 }
@@ -2157,32 +2261,42 @@ fn execute_grpcurl_from_request(
 /// same descriptors as a normal response, so the field names here are the proto's
 /// and not a copy of them.
 fn error_body_from_grpc_output(stdout_output: &str, stderr_output: &str) -> Option<String> {
+    let mut client_status = None;
     for text in [stdout_output, stderr_output] {
         let Ok(status) = serde_json::from_str::<Value>(text.trim()) else {
             continue;
         };
-        // google.rpc.Status: the connector's ErrorInfo rides in details.
+        let code = status.get("code").and_then(Value::as_i64);
         if let Some(details) = status.get("details").and_then(Value::as_array) {
             for detail in details {
                 if let Some(info) = detail.get("errorInfo").or_else(|| detail.get("error_info")) {
-                    return Some(serde_json::json!({ "error": info }).to_string());
+                    let mut result = serde_json::json!({"error":info});
+                    if let Some(code) = code {
+                        if let Some(fields) = result.as_object_mut() {
+                            fields.insert("grpc_status".to_owned(), code.into());
+                        }
+                    }
+                    return Some(result.to_string());
                 }
             }
         }
+        // Webhook client-validation errors use bare tonic statuses, not
+        // ConnectorError protobuf details. Preserve the actual code; retryable
+        // infrastructure failures remain execution failures.
+        if matches!(code, Some(3 | 5 | 16)) {
+            if let Some(message) = status.get("message").and_then(Value::as_str) {
+                client_status = Some(
+                    serde_json::json!({"error":{"message":message},"grpc_status":code}).to_string(),
+                );
+            }
+        }
     }
-    // UCS encodes ConnectorError/IntegrationError as raw protobuf bytes via
-    // Status::with_details (ucs_env/src/error.rs), not wrapped in a
-    // google.rpc.Status/Any envelope, so grpcurl's reflection can't resolve
-    // it and -format-error falls back to a "grpc-status-details-bin
-    // mismatch" diagnostic with no `details` array. Decode the
-    // grpc-status-details-bin trailer directly with the same generated proto
-    // types the server encoded it with.
     for text in [stdout_output, stderr_output] {
         if let Some(error) = error_json_from_details_bin(text) {
             return Some(error);
         }
     }
-    None
+    client_status
 }
 
 /// Extracts the `grpc-status-details-bin` trailer grpcurl prints and decodes
@@ -2376,6 +2490,14 @@ pub fn execute_tonic_request_from_payload(
     plaintext: bool,
 ) -> Result<String, ScenarioError> {
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR).to_string();
+    let mut execution_payload = grpc_req.clone();
+    bind_external_webhook_delivery_for_execution(
+        &connector,
+        suite,
+        scenario,
+        &mut execution_payload,
+    )?;
+    let grpc_req = &execution_payload;
     let merchant_id = merchant_id.unwrap_or(DEFAULT_MERCHANT_ID).to_string();
     let tenant_id = tenant_id.unwrap_or(DEFAULT_TENANT_ID).to_string();
     let endpoint = endpoint.unwrap_or(DEFAULT_ENDPOINT).to_string();
@@ -3272,6 +3394,28 @@ pub fn convert_prost_oneofs_to_grpcurl(value: &mut Value) {
             convert_prost_oneofs_to_grpcurl(child);
         }
 
+        // EventContext's inner oneof uses PascalCase in prost serde; the
+        // enclosing request's event_context field remains in place.
+        if map.len() == 1 {
+            let arm = map
+                .get("event_context")
+                .and_then(Value::as_object)
+                .filter(|inner| inner.len() == 1)
+                .and_then(|inner| {
+                    inner.iter().find(|(name, _)| {
+                        matches!(
+                            name.as_str(),
+                            "Payment" | "Refund" | "Dispute" | "Mandate" | "Payout"
+                        )
+                    })
+                })
+                .map(|(name, payload)| (pascal_to_snake_case(name), payload.clone()));
+            if let Some((name, payload)) = arm {
+                map.clear();
+                map.insert(name, payload);
+            }
+        }
+
         // domain_context → extract the single variant and use lowercase field name.
         // Prost: {"domain_context": {"Payment": {...}}}
         // grpcurl: {"payment": {...}}
@@ -3350,6 +3494,55 @@ fn pascal_to_snake_case(s: &str) -> String {
     result
 }
 
+/// Adapt protobuf JSON EventContext to generated prost serde without changing
+/// actual IDs; absent repeated IDs are the protobuf empty-list default.
+fn normalize_event_context_oneof(map: &mut serde_json::Map<String, Value>) {
+    let Some(Value::Object(context)) = map.get_mut("event_context") else {
+        return;
+    };
+    if context.contains_key("event_context") || context.len() != 1 {
+        return;
+    }
+    let arm = context
+        .keys()
+        .find(|key| {
+            matches!(
+                key.as_str(),
+                "payment" | "refund" | "dispute" | "mandate" | "payout"
+            )
+        })
+        .cloned();
+    let Some(arm) = arm else {
+        return;
+    };
+    let Some(mut payload) = context.remove(&arm) else {
+        return;
+    };
+    if let Value::Object(fields) = &mut payload {
+        if matches!(arm.as_str(), "payment" | "dispute") {
+            fields
+                .entry("related_connector_transaction_ids".to_owned())
+                .or_insert_with(|| serde_json::json!([]));
+        }
+        if arm == "payment" {
+            fields
+                .entry("capture_method".to_owned())
+                .or_insert(Value::Null);
+        }
+    }
+    let variant = match arm.as_str() {
+        "payment" => "Payment",
+        "refund" => "Refund",
+        "dispute" => "Dispute",
+        "mandate" => "Mandate",
+        "payout" => "Payout",
+        _ => return,
+    };
+    let mut oneof = serde_json::Map::new();
+    oneof.insert(variant.to_owned(), payload);
+    context.insert("event_context".to_owned(), Value::Object(oneof));
+}
+
 fn normalize_proto_oneof_shapes(value: &mut Value) {
     match value {
         Value::Object(map) => {
@@ -3357,6 +3550,7 @@ fn normalize_proto_oneof_shapes(value: &mut Value) {
                 normalize_proto_oneof_shapes(child);
             }
 
+            normalize_event_context_oneof(map);
             normalize_payment_method_oneof(map);
             normalize_mandate_reference_oneofs(map);
             normalize_google_pay_tokenization_data_oneof(map);
@@ -3718,7 +3912,7 @@ pub fn run_scenario_test_with_options(
     options: SuiteRunOptions<'_>,
 ) -> Result<SuiteRunSummary, ScenarioError> {
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR);
-    let target_suite_spec = load_suite_spec(suite)?;
+    let target_suite_spec = load_suite_spec_for_connector(suite, connector)?;
     // Fails with `ScenarioNotFound` unless the global suite or the connector's
     // own scenario file defines it.
     load_scenario_for_connector(suite, scenario, connector)?;
@@ -3954,7 +4148,7 @@ pub fn run_suite_test_with_options(
     options: SuiteRunOptions<'_>,
 ) -> Result<SuiteRunSummary, ScenarioError> {
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR);
-    let target_suite_spec = load_suite_spec(suite)?;
+    let target_suite_spec = load_suite_spec_for_connector(suite, connector)?;
 
     // A scenario naming a payment method the connector never claimed cannot
     // pass; the only way through is an `assert` override that hides real
@@ -5001,8 +5195,14 @@ fn execute_single_scenario_with_context(
     // values are present to "rescue" their wrappers.
     prune_all_default_top_level_keys(&mut effective_req);
 
+    // Resolve external delivery prerequisites before either backend or debug
+    // rendering; a missing authentic fixture must never become an unsigned send.
+    bind_external_webhook_delivery_for_execution(connector, suite, scenario, &mut effective_req)?;
+
     if std::env::var("UCS_DEBUG_EFFECTIVE_REQ").as_deref() == Ok("1") {
-        if let Ok(request_json) = serde_json::to_string_pretty(&effective_req) {
+        let mut debug_req = effective_req.clone();
+        crate::harness::cred_masking::mask_json_value(&mut debug_req);
+        if let Ok(request_json) = serde_json::to_string_pretty(&debug_req) {
             println!(
                 "[suite_run_test] effective_grpc_req suite={suite} scenario={scenario}:\n{request_json}"
             );
@@ -5034,7 +5234,9 @@ fn execute_single_scenario_with_context(
             let grpcurl_payload =
                 normalize_grpcurl_request_json(connector, suite, scenario, effective_req.clone());
             if std::env::var("UCS_DEBUG_GRPCURL_PAYLOAD").as_deref() == Ok("1") {
-                if let Ok(dbg_json) = serde_json::to_string_pretty(&grpcurl_payload) {
+                let mut debug_payload = grpcurl_payload.clone();
+                crate::harness::cred_masking::mask_json_value(&mut debug_payload);
+                if let Ok(dbg_json) = serde_json::to_string_pretty(&debug_payload) {
                     eprintln!(
                         "[DEBUG] grpcurl_payload suite={suite} scenario={scenario}:\n{dbg_json}"
                     );

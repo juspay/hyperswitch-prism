@@ -641,6 +641,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(RefundWebhookDetailsResponse {
+            refund_amount: None,
             connector_refund_id: Some(transaction.transaction_id),
             merchant_transaction_id: None,
             status: refund_status,

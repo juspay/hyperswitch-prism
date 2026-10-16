@@ -284,6 +284,169 @@ pub fn merge_configs(override_val: &Value, base_val: &Value) -> Value {
     }
 }
 
+/// Execute an opted-in staged protocol without retries. Ordinary connectors use one call.
+#[allow(clippy::too_many_arguments)]
+pub async fn execute_connector_followups<T, F, ResourceCommonData, Req, Resp>(
+    proxy: &domain_types::types::ProxyConfig,
+    connector: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
+        'static,
+        F,
+        ResourceCommonData,
+        Req,
+        Resp,
+    >,
+    mut router_data: domain_types::router_data_v2::RouterDataV2<F, ResourceCommonData, Req, Resp>,
+    all_keys_required: Option<bool>,
+    event_params: external_services::service::EventProcessingParams<'_>,
+    token_data: Option<injector::TokenData>,
+    call_connector_action: common_enums::CallConnectorAction,
+    test_context: Option<external_services::service::TestContext>,
+    api_tag: Option<String>,
+) -> CustomResult<
+    domain_types::router_data_v2::RouterDataV2<F, ResourceCommonData, Req, Resp>,
+    domain_types::errors::ConnectorFlowError,
+>
+where
+    F: Clone + 'static,
+    T: interfaces::integrity::FlowIntegrity,
+    Req: Clone
+        + 'static
+        + std::fmt::Debug
+        + interfaces::integrity::GetIntegrityObject<T>
+        + interfaces::integrity::CheckIntegrity<Req, T>,
+    Resp: Clone + 'static + std::fmt::Debug,
+    ResourceCommonData: Clone
+        + 'static
+        + connector_types::RawConnectorRequestResponse
+        + connector_types::ConnectorResponseHeaders
+        + external_services::service::ConnectorRequestReference
+        + external_services::service::AdditionalHeaders
+        + external_services::service::GetFlowStatus
+        + external_services::service::SetIntegrityFailureStatus,
+{
+    let mut progress = None;
+    for stage in 0..4 {
+        let params = external_services::service::EventProcessingParams {
+            connector_name: event_params.connector_name,
+            service_name: event_params.service_name,
+            service_type: event_params.service_type,
+            flow_name: event_params.flow_name,
+            event_config: event_params.event_config,
+            runtime_metadata: event_params.runtime_metadata,
+            request_id: event_params.request_id,
+            lineage_ids: event_params.lineage_ids,
+            reference_id: event_params.reference_id,
+            resource_id: event_params.resource_id,
+            shadow_mode: event_params.shadow_mode,
+            proxy_name: event_params.proxy_name,
+            tenant_id: event_params.tenant_id,
+            merchant_id: event_params.merchant_id,
+            org_id: event_params.org_id,
+            return_raw_connector_data: event_params.return_raw_connector_data,
+            return_typed_connector_data: event_params.return_typed_connector_data,
+            masking_keys: event_params.masking_keys,
+            connector_latency: event_params.connector_latency.clone(),
+            log_fields_enabled: event_params.log_fields_enabled,
+            log_fields: event_params.log_fields,
+        };
+        router_data =
+            external_services::service::execute_connector_processing_step::<T, _, _, _, _>(
+                proxy,
+                connector.clone(),
+                router_data,
+                all_keys_required,
+                params,
+                token_data.clone(),
+                call_connector_action.clone(),
+                test_context.clone(),
+                api_tag.clone(),
+            )
+            .await?;
+        if router_data.response.is_err() {
+            return Ok(router_data);
+        }
+        match connector.next_http_stage(&router_data) {
+            None => return Ok(router_data),
+            Some(next) if stage < 3 && progress.as_ref() != Some(&next) => progress = Some(next),
+            Some(_) => {
+                return Err(domain_types::errors::report_connector_request_to_flow(
+                    Report::new(IntegrationError::InvalidDataFormat {
+                        field_name: "connector_followup_stage",
+                        context: domain_types::errors::IntegrationErrorContext {
+                            additional_context: Some("Connector protocol exhausted its four-call budget or did not advance".to_owned()),
+                            ..Default::default()
+                        },
+                    })
+                ));
+            }
+        }
+    }
+    Ok(router_data)
+}
+
+/// Mask scalar protobuf secrets in log copies, without changing the wire payload.
+fn sanitize_log_value(value: &mut Value) {
+    match value {
+        Value::Object(fields) => {
+            for (key, value) in fields {
+                let normalized: String = key
+                    .chars()
+                    .filter(|c| c.is_ascii_alphanumeric())
+                    .flat_map(char::to_lowercase)
+                    .collect();
+                if matches!(
+                    normalized.as_str(),
+                    "cavv"
+                        | "secret"
+                        | "additionalsecret"
+                        | "authorization"
+                        | "proxyauthorization"
+                        | "cookie"
+                        | "setcookie"
+                        | "apikey"
+                        | "xapikey"
+                        | "xconnectorconfig"
+                        | "clientid"
+                        | "clientsecret"
+                        | "webhookid"
+                        | "webhooksecret"
+                        | "token"
+                        | "accesstoken"
+                        | "signature"
+                        | "sig"
+                        | "transmissionsig"
+                        | "paypaltransmissionsig"
+                        | "body"
+                        | "webhookbody"
+                        | "headers"
+                        | "encrypteddata"
+                        | "paymentdata"
+                ) {
+                    *value = Value::String("***".to_owned());
+                } else {
+                    sanitize_log_value(value);
+                }
+            }
+        }
+        Value::Array(values) => values.iter_mut().for_each(sanitize_log_value),
+        _ => {}
+    }
+}
+
+fn sanitized_log_copy<T: serde::Serialize>(value: &T) -> Option<Value> {
+    hyperswitch_masking::masked_serialize(value)
+        .ok()
+        .map(|mut copy| {
+            sanitize_log_value(&mut copy);
+            copy
+        })
+}
+
+fn sanitized_event_copy<T: serde::Serialize>(value: &T) -> Option<MaskedSerdeValue> {
+    sanitized_log_copy(value)
+        .and_then(|copy| MaskedSerdeValue::from_masked_optional(&copy, "grpc_payload"))
+}
+
 pub fn log_before_initialization<T>(
     request_data: &RequestData<T>,
     service_name: &str,
@@ -300,9 +463,7 @@ where
         ..
     } = metadata_payload;
     let current_span = tracing::Span::current();
-    let masked_body = hyperswitch_masking::masked_serialize(&request_data.payload)
-        .map_err(|e| tracing::error!("Masked serialization error: {:?}", e))
-        .ok();
+    let masked_body = sanitized_log_copy(&request_data.payload);
     let connector_name = connector.get_connector_name();
     current_span.record("service_name", service_name);
     match masked_body.as_ref() {
@@ -339,12 +500,12 @@ pub fn log_after_initialization<T>(
             let res_ref = response.get_ref();
 
             // Record response_body as structured JSON with masking
-            match hyperswitch_masking::masked_serialize(res_ref) {
-                Ok(masked_value) => {
-                    record_json_fields_on_span(vec![("response_body", masked_value.clone())]);
+            match sanitized_log_copy(res_ref) {
+                Some(masked_value) => {
+                    record_json_fields_on_span(vec![("response_body", masked_value)]);
                 }
-                Err(_) => {
-                    current_span.record("response_body", tracing::field::debug(res_ref));
+                None => {
+                    current_span.record("response_body", "<masked serialization error>");
                 }
             }
 
@@ -427,8 +588,7 @@ where
 {
     let current_span = tracing::Span::current();
     let start_time = tokio::time::Instant::now();
-    let masked_request_data =
-        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    let masked_request_data = sanitized_event_copy(request.get_ref());
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
@@ -497,8 +657,7 @@ where
 {
     let current_span = tracing::Span::current();
     let start_time = tokio::time::Instant::now();
-    let masked_request_data =
-        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    let masked_request_data = sanitized_event_copy(request.get_ref());
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
@@ -624,7 +783,11 @@ fn create_and_emit_grpc_event<R>(
     );
 
     match grpc_response {
-        Ok(response) => grpc_event.set_grpc_success_response(response.get_ref()),
+        Ok(response) => {
+            if let Some(copy) = sanitized_log_copy(response.get_ref()) {
+                grpc_event.set_grpc_success_response(&copy);
+            }
+        }
         Err(error) => {
             grpc_event.set_grpc_error_response(error);
             grpc_event.set_error_response(&build_error_detail(error));

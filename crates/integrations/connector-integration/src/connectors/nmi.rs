@@ -279,6 +279,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ));
 
         Ok(RefundWebhookDetailsResponse {
+            refund_amount: None,
             connector_refund_id: Some(webhook_body.event_body.transaction_id.clone()),
             // NMI refund webhooks carry no reference to the original payment;
             // `order_id` here is the merchant refund id (used for the reference).

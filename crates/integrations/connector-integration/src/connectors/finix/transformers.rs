@@ -2212,6 +2212,7 @@ pub(super) fn get_finix_webhook_reference(
 
             Ok(Some(WebhookResourceReference::Dispute(
                 DisputeWebhookReference {
+                    merchant_transaction_id: None,
                     connector_dispute_id: None,
                     connector_transaction_id: Some(dispute.transfer),
                 },
@@ -2346,6 +2347,7 @@ pub(super) fn build_finix_refund_webhook_response(
     };
 
     Ok(RefundWebhookDetailsResponse {
+        refund_amount: None,
         connector_refund_id: Some(transfer.id),
         // Finix REVERSAL webhooks only carry connector-side ids — no merchant
         // reference for the original payment.
@@ -2379,6 +2381,7 @@ pub(super) fn build_finix_dispute_webhook_response(
     };
 
     Ok(DisputeWebhookDetailsResponse {
+        connector_transaction_id: None,
         amount: domain_types::utils::convert_amount_for_webhook(
             &common_utils::types::StringMinorUnitForConnector,
             dispute.amount,

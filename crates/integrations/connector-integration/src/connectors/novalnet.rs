@@ -815,6 +815,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let dispute_status = novalnet::get_novalnet_dispute_status(notif.event.event_type);
 
         Ok(DisputeWebhookDetailsResponse {
+            connector_transaction_id: None,
             amount: utils::convert_amount_for_webhook(
                 self.amount_converter,
                 amount.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,

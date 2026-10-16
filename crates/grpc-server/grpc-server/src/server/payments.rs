@@ -602,19 +602,17 @@ impl Payments {
 
         // Execute connector processing - ONLY the authorize call
         let call_connector_action = connector_integration.get_call_connector_action();
-        let response = Box::pin(
-            external_services::service::execute_connector_processing_step(
-                &config.proxy,
-                connector_integration,
-                router_data,
-                None,
-                event_params,
-                token_data,
-                call_connector_action,
-                test_context,
-                api_tag,
-            ),
-        )
+        let response = Box::pin(utils::execute_connector_followups(
+            &config.proxy,
+            connector_integration,
+            router_data,
+            None,
+            event_params,
+            token_data,
+            call_connector_action,
+            test_context,
+            api_tag,
+        ))
         .await;
 
         // Generate response - connector flow errors propagate as Err(tonic::Status)
@@ -745,19 +743,17 @@ impl Payments {
             log_fields: &config.log_fields.outgoing,
         };
 
-        let response = Box::pin(
-            external_services::service::execute_connector_processing_step(
-                &config.proxy,
-                connector_integration,
-                router_data,
-                None,
-                event_params,
-                token_data,
-                common_enums::CallConnectorAction::Trigger,
-                test_context,
-                api_tag,
-            ),
-        )
+        let response = Box::pin(utils::execute_connector_followups(
+            &config.proxy,
+            connector_integration,
+            router_data,
+            None,
+            event_params,
+            token_data,
+            common_enums::CallConnectorAction::Trigger,
+            test_context,
+            api_tag,
+        ))
         .await;
 
         // Generate response - connector flow errors propagate as Err(tonic::Status)

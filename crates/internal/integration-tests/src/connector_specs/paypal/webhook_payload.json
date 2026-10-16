@@ -1,15 +1,44 @@
 {
   "_webhook_config": {
-    "signature_header": "PAYPAL-TRANSMISSION-SIG",
-    "signature_algorithm": "paypal_hmac_sha256",
-    "signature_encoding": "base64",
+    "signature_header": "paypal-transmission-sig",
+    "signature_algorithm": "paypal_remote_rsa",
     "webhook_secret_key": "webhook_secret",
-    "requires_external_verification": true
+    "requires_external_verification": true,
+    "external_verification": {
+      "delivery_file_env": "UCS_WEBHOOK_DELIVERY_FILE",
+      "required_scenarios": [
+        "payment_succeeded",
+        "payment_failed",
+        "refund_succeeded",
+        "paypal_authorization_created",
+        "paypal_authorization_voided",
+        "paypal_capture_pending",
+        "paypal_capture_denied",
+        "paypal_capture_reversed",
+        "paypal_refund_pending",
+        "paypal_refund_failed",
+        "paypal_dispute_created",
+        "paypal_dispute_updated",
+        "paypal_dispute_resolved_seller",
+        "paypal_webhook_dispute_context_mismatch",
+        "paypal_webhook_dispute_context_missing",
+        "paypal_webhook_dispute_ambiguous_seller",
+        "paypal_webhook_capture_id_not_refund",
+        "paypal_webhook_unknown_event",
+        "paypal_webhook_undocumented_refund_completed"
+      ]
+    }
   },
   "payment_succeeded": {
     "grpc_req": {
       "request_details": {
-        "headers": {},
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
         "body": {
           "id": "WH-7YX49823S2290830K-0JE13296W6855235",
           "event_type": "PAYMENT.CAPTURE.COMPLETED",
@@ -25,7 +54,9 @@
               "currency_code": "USD",
               "value": "20.00"
             },
-            "invoice_id": "test_invoice_001"
+            "invoice_id": "test_invoice_001",
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED"
           },
           "create_time": "2023-04-05T12:00:00.000Z"
         }
@@ -36,7 +67,13 @@
   "payment_failed": {
     "grpc_req": {
       "request_details": {
-        "headers": {},
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
         "body": {
           "id": "WH-7YX49823S2290830K-0JE13296W6855237",
           "event_type": "PAYMENT.CAPTURE.DECLINED",
@@ -52,7 +89,9 @@
               "currency_code": "USD",
               "value": "20.00"
             },
-            "invoice_id": "test_invoice_002"
+            "invoice_id": "test_invoice_002",
+            "id": "CAPTURE-public-probe",
+            "status": "DECLINED"
           },
           "create_time": "2023-04-05T12:10:00.000Z"
         }
@@ -63,14 +102,21 @@
   "refund_succeeded": {
     "grpc_req": {
       "request_details": {
-        "headers": {},
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
         "body": {
           "id": "WH-7YX49823S2290830K-0JE13296W6855236",
           "event_type": "PAYMENT.CAPTURE.REFUNDED",
           "resource_type": "refund",
           "summary": "A $ 20.00 USD capture payment was refunded",
           "resource": {
-            "id": "1BJ39302P0806983"
+            "id": "1BJ39302P0806983",
+            "status": "COMPLETED"
           },
           "create_time": "2023-04-05T12:05:00.000Z"
         }
@@ -82,7 +128,11 @@
     "grpc_req": {
       "request_details": {
         "headers": {
-          "PAYPAL-TRANSMISSION-SIG": "INVALID_BASE64_SIGNATURE=="
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
         },
         "body": {
           "id": "WH-7YX49823S2290830K-0JE13296W6855238",
@@ -99,12 +149,656 @@
               "currency_code": "USD",
               "value": "20.00"
             },
-            "invoice_id": "test_invoice_003"
+            "invoice_id": "test_invoice_003",
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED"
           },
           "create_time": "2023-04-05T12:15:00.000Z"
         }
       },
       "merchant_event_id": "paypal_webhook_invalid_sig"
+    }
+  },
+  "paypal_authorization_created": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_authorization_created"
+    }
+  },
+  "paypal_authorization_voided": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "PUBLIC_EVENT",
+          "event_type": "PAYMENT.AUTHORIZATION.VOIDED",
+          "resource_type": "authorization",
+          "resource": {
+            "id": "PUBLIC_AUTH",
+            "status": "VOIDED",
+            "amount": {
+              "value": "60.00",
+              "currency_code": "USD"
+            },
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "PUBLIC_ORDER"
+              }
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_authorization_voided",
+      "event_context": {
+        "payment": {
+          "connector_transaction_id": "PUBLIC_ORDER",
+          "related_connector_transaction_ids": [
+            "PUBLIC_AUTH"
+          ]
+        }
+      }
+    }
+  },
+  "paypal_capture_pending": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_capture_pending"
+    }
+  },
+  "paypal_capture_denied": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_capture_denied"
+    }
+  },
+  "paypal_capture_reversed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_capture_reversed"
+    }
+  },
+  "paypal_refund_pending": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_refund_pending"
+    }
+  },
+  "paypal_refund_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_refund_failed"
+    }
+  },
+  "paypal_dispute_created": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_dispute_created"
+    }
+  },
+  "paypal_dispute_updated": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_dispute_updated"
+    }
+  },
+  "paypal_dispute_resolved_seller": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_dispute_resolved_seller"
+    }
+  },
+  "paypal_webhook_missing_header": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_webhook_missing_header"
+    }
+  },
+  "paypal_webhook_empty_webhook_id": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_webhook_empty_webhook_id",
+      "webhook_secrets": {
+        "secret": ""
+      }
+    }
+  },
+  "paypal_webhook_malformed_body": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": "ew=="
+      },
+      "merchant_event_id": "paypal_webhook_malformed_body"
+    }
+  },
+  "paypal_webhook_untrusted_cert": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://example.invalid/v1/notifications/certs/public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_webhook_untrusted_cert"
+    }
+  },
+  "paypal_webhook_dispute_context_mismatch": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_webhook_dispute_context_mismatch",
+      "event_context": {
+        "dispute": {
+          "connector_transaction_id": "ORDER-known-other-public-probe",
+          "related_connector_transaction_ids": [
+            "CAPTURE-known-other-public-probe"
+          ]
+        }
+      }
+    }
+  },
+  "paypal_webhook_dispute_context_missing": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_webhook_dispute_context_missing",
+      "event_context": {
+        "dispute": {}
+      }
+    }
+  },
+  "paypal_webhook_dispute_ambiguous_seller": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_webhook_dispute_ambiguous_seller"
+    }
+  },
+  "paypal_webhook_capture_id_not_refund": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-probe",
+          "event_type": "PAYMENT.CAPTURE.COMPLETED",
+          "resource_type": "capture",
+          "resource": {
+            "id": "CAPTURE-public-probe",
+            "status": "COMPLETED",
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "ORDER-public-probe"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "paypal_webhook_capture_id_not_refund"
+    }
+  },
+  "paypal_webhook_unknown_event": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-unknown",
+          "event_type": "UNSUPPORTED.PUBLIC.EVENT",
+          "resource": {}
+        }
+      },
+      "merchant_event_id": "paypal_webhook_unknown_event"
+    }
+  },
+  "paypal_webhook_undocumented_refund_completed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "paypal-transmission-id": "public-probe-transmission",
+          "paypal-transmission-time": "2026-10-14T13:41:32Z",
+          "paypal-transmission-sig": "invalid-public-probe-signature",
+          "paypal-auth-algo": "SHA256withRSA",
+          "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+        },
+        "body": {
+          "id": "WH-public-undocumented",
+          "event_type": "PAYMENT.REFUND.COMPLETED",
+          "resource_type": "refund",
+          "resource": {
+            "id": "REFUND-public-probe",
+            "status": "COMPLETED"
+          }
+        }
+      },
+      "merchant_event_id": "paypal_webhook_undocumented_refund_completed"
     }
   }
 }

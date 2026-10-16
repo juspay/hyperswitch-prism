@@ -1,0 +1,276 @@
+{
+  "schema": "paypal-capture-operation-chain/1",
+  "case_id": "Capture/operation_chain",
+  "surface": "ucs_grpc_final_matrix",
+  "evidence_state": "IMPLEMENTED",
+  "live_outcome": "NOT_RUN",
+  "generic_suite_execution": "NOT_RUN: suite dependency_scope=scenario creates independent authorization; this contract requires dedicated final matrix shared-chain runner",
+  "authorization": {
+    "amount": {
+      "minor_amount": 6000,
+      "currency": "USD"
+    },
+    "capture_method": "MANUAL_MULTIPLE",
+    "stable_identity": "Generate one unique merchant_order_id and matching l2_l3_data.order_info.merchant_order_reference_id once per chain execution; persist and reuse on crash/retry. Never derive a new invoice while resuming."
+  },
+  "steps": [
+    {
+      "id": "authorize",
+      "rpc": "PaymentService/Authorize",
+      "assert": {
+        "status": "AUTHORIZED",
+        "authorized_amount": 6000
+      },
+      "bind": "Store actual original order/authorization IDs and connector_feature_data."
+    },
+    {
+      "id": "first",
+      "rpc": "PaymentService/Capture",
+      "amount": 3000,
+      "currency": "USD",
+      "capture_reference": "operation_a",
+      "capture_sequence": 1,
+      "context_from": "authorize",
+      "immutable_snapshot": "Persist exact request before first call, excluding/rebinding OAuth token only; actual HTTP body and operation identity immutable",
+      "assert": {
+        "status": "PARTIAL_CHARGED_AND_CHARGEABLE",
+        "captured_amount": 3000,
+        "capture_id": "present",
+        "wire.final_capture": false
+      }
+    },
+    {
+      "id": "second",
+      "rpc": "PaymentService/Capture",
+      "amount": 3000,
+      "currency": "USD",
+      "capture_reference": "operation_b",
+      "capture_sequence": 2,
+      "context_from": "first",
+      "assert": {
+        "status": "CHARGED",
+        "captured_amount": 3000,
+        "capture_id": "present_and_distinct_from_first",
+        "wire.final_capture": true,
+        "wire.idempotency_key": "different_from_first"
+      }
+    },
+    {
+      "id": "retry_first",
+      "rpc": "PaymentService/Capture",
+      "exact_request_snapshot_from": "first",
+      "context_from": "first_immutable_pre_call_snapshot",
+      "assert": {
+        "status": "PARTIAL_CHARGED_AND_CHARGEABLE",
+        "captured_amount": 3000,
+        "capture_id": "equals_first",
+        "wire.idempotency_key": "equals_first",
+        "wire.body_bytes": "equals_first"
+      },
+      "forbidden": "Do not use newest second metadata or infer global charged state from cached first response."
+    },
+    {
+      "id": "sync_latest",
+      "rpc": "PaymentService/Get",
+      "context_from": "second",
+      "assert": {
+        "status": "CHARGED",
+        "captured_amount": 6000,
+        "actual_capture_total": 6000,
+        "no_extra_collected_money": true
+      }
+    },
+    {
+      "id": "missing_reference",
+      "rpc": "PaymentService/Capture",
+      "capture_method": "MANUAL_MULTIPLE",
+      "capture_reference": "",
+      "assert": {
+        "local_error_field": "multiple_capture_data.capture_reference",
+        "outgoing_http_calls": 0
+      }
+    }
+  ],
+  "wire_oracle": "Use actual unnormalized raw_connector_request MEMORY ONLY; hash PayPal-Request-Id before persistence and redact Authorization/OAuth/bodycredentials. Field-probe normalizes every hex key to one placeholder and cannot prove key identity.",
+  "migration": {
+    "paypal_multiple_capture_first": "paypal_nonfinal_partial_capture_reference_a",
+    "paypal_multiple_capture_second": "paypal_nonfinal_partial_capture_reference_b",
+    "paypal_multiple_capture_retry": "paypal_nonfinal_partial_capture_same_reference_independent_authorization"
+  },
+  "authoring_validation_command": "python3 grace/runs/paypal-20261014T134132Z-b0bfbb/test/grpc/validate_capture_operation_chain.py",
+  "live_runner_binding": "Final gRPC stage must implement and publish exact dedicated runner command against this case; do not mark VERIFIED based on independent generic rows or validator.",
+  "capture_history_complete_contract": {
+    "true": "Only actual newly created authorization/fresh execution or full owned Orders collection certifies complete capture history",
+    "false": "Retain observed capture IDs/amounts; successful capture has unresolved actual Money",
+    "absent": "Legacy unknown, never proof of zero or complete balance",
+    "recovery": "Actual full owned Orders collection restores true, with checked unique per-ID gross capture amounts",
+    "protected_capture": "2K728570VG9010042 must never be replayed; original order reconciliation is read-only"
+  },
+  "source_regressions": [
+    {
+      "id": "capture_method_conflict",
+      "surface": "local_request_negative",
+      "request": "Saved MANUAL_MULTIPLE and explicitly requested MANUAL",
+      "assert": {
+        "local_error": "Capture method conflicts with original authorization",
+        "financial_http_calls": 0
+      }
+    },
+    {
+      "id": "saved_multiple_missing_request_mode",
+      "surface": "local_request_negative",
+      "request": "Saved MANUAL_MULTIPLE, matching explicit request capture_method MANUAL_MULTIPLE, absent multiple_capture_data.capture_reference; stable historical case ID retained",
+      "assert": {
+        "local_error_field": "multiple_capture_data.capture_reference",
+        "financial_http_calls": 0
+      }
+    },
+    {
+      "id": "capture_unsafe_response_id",
+      "surface": "explicit_response_fixture",
+      "response": {
+        "id": "invalid/path",
+        "status": "COMPLETED"
+      },
+      "assert": {
+        "error": "response handling failure",
+        "persisted_money": "unchanged"
+      }
+    },
+    {
+      "id": "collected_missing_money_known_partial_history",
+      "surface": "explicit_response_fixture",
+      "context": "Known prior capture amount3000 and complete ledger; next COMPLETED actualID omits amount",
+      "assert": {
+        "amount_captured": "absent, never request fallback",
+        "capture_id": "actual newly observed resource ID",
+        "prior_capture_map": "retained",
+        "capture_history_complete": false,
+        "captured_total": "unknown",
+        "remaining": "unknown unless actual authorization closure proves zero"
+      }
+    },
+    {
+      "id": "collected_missing_money_final_capture",
+      "surface": "explicit_response_fixture",
+      "response": {
+        "id": "PUBLIC_CAPTURE_ID",
+        "status": "COMPLETED",
+        "final_capture": true
+      },
+      "assert": {
+        "capture_history_complete": false,
+        "authorization_closed": true,
+        "amount_captured": "absent",
+        "subsequent_bare_voided_status": "PENDING, never VOIDED zero money"
+      }
+    },
+    {
+      "id": "legacy_missing_flag_empty_map",
+      "surface": "explicit_response_fixture",
+      "context": "Old metadata contains capture_amounts={} without capture_history_complete",
+      "assert": {
+        "captured_total": "unknown",
+        "remaining": "unknown, never authorization minus invented zero",
+        "manual_multiple_request_final_capture": false
+      }
+    },
+    {
+      "id": "legacy_missing_flag_partial_map",
+      "surface": "explicit_response_fixture",
+      "context": "Old metadata contains prior actual captureID3000 without capture_history_complete",
+      "assert": {
+        "observed_id_and_amount": "retained",
+        "captured_total": "unknown aggregate",
+        "remaining": "unknown aggregate"
+      }
+    },
+    {
+      "id": "bare_voided_lost_capture",
+      "surface": "explicit_response_fixture",
+      "context": "Pre-capture saved empty ledger plus bare VOIDED order without capture collection",
+      "assert": {
+        "status": "PENDING",
+        "capture_history_complete": false,
+        "previously_recorded_amount": "retained",
+        "never_infer_zero": true
+      }
+    },
+    {
+      "id": "owned_orders_restores_completeness",
+      "surface": "real_order_get_or_explicit_response_fixture",
+      "context": "Legacy/incomplete ledger plus actual full correlated Orders capture collection",
+      "assert": {
+        "capture_history_complete": true,
+        "captured_amount": "checked actual unique gross capture total",
+        "remaining": "actual authorization less captured, or zero only if actually closed"
+      }
+    },
+    {
+      "id": "manual_to_multiple_context_upgrade",
+      "surface": "real_capture_chain_or_explicit_response_fixture",
+      "context": "Originally MANUAL authorization followed by explicit MANUAL_MULTIPLE partial capture",
+      "assert": {
+        "operation": "allowed",
+        "returned_capture_method": "MANUAL_MULTIPLE",
+        "subsequent_sync_resource": "original_order",
+        "known_partial_captured_amount": "actual response amount, never requested fallback"
+      }
+    },
+    {
+      "id": "c62_completed_final_true_absent_closed",
+      "surface": "explicit_response_fixture",
+      "context": "C62 source-like absent closure witness; unchanged authoritative guards",
+      "assert": {
+        "declarative_fixture": "c62_completed_final_true_absent_closed",
+        "oracle": "Exact existing production financial_reconciliation fixture assertions"
+      }
+    },
+    {
+      "id": "c62_completed_nonfinal_absent_closed",
+      "surface": "explicit_response_fixture",
+      "context": "C62 source-like absent closure witness; unchanged authoritative guards",
+      "assert": {
+        "declarative_fixture": "c62_completed_nonfinal_absent_closed",
+        "oracle": "Exact existing production financial_reconciliation fixture assertions"
+      }
+    },
+    {
+      "id": "c62_incomplete_nonfinal_absent_closed",
+      "surface": "explicit_response_fixture",
+      "context": "C62 source-like absent closure witness; unchanged authoritative guards",
+      "assert": {
+        "declarative_fixture": "c62_incomplete_nonfinal_absent_closed",
+        "oracle": "Exact existing production financial_reconciliation fixture assertions"
+      }
+    },
+    {
+      "id": "c62_missing_final_absent_closed",
+      "surface": "explicit_response_fixture",
+      "context": "C62 source-like absent closure witness; unchanged authoritative guards",
+      "assert": {
+        "declarative_fixture": "c62_missing_final_absent_closed",
+        "oracle": "Exact existing production financial_reconciliation fixture assertions"
+      }
+    },
+    {
+      "id": "c62_pending_nonfinal_absent_closed",
+      "surface": "explicit_response_fixture",
+      "context": "C62 source-like absent closure witness; unchanged authoritative guards",
+      "assert": {
+        "declarative_fixture": "c62_pending_nonfinal_absent_closed",
+        "oracle": "Exact existing production financial_reconciliation fixture assertions"
+      }
+    },
+    {
+      "id": "c62_prior_closed_true_refused",
+      "surface": "explicit_response_fixture",
+      "context": "C62 source-like absent closure witness; unchanged authoritative guards",
+      "assert": {
+        "declarative_fixture": "c62_prior_closed_true_refused",
+        "oracle": "Exact existing production financial_reconciliation fixture assertions"
+      }
+    }
+  ],
+  "source_regression_execution": "NOT_RUN until approved committed consumer executes each case; no pass from JSON/static source checks"
+}

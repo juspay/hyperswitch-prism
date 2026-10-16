@@ -57,6 +57,9 @@ _PROTO_REPEATED_FIELDS: dict[str, set[str]] = {}
 # These map to HashMap<K,V> in prost, represented as {"key": "value"} in generated code.
 _PROTO_MAP_FIELDS: dict[str, set[str]] = {}
 
+# Real oneof group names and their member fields, used before filtering probe JSON.
+_PROTO_ONEOF_GROUPS: dict[str, dict[str, set[str]]] = {}
+
 # Set of message type names that are "scalar wrappers" (single `value` field).
 # These are stored as plain scalars in probe data but must be sent as
 # {"value": ...} dicts in ParseDict calls.
@@ -351,6 +354,7 @@ def load_proto_type_map(proto_dir: Path) -> None:
     repeated_map: dict[str, set[str]] = {}
     optional_map: dict[str, set[str]] = {}
     map_map: dict[str, set[str]] = {}
+    oneof_map: dict[str, dict[str, set[str]]] = {}
     file_map: dict[str, str] = {}
     enum_parent_map: dict[str, str] = {}
     _FIELD_RE = re.compile(
@@ -410,13 +414,19 @@ def load_proto_type_map(proto_dir: Path) -> None:
             map_fields: set[str] = set()
             inner_depth = 0
             in_oneof = False
+            oneof_groups: dict[str, set[str]] = {}
+            oneof_group: str | None = None
             for line in body.splitlines():
                 stripped = line.strip()
-                if re.match(r"oneof\s+\w+\s*\{", stripped):
+                group_match = re.match(r"oneof\s+(\w+)\s*\{", stripped)
+                if group_match and inner_depth == 0:
                     in_oneof = True
+                    oneof_group = group_match.group(1)
+                    oneof_groups[oneof_group] = set()
                 inner_depth += line.count("{") - line.count("}")
                 if inner_depth == 0:
                     in_oneof = False
+                    oneof_group = None
                 # Parse at depth 0 (regular fields) or inside oneof blocks at depth 1
                 if inner_depth > 0 and not in_oneof:
                     continue
@@ -435,12 +445,15 @@ def load_proto_type_map(proto_dir: Path) -> None:
                     is_repeated, is_optional, ftype, fname = fm.group(1), fm.group(2), fm.group(3), fm.group(4)
                     if ftype not in _SKIP_KEYWORDS and fname not in _SKIP_KEYWORDS:
                         fields[fname] = ftype
+                        if oneof_group:
+                            oneof_groups[oneof_group].add(fname)
                         if is_repeated:
                             repeated_fields.add(fname)
                         if is_optional:
                             optional_fields.add(fname)
 
             type_map[msg_name] = fields
+            oneof_map[msg_name] = oneof_groups
             repeated_map[msg_name] = repeated_fields
             optional_map[msg_name] = optional_fields
             map_map[msg_name] = map_fields
@@ -456,6 +469,13 @@ def load_proto_type_map(proto_dir: Path) -> None:
     _PROTO_OPTIONAL_FIELDS.update(optional_map)
     _PROTO_MAP_FIELDS.clear()
     _PROTO_MAP_FIELDS.update(map_map)
+    _PROTO_ONEOF_GROUPS.clear()
+    _PROTO_ONEOF_GROUPS.update(oneof_map)
+    for message, groups in oneof_map.items():
+        if len(groups) == 1:
+            group, members = next(iter(groups.items()))
+            if members and members == set(type_map[message]):
+                _ONEOF_WRAPPER_FIELD[message] = group
     _PROTO_FILE_MAP.clear()
     _PROTO_FILE_MAP.update(file_map)
     _PROTO_ENUM_PARENT.clear()
@@ -492,10 +512,42 @@ def _py_enum_path(type_name: str) -> str:
     return f"{prefix}{parent}.{type_name}" if parent else f"{prefix}{type_name}"
 
 
+def _rust_words(name: str) -> list[str]:
+    """The cased-word boundaries used by prost's heck identifier conversion.
+
+    Digits retain the preceding case mode: L2L3Data splits into L2L3 / Data,
+    while ordinary PascalCase names and acronym runs keep their own boundaries.
+    """
+    result = []
+    for word in re.findall(r"[A-Za-z0-9]+", name):
+        start, mode = 0, None
+        for index, char in enumerate(word[:-1]):
+            next_char = word[index + 1]
+            next_mode = 'lower' if char.islower() else 'upper' if char.isupper() else mode
+            if next_mode == 'lower' and next_char.isupper():
+                result.append(word[start:index + 1])
+                start, mode = index + 1, None
+            elif mode == 'upper' and char.isupper() and next_char.islower():
+                result.append(word[start:index])
+                start, mode = index, None
+            else:
+                mode = next_mode
+        result.append(word[start:])
+    return [word for word in result if word]
+
+
+def _rust_type_name(name: str) -> str:
+    """Emit the real prost UpperCamel identifier, without changing proto names."""
+    identifier = ''.join(word[0].upper() + word[1:].lower() for word in _rust_words(name))
+    if identifier in {'Self', 'self', 'super', 'extern', 'crate', '_'}:
+        return identifier + '_'
+    return '_' + identifier if identifier and identifier[0].isdigit() else identifier
+
+
 def _rust_enum_path(type_name: str) -> str:
     """Prost path for a proto enum — nested enums live in a snake_case parent module."""
     parent = _enum_parent(type_name)
-    return f"{_to_snake(parent)}::{type_name}" if parent else type_name
+    return f"{'_'.join(word.lower() for word in _rust_words(parent))}::{_rust_type_name(type_name)}" if parent else _rust_type_name(type_name)
 
 
 # ── Scenario groups ─────────────────────────────────────────────────────────────
@@ -582,7 +634,8 @@ _AUTHORIZE_STATUS_HANDLING: dict[str, str] = {
 
 # Status handling for autocapture/wallet/bank scenarios (no separate capture step)
 _AUTOCAPTURE_STATUS_HANDLING: dict[str, str] = {
-    "AUTHORIZED": "Payment authorized and captured — funds will be settled automatically",
+    "AUTHORIZED": "Funds reserved — await confirmed capture before treating the payment as paid",
+    "CHARGED":    "Payment captured — funds collected; apply your fulfillment rules",
     "PENDING":    "Payment processing — await webhook for final status before fulfilling",
     "FAILED":     "Payment declined — surface error to customer, do not retry without new details",
 }
@@ -916,7 +969,7 @@ def _collect_ts_enum_types(obj: dict, msg_name: str, db: "_SchemaDB") -> set[str
     result: set[str] = set()
     if not isinstance(obj, dict):
         return result
-    for key, val in obj.items():
+    for key, val in _expand_oneof_groups(obj, msg_name, db):
         child_msg = db.get_type(msg_name, key)
         if isinstance(val, dict) and child_msg:
             result |= _collect_ts_enum_types(val, child_msg, db)
@@ -952,7 +1005,7 @@ def _annotate_inline_lines(
     lines: list[str] = []
 
     # Filter out fields that don't exist in the proto schema to avoid TypeScript errors
-    items = [(k, v) for k, v in obj.items() if db.is_valid_field(msg_name, k)]
+    items = _expand_oneof_groups(obj, msg_name, db)
     for idx, (key, val) in enumerate(items):
         trailing  = "," if idx < len(items) - 1 else ""
         comment   = db.get_comment(msg_name, key)
@@ -1025,7 +1078,7 @@ def _annotate_before_lines(
     lines: list[str] = []
 
     # Filter out fields that don't exist in the proto schema to avoid TypeScript errors
-    items = [(k, v) for k, v in obj.items() if db.is_valid_field(msg_name, k)]
+    items = _expand_oneof_groups(obj, msg_name, db)
     for idx, (key, val) in enumerate(items):
         trailing  = "," if idx < len(items) - 1 else ""
         comment   = db.get_comment(msg_name, key)
@@ -1665,7 +1718,7 @@ def _py_direct_lines(
                 # In Python proto, oneof cases are set directly on the message.
                 msg_mod = _py_module_for_type(child_msg)
                 lines.append(f"{pad}{key}={msg_mod}.{child_msg}({cmt_part}")
-                for case_key, case_val in val.items():
+                for case_key, case_val in _expand_oneof_groups(val, child_msg, db):
                     case_type = db.get_type(child_msg, case_key)
                     if isinstance(case_val, dict) and case_type:
                         cm = _py_module_for_type(case_type)
@@ -1699,6 +1752,21 @@ def _py_direct_lines(
                 # Unknown field — likely a oneof group name (not in proto schema as a field).
                 # Flatten: treat the inner dict fields as direct fields of the current message.
                 lines.extend(_py_direct_lines(val, msg_name, db, indent, variable_fields))
+        elif isinstance(val, list) and key in _PROTO_REPEATED_FIELDS.get(msg_name, set()):
+            lines.append(f"{pad}{key}=[{cmt_part}")
+            for item in val:
+                if isinstance(item, dict) and child_msg:
+                    cm = _py_module_for_type(child_msg)
+                    lines.append(f"{pad}    {cm}.{child_msg}(")
+                    lines.extend(_py_direct_lines(item, child_msg, db, indent + 2))
+                    lines.append(f"{pad}    ),")
+                elif child_msg and _is_proto_enum(child_msg):
+                    lines.append(f"{pad}    {_py_enum_path(child_msg)}.Value({item!r}),")
+                elif child_msg == "bytes" and isinstance(item, str):
+                    lines.append(f"{pad}    {item!r}.encode(),")
+                else:
+                    lines.append(f"{pad}    {item!r},")
+            lines.append(f"{pad}],")
         elif isinstance(val, bool):
             lines.append(f"{pad}{key}={str(val)},{cmt_part}")
         elif isinstance(val, (int, float)):
@@ -1745,13 +1813,15 @@ def _expand_oneof_groups(proto_req: dict, msg: str, db: "_SchemaDB") -> list[tup
       {"domain_context": {"payment": {...}}}  →  [("payment", {...})]
     """
     result: list[tuple] = []
+    groups = _PROTO_ONEOF_GROUPS.get(msg, {})
     for k, v in proto_req.items():
         if db.is_valid_field(msg, k):
             result.append((k, v))
-        elif isinstance(v, dict):
-            # Likely a oneof group name — expand inner fields that are valid proto fields
+        elif k in groups and isinstance(v, dict):
+            # Only actual schema-declared groups are flattened. Unknown objects
+            # must not smuggle a field into a different message level.
             for inner_k, inner_v in v.items():
-                if db.is_valid_field(msg, inner_k):
+                if inner_k in groups[k] and db.is_valid_field(msg, inner_k):
                     result.append((inner_k, inner_v))
     return result
 
@@ -2776,6 +2846,25 @@ def _kotlin_payload_lines(
                 lines.append(f"{pad}{camel}Builder.apply {{{cmt_part}")
                 lines.extend(_kotlin_payload_lines(val, child_msg, message_schemas, indent + 1, variable_fields, variable_field_values))
                 lines.append(f"{pad}}}")
+        elif isinstance(val, list) and _to_snake(key) in _PROTO_REPEATED_FIELDS.get(msg_name, set()):
+            setter = "add" + camel[0].upper() + camel[1:]
+            for item in val:
+                if isinstance(item, dict) and child_msg:
+                    lines.append(f"{pad}{setter}({child_msg}.newBuilder().apply {{{cmt_part}")
+                    lines.extend(_kotlin_payload_lines(item, child_msg, message_schemas, indent + 1))
+                    lines.append(f"{pad}}}.build())")
+                else:
+                    if child_msg and _is_proto_enum(child_msg):
+                        expression = f"{child_msg}.{item}"
+                    elif child_msg == "bytes" and isinstance(item, str):
+                        expression = f"com.google.protobuf.ByteString.copyFromUtf8({json.dumps(item)})"
+                    elif isinstance(item, bool):
+                        expression = str(item).lower()
+                    elif isinstance(item, int):
+                        expression = str(item) + ("" if child_msg in {"int32", "uint32", "sint32", "fixed32", "sfixed32"} else "L")
+                    else:
+                        expression = json.dumps(item)
+                    lines.append(f"{pad}{setter}({expression}){cmt_part}")
         elif isinstance(val, bool):
             lines.append(f"{pad}{camel} = {str(val).lower()}{cmt_part}")
         elif isinstance(val, int):
@@ -2887,7 +2976,7 @@ def _rust_struct_lines(
         is_msg = bool(child_msg and (
             child_msg in _PROTO_FIELD_TYPES or child_msg in _PROTO_WRAPPER_TYPES
         )) and not is_map
-        is_opt = is_msg or (key in msg_optional)
+        is_opt = (is_msg or (key in msg_optional)) and key not in _PROTO_REPEATED_FIELDS.get(msg_name, set())
 
         def wrap(expr: str) -> str:
             return f"Some({expr})" if is_opt else expr
@@ -2927,21 +3016,25 @@ def _rust_struct_lines(
                 # sub-module named after the oneof field holding the variant enum.
                 wrapper_field = _ONEOF_WRAPPER_FIELD[child_msg]
                 # Enum type name = PascalCase of wrapper_field
-                enum_type = "".join(w.title() for w in wrapper_field.split("_"))
-                module    = wrapper_field  # prost sub-module
+                enum_type = _rust_type_name(wrapper_field)
+                # Prost nests the variant enum under its parent message module,
+                # which can differ from the oneof field (MandateReference).
+                parent_module = "_".join(word.lower() for word in _rust_words(child_msg))
+                module = (wrapper_field if parent_module == wrapper_field
+                          else f"grpc_api_types::payments::{parent_module}")
 
-                case_items = list(val.items())
+                case_items = _expand_oneof_groups(val, child_msg, db)
                 if case_items:
                     case_key, case_val = case_items[0]
                     case_type = db.get_type(child_msg, case_key)
-                    variant   = "".join(w.title() for w in case_key.split("_"))
-                    lines.append(f"{pad}{field}: Some({child_msg} {{{cmt_part}")
+                    variant   = _rust_type_name(case_key)
+                    lines.append(f"{pad}{field}: Some({_rust_type_name(child_msg)} {{{cmt_part}")
                     if isinstance(case_val, dict) and case_type:
                         inner = _rust_struct_lines(
                             case_val, case_type, message_schemas, indent + 2
                         )
                         lines.append(
-                            f"{pad}    {wrapper_field}: Some({module}::{enum_type}::{variant}({case_type} {{"
+                            f"{pad}    {wrapper_field}: Some({module}::{enum_type}::{variant}({_rust_type_name(case_type)} {{"
                         )
                         if inner:
                             lines.extend(inner)
@@ -2962,12 +3055,15 @@ def _rust_struct_lines(
                     proto_child_fields = _PROTO_FIELD_TYPES.get(child_msg, {})
                     child_payload_fields = {_to_snake(k) for k in val.keys()}
                     missing_child = set(proto_child_fields.keys()) - child_payload_fields
-                    if missing_child:
+                    # A pure oneof wrapper has one prost field, already assigned
+                    # above; inactive proto variants are not missing struct fields.
+                    pure_oneof = _PROTO_ONEOF_GROUPS.get(child_msg, {}).get(wrapper_field)
+                    if missing_child and pure_oneof != set(proto_child_fields):
                         lines.append(f"{pad}    ..Default::default()")
                     lines.append(f"{pad}}}),")
                 else:
                     lines.append(
-                        f"{pad}{field}: Some({child_msg} {{ ..Default::default() }}),{cmt_part}"
+                        f"{pad}{field}: Some({_rust_type_name(child_msg)} {{ ..Default::default() }}),{cmt_part}"
                     )
 
             elif is_map and isinstance(val, dict):
@@ -2981,7 +3077,7 @@ def _rust_struct_lines(
             elif child_msg:
                 # Regular nested message — recurse
                 inner = _rust_struct_lines(val, child_msg, message_schemas, indent + 1)
-                lines.append(f"{pad}{field}: Some({child_msg} {{{cmt_part}")
+                lines.append(f"{pad}{field}: Some({_rust_type_name(child_msg)} {{{cmt_part}")
                 if inner:
                     lines.extend(inner)
                 # Check if all proto fields are present - if so, no need for Default::default()
@@ -3001,6 +3097,32 @@ def _rust_struct_lines(
                 # Unknown type (no proto metadata) — emit comment
                 lines.append(f"{pad}// {field}: {json.dumps(val)}{cmt_part}")
 
+        elif isinstance(val, list) and key in _PROTO_REPEATED_FIELDS.get(msg_name, set()):
+            lines.append(f"{pad}{field}: vec![{cmt_part}")
+            for item in val:
+                if isinstance(item, dict) and child_msg in _PROTO_WRAPPER_TYPES:
+                    expression = f"Secret::new({json.dumps(item.get('value', ''))}.to_string())"
+                    lines.append(f"{pad}    {expression},")
+                elif isinstance(item, dict) and child_msg:
+                    lines.append(f"{pad}    {_rust_type_name(child_msg)} {{")
+                    lines.extend(_rust_struct_lines(item, child_msg, message_schemas, indent + 2))
+                    missing = set(_PROTO_FIELD_TYPES.get(child_msg, {})) - {_to_snake(k) for k in item}
+                    if missing:
+                        lines.append(f"{pad}        ..Default::default()")
+                    lines.append(f"{pad}    }},")
+                else:
+                    if child_msg and _is_proto_enum(child_msg):
+                        expression = f"{_rust_enum_path(child_msg)}::from_str_name({json.dumps(item)}).unwrap_or_default().into()"
+                    elif child_msg == "bytes" and isinstance(item, str):
+                        expression = f"{json.dumps(item)}.as_bytes().to_vec()"
+                    elif isinstance(item, str):
+                        expression = f"{json.dumps(item)}.to_string()"
+                    elif isinstance(item, bool):
+                        expression = str(item).lower()
+                    else:
+                        expression = str(item)
+                    lines.append(f"{pad}    {expression},")
+            lines.append(f"{pad}],")
         elif isinstance(val, bool):
             lines.append(f"{pad}{field}: {wrap('true' if val else 'false')},{cmt_part}")
         elif isinstance(val, (int, float)):
@@ -3576,8 +3698,8 @@ def render_consolidated_rust(
         allow = "#[allow(dead_code)]\n" if flow_key in _UNSUPPORTED_FLOWS else ""
         return (
             f"{allow}"
-            f"pub fn build_{flow_key}_request({param_name}: {param_type}) -> {grpc_req_b} {{\n"
-            f"    {grpc_req_b} {{\n"
+            f"pub fn build_{flow_key}_request({param_name}: {param_type}) -> {_rust_type_name(grpc_req_b)} {{\n"
+            f"    {_rust_type_name(grpc_req_b)} {{\n"
             f"{struct_body}{default_suffix}\n"
             f"    }}\n"
             f"}}"
@@ -3596,8 +3718,8 @@ def render_consolidated_rust(
         allow = "#[allow(dead_code)]\n" if flow_key in _UNSUPPORTED_FLOWS else ""
         return (
             f"{allow}"
-            f"pub fn build_{flow_key}_request() -> {grpc_req_b} {{\n"
-            f"    {grpc_req_b} {{\n"
+            f"pub fn build_{flow_key}_request() -> {_rust_type_name(grpc_req_b)} {{\n"
+            f"    {_rust_type_name(grpc_req_b)} {{\n"
             f"{struct_body}{default_suffix}\n"
             f"    }}\n"
             f"}}"

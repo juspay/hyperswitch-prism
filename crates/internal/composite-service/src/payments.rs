@@ -633,7 +633,7 @@ where
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<PaymentServiceAuthorizeResponse, tonic::Status> {
-        let authorize_payload = PaymentServiceAuthorizeRequest::foreign_from((
+        let mut authorize_payload = PaymentServiceAuthorizeRequest::foreign_from((
             payload,
             access_token_response,
             session_token_response,
@@ -642,6 +642,48 @@ where
             authenticate_response,
             post_authenticate_response,
         ));
+
+        if connector_from_composite_authorize_metadata(metadata).map_err(|error| *error)?
+            == ConnectorEnum::Paypal
+        {
+            if let Some(post) = post_authenticate_response {
+                if post.error.is_some()
+                    || post.status
+                        != i32::from(
+                            grpc_api_types::payments::PaymentStatus::AuthenticationSuccessful,
+                        )
+                {
+                    return Err(tonic::Status::failed_precondition(
+                        "PayPal PostAuthenticate did not corroborate approval",
+                    ));
+                }
+                let value = post.connector_feature_data.as_ref().ok_or_else(|| {
+                    tonic::Status::failed_precondition(
+                        "PayPal authentication order context missing",
+                    )
+                })?;
+                let context: connector_integration::connectors::paypal::transformers::PaypalMeta =
+                    serde_json::from_str(hyperswitch_masking::PeekInterface::peek(value)).map_err(
+                        |_| {
+                            tonic::Status::failed_precondition(
+                                "PayPal authentication order context invalid",
+                            )
+                        },
+                    )?;
+                if context.continuation.as_ref().is_some_and(|continuation| continuation.stage == connector_integration::connectors::paypal::transformers::PaypalContinuationStage::OrderApproved) {
+                    let order = context.order_id.as_ref().filter(|id| !id.is_empty()).ok_or_else(|| tonic::Status::failed_precondition("PayPal approved order identity missing"))?;
+                    if post.connector_transaction_id.as_ref() != Some(order)
+                        || [payload.connector_order_id.as_ref(), create_order_response.and_then(|response| response.connector_order_id.as_ref()), authenticate_response.and_then(|response| response.connector_transaction_id.as_ref())]
+                            .into_iter().flatten().any(|id| id != order)
+                    {
+                        return Err(tonic::Status::failed_precondition("PayPal approved order identities conflict"));
+                    }
+                    // Only actual PostAuthenticate corroboration can replace an
+                    // absent initial create-order result on the charging leg.
+                    authorize_payload.connector_order_id = Some(order.clone());
+                }
+            }
+        }
 
         let mut authorize_request = tonic::Request::new(authorize_payload);
         *authorize_request.metadata_mut() = metadata.clone();
@@ -781,7 +823,7 @@ where
         &self,
         request: tonic::Request<CompositeAuthorizeRequest>,
     ) -> Result<tonic::Response<CompositeAuthorizeResponse>, tonic::Status> {
-        let (metadata, extensions, payload) = request.into_parts();
+        let (metadata, extensions, mut payload) = request.into_parts();
 
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
@@ -794,6 +836,19 @@ where
                 &extensions,
             )
             .await?;
+        // Resolve fresh OAuth into the effective payload shared by every leg.
+        // Authenticate/PostAuthenticate clone this state even without PreAuth.
+        // Preserve customer state and never serialize token values to diagnostics.
+        if let Some(token) =
+            crate::utils::access_token_from_create_server_authentication_token_response(
+                access_token_response.as_ref(),
+            )
+        {
+            payload
+                .state
+                .get_or_insert_with(ConnectorState::default)
+                .access_token = Some(token);
+        }
         let session_token_response = self
             .create_server_session_authentication_token(
                 &connector,

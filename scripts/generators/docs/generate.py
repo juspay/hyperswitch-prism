@@ -20,6 +20,10 @@ To add docs for a new connector:
 """
 
 import os
+import hashlib
+import re
+import tempfile
+import time
 import sys
 import json
 import shutil
@@ -904,6 +908,20 @@ def generate_flow_files(
             connector_name, flow_items, flow_metadata, _MESSAGE_SCHEMAS,
             scenarios_with_payloads=scenarios_with_payloads,
         )
+        # Format before recording anchors: rustfmt can expand constructors and
+        # shift every later flow/scenario function by many lines.
+        if sdk == "rust":
+            try:
+                formatted = subprocess.run(
+                    ["rustfmt", "--edition", "2021", "--emit", "stdout"],
+                    input=content, capture_output=True, text=True,
+                )
+            except FileNotFoundError:
+                formatted = None
+            if formatted is not None:
+                if formatted.returncode != 0:
+                    raise RuntimeError(f"rustfmt failed for {out_path}: {formatted.stderr}")
+                content = formatted.stdout
         out_path.write_text(content, encoding="utf-8")
         written.append(out_path)
 
@@ -1151,6 +1169,226 @@ def list_connectors() -> list[str]:
 
 # ─── CLI ─────────────────────────────────────────────────────────────────────
 
+def _check_current_kotlin_sdk(sdk_java_dir: Path, smoke_test_dir: Path, kt_files: list[Path]) -> list[str]:
+    """Compile against the fresh real SDK publication and bind actual artifacts.
+
+    Gradle's own model reports the produced publication, Maven-local location,
+    and resolved compile classpath. A successful compile using a stale cached
+    SDK is insufficient. No financial requests or SDK native calls run here.
+    """
+    root = sdk_java_dir.parent.parent
+    report = {"pass": False, "publisher_exit": None, "compiler_exit": None}
+    errors: list[str] = []
+
+    def sha(path: Path) -> str:
+        value = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                value.update(chunk)
+        return value.hexdigest()
+
+    def inputs() -> dict[str, str]:
+        paths = list(sdk_java_dir.rglob("*")) + list((root / "crates/types-traits/grpc-api-types/proto").rglob("*.proto"))
+        return {str(path.relative_to(root)): sha(path) for path in sorted(paths)
+                if path.is_file() and not any(part in {"build", ".gradle", ".kotlin", ".git"}
+                    for part in path.relative_to(root).parts)}
+
+    def diagnostics(result, phase):
+        # Never forward arbitrary Gradle stdout/env or quoted literal values.
+        found = []
+        structural = False
+        for line in (result.stdout + result.stderr).splitlines():
+            line = line.lstrip()
+            if line == "* What went wrong:":
+                structural = True
+                continue
+            if structural and line.startswith("* "):
+                structural = False
+            compiler = line.startswith("e: file://") or re.search(r"^.+:[0-9]+: error:", line)
+            gradle = structural and (line.startswith("> ") or line.startswith("Execution failed for task")
+                or line.startswith("Could not ") or line.startswith("A problem occurred"))
+            if compiler or gradle:
+                line = line.replace(str(root) + "/", "")
+                line = re.sub(r"[\"'][^\"'\n]*[\"']", "<literal>", line)
+                line = re.sub(r"(?:https?|file)://\S+", "<url>", line)
+                line = re.sub(r"[A-Za-z0-9_+/=-]{40,}", "<opaque>", line)
+                found.append(line[:400])
+        report[phase.replace(" ", "_") + "_diagnostics"] = found[:12]
+        report[phase.replace(" ", "_") + "_output_sha256"] = hashlib.sha256(
+            (result.stdout + result.stderr).encode()).hexdigest()
+        return [f"Kotlin {phase} failed (exit {result.returncode}); no cached SDK fallback"] + found[:12]
+
+    metadata_script = r'''import groovy.json.JsonOutput
+allprojects { p ->
+    p.afterEvaluate {
+        def compilerTask = p.tasks.findByName("compileKotlin")
+        def compilerRuntime = {
+            [strategy: compilerTask?.compilerExecutionStrategy?.get()?.toString(),
+             contentLimitKiB: System.getProperty("idea.max.content.load.filesize"),
+             pid: ProcessHandle.current().pid(),
+             jvmArguments: java.lang.management.ManagementFactory.runtimeMXBean.inputArguments.findAll {
+                 it ==~ /-Xmx[0-9]+[kKmMgG]/ ||
+                 it ==~ /-Didea\.max\.content\.load\.filesize=[0-9]+/ }]
+        }
+        if (compilerTask) {
+            compilerTask.doFirst {
+                def runtime = compilerRuntime()
+                println("PRISM_EXAMPLE_COMPILER_RUNTIME=" + JsonOutput.toJson(runtime))
+                // Gradle forwards mutable -D properties with System.setProperty
+                // before task execution; RuntimeMXBean startup argv is informational.
+                if (runtime.strategy != "IN_PROCESS" || runtime.contentLimitKiB != "65536") {
+                    throw new GradleException("Owned compiler runtime capacity proof failed")
+                }
+            }
+        }
+        p.tasks.register("prismExampleArtifactInfo") {
+            doLast {
+                def pub = p.extensions.findByName("publishing")?.publications?.findByName("mavenLocal")
+                def mainArtifacts = pub ? pub.artifacts.findAll { it.extension == "jar" && !it.classifier } : []
+                def config = p.configurations.findByName("compileClasspath")
+                def artifacts = config ? config.resolvedConfiguration.resolvedArtifacts.collect {
+                    [group: it.moduleVersion.id.group, name: it.name,
+                     version: it.moduleVersion.id.version, file: it.file.canonicalPath]
+                } : []
+                def local = p.repositories.findByName("MavenLocal")
+                println("PRISM_EXAMPLE_ARTIFACT_INFO=" + JsonOutput.toJson([
+                    compilerRuntime: compilerRuntime(),
+                    publication: pub ? [group: pub.groupId, name: pub.artifactId, version: pub.version,
+                                        artifacts: mainArtifacts.collect { it.file.canonicalPath }] : null,
+                    mavenLocal: local ? local.url.toString() : null,
+                    compilerJvmArguments: p.tasks.findByName("compileKotlin")?.kotlinDaemonJvmArguments?.get()?.findAll {
+                        it ==~ /-Xmx[0-9]+[kKmMgG]/ ||
+                        it ==~ /-Didea\.max\.(content\.load|intellisense)\.filesize=[0-9]+/ } ?: [],
+                    compileClasspath: config ? config.files.collect { it.canonicalPath } : [],
+                    resolvedArtifacts: artifacts]))
+            }
+        }
+    }
+}
+'''
+    def info(result):
+        prefix = "PRISM_EXAMPLE_ARTIFACT_INFO="
+        rows = [json.loads(line[len(prefix):]) for line in result.stdout.splitlines() if line.startswith(prefix)]
+        if len(rows) != 1:
+            raise ValueError("missing unique Gradle artifact metadata")
+        return rows[0]
+
+    before = inputs()
+    report["source_sha256_before"] = before
+    report["example_source_sha256"] = {str(path.relative_to(root)): sha(path) for path in kt_files}
+    report["checker_sha256"] = sha(Path(__file__))
+    try:
+        with tempfile.TemporaryDirectory(prefix="prism-sdk-artifacts-") as directory:
+            init = Path(directory) / "artifact-info.gradle"
+            init.write_text(metadata_script)
+            # Run the compiler inside the owned Gradle JVM. Reused Kotlin
+            # daemons do not reliably inherit a task's updated JVM arguments.
+            content_flag = "-Didea.max.content.load.filesize=65536"
+            common = ["--no-daemon", "--max-workers=2", "--init-script", str(init),
+                      "-Pkotlin.compiler.execution.strategy=in-process",
+                      "-Dorg.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8 " + content_flag, "-q"]
+            gradlew = str((sdk_java_dir / "gradlew").resolve())
+            preflight = subprocess.run([gradlew, "prismExampleArtifactInfo", *common],
+                capture_output=True, text=True, cwd=sdk_java_dir)
+            report["compiler_configuration_exit"] = preflight.returncode
+            if preflight.returncode:
+                errors.extend(diagnostics(preflight, "compiler configuration"))
+                return errors
+            configuration = info(preflight)["compilerRuntime"]
+            report["compiler_configuration"] = configuration
+            def runtime_receipts(result):
+                prefix = "PRISM_EXAMPLE_COMPILER_RUNTIME="
+                rows = [json.loads(line[len(prefix):]) for line in result.stdout.splitlines()
+                        if line.startswith(prefix)]
+                for row in rows:
+                    validate_runtime(row)
+                if not rows:
+                    raise ValueError("missing actual compile-task runtime receipt")
+                return rows
+
+            def validate_runtime(row):
+                if (row.get("strategy") != "IN_PROCESS" or row.get("contentLimitKiB") != "65536"
+                        or not isinstance(row.get("pid"), int) or row["pid"] <= 0):
+                    raise ValueError("compiler runtime lacks owned in-process capacity proof")
+            validate_runtime(configuration)
+            started = time.time()
+            report["publisher_started_at_epoch"] = started
+            command = [gradlew, "clean", "publishToMavenLocal", "prismExampleArtifactInfo", *common]
+            report["publisher_command"] = ["gradlew", "clean", "publishToMavenLocal", "prismExampleArtifactInfo", "--no-daemon", "--max-workers=2", "--init-script", "<temporary-build-metadata>", "-Pkotlin.compiler.execution.strategy=in-process", "-Dorg.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8 -Didea.max.content.load.filesize=65536", "-q"]
+            publisher = subprocess.run(command, capture_output=True, text=True, cwd=sdk_java_dir)
+            report["publisher_exit"] = publisher.returncode
+            prefix = "PRISM_EXAMPLE_COMPILER_RUNTIME="
+            report["publisher_observed_runtime"] = [json.loads(line[len(prefix):])
+                for line in publisher.stdout.splitlines() if line.startswith(prefix)]
+            if publisher.returncode:
+                errors.extend(diagnostics(publisher, "SDK publisher"))
+                return errors
+            report["publisher_compiler_runtime"] = runtime_receipts(publisher)
+            publication = info(publisher)["publication"]
+            if not publication or len(publication["artifacts"]) != 1:
+                raise ValueError("missing unique produced main SDK JAR")
+            produced = Path(publication["artifacts"][0]).resolve(strict=True)
+            if not produced.is_relative_to((sdk_java_dir / "build").resolve()) or produced.stat().st_mtime < started:
+                raise ValueError("SDK publisher did not produce a fresh owned artifact")
+            produced_sha = sha(produced)
+            report["produced_jar"] = {"path": str(produced), "sha256": produced_sha}
+            compile_started = time.time()
+            report["compiler_started_at_epoch"] = compile_started
+            compiler = subprocess.run([gradlew, "--project-dir", str(smoke_test_dir.resolve()),
+                "clean", "compileKotlin", "prismExampleArtifactInfo", "--rerun-tasks", "--refresh-dependencies", *common],
+                capture_output=True, text=True, cwd=sdk_java_dir)
+            report["compiler_exit"] = compiler.returncode
+            report["example_observed_runtime"] = [json.loads(line[len(prefix):])
+                for line in compiler.stdout.splitlines() if line.startswith(prefix)]
+            if compiler.returncode:
+                errors.extend(diagnostics(compiler, "current-SDK compiler"))
+                return errors
+            report["example_compiler_runtime"] = runtime_receipts(compiler)
+            compiled = info(compiler)
+            from urllib.parse import urlsplit, unquote
+            local = urlsplit(compiled["mavenLocal"] or "")
+            if local.scheme != "file":
+                raise ValueError("actual Gradle Maven-local repository is not a local file repository")
+            published = (Path(unquote(local.path)) / publication["group"].replace(".", "/") /
+                         publication["name"] / publication["version"] /
+                         (publication["name"] + "-" + publication["version"] + ".jar")).resolve(strict=True)
+            candidates = [item for item in compiled["resolvedArtifacts"]
+                if all(item[key] == publication[key] for key in ("group", "name", "version"))]
+            if len(candidates) != 1:
+                raise ValueError("compiler did not resolve the actual published SDK module uniquely")
+            resolved = Path(candidates[0]["file"]).resolve(strict=True)
+            if (str(resolved) not in compiled["compileClasspath"] or resolved != published
+                    or published.stat().st_mtime < started or sha(published) != produced_sha
+                    or sha(resolved) != produced_sha):
+                raise ValueError("produced, published and actual compiler SDK artifacts differ or are stale")
+            report["published_jar"] = {"path": str(published), "sha256": sha(published)}
+            report["compiler_sdk_jar"] = {"path": str(resolved), "sha256": sha(resolved)}
+            classes = []
+            for source in kt_files:
+                match = re.search(r"^\s*package\s+([A-Za-z0-9_.]+)", source.read_text(), re.M)
+                package = Path(*match[1].split(".")) if match else Path()
+                facade = source.stem[0].upper() + source.stem[1:] + "Kt.class"
+                compiled_class = smoke_test_dir / "build/classes/kotlin/main" / package / facade
+                if not compiled_class.is_file() or compiled_class.stat().st_mtime < compile_started:
+                    raise ValueError("fresh compiled example class is missing")
+                classes.append({"source": str(source.relative_to(root)), "path": str(compiled_class), "sha256": sha(compiled_class)})
+            report["compiled_examples"] = classes
+            report["pass"] = True
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        errors.append("Kotlin SDK artifact binding failed: " + str(error))
+    finally:
+        after = inputs()
+        report["source_sha256_after"] = after
+        report["source_unchanged"] = before == after
+        if before != after:
+            report["pass"] = False
+            errors.append("Kotlin SDK source changed during publication/compilation")
+        destination = sdk_java_dir / "build/example-sdk-provenance.json"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(json.dumps(report, indent=2) + "\n")
+    return errors
+
+
 def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = None) -> bool:
     """Run syntax/compilation checks on generated example files.
 
@@ -1312,36 +1550,13 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
         if gradlew.exists() and smoke_test_dir.exists():
             kt_ok = True
             print(f"  Checking Kotlin ({len(kt_files)} files) via Gradle ...", end=" ", flush=True)
-            # Ensure the SDK JAR is in Maven local so smoke-test can resolve it.
-            # Clean first so new proto-generated classes (e.g. EventServiceParseRequest)
-            # are always compiled from the regenerated Payment.java, not a stale cache.
-            subprocess.run(
-                [str(gradlew), "clean", "publishToMavenLocal", "-q"],
-                capture_output=True, text=True,
-                cwd=str(sdk_java_dir),
-            )
-            result = subprocess.run(
-                [str(gradlew), "--project-dir", str(smoke_test_dir),
-                 "compileKotlin", "--rerun-tasks", "-q"],
-                capture_output=True, text=True,
-                cwd=str(sdk_java_dir),
-            )
-            if result.returncode != 0:
-                kt_errors: list[str] = []
-                for line in (result.stdout + result.stderr).splitlines():
-                    if line.startswith("e: file://"):
-                        short = line.replace("e: file://" + str(examples_dir.parent) + "/", "")
-                        kt_errors.append(f"Kotlin: {short}")
-                if kt_errors:
-                    print(f"✗ ({len(kt_errors)} error(s))")
-                    errors.extend(kt_errors)
-                else:
-                    # Non-zero exit but no parseable errors — surface raw output
-                    raw = (result.stdout + result.stderr).strip()[:300]
-                    errors.append(f"Kotlin (Gradle): {raw}")
-                    print("✗")
+            kt_errors = _check_current_kotlin_sdk(sdk_java_dir, smoke_test_dir, kt_files)
+            if kt_errors:
+                errors.extend(kt_errors)
+                print(f"✗ ({len(kt_errors)} error(s))")
             else:
-                print("✓")
+                print("✓ (fresh SDK artifact/classpath bound)")
+
         else:
             try:
                 subprocess.run(["kotlinc", "-version"], capture_output=True, check=True)

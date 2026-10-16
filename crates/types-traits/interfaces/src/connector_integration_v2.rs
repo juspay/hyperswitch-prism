@@ -45,6 +45,15 @@ where
 pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> + Sync + api::ConnectorCommon
 {
+    /// Opt in to a subsequent HTTP stage after a successful nonterminal response.
+    /// The opaque progress key must change at each stage; the server bounds calls.
+    fn next_http_stage(
+        &self,
+        _data: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+    ) -> Option<String> {
+        None
+    }
+
     /// returns a vec of tuple of header key and value
     fn get_headers(
         &self,

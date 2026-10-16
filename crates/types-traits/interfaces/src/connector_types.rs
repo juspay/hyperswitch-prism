@@ -697,6 +697,18 @@ pub trait IncomingWebhook {
         .into())
     }
 
+    /// Optional caller context for connectors whose dispute references need corroboration.
+    /// Existing integrations retain their original hook and behavior by default.
+    fn process_dispute_webhook_with_context(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<domain_types::connector_types::EventContext>,
+    ) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        self.process_dispute_webhook(request, connector_webhook_secret, connector_account_details)
+    }
+
     /// fn process_payout_webhook
     ///
     /// Maps a payout webhook to the same shape a `PayoutService.Get` would

@@ -338,6 +338,7 @@ impl GlomopayRefundWebhookPayload {
             _ => (None, None),
         };
         RefundWebhookDetailsResponse {
+            refund_amount: None,
             connector_refund_id: Some(self.data.id.clone()),
             merchant_transaction_id: None,
             status: self.get_refund_status(),

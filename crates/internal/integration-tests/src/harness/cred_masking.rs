@@ -47,6 +47,18 @@ pub fn is_sensitive_key(key: &str) -> bool {
         || key == "accesscode"
         || key == "entityid"
         || key == "pin"
+        || matches!(
+            key.as_str(),
+            "cavv"
+                | "clientid"
+                | "cookie"
+                | "webhookid"
+                | "sig"
+                | "transmissionsig"
+                | "paypaltransmissionsig"
+                | "body"
+                | "webhookbody"
+        )
 }
 
 /// Recursively mask sensitive keys inside a JSON `Value` in-place.
@@ -54,7 +66,15 @@ pub fn mask_json_value(value: &mut Value) {
     match value {
         Value::Object(map) => {
             for (key, child) in map.iter_mut() {
-                if is_sensitive_key(key) {
+                if normalize_key(key) == "headers" {
+                    if let Value::Object(headers) = child {
+                        for value in headers.values_mut() {
+                            *value = Value::String(MASKED_VALUE.to_owned());
+                        }
+                    } else {
+                        *child = Value::String(MASKED_VALUE.to_owned());
+                    }
+                } else if is_sensitive_key(key) {
                     *child = Value::String(MASKED_VALUE.to_string());
                 } else {
                     mask_json_value(child);
@@ -83,7 +103,10 @@ pub fn mask_sensitive_text(text: &str) -> String {
     // This MUST run before line-by-line passes because Bearer-token masking
     // can corrupt escaped quotes inside the value strings, making the regex
     // unable to match the structural `{ "value": "..." }` pattern.
-    let text = mask_raw_connector_fields(text);
+    // Parse whole JSON fragments before line masking: a nested SecretString
+    // must be masked as a value, not just its opening line.
+    let text = mask_json_fragments(text);
+    let text = mask_raw_connector_fields(&text);
 
     let mut masked_lines = Vec::new();
     for line in text.lines() {
@@ -92,6 +115,37 @@ pub fn mask_sensitive_text(text: &str) -> String {
         masked_lines.push(mask_bearer_and_jwt_tokens(&line));
     }
     masked_lines.join("\n")
+}
+
+/// Preserve surrounding CLI/trace text while masking complete structured values.
+fn mask_json_fragments(text: &str) -> String {
+    let mut output = String::new();
+    let mut cursor = 0;
+    while let Some(remainder) = text.get(cursor..) {
+        let Some((offset, opener)) = remainder
+            .char_indices()
+            .find(|(_, value)| matches!(value, '{' | '['))
+        else {
+            output.push_str(remainder);
+            break;
+        };
+        let start = cursor + offset;
+        output.push_str(text.get(cursor..start).unwrap_or_default());
+        let mut values = serde_json::Deserializer::from_str(text.get(start..).unwrap_or_default())
+            .into_iter::<Value>();
+        if let Some(Ok(mut value)) = values.next() {
+            let consumed = values.byte_offset();
+            mask_json_value(&mut value);
+            output.push_str(
+                &serde_json::to_string_pretty(&value).unwrap_or_else(|_| MASKED_VALUE.to_owned()),
+            );
+            cursor = start + consumed;
+        } else {
+            output.push(opener);
+            cursor = start + opener.len_utf8();
+        }
+    }
+    output
 }
 
 // ---------------------------------------------------------------------------
@@ -452,7 +506,6 @@ fn normalize_key(key: &str) -> String {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
-
 #[cfg(test)]
 mod tests {
     use super::*;

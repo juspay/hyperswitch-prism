@@ -1,0 +1,4144 @@
+{
+  "PaymentService/Authorize": {
+    "paypal_applepay_hs_final": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "apple_pay_sdk": {
+            "payment_data": {
+              "decrypted_data": {
+                "application_primary_account_number": {
+                  "value": "4895370015293175"
+                },
+                "application_expiration_month": {
+                  "value": "12"
+                },
+                "application_expiration_year": {
+                  "value": "2030"
+                },
+                "payment_data": {
+                  "online_payment_cryptogram": {
+                    "value": "AgAAAAAAAIR8CQrXcIhbQAAAAAA="
+                  },
+                  "eci_indicator": "07"
+                }
+              }
+            },
+            "payment_method": {
+              "display_name": "Visa 3175",
+              "network": "Visa",
+              "type": "debit"
+            },
+            "transaction_identifier": "3130323334353637383930313233343536"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Apple Pay (decrypted DPAN)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        },
+        "captured_amount": {
+          "equals": 6000
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "paypal_googlepay_hs_final": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD",
+            "description": "Visa 3175",
+            "info": {
+              "card_network": "VISA",
+              "card_details": "3175"
+            },
+            "tokenization_data": {
+              "decrypted_data": {
+                "card_exp_month": {
+                  "value": "12"
+                },
+                "card_exp_year": {
+                  "value": "2030"
+                },
+                "application_primary_account_number": {
+                  "value": "4895370015293175"
+                },
+                "cryptogram": {
+                  "value": "AgAAAAAAAIR8CQrXcIhbQAAAAAA="
+                },
+                "eci_indicator": "07"
+              }
+            }
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Google Pay (decrypted DPAN)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        },
+        "captured_amount": {
+          "equals": 6000
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "paypal_applepay_psp_final": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "apple_pay_sdk": {
+            "payment_data": {
+              "encrypted_data": "${PAYPAL_APPLEPAY_DEVICE_TOKEN}"
+            },
+            "payment_method": {
+              "display_name": "Visa 3175",
+              "network": "Visa",
+              "type": "debit"
+            },
+            "transaction_identifier": "3130323334353637383930313233343536"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Apple Pay (decrypted DPAN)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        },
+        "captured_amount": {
+          "equals": 6000
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "paypal_googlepay_psp_api_unsupported": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD",
+            "description": "Visa 1111",
+            "info": {
+              "card_network": "VISA",
+              "card_details": "1111"
+            },
+            "tokenization_data": {
+              "encrypted_data": {
+                "token": "{\"version\":\"ECv2\",\"signature\":\"<sig>\",\"intermediateSigningKey\":{\"signedKey\":\"<signed_key>\",\"signatures\":[\"<sig>\"]},\"signedMessage\":\"<signed_message>\"}",
+                "token_type": "PAYMENT_GATEWAY"
+              }
+            }
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Google Pay (encrypted token)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "equals": "NOT_SUPPORTED"
+        }
+      }
+    },
+    "paypal_external_rawcard_3ds_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": "",
+        "authentication_data": {
+          "trans_status": "TRANSACTION_STATUS_SUCCESS",
+          "eci": "05",
+          "cavv": "ZG9jdW1lbnRlZC10ZXN0LW9ubHk="
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "equals": "NOT_SUPPORTED"
+        }
+      }
+    },
+    "paypal_networktoken_cit_no_trid": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "network_token": {
+            "token_number": {
+              "value": "4034772286582057"
+            },
+            "token_exp_month": {
+              "value": "12"
+            },
+            "token_exp_year": {
+              "value": "2030"
+            },
+            "token_cryptogram": {
+              "value": "ApIPtIgAMyrMgTx1RSnAMAACAAA="
+            },
+            "card_network": "VISA",
+            "eci": "07"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Google Pay (decrypted DPAN)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        },
+        "captured_amount": {
+          "equals": 6000
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "paypal_networktoken_missing_crypto_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "network_token": {
+            "token_number": {
+              "value": "4034772286582057"
+            },
+            "token_exp_month": {
+              "value": "12"
+            },
+            "token_exp_year": {
+              "value": "2030"
+            },
+            "card_network": "VISA",
+            "eci": "07"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Google Pay (decrypted DPAN)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "error.error_code": {
+          "equals": "INVALID_DATA_FORMAT"
+        },
+        "error.error_message": {
+          "equals": "Invalid data format: payment_method.network_token. CIT requires the provisioned one-use token cryptogram"
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "paypal_networktoken_missing_crypto_refused \u2014 specific local refusal; no financial outbound request required"
+    },
+    "paypal_networktoken_unknown_eci_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "network_token": {
+            "token_number": {
+              "value": "4034772286582057"
+            },
+            "token_exp_month": {
+              "value": "12"
+            },
+            "token_exp_year": {
+              "value": "2030"
+            },
+            "token_cryptogram": {
+              "value": "ApIPtIgAMyrMgTx1RSnAMAACAAA="
+            },
+            "card_network": "VISA",
+            "eci": "99"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Google Pay (decrypted DPAN)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "error.error_code": {
+          "equals": "INVALID_DATA_FORMAT"
+        },
+        "error.error_message": {
+          "equals": "Invalid data format: payment_method.network_token. Unsupported numeric/descriptive ECI; use a documented enum or network-specific ECI00/01/02/05/06/07"
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "paypal_networktoken_unknown_eci_refused \u2014 specific local refusal; no financial outbound request required"
+    },
+    "paypal_networktoken_information_only_full_eci_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "network_token": {
+            "token_number": {
+              "value": "4034772286582057"
+            },
+            "token_exp_month": {
+              "value": "12"
+            },
+            "token_exp_year": {
+              "value": "2030"
+            },
+            "token_cryptogram": {
+              "value": "ApIPtIgAMyrMgTx1RSnAMAACAAA="
+            },
+            "card_network": "VISA",
+            "eci": "FULLY_AUTHENTICATED_TRANSACTION"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Google Pay (decrypted DPAN)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": "",
+        "authentication_data": {
+          "trans_status": "TRANSACTION_STATUS_INFORMATION_ONLY",
+          "eci": "05"
+        }
+      },
+      "assert": {
+        "error.error_code": {
+          "equals": "NOT_SUPPORTED"
+        },
+        "error.error_message": {
+          "equals": "PayPal Orders has no documented external ACS authentication result carrier is not supported by paypal. Use native PayPal authentication or a genuine TSP token cryptogram/ECI; ACS CAVV/trans_status cannot be imported through a wallet or network token"
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        },
+        "error": {
+          "must_exist": true
+        }
+      },
+      "display_name": "Explicit external InformationOnly ACS result refused before network-token charge; genuine TSP ECI is separate"
+    },
+    "paypal_networktoken_native_three_ds_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "network_token": {
+            "token_number": {
+              "value": "4034772286582057"
+            },
+            "token_exp_month": {
+              "value": "12"
+            },
+            "token_exp_year": {
+              "value": "2030"
+            },
+            "token_cryptogram": {
+              "value": "ApIPtIgAMyrMgTx1RSnAMAACAAA="
+            },
+            "card_network": "VISA",
+            "eci": "07"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          }
+        },
+        "auth_type": "THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Google Pay (decrypted DPAN)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "error.error_code": {
+          "equals": "INVALID_DATA_FORMAT"
+        },
+        "error.error_message": {
+          "equals": "Invalid data format: payment_method.network_token. Hosted native 3DS is not supported for this network-token carrier; use the genuine TSP token cryptogram and ECI without an external ACS result"
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "paypal_networktoken_native_three_ds_refused \u2014 specific local refusal; no financial outbound request required"
+    },
+    "paypal_googlepay_hs_pan_only_no_signed_expiry": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD",
+            "description": "Visa 3175",
+            "info": {
+              "card_network": "VISA",
+              "card_details": "3175"
+            },
+            "tokenization_data": {
+              "decrypted_data": {
+                "card_exp_month": {
+                  "value": "12"
+                },
+                "card_exp_year": {
+                  "value": "2030"
+                },
+                "application_primary_account_number": {
+                  "value": "4111111111111111"
+                },
+                "auth_method": "PAN_ONLY"
+              }
+            }
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Google Pay (decrypted DPAN)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        },
+        "captured_amount": {
+          "equals": 6000
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "paypal_googlepay_expired_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD",
+            "description": "Visa 3175",
+            "info": {
+              "card_network": "VISA",
+              "card_details": "3175"
+            },
+            "tokenization_data": {
+              "decrypted_data": {
+                "card_exp_month": {
+                  "value": "12"
+                },
+                "card_exp_year": {
+                  "value": "2030"
+                },
+                "application_primary_account_number": {
+                  "value": "4895370015293175"
+                },
+                "cryptogram": {
+                  "value": "AgAAAAAAAIR8CQrXcIhbQAAAAAA="
+                },
+                "eci_indicator": "07",
+                "message_expiration": "1000000000000",
+                "auth_method": "CRYPTOGRAM_3DS"
+              }
+            }
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Google Pay (decrypted DPAN)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "error.error_code": {
+          "equals": "INVALID_DATA_FORMAT"
+        },
+        "error.error_message": {
+          "equals": "Invalid data format: payment_method.network_token. The original signed Google Pay message has expired"
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "paypal_googlepay_expired_refused \u2014 specific local refusal; no financial outbound request required"
+    },
+    "paypal_googlepay_malformed_expiration_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD",
+            "description": "Visa 3175",
+            "info": {
+              "card_network": "VISA",
+              "card_details": "3175"
+            },
+            "tokenization_data": {
+              "decrypted_data": {
+                "card_exp_month": {
+                  "value": "12"
+                },
+                "card_exp_year": {
+                  "value": "2030"
+                },
+                "application_primary_account_number": {
+                  "value": "4895370015293175"
+                },
+                "cryptogram": {
+                  "value": "AgAAAAAAAIR8CQrXcIhbQAAAAAA="
+                },
+                "eci_indicator": "07",
+                "message_expiration": "not-a-time"
+              }
+            }
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Google Pay (decrypted DPAN)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "error.error_code": {
+          "equals": "INVALID_DATA_FORMAT"
+        },
+        "error.error_message": {
+          "equals": "Invalid data format: payment_method.network_token. Google message_expiration must be13 ASCII digits in UTC milliseconds"
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "paypal_googlepay_malformed_expiration_refused \u2014 specific local refusal; no financial outbound request required"
+    },
+    "paypal_googlepay_crypto_method_missing_crypto_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "google_pay_sdk": {
+            "type": "CARD",
+            "description": "Visa 3175",
+            "info": {
+              "card_network": "VISA",
+              "card_details": "3175"
+            },
+            "tokenization_data": {
+              "decrypted_data": {
+                "card_exp_month": {
+                  "value": "12"
+                },
+                "card_exp_year": {
+                  "value": "2030"
+                },
+                "application_primary_account_number": {
+                  "value": "4895370015293175"
+                },
+                "eci_indicator": "07",
+                "auth_method": "CRYPTOGRAM_3DS"
+              }
+            }
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+1"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture Google Pay (decrypted DPAN)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "error.error_code": {
+          "equals": "INVALID_DATA_FORMAT"
+        },
+        "error.error_message": {
+          "equals": "Invalid data format: payment_method.network_token. Explicit Google CRYPTOGRAM_3DS requires the provisioned cryptogram"
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "paypal_googlepay_crypto_method_missing_crypto_refused \u2014 specific local refusal; no financial outbound request required"
+    },
+    "paypal_card_without_cvc_supported": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "card_with_no_cvc": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        },
+        "captured_amount": {
+          "equals": 6000
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "PayPal raw CardWithNoCvc actual proto arm"
+    },
+    "paypal_untyped_token_refused": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "order_tax_amount": 0,
+        "shipping_cost": 0,
+        "payment_method": {
+          "token": {
+            "token": {
+              "value": "LOCAL_REFUSAL_UNTYPED_TOKEN"
+            }
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          },
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "order_category": "physical",
+        "setup_future_usage": "ON_SESSION",
+        "off_session": false,
+        "description": "No3DS auto capture card payment (credit)",
+        "payment_channel": "ECOMMERCE",
+        "test_mode": true,
+        "locale": "en-US",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "session_token": ""
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "equals": "NOT_SUPPORTED"
+        }
+      },
+      "display_name": "Actual PaymentMethod.token8 untyped source is explicitly refused"
+    }
+  },
+  "EventService/HandleEvent": {
+    "paypal_authorization_created": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_authorization_created"
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "PAYMENT_INTENT_AUTHORIZATION_SUCCESS"
+        },
+        "event_content.payments_response": {
+          "must_exist": true
+        },
+        "event_content.payments_response.connector_transaction_id": {
+          "must_exist": true
+        }
+      },
+      "display_name": "Authentic PayPal authorization_created delivery and actual typed notification"
+    },
+    "paypal_authorization_voided": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "PUBLIC_EVENT",
+            "event_type": "PAYMENT.AUTHORIZATION.VOIDED",
+            "resource_type": "authorization",
+            "resource": {
+              "id": "PUBLIC_AUTH",
+              "status": "VOIDED",
+              "amount": {
+                "value": "60.00",
+                "currency_code": "USD"
+              },
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "PUBLIC_ORDER"
+                }
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_authorization_voided",
+        "event_context": {
+          "payment": {
+            "connector_transaction_id": "PUBLIC_ORDER",
+            "related_connector_transaction_ids": [
+              "PUBLIC_AUTH"
+            ]
+          }
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "PAYMENT_INTENT_PROCESSING"
+        },
+        "event_content.payments_response.status": {
+          "equals": "PENDING"
+        },
+        "event_content.payments_response.captured_amount": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "Authentic AUTHORIZATION.VOIDED delivery requires authoritative Order reconciliation; Pending is not cancellation; NOT_RUN without real delivery"
+    },
+    "paypal_capture_pending": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_capture_pending"
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "PAYMENT_INTENT_PROCESSING"
+        },
+        "event_content.payments_response": {
+          "must_exist": true
+        },
+        "event_content.payments_response.connector_transaction_id": {
+          "must_exist": true
+        }
+      },
+      "display_name": "Authentic PayPal capture_pending delivery and actual typed notification"
+    },
+    "paypal_capture_denied": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_capture_denied"
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "PAYMENT_INTENT_FAILURE"
+        },
+        "event_content.payments_response": {
+          "must_exist": true
+        },
+        "event_content.payments_response.connector_transaction_id": {
+          "must_exist": true
+        }
+      },
+      "display_name": "Authentic PayPal capture_denied delivery and actual typed notification"
+    },
+    "paypal_capture_reversed": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_capture_reversed"
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "PAYMENT_INTENT_FAILURE"
+        },
+        "event_content.payments_response": {
+          "must_exist": true
+        },
+        "event_content.payments_response.connector_transaction_id": {
+          "must_exist": true
+        }
+      },
+      "display_name": "Authentic PayPal capture_reversed delivery and actual typed notification"
+    },
+    "paypal_refund_pending": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_refund_pending"
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "WEBHOOK_REFUND_PROCESSING"
+        },
+        "event_content.refunds_response": {
+          "must_exist": true
+        },
+        "event_content.refunds_response.connector_refund_id": {
+          "must_exist": true
+        },
+        "event_content.refunds_response.refund_amount": {
+          "must_exist": true
+        }
+      },
+      "display_name": "Authentic PayPal refund_pending delivery and actual typed notification"
+    },
+    "paypal_refund_failed": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_refund_failed"
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "WEBHOOK_REFUND_FAILURE"
+        },
+        "event_content.refunds_response": {
+          "must_exist": true
+        },
+        "event_content.refunds_response.connector_refund_id": {
+          "must_exist": true
+        },
+        "event_content.refunds_response.refund_amount": {
+          "must_exist": true
+        }
+      },
+      "display_name": "Authentic PayPal refund_failed delivery and actual typed notification"
+    },
+    "paypal_dispute_created": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_dispute_created"
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "WEBHOOK_DISPUTE_OPENED"
+        },
+        "event_content.disputes_response": {
+          "must_exist": true
+        },
+        "event_content.disputes_response.connector_dispute_id": {
+          "must_exist": true
+        },
+        "event_content.disputes_response.connector_transaction_id": {
+          "must_exist": true
+        },
+        "event_content.disputes_response.dispute_amount": {
+          "must_exist": true
+        },
+        "event_content.disputes_response.dispute_reason": {
+          "must_exist": true
+        }
+      },
+      "display_name": "Authentic PayPal dispute_created delivery and actual typed notification"
+    },
+    "paypal_dispute_updated": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_dispute_updated"
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "WEBHOOK_DISPUTE_OPENED"
+        },
+        "event_content.disputes_response": {
+          "must_exist": true
+        },
+        "event_content.disputes_response.connector_dispute_id": {
+          "must_exist": true
+        },
+        "event_content.disputes_response.connector_transaction_id": {
+          "must_exist": true
+        },
+        "event_content.disputes_response.dispute_amount": {
+          "must_exist": true
+        },
+        "event_content.disputes_response.dispute_reason": {
+          "must_exist": true
+        }
+      },
+      "display_name": "Authentic PayPal dispute_updated delivery and actual typed notification"
+    },
+    "paypal_dispute_resolved_seller": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_dispute_resolved_seller"
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "event_type": {
+          "equals": "WEBHOOK_DISPUTE_WON"
+        },
+        "event_content.disputes_response": {
+          "must_exist": true
+        },
+        "event_content.disputes_response.connector_dispute_id": {
+          "must_exist": true
+        },
+        "event_content.disputes_response.connector_transaction_id": {
+          "must_exist": true
+        },
+        "event_content.disputes_response.dispute_amount": {
+          "must_exist": true
+        },
+        "event_content.disputes_response.dispute_reason": {
+          "must_exist": true
+        }
+      },
+      "display_name": "Authentic PayPal dispute_resolved_seller delivery and actual typed notification"
+    },
+    "paypal_webhook_missing_header": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_webhook_missing_header"
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "event_content": {
+          "must_not_exist": true
+        },
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "grpc_status": {
+          "equals": 16
+        }
+      },
+      "display_name": "Required transmission header absent"
+    },
+    "paypal_webhook_empty_webhook_id": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_webhook_empty_webhook_id",
+        "webhook_secrets": {
+          "secret": ""
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "event_content": {
+          "must_not_exist": true
+        },
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "grpc_status": {
+          "equals": 16
+        }
+      },
+      "display_name": "Empty supplied subscription id; credentials must not replace explicitly negative input"
+    },
+    "paypal_webhook_malformed_body": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": "ew=="
+        },
+        "merchant_event_id": "paypal_webhook_malformed_body"
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "event_content": {
+          "must_not_exist": true
+        },
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "grpc_status": {
+          "equals": 16
+        }
+      },
+      "display_name": "Original bytes invalid JSON"
+    },
+    "paypal_webhook_untrusted_cert": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://example.invalid/v1/notifications/certs/public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_webhook_untrusted_cert"
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "event_content": {
+          "must_not_exist": true
+        },
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "grpc_status": {
+          "equals": 16
+        }
+      },
+      "display_name": "HTTPS certificate origin/path not vendorallowlist"
+    },
+    "paypal_webhook_dispute_context_mismatch": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_webhook_dispute_context_mismatch",
+        "event_context": {
+          "dispute": {
+            "connector_transaction_id": "ORDER-known-other-public-probe",
+            "related_connector_transaction_ids": [
+              "CAPTURE-known-other-public-probe"
+            ]
+          }
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "event_content": {
+          "must_not_exist": true
+        },
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "grpc_status": {
+          "equals": 16
+        }
+      },
+      "display_name": "Authenticated real dispute delivery but caller known IDs do not match seller"
+    },
+    "paypal_webhook_dispute_context_missing": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_webhook_dispute_context_missing",
+        "event_context": {
+          "dispute": {}
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "event_content": {
+          "must_not_exist": true
+        },
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "grpc_status": {
+          "equals": 3
+        }
+      },
+      "display_name": "Authenticated real dispute delivery but caller lacks known IDs"
+    },
+    "paypal_webhook_dispute_ambiguous_seller": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_webhook_dispute_ambiguous_seller"
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "event_content": {
+          "must_not_exist": true
+        },
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "grpc_status": {
+          "equals": 5
+        }
+      },
+      "display_name": "Authenticated delivery has multiple distinct seller transactions"
+    },
+    "paypal_webhook_capture_id_not_refund": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-probe",
+            "event_type": "PAYMENT.CAPTURE.COMPLETED",
+            "resource_type": "capture",
+            "resource": {
+              "id": "CAPTURE-public-probe",
+              "status": "COMPLETED",
+              "supplementary_data": {
+                "related_ids": {
+                  "order_id": "ORDER-public-probe"
+                }
+              },
+              "amount": {
+                "currency_code": "USD",
+                "value": "20.00"
+              }
+            }
+          }
+        },
+        "merchant_event_id": "paypal_webhook_capture_id_not_refund"
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "event_content": {
+          "must_not_exist": true
+        },
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "grpc_status": {
+          "equals": 5
+        }
+      },
+      "display_name": "Capture resource is not refund resource; do not reuse capture ID"
+    },
+    "paypal_webhook_unknown_event": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-unknown",
+            "event_type": "UNSUPPORTED.PUBLIC.EVENT",
+            "resource": {}
+          }
+        },
+        "merchant_event_id": "paypal_webhook_unknown_event"
+      },
+      "assert": {
+        "event_content": {
+          "must_not_exist": true
+        },
+        "source_verified": {
+          "equals": true
+        }
+      },
+      "display_name": "Authentic unknown event no processable content"
+    },
+    "paypal_webhook_undocumented_refund_completed": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {
+            "paypal-transmission-id": "public-probe-transmission",
+            "paypal-transmission-time": "2026-10-14T13:41:32Z",
+            "paypal-transmission-sig": "invalid-public-probe-signature",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-public-probe"
+          },
+          "body": {
+            "id": "WH-public-undocumented",
+            "event_type": "PAYMENT.REFUND.COMPLETED",
+            "resource_type": "refund",
+            "resource": {
+              "id": "REFUND-public-probe",
+              "status": "COMPLETED"
+            }
+          }
+        },
+        "merchant_event_id": "paypal_webhook_undocumented_refund_completed"
+      },
+      "assert": {
+        "event_content": {
+          "must_not_exist": true
+        },
+        "source_verified": {
+          "equals": true
+        }
+      },
+      "display_name": "Undocumented PAYMENT.REFUND.COMPLETED unsupported"
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "paypal_mit_external_auth_card_refused": {
+      "grpc_req": {
+        "merchant_charge_id": "auto_generate",
+        "connector_recurring_payment_id": {
+          "network_mandate_id": {
+            "network_transaction_id": "LOCAL_REFUSAL_ORIGINAL_NTID"
+          }
+        },
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "999"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "off_session": true,
+        "mit_category": "RECURRING_MIT",
+        "authentication_data": {
+          "trans_status": "TRANSACTION_STATUS_SUCCESS",
+          "eci": "05",
+          "cavv": "ZG9jdW1lbnRlZC10ZXN0LW9ubHk="
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "equals": "NOT_SUPPORTED"
+        }
+      },
+      "display_name": "PayPal MIT refuses supplied external authentication: card"
+    },
+    "paypal_mit_external_auth_card_with_no_cvc_refused": {
+      "grpc_req": {
+        "merchant_charge_id": "auto_generate",
+        "connector_recurring_payment_id": {
+          "network_mandate_id": {
+            "network_transaction_id": "LOCAL_REFUSAL_ORIGINAL_NTID"
+          }
+        },
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card_with_no_cvc": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "off_session": true,
+        "mit_category": "RECURRING_MIT",
+        "authentication_data": {
+          "trans_status": "TRANSACTION_STATUS_SUCCESS",
+          "eci": "05",
+          "cavv": "ZG9jdW1lbnRlZC10ZXN0LW9ubHk="
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "equals": "NOT_SUPPORTED"
+        }
+      },
+      "display_name": "PayPal MIT refuses supplied external authentication: card_with_no_cvc"
+    },
+    "paypal_mit_external_auth_card_details_for_network_transaction_id_refused": {
+      "grpc_req": {
+        "merchant_charge_id": "auto_generate",
+        "connector_recurring_payment_id": {
+          "network_mandate_id": {
+            "network_transaction_id": "LOCAL_REFUSAL_ORIGINAL_NTID"
+          }
+        },
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card_details_for_network_transaction_id": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "08"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_holder_name": {
+              "value": "auto_generate"
+            },
+            "card_type": "credit",
+            "card_network": "VISA"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "off_session": true,
+        "mit_category": "RECURRING_MIT",
+        "authentication_data": {
+          "trans_status": "TRANSACTION_STATUS_SUCCESS",
+          "eci": "05",
+          "cavv": "ZG9jdW1lbnRlZC10ZXN0LW9ubHk="
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "equals": "NOT_SUPPORTED"
+        }
+      },
+      "display_name": "PayPal MIT refuses supplied external authentication: card_details_for_network_transaction_id"
+    },
+    "paypal_mit_external_auth_network_token_refused": {
+      "grpc_req": {
+        "merchant_charge_id": "auto_generate",
+        "connector_recurring_payment_id": {
+          "network_mandate_id": {
+            "network_transaction_id": "LOCAL_REFUSAL_ORIGINAL_NTID"
+          }
+        },
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "network_token": {
+            "token_number": {
+              "value": "4034772286582057"
+            },
+            "token_exp_month": {
+              "value": "12"
+            },
+            "token_exp_year": {
+              "value": "2030"
+            },
+            "card_network": "VISA"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "off_session": true,
+        "mit_category": "RECURRING_MIT",
+        "authentication_data": {
+          "trans_status": "TRANSACTION_STATUS_SUCCESS",
+          "eci": "05",
+          "cavv": "ZG9jdW1lbnRlZC10ZXN0LW9ubHk="
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "equals": "NOT_SUPPORTED"
+        }
+      },
+      "display_name": "PayPal MIT refuses supplied external authentication: network_token"
+    },
+    "paypal_mit_external_auth_decrypted_wallet_token_details_for_network_transaction_id_refused": {
+      "grpc_req": {
+        "merchant_charge_id": "auto_generate",
+        "connector_recurring_payment_id": {
+          "network_mandate_id": {
+            "network_transaction_id": "LOCAL_REFUSAL_ORIGINAL_NTID"
+          }
+        },
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "decrypted_wallet_token_details_for_network_transaction_id": {
+            "decrypted_token": {
+              "value": "4034772286582057"
+            },
+            "token_exp_month": {
+              "value": "12"
+            },
+            "token_exp_year": {
+              "value": "2030"
+            },
+            "card_network": "VISA",
+            "token_source": "APPLEPAY"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "off_session": true,
+        "mit_category": "RECURRING_MIT",
+        "authentication_data": {
+          "trans_status": "TRANSACTION_STATUS_SUCCESS",
+          "eci": "05",
+          "cavv": "ZG9jdW1lbnRlZC10ZXN0LW9ubHk="
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.error_code": {
+          "equals": "NOT_SUPPORTED"
+        }
+      },
+      "display_name": "PayPal MIT refuses supplied external authentication: decrypted_wallet_token_details_for_network_transaction_id"
+    }
+  },
+  "PaymentService/Capture": {
+    "paypal_multiple_capture_missing_reference": {
+      "grpc_req": {
+        "connector_transaction_id": "auto_generate",
+        "amount_to_capture": {
+          "minor_amount": 3000,
+          "currency": "USD"
+        },
+        "merchant_capture_id": "auto_generate",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "capture_method": "MANUAL_MULTIPLE",
+        "multiple_capture_data": {
+          "capture_sequence": 1,
+          "capture_reference": ""
+        },
+        "connector_feature_data": {
+          "value": ""
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.error_message": {
+          "contains": "capture_reference"
+        }
+      },
+      "display_name": "paypal_multiple_capture_missing_reference"
+    },
+    "paypal_nonfinal_partial_capture_reference_a": {
+      "grpc_req": {
+        "connector_transaction_id": "auto_generate",
+        "amount_to_capture": {
+          "minor_amount": 3000,
+          "currency": "USD"
+        },
+        "merchant_capture_id": "auto_generate",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "capture_method": "MANUAL_MULTIPLE",
+        "multiple_capture_data": {
+          "capture_sequence": 1,
+          "capture_reference": "paypal-capture-operation-one"
+        },
+        "connector_feature_data": {
+          "value": ""
+        }
+      },
+      "assert": {
+        "status": {
+          "equals": "PARTIAL_CHARGED_AND_CHARGEABLE"
+        },
+        "captured_amount": {
+          "equals": 3000
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "Independent nonfinal partial capture; fresh prerequisite authorization (not a chained retry)"
+    },
+    "paypal_nonfinal_partial_capture_reference_b": {
+      "grpc_req": {
+        "connector_transaction_id": "auto_generate",
+        "amount_to_capture": {
+          "minor_amount": 3000,
+          "currency": "USD"
+        },
+        "merchant_capture_id": "auto_generate",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "capture_method": "MANUAL_MULTIPLE",
+        "multiple_capture_data": {
+          "capture_sequence": 2,
+          "capture_reference": "paypal-capture-operation-two"
+        },
+        "connector_feature_data": {
+          "value": ""
+        }
+      },
+      "assert": {
+        "status": {
+          "equals": "PARTIAL_CHARGED_AND_CHARGEABLE"
+        },
+        "captured_amount": {
+          "equals": 3000
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "Independent nonfinal partial capture; fresh prerequisite authorization (not a chained retry)"
+    },
+    "paypal_nonfinal_partial_capture_same_reference_independent_authorization": {
+      "grpc_req": {
+        "connector_transaction_id": "auto_generate",
+        "amount_to_capture": {
+          "minor_amount": 3000,
+          "currency": "USD"
+        },
+        "merchant_capture_id": "auto_generate",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "capture_method": "MANUAL_MULTIPLE",
+        "multiple_capture_data": {
+          "capture_sequence": 1,
+          "capture_reference": "paypal-capture-operation-one"
+        },
+        "connector_feature_data": {
+          "value": ""
+        }
+      },
+      "assert": {
+        "status": {
+          "equals": "PARTIAL_CHARGED_AND_CHARGEABLE"
+        },
+        "captured_amount": {
+          "equals": 3000
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "Independent nonfinal partial capture; fresh prerequisite authorization (not a chained retry)"
+    }
+  },
+  "PaymentService/Get": {
+    "paypal_sync_preserves_opaque_network_metadata": {
+      "grpc_req": {
+        "connector_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        },
+        "captured_amount": {
+          "equals": 6000
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "connector_feature_data": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "connector_feature_data.value": {
+          "contains": "\"opaque_network_metadata\":{\"network\":{\"nested\":{\"marker\":\"PUBLIC_NESTED_VALUE_C01\"},\"reference\":\"PUBLIC_OPAQUE_REFERENCE_C01\",\"scheme\":\"VISA\"}}"
+        }
+      },
+      "display_name": "Actual capture sync preserves exact public nested opaque network metadata from its Authorize prerequisite"
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "paypal_setup_untyped_token_refused": {
+      "grpc_req": {
+        "merchant_recurring_payment_id": "auto_generate",
+        "amount": {
+          "minor_amount": 0,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "token": {
+            "token": {
+              "value": "LOCAL_REFUSAL_UNTYPED_TOKEN"
+            }
+          }
+        },
+        "customer": {
+          "name": "auto_generate",
+          "email": {
+            "value": "auto_generate"
+          },
+          "id": "auto_generate",
+          "connector_customer_id": null,
+          "phone_number": {
+            "value": "auto_generate"
+          }
+        },
+        "state": {
+          "access_token": {
+            "token": {
+              "value": ""
+            },
+            "token_type": "",
+            "expires_in_seconds": 0
+          }
+        },
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "auto_generate"
+            },
+            "last_name": {
+              "value": "auto_generate"
+            },
+            "line1": {
+              "value": "auto_generate"
+            },
+            "line2": {
+              "value": "auto_generate"
+            },
+            "line3": {
+              "value": "auto_generate"
+            },
+            "city": {
+              "value": "auto_generate"
+            },
+            "state": {
+              "value": "CA"
+            },
+            "zip_code": {
+              "value": "auto_generate"
+            },
+            "country_alpha2_code": "US",
+            "email": {
+              "value": "auto_generate"
+            },
+            "phone_number": {
+              "value": "auto_generate"
+            },
+            "phone_country_code": "+91"
+          }
+        },
+        "auth_type": "NO_THREE_DS",
+        "enrolled_for_3ds": false,
+        "customer_acceptance": {
+          "acceptance_type": "OFFLINE"
+        },
+        "setup_future_usage": "OFF_SESSION",
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480
+        }
+      },
+      "assert": {
+        "error.code": {
+          "equals": "NOT_SUPPORTED"
+        },
+        "mandate_reference_details": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "Actual proto token8 has no direct PayPal zero-value vault request carrier"
+    }
+  }
+}

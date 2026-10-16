@@ -11,6 +11,9 @@ use crate::harness::{scenario_loader::connector_specs_root, scenario_types::Scen
 pub struct ScenarioOverridePatch {
     #[serde(default)]
     pub grpc_req: Option<Value>,
+    /// Explicit financial input precedence over a dependency mapping, with an audit reason.
+    #[serde(default)]
+    pub context_map_overrides: BTreeMap<String, String>,
     #[serde(rename = "assert", default)]
     pub assert_rules: Option<BTreeMap<String, Value>>,
     /// Fire an HTTP request (fire-and-forget) before this scenario runs.
@@ -20,6 +23,55 @@ pub struct ScenarioOverridePatch {
     /// sync returns `CHARGED` without browser automation.
     #[serde(default)]
     pub pre_request_http: Option<PreRequestHttpHook>,
+}
+
+/// Validate an explicit amount declaration before applying either request or assertions.
+/// Default-empty declarations preserve legacy dependency behavior for every connector.
+pub(super) fn validate_context_map_precedence(
+    suite: &str,
+    patch: &ScenarioOverridePatch,
+) -> Result<(), ScenarioError> {
+    for (path, reason) in &patch.context_map_overrides {
+        let invalid = || {
+            ScenarioError::InvalidAssertionRule {field: "context_map_overrides".to_owned(),message: "Explicit Capture amount precedence requires a mapped positive integer, nonempty reason and matching captured_amount.equals".to_owned()}
+        };
+        if suite != "PaymentService/Capture"
+            || path != "amount_to_capture.minor_amount"
+            || reason.trim().is_empty()
+        {
+            return Err(invalid());
+        }
+        let mapped = crate::harness::scenario_loader::load_suite_spec(suite)?
+            .depends_on
+            .iter()
+            .any(|dependency| {
+                dependency
+                    .context_map()
+                    .is_some_and(|mapping| mapping.contains_key(path))
+            });
+        if !mapped {
+            return Err(invalid());
+        }
+        let amount = patch
+            .grpc_req
+            .as_ref()
+            .and_then(|request| request.pointer("/amount_to_capture/minor_amount"))
+            .and_then(Value::as_i64)
+            .filter(|amount| *amount > 0)
+            .ok_or_else(invalid)?;
+        let asserted = patch
+            .assert_rules
+            .as_ref()
+            .and_then(|rules| rules.get("captured_amount"))
+            .and_then(Value::as_object)
+            .filter(|rule| rule.len() == 1)
+            .and_then(|rule| rule.get("equals"))
+            .and_then(Value::as_i64);
+        if asserted != Some(amount) {
+            return Err(invalid());
+        }
+    }
+    Ok(())
 }
 
 /// Fire-and-forget HTTP call issued before the scenario's gRPC request.

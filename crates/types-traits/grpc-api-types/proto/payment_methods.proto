@@ -460,6 +460,12 @@ message GooglePayDecryptedData {
   
   // Electronic Commerce Indicator
   optional string eci_indicator = 5;
+  // Original signed message lifetime, UTC milliseconds since epoch. Omit when unavailable.
+  optional string message_expiration = 6;
+  // Original Google message ID. Never generate a replacement.
+  optional string message_id = 7;
+  // Original funding credential method: PAN_ONLY or CRYPTOGRAM_3DS.
+  optional string auth_method = 8;
 }
 
 // Google Pay encrypted tokenization data structure

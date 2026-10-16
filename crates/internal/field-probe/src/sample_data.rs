@@ -128,6 +128,9 @@ pub(crate) fn google_pay_decrypted_method() -> PaymentMethod {
                     ),
                     cryptogram: Some(Secret::new("AAAAAA==".to_string())),
                     eci_indicator: Some("05".to_string()),
+                    message_expiration: None,
+                    message_id: None,
+                    auth_method: Some("CRYPTOGRAM_3DS".to_owned()),
                 })),
             }),
         })),
@@ -168,6 +171,10 @@ pub(crate) fn google_pay_method() -> PaymentMethod {
 
 /// Apple Pay using the encrypted token format (required by connectors like Nexinets/Novalnet
 /// that call `get_apple_pay_encrypted_data()` rather than using decrypted card data).
+// Public, static, nonfunctional Apple token fixture; never a device credential.
+pub(crate) const APPLE_PAY_ENCRYPTED_FIXTURE: &str =
+    "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0=";
+
 pub(crate) fn apple_pay_encrypted_method() -> PaymentMethod {
     use proto::apple_wallet::{payment_data::PaymentData as PD, PaymentData};
     PaymentMethod {
@@ -180,8 +187,7 @@ pub(crate) fn apple_pay_encrypted_method() -> PaymentMethod {
                     // Decodes to: {"version":"EC_v1","data":"probe","signature":"probe",
                     //              "header":{"ephemeralPublicKey":"probe","publicKeyHash":"probe",
                     //                        "transactionId":"probe_txn_id"}}
-                    "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
-                        .to_string(),
+                    APPLE_PAY_ENCRYPTED_FIXTURE.to_string(),
                 )),
             }),
             payment_method: Some(proto::apple_wallet::PaymentMethod {

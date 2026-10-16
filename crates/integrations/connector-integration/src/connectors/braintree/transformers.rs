@@ -2877,6 +2877,7 @@ pub(super) fn get_webhook_reference(
         // preferring connector_dispute_id, so it MUST be `None` here to match HS byte-for-byte.
         Some(dispute_data) => Ok(Some(connector_types::WebhookResourceReference::Dispute(
             connector_types::DisputeWebhookReference {
+                merchant_transaction_id: None,
                 connector_dispute_id: None,
                 connector_transaction_id: Some(dispute_data.transaction.id.clone()),
             },
@@ -2897,6 +2898,7 @@ pub(super) fn build_webhook_dispute_response(
 > {
     match &notification.dispute {
         Some(dispute_data) => Ok(connector_types::DisputeWebhookDetailsResponse {
+            connector_transaction_id: None,
             amount: domain_types::utils::convert_amount_for_webhook(
                 &common_utils::types::StringMinorUnitForConnector,
                 dispute_data.amount_disputed,

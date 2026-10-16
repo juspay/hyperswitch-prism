@@ -502,6 +502,36 @@ pub(crate) fn normalize_header_value(name: &str, value: String) -> String {
     }
 }
 
+// Preserve this known public static fixture at its exact wallet body path.
+// Generic base64 normalization is intentionally retained for every other value,
+// including unknown/dynamic wallet tokens and all HTTP headers.
+fn normalize_sample_body(content: &str) -> String {
+    let normalized = normalize_content(content);
+    let path = "/payment_source/apple_pay/token";
+    let is_public_fixture = serde_json::from_str::<serde_json::Value>(content)
+        .ok()
+        .and_then(|body| {
+            body.pointer(path)
+                .and_then(|value| value.as_str())
+                .map(str::to_owned)
+        })
+        .as_deref()
+        == Some(crate::sample_data::APPLE_PAY_ENCRYPTED_FIXTURE);
+    if is_public_fixture {
+        if let Ok(mut body) = serde_json::from_str::<serde_json::Value>(&normalized) {
+            if let Some(token) = body.pointer_mut(path) {
+                *token = serde_json::Value::String(
+                    crate::sample_data::APPLE_PAY_ENCRYPTED_FIXTURE.to_owned(),
+                );
+                if let Ok(body) = serde_json::to_string(&body) {
+                    return body;
+                }
+            }
+        }
+    }
+    normalized
+}
+
 pub(crate) fn extract_sample(req: &common_utils::request::Request) -> SamplePayload {
     use hyperswitch_masking::ExposeInterface;
     let method = format!("{:?}", req.method);
@@ -515,7 +545,7 @@ pub(crate) fn extract_sample(req: &common_utils::request::Request) -> SamplePayl
         .collect();
     let body = req.body.as_ref().map(|b| {
         let content = b.get_inner_value().expose();
-        normalize_content(&content)
+        normalize_sample_body(&content)
     });
 
     SamplePayload {

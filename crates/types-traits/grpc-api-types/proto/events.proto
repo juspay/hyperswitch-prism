@@ -45,6 +45,7 @@ message RefundEventReference {
 // (e.g. Adyen originalReference, PayPal seller_transaction_id).
 // connector_dispute_id is populated when the connector issues a dispute-specific identifier.
 message DisputeEventReference {
+  optional string merchant_transaction_id = 3; // Actual merchant invoice/reference, when supplied.
   optional string connector_dispute_id     = 1;
   optional string connector_transaction_id = 2;  // Parent payment ID.
 }
@@ -107,6 +108,8 @@ message EventContext {
 // Required by connectors whose webhook payloads do not unambiguously distinguish
 // AUTHORIZED from CAPTURED (e.g. Noon, Fiuu).
 message PaymentEventContext {
+  optional string connector_transaction_id = 2; // Stored canonical payment ID.
+  repeated string related_connector_transaction_ids = 3; // Stored observed capture/authorization IDs.
   // From original PaymentServiceAuthorizeRequest.capture_method.
   optional CaptureMethod capture_method = 1;
 }
@@ -119,6 +122,8 @@ message RefundEventContext {
 // Context from the original dispute flow.
 // Reserved for future use — no connectors currently require it.
 message DisputeEventContext {
+  optional string connector_transaction_id = 1; // Stored canonical payment ID.
+  repeated string related_connector_transaction_ids = 2; // Stored observed capture/authorization IDs.
 }
 
 // Context from the original mandate flow.

@@ -971,6 +971,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WebhookEventCode::DisputeDefensePeriodEnded
             | WebhookEventCode::IssuerResponseTimeframeExpired => {
                 WebhookResourceReference::Dispute(DisputeWebhookReference {
+                    merchant_transaction_id: None,
                     connector_dispute_id: Some(notif.psp_reference),
                     connector_transaction_id: notif.original_reference,
                 })
@@ -1065,6 +1066,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(RefundWebhookDetailsResponse {
+            refund_amount: None,
             connector_refund_id: Some(notif.psp_reference.clone()),
             merchant_transaction_id: None,
             status: transformers::get_adyen_refund_webhook_event(notif.event_code, notif.success)?,
@@ -1105,6 +1107,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(
             domain_types::connector_types::DisputeWebhookDetailsResponse {
+                connector_transaction_id: None,
                 amount,
                 currency: notif.amount.currency,
                 dispute_id: notif.psp_reference.clone(),

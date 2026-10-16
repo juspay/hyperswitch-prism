@@ -78,6 +78,14 @@ pub fn execute_sdk_request_from_payload(
     grpc_req: &Value,
     connector: &str,
 ) -> Result<String, ScenarioError> {
+    let mut execution_payload = grpc_req.clone();
+    crate::harness::connector_override::bind_external_webhook_delivery_for_execution(
+        connector,
+        suite,
+        scenario,
+        &mut execution_payload,
+    )?;
+    let grpc_req = &execution_payload;
     // SDK path still uses the same credential loader as grpcurl/tonic paths.
     let config =
         load_connector_config(connector).map_err(|error| ScenarioError::CredentialLoad {

@@ -58,8 +58,9 @@ pub(crate) fn convert_rust_to_proto_json(value: &serde_json::Value) -> serde_jso
     }
 }
 
-/// Keys that are probe-internal and should be removed from the output
-pub(crate) const PROBE_INTERNAL_KEYS: &[&str] = &["connector_feature_data"];
+/// Private transport proof is never part of a public caller request.
+/// `connector_feature_data` is public proto context and must survive cleaning.
+pub(crate) const PROBE_INTERNAL_KEYS: &[&str] = &["full_owned_get"];
 
 /// Check if a string value is a proto3 default enum value
 pub(crate) fn is_default_enum(value: &str) -> bool {
@@ -122,7 +123,7 @@ fn try_decode_byte_array(arr: &[serde_json::Value]) -> Option<String> {
 }
 
 /// Clean a proto_request for documentation output:
-///   1. Remove probe-internal keys (connector_feature_data, etc.)
+///   1. Remove genuinely private transport proof keys
 ///   2. Remove null values and empty arrays
 ///   3. Remove proto3 default enum values (*_UNSPECIFIED / *_UNKNOWN)
 ///   4. Collapse proto3 oneof wrappers

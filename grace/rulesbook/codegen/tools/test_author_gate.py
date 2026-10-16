@@ -96,6 +96,144 @@ def context_map_targets(suite):
     return targets
 
 
+
+def validate_dependency_overrides(blob, what, problems, specs=None, private=None):
+    """Fail closed on the same overlay schema/shape the production loader accepts.
+
+    None means an absent optional file; callers validate a present JSON null too.
+    Invalid inputs must never become a silent empty/global dependency graph.
+    """
+    def reject(detail):
+        problems.append("%s: %s" % (what, detail))
+
+    if not isinstance(blob, dict):
+        reject("dependency override root must be an object")
+        return None
+    if set(blob) != {"schema", "suites"}:
+        reject("dependency override requires only schema and suites")
+        return None
+    if blob["schema"] != "connector-suite-dependencies/1":
+        reject("unknown dependency override schema")
+        return None
+    if not isinstance(blob["suites"], dict):
+        reject("dependency override suites must be an object")
+        return None
+    initial_problems = len(problems)
+    supported = set((specs or {}).get("supported_suites") or [])
+    field_path = re.compile(r"^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*$")
+
+    def load_suite(name):
+        if not isinstance(name, str) or not name:
+            reject("dependency suite must be a nonempty string")
+            return None
+        path = os.path.join(SUITES_DIR, suite_dir(name), "suite_spec.json")
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                return json.load(fh)
+        except (OSError, ValueError):
+            reject("unknown or unreadable dependency suite %s" % name)
+            return None
+
+    for target, entry in blob["suites"].items():
+        original = load_suite(target)
+        if specs is not None and target not in supported:
+            reject("dependency overlay target is not supported: %s" % target)
+        if not isinstance(entry, dict):
+            reject("%s entry must be an object" % target)
+            continue
+        if (not {"reason", "depends_on"} <= set(entry)
+                or set(entry) - {"reason", "depends_on", "strict_dependencies"}):
+            reject("%s has missing or unknown entry fields" % target)
+        reason = entry.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            reject("%s reason must be a nonempty string" % target)
+        strict = entry.get("strict_dependencies")
+        if strict is not None and type(strict) is not bool:
+            reject("%s strict_dependencies must be a boolean or null" % target)
+        if original and original.get("strict_dependencies") and strict is False:
+            reject("%s weakens strict_dependencies" % target)
+        dependencies = entry.get("depends_on")
+        if not isinstance(dependencies, list):
+            reject("%s depends_on must be an array" % target)
+            continue
+        names = set()
+        for dependency in dependencies:
+            if isinstance(dependency, str):
+                name, scenario, mapping = dependency, None, None
+            elif isinstance(dependency, dict):
+                if ("suite" not in dependency
+                        or set(dependency) - {"suite", "scenario", "context_map"}):
+                    reject("%s has missing or unknown nested dependency keys" % target)
+                name = dependency.get("suite")
+                scenario = dependency.get("scenario")
+                mapping = dependency.get("context_map")
+                if scenario is not None and not isinstance(scenario, str):
+                    reject("%s dependency scenario must be a string or null" % target)
+                if mapping is not None and not isinstance(mapping, dict):
+                    reject("%s dependency context_map must be an object or null" % target)
+                    mapping = None
+            else:
+                reject("%s dependency must be a suite string or object" % target)
+                continue
+            source_spec = load_suite(name)
+            if not isinstance(name, str):
+                continue
+            if name == target or name in names:
+                reject("%s has a duplicate or self dependency" % target)
+            names.add(name)
+            if isinstance(scenario, str) and source_spec:
+                scenario_path = os.path.join(SUITES_DIR, suite_dir(name), "scenario.json")
+                try:
+                    with open(scenario_path, "r", encoding="utf-8") as fh:
+                        scenarios = json.load(fh)
+                    if scenario not in scenarios and scenario not in (private or {}).get(name, {}):
+                        reject("%s has unknown dependency scenario %s/%s" % (target, name, scenario))
+                except (OSError, ValueError):
+                    reject("%s dependency scenarios are unreadable" % name)
+            for field, source in (mapping or {}).items():
+                if (not isinstance(source, str) or "." not in source
+                        or not field_path.fullmatch(field)):
+                    reject("%s has invalid dependency context_map paths" % target)
+                    continue
+                origin, path = source.split(".", 1)
+                if origin not in {"req", "res"} or not field_path.fullmatch(path):
+                    reject("%s dependency source must use valid req./res. paths" % target)
+        if original:
+            for dependency in original.get("depends_on") or []:
+                name = dependency if isinstance(dependency, str) else dependency.get("suite")
+                duplicate_charge = (target == "PaymentService/CompleteAuthorize"
+                                    and name == "PaymentService/Authorize")
+                if name in supported and name not in names and not duplicate_charge:
+                    reject("%s cannot remove supported prerequisite %s" % (target, name))
+
+    # Use the effective overlay for each supported node, just as the loader does.
+    # Otherwise replacing a graph by an empty/global fallback can conceal cycles.
+    if len(problems) == initial_problems:
+        visiting, done = set(), set()
+
+        def visit(suite):
+            if suite in done:
+                return
+            if suite in visiting:
+                reject("dependency cycle at %s" % suite)
+                return
+            visiting.add(suite)
+            original = load_suite(suite)
+            entry = blob["suites"].get(suite)
+            dependencies = (entry["depends_on"] if entry is not None
+                            else (original or {}).get("depends_on", []))
+            for dependency in dependencies:
+                name = dependency if isinstance(dependency, str) else dependency.get("suite")
+                if name in supported:
+                    visit(name)
+            visiting.remove(suite)
+            done.add(suite)
+
+        for target in blob["suites"]:
+            visit(target)
+    return blob if len(problems) == initial_problems else None
+
+
 def leaf_paths(obj, prefix=""):
     """Dot-paths of every leaf in a merge patch, so a nested override is comparable
     with a flat context_map key."""
@@ -254,22 +392,52 @@ def check_assertions(cur_priv, base_priv, cur_ovr, base_ovr):
     return ev01, ev02
 
 
-def check_context_map(cur_ovr, base_ovr):
+def valid_amount_precedence(suite, patch, path, targets):
+    """Same opt-in monetary contract as production ScenarioOverridePatch validation."""
+    declarations = patch.get("context_map_overrides") or {}
+    reason = declarations.get(path) if isinstance(declarations, dict) else None
+    if (suite != "PaymentService/Capture" or path != "amount_to_capture.minor_amount"
+            or path not in targets or not isinstance(reason, str) or not reason.strip()):
+        return False
+    amount = ((patch.get("grpc_req") or {}).get("amount_to_capture") or {}).get("minor_amount")
+    rule = ((patch.get("assert") or {}).get("captured_amount") or {})
+    asserted = rule.get("equals") if isinstance(rule, dict) else None
+    return (type(amount) is int and 0 < amount <= 9223372036854775807
+            and isinstance(rule, dict) and set(rule) == {"equals"}
+            and type(asserted) is int and asserted == amount)
+
+
+def check_context_map(cur_ovr, base_ovr, dependency_overrides=None):
     """CTX-01: an override on a context_map target silently decouples the dependency."""
     evidence = []
     for suite, scenarios in (cur_ovr or {}).items():
         targets = context_map_targets(suite)
+        entry = ((dependency_overrides or {}).get("suites") or {}).get(suite)
+        if isinstance(entry, dict):
+            targets = {path for dependency in entry.get("depends_on", []) if isinstance(dependency, dict)
+                       for path in (dependency.get("context_map") or {})}
         if not targets:
             continue
         base_suite = (base_ovr or {}).get(suite, {})
         for name, patch in (scenarios or {}).items():
             if base_suite.get(name) == patch:
                 continue
+            declarations = (patch or {}).get("context_map_overrides") or {}
+            if not isinstance(declarations, dict):
+                evidence.append({"file": OVERRIDE, "suite": suite, "scenario": name,
+                                 "detail": "context_map_overrides must be a map of paths to reasons"})
+                declarations = {}
+            for declared_path in declarations:
+                if not valid_amount_precedence(suite, patch, declared_path, targets):
+                    evidence.append({"file": OVERRIDE, "suite": suite, "scenario": name,
+                                     "detail": "invalid explicit amount precedence declaration: " + declared_path})
             if (patch or {}).get("same_endpoint_justified"):
                 continue
             for path in leaf_paths((patch or {}).get("grpc_req") or {}):
                 for target in targets:
                     if path == target or path.startswith(target + "."):
+                        if valid_amount_precedence(suite, patch, path, targets):
+                            continue
                         evidence.append({
                             "file": OVERRIDE, "suite": suite, "scenario": name,
                             "detail": "grpc_req overrides '%s', which this suite drives from a "
@@ -278,13 +446,17 @@ def check_context_map(cur_ovr, base_ovr):
     return evidence
 
 
-def check_private_context_map(cur_priv, base_priv):
+def check_private_context_map(cur_priv, base_priv, dependency_overrides=None):
     """Advisory: a private scenario setting a context_map target has that value silently
     replaced, because the context map is applied after the scenario's own grpc_req.
     Futile rather than dangerous -- a warning, not a failure."""
     notes = []
     for suite, scenarios in (cur_priv or {}).items():
         targets = context_map_targets(suite)
+        entry = ((dependency_overrides or {}).get("suites") or {}).get(suite)
+        if isinstance(entry, dict):
+            targets = {path for dependency in entry.get("depends_on", []) if isinstance(dependency, dict)
+                       for path in (dependency.get("context_map") or {})}
         if not targets:
             continue
         base_suite = (base_priv or {}).get(suite, {})
@@ -398,6 +570,14 @@ def main():
     cur_specs, base_specs = read_pair(SPECS)
     cur_ovr, base_ovr = read_pair(OVERRIDE)
     cur_priv, base_priv = read_pair(PRIVATE)
+    dependency_overrides, base_dependencies = read_pair("dependency_overrides.json")
+    dependency_path = os.path.join(base, "dependency_overrides.json")
+    if os.path.isfile(dependency_path):
+        dependency_overrides = validate_dependency_overrides(
+            dependency_overrides, "dependency_overrides.json", problems, cur_specs, cur_priv)
+    if base_dependencies is not None:
+        validate_dependency_overrides(
+            base_dependencies, "dependency_overrides.json@base", problems, base_specs, base_priv)
 
     if cur_specs is None:
         report["unparsed"].append({"what": SPECS, "why": "missing or unreadable"})
@@ -435,8 +615,8 @@ def main():
     passed_before = prior_passes(None if args.run_dir == "none" else args.run_dir)
 
     ev01, ev02 = check_assertions(cur_priv, base_priv, cur_ovr, base_ovr)
-    ctx = check_context_map(cur_ovr, base_ovr)
-    report["needs_human"].extend(check_private_context_map(cur_priv, base_priv))
+    ctx = check_context_map(cur_ovr, base_ovr, dependency_overrides)
+    report["needs_human"].extend(check_private_context_map(cur_priv, base_priv, dependency_overrides))
     w1, w2, w3 = check_waivers(cur_specs, base_specs, passed_before, plan)
 
     def add(cid, name, evidence, message, skipped=None):
@@ -584,6 +764,27 @@ def _replay():
     finally:
         SUITES_DIR = saved
 
+    # Explicit monetary precedence never permits a loose or mismatched amount oracle.
+    good = {"context_map_overrides": {"amount_to_capture.minor_amount": "partial amount"},
+            "grpc_req": {"amount_to_capture": {"minor_amount": 3000}},
+            "assert": {"captured_amount": {"equals": 3000}}}
+    targets = {"amount_to_capture.minor_amount"}
+    assert valid_amount_precedence("PaymentService/Capture", good, "amount_to_capture.minor_amount", targets)
+    import copy
+    for amount in [True, False, 0, -1, 3.1, "3000", None]:
+        bad = copy.deepcopy(good)
+        bad["grpc_req"]["amount_to_capture"]["minor_amount"] = amount
+        assert not valid_amount_precedence("PaymentService/Capture", bad, "amount_to_capture.minor_amount", targets)
+    for rules in [{}, {"one_of": [3000]}, {"must_exist": True}, {"equals": 3001}, {"equals": True}, {"equals": 3000, "must_not_exist": True}]:
+        bad = copy.deepcopy(good)
+        bad["assert"]["captured_amount"] = rules
+        assert not valid_amount_precedence("PaymentService/Capture", bad, "amount_to_capture.minor_amount", targets)
+    for path in ["amount_to_capture.currency", "connector_transaction_id", "authentication_data"]:
+        assert not valid_amount_precedence("PaymentService/Capture", good, path, targets)
+    bad = copy.deepcopy(good)
+    bad["context_map_overrides"]["amount_to_capture.minor_amount"] = "  "
+    assert not valid_amount_precedence("PaymentService/Capture", bad, "amount_to_capture.minor_amount", targets)
+
     # -- WAIV-01/02/03 -------------------------------------------------------------------
     plan = {"test_hooks": [{"global_scenarios": [
         {"suite": "PaymentService/Authorize", "scenario": "p0_case", "priority": "P0"}]}]}
@@ -634,6 +835,16 @@ def _replay():
         pass
     else:
         raise AssertionError("check_suites must refuse report_rows()'s method-keyed dict")
+
+    # Effective connector dependency targets remain protected; absence keeps old controls.
+    overlay = {"schema": "connector-suite-dependencies/1", "suites": {
+        "PaymentService/CompleteAuthorize": {"depends_on": [{"suite": "PaymentMethodAuthenticationService/PostAuthenticate",
+            "context_map": {"connector_order_id": "res.connector_transaction_id"}}]}}}
+    patch = {"PaymentService/CompleteAuthorize": {"s": {"grpc_req": {"connector_order_id": "unrelated"}}}}
+    assert check_context_map(patch, {}, overlay), "effective order identity cannot be overridden"
+    assert check_context_map({"PaymentService/CompleteAuthorize": {"s": {"grpc_req": {"amount": 1}}}}, {}, overlay) == []
+    assert check_private_context_map(patch, {}, overlay), "private context shadow remains visible"
+    assert check_context_map(patch, patch, overlay) == [], "unchanged legacy rows stay unchanged"
 
     print("replay OK: response_asserting rejects a must_not_exist-only block (the shape that let "
           "a suite go green over four defects), ASSERT-01/02 fire only on scenarios this run "

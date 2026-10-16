@@ -5,6 +5,9 @@ mod auto_populate;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed=codegen/auto_populate.rs");
+    // g2h invokes prost directly, so Cargo must track schema inputs explicitly.
+    // Tracking the directory also covers imported and newly added proto files.
+    println!("cargo:rerun-if-changed=proto");
 
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 

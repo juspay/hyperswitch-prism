@@ -227,3 +227,66 @@ GooglePay = '{"protocolVersion":"ECv2","signature":"probe","signedMessage":"prob
 [local_response_flows]
 worldpayxml = ["pre_authenticate"]
 kount = ["pre_authenticate"]
+
+# PayPal conditional merchant data: item amount700 + tax100 + shipping200 = total1000.
+# No external CAVV is attached to the raw-card probe because REST cannot import it.
+[connector_overrides.authorize.paypal]
+"address.billing_address.state" = "WA"
+"address.billing_address.line2" = "Suite 10"
+"address.shipping_address.first_name" = "Jane"
+"address.shipping_address.last_name" = "Doe"
+"address.shipping_address.line1" = "12 Main Street"
+"address.shipping_address.city" = "Seattle"
+"address.shipping_address.state" = "WA"
+"address.shipping_address.zip_code" = "98101"
+"address.shipping_address.country_alpha2_code" = 1
+"order_tax_amount" = 100
+"shipping_cost" = 200
+"billing_descriptor.statement_descriptor" = "PROBE DESCRIPTOR"
+"l2_l3_data.order_info.merchant_order_reference_id" = "probe_invoice_001"
+"l2_l3_data.order_info.shipping_cost" = 200
+"l2_l3_data.order_info.order_details" = [
+  { product_name = "Probe item", quantity = 1, amount = 700, product_id = "sku_probe_001", description = "Probe line item", unit_of_measure = "EACH", commodity_code = "4900", total_tax_amount = 100 },
+]
+"l2_l3_data.tax_info.order_tax_amount" = 100
+
+# Synthetic original reference is wire-probe data, not a live issuer outcome.
+[connector_overrides.recurring_charge.paypal]
+"connector_recurring_payment_id" = { mandate_id_type = { NetworkMandateId = { network_transaction_id = "123456789012345" } } }
+"payment_method" = { payment_method = { card_details_for_network_transaction_id = { card_number = "4111111111111111", card_exp_month = "03", card_exp_year = "2030", card_holder_name = "John Doe", card_network = "VISA" } } }
+"metadata" = '{"paypal_mit":{"version":1,"previous_network_transaction_reference":{"id":"123456789012345","network":"VISA","date":"1014"}}}'
+"address.shipping_address.first_name" = "Jane"
+"address.shipping_address.last_name" = "Doe"
+"address.shipping_address.line1" = "12 Main Street"
+"address.shipping_address.city" = "Seattle"
+"address.shipping_address.state" = "WA"
+"address.shipping_address.zip_code" = "98101"
+"address.shipping_address.country_alpha2_code" = 1
+"merchant_charge_id" = "probe_paypal_mit_charge"
+"billing_descriptor.statement_descriptor" = "PROBE PAYPAL"
+"l2_l3_data.order_info.merchant_order_reference_id" = "probe_paypal_mit"
+"l2_l3_data.order_info.order_details" = []
+
+# Canonical generated serde includes OrderInfo.order_details even when empty.
+# OFF_SESSION is the generated FutureUsage enum spelling.
+[connector_overrides.authenticate.paypal]
+"connector_feature_data" = '{"authentication_order_context":{"version":1,"request":{"merchant_transaction_id":"probe_paypal_native","merchant_order_id":"probe_native_order","order_tax_amount":100,"shipping_cost":200,"setup_future_usage":"OFF_SESSION","billing_descriptor":{"statement_descriptor":"PROBE NATIVE"},"l2_l3_data":{"order_info":{"merchant_order_reference_id":"probe_native_l23","order_details":[]}},"description":"Native safe context probe"}}}'
+"address.shipping_address.first_name" = "Jane"
+"address.shipping_address.last_name" = "Doe"
+"address.shipping_address.line1" = "12 Main Street"
+"address.shipping_address.city" = "Seattle"
+"address.shipping_address.state" = "WA"
+"address.shipping_address.zip_code" = "98101"
+"address.shipping_address.country_alpha2_code" = 1
+
+# Each resource request must agree with its original, synthetic saved ledger.
+# These fixtures are request-construction probes and never claim a live resource.
+[connector_overrides.capture.paypal]
+"capture_method" = "MANUAL"
+"connector_transaction_id" = "probe_auth_001"
+
+[connector_overrides.void.paypal]
+"connector_transaction_id" = "probe_auth_001"
+
+[connector_overrides."get,refund".paypal]
+"connector_transaction_id" = "probe_cap_001"

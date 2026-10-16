@@ -2989,6 +2989,7 @@ impl TryFrom<FiuuRefundSyncResponse> for RefundWebhookDetailsResponse {
     fn try_from(notif: FiuuRefundSyncResponse) -> Result<Self, Self::Error> {
         match notif {
             FiuuRefundSyncResponse::Webhook(fiuu_webhooks_refund_response) => Ok(Self {
+                refund_amount: None,
                 connector_refund_id: Some(fiuu_webhooks_refund_response.refund_id),
                 merchant_transaction_id: None,
                 status: common_enums::RefundStatus::from(

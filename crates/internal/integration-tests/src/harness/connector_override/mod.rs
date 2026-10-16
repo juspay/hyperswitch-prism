@@ -32,6 +32,7 @@ pub trait ConnectorOverride: Send + Sync {
         if let Some(scenario_patch) =
             loader::load_scenario_override_patch(self.connector_name(), suite, scenario)?
         {
+            loader::validate_context_map_precedence(suite, &scenario_patch)?;
             if let Some(req_patch) = scenario_patch.grpc_req.as_ref() {
                 json_merge::json_merge_patch(grpc_req, req_patch);
             }
@@ -147,6 +148,211 @@ pub fn context_deferred_paths_for_connector(connector: &str) -> Vec<String> {
     strategy.extra_context_deferred_paths()
 }
 
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExternalWebhookDeliveries {
+    schema: String,
+    scenarios: BTreeMap<String, ExternalWebhookDelivery>,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExternalWebhookDelivery {
+    request_details: ExternalWebhookRequestDetails,
+    event_context: Option<Value>,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExternalWebhookRequestDetails {
+    headers: BTreeMap<String, String>,
+    body: String,
+}
+
+/// The fixture is protobuf JSON, not prost's nested serde-oneof representation.
+/// Validate actual generated leaf messages while retaining original wire keys.
+fn validate_external_event_context(value: &Value) -> Result<(), ScenarioError> {
+    let invalid = || ScenarioError::InvalidAssertionRule {
+        field: "external_verification.delivery_file.event_context".to_owned(),
+        message:
+            "Expected exactly one valid protobuf EventContext arm and actual stored caller IDs"
+                .to_owned(),
+    };
+    let context = value
+        .as_object()
+        .filter(|context| context.len() == 1)
+        .ok_or_else(invalid)?;
+    let (variant, payload) = context.iter().next().ok_or_else(invalid)?;
+    let mut payload = payload.as_object().cloned().ok_or_else(invalid)?;
+    let allowed: &[&str] = match variant.as_str() {
+        "payment" => &[
+            "capture_method",
+            "connector_transaction_id",
+            "related_connector_transaction_ids",
+        ],
+        "dispute" => &[
+            "connector_transaction_id",
+            "related_connector_transaction_ids",
+        ],
+        "refund" | "mandate" | "payout" => &[],
+        _ => return Err(invalid()),
+    };
+    if payload.keys().any(|key| !allowed.contains(&key.as_str())) {
+        return Err(invalid());
+    }
+    match variant.as_str() {
+        "payment" => {
+            payload
+                .entry("related_connector_transaction_ids".to_owned())
+                .or_insert_with(|| serde_json::json!([]));
+            payload
+                .entry("capture_method".to_owned())
+                .or_insert(Value::Null);
+            serde_json::from_value::<grpc_api_types::payments::PaymentEventContext>(Value::Object(
+                payload,
+            ))
+            .map(|_| ())
+            .map_err(|_| invalid())
+        }
+        "dispute" => {
+            payload
+                .entry("related_connector_transaction_ids".to_owned())
+                .or_insert_with(|| serde_json::json!([]));
+            serde_json::from_value::<grpc_api_types::payments::DisputeEventContext>(Value::Object(
+                payload,
+            ))
+            .map(|_| ())
+            .map_err(|_| invalid())
+        }
+        "refund" | "mandate" | "payout" => Ok(()),
+        _ => Err(invalid()),
+    }
+}
+
+/// Remote signatures belong to the processor: accept an operator's authentic
+/// runtime delivery, never mint a substitute or persist its bytes/headers.
+fn apply_external_webhook_delivery(
+    config: &Value,
+    scenario: &str,
+    grpc_req: &mut Value,
+) -> Result<(), ScenarioError> {
+    let Some(external) = config.get("external_verification") else {
+        return Ok(());
+    };
+    let required = external
+        .get("required_scenarios")
+        .and_then(Value::as_array)
+        .ok_or_else(|| ScenarioError::InvalidAssertionRule {
+            field: "external_verification.required_scenarios".to_owned(),
+            message: "Expected an explicit array of scenario names".to_owned(),
+        })?;
+    if required
+        .iter()
+        .any(|value| value.as_str().is_none_or(|value| value.trim().is_empty()))
+    {
+        return Err(ScenarioError::InvalidAssertionRule {
+            field: "external_verification.required_scenarios".to_owned(),
+            message: "Expected nonempty scenario names".to_owned(),
+        });
+    }
+    if !required
+        .iter()
+        .any(|value| value.as_str() == Some(scenario))
+    {
+        return Ok(());
+    }
+    let missing = || ScenarioError::Skipped {
+        reason: format!(
+            "OPERATOR_GAP: authentic external webhook delivery required for {scenario}"
+        ),
+    };
+    let env_name = external
+        .get("delivery_file_env")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| ScenarioError::InvalidAssertionRule {
+            field: "external_verification.delivery_file_env".to_owned(),
+            message: "Expected an environment variable naming an external delivery file".to_owned(),
+        })?;
+    let path = std::env::var_os(env_name)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(missing)?;
+    let bytes = std::fs::read(&path).map_err(|_| missing())?;
+    let deliveries: ExternalWebhookDeliveries =
+        serde_json::from_slice(&bytes).map_err(|_| ScenarioError::InvalidAssertionRule {
+            field: "external_verification.delivery_file".to_owned(),
+            message: "Malformed external webhook-deliveries/1 file; contents are not logged"
+                .to_owned(),
+        })?;
+    if deliveries.schema != "webhook-deliveries/1" {
+        return Err(ScenarioError::InvalidAssertionRule {
+            field: "external_verification.delivery_file.schema".to_owned(),
+            message: "Expected webhook-deliveries/1".to_owned(),
+        });
+    }
+    let delivery = deliveries.scenarios.get(scenario).ok_or_else(missing)?;
+    if let Some(context) = &delivery.event_context {
+        validate_external_event_context(context)?;
+    }
+    let decoded = STANDARD
+        .decode(&delivery.request_details.body)
+        .map_err(|_| ScenarioError::InvalidAssertionRule {
+            field: "external_verification.delivery_file.body".to_owned(),
+            message: "Original delivery bytes must be base64 encoded".to_owned(),
+        })?;
+    if decoded.is_empty() || delivery.request_details.headers.is_empty() {
+        return Err(ScenarioError::InvalidAssertionRule {
+            field: "external_verification.delivery_file.request_details".to_owned(),
+            message: "Authentic delivery body and transmission headers must be nonempty".to_owned(),
+        });
+    }
+    let details = grpc_req
+        .get_mut("request_details")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| ScenarioError::InvalidAssertionRule {
+            field: "request_details".to_owned(),
+            message: "Webhook request must be an object".to_owned(),
+        })?;
+    details.insert(
+        "body".to_owned(),
+        Value::String(delivery.request_details.body.clone()),
+    );
+    details.insert(
+        "headers".to_owned(),
+        serde_json::to_value(&delivery.request_details.headers)
+            .map_err(|source| ScenarioError::JsonSerialize { source })?,
+    );
+    if grpc_req.get("event_context").is_none() {
+        if let Some(context) = &delivery.event_context {
+            grpc_req
+                .as_object_mut()
+                .ok_or_else(|| ScenarioError::InvalidAssertionRule {
+                    field: "request".to_owned(),
+                    message: "Webhook request must be an object".to_owned(),
+                })?
+                .insert("event_context".to_owned(), context.clone());
+        }
+    }
+    Ok(())
+}
+
+/// Binds authentic external deliveries only at an execution boundary. Template
+/// loading and schema validation remain independent of operator credentials.
+/// The original base64 body is copied verbatim; no JSON normalization or signing
+/// occurs after binding.
+pub fn bind_external_webhook_delivery_for_execution(
+    connector: &str,
+    suite: &str,
+    scenario: &str,
+    grpc_req: &mut Value,
+) -> Result<(), ScenarioError> {
+    if suite != "EventService/HandleEvent" {
+        return Ok(());
+    }
+    if let Some((_, Some(config))) = loader::load_webhook_payload_patch(connector, scenario)? {
+        apply_external_webhook_delivery(&config, scenario, grpc_req)?;
+    }
+    Ok(())
+}
+
 /// Loads `webhook_payload.json` for the connector/scenario, merges the
 /// `grpc_req` patch, then runs post-merge transforms:
 ///
@@ -195,7 +401,12 @@ fn apply_webhook_payload_overrides(
         .and_then(|c| c.get("signature_header"))
         .and_then(Value::as_str);
 
-    if let Some(header_name) = signature_header {
+    let remote_verification = webhook_config
+        .as_ref()
+        .and_then(|config| config.get("requires_external_verification"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if let Some(header_name) = signature_header.filter(|_| !remote_verification) {
         let existing_header = grpc_req
             .pointer("/request_details/headers")
             .and_then(Value::as_object)
@@ -232,7 +443,10 @@ fn apply_webhook_payload_overrides(
 
     // Inject webhook_secrets at the top level if a secret exists.
     if let Some(secret) = &webhook_secret {
-        if let Some(root) = grpc_req.as_object_mut() {
+        if let Some(root) = grpc_req
+            .as_object_mut()
+            .filter(|root| !root.contains_key("webhook_secrets"))
+        {
             root.insert(
                 "webhook_secrets".to_string(),
                 serde_json::json!({ "secret": secret }),

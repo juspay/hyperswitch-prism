@@ -130,6 +130,213 @@ pub fn load_suite_spec(suite: &str) -> Result<SuiteSpec, ScenarioError> {
         .map_err(|source| ScenarioError::SuiteSpecParse { path, source })
 }
 
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConnectorDependencyOverrides {
+    schema: String,
+    suites: BTreeMap<String, ConnectorDependencyEntry>,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConnectorDependencyEntry {
+    reason: String,
+    depends_on: Vec<crate::harness::scenario_types::SuiteDependency>,
+    #[serde(default)]
+    strict_dependencies: Option<bool>,
+}
+fn invalid_dependency(detail: impl Into<String>) -> ScenarioError {
+    ScenarioError::InvalidAssertionRule {
+        field: "dependency_overrides".to_owned(),
+        message: detail.into(),
+    }
+}
+fn dependency_field_path(path: &str) -> bool {
+    !path.is_empty()
+        && path.split('.').all(|part| {
+            !part.is_empty()
+                && part
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+        })
+}
+fn dependency_graph_acyclic(
+    suite: &str,
+    connector: &str,
+    overlays: &BTreeMap<String, ConnectorDependencyEntry>,
+    stack: &mut BTreeSet<String>,
+    done: &mut BTreeSet<String>,
+) -> Result<(), ScenarioError> {
+    if done.contains(suite) {
+        return Ok(());
+    }
+    if !stack.insert(suite.to_owned()) {
+        return Err(invalid_dependency(format!("Dependency cycle at {suite}")));
+    }
+    let base = load_suite_spec(suite)?;
+    let dependencies = overlays
+        .get(suite)
+        .map(|entry| entry.depends_on.as_slice())
+        .unwrap_or(&base.depends_on);
+    for dependency in dependencies {
+        if is_suite_supported_for_connector(connector, dependency.suite())? {
+            dependency_graph_acyclic(dependency.suite(), connector, overlays, stack, done)?;
+        }
+    }
+    stack.remove(suite);
+    done.insert(suite.to_owned());
+    Ok(())
+}
+/// Optional committed connector protocol graphs; absence preserves global execution exactly.
+pub fn load_suite_spec_for_connector(
+    suite: &str,
+    connector: &str,
+) -> Result<SuiteSpec, ScenarioError> {
+    let mut base = load_suite_spec(suite)?;
+    let path = connector_spec_dir(connector).join("dependency_overrides.json");
+    if !path.exists() {
+        return Ok(base);
+    }
+    let text = fs::read_to_string(&path).map_err(|source| ScenarioError::SuiteSpecRead {
+        path: path.clone(),
+        source,
+    })?;
+    let shape: Value =
+        serde_json::from_str(&text).map_err(|source| ScenarioError::SuiteSpecParse {
+            path: path.clone(),
+            source,
+        })?;
+    if let Some(suites) = shape.get("suites").and_then(Value::as_object) {
+        for entry in suites.values() {
+            if let Some(dependencies) = entry.get("depends_on").and_then(Value::as_array) {
+                for dependency in dependencies {
+                    if dependency.as_object().is_some_and(|fields| {
+                        fields.keys().any(|key| {
+                            !matches!(key.as_str(), "suite" | "scenario" | "context_map")
+                        })
+                    }) {
+                        return Err(invalid_dependency("Unknown nested dependency key"));
+                    }
+                }
+            }
+        }
+    }
+    let overrides: ConnectorDependencyOverrides = serde_json::from_str(&text)
+        .map_err(|source| ScenarioError::SuiteSpecParse { path, source })?;
+    if overrides.schema != "connector-suite-dependencies/1" {
+        return Err(invalid_dependency("Unknown dependency override schema"));
+    }
+    for (target, entry) in &overrides.suites {
+        let original = load_suite_spec(target)?;
+        if !is_suite_supported_for_connector(connector, target)? {
+            return Err(invalid_dependency(format!(
+                "Dependency overlay target is not supported: {target}"
+            )));
+        }
+        if entry.reason.trim().is_empty()
+            || (original.strict_dependencies && entry.strict_dependencies == Some(false))
+        {
+            return Err(invalid_dependency(format!(
+                "Missing reason or weakened strictness for {target}"
+            )));
+        }
+        let mut names = BTreeSet::new();
+        for dependency in &entry.depends_on {
+            let name = dependency.suite();
+            load_suite_spec(name)?;
+            if name == target || !names.insert(name) {
+                return Err(invalid_dependency(format!(
+                    "Duplicate or self dependency for {target}"
+                )));
+            }
+            let mut scenarios = load_suite_scenarios(name)?;
+            merge_connector_specific_scenarios(connector, name, &mut scenarios)?;
+            if dependency
+                .scenario()
+                .is_some_and(|scenario| !scenarios.contains_key(scenario))
+            {
+                return Err(invalid_dependency(format!(
+                    "Unknown dependency scenario in {target}: {name}"
+                )));
+            }
+            if let Some(mapping) = dependency.context_map() {
+                for (field, source) in mapping {
+                    let Some((origin, source_field)) = source.split_once('.') else {
+                        return Err(invalid_dependency(format!(
+                            "Source must use req./res. in {target}"
+                        )));
+                    };
+                    if !matches!(origin, "req" | "res")
+                        || !dependency_field_path(field)
+                        || !dependency_field_path(source_field)
+                    {
+                        return Err(invalid_dependency(format!(
+                            "Invalid dependency field path in {target}"
+                        )));
+                    }
+                    let field_root = field
+                        .split('.')
+                        .next()
+                        .ok_or_else(|| invalid_dependency("Missing target path"))?;
+                    let source_root = source_field
+                        .split('.')
+                        .next()
+                        .ok_or_else(|| invalid_dependency("Missing source path"))?;
+                    if !super::scenario_api::suite_request_has_top_level_field(target, field_root)
+                        || (origin == "req"
+                            && !super::scenario_api::suite_request_has_top_level_field(
+                                name,
+                                source_root,
+                            ))
+                        || (origin == "res"
+                            && !super::scenario_api::suite_response_has_top_level_field(
+                                name,
+                                source_root,
+                            ))
+                    {
+                        return Err(invalid_dependency(format!(
+                            "Dependency field is not in its proto schema: {target}/{field}"
+                        )));
+                    }
+                }
+            }
+        }
+        for dependency in &original.depends_on {
+            let name = dependency.suite();
+            let duplicate_charge =
+                target == "PaymentService/CompleteAuthorize" && name == "PaymentService/Authorize";
+            if is_suite_supported_for_connector(connector, name)?
+                && !names.contains(name)
+                && !duplicate_charge
+            {
+                return Err(invalid_dependency(format!(
+                    "Cannot remove supported prerequisite {name} from {target}"
+                )));
+            }
+        }
+    }
+    let mut done = BTreeSet::new();
+    for target in overrides.suites.keys() {
+        dependency_graph_acyclic(
+            target,
+            connector,
+            &overrides.suites,
+            &mut BTreeSet::new(),
+            &mut done,
+        )?;
+    }
+    if let Some(entry) = overrides
+        .suites
+        .into_iter()
+        .find_map(|(name, entry)| (name == suite).then_some(entry))
+    {
+        base.depends_on = entry.depends_on;
+        base.strict_dependencies = entry
+            .strict_dependencies
+            .unwrap_or(base.strict_dependencies);
+    }
+    Ok(base)
+}
+
 /// Loads optional connector-specific browser automation hooks.
 ///
 /// Returns `None` when the spec file does not exist or cannot be read/parsed.

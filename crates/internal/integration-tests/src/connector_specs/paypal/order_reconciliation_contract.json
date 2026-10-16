@@ -1,0 +1,399 @@
+{
+  "schema": "paypal-order-reconciliation/1",
+  "surface": "ucs_grpc_and_hs_primary_ucs",
+  "evidence_state": "IMPLEMENTED",
+  "execution": "NOT_RUN until actual source-bound final runner executes each case; committed declarative contract is not an outcome oracle",
+  "protected_read_only_resources": {
+    "order_id": "0SG65781FC8888712",
+    "capture_id": "2K728570VG9010042",
+    "captured_minor": 3000,
+    "currency": "USD",
+    "forbidden_financial_retry": true
+  },
+  "ownership": "Exactly correlated purchase unit belongs to original order/reference; no unrelated purchase units or arbitrary capture selection",
+  "cases": [
+    {
+      "id": "recover_lost_capture_response",
+      "source": "existing_user_protected_order_read_only",
+      "request_context": "Original order and authorization, MANUAL_MULTIPLE; no saved capture_id and no saved capture_amounts",
+      "assert": {
+        "outgoing_method": "GET",
+        "outgoing_path": "/v2/checkout/orders/0SG65781FC8888712",
+        "captured_amount": 3000,
+        "currency": "USD",
+        "actual_capture_ledger_contains": {
+          "2K728570VG9010042": 3000
+        },
+        "capture_id": "only actual unique observed resource ID"
+      },
+      "forbidden": [
+        "POST",
+        "capture replay",
+        "amount from requested capture"
+      ]
+    },
+    {
+      "id": "two_captures_no_saved_capture_id",
+      "source": "dedicated_existing_capture_operation_chain",
+      "request_context": "Original order/authorization metadata before capture, missing capture_id",
+      "assert": {
+        "outgoing_method": "GET",
+        "outgoing_resource": "original_order",
+        "captured_amount": 6000,
+        "currency": "USD",
+        "actual_capture_ledger": "two observed distinct IDs, 3000 each",
+        "capture_id": "absent; never choose one arbitrary refund target",
+        "status": "CHARGED"
+      }
+    },
+    {
+      "id": "two_captures_saved_first_id",
+      "source": "dedicated_existing_capture_operation_chain",
+      "request_context": "First immutable post-capture metadata with original capture_id",
+      "assert": {
+        "captured_amount": 6000,
+        "actual_capture_ledger": "both actual resource IDs once",
+        "capture_id": "preserves first actual saved ID",
+        "status": "CHARGED"
+      }
+    },
+    {
+      "id": "partial_authorization_closed",
+      "source": "dedicated_existing_financial_closure_chain",
+      "assert": {
+        "captured_amount": 3000,
+        "status": "PARTIAL_CHARGED",
+        "authorization_closed": true,
+        "remaining_capturable": 0
+      }
+    },
+    {
+      "id": "refunded_capture_gross_money",
+      "source": "actual captured-and-refunded resource or explicit response-fixture grade",
+      "assert": {
+        "captured_amount": "gross original actual capture amount, not zero or net refund",
+        "actual_capture_ledger": "original resource ID and gross amount retained"
+      }
+    },
+    {
+      "id": "duplicate_order_reconciliation",
+      "source": "repeat read-only GET on same observed order",
+      "assert": {
+        "captured_amount": "unchanged",
+        "actual_capture_ledger": "same unique IDs and amounts, no duplicate addition"
+      }
+    },
+    {
+      "id": "conflicting_order_identity",
+      "source": "local request negative",
+      "assert": {
+        "error": "resource identity conflict",
+        "financial_outbound_calls": 0
+      }
+    },
+    {
+      "id": "mixed_currency_resource",
+      "source": "explicit response-fixture grade; never claim provider outcome",
+      "assert": {
+        "error": "response handling failure",
+        "persisted_money": "unchanged"
+      }
+    },
+    {
+      "id": "duplicate_capture_resource_id",
+      "source": "explicit response-fixture grade; never claim provider outcome",
+      "assert": {
+        "error": "response handling failure",
+        "persisted_money": "unchanged"
+      }
+    },
+    {
+      "id": "missing_previous_capture",
+      "source": "explicit delayed/incomplete response-fixture grade; never claim provider outcome",
+      "assert": {
+        "error": "response handling failure",
+        "persisted_money": "unchanged; prior capture cannot disappear"
+      }
+    },
+    {
+      "id": "changed_previous_capture_amount",
+      "source": "explicit conflicting response-fixture grade; never claim provider outcome",
+      "assert": {
+        "error": "response handling failure",
+        "persisted_money": "unchanged"
+      }
+    },
+    {
+      "id": "direct_authorization_voided_lost_capture",
+      "source": "explicit actual production gRPC response fixture; not a provider live outcome",
+      "purpose": "Direct authorization VOIDED with saved complete empty pre-capture snapshot must become uncertain, not zero",
+      "assert": {
+        "production_mapping": "Execute committed fixture; no static PASS",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "direct_capture_collected_missing_money",
+      "source": "explicit actual production gRPC response fixture; not a provider live outcome",
+      "purpose": "Direct successful capture GET without Money invalidates old completeness and retains actual prior facts",
+      "assert": {
+        "production_mapping": "Execute committed fixture; no static PASS",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "bare_order_completed_partial_open",
+      "source": "explicit actual production gRPC response fixture; not a provider live outcome",
+      "purpose": "Bare COMPLETED Order without collection cannot close known partial/open hold",
+      "assert": {
+        "production_mapping": "Execute committed fixture; no static PASS",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "refunded_final_partial_closure",
+      "source": "explicit actual production gRPC response fixture; not a provider live outcome",
+      "purpose": "REFUNDED actual final capture retains gross money and closes remainder",
+      "assert": {
+        "production_mapping": "Execute committed fixture; no static PASS",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "partially_refunded_final_partial_closure",
+      "source": "explicit actual production gRPC response fixture; not a provider live outcome",
+      "purpose": "PARTIALLY_REFUNDED actual final capture retains gross money and closes remainder",
+      "assert": {
+        "production_mapping": "Execute committed fixture; no static PASS",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "direct_authorization_partial_unknown_ledger",
+      "source": "actual production response fixture; corrected under IR010 official PARTIALLY_CAPTURED current open hold evidence, exact aggregate remains unknown",
+      "purpose": "Legacy ManualMultiple direct authorization GET cannot renew old whole-order certificate",
+      "assert": {
+        "status": "PARTIAL_CHARGED_AND_CHARGEABLE",
+        "capture_history_complete": false,
+        "prior_money_facts": "retained"
+      }
+    },
+    {
+      "id": "direct_manual_authorization_partial_lost_upgrade",
+      "source": "actual production response fixture; corrected under IR010 official PARTIALLY_CAPTURED current open hold evidence, exact aggregate remains unknown",
+      "purpose": "Lost Manual-to-ManualMultiple capture response cannot retain pre-capture complete empty Manual certificate",
+      "assert": {
+        "status": "PARTIAL_CHARGED_AND_CHARGEABLE",
+        "capture_history_complete": false
+      }
+    },
+    {
+      "id": "ordinary_manual_direct_authorized",
+      "source": "actual production gRPC response fixture",
+      "assert": {
+        "known_hold_state": "Actual current status and valid supplied expiration, no inferred exact aggregate/remaining"
+      }
+    },
+    {
+      "id": "ordinary_manual_order_recovery",
+      "source": "actual production gRPC response fixture",
+      "assert": {
+        "known_hold_state": "Actual current status and valid supplied expiration, no inferred exact aggregate/remaining"
+      }
+    },
+    {
+      "id": "expired_partial_authorization_uncertain",
+      "source": "actual production gRPC response fixture",
+      "assert": {
+        "known_hold_state": "Actual current status and valid supplied expiration, no inferred exact aggregate/remaining"
+      }
+    },
+    {
+      "id": "owned_expired_partial_order_closed",
+      "source": "actual production gRPC response fixture",
+      "assert": {
+        "known_hold_state": "Actual current status and valid supplied expiration, no inferred exact aggregate/remaining"
+      }
+    },
+    {
+      "id": "invalid_authorization_expiration_refused",
+      "source": "actual production gRPC response fixture",
+      "assert": {
+        "known_hold_state": "Actual current status and valid supplied expiration, no inferred exact aggregate/remaining"
+      }
+    },
+    {
+      "id": "closed_manual_owned_partial_void",
+      "source": "actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "production_mapping": "Execute committed runner; no static PASS",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "closed_manual_owned_empty_void",
+      "source": "actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "production_mapping": "Execute committed runner; no static PASS",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "closed_manual_missing_captures_unknown",
+      "source": "actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "production_mapping": "Execute committed runner; no static PASS",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "closed_manual_missing_previous_capture",
+      "source": "actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "production_mapping": "Execute committed runner; no static PASS",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "manual_partial_no_hold_proof_pending",
+      "source": "actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "production_mapping": "Current capture ledger alone does not prove closed Manual hold",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "qualified_omitted_void_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "qualified_explicit_empty_void_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "wrong_order_no_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "wrong_authorization_no_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "wrong_reference_no_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "wrong_currency_or_authorized_amount_no_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "known_capture_id_no_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "positive_prior_money_no_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "known_capture_history_no_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "partial_or_filtered_representation_no_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "missing_payments_no_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "bare_authorization_voided_no_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "void204_no_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "webhook_voided_no_zero",
+      "source": "C25 actual production gRPC/HTTP fixture; NOT_RUN until committed runtime",
+      "assert": {
+        "qualification": "Exact C25 fixture condition only, never provider live evidence",
+        "never_replay_protected_capture": true
+      }
+    },
+    {
+      "id": "filtered_get_url_no_zero",
+      "source": "C25 actual production URL-guard gRPC fixture, NOT_RUN",
+      "assert": {
+        "filtered_url": "refused before provider call"
+      }
+    },
+    {
+      "id": "wrong_authorized_amount_no_zero",
+      "source": "C25 actual production amount-contradiction fixture; NOT_RUN",
+      "assert": {
+        "wrong_known_authorized_amount": "Never qualify zero from a contradictory owned amount"
+      }
+    },
+    {
+      "id": "explicit_null_captures_no_zero",
+      "source": "Actual production serde/response-discriminator gRPC fixture; NOT_RUN",
+      "assert": {
+        "explicit_null_capture_array": "Not omitted/[]; never zero-certifies, uncertain fallback"
+      }
+    }
+  ]
+}

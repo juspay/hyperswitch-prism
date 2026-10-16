@@ -1,3 +1,5 @@
+use error_stack::ResultExt;
+use hyperswitch_masking::PeekInterface;
 use std::fmt::Debug;
 
 use grpc_api_types::payments::IntegrityCheck as ProtoIntegrityCheck;
@@ -11,10 +13,13 @@ use connector_integration::types::{
 };
 use domain_types::{
     connector_flow::{
-        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, SurchargePaymentSucceeded,
-        SurchargeRefundSucceeded, VerifyWebhookSource,
+        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, ServerAuthenticationToken,
+        SurchargePaymentSucceeded, SurchargeRefundSucceeded, VerifyWebhookSource,
     },
-    connector_types::{VerifyWebhookSourceFlowData, WebhookIntegrityCheck},
+    connector_types::{
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        VerifyWebhookSourceFlowData, WebhookIntegrityCheck,
+    },
     errors::WebhookError,
     frm::frm_types::{
         FrmChargebackReceivedRequest, FrmChargebackReceivedResponse, FrmFlowData,
@@ -25,6 +30,7 @@ use domain_types::{
         generate_frm_chargeback_received_response, generate_frm_payment_outcome_response,
         generate_frm_refund_processed_response,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::DefaultPCIHolder,
     router_data::ConnectorSpecificConfig,
     router_data::ErrorResponse,
@@ -1036,6 +1042,10 @@ async fn verify_webhook_source_external(
     metadata_payload: &utils::MetadataPayload,
     service_name: &str,
 ) -> Result<bool, error_stack::Report<ucs_env::error::GrpcError>> {
+    let merchant_secret = webhook_secrets.filter(|secrets| !secrets.secret.is_empty() && secrets.secret.iter().any(|byte| !byte.is_ascii_whitespace()))
+        .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretInvalid)
+            .attach_printable("External webhook verification requires a nonempty configured subscription/verification secret"))
+        .to_grpc_error()?;
     // Resolve effective connector URLs — applies superposition (x-environment) first,
     // then any caller-supplied base_url override from x-connector-config on top.
     let connectors = utils::apply_url_overrides(
@@ -1048,6 +1058,7 @@ async fn verify_webhook_source_external(
     .to_grpc_error()?;
 
     let verify_webhook_flow_data = VerifyWebhookSourceFlowData {
+        access_token: None,
         connectors: connectors.into(),
         connector_request_reference_id: format!("webhook_verify_{}", metadata_payload.request_id),
         raw_connector_response: None,
@@ -1057,12 +1068,6 @@ async fn verify_webhook_source_external(
         connector_response_headers: None,
     };
 
-    let merchant_secret =
-        webhook_secrets.unwrap_or_else(|| domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: "default_secret".to_string().into_bytes(),
-            additional_secret: None,
-        });
-
     let verify_webhook_request = VerifyWebhookSourceRequestData {
         webhook_headers: request_details.headers.clone(),
         webhook_body: request_details.body.clone(),
@@ -1070,7 +1075,7 @@ async fn verify_webhook_source_external(
         webhook_uri: request_details.uri.clone(),
     };
 
-    let verify_webhook_router_data = RouterDataV2::<
+    let mut verify_webhook_router_data = RouterDataV2::<
         VerifyWebhookSource,
         VerifyWebhookSourceFlowData,
         VerifyWebhookSourceRequestData,
@@ -1090,6 +1095,115 @@ async fn verify_webhook_source_external(
         VerifyWebhookSourceRequestData,
         VerifyWebhookSourceResponseData,
     > = connector_data.connector.get_connector_integration_v2();
+
+    // Pure connector validation runs before any authentication request. Invalid
+    // transmission metadata must not spend credentials or reach a vendor endpoint.
+    let _ = connector_integration
+        .get_request_body(&verify_webhook_router_data)
+        .change_context(WebhookError::WebhookSourceVerificationFailed)
+        .to_grpc_error()?;
+    if connector_data.connector.should_do_access_token(None) {
+        let auth_integration: BoxedConnectorIntegrationV2<
+            '_,
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        > = connector_data.connector.get_connector_integration_v2();
+        let auth_common = MerchantAuthenticationFlowData {
+            merchant_id: metadata_payload
+                .merchant_id
+                .as_str()
+                .parse()
+                .unwrap_or_else(|never| match never {}),
+            connectors: verify_webhook_router_data
+                .resource_common_data
+                .connectors
+                .clone(),
+            connector_request_reference_id: format!(
+                "webhook_oauth_{}",
+                metadata_payload.request_id
+            ),
+            test_mode: None,
+            return_url: None,
+            connector_feature_data: None,
+            order_details: None,
+            merchant_request_id: Some(metadata_payload.request_id.clone()),
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
+            connector_response_headers: None,
+        };
+        let auth_router = RouterDataV2::<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        > {
+            flow: std::marker::PhantomData,
+            resource_common_data: auth_common,
+            connector_config: connector_config.clone(),
+            request: ServerAuthenticationTokenRequestData::foreign_try_from(connector_config)
+                .to_grpc_error()?,
+            response: Err(ErrorResponse::default()),
+        };
+        let oauth_event_params = EventProcessingParams {
+            connector_name: connector_data.connector.id(),
+            service_name,
+            service_type: utils::service_type_str(&config.server.type_),
+            flow_name: FlowName::ServerAuthenticationToken,
+            event_config: &config.events,
+            runtime_metadata: &config.runtime_metadata,
+            request_id: &metadata_payload.request_id,
+            lineage_ids: &metadata_payload.lineage_ids,
+            reference_id: &metadata_payload.reference_id,
+            resource_id: &metadata_payload.resource_id,
+            shadow_mode: metadata_payload.shadow_mode,
+            proxy_name: metadata_payload.proxy_name.as_deref(),
+            tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
+            return_raw_connector_data: false,
+            return_typed_connector_data: false,
+            masking_keys: &config.masking_keys,
+            connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
+        };
+        let auth_result = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                auth_integration,
+                auth_router,
+                None,
+                oauth_event_params,
+                None,
+                common_enums::CallConnectorAction::Trigger,
+                None,
+                None,
+            ),
+        )
+        .await
+        .to_grpc_error()?;
+        let token = auth_result
+            .response
+            .map_err(|_| {
+                error_stack::report!(WebhookError::WebhookSourceVerificationFailed)
+                    .attach_printable("Connector authentication failed before webhook verification")
+            })
+            .to_grpc_error()?;
+        if token.access_token.peek().trim().is_empty() {
+            return Err(
+                error_stack::report!(WebhookError::WebhookSourceVerificationFailed)
+                    .attach_printable(
+                        "Connector returned an empty webhook verification access token",
+                    ),
+            )
+            .to_grpc_error();
+        }
+        verify_webhook_router_data.resource_common_data.access_token = Some(token);
+    }
 
     let event_params = EventProcessingParams {
         connector_name: connector_data.connector.id(),

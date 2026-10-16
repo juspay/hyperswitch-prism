@@ -148,6 +148,7 @@ fn parse_flow_info(transformer_fn: &str, request_type: &str) -> Option<FlowInfo>
             | "token_authorize"
             | "proxy_setup_recurring"
             | "token_setup_recurring"
+            | "authenticate"
             | "pre_authenticate"
             | "post_authenticate"
     );
@@ -707,6 +708,24 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
     writeln!(
         f,
         "            transformer_fn: \"authorize_req_transformer\","
+    )
+    .unwrap();
+    writeln!(f, "            has_payment_methods: true,").unwrap();
+    writeln!(f, "        }},").unwrap();
+
+    // Tokenize is also payment-method-iterated and was skipped during macro discovery.
+    writeln!(f, "        FlowDefinition {{").unwrap();
+    writeln!(f, "            key: \"tokenize\",").unwrap();
+    writeln!(f, "            service: \"PaymentMethodService\",").unwrap();
+    writeln!(f, "            rpc: \"Tokenize\",").unwrap();
+    writeln!(
+        f,
+        "            request_type: \"PaymentMethodServiceTokenizeRequest\","
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "            transformer_fn: \"tokenize_req_transformer\","
     )
     .unwrap();
     writeln!(f, "            has_payment_methods: true,").unwrap();

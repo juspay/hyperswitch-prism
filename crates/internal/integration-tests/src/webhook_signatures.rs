@@ -183,25 +183,9 @@ fn generate_checkout_signature(payload: &[u8], secret: &str) -> Result<String, S
     Ok(hex_signature)
 }
 
-/// Generate PayPal webhook signature
-///
-/// PayPal uses HMAC-SHA256 with base64 encoding
-fn generate_paypal_signature(payload: &[u8], secret: &str) -> Result<String, String> {
-    use hmac::{Hmac, Mac};
-    use sha2::Sha256;
-
-    type HmacSha256 = Hmac<Sha256>;
-
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
-        .map_err(|e| format!("Failed to create HMAC: {}", e))?;
-    mac.update(payload);
-    let signature_bytes = mac.finalize().into_bytes();
-
-    // Base64 encode
-    use base64::{engine::general_purpose::STANDARD, Engine};
-    let signature_b64 = STANDARD.encode(signature_bytes);
-
-    Ok(signature_b64)
+/// PayPal signs transmissions with its private RSA key; merchants cannot mint them.
+fn generate_paypal_signature(_payload: &[u8], _secret: &str) -> Result<String, String> {
+    Err("PayPal RSA transmission signatures cannot be generated locally; supply an authentic runtime delivery".to_owned())
 }
 
 #[cfg(test)]

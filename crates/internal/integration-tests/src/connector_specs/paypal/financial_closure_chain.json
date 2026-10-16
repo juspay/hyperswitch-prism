@@ -1,0 +1,2120 @@
+{
+  "schema": "paypal-financial-closure-chain/1",
+  "case_id": "Void/partial_capture_closure",
+  "surface": "ucs_grpc_and_hs_final_matrix",
+  "evidence_state": "IMPLEMENTED",
+  "live_outcome": "NOT_RUN after source correction",
+  "generic_suite_execution": "NOT_RUN: independent scenario dependencies cannot establish this shared financial chain",
+  "authorization": {
+    "minor_amount": 6000,
+    "currency": "USD",
+    "capture_method": "MANUAL_MULTIPLE"
+  },
+  "steps": [
+    {
+      "id": "authorize",
+      "rpc": "PaymentService/Authorize",
+      "assert": {
+        "status": "AUTHORIZED"
+      }
+    },
+    {
+      "id": "capture_partial",
+      "rpc": "PaymentService/Capture",
+      "amount": 3000,
+      "context_from": "authorize",
+      "capture_reference": "persist_one_logical_capture_reference",
+      "assert": {
+        "status": "PARTIAL_CHARGED_AND_CHARGEABLE",
+        "captured_amount": 3000,
+        "wire.final_capture": false
+      }
+    },
+    {
+      "id": "void_remainder",
+      "rpc": "PaymentService/Void",
+      "context_from": "capture_partial",
+      "assert": {
+        "status": "PENDING",
+        "metadata.authorization_closed": true,
+        "metadata.capture_history_complete": false,
+        "metadata.capture_context.capture_amounts.actual_owned_capture.value": "30.00"
+      },
+      "forbidden": "Void204 alone cannot certify the current capture collection; preserve actual prior money until owned Orders GET."
+    },
+    {
+      "id": "sync_closed",
+      "rpc": "PaymentService/Get",
+      "context_from": "void_remainder",
+      "assert": {
+        "status": "PARTIAL_CHARGED",
+        "captured_amount": 3000,
+        "capturable_remaining": 0,
+        "metadata.authorization_closed": true
+      },
+      "forbidden": "Historic capture.final_capture=false must not reopen authorization."
+    },
+    {
+      "id": "refund_collected",
+      "rpc": "PaymentService/Refund",
+      "amount": 3000,
+      "actual_capture_id_from": "capture_partial",
+      "assert": {
+        "refund_amount.minor_amount": 3000,
+        "refund_amount.currency": "USD",
+        "refund_id": "present"
+      }
+    }
+  ],
+  "hs_surface": {
+    "assert": "Payment with actual collected3000 remains refundable after remainder cancellation; actual refund3000 outcome required",
+    "live_outcome": "NOT_RUN"
+  },
+  "reproducibility": "Final gRPC stage must consume this committed input and publish actual runner command; contract validation alone is not live verification.",
+  "failure_regressions": [
+    {
+      "id": "void_timeout_preserves_money",
+      "assert": {
+        "hs.amount_received": 3000,
+        "hs.global_cancelled": false,
+        "terminal_closure": "NOT_PROVEN; readonly Order reconciliation required"
+      },
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "void_provider_error_preserves_money",
+      "assert": {
+        "hs.amount_received": 3000,
+        "hs.global_cancelled": false
+      },
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "void204_unknown_capture_money",
+      "assert": {
+        "ucs.status": "PENDING",
+        "ucs.request_amount_fallback": false,
+        "ucs.capture_history_complete": false
+      },
+      "execution": "NOT_RUN; direct Void fixture consumer extension pending PSync74"
+    }
+  ],
+  "refund_source_regressions": [
+    {
+      "id": "refund_open_owned_second",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_SUCCESS",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1000,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "refund_closed_owned_second",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_SUCCESS",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1000,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "refund_order_saved_first",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_SUCCESS",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1000,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "refund_full_selected_second",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_SUCCESS",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1500,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "refund_unknown_capture_refused",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "refund_exceeds_selected_gross_refused",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "refund_capture_currency_refused",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "refund_missing_explicit_target_refused",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "refund_unsafe_capture_id_refused",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "refund_negative_amount_refused",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "refund_legacy_unknown_gross_gateway_validated",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_SUCCESS",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1000,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "refund_failed_retains_actual_id",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": true,
+        "status": "REFUND_FAILURE",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1000,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "refund_missing_money_retains_actual_id",
+      "rpc": "PaymentService/Refund",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_SUCCESS",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": null,
+        "refund_amount_currency": null
+      },
+      "surface": "committed actual production gRPC/HTTP refund fixtures",
+      "execution": "NOT_RUN"
+    }
+  ],
+  "open_partial_refund_chain": {
+    "live_outcome": "NOT_RUN",
+    "steps": [
+      "Authorize6000 ManualMultiple",
+      "Capture3000 nonfinal once; actual HSreceived3000/capturable3000",
+      "Refund1000 exact completedcaptureID while authopen; actualRefundSuccess1000",
+      "Read-onlyOrder grosscaptured3000/openhold; HSreceived3000/capturable3000; known refund1000 leaves controlled-chain netrefundable2000",
+      "Voidremainder Pending with actual received3000 retained, then ownedOrdersGET actualclosure",
+      "Refundremaining2000 against sameactual capture afterVoid; preserve totalgross3000 and actualdistinctRefundIDs"
+    ],
+    "never_replay_protected_capture": true,
+    "consumer": "Dedicated final actualHS E2E required; local fixtures do not execute this live chain"
+  },
+  "rsync_source_regressions": [
+    {
+      "id": "rsync_owned_second_completed",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_SUCCESS",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1000,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_missing_status_pending",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_PENDING",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1000,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_unknown_status_pending",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_PENDING",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1000,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_null_status_pending",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_PENDING",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1000,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_owned_second_failed_reason",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": true,
+        "status": "REFUND_FAILURE",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1000,
+        "refund_amount_currency": "USD",
+        "error_code": "ECHECK",
+        "error_reason": "ECHECK"
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_conflicting_refund_id",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": true,
+        "status": "REFUND_MANUAL_REVIEW",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": null,
+        "refund_amount_currency": null,
+        "error_code": "REFUND_RESOURCE_ID_MISMATCH"
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_missing_refund_id",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": true,
+        "status": "REFUND_PENDING",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": null,
+        "refund_amount_currency": null,
+        "error_code": "REFUND_RESOURCE_ID_MISSING"
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_amount_mismatch_review",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_MANUAL_REVIEW",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1100,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_currency_mismatch_review",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_MANUAL_REVIEW",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1000,
+        "refund_amount_currency": "EUR"
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_missing_amount_not_fabricated",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_SUCCESS",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": null,
+        "refund_amount_currency": null
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_unowned_capture_refused",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_selected_gross_exceeded_refused",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_selected_currency_refused",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_http401_uncertain_empty_id_gap",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": true,
+        "status": "REFUND_PENDING",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": null,
+        "refund_amount_currency": null
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN",
+      "known_implementation_gap": "CORRECTED_PREMISE: Actual generate_refund_sync_response already retains request.connector_refund_id on missing observed ID; earlier unwrap_or_default inspection was Refund CREATE. Strict actual runtime oracle still NOT_RUN; HS terminal/ID preservation is separate required work.",
+      "prior_classification": {
+        "execution": "CORE_PENDING_FIX/NOT_RUN",
+        "known_implementation_gap": "Current generic HTTPerror producer drops known requestedRefundID. Desired strict preservation assertion retained; scoped CORE fix queued after S3.",
+        "retained_as_history": true
+      },
+      "source_reconciliation": "rev18 C30/P-RSync-05; domain_types/src/types.rs~10437, grpc/server/refunds.rs47, ffi/services/payments.rs936"
+    },
+    {
+      "id": "rsync_http503_uncertain_empty_id_gap",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": true,
+        "status": "REFUND_STATUS_UNSPECIFIED",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": null,
+        "refund_amount_currency": null,
+        "error_code": "503",
+        "response.status_code": 503
+      },
+      "surface": "committed actual RSync gRPC/HTTP production mapper",
+      "execution": "NOT_RUN",
+      "known_implementation_gap": "CORRECTED_PREMISE: Actual generate_refund_sync_response already retains request.connector_refund_id on missing observed ID; earlier unwrap_or_default inspection was Refund CREATE. Strict actual runtime oracle still NOT_RUN; HS terminal/ID preservation is separate required work.",
+      "prior_classification": {
+        "execution": "CORE_PENDING_FIX/NOT_RUN",
+        "known_implementation_gap": "Current generic HTTPerror producer drops known requestedRefundID. Desired strict preservation assertion retained; scoped CORE fix queued after S3.",
+        "retained_as_history": true
+      },
+      "source_reconciliation": "rev23 C41/P-RSync-07: HTTP503 error contains no observed refund resource.status; unspecified state with explicit503 error, queried identity and absent Money. No Rust change.",
+      "prior_runtime_assertion": {
+        "assert": {
+          "error_present": true,
+          "status": "REFUND_PENDING",
+          "connector_refund_id": "PUBLIC_REFUND_ID",
+          "refund_amount_minor": null,
+          "refund_amount_currency": null
+        },
+        "artifact": "test/grpc/c01-committed-production-mapper.json",
+        "protocol": "test/grpc/c01-committed-mapper-failure-protocol.json",
+        "result": "FAIL: status",
+        "retained_as_history": true
+      }
+    },
+    {
+      "id": "rsync_currency_without_request_money_review",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_MANUAL_REVIEW",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1000,
+        "refund_amount_currency": "EUR"
+      },
+      "surface": "actual production mapper, response Money vs selected actual capture without optional callerMoney",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_gross_without_request_money_review",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_MANUAL_REVIEW",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 1600,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "actual production mapper, response Money vs selected actual capture without optional callerMoney",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "rsync_zero_actual_amount_review",
+      "rpc": "RefundService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "REFUND_MANUAL_REVIEW",
+        "connector_refund_id": "PUBLIC_REFUND_ID",
+        "refund_amount_minor": 0,
+        "refund_amount_currency": "USD"
+      },
+      "surface": "actual production mapper, response Money vs selected actual capture without optional callerMoney",
+      "execution": "NOT_RUN"
+    }
+  ],
+  "rsync_terminal_contract": {
+    "source_status": "COMPLETED success; missing/null/unknown Pending; own status_details.reason according to actual PayPal refund schema. Never read unrelated payment failure_reason.",
+    "grpc_prior_refund_status_carrier": "ABSENT in RefundServiceGetRequest; no fake state restoration in connector",
+    "http401_503": "HTTP401 retains existing connector Pending fallback, not provider-state observation. HTTP503 has no observed refund resource.status: assert REFUND_STATUS_UNSPECIFIED plus explicit503 error/status_code, exact queried refundID and absent Money. Existing generate_refund_sync_response retains requested connector_refund_id. HS independently retains stored terminal Success/Failure/TransactionFailure and ID on Pending/Review/401/503/transport; nonterminal remains uncertain with error. Prior failed Pending503 oracle retained under prior_runtime_assertion; no Refund CREATE or Rust change.",
+    "required_hs_oracle": "Actual stored terminalSuccess/Failure/TransactionFailure and actualstoredconnectorRefundID retained on Pending/Review/HTTPerror. Real HS faults+reconciliation required; NOT_RUN",
+    "conflicting_resource": "Never import wrong refundID Success or Money; retain expectedID and ManualReview/error",
+    "ownership_gap": "Optional metadata corroborates actual owned capture; independent vendor refund-to-capture association absent direct capture_id field; actual known-resource context/live provider oracle required",
+    "http401_503_prior_classification": {
+      "text": "Desired strict known requestedRefundID preservation asserted; current generic producer empty ID is CORE_PENDING_FIX/NOT_RUN, never expected empty for green. HS independently retains stored ID/terminal state.",
+      "retained_as_history": true,
+      "corrected_by": "rev19 P-RSync-06 / code82 correct-generator source reconciliation"
+    }
+  },
+  "threeds_source_regressions": [
+    {
+      "id": "native_y_y_possible",
+      "rpc": "PaymentMethodAuthenticationService/PostAuthenticate",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHENTICATION_SUCCESSFUL",
+        "meta.order_id": "PUBLIC_ORDER",
+        "meta.continuation.stage": "order_approved"
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "native_y_a_possible",
+      "rpc": "PaymentMethodAuthenticationService/PostAuthenticate",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHENTICATION_SUCCESSFUL",
+        "meta.order_id": "PUBLIC_ORDER",
+        "meta.continuation.stage": "order_approved"
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "native_n_absent_no",
+      "rpc": "PaymentMethodAuthenticationService/PostAuthenticate",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHENTICATION_SUCCESSFUL",
+        "meta.order_id": "PUBLIC_ORDER",
+        "meta.continuation.stage": "order_approved"
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "native_u_absent_no",
+      "rpc": "PaymentMethodAuthenticationService/PostAuthenticate",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHENTICATION_SUCCESSFUL",
+        "meta.order_id": "PUBLIC_ORDER",
+        "meta.continuation.stage": "order_approved"
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "native_b_absent_no",
+      "rpc": "PaymentMethodAuthenticationService/PostAuthenticate",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHENTICATION_SUCCESSFUL",
+        "meta.order_id": "PUBLIC_ORDER",
+        "meta.continuation.stage": "order_approved"
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "native_i_rejected",
+      "rpc": "PaymentMethodAuthenticationService/PostAuthenticate",
+      "assert": {
+        "error_present": true,
+        "grpc_error_code": 13,
+        "grpc_error_status": "Internal",
+        "grpc_error_identity": "RESPONSE_HANDLING_FAILED",
+        "captured_amount": null,
+        "meta.continuation.stage": null,
+        "meta.order_id": null,
+        "response.authorize_response": null,
+        "response.authorize_response.captured_amount": null,
+        "response.post_authenticate_response": null,
+        "response.status": null
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN",
+      "prior_diagnostic_oracle": {
+        "expect": {
+          "error_present": true
+        },
+        "error_contains": "authentication",
+        "result": "FAIL: specific_local_error only; rejected outcome and sole GET checks passed",
+        "artifact": "test/grpc/c01-nn91-committed-production-mapper.json",
+        "diagnostic": "test/grpc/c01-nn91-mapper-diagnostic.json",
+        "granular_authentication_context": "NOT_OBSERVABLE: attach_printable context is not transported in public gRPC error",
+        "retained_as_history": true
+      },
+      "public_error_contract": "C43 exact structured Internal/code13 + RESPONSE_HANDLING_FAILED identity, sole expected ownedOrder GET path and count, no POST/charge/Money/approved continuation. All provider rejected outcome inputs unchanged; unrelated Internal cannot pass."
+    },
+    {
+      "id": "native_success_no_liability_rejected",
+      "rpc": "PaymentMethodAuthenticationService/PostAuthenticate",
+      "assert": {
+        "error_present": true,
+        "grpc_error_code": 13,
+        "grpc_error_status": "Internal",
+        "grpc_error_identity": "RESPONSE_HANDLING_FAILED",
+        "captured_amount": null,
+        "meta.continuation.stage": null,
+        "meta.order_id": null,
+        "response.authorize_response": null,
+        "response.authorize_response.captured_amount": null,
+        "response.post_authenticate_response": null,
+        "response.status": null
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN",
+      "prior_diagnostic_oracle": {
+        "expect": {
+          "error_present": true
+        },
+        "error_contains": "authentication",
+        "result": "FAIL: specific_local_error only; rejected outcome and sole GET checks passed",
+        "artifact": "test/grpc/c01-nn91-committed-production-mapper.json",
+        "diagnostic": "test/grpc/c01-nn91-mapper-diagnostic.json",
+        "granular_authentication_context": "NOT_OBSERVABLE: attach_printable context is not transported in public gRPC error",
+        "retained_as_history": true
+      },
+      "public_error_contract": "C43 exact structured Internal/code13 + RESPONSE_HANDLING_FAILED identity, sole expected ownedOrder GET path and count, no POST/charge/Money/approved continuation. All provider rejected outcome inputs unchanged; unrelated Internal cannot pass."
+    },
+    {
+      "id": "native_attempt_no_liability_rejected",
+      "rpc": "PaymentMethodAuthenticationService/PostAuthenticate",
+      "assert": {
+        "error_present": true,
+        "grpc_error_code": 13,
+        "grpc_error_status": "Internal",
+        "grpc_error_identity": "RESPONSE_HANDLING_FAILED",
+        "captured_amount": null,
+        "meta.continuation.stage": null,
+        "meta.order_id": null,
+        "response.authorize_response": null,
+        "response.authorize_response.captured_amount": null,
+        "response.post_authenticate_response": null,
+        "response.status": null
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN",
+      "prior_diagnostic_oracle": {
+        "expect": {
+          "error_present": true
+        },
+        "error_contains": "authentication",
+        "result": "FAIL: specific_local_error only; rejected outcome and sole GET checks passed",
+        "artifact": "test/grpc/c01-nn91-committed-production-mapper.json",
+        "diagnostic": "test/grpc/c01-nn91-mapper-diagnostic.json",
+        "granular_authentication_context": "NOT_OBSERVABLE: attach_printable context is not transported in public gRPC error",
+        "retained_as_history": true
+      },
+      "public_error_contract": "C43 exact structured Internal/code13 + RESPONSE_HANDLING_FAILED identity, sole expected ownedOrder GET path and count, no POST/charge/Money/approved continuation. All provider rejected outcome inputs unchanged; unrelated Internal cannot pass."
+    },
+    {
+      "id": "native_missing_outcome_rejected",
+      "rpc": "PaymentMethodAuthenticationService/PostAuthenticate",
+      "assert": {
+        "error_present": true,
+        "grpc_error_code": 13,
+        "grpc_error_status": "Internal",
+        "grpc_error_identity": "RESPONSE_HANDLING_FAILED",
+        "captured_amount": null,
+        "meta.continuation.stage": null,
+        "meta.order_id": null,
+        "response.authorize_response": null,
+        "response.authorize_response.captured_amount": null,
+        "response.post_authenticate_response": null,
+        "response.status": null
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN",
+      "prior_diagnostic_oracle": {
+        "expect": {
+          "error_present": true
+        },
+        "error_contains": "authentication",
+        "result": "FAIL: specific_local_error only; rejected outcome and sole GET checks passed",
+        "artifact": "test/grpc/c01-nn91-committed-production-mapper.json",
+        "diagnostic": "test/grpc/c01-nn91-mapper-diagnostic.json",
+        "granular_authentication_context": "NOT_OBSERVABLE: attach_printable context is not transported in public gRPC error",
+        "retained_as_history": true
+      },
+      "public_error_contract": "C43 exact structured Internal/code13 + RESPONSE_HANDLING_FAILED identity, sole expected ownedOrder GET path and count, no POST/charge/Money/approved continuation. All provider rejected outcome inputs unchanged; unrelated Internal cannot pass."
+    },
+    {
+      "id": "composite_fresh_oauth_post_and_completion_lineage",
+      "rpc": "CompositePaymentService/Authorize",
+      "assert": {
+        "error_present": false,
+        "response.composite_status": "COMPLETED",
+        "response.post_authenticate_response.status": "AUTHENTICATION_SUCCESSFUL",
+        "response.post_authenticate_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.authorize_response.status": "AUTHORIZED",
+        "response.authorize_response.connector_transaction_id": "PUBLIC_ORDER"
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "composite_conflicting_original_order_refused",
+      "rpc": "CompositePaymentService/Authorize",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "composite_native_i_never_charged",
+      "rpc": "CompositePaymentService/Authorize",
+      "assert": {
+        "error_present": true,
+        "grpc_error_code": 13,
+        "grpc_error_status": "Internal",
+        "grpc_error_identity": "RESPONSE_HANDLING_FAILED",
+        "captured_amount": null,
+        "meta.continuation.stage": null,
+        "meta.order_id": null,
+        "response.authorize_response": null,
+        "response.authorize_response.captured_amount": null,
+        "response.post_authenticate_response": null,
+        "response.status": null
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN",
+      "prior_diagnostic_oracle": {
+        "expect": {
+          "error_present": true
+        },
+        "error_contains": "authentication",
+        "result": "FAIL: specific_local_error only; rejected outcome and sole GET checks passed",
+        "artifact": "test/grpc/c01-nn91-committed-production-mapper.json",
+        "diagnostic": "test/grpc/c01-nn91-mapper-diagnostic.json",
+        "granular_authentication_context": "NOT_OBSERVABLE: attach_printable context is not transported in public gRPC error",
+        "retained_as_history": true
+      },
+      "public_error_contract": "C43 exact structured Internal/code13 + RESPONSE_HANDLING_FAILED identity, sole expected ownedOrder GET path and count, no POST/charge/Money/approved continuation. All provider rejected outcome inputs unchanged; unrelated Internal cannot pass."
+    },
+    {
+      "id": "composite_fresh_oauth_initial_authenticate",
+      "rpc": "CompositePaymentService/Authorize",
+      "assert": {
+        "error_present": false,
+        "response.composite_status": "REDIRECT_REQUIRED",
+        "response.authorize_response": null,
+        "response.authenticate_response.connector_transaction_id": "PUBLIC_ORDER"
+      },
+      "surface": "actual production composite/native gRPC and loopback provider sequence; synthetic noncredential OAuth marker only",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "native_no_cvc_y_y_possible",
+      "rpc": "PaymentMethodAuthenticationService/PostAuthenticate",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHENTICATION_SUCCESSFUL",
+        "meta.order_id": "PUBLIC_ORDER",
+        "meta.continuation.stage": "order_approved"
+      },
+      "surface": "actual native PostAuth CardWithNoCvc arm; not provider verified",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "native_no_cvc_i_rejected",
+      "rpc": "PaymentMethodAuthenticationService/PostAuthenticate",
+      "assert": {
+        "error_present": true,
+        "grpc_error_code": 13,
+        "grpc_error_status": "Internal",
+        "grpc_error_identity": "RESPONSE_HANDLING_FAILED",
+        "captured_amount": null,
+        "meta.continuation.stage": null,
+        "meta.order_id": null,
+        "response.authorize_response": null,
+        "response.authorize_response.captured_amount": null,
+        "response.post_authenticate_response": null,
+        "response.status": null
+      },
+      "surface": "actual native PostAuth CardWithNoCvc arm; not provider verified",
+      "execution": "NOT_RUN",
+      "prior_diagnostic_oracle": {
+        "expect": {
+          "error_present": true
+        },
+        "error_contains": "authentication",
+        "result": "FAIL: specific_local_error only; rejected outcome and sole GET checks passed",
+        "artifact": "test/grpc/c01-nn91-committed-production-mapper.json",
+        "diagnostic": "test/grpc/c01-nn91-mapper-diagnostic.json",
+        "granular_authentication_context": "NOT_OBSERVABLE: attach_printable context is not transported in public gRPC error",
+        "retained_as_history": true
+      },
+      "public_error_contract": "C43 exact structured Internal/code13 + RESPONSE_HANDLING_FAILED identity, sole expected ownedOrder GET path and count, no POST/charge/Money/approved continuation. All provider rejected outcome inputs unchanged; unrelated Internal cannot pass."
+    },
+    {
+      "id": "tsp_visa_05_no_acs",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_visa_05_empty_default",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_visa_06_no_acs",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_visa_06_empty_default",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_visa_07_no_acs",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_visa_07_empty_default",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_mastercard_00_no_acs",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_mastercard_00_empty_default",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_mastercard_01_no_acs",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_mastercard_01_empty_default",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_mastercard_02_no_acs",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_mastercard_02_empty_default",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_wrong_network_visa",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "tsp_wrong_network_mastercard",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_card_success_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_card_not_verified_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_no_cvc_success_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_no_cvc_not_verified_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_network_token_success_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_network_token_not_verified_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_apple_decrypted_success_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_apple_decrypted_not_verified_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_apple_encrypted_success_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_apple_encrypted_not_verified_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_google_decrypted_success_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_google_decrypted_not_verified_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_google_encrypted_success_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_google_encrypted_not_verified_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_token_untyped_success_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_token_untyped_not_verified_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_token_apple_success_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_token_apple_not_verified_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_token_google_success_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_token_google_not_verified_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_card_ntid_success_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_card_ntid_not_verified_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_token_ntid_success_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_token_ntid_not_verified_empty_cavv_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_network_information_only_full_eci_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_network_cavv_only_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_forged_native_metadata_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "ordinary_card_empty_authdata_no_return_url",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "ordinary_no_cvc_empty_authdata_no_return_url",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "ordinary_apple_decrypted_empty_authdata_no_return_url",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "ordinary_google_decrypted_empty_authdata_no_return_url",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "ordinary_typed_apple_empty_authdata_no_return_url",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "ordinary_typed_google_empty_authdata_no_return_url",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "ordinary_apple_psp_empty_authdata_setup",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHENTICATION_PENDING",
+        "meta.continuation.stage": "order_approval_required",
+        "captured_amount": null,
+        "meta.order_id": "PUBLIC_ORDER",
+        "meta.authorize_id": null,
+        "meta.capture_id": null,
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.setup_token_id": "PUBLIC_SETUP_TOKEN",
+        "meta.continuation.payment_token_id": "PUBLIC_APPLE_PAYMENT_TOKEN",
+        "response.redirection_data.form.endpoint": "https://example.invalid/paypal-approve",
+        "response.redirection_data.form.method": "HTTP_METHOD_GET",
+        "response.redirection_data.form.form_fields.token": "PUBLIC_ORDER"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof",
+      "prior_runtime_oracle": {
+        "expect": {
+          "error_present": false,
+          "status": "PENDING",
+          "meta.continuation.stage": "setup_approved"
+        },
+        "calls": 1,
+        "result": "FAIL: approved setup advanced to exchange POST not represented by fixture",
+        "artifact": "test/grpc/c01-nn91-committed-production-mapper.json",
+        "retained_as_history": true
+      },
+      "actual_protocol": "Authorize USD60 requires setup APPROVED -> payment-token -> Order AUTHORIZE/PAYER_ACTION_REQUIRED, with both token IDs retained and no capture/authorization yet; SetupRecurring zeroAuth may stop after two calls and is unchanged.",
+      "endpoint_idempotency_observation": "NOT_OBSERVABLE in existing fixture schema: handler exposes authorization presence/body hash/method/path, not PayPal-Request-Id. Endpoint-specific header presence/distinction remains NOT_RUN; no schema or pass fabricated."
+    },
+    {
+      "id": "ordinary_google_psp_vendor_carrier_limitation",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "native_initial_empty_default_authdata",
+      "assert": {
+        "error_present": false,
+        "response.composite_status": "REDIRECT_REQUIRED",
+        "response.authorize_response": null,
+        "response.authenticate_response.connector_transaction_id": "PUBLIC_ORDER"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "native_post_empty_default_authdata",
+      "assert": {
+        "error_present": false,
+        "response.composite_status": "COMPLETED",
+        "response.post_authenticate_response.status": "AUTHENTICATION_SUCCESSFUL",
+        "response.post_authenticate_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.authorize_response.status": "AUTHORIZED",
+        "response.authorize_response.connector_transaction_id": "PUBLIC_ORDER"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "composite_invalid_token_refresh_retains_customer",
+      "assert": {
+        "error_present": false,
+        "response.composite_status": "COMPLETED",
+        "response.post_authenticate_response.status": "AUTHENTICATION_SUCCESSFUL",
+        "response.post_authenticate_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.authorize_response.status": "AUTHORIZED",
+        "response.authorize_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.authorize_response.state.connector_customer_id": "PUBLIC_CUSTOMER"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "composite_valid_token_retains_customer_no_oauth",
+      "assert": {
+        "error_present": false,
+        "response.composite_status": "COMPLETED",
+        "response.post_authenticate_response.status": "AUTHENTICATION_SUCCESSFUL",
+        "response.post_authenticate_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.authorize_response.status": "AUTHORIZED",
+        "response.authorize_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.authorize_response.state.connector_customer_id": "PUBLIC_CUSTOMER"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "shared_stripe_composite_preserves_customer_and_no_oauth",
+      "assert": {
+        "error_present": false,
+        "response.authorize_response.status": "AUTHORIZED"
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_mit_card_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_mit_no_cvc_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_mit_network_token_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_mit_card_ntid_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_mit_token_ntid_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_mit_apple_decrypted_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "external_mit_google_decrypted_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "vendor_verification": "NOT_RUN; inert local fixture is not native ACS import/liability proof"
+    },
+    {
+      "id": "paypal_composite_explicit_customer_precedes_state",
+      "rpc": "CompositePaymentService/Authorize",
+      "assert": {
+        "error_present": false,
+        "response.composite_status": "COMPLETED",
+        "response.post_authenticate_response.status": "AUTHENTICATION_SUCCESSFUL",
+        "response.post_authenticate_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.authorize_response.status": "AUTHORIZED",
+        "response.authorize_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.authorize_response.state.connector_customer_id": "PUBLIC_EXPLICIT_CUSTOMER"
+      },
+      "customer_contract": "C42 meaningful explicit connector_customer_id wins over state; empty explicit falls back; internal customer.id never becomes connector ID. OAuth and security outcome contracts unchanged.",
+      "surface": "actual production Authorize/composite gRPC to inert HTTP mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "paypal_composite_empty_customer_falls_back_to_state",
+      "rpc": "CompositePaymentService/Authorize",
+      "assert": {
+        "error_present": false,
+        "response.composite_status": "COMPLETED",
+        "response.post_authenticate_response.status": "AUTHENTICATION_SUCCESSFUL",
+        "response.post_authenticate_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.authorize_response.status": "AUTHORIZED",
+        "response.authorize_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.authorize_response.state.connector_customer_id": "PUBLIC_CUSTOMER"
+      },
+      "customer_contract": "C42 meaningful explicit connector_customer_id wins over state; empty explicit falls back; internal customer.id never becomes connector ID. OAuth and security outcome contracts unchanged.",
+      "surface": "actual production Authorize/composite gRPC to inert HTTP mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "paypal_composite_internal_customer_does_not_replace_connector",
+      "rpc": "CompositePaymentService/Authorize",
+      "assert": {
+        "error_present": false,
+        "response.composite_status": "COMPLETED",
+        "response.post_authenticate_response.status": "AUTHENTICATION_SUCCESSFUL",
+        "response.post_authenticate_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.authorize_response.status": "AUTHORIZED",
+        "response.authorize_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.authorize_response.state.connector_customer_id": "PUBLIC_CUSTOMER"
+      },
+      "customer_contract": "C42 meaningful explicit connector_customer_id wins over state; empty explicit falls back; internal customer.id never becomes connector ID. OAuth and security outcome contracts unchanged.",
+      "surface": "actual production Authorize/composite gRPC to inert HTTP mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "stripe_composite_explicit_customer_precedes_state",
+      "rpc": "CompositePaymentService/Authorize",
+      "assert": {
+        "error_present": false,
+        "response.authorize_response.status": "AUTHORIZED"
+      },
+      "customer_contract": "C42 meaningful explicit connector_customer_id wins over state; empty explicit falls back; internal customer.id never becomes connector ID. OAuth and security outcome contracts unchanged.",
+      "surface": "actual production Authorize/composite gRPC to inert HTTP mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "stripe_composite_empty_customer_falls_back_to_state",
+      "rpc": "CompositePaymentService/Authorize",
+      "assert": {
+        "error_present": false,
+        "response.authorize_response.status": "AUTHORIZED"
+      },
+      "customer_contract": "C42 meaningful explicit connector_customer_id wins over state; empty explicit falls back; internal customer.id never becomes connector ID. OAuth and security outcome contracts unchanged.",
+      "surface": "actual production Authorize/composite gRPC to inert HTTP mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "stripe_composite_internal_customer_does_not_replace_connector",
+      "rpc": "CompositePaymentService/Authorize",
+      "assert": {
+        "error_present": false,
+        "response.authorize_response.status": "AUTHORIZED"
+      },
+      "customer_contract": "C42 meaningful explicit connector_customer_id wins over state; empty explicit falls back; internal customer.id never becomes connector ID. OAuth and security outcome contracts unchanged.",
+      "surface": "actual production Authorize/composite gRPC to inert HTTP mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "paypal_direct_card_explicit_customer_precedes_state",
+      "rpc": "PaymentService/Authorize",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED",
+        "response.state.connector_customer_id": "PUBLIC_EXPLICIT_CUSTOMER"
+      },
+      "customer_contract": "C42 meaningful explicit connector_customer_id wins over state; empty explicit falls back; internal customer.id never becomes connector ID. OAuth and security outcome contracts unchanged.",
+      "surface": "actual production Authorize/composite gRPC to inert HTTP mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "paypal_direct_card_empty_customer_falls_back_to_state",
+      "rpc": "PaymentService/Authorize",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED",
+        "response.state.connector_customer_id": "PUBLIC_CUSTOMER"
+      },
+      "customer_contract": "C42 meaningful explicit connector_customer_id wins over state; empty explicit falls back; internal customer.id never becomes connector ID. OAuth and security outcome contracts unchanged.",
+      "surface": "actual production Authorize/composite gRPC to inert HTTP mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "paypal_direct_wallet_token_explicit_customer_precedes_state",
+      "rpc": "PaymentService/Authorize",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED",
+        "response.state.connector_customer_id": "PUBLIC_EXPLICIT_CUSTOMER"
+      },
+      "customer_contract": "C42 meaningful explicit connector_customer_id wins over state; empty explicit falls back; internal customer.id never becomes connector ID. OAuth and security outcome contracts unchanged.",
+      "surface": "actual production Authorize/composite gRPC to inert HTTP mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "paypal_direct_wallet_token_empty_customer_falls_back_to_state",
+      "rpc": "PaymentService/Authorize",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHORIZED",
+        "response.state.connector_customer_id": "PUBLIC_CUSTOMER"
+      },
+      "customer_contract": "C42 meaningful explicit connector_customer_id wins over state; empty explicit falls back; internal customer.id never becomes connector ID. OAuth and security outcome contracts unchanged.",
+      "surface": "actual production Authorize/composite gRPC to inert HTTP mapper",
+      "execution": "NOT_RUN"
+    }
+  ],
+  "webhook_source_regressions": [
+    {
+      "id": "webhook_voided_verified_pending_order_no_money",
+      "assert": {
+        "error_present": false,
+        "source_verified": true,
+        "response.event_type": "PAYMENT_INTENT_PROCESSING",
+        "response.event_content.payments_response.status": "PENDING",
+        "response.event_content.payments_response.connector_transaction_id": "PUBLIC_ORDER",
+        "response.event_content.payments_response.captured_amount": null,
+        "response.event_content.payments_response.connector_feature_data": null
+      },
+      "actual_mapping": "NOT_RUN",
+      "provider_source_proof": "NOT_RUN: synthetic verification responder is not authentic PayPal source proof"
+    },
+    {
+      "id": "webhook_voided_unverified_no_content",
+      "assert": {
+        "error_present": false,
+        "source_verified": false,
+        "response.event_content": null
+      },
+      "actual_mapping": "NOT_RUN",
+      "provider_source_proof": "NOT_RUN: synthetic verification responder is not authentic PayPal source proof"
+    },
+    {
+      "id": "webhook_voided_wrong_stored_order_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "provider_source_proof": "NOT_RUN: synthetic verification responder is not authentic PayPal source proof"
+    },
+    {
+      "id": "webhook_voided_missing_context_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "provider_source_proof": "NOT_RUN: synthetic verification responder is not authentic PayPal source proof"
+    },
+    {
+      "id": "webhook_voided_uncorrelated_auth_never_order",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "provider_source_proof": "NOT_RUN: synthetic verification responder is not authentic PayPal source proof"
+    },
+    {
+      "id": "webhook_voided_status_mismatch_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "provider_source_proof": "NOT_RUN: synthetic verification responder is not authentic PayPal source proof"
+    },
+    {
+      "id": "webhook_voided_missing_status_refused",
+      "assert": {
+        "error_present": true
+      },
+      "actual_mapping": "NOT_RUN",
+      "provider_source_proof": "NOT_RUN: synthetic verification responder is not authentic PayPal source proof"
+    },
+    {
+      "id": "webhook_voided_empty_subscription_refused",
+      "assert": {
+        "source_verified": false,
+        "response.event_content": null
+      },
+      "actual_mapping": "NOT_RUN",
+      "provider_source_proof": "NOT_RUN: synthetic verification responder is not authentic PayPal source proof"
+    },
+    {
+      "id": "webhook_voided_missing_signature_refused",
+      "assert": {
+        "source_verified": false,
+        "response.event_content": null
+      },
+      "actual_mapping": "NOT_RUN",
+      "provider_source_proof": "NOT_RUN: synthetic verification responder is not authentic PayPal source proof"
+    },
+    {
+      "id": "webhook_voided_untrusted_certificate_refused",
+      "assert": {
+        "source_verified": false,
+        "response.event_content": null
+      },
+      "actual_mapping": "NOT_RUN",
+      "provider_source_proof": "NOT_RUN: synthetic verification responder is not authentic PayPal source proof"
+    },
+    {
+      "id": "webhook_voided_duplicate_signature_header_refused",
+      "assert": {
+        "source_verified": false,
+        "response.event_content": null
+      },
+      "actual_mapping": "NOT_RUN",
+      "provider_source_proof": "NOT_RUN: synthetic verification responder is not authentic PayPal source proof"
+    },
+    {
+      "id": "webhook_voided_parse_actual_order_reference",
+      "assert": {
+        "error_present": false,
+        "response.event_type": "PAYMENT_INTENT_PROCESSING",
+        "response.reference.payment.connector_transaction_id": "PUBLIC_ORDER"
+      },
+      "actual_mapping": "NOT_RUN",
+      "provider_source_proof": "NOT_RUN: synthetic verification responder is not authentic PayPal source proof"
+    }
+  ],
+  "historical_invalid_oracles": [
+    {
+      "step": "void_remainder",
+      "assert": {
+        "status": "PENDING",
+        "captured_amount": 3000,
+        "wire.http_status": 204,
+        "metadata.authorization_closed": true,
+        "metadata.capture_history_complete": false
+      },
+      "reason": "Void public protobuf has no captured_amount; UCS HTTP success is not provider HTTP204 evidence. Preserved superseded expectation, not an executed pass."
+    }
+  ],
+  "vault_sync_source_regressions": [
+    {
+      "id": "vault_sync_created",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "setup_approval_required",
+        "response.mandate_reference_details": null
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_approved",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "setup_approved",
+        "response.mandate_reference_details": null
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_vaulted",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "setup_approval_required",
+        "response.mandate_reference_details": null
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_tokenized",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "setup_approval_required",
+        "response.mandate_reference_details": null
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_payer_no_redirect",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "setup_approval_required",
+        "response.mandate_reference_details": null
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_payer_redirect",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "AUTHENTICATION_PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "setup_approval_required",
+        "response.mandate_reference_details": null
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_setup_approved_poll",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "setup_approved",
+        "response.mandate_reference_details": null
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_payment_available",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "payment_token_created",
+        "response.mandate_reference_details": null
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_unknown_status",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_missing_status",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_wrong_response_id",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_unsafe_redirect",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_customer_conflict",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_conflicting_order_id",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_conflicting_authorize_id",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_conflicting_capture_id",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_conflicting_incremental_authorization_id",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_missing_saved_id",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_unsafe_saved_id",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_wrong_supplied_id",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_stage_resource_conflict",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_setup_recurring_refused",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_http_401",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_http_403",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_http_404",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_http_422",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_http_503",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true
+      },
+      "surface": "actual production PSync typed vault GET mapper",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_setup_customer_same",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "setup_approved",
+        "response.mandate_reference_details": null,
+        "response.connector_transaction_id": "PUBLIC_SETUP",
+        "response.connector_customer_id": "PUBLIC_CUSTOMER",
+        "response.state.connector_customer_id": "PUBLIC_CUSTOMER"
+      },
+      "surface": "actual production PSync typed vault GET mapper; direct ConnectorState saved customer lineage",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_setup_customer_mismatch",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true,
+        "grpc_error_code": 13,
+        "grpc_error_status": "Internal",
+        "grpc_error_identity": "RESPONSE_HANDLING_FAILED",
+        "captured_amount": null,
+        "response.status": null,
+        "response.connector_customer_id": null,
+        "response.state.connector_customer_id": null,
+        "response.mandate_reference_details": null
+      },
+      "surface": "actual production PSync typed vault GET mapper; direct ConnectorState saved customer lineage",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_setup_customer_absent",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "setup_approved",
+        "response.mandate_reference_details": null,
+        "response.connector_transaction_id": "PUBLIC_SETUP",
+        "response.connector_customer_id": null,
+        "response.state.connector_customer_id": null
+      },
+      "surface": "actual production PSync typed vault GET mapper; direct ConnectorState saved customer lineage",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_setup_customer_empty",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "setup_approved",
+        "response.mandate_reference_details": null,
+        "response.connector_transaction_id": "PUBLIC_SETUP",
+        "response.connector_customer_id": null,
+        "response.state.connector_customer_id": null
+      },
+      "surface": "actual production PSync typed vault GET mapper; direct ConnectorState saved customer lineage",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_setup_customer_provider_customerless",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "setup_approved",
+        "response.mandate_reference_details": null,
+        "response.connector_transaction_id": "PUBLIC_SETUP",
+        "response.connector_customer_id": "PUBLIC_CUSTOMER",
+        "response.state.connector_customer_id": "PUBLIC_CUSTOMER"
+      },
+      "surface": "actual production PSync typed vault GET mapper; direct ConnectorState saved customer lineage",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_payment_customer_same",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "payment_token_created",
+        "response.mandate_reference_details": null,
+        "response.connector_transaction_id": "PUBLIC_PAYMENT",
+        "response.connector_customer_id": "PUBLIC_CUSTOMER",
+        "response.state.connector_customer_id": "PUBLIC_CUSTOMER"
+      },
+      "surface": "actual production PSync typed vault GET mapper; direct ConnectorState saved customer lineage",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_payment_customer_mismatch",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": true,
+        "grpc_error_code": 13,
+        "grpc_error_status": "Internal",
+        "grpc_error_identity": "RESPONSE_HANDLING_FAILED",
+        "captured_amount": null,
+        "response.status": null,
+        "response.connector_customer_id": null,
+        "response.state.connector_customer_id": null,
+        "response.mandate_reference_details": null
+      },
+      "surface": "actual production PSync typed vault GET mapper; direct ConnectorState saved customer lineage",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_payment_customer_absent",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "payment_token_created",
+        "response.mandate_reference_details": null,
+        "response.connector_transaction_id": "PUBLIC_PAYMENT",
+        "response.connector_customer_id": null,
+        "response.state.connector_customer_id": null
+      },
+      "surface": "actual production PSync typed vault GET mapper; direct ConnectorState saved customer lineage",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_payment_customer_empty",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "payment_token_created",
+        "response.mandate_reference_details": null,
+        "response.connector_transaction_id": "PUBLIC_PAYMENT",
+        "response.connector_customer_id": null,
+        "response.state.connector_customer_id": null
+      },
+      "surface": "actual production PSync typed vault GET mapper; direct ConnectorState saved customer lineage",
+      "execution": "NOT_RUN"
+    },
+    {
+      "id": "vault_sync_payment_customer_provider_customerless",
+      "rpc": "PaymentService/Get",
+      "assert": {
+        "error_present": false,
+        "status": "PENDING",
+        "captured_amount": null,
+        "meta.opaque_saved_fact": "PUBLIC_OPAQUE",
+        "meta.reference_id": "PUBLIC_REFERENCE",
+        "meta.continuation.operation": "authorize",
+        "meta.continuation.stage": "payment_token_created",
+        "response.mandate_reference_details": null,
+        "response.connector_transaction_id": "PUBLIC_PAYMENT",
+        "response.connector_customer_id": "PUBLIC_CUSTOMER",
+        "response.state.connector_customer_id": "PUBLIC_CUSTOMER"
+      },
+      "surface": "actual production PSync typed vault GET mapper; direct ConnectorState saved customer lineage",
+      "execution": "NOT_RUN"
+    }
+  ]
+}
