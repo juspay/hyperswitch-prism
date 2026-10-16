@@ -400,6 +400,7 @@ pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidR
     PaymentServiceVoidRequest {
         merchant_void_id: Some("probe_void_001".to_string()), // Identification.
         connector_transaction_id: connector_transaction_id.to_string(),
+        cancellation_reason: Some("requested_by_customer".to_string()), // Void Details.
         ..Default::default()
     }
 }

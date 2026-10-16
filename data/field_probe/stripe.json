@@ -1792,7 +1792,8 @@
         "status": "supported",
         "proto_request": {
           "merchant_void_id": "probe_void_001",
-          "connector_transaction_id": "probe_connector_txn_001"
+          "connector_transaction_id": "probe_connector_txn_001",
+          "cancellation_reason": "requested_by_customer"
         },
         "sample": {
           "url": "https://api.stripe.com/v1/payment_intents/probe_connector_txn_001/cancel",
@@ -1803,7 +1804,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": ""
+          "body": "cancellation_reason=requested_by_customer"
         }
       }
     }

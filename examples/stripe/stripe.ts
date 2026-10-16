@@ -310,7 +310,8 @@ function _buildTokenSetupRecurringRequest(): types.IPaymentServiceTokenSetupRecu
 function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId
+        "connectorTransactionId": connectorTransactionId,
+        "cancellationReason": "requested_by_customer"  // Void Details.
     };
 }
 

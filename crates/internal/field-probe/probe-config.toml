@@ -146,6 +146,14 @@ default = '{}'
 [connector_overrides."get,refund,refund_get".paydotcom]
 "connector_transaction_id" = "chrg_146231656762572800"
 
+# Stripe's cancel endpoint takes an optional `cancellation_reason` restricted to
+# four documented values (https://docs.stripe.com/api/payment_intents/cancel),
+# and the connector omits the field for anything else. The base void request
+# leaves it unset, so the probed body would never show the field; pre-set a
+# documented value so the probe records the wire shape.
+[connector_overrides.void.stripe]
+"cancellation_reason" = "requested_by_customer"
+
 # Braintree's refund_get (RSync) reads `currency` and `merchant_account_id` from
 # `refund_metadata` (a Secret<String> JSON blob) rather than top-level fields.
 # Pre-populate it so the probe never gets stuck on "Missing required field: currency".
