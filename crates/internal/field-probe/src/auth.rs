@@ -891,5 +891,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_secret: k(),
             base_url: None,
         },
+        ConnectorEnum::Betterpayment => ConnectorSpecificConfig::Betterpayment {
+            api_key: k(),
+            api_password: k(),
+            webhook_key: k(),
+            base_url: None,
+        },
     }
 }

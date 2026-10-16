@@ -3914,5 +3914,39 @@
       }
     },
     "display_name": "Credit Card (Incremental Auth) | No 3DS | Manual Capture"
+  },
+  "wero_auto_capture_without_billing": {
+    "description": "Create a Wero redirect payment in EUR without optional billing.",
+    "grpc_req": {
+      "merchant_transaction_id": "auto_generate",
+      "amount": {
+        "minor_amount": 1590,
+        "currency": "EUR"
+      },
+      "payment_method": {
+        "wero": {}
+      },
+      "capture_method": "AUTOMATIC",
+      "return_url": "https://example.com/payment/return",
+      "webhook_url": "https://example.com/webhooks/betterpayment"
+    },
+    "assert": {
+      "status": {
+        "equals": "AUTHENTICATION_PENDING"
+      },
+      "connector_transaction_id": {
+        "must_exist": true
+      },
+      "connector_reference_id": {
+        "must_exist": true
+      },
+      "redirection_data": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Wero | Automatic Capture | Optional Billing Omitted"
   }
 }
