@@ -907,7 +907,28 @@ impl PaymentService for Payments {
             Box::pin(async move {
                 let metadata_payload = request_data.extracted_metadata;
                 let metadata = &request_data.masked_metadata;
-                let proto_payload = request_data.payload;
+                let mut proto_payload = request_data.payload;
+
+                // A post-redirect settle carries no instrument: the connector authorizes the
+                // order it already holds and never reads payment_method (paypal sends no body at
+                // all). Substituted before the conversions below because payment_method is read
+                // twice - here, and again by PaymentFlowData.
+                //
+                // TODO: CardRedirect is a stand-in, being the only variant with no instrument
+                // data. Replace with a dedicated PaymentMethod::NoInstrument variant.
+                if proto_payload.payment_method.is_none()
+                    && proto_payload.connector_order_id.is_some()
+                {
+                    proto_payload.payment_method = Some(grpc_api_types::payments::PaymentMethod {
+                        payment_method: Some(
+                            grpc_api_types::payments::payment_method::PaymentMethod::CardRedirect(
+                                grpc_api_types::payments::CardRedirect {
+                                    r#type: grpc_api_types::payments::card_redirect::CardRedirectType::CardRedirect.into(),
+                                },
+                            ),
+                        ),
+                    });
+                }
                 // Convert proto request to intermediate type
                 let payload: AuthorizationRequest = proto_payload.clone().into();
 
