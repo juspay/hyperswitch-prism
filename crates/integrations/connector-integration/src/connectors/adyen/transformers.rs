@@ -1303,6 +1303,10 @@ pub struct AdyenPaymentRequest<
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     session_validity: Option<PrimitiveDateTime>,
     application_info: Option<ApplicationInfo>,
+    /// Deja replay probe: a field the recorded traffic never carried, so the
+    /// replay charges every authorize request to this change. Not for merge.
+    #[serde(rename = "shopperStatementProbe")]
+    shopper_statement_probe: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -2392,6 +2396,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             };
 
         Ok(Self {
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -2557,6 +2562,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         Ok(Self {
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -2698,6 +2704,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .get_optional_billing_phone_number();
         Ok(Self {
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -2836,6 +2843,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         Ok(Self {
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -3003,6 +3011,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         Ok(Self {
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -3125,6 +3134,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .get_optional_billing_phone_number();
         Ok(Self {
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -3238,6 +3248,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         .and_then(Result::ok);
 
         Ok(Self {
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -3378,6 +3389,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         });
 
         Ok(Self {
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -3509,6 +3521,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         Ok(Self {
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method: payment_method_wrapper,
@@ -3646,6 +3659,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         Ok(Self {
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -3867,6 +3881,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }));
 
                     Ok(Self {
+                        shopper_statement_probe: Some("deja-probe".to_owned()),
                         amount,
                         merchant_account: auth_type.merchant_account,
                         payment_method,
@@ -6616,6 +6631,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self(AdyenPaymentRequest {
             amount,
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             merchant_account: auth_type.merchant_account,
             payment_method,
             reference: item
@@ -6812,6 +6828,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self(AdyenPaymentRequest {
             amount,
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             merchant_account: auth_type.merchant_account,
             payment_method,
             reference: item
@@ -7361,6 +7378,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self(AdyenPaymentRequest {
             amount,
+            shopper_statement_probe: Some("deja-probe".to_owned()),
             merchant_account: auth_type.merchant_account,
             payment_method,
             mpi_data: None,
