@@ -2155,6 +2155,14 @@ def render_consolidated_python(
     # Add type annotation for empty list to satisfy mypy
     supported_flows_line = f"SUPPORTED_FLOWS: list[str] = {supported_flows_list}" if supported_flows_list == "[]" else f"SUPPORTED_FLOWS = {supported_flows_list}"
 
+    # Import every pb2 module the generated body actually references. Proto types can
+    # live in any file (e.g. Money/Currency/Address/Customer in common_types.proto), so
+    # derive the import list from the rendered code instead of hardcoding it.
+    config_py = _generate_connector_config_python(connector_name)
+    pb2_modules = {"sdk_config_pb2"}
+    pb2_modules.update(re.findall(r"\b(\w+_pb2)\.", builders_section + functions_text + config_py))
+    pb2_import_line = "from payments.generated import " + ", ".join(sorted(pb2_modules))
+
     return f"""\
 # This file is auto-generated. Do not edit manually.
 # Replace YOUR_API_KEY and placeholder values with real data.
@@ -2166,13 +2174,13 @@ def render_consolidated_python(
 import asyncio
 import sys
 {client_imports}
-from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
+{pb2_import_line}
 
 {supported_flows_line}
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-{_generate_connector_config_python(connector_name)}
+{config_py}
 )
 
 

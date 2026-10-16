@@ -40,14 +40,14 @@ fn full_address() -> grpc_api_types::payments::Address {
 fn full_customer() -> grpc_api_types::payments::Customer {
     use hyperswitch_masking::Secret;
     grpc_api_types::payments::Customer {
-        name: Some("John Doe".to_string()),
+        name: Some(Secret::new("John Doe".to_string())),
         email: Some(Secret::new("test@example.com".to_string())),
         id: Some("cust_probe_123".to_string()),
         connector_customer_id: Some("cust_probe_123".to_string()),
         phone_number: Some(Secret::new("4155552671".to_string())),
         phone_country_code: Some("+1".to_string()),
-        first_name: Some("John".to_string()),
-        last_name: Some("Doe".to_string()),
+        first_name: Some(Secret::new("John".to_string())),
+        last_name: Some(Secret::new("Doe".to_string())),
         salutation: None,
         customer_document_details: None,
         date_of_birth: Some(Secret::new("1990-01-01".to_string())),

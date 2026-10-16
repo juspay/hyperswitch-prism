@@ -3818,6 +3818,9 @@ pub struct AuthorizationRequest {
     pub connector_order_id: Option<String>,
     /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
     pub domain_data: Option<grpc_payment_types::DomainData>,
+    /// Merchant-supplied customer risk-assessment signals for connectors that
+    /// factor customer risk into authorization / onboarding decisions.
+    pub risk_assessment_data: Option<grpc_payment_types::RiskAssessmentData>,
     pub split_payments: Option<grpc_payment_types::SplitPaymentsDetails>,
     pub split_settlement: Option<grpc_payment_types::SplitSettlement>,
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
@@ -3961,6 +3964,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             merchant_request_id: req.merchant_request_id,
             connector_order_id: req.connector_order_id,
             domain_data: req.domain_data,
+            risk_assessment_data: req.risk_assessment_data,
             split_payments: req.split_payments,
             split_settlement: req.split_settlement,
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
@@ -4044,6 +4048,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             merchant_request_id: None,
             connector_order_id: req.connector_order_id,
             domain_data: req.domain_data,
+            risk_assessment_data: None,
             split_payments: None,
             split_settlement: None,
             partner_merchant_identifier_details: None,
@@ -4596,6 +4601,101 @@ fn map_customer_document_details(
 
 // ---- proto DomainData / AirlineData -> domain types (all fields optional) ----
 
+// Proto enums convert to their `common_enums` counterpart via `ForeignFrom` into
+// `Option`. The proto `UNSPECIFIED` zero value means the optional field was left
+// unset, which is not an error, so it maps to `None`.
+macro_rules! impl_enum_foreign_from {
+    ($($proto_enum:ident => $domain_enum:ident { $($proto_variant:ident => $domain_variant:ident),+ $(,)? }),+ $(,)?) => {
+        $(
+            impl ForeignFrom<grpc_payment_types::$proto_enum> for Option<common_enums::$domain_enum> {
+                fn foreign_from(value: grpc_payment_types::$proto_enum) -> Self {
+                    match value {
+                        $(grpc_payment_types::$proto_enum::$proto_variant => {
+                            Some(common_enums::$domain_enum::$domain_variant)
+                        })+
+                        grpc_payment_types::$proto_enum::Unspecified => None,
+                    }
+                }
+            }
+        )+
+    };
+}
+
+impl_enum_foreign_from! {
+    TicketRefundability => TicketRefundability {
+        Refundable => Refundable,
+        NonRefundable => NonRefundable,
+    },
+    TicketDeliveryType => TicketDeliveryType {
+        Electronic => Electronic,
+        Paper => Paper,
+    },
+    CardholderTravelStatus => CardholderTravelStatus {
+        CardholderTraveling => Traveling,
+        CardholderNotTraveling => NotTraveling,
+    },
+    TripType => TripType {
+        OneWay => OneWay,
+        Return => Return,
+        MultipleDestination => MultipleDestination,
+    },
+    RoomClass => RoomClass {
+        Standard => Standard,
+        Suite => Suite,
+        Deluxe => Deluxe,
+    },
+    AccommodationType => AccommodationType {
+        Room => Room,
+        Apartment => Apartment,
+        Villa => Villa,
+        Suite => Suite,
+    },
+    EducationType => EducationType {
+        Course => Course,
+        Workshop => Workshop,
+        Tutoring => Tutoring,
+    },
+    OnlineStatus => OnlineStatus {
+        Online => Online,
+        Offline => Offline,
+    },
+    PurchaseType => PurchaseType {
+        Online => Online,
+        Offline => Offline,
+    },
+    HostType => HostType {
+        RentalAgency => RentalAgency,
+        Owner => Owner,
+        Hotel => Hotel,
+        Hostel => Hostel,
+    },
+    TravelMode => TravelMode {
+        Train => Train,
+        Bus => Bus,
+        Ferry => Ferry,
+    },
+    TravelClass => TravelClass {
+        Economy => Economy,
+        PremiumEconomy => PremiumEconomy,
+        Business => Business,
+        First => First,
+    },
+    DepositPaymentType => DepositPaymentType {
+        Cash => Cash,
+        CreditCard => CreditCard,
+        DebitCard => DebitCard,
+        PrepaidCard => PrepaidCard,
+    },
+    DistanceUnit => DistanceUnit {
+        Miles => Miles,
+        Kilometers => Kilometers,
+    },
+    PremiumCustomerStatus => PremiumCustomerStatus {
+        PremiumCustomer => PremiumCustomer,
+        NonPremiumCustomer => NonPremiumCustomer,
+    },
+}
+
 impl ForeignTryFrom<grpc_payment_types::DomainData> for connector_types::DomainData {
     type Error = IntegrationError;
 
@@ -4607,18 +4707,81 @@ impl ForeignTryFrom<grpc_payment_types::DomainData> for connector_types::DomainD
                 .airline_data
                 .map(connector_types::AirlineData::foreign_try_from)
                 .transpose()?,
-            education_data: domain_data.education_data.map(|education_data| {
-                connector_types::EducationData {
-                    student_details: education_data.student_details.map(|student_details| {
-                        connector_types::StudentDetails {
-                            student_id: student_details.student_id,
-                            student_first_name: student_details.student_first_name,
-                            student_last_name: student_details.student_last_name,
-                            student_email: student_details.student_email,
-                        }
-                    }),
+            education_data: domain_data
+                .education_data
+                .map(connector_types::EducationData::foreign_try_from)
+                .transpose()?,
+            hotel_data: domain_data
+                .hotel_data
+                .map(connector_types::HotelData::foreign_try_from)
+                .transpose()?,
+            travel_data: domain_data
+                .travel_data
+                .map(connector_types::TravelData::foreign_try_from)
+                .transpose()?,
+            sales_data: domain_data
+                .sales_data
+                .map(connector_types::SalesData::foreign_try_from)
+                .transpose()?,
+            rental_data: domain_data
+                .rental_data
+                .map(connector_types::RentalData::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::EducationData> for connector_types::EducationData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        education_data: grpc_payment_types::EducationData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Read enum getters (which borrow `education_data`) before moving fields out.
+        let education_type =
+            Option::<common_enums::EducationType>::foreign_from(education_data.education_type());
+        let is_online =
+            Option::<common_enums::OnlineStatus>::foreign_from(education_data.is_online());
+        let purchase_type =
+            Option::<common_enums::PurchaseType>::foreign_from(education_data.purchase_type());
+        Ok(Self {
+            student_details: education_data.student_details.map(|student_details| {
+                connector_types::StudentDetails {
+                    student_id: student_details.student_id,
+                    student_first_name: student_details.student_first_name,
+                    student_last_name: student_details.student_last_name,
+                    student_email: student_details.student_email,
                 }
             }),
+            education_type,
+            start_date: education_data.start_date,
+            end_date: education_data.end_date,
+            is_online,
+            purchase_type,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::RiskAssessmentData>
+    for connector_types::RiskAssessmentData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        risk_assessment_data: grpc_payment_types::RiskAssessmentData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let is_premium_customer = Option::<common_enums::PremiumCustomerStatus>::foreign_from(
+            risk_assessment_data.is_premium_customer(),
+        );
+        Ok(Self {
+            is_premium_customer,
+            customer_account_creation_date: risk_assessment_data.customer_account_creation_date,
+            number_of_orders: risk_assessment_data.number_of_orders,
+            risk_score: risk_assessment_data.risk_score,
+            date_first_paid: risk_assessment_data.date_first_paid,
+            date_last_paid: risk_assessment_data.date_last_paid,
+            number_of_orders_in_past_24h: risk_assessment_data.number_of_orders_in_past_24h,
+            customer_reference: risk_assessment_data.customer_reference,
         })
     }
 }
@@ -4792,33 +4955,15 @@ impl ForeignTryFrom<grpc_payment_types::AirlineData> for connector_types::Airlin
         airline_data: grpc_payment_types::AirlineData,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         // Read enum getters (which borrow `airline_data`) before moving fields out.
-        let refundability = match airline_data.refundability() {
-            grpc_payment_types::TicketRefundability::Refundable => {
-                Some(common_enums::TicketRefundability::Refundable)
-            }
-            grpc_payment_types::TicketRefundability::NonRefundable => {
-                Some(common_enums::TicketRefundability::NonRefundable)
-            }
-            grpc_payment_types::TicketRefundability::Unspecified => None,
-        };
-        let ticket_delivery_type = match airline_data.ticket_delivery_type() {
-            grpc_payment_types::TicketDeliveryType::Electronic => {
-                Some(common_enums::TicketDeliveryType::Electronic)
-            }
-            grpc_payment_types::TicketDeliveryType::Paper => {
-                Some(common_enums::TicketDeliveryType::Paper)
-            }
-            grpc_payment_types::TicketDeliveryType::Unspecified => None,
-        };
-        let cardholder_travel_status = match airline_data.cardholder_travel_status() {
-            grpc_payment_types::CardholderTravelStatus::CardholderTraveling => {
-                Some(common_enums::CardholderTravelStatus::Traveling)
-            }
-            grpc_payment_types::CardholderTravelStatus::CardholderNotTraveling => {
-                Some(common_enums::CardholderTravelStatus::NotTraveling)
-            }
-            grpc_payment_types::CardholderTravelStatus::Unspecified => None,
-        };
+        let refundability =
+            Option::<common_enums::TicketRefundability>::foreign_from(airline_data.refundability());
+        let ticket_delivery_type = Option::<common_enums::TicketDeliveryType>::foreign_from(
+            airline_data.ticket_delivery_type(),
+        );
+        let cardholder_travel_status = Option::<common_enums::CardholderTravelStatus>::foreign_from(
+            airline_data.cardholder_travel_status(),
+        );
+        let trip_type = Option::<common_enums::TripType>::foreign_from(airline_data.trip_type());
         Ok(Self {
             pnr_code: airline_data.pnr_code,
             booking_reference: airline_data.booking_reference,
@@ -4839,6 +4984,7 @@ impl ForeignTryFrom<grpc_payment_types::AirlineData> for connector_types::Airlin
                 .map(AddressDetails::foreign_try_from)
                 .transpose()?,
             booking_system_unique_id: airline_data.booking_system_unique_id,
+            trip_type,
             agency_code: airline_data.agency_code,
             agency_name: airline_data.agency_name,
             agency_invoice_number: airline_data.agency_invoice_number,
@@ -4909,6 +5055,11 @@ impl ForeignTryFrom<grpc_payment_types::AirlineSegment> for connector_types::Air
             endorsements_restrictions: segment.endorsements_restrictions,
             operating_carrier_code: segment.operating_carrier_code,
             operating_flight_number: segment.operating_flight_number,
+            marketing_carrier_name: segment.marketing_carrier_name,
+            ticket_delivery_recipient: segment
+                .ticket_delivery_recipient
+                .map(connector_types::TicketDeliveryContact::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -4948,6 +5099,362 @@ impl ForeignTryFrom<grpc_payment_types::AirlinePassenger> for connector_types::A
             passport_number: passenger.passport_number,
             nationality: passenger.nationality,
             ticket_number: passenger.ticket_number,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::TicketDeliveryContact>
+    for connector_types::TicketDeliveryContact
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        contact: grpc_payment_types::TicketDeliveryContact,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            email: contact.email,
+            phone_number: contact.phone_number,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::InsuranceDetails> for connector_types::InsuranceDetails {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        insurance: grpc_payment_types::InsuranceDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            insurance_type: insurance.insurance_type,
+            company: insurance.company,
+            price: insurance
+                .price
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::TaxItem> for connector_types::TaxItem {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        tax_item: grpc_payment_types::TaxItem,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            tax_type: tax_item.tax_type,
+            rate: tax_item.rate,
+            amount: tax_item
+                .amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            tax_exempt: tax_item.tax_exempt,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::ExtraCharge> for connector_types::ExtraCharge {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        extra_charge: grpc_payment_types::ExtraCharge,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            charge_type: extra_charge.charge_type,
+            amount: extra_charge
+                .amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::HostDetails> for connector_types::HostDetails {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        host: grpc_payment_types::HostDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let host_type = Option::<common_enums::HostType>::foreign_from(host.host_type());
+        Ok(Self {
+            name: host.name,
+            host_id: host.host_id,
+            host_type,
+            host_country_of_domicile: host.host_country_of_domicile,
+            registered_at: host.registered_at,
+            number_of_reservations: host.number_of_reservations,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::HotelData> for connector_types::HotelData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        hotel_data: grpc_payment_types::HotelData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Read enum getters (which borrow `hotel_data`) before moving fields out.
+        let refundability =
+            Option::<common_enums::TicketRefundability>::foreign_from(hotel_data.refundability());
+        let room_class = Option::<common_enums::RoomClass>::foreign_from(hotel_data.room_class());
+        let accommodation_type = Option::<common_enums::AccommodationType>::foreign_from(
+            hotel_data.accommodation_type(),
+        );
+        Ok(Self {
+            booking_id: hotel_data.booking_id,
+            checkin: hotel_data.checkin,
+            checkout: hotel_data.checkout,
+            number_of_guests: hotel_data.number_of_guests,
+            guests: hotel_data
+                .guests
+                .iter()
+                .map(CustomerInfo::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+            number_of_rooms: hotel_data.number_of_rooms,
+            hotel_name: hotel_data.hotel_name,
+            hotel_city: hotel_data.hotel_city,
+            hotel_country: hotel_data.hotel_country,
+            room_class,
+            accommodation_type,
+            refundability,
+            ticket_delivery_recipient: hotel_data
+                .ticket_delivery_recipient
+                .map(connector_types::TicketDeliveryContact::foreign_try_from)
+                .transpose()?,
+            host: hotel_data
+                .host
+                .map(connector_types::HostDetails::foreign_try_from)
+                .transpose()?,
+            insurances: hotel_data
+                .insurances
+                .into_iter()
+                .map(connector_types::InsuranceDetails::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+            booking_amount: hotel_data
+                .booking_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            tax_items: hotel_data
+                .tax_items
+                .into_iter()
+                .map(connector_types::TaxItem::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+            extra_charges: hotel_data
+                .extra_charges
+                .into_iter()
+                .map(connector_types::ExtraCharge::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+            number_of_night_stay: hotel_data.number_of_night_stay,
+            daily_rate: hotel_data
+                .daily_rate
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            no_show: hotel_data.no_show,
+            prepaid_amount: hotel_data
+                .prepaid_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            cash_advances: hotel_data
+                .cash_advances
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            discount_code: hotel_data.discount_code,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::Traveller> for connector_types::Traveller {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        traveller: grpc_payment_types::Traveller,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            first_name: traveller.first_name,
+            last_name: traveller.last_name,
+            phone_number: traveller.phone_number,
+            date_of_birth: traveller.date_of_birth,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::TravelData> for connector_types::TravelData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        travel_data: grpc_payment_types::TravelData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Read enum getters (which borrow `travel_data`) before moving fields out.
+        let mode = Option::<common_enums::TravelMode>::foreign_from(travel_data.mode());
+        let refundability =
+            Option::<common_enums::TicketRefundability>::foreign_from(travel_data.refundability());
+        Ok(Self {
+            mode,
+            carrier_name: travel_data.carrier_name,
+            number_of_passengers: travel_data.number_of_passengers,
+            travel_date: travel_data.travel_date,
+            refundability,
+            travel_segments: travel_data
+                .travel_segments
+                .into_iter()
+                .map(connector_types::TravelSegment::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::TravelSegment> for connector_types::TravelSegment {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        segment: grpc_payment_types::TravelSegment,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Read enum getters (which borrow `segment`) before moving fields out.
+        let travel_class =
+            Option::<common_enums::TravelClass>::foreign_from(segment.travel_class());
+        Ok(Self {
+            origin: segment.origin,
+            destination: segment.destination,
+            travel_class,
+            passengers: segment
+                .passengers
+                .map(connector_types::Traveller::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::SalesData> for connector_types::SalesData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        sales_data: grpc_payment_types::SalesData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            year: sales_data.year,
+            make: sales_data.make,
+            model: sales_data.model,
+            trim: sales_data.trim,
+            odometer_km: sales_data.odometer_km,
+            number_of_previous_owners: sales_data.number_of_previous_owners,
+            market_spec: sales_data.market_spec,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::Driver> for connector_types::Driver {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        driver: grpc_payment_types::Driver,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            driver: driver
+                .driver
+                .as_ref()
+                .map(CustomerInfo::foreign_try_from)
+                .transpose()?,
+            identification_number: driver.identification_number,
+            tax_number: driver.tax_number,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::Vehicle> for connector_types::Vehicle {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        vehicle: grpc_payment_types::Vehicle,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            car_class: vehicle.car_class,
+            vehicle_type: vehicle.vehicle_type,
+            make: vehicle.make,
+            model: vehicle.model,
+            vin: vehicle.vin,
+            odometer: vehicle.odometer,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::TotalDistance> for connector_types::TotalDistance {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        distance: grpc_payment_types::TotalDistance,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let unit = Option::<common_enums::DistanceUnit>::foreign_from(distance.unit());
+        Ok(Self {
+            amount: distance.amount,
+            unit,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::RentalData> for connector_types::RentalData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        rental_data: grpc_payment_types::RentalData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Read enum getters (which borrow `rental_data`) before moving fields out.
+        let deposit_payment_type = Option::<common_enums::DepositPaymentType>::foreign_from(
+            rental_data.deposit_payment_type(),
+        );
+        Ok(Self {
+            booking_id: rental_data.booking_id,
+            rental_company: rental_data.rental_company,
+            pickup: rental_data
+                .pickup
+                .map(AddressDetails::foreign_try_from)
+                .transpose()?,
+            dropoff: rental_data
+                .dropoff
+                .map(AddressDetails::foreign_try_from)
+                .transpose()?,
+            days_rented: rental_data.days_rented,
+            renter_name: rental_data.renter_name,
+            drivers: rental_data
+                .drivers
+                .into_iter()
+                .map(connector_types::Driver::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+            number_of_drivers: rental_data.number_of_drivers,
+            vehicle: rental_data
+                .vehicle
+                .map(connector_types::Vehicle::foreign_try_from)
+                .transpose()?,
+            insurances: rental_data
+                .insurances
+                .into_iter()
+                .map(connector_types::InsuranceDetails::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+            deposit_payment_type,
+            rental_amount: rental_data
+                .rental_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            rate_per_unit: rental_data
+                .rate_per_unit
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            rate_unit: rental_data.rate_unit,
+            tax_items: rental_data
+                .tax_items
+                .into_iter()
+                .map(connector_types::TaxItem::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+            extra_charges: rental_data
+                .extra_charges
+                .into_iter()
+                .map(connector_types::ExtraCharge::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+            no_show: rental_data.no_show,
+            distance: rental_data
+                .distance
+                .map(connector_types::TotalDistance::foreign_try_from)
+                .transpose()?,
+            coupon: rental_data.coupon,
         })
     }
 }
@@ -5144,7 +5651,8 @@ impl<
             customer_name: value
                 .customer
                 .as_ref()
-                .and_then(|customer| customer.name.clone()),
+                .and_then(|customer| customer.name.clone())
+                .map(|n| n.expose()),
             billing_descriptor,
             router_return_url: value.return_url.clone(),
             complete_authorize_url: value.complete_authorize_url,
@@ -5232,6 +5740,10 @@ impl<
             domain_data: value
                 .domain_data
                 .map(connector_types::DomainData::foreign_try_from)
+                .transpose()?,
+            risk_assessment_data: value
+                .risk_assessment_data
+                .map(connector_types::RiskAssessmentData::foreign_try_from)
                 .transpose()?,
             partner_merchant_identifier_details: value
                 .partner_merchant_identifier_details
@@ -5355,7 +5867,8 @@ impl<
             customer_name: value
                 .customer
                 .as_ref()
-                .and_then(|customer| customer.name.clone()),
+                .and_then(|customer| customer.name.clone())
+                .map(|n| n.expose()),
             return_url: value.complete_authorize_url.clone(),
             payment_method_type: <Option<PaymentMethodType>>::foreign_try_from(
                 value.payment_method.clone().ok_or_else(|| {
@@ -13243,7 +13756,8 @@ impl<
             customer_name: value
                 .customer
                 .as_ref()
-                .and_then(|customer| customer.name.clone()),
+                .and_then(|customer| customer.name.clone())
+                .map(|n| n.expose()),
             return_url: value.return_url.clone(),
             payment_method_type: value
                 .payment_method
@@ -13603,9 +14117,9 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
         Ok(Self {
             customer_id,
             customer_email,
-            customer_name: value.name.clone().map(Into::into),
-            first_name: value.first_name.clone().map(Into::into),
-            last_name: value.last_name.clone().map(Into::into),
+            customer_name: value.name.clone(),
+            first_name: value.first_name.clone(),
+            last_name: value.last_name.clone(),
             customer_phone_number: value.phone_number.clone(),
             customer_phone_country_code: value.phone_country_code.clone(),
             salutation: value.salutation.clone(),
@@ -13618,9 +14132,9 @@ impl ForeignFrom<connector_types::CustomerInfo> for grpc_api_types::payments::Cu
     fn foreign_from(info: connector_types::CustomerInfo) -> Self {
         Self {
             id: info.customer_id.map(|id| id.get_string_repr().to_string()),
-            name: info.customer_name.map(|n| n.expose()),
-            first_name: info.first_name.map(|f| f.expose()),
-            last_name: info.last_name.map(|l| l.expose()),
+            name: info.customer_name,
+            first_name: info.first_name,
+            last_name: info.last_name,
             email: info
                 .customer_email
                 .map(|e| Secret::new(e.expose().expose().to_string())),
@@ -15229,7 +15743,6 @@ impl ForeignTryFrom<PaymentServiceAuthorizeRequest> for ConnectorCustomerData {
             .customer
             .clone()
             .and_then(|customer| customer.name)
-            .map(Secret::new)
             .or_else(|| {
                 value
                     .address
@@ -15393,7 +15906,7 @@ impl ForeignTryFrom<PaymentServiceSetupRecurringRequest> for ConnectorCustomerDa
                 Ok(Self {
                     customer_id: customer.id.map(Secret::new),
                     email: email.map(Secret::new),
-                    name: customer.name.map(Secret::new),
+                    name: customer.name,
                     description: None,
                     phone: None,
                     preprocessing_id: None,
@@ -21214,6 +21727,7 @@ pub fn tokenized_authorize_to_base(
         additional_connector_details: None,
         business_country: None,
         enable_avs_check: v.enable_avs_check,
+        risk_assessment_data: None,
     }
 }
 
@@ -21409,6 +21923,7 @@ pub fn proxied_authorize_to_base(
         additional_connector_details: None,
         business_country: None,
         enable_avs_check: v.enable_avs_check,
+        risk_assessment_data: None,
     })
 }
 

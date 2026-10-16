@@ -1823,6 +1823,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub mit_category: Option<common_enums::MitCategory>,
     /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
     pub domain_data: Option<DomainData>,
+    /// Merchant-supplied customer risk-assessment signals for connectors that
+    /// factor customer risk into authorization / onboarding decisions.
+    pub risk_assessment_data: Option<RiskAssessmentData>,
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
     /// Dynamic currency conversion decision and quote supplied for authorization.
@@ -4900,26 +4903,40 @@ pub struct CurrencyConversionData {
     pub quote: Option<CurrencyConversionQuote>,
 }
 
-/// Domain-specific data supplied by the merchant (airline today; extensible
-/// to other verticals). Mirrors the proto `DomainData`.
+/// Domain-specific data supplied by the merchant. Mirrors the proto
+/// `DomainData`: one optional payload per industry vertical.
 #[derive(Debug, Clone, Default)]
 pub struct DomainData {
     pub airline_data: Option<AirlineData>,
     pub education_data: Option<EducationData>,
+    pub hotel_data: Option<HotelData>,
+    pub travel_data: Option<TravelData>,
+    pub sales_data: Option<SalesData>,
+    pub rental_data: Option<RentalData>,
 }
 
 /// Connector-agnostic education data (e.g. Flywire tuition payments).
 #[derive(Debug, Clone, Default)]
 pub struct EducationData {
     pub student_details: Option<StudentDetails>,
+    /// Course / workshop / tutoring.
+    pub education_type: Option<common_enums::EducationType>,
+    /// Course start date (yyyy-MM-dd).
+    pub start_date: Option<String>,
+    /// Course end date (yyyy-MM-dd).
+    pub end_date: Option<String>,
+    /// Delivered online or in person.
+    pub is_online: Option<common_enums::OnlineStatus>,
+    /// How the purchase was made.
+    pub purchase_type: Option<common_enums::PurchaseType>,
 }
 
 /// Student details for education payments (e.g. Flywire recipient fields).
 #[derive(Debug, Clone, Default)]
 pub struct StudentDetails {
     pub student_id: Option<String>,
-    pub student_first_name: Option<String>,
-    pub student_last_name: Option<String>,
+    pub student_first_name: Option<Secret<String>>,
+    pub student_last_name: Option<Secret<String>>,
     pub student_email: Option<Secret<String>>,
 }
 
@@ -4929,15 +4946,15 @@ pub struct StudentDetails {
 #[derive(Debug, Clone, Default)]
 pub struct AirlineData {
     // Booking / ticket level
-    pub pnr_code: Option<String>,
+    pub pnr_code: Option<Secret<String>>,
     pub booking_reference: Option<String>,
-    pub ticket_number: Option<String>,
+    pub ticket_number: Option<Secret<String>>,
     pub ticket_issue_date: Option<String>,
     pub booking_date_time: Option<String>,
     pub flight_date: Option<String>,
     pub issuing_carrier_code: Option<String>,
     pub airline_code: Option<String>,
-    pub passenger_name: Option<String>,
+    pub passenger_name: Option<Secret<String>>,
     pub number_of_passengers: Option<u32>,
     pub document_type: Option<String>,
     pub refundability: Option<common_enums::TicketRefundability>,
@@ -4945,6 +4962,8 @@ pub struct AirlineData {
     pub cardholder_travel_status: Option<common_enums::CardholderTravelStatus>,
     pub ticket_issue_address: Option<AddressDetails>,
     pub booking_system_unique_id: Option<String>,
+    /// One-way / return / multi-destination.
+    pub trip_type: Option<common_enums::TripType>,
     // Travel agency
     pub agency_code: Option<String>,
     pub agency_name: Option<String>,
@@ -4976,12 +4995,23 @@ pub struct AirlineSegment {
     pub fee_amount: Option<common_utils::types::Money>,
     pub tax_amount: Option<common_utils::types::Money>,
     // Exchange / coupon details
-    pub exchange_ticket_number: Option<String>,
+    pub exchange_ticket_number: Option<Secret<String>>,
     pub conjunction_ticket: Option<String>,
     pub coupon_number: Option<String>,
     pub endorsements_restrictions: Option<String>,
     pub operating_carrier_code: Option<String>,
     pub operating_flight_number: Option<String>,
+    /// Marketing carrier name, e.g. "Emirates".
+    pub marketing_carrier_name: Option<String>,
+    /// Ticket recipient, email or phone.
+    pub ticket_delivery_recipient: Option<TicketDeliveryContact>,
+}
+
+/// Contact used for delivering a ticket (email or phone).
+#[derive(Debug, Clone, Default)]
+pub struct TicketDeliveryContact {
+    pub email: Option<Secret<String>>,
+    pub phone_number: Option<Secret<String>>,
 }
 
 /// A flight endpoint, reused for both departure and arrival.
@@ -5010,6 +5040,260 @@ pub struct AirlinePassenger {
     pub passport_number: Option<Secret<String>>,
     pub nationality: Option<String>,
     pub ticket_number: Option<Secret<String>>,
+}
+
+/// Connector-agnostic hotel / accommodation booking data. Every field is
+/// optional; each connector enforces its own required subset.
+#[derive(Debug, Clone, Default)]
+pub struct HotelData {
+    /// Merchant's booking reference.
+    pub booking_id: Option<String>,
+    /// Check-in date/time (RFC 3339).
+    pub checkin: Option<String>,
+    /// Check-out date/time (RFC 3339).
+    pub checkout: Option<String>,
+    pub number_of_guests: Option<u32>,
+    /// Guest details.
+    pub guests: Vec<CustomerInfo>,
+    pub number_of_rooms: Option<u32>,
+    /// Hotel or property name.
+    pub hotel_name: Option<String>,
+    /// City IATA code, e.g. RUH.
+    pub hotel_city: Option<String>,
+    /// ISO 3166-1 alpha-2, e.g. SA.
+    pub hotel_country: Option<String>,
+    /// Standard / Suite / Deluxe.
+    pub room_class: Option<common_enums::RoomClass>,
+    /// room / apartment / villa / suite.
+    pub accommodation_type: Option<common_enums::AccommodationType>,
+    /// Customer can request a refund.
+    pub refundability: Option<common_enums::TicketRefundability>,
+    /// Ticket recipient, email or phone.
+    pub ticket_delivery_recipient: Option<TicketDeliveryContact>,
+    pub host: Option<HostDetails>,
+    /// Insurance bought with the booking.
+    pub insurances: Vec<InsuranceDetails>,
+    /// Booking total, excluding tax and fees.
+    pub booking_amount: Option<common_utils::types::Money>,
+    /// Itemised taxes.
+    pub tax_items: Vec<TaxItem>,
+    /// Extra charges, e.g. restaurant, mini bar.
+    pub extra_charges: Vec<ExtraCharge>,
+    /// Number of nights (derivable from check-in/out).
+    pub number_of_night_stay: Option<u32>,
+    /// Room rate per night, excluding tax.
+    pub daily_rate: Option<common_utils::types::Money>,
+    /// Guest did not arrive, no-show fee charged.
+    pub no_show: Option<bool>,
+    /// Amount paid in advance (deposit).
+    pub prepaid_amount: Option<common_utils::types::Money>,
+    /// Cash advanced to guest during the stay.
+    pub cash_advances: Option<common_utils::types::Money>,
+    /// Corporate client / discount programme code.
+    pub discount_code: Option<String>,
+}
+
+/// Host details for hosted accommodations (rental / homestay platforms).
+#[derive(Debug, Clone, Default)]
+pub struct HostDetails {
+    pub name: Option<Secret<String>>,
+    /// Unique host ID on the merchant platform.
+    pub host_id: Option<String>,
+    /// rental_agency / owner / hotel / hostel.
+    pub host_type: Option<common_enums::HostType>,
+    /// Host's country, ISO 3166-1 alpha-2.
+    pub host_country_of_domicile: Option<String>,
+    /// Date host registered (yyyy-MM-dd).
+    pub registered_at: Option<String>,
+    /// Reservations fulfilled by this host with the merchant.
+    pub number_of_reservations: Option<u32>,
+}
+
+/// Connector-agnostic ground / sea travel data (train, bus, ferry).
+#[derive(Debug, Clone, Default)]
+pub struct TravelData {
+    /// Mode of transport (train, bus, ferry).
+    pub mode: Option<common_enums::TravelMode>,
+    /// Carrier name, e.g. "Amtrak".
+    pub carrier_name: Option<String>,
+    /// Number of passengers on the booking.
+    pub number_of_passengers: Option<u32>,
+    /// Travel date (yyyy-MM-dd).
+    pub travel_date: Option<String>,
+    /// Refundable / non-refundable.
+    pub refundability: Option<common_enums::TicketRefundability>,
+    /// Travel legs, in itinerary order.
+    pub travel_segments: Vec<TravelSegment>,
+}
+
+/// One travel leg (origin/destination/travel class and the leg's passengers).
+#[derive(Debug, Clone, Default)]
+pub struct TravelSegment {
+    /// Origin station / port.
+    pub origin: Option<String>,
+    /// Destination station / port.
+    pub destination: Option<String>,
+    /// Cabin / service class.
+    pub travel_class: Option<common_enums::TravelClass>,
+    /// Passenger details for this leg.
+    pub passengers: Option<Traveller>,
+}
+
+/// A passenger on a ground / sea travel booking.
+#[derive(Debug, Clone, Default)]
+pub struct Traveller {
+    /// Passenger's first name.
+    pub first_name: Option<Secret<String>>,
+    /// Passenger's last name.
+    pub last_name: Option<Secret<String>>,
+    /// Passenger's phone number.
+    pub phone_number: Option<Secret<String>>,
+    /// Passenger's date of birth.
+    pub date_of_birth: Option<Secret<String>>,
+}
+
+/// Connector-agnostic vehicle sales data.
+#[derive(Debug, Clone, Default)]
+pub struct SalesData {
+    /// Year of manufacture of the vehicle, e.g. 2019.
+    pub year: Option<u32>,
+    /// Brand of the vehicle manufacturer, e.g. "Honda".
+    pub make: Option<String>,
+    /// Specific nameplate of the car, e.g. "Accord".
+    pub model: Option<String>,
+    /// Specific equipment and feature package of the model, e.g. "EX".
+    pub trim: Option<String>,
+    /// Current total distance driven, in km.
+    pub odometer_km: Option<u32>,
+    /// Number of past registered owners of the vehicle.
+    pub number_of_previous_owners: Option<u32>,
+    /// Regional build standard of the vehicle.
+    pub market_spec: Option<String>,
+}
+
+/// Connector-agnostic vehicle rental data.
+#[derive(Debug, Clone, Default)]
+pub struct RentalData {
+    /// Merchant's booking reference.
+    pub booking_id: Option<String>,
+    /// Name of the rental car company, e.g. "Hertz".
+    pub rental_company: Option<String>,
+    /// Where the car is picked up.
+    pub pickup: Option<AddressDetails>,
+    /// Where the car is returned.
+    pub dropoff: Option<AddressDetails>,
+    /// Total number of days the car is rented for.
+    pub days_rented: Option<u32>,
+    /// Name of the person who made the booking.
+    pub renter_name: Option<Secret<String>>,
+    /// The drivers on the booking.
+    pub drivers: Vec<Driver>,
+    /// Total count of drivers on the booking.
+    pub number_of_drivers: Option<u32>,
+    /// Details of the rented vehicle.
+    pub vehicle: Option<Vehicle>,
+    /// Insurance bought with the rental.
+    pub insurances: Vec<InsuranceDetails>,
+    /// How the deposit is funded.
+    pub deposit_payment_type: Option<common_enums::DepositPaymentType>,
+    /// Total rental amount.
+    pub rental_amount: Option<common_utils::types::Money>,
+    /// Price for one `rate_unit`, e.g. price per day.
+    pub rate_per_unit: Option<common_utils::types::Money>,
+    /// Unit the rate is charged in: days, weeks, miles, kilometers.
+    pub rate_unit: Option<String>,
+    /// Breakdown of the taxes charged on the rental.
+    pub tax_items: Vec<TaxItem>,
+    /// Charges on top of the rate, e.g. fuel, GPS, exchange fee.
+    pub extra_charges: Vec<ExtraCharge>,
+    /// Whether the renter did not turn up for pick-up.
+    pub no_show: Option<bool>,
+    /// Distance driven during the rental.
+    pub distance: Option<TotalDistance>,
+    /// Coupon or promo code applied to the booking.
+    pub coupon: Option<String>,
+}
+
+/// A driver on a vehicle rental booking.
+#[derive(Debug, Clone, Default)]
+pub struct Driver {
+    /// Driver's name and contact details.
+    pub driver: Option<CustomerInfo>,
+    /// Driver's licence or ID.
+    pub identification_number: Option<Secret<String>>,
+    /// Driver's tax number.
+    pub tax_number: Option<Secret<String>>,
+}
+
+/// Details of a rented vehicle.
+#[derive(Debug, Clone, Default)]
+pub struct Vehicle {
+    /// Rental class, e.g. economy, luxury, SUV.
+    pub car_class: Option<String>,
+    /// Body type or category code, e.g. compact, midsize.
+    pub vehicle_type: Option<String>,
+    /// Manufacturer, e.g. "Toyota".
+    pub make: Option<String>,
+    /// Model name, e.g. "Corolla".
+    pub model: Option<String>,
+    /// Vehicle identification number.
+    pub vin: Option<Secret<String>>,
+    /// Odometer reading at rental.
+    pub odometer: Option<u32>,
+}
+
+/// Distance driven, with unit.
+#[derive(Debug, Clone, Default)]
+pub struct TotalDistance {
+    pub amount: Option<u32>,
+    pub unit: Option<common_enums::DistanceUnit>,
+}
+
+/// Insurance bought with a booking / rental.
+#[derive(Debug, Clone, Default)]
+pub struct InsuranceDetails {
+    /// Cover, e.g. damage, cancellation, travel.
+    pub insurance_type: Option<String>,
+    /// Insurance provider name.
+    pub company: Option<String>,
+    /// Price paid for the insurance.
+    pub price: Option<common_utils::types::Money>,
+}
+
+/// An itemised tax on a booking.
+#[derive(Debug, Clone, Default)]
+pub struct TaxItem {
+    /// Kind of tax, e.g. VAT, sales tax.
+    pub tax_type: Option<String>,
+    /// Tax rate applied.
+    pub rate: Option<u32>,
+    /// Tax amount charged.
+    pub amount: Option<common_utils::types::Money>,
+    /// Whether the booking is exempt from this tax.
+    pub tax_exempt: Option<bool>,
+}
+
+/// An extra charge on top of the base price.
+#[derive(Debug, Clone, Default)]
+pub struct ExtraCharge {
+    /// Kind of extra charge, e.g. fuel, GPS, exchange fee.
+    pub charge_type: Option<String>,
+    /// Amount charged.
+    pub amount: Option<common_utils::types::Money>,
+}
+
+/// Customer risk-assessment signals supplied by the merchant, used by
+/// connectors that factor account history into risk decisions.
+#[derive(Debug, Clone, Default)]
+pub struct RiskAssessmentData {
+    pub is_premium_customer: Option<common_enums::PremiumCustomerStatus>,
+    pub customer_account_creation_date: Option<String>,
+    pub number_of_orders: Option<u32>,
+    pub risk_score: Option<u32>,
+    pub date_first_paid: Option<String>,
+    pub date_last_paid: Option<String>,
+    pub number_of_orders_in_past_24h: Option<u32>,
+    pub customer_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]

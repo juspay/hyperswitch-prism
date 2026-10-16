@@ -513,9 +513,9 @@ impl ForeignTryFrom<grpc_api_types::frm::Customer> for CustomerInfo {
         Ok(Self {
             customer_id,
             customer_email,
-            customer_name: value.name.map(Into::into),
-            first_name: value.first_name.map(Into::into),
-            last_name: value.last_name.map(Into::into),
+            customer_name: value.name,
+            first_name: value.first_name,
+            last_name: value.last_name,
             customer_phone_number: value.phone_number,
             customer_phone_country_code: value.phone_country_code,
             salutation: value.salutation,

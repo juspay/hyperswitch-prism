@@ -67,6 +67,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &[
             "proto/services.proto",
             "proto/health_check.proto",
+            "proto/common_types.proto",
+            "proto/domain.proto",
             "proto/payment.proto",
             "proto/events.proto",
             "proto/composite_services.proto",

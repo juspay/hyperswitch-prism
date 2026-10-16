@@ -73,7 +73,7 @@ fn build_authorize_request() -> PaymentServiceAuthorizeRequest {
         // Customer info
         customer: Some(payments::Customer {
             email: Some(Secret::new("customer@example.com".to_string())),
-            name: Some("Test Customer".to_string()),
+            name: Some(Secret::new("Test Customer".to_string())),
             ..Default::default()
         }),
 

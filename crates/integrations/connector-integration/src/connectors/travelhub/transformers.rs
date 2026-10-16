@@ -105,7 +105,7 @@ pub struct TravelhubErrorResponse {
 #[serde(rename_all = "camelCase")]
 pub struct TravelhubTravel {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub booking_code: Option<String>,
+    pub booking_code: Option<Secret<String>>,
     pub airline_code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub issue_date: Option<String>,

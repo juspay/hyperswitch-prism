@@ -318,7 +318,7 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
         customer: Some(grpc_api_types::payments::Customer {
             customer_document_details: None,
             email: Some(unique_email.clone().into()),
-            name: Some(format!("{unique_first_name} Doe")),
+            name: Some(format!("{unique_first_name} Doe").into()),
             id: None,
             connector_customer_id: None,
             phone_number: None,

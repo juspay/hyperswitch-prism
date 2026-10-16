@@ -539,7 +539,7 @@ fn create_register_request() -> PaymentServiceSetupRecurringRequest {
     request.customer = Some(grpc_api_types::payments::Customer {
         customer_document_details: None,
         email: Some(generate_unique_email().into()),
-        name: Some(TEST_CARD_HOLDER.to_string()),
+        name: Some(TEST_CARD_HOLDER.to_string().into()),
         id: None,
         connector_customer_id: Some("TEST_CONNECTOR_CUSTOMER_ID".to_string()),
         phone_number: None,

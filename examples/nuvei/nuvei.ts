@@ -28,8 +28,8 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
     return {
         "merchantTransactionId": "probe_txn_001",  // Identification.
         "amount": {  // The amount for the payment.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "paymentMethod": {  // Payment method to be used.
             "card": {  // Generic card payment.
@@ -43,10 +43,10 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         "captureMethod": captureMethod,  // Method for capturing the payment.
         "address": {  // Address Information.
             "billingAddress": {
-                "firstName": {"value": "John"},  // Personal Information.
+                "firstName": {"value": "John"},
                 "lastName": {"value": "Doe"},
                 "countryAlpha2Code": CountryAlpha2.US,
-                "email": {"value": "test@example.com"}  // Contact Information.
+                "email": {"value": "test@example.com"}
             }
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
@@ -73,8 +73,8 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
         "merchantCaptureId": "probe_capture_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amountToCapture": {  // Capture Details.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }
@@ -84,8 +84,8 @@ function _buildCreateClientAuthenticationTokenRequest(): types.IMerchantAuthenti
         "merchantClientSessionId": "probe_sdk_session_001",  // Infrastructure.
         "payment": {
             "amount": {
-                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                "minorAmount": 1000,
+                "currency": Currency.USD
             }
         }
     };
@@ -95,8 +95,8 @@ function _buildCreateOrderRequest(): types.IPaymentServiceCreateOrderRequest {
     return {
         "merchantOrderId": "probe_order_001",  // Identification.
         "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }
@@ -105,8 +105,8 @@ function _buildCreateServerSessionAuthenticationTokenRequest(): types.IMerchantA
     return {
         "payment": {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
             "amount": {
-                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                "minorAmount": 1000,
+                "currency": Currency.USD
             }
         }
     };
@@ -117,8 +117,8 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }
@@ -129,8 +129,8 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
         "connectorTransactionId": connectorTransactionId,
         "paymentAmount": 1000,  // Amount Information.
         "refundAmount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "reason": "customer_request"  // Reason for the refund.
     };
@@ -149,8 +149,8 @@ function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServic
         "merchantVoidId": "probe_void_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }

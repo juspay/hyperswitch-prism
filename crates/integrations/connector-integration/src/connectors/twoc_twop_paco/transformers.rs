@@ -540,7 +540,7 @@ pub struct PacoAirlineData {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PacoBookingReference {
-    pub pnr_code: String,
+    pub pnr_code: Secret<String>,
     pub booking_date_time: String,
 }
 
@@ -865,7 +865,7 @@ impl TryFrom<&connector_types::AirlineData> for PacoAirlineData {
         let tickets = if has_ticket_fields {
             vec![PacoTicket {
                 passenger_sequence_no: passengers.first().map(|p| p.sequence_no),
-                ticket_no: airline.ticket_number.clone().map(Secret::new),
+                ticket_no: airline.ticket_number.clone(),
                 ticket_issue_date: airline.ticket_issue_date.clone(),
                 ticket_reservation_system_code: airline.booking_system_unique_id.clone(),
                 tax_amount,
