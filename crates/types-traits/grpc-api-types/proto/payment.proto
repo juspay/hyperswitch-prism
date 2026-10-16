@@ -60,6 +60,13 @@ message Money {
   Currency currency = 2; // ISO 4217 currency code (e.g., "USD", "EUR")
 }
 
+// Integrity-check settings applied when comparing the connector response with the request.
+message IntegritySpecifications {
+  // When true, an amount mismatch between request and connector response is not
+  // treated as an integrity failure, in either direction. A currency mismatch still is.
+  optional bool allow_amount_mismatch = 1;
+}
+
 // Quote details associated with a currency conversion decision.
 message CurrencyConversionQuote {
   // Order amount for the transaction, expressed in the merchant's currency.
@@ -2851,9 +2858,8 @@ message PaymentServiceAuthorizeRequest {
   // connector. Only true requests AVS; omitted or false leaves it disabled.
   optional bool enable_avs_check = 57;
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 58;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 58;
 }
 
 // Partner / external-platform application details.
@@ -2993,9 +2999,8 @@ message PaymentServiceGetRequest {
 
   optional ConnectorMandateReferenceId mandate_reference = 18;
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 19;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 19;
 
   // Whether overcapture is enabled for this payment. When true, a connector-reported
   // amount higher than the requested amount is not treated as an integrity failure.
@@ -3438,9 +3443,8 @@ message PaymentServiceCaptureRequest {
   // N per-vendor splits. Supersedes split_payments; new connectors read this field.
   optional SplitSettlement split_settlement = 15;
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 16;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 16;
 
   // Whether overcapture is enabled for this payment. When true, a connector-reported
   // amount higher than the requested amount is not treated as an integrity failure.
@@ -4102,9 +4106,8 @@ message RecurringPaymentServiceChargeRequest {
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 42;
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 43;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 43;
 }
 
 // Response message for repeat payment operation
@@ -4728,9 +4731,8 @@ message PaymentMethodServiceTokenizeRequest {
   // creating a reusable payment method (for example Stripe's ip/user_agent).
   optional BrowserInformation browser_info = 15;
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 16;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 16;
 }
 
 // Response message for tokenizing a payment method
@@ -6579,9 +6581,8 @@ message PaymentServiceTokenAuthorizeRequest {
   // Opt in to address verification using the supplied billing details.
   optional bool enable_avs_check = 24;
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 25;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 25;
 
   // Indicates if partial authorization is enabled. When true, a connector-reported
   // amount lower than the requested amount is not treated as an integrity failure.
@@ -6649,9 +6650,8 @@ message PaymentServiceProxyAuthorizeRequest {
   // Opt in to address verification using the supplied billing details.
   optional bool enable_avs_check = 29;
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 30;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 30;
 
   // Indicates if partial authorization is enabled. When true, a connector-reported
   // amount lower than the requested amount is not treated as an integrity failure.

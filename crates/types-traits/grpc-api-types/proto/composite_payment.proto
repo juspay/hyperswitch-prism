@@ -152,9 +152,8 @@ message CompositeAuthorizeRequest {
   // Authorize-only AVS opt-in, forwarded to PaymentServiceAuthorizeRequest.
   optional bool enable_avs_check = 64;
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 65;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 65;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -302,9 +301,8 @@ message CompositeGetRequest {
 
   optional ConnectorMandateReferenceId mandate_reference = 20;
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 21;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 21;
 
   // Whether overcapture is enabled for this payment. When true, a connector-reported
   // amount higher than the requested amount is not treated as an integrity failure.
@@ -533,9 +531,8 @@ message CompositeCaptureRequest {
   optional SplitPaymentsDetails split_payments = 16 [deprecated = true];
   optional SplitSettlement split_settlement = 17;
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 18;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 18;
 
 }
 
@@ -633,9 +630,8 @@ message CompositePaymentMethodGetRequest {
   optional SetupMandateDetails setup_mandate_details = 19; // Mandate data for recurring payment setup
   optional BrowserInformation browser_info = 20; // Forwarded to the tokenize step for connector fraud signals
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 21;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 21;
 }
 
 // Response message for composite payment method get flow.
@@ -713,9 +709,8 @@ message CompositePaymentMethodEligibilityRequest {
   optional BrowserInformation browser_info = 23;
   optional string payment_method_token = 24;  // PaymentMethod Token Information
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 25;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 25;
 }
 
 // Response message for composite payment method eligibility flow.
@@ -875,9 +870,8 @@ message CompositeVerifyRedirectResponseRequest {
   // Preserve the AVS opt-in for authorization after redirect verification.
   optional bool enable_avs_check = 60;
 
-  // When true, an amount mismatch between request and connector response is not
-  // treated as an integrity failure, in either direction. A currency mismatch still is.
-  optional bool allow_amount_mismatch = 61;
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 61;
 }
 
 // Response message for composite verify redirect response flow.

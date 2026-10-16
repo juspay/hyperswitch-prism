@@ -5,6 +5,9 @@ mod auto_populate;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed=codegen/auto_populate.rs");
+    // An explicit rerun-if-changed disables cargo's default package-wide tracking,
+    // so the protos must be listed too or edits to them never regenerate the types.
+    println!("cargo:rerun-if-changed=proto");
 
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
