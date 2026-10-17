@@ -2031,13 +2031,21 @@ pub struct ReceiverDetails {
 #[serde(rename_all = "snake_case")]
 pub enum DocumentKind {
     /// Cadastro de Pessoas Físicas - the Brazilian individual taxpayer identifier.
+    #[serde(alias = "CPF")]
     Cpf,
     /// Cadastro Nacional da Pessoa Jurídica - the Brazilian business identifier.
+    #[serde(alias = "CNPJ")]
     Cnpj,
     /// Philippine PhilSys Number (PSN) — a 12-digit national ID required by dLocal for GCash.
+    #[serde(alias = "PSN")]
     Psn,
+    /// Identifier for the customer who actually buys the product or service
+    /// (ClearSale `shipping.primaryDocument`).
+    #[serde(alias = "CUSTOMER_CPF")]
+    CustomerCpf,
     /// Generic / other non-Brazilian national document. Carried through as-is; the
     /// connector validates it per country. Kept last as the catch-all.
+    #[serde(alias = "OTHER")]
     Other,
 }
 
@@ -2046,7 +2054,7 @@ impl DocumentKind {
     /// checksum; PSN must be exactly 12 numeric digits; `Other` is passed through.
     pub fn validate(&self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
         match self {
-            Self::Cpf => self.validate_cpf(doc_number),
+            Self::Cpf | Self::CustomerCpf => self.validate_cpf(doc_number),
             Self::Cnpj => self.validate_cnpj(doc_number),
             Self::Psn => self.validate_psn(doc_number),
             // Other non-Brazilian documents are passed through; the connector validates

@@ -230,13 +230,16 @@ enum DocumentKind {
   CPF = 1; // Cadastro de Pessoas Físicas - Brazilian individual taxpayer ID.
   CNPJ = 2; // Cadastro Nacional da Pessoa Jurídica - Brazilian business ID.
   PSN = 3; // Philippine PhilSys Number (12-digit national ID), required by dLocal for GCash.
-  OTHER = 4; // Generic / other non-Brazilian national document; the connector validates it per country. Kept last as the catch-all.
+  // Identifier for the customer who actually buys the product or service
+  // (ClearSale shipping.primaryDocument).
+  CUSTOMER_CPF = 4;
+  OTHER = 5; // Generic / other non-Brazilian national document; the connector validates it per country. Kept last as the catch-all.
 }
 
 // Customer's country-specific identification document.
 message CustomerDocumentDetails {
   DocumentKind document_type = 1;   // The customer's document type
-  SecretString document_number = 2; // The customer's document number
+  SecretString document_number = 2; // The customer's document number (CPF)
 }
 
 // ============================================================================
@@ -930,6 +933,7 @@ enum Connector {
   MERCHANTE = 150;
   ELAVON_PG = 151;
   GLOBALPAYMENTS_REALEX = 152;
+  CLEARSALE_BR = 153;
 }
 
 // Payment method types
@@ -1515,6 +1519,8 @@ message L2L3Data {
 message DomainData {
   optional AirlineData airline_data = 1; // Airline / travel itinerary data
   optional EducationData education_data = 2; // Education / student data
+  repeated HotelData hotel_data = 3;     // Hotel / accommodation bookings
+  repeated TravelData travel_data = 4;   // Ground / sea travel legs
 }
 
 // Connector-agnostic education data (e.g. Flywire tuition payments).
@@ -1528,6 +1534,97 @@ message StudentDetails {
   optional string student_first_name = 2;
   optional string student_last_name = 3;
   optional SecretString student_email = 4; // PII — student's email address
+}
+
+// Connector-agnostic hotel / accommodation booking data (shared with the
+// risk-schema work in PR #2517; extended fields needed by ClearSale BR use
+// tags 30+).
+message HotelData {
+  // Merchant's booking reference.
+  optional string booking_id = 1;
+  // Check-in date/time (RFC 3339 or yyyy-MM-dd).
+  optional string checkin = 2;
+  // Check-out date/time (RFC 3339 or yyyy-MM-dd).
+  optional string checkout = 3;
+  optional uint32 number_of_guests = 4;
+  optional uint32 number_of_rooms = 5;
+  // Hotel or property name.
+  optional string hotel_name = 6;
+  // City or its IATA code, e.g. RUH.
+  optional string hotel_city = 7;
+  // ISO 3166-1 alpha-2, e.g. SA.
+  optional string hotel_country = 8;
+  // Standard / Suite / Deluxe.
+  optional string room_class = 9;
+  // room / apartment / villa / suite.
+  optional string accommodation_type = 10;
+  TicketRefundability refundability = 11;
+
+  // Reservation creation timestamp (RFC 3339) — ClearSale hotels[].reservationDate.
+  optional string reservation_date = 30;
+  // Reservation hold expiry (RFC 3339) — ClearSale hotels[].reserveExpirationDate.
+  optional string reservation_expiration_date = 31;
+  // State / province of the property — ClearSale hotels[].state.
+  optional string hotel_state = 32;
+}
+
+// How the traveller is moving (bus / train / ferry …).
+enum TravelMode {
+  TRAVEL_MODE_UNSPECIFIED = 0;
+  TRAVEL_MODE_BUS = 1;
+  TRAVEL_MODE_TRAIN = 2;
+  TRAVEL_MODE_FERRY = 3;
+  TRAVEL_MODE_OTHER = 4;
+}
+
+// Connector-agnostic ground / sea travel data — one leg of the journey
+// (shared with PR #2517; extended with per-leg detail and passenger docs
+// needed by ClearSale BR, tags 20+). A multi-leg journey sends one entry per
+// leg; ClearSale maps each entry onto connections[].
+message TravelData {
+  TravelMode mode = 1;
+  // Origin station / terminal code of this leg.
+  optional string origin = 2;
+  // Destination station / terminal code of this leg.
+  optional string destination = 3;
+  // Free-form cabin / seating class (e.g. "ECONOMY", "PREMIUM_ECONOMY",
+  // "BUSINESS", "FIRST").
+  optional string travel_class = 4;
+  optional string carrier_name = 5;
+  // Passengers on this leg — ClearSale appends all legs' passengers into
+  // its order-level passengers[].
+  repeated Traveller passengers = 6;
+  optional uint32 number_of_passengers = 7;
+  // Travel date of this leg (yyyy-MM-dd or RFC 3339).
+  optional string travel_date = 8;
+  TicketRefundability refundability = 9;
+
+  optional string departure_time = 20;    // Departure (RFC 3339)
+  optional string arrival_time = 21;      // Arrival (RFC 3339)
+  optional string boarding_time = 22;     // Boarding gate opening (RFC 3339)
+  optional string carrier_code = 23;      // e.g. bus operator / train code
+  optional string service_number = 24;    // Trip / service / coach number
+  optional string fare_class = 25;        // Fare basis (e.g. "Y")
+  optional string seat_class = 26;        // Seat category when distinct from travel_class
+}
+
+// A person travelling (shared with PR #2517; tags 10+ are the ClearSale BR
+// extension).
+message Traveller {
+  optional SecretString first_name = 1;
+  optional SecretString last_name = 2;
+  optional SecretString phone_number = 3;
+  optional SecretString date_of_birth = 4; // yyyy-MM-dd
+
+  // Passenger identity document, when collected per-traveller rather than at
+  // order level — ClearSale passengers[].identificationType/Number.
+  optional CustomerDocumentDetails document = 10;
+  // M / F / X — ClearSale passengers[].gender.
+  optional string gender = 11;
+  // Passenger loyalty / frequent-traveller card number — ClearSale mileCard.
+  optional SecretString loyalty_card = 12;
+  // Issuer of the loyalty card (e.g. "Smiles") — ClearSale companyMileCard.
+  optional string loyalty_card_issuer = 13;
 }
 
 // Whether the ticket can be refunded
@@ -5952,6 +6049,23 @@ message NsureConfig {
   optional string base_url = 50;
 }
 
+message ClearsaleBrConfig {
+  // ClearSale account username, sent as `name` on POST /v1/authenticate.
+  // This is the RiskManagementAccount accountDetailsJson field name.
+  SecretString username = 1;
+  // ClearSale account password, sent as `password` on POST /v1/authenticate.
+  SecretString password = 2;
+  // Customer type sent as the order `b2bB2c` field: "b2b" or "b2c".
+  // Gateway/merchant-specific, so it lives in the RiskManagementAccount
+  // account details rather than per-transaction data.
+  optional string b2b_b2c = 3;
+  // ClearSale product id for the order `product` field, when the merchant runs
+  // a product other than the connector's default (Total Garantido). A
+  // per-request `connector_feature_data.product` overrides this.
+  optional int32 product = 4;
+  optional string base_url = 50;
+}
+
 message HyperswitchConfig {
   SecretString api_key = 1;
   optional string base_url = 50;
@@ -6488,6 +6602,8 @@ message ConnectorSpecificConfig {
     ElavonPgConfig elavon_pg = 162;
     // GLOBALPAYMENTS_REALEX = 152
     GlobalpaymentsRealexConfig globalpayments_realex = 163;
+    // CLEARSALE_BR = 153
+    ClearsaleBrConfig clearsale_br = 164;
   }
 }
 

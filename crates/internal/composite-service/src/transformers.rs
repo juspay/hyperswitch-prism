@@ -1383,6 +1383,8 @@ impl
             }),
             merchant_details: item.merchant_details.clone(),
             mandate_details: item.mandate_details.clone(),
+            document_details: item.document_details.clone(),
+            domain_data: item.domain_data.clone(),
         }
     }
 }

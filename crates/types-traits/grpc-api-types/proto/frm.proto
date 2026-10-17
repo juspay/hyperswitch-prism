@@ -64,6 +64,17 @@ message FrmServicePreRiskCheckRequest {
 
   // Merchant details (id + MCC) for risk scoring.
   optional MerchantDetails merchant_details = 13;
+
+  // Payer's identity document (`DocumentKind.CPF`/`CNPJ` in `document_number`).
+  // The buyer's document, when distinct, is sent as `DocumentKind.CUSTOMER_CPF`.
+  // ClearSale maps CPF/CNPJ → billing.primaryDocument, CUSTOMER_CPF →
+  // shipping.primaryDocument (falling back to billing when absent).
+  optional CustomerDocumentDetails document_details = 14;
+
+  // Domain-specific order context (travel, hotel, airline…) as a typed object.
+  // Replaces the earlier free-form merchant_transient_info JSON string;
+  // producers (euler / Hyperswitch) populate the blocks they have data for.
+  optional DomainData domain_data = 15;
 }
 
 // Response for FrmService.PreRiskCheck

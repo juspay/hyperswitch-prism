@@ -330,6 +330,23 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             mandate_details,
             merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
             payment_method_type,
+            document_details: value
+                .document_details
+                .as_ref()
+                .and_then(crate::types::map_customer_document_details),
+            domain_data: value
+                .domain_data
+                .map(crate::connector_types::DomainData::foreign_try_from)
+                .transpose()
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "domain_data",
+                    context: crate::errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Failed to parse domain data in pre-risk check".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?,
         })
     }
 }

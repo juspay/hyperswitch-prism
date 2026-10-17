@@ -429,6 +429,7 @@ pub struct Connectors {
     pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
     pub nsure: ConnectorParams,
+    pub clearsale_br: ConnectorParams,
     pub plaid: ConnectorParams,
     pub givepayments: ConnectorParams,
     pub grabpay: ConnectorParams,
@@ -927,6 +928,7 @@ impl Connectors {
         match connector {
             FrmConnectorEnum::Kount => patched.kount.apply(params_patch),
             FrmConnectorEnum::Nsure => patched.nsure.apply(params_patch),
+            FrmConnectorEnum::ClearsaleBr => patched.clearsale_br.apply(params_patch),
         }
         Ok(patched)
     }
@@ -4571,8 +4573,23 @@ impl TryFrom<grpc_payment_types::DocumentKind> for crate::payment_method_data::D
             grpc_payment_types::DocumentKind::Cpf => Ok(Self::Cpf),
             grpc_payment_types::DocumentKind::Cnpj => Ok(Self::Cnpj),
             grpc_payment_types::DocumentKind::Psn => Ok(Self::Psn),
+            grpc_payment_types::DocumentKind::CustomerCpf => Ok(Self::CustomerCpf),
             grpc_payment_types::DocumentKind::Other => Ok(Self::Other),
             grpc_payment_types::DocumentKind::Unspecified => Err(()),
+        }
+    }
+}
+
+/// Domain -> proto mapping for the document kind (response-side). `Other` maps
+/// to the proto's `OTHER` catch-all; the proto's `UNSPECIFIED` is never produced.
+impl From<crate::payment_method_data::DocumentKind> for grpc_payment_types::DocumentKind {
+    fn from(value: crate::payment_method_data::DocumentKind) -> Self {
+        match value {
+            crate::payment_method_data::DocumentKind::Cpf => Self::Cpf,
+            crate::payment_method_data::DocumentKind::Cnpj => Self::Cnpj,
+            crate::payment_method_data::DocumentKind::Psn => Self::Psn,
+            crate::payment_method_data::DocumentKind::CustomerCpf => Self::CustomerCpf,
+            crate::payment_method_data::DocumentKind::Other => Self::Other,
         }
     }
 }
@@ -4582,7 +4599,7 @@ impl TryFrom<grpc_payment_types::DocumentKind> for crate::payment_method_data::D
 /// `None` when the document type is `UNSPECIFIED` or the document number is missing
 /// — i.e. there is no usable customer document. Shared by the Authorize,
 /// SetupMandate (CIT) and RepeatPayment (MIT) request conversions.
-fn map_customer_document_details(
+pub(crate) fn map_customer_document_details(
     doc: &grpc_payment_types::CustomerDocumentDetails,
 ) -> Option<CustomerDocumentDetails> {
     crate::payment_method_data::DocumentKind::try_from(doc.document_type())
@@ -4592,6 +4609,47 @@ fn map_customer_document_details(
             document_type,
             document_number,
         })
+}
+
+// ---- proto Traveller document -> domain CustomerDocumentDetails ----
+
+impl ForeignTryFrom<grpc_payment_types::CustomerDocumentDetails>
+    for crate::payment_method_data::CustomerDocumentDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        doc: grpc_payment_types::CustomerDocumentDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let document_type = crate::payment_method_data::DocumentKind::try_from(doc.document_type())
+            .map_err(|()| {
+                report!(IntegrationError::InvalidDataFormat {
+                    field_name: "document.document_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "document type must be a concrete kind, not UNSPECIFIED".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        doc.document_number
+            .map(|document_number| Self {
+                document_type,
+                document_number,
+            })
+            .ok_or_else(|| {
+                report!(IntegrationError::InvalidDataFormat {
+                    field_name: "document.document_number",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "document number is required when a document type is set".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+            })
+    }
 }
 
 // ---- proto DomainData / AirlineData -> domain types (all fields optional) ----
@@ -4619,7 +4677,107 @@ impl ForeignTryFrom<grpc_payment_types::DomainData> for connector_types::DomainD
                     }),
                 }
             }),
+            hotel_data: domain_data
+                .hotel_data
+                .into_iter()
+                .map(connector_types::HotelData::foreign_from)
+                .collect(),
+            travel_data: domain_data
+                .travel_data
+                .into_iter()
+                .map(connector_types::TravelData::foreign_from)
+                .collect(),
         })
+    }
+}
+
+/// Proto `TicketRefundability` (non-optional i32 field) → optional domain enum,
+/// treating `UNSPECIFIED` as absent.
+fn ticket_refundability_from_proto(
+    value: grpc_payment_types::TicketRefundability,
+) -> Option<common_enums::TicketRefundability> {
+    match value {
+        grpc_payment_types::TicketRefundability::Refundable => {
+            Some(common_enums::TicketRefundability::Refundable)
+        }
+        grpc_payment_types::TicketRefundability::NonRefundable => {
+            Some(common_enums::TicketRefundability::NonRefundable)
+        }
+        grpc_payment_types::TicketRefundability::Unspecified => None,
+    }
+}
+
+impl ForeignFrom<grpc_payment_types::HotelData> for connector_types::HotelData {
+    fn foreign_from(hotel: grpc_payment_types::HotelData) -> Self {
+        let refundability = ticket_refundability_from_proto(hotel.refundability());
+        Self {
+            booking_id: hotel.booking_id,
+            checkin: hotel.checkin,
+            checkout: hotel.checkout,
+            number_of_guests: hotel.number_of_guests,
+            number_of_rooms: hotel.number_of_rooms,
+            hotel_name: hotel.hotel_name,
+            hotel_city: hotel.hotel_city,
+            hotel_country: hotel.hotel_country,
+            room_class: hotel.room_class,
+            accommodation_type: hotel.accommodation_type,
+            refundability,
+            reservation_date: hotel.reservation_date,
+            reservation_expiration_date: hotel.reservation_expiration_date,
+            hotel_state: hotel.hotel_state,
+        }
+    }
+}
+
+impl ForeignFrom<grpc_payment_types::TravelData> for connector_types::TravelData {
+    fn foreign_from(travel: grpc_payment_types::TravelData) -> Self {
+        let mode = match travel.mode() {
+            grpc_payment_types::TravelMode::Unspecified => None,
+            grpc_payment_types::TravelMode::Bus => Some(connector_types::TravelMode::Bus),
+            grpc_payment_types::TravelMode::Train => Some(connector_types::TravelMode::Train),
+            grpc_payment_types::TravelMode::Ferry => Some(connector_types::TravelMode::Ferry),
+            grpc_payment_types::TravelMode::Other => Some(connector_types::TravelMode::Other),
+        };
+        let refundability = ticket_refundability_from_proto(travel.refundability());
+        Self {
+            mode,
+            origin: travel.origin,
+            destination: travel.destination,
+            travel_class: travel.travel_class,
+            carrier_name: travel.carrier_name,
+            passengers: travel
+                .passengers
+                .into_iter()
+                .map(connector_types::Traveller::foreign_from)
+                .collect(),
+            number_of_passengers: travel.number_of_passengers,
+            travel_date: travel.travel_date,
+            refundability,
+            departure_time: travel.departure_time,
+            arrival_time: travel.arrival_time,
+            boarding_time: travel.boarding_time,
+            carrier_code: travel.carrier_code,
+            service_number: travel.service_number,
+            fare_class: travel.fare_class,
+            seat_class: travel.seat_class,
+        }
+    }
+}
+
+impl ForeignFrom<grpc_payment_types::Traveller> for connector_types::Traveller {
+    fn foreign_from(traveller: grpc_payment_types::Traveller) -> Self {
+        Self {
+            first_name: traveller.first_name,
+            last_name: traveller.last_name,
+            phone_number: traveller.phone_number,
+            date_of_birth: traveller.date_of_birth,
+            document: traveller.document.and_then(|doc| {
+                crate::payment_method_data::CustomerDocumentDetails::foreign_try_from(doc).ok()
+            }),
+            gender: traveller.gender,
+            loyalty_card: traveller.loyalty_card,
+            loyalty_card_issuer: traveller.loyalty_card_issuer,
+        }
     }
 }
 

@@ -1,17 +1,18 @@
 use crate::{
     connector_types::{
-        ConnectorResponseHeaders, CustomerInfo, RawConnectorRequestResponse,
+        ConnectorResponseHeaders, CustomerInfo, DomainData, RawConnectorRequestResponse,
         ServerAuthenticationTokenResponseData,
     },
     mandates::MandateAmountData,
     payment_address::{OrderDetailsWithAmount, PaymentAddress},
-    payment_method_data::{DefaultPCIHolder, PaymentMethodData},
+    payment_method_data::{CustomerDocumentDetails, DefaultPCIHolder, PaymentMethodData},
     router_request_types::BrowserInformation,
     types::Connectors,
 };
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::Money;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
+use serde::Deserialize;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -97,6 +98,14 @@ pub struct PreRiskCheckRequest {
     pub merchant_details: Option<MerchantDetails>,
     /// Payment method sub-type (e.g. `Card`, `GooglePay`, `UpiCollect`) for risk scoring.
     pub payment_method_type: Option<PaymentMethodType>,
+    /// Payer's identity document (e.g. Brazilian CPF/CNPJ in `document_number`).
+    /// The buyer's document, when distinct, is sent as `DocumentKind.CUSTOMER_CPF` —
+    /// ClearSale maps CPF/CNPJ → billing.primaryDocument and CUSTOMER_CPF →
+    /// shipping.primaryDocument (falling back to billing when absent).
+    pub document_details: Option<CustomerDocumentDetails>,
+    /// Domain-specific order context (travel, hotel, airline…) as a typed
+    /// object. Replaces the earlier free-form merchant_transient_info JSON.
+    pub domain_data: Option<DomainData>,
 }
 
 /// Response data for pre-risk check
@@ -196,3 +205,75 @@ pub struct FrmRefundProcessedResponse {
 pub struct FrmChargebackReceivedResponse {
     pub status_code: u16,
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Generic FRM request metadata
+//
+// Connectors across FRM providers (ClearSale, Kount, nSure, …) all receive a
+// JSON blob on `PreRiskCheckRequest::metadata` / `PostRiskCheckRequest::
+// metadata`. The merchant-caller (euler-api-txns / Hyperswitch) fills it with
+// a provider-agnostic shape — session id, free-form custom fields, and the
+// travel/hospitality blocks (passengers, travel segments, accommodations) used
+// by transport and travel merchants. Decoding it once here keeps each
+// connector's transformers free of a duplicated, near-identical JSON parse.
+// ────────────────────────────────────────────────────────────────────────────
+
+/// The shared FRM request-metadata carrier (euler `UcsFrmMetadata`). All
+/// fields are optional; a connector reads only the blocks it maps onto its own
+/// wire contract and ignores the rest.
+///
+/// Serialized camelCase on the wire to match euler's JSON encoding of
+/// `UTCTime`/`Day` as ISO-8601 strings and the Haskell field names. euler's
+/// `UcsFrmMetadata` actually encodes its keys in snake_case (`camelTo2 '_'`
+/// on the Haskell record fields), so every key also carries its snake_case
+/// spelling as an `alias` — callers sending either casing decode the same.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrmMetadata {
+    /// Merchant's own order identifier (free-form, not the UCS reference).
+    #[serde(default, alias = "merchant_order_id")]
+    pub merchant_order_id: Option<String>,
+    /// End-user IP as supplied by the merchant.
+    #[serde(default, alias = "user_ip")]
+    pub user_ip: Option<String>,
+    /// Device/session id from the provider's device-fingerprint SDK.
+    #[serde(default, rename = "sessionId", alias = "session_id")]
+    pub session_id: Option<String>,
+    /// Free-form merchant key/value pairs; providers map a subset onto their
+    /// own custom-field contract.
+    #[serde(default, alias = "custom_fields")]
+    pub custom_fields: Option<std::collections::HashMap<String, serde_json::Value>>,
+    // Travel/hotel blocks (passengers / travelSegments / accommodations) are
+    // intentionally NOT consumed here — they ride on the typed
+    // `PreRiskCheckRequest::domain_data` (DomainData.travel_data / hotel_data).
+}
+
+impl FrmMetadata {
+    /// Decode the metadata blob carried on an FRM risk-check request. A
+    /// missing or malformed blob yields the default (all-empty) metadata so
+    /// the connector never has to special-case "no metadata".
+    pub fn parse(raw: Option<&Secret<String>>) -> Self {
+        raw.and_then(|data| serde_json::from_str(data.peek()).ok())
+            .unwrap_or_default()
+    }
+
+    /// A string-valued custom field by key; nested/non-string values are
+    /// ignored. Convenience over digging into `custom_fields` by hand.
+    pub fn custom_field_str(&self, key: &str) -> Option<String> {
+        self.custom_fields.as_ref().and_then(|fields| {
+            fields
+                .get(key)
+                .and_then(|value| value.as_str())
+                .map(str::to_owned)
+        })
+    }
+
+    /// The raw custom-fields map, when present — for providers (e.g. Kount)
+    /// that forward the whole map with their own key/value validation.
+    pub fn custom_fields_map(
+        &self,
+    ) -> Option<&std::collections::HashMap<String, serde_json::Value>> {
+        self.custom_fields.as_ref()
+    }
+}
+
