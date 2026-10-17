@@ -57,6 +57,7 @@ pub struct WorldpayxmlToken {
     #[serde(rename = "authenticatedShopperID")]
     pub authenticated_shopper_id: Option<String>,
     pub token_details: WorldpayxmlTokenDetails,
+    pub payment_instrument: Option<WorldpayxmlTokenPaymentInstrument>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -65,6 +66,24 @@ pub struct WorldpayxmlTokenDetails {
     pub token_event: Option<String>,
     #[serde(rename = "paymentTokenID")]
     pub payment_token_id: Secret<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlTokenPaymentInstrument {
+    pub emvco_token_details: Option<WorldpayxmlEmvcoTokenDetails>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlEmvcoTokenDetails {
+    pub derived: Option<WorldpayxmlEmvcoTokenDerived>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlEmvcoTokenDerived {
+    pub card_sub_brand: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -95,10 +114,24 @@ pub struct WorldpayxmlPayment {
     pub card_holder_name: Option<String>,
     pub issuer_country_code: Option<String>,
     pub issuer_name: Option<String>,
+    pub card_bin: Option<WorldpayxmlCardBin>,
     pub payment_method_detail: Option<WorldpayxmlPaymentMethodDetail>,
     pub balance: Option<Vec<WorldpayxmlBalance>>,
     pub scheme_response: Option<WorldpayxmlSchemeResponse>,
     pub card_p_a_r: Option<String>,
+}
+
+/// Extended BIN metadata is optional and unknown attribute values must not reject payments.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct WorldpayxmlCardBin {
+    #[serde(rename = "@cardClass")]
+    pub card_class: Option<String>,
+    #[serde(rename = "@productType")]
+    pub product_type: Option<String>,
+    #[serde(rename = "@issuerCountryCode")]
+    pub issuer_country_code: Option<String>,
+    #[serde(rename = "@issuerName")]
+    pub issuer_name: Option<String>,
 }
 
 /// `lastEvent`/`PaymentStatus` values Worldpay reports for an order. Unmodelled values
