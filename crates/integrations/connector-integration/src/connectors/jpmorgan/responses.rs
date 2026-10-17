@@ -1,7 +1,7 @@
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use super::requests::CapMethod;
+use crate::connectors::jpmorgan::requests;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JpmorganAuthUpdateResponse {
@@ -57,7 +57,7 @@ pub struct JpmorganPaymentsResponse {
     pub response_code: String,
     pub response_message: Option<String>,
     pub payment_method_type: Option<PaymentMethodType>,
-    pub capture_method: Option<CapMethod>,
+    pub capture_method: Option<requests::CapMethod>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -93,6 +93,7 @@ pub struct NetworkResponse {
     pub address_verification_result_code: Option<Secret<String>>,
     pub card_verification_result_code: Option<Secret<String>>,
     pub network_transaction_id: Option<String>,
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
