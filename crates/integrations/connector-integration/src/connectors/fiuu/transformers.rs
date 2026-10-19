@@ -1111,13 +1111,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let (mps_token_status, customer_email) =
             if item.request.is_customer_initiated_mandate_payment() {
-                let email = item.resource_common_data.get_billing_email()?;
-                // Filter out empty emails - don't send CustEmail field if email is empty
-                if email.peek().is_empty() {
-                    (Some(1), None)
-                } else {
-                    (Some(1), Some(email))
-                }
+                // Mirror hyperswitch: the billing email is the primary source, with
+                // the request email as fallback. Without the fallback a CIT card
+                // mandate whose billing address carries no email fails on UCS while
+                // it succeeds on the Direct path.
+                (
+                    Some(1),
+                    Some(
+                        item.resource_common_data
+                            .get_billing_email()
+                            .or(item.request.get_email())?,
+                    ),
+                )
             } else {
                 (Some(3), None)
             };

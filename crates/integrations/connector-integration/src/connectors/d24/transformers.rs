@@ -4,7 +4,7 @@ use common_enums::{AttemptStatus, CountryAlpha2, Currency};
 use common_utils::{
     pii::{self, Email},
     request::Method,
-    types::FloatMajorUnit,
+    types::{AmountConvertor, FloatMajorUnit},
 };
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
@@ -27,10 +27,7 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    connectors::d24::{D24AmountConvertor, D24RouterData},
-    types::ResponseRouterData,
-};
+use crate::{connectors::d24::D24RouterData, types::ResponseRouterData};
 
 /// The Directa24 `payment_method` codes this integration can emit.
 ///
@@ -1134,12 +1131,21 @@ fn d24_settled_amount(response: &D24SyncResponse, requested: Currency) -> Option
     }
 }
 
-impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<D24SyncResponse, D24RouterData<Self, T>>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(item: ResponseRouterData<D24SyncResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<D24SyncResponse, D24RouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let response = item.response;
         let raw_status = response.status.to_string();
 
@@ -1159,7 +1165,7 @@ impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
         // partial payment or stranding the poll.
         let requested_currency = item.router_data.request.currency;
         let settled_amount = d24_settled_amount(&response, requested_currency)
-            .and_then(|amount| D24AmountConvertor::convert_back(amount, requested_currency).ok());
+            .and_then(|amount| connector.convert_back(amount, requested_currency).ok());
 
         let mut status = AttemptStatus::from(response.status);
         if status == AttemptStatus::Charged

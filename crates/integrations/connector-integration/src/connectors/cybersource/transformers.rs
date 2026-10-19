@@ -6,7 +6,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     ext_traits::{BytesExt, OptionExt, ValueExt},
     pii,
-    types::{SemanticVersion, StringMajorUnit},
+    types::{MinorUnit, SemanticVersion, StringMajorUnit},
 };
 
 use crate::{connectors::cybersource::CybersourceRouterData, types::ResponseRouterData, utils};
@@ -17,15 +17,15 @@ use domain_types::{
         PostAuthenticate, PreAuthenticate, RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        BillingDescriptor, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         CybersourceClientAuthenticationResponse as CybersourceClientAuthenticationResponseDomain,
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RecurringMandateData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        DeviceChannel, L2L3Data, MandateReference, MandateReferenceId, PaymentFlowData,
+        PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RecurringMandateData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -143,10 +143,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let order_information = OrderInformationWithBill {
             amount_details: Amount {
+                tax_amount: None,
+                discount_amount: None,
+                duty_amount: None,
+                freight_amount: None,
                 total_amount: StringMajorUnit::zero(),
                 currency: item.router_data.request.currency,
             },
             bill_to: Some(bill_to),
+            ship_to: None,
+            line_items: None,
+            invoice_details: None,
         };
         let connector_merchant_config = CybersourceConnectorMetadataObject::try_from(
             &item.router_data.request.metadata.clone(),
@@ -407,6 +414,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }),
             payment_solution: solution.map(String::from),
             bank_transfer_options: None,
+            purchase_level: None,
         };
 
         // Mirror Hyperswitch's cybersource zero-mandate builder: when external 3DS
@@ -420,8 +428,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .authentication_data
                     .as_ref()
                     .map(|authn_data| {
-                        build_consumer_auth_information(authn_data, ccard.card_network.as_ref())
-                    }),
+                        build_consumer_auth_information(
+                            authn_data,
+                            ccard.card_network.as_ref(),
+                            resolve_cybersource_card_type(
+                                ccard.card_network.clone(),
+                                ccard.card_number.peek(),
+                            )
+                            .as_deref(),
+                        )
+                    })
+                    .transpose()?,
                 _ => None,
             };
 
@@ -449,7 +466,21 @@ pub struct CybersourcePaymentsRequest<
     #[serde(skip_serializing_if = "Option::is_none")]
     merchant_defined_information: Option<Vec<utils::MerchantDefinedInformation>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_information: Option<MerchantInformation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     token_information: Option<CybersourceTokenInformationRequest>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantInformation {
+    merchant_descriptor: MerchantDescriptor,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantDescriptor {
+    name: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -471,6 +502,15 @@ pub struct ProcessingInformation {
     payment_solution: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     bank_transfer_options: Option<BankTransferOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    purchase_level: Option<CybersourcePurchaseLevel>,
+}
+
+/// `processingInformation.purchaseLevel`.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum CybersourcePurchaseLevel {
+    #[serde(rename = "3")]
+    Three,
 }
 
 #[derive(Debug, Serialize)]
@@ -493,6 +533,31 @@ pub enum CybersourceParesStatus {
     AuthenticationFailed,
     #[serde(rename = "U")]
     AuthenticationNotCompleted,
+}
+
+/// `consumerAuthenticationInformation.veresEnrolled` of the enrollment check.
+/// https://raw.githubusercontent.com/CyberSource/cybersource-rest-client-java/master/docs/RiskV1DecisionsPost201ResponseConsumerAuthenticationInformation.md
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
+pub enum CybersourceVeresEnrolled {
+    /// Card enrolled; the outcome is in `paresStatus`.
+    #[serde(rename = "Y")]
+    #[strum(serialize = "Y")]
+    Enrolled,
+    /// Card not enrolled or cardholder not participating.
+    #[serde(rename = "N")]
+    #[strum(serialize = "N")]
+    NotEnrolled,
+    /// Unable to authenticate (not available on lookup, enrollment error, time out).
+    #[serde(rename = "U")]
+    #[strum(serialize = "U")]
+    Unavailable,
+    /// Authentication bypassed.
+    #[serde(rename = "B")]
+    #[strum(serialize = "B")]
+    Bypassed,
+    /// Any value this connector does not list.
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<CybersourceParesStatus> for common_enums::TransactionStatus {
@@ -584,7 +649,143 @@ fn get_three_ds_data_for_authenticate_response(
         "xid": validate_response.xid,
         "specificationVersion": validate_response.specification_version,
         "directoryServerTransactionId": validate_response.directory_server_transaction_id,
+        "paresStatus": validate_response.pares_status,
+        "veresEnrolled": validate_response.veres_enrolled,
         "indicator": validate_response.indicator,
+        "ecommerceIndicator": validate_response.ecommerce_indicator,
+    })
+}
+
+/// `connector_feature_data` key under which the Authenticate / PostAuthenticate legs
+/// hand their result to Authorize.
+const THREE_DS_DATA_KEY: &str = "three_ds_data";
+
+/// Reads the result of a Cybersource-run payer authentication from the Authorize
+/// request's `connector_feature_data`.
+///
+/// Returns `None` when the value is absent or is any object without a `three_ds_data`
+/// key (the same carrier also holds unrelated merchant settings). A `three_ds_data`
+/// that is present but unreadable is refused: authorizing without the authentication
+/// values would silently downgrade an authenticated payment.
+fn get_three_ds_data_for_authorize(
+    connector_feature_data: Option<&pii::SecretSerdeValue>,
+) -> Result<Option<CybersourceConsumerAuthValidateResponse>, error_stack::Report<IntegrationError>>
+{
+    let has_three_ds_data = connector_feature_data
+        .is_some_and(|feature_data| feature_data.peek().get(THREE_DS_DATA_KEY).is_some());
+    if !has_three_ds_data {
+        return Ok(None);
+    }
+    connector_feature_data
+        .map(|feature_data| {
+            // The carrier may contain unrelated merchant settings alongside `three_ds_data`;
+            // `CybersourceThreeDSMetadata` intentionally allows those unknown top-level keys.
+            serde_json::from_value::<CybersourceThreeDSMetadata>(feature_data.peek().clone())
+                .map(|metadata| metadata.three_ds_data)
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "connector_feature_data.three_ds_data",
+                    context: utils::integration_ctx(
+                        "connector_feature_data carries a three_ds_data object that is not a Cybersource payer-authentication result",
+                        "Forward the connector_feature_data returned by the Authenticate or PostAuthenticate call unchanged",
+                    ),
+                })
+        })
+        .transpose()
+}
+
+/// Commerce indicator of an authorization that follows a Cybersource-run payer
+/// authentication: the validation response's `indicator` (Hyperswitch), else the
+/// frictionless enrollment response's `ecommerceIndicator` (Cybersource "Authorization
+/// after authentication" field mapping), else `internet`.
+fn get_commerce_indicator_for_three_ds_data(
+    three_ds_data: &CybersourceConsumerAuthValidateResponse,
+) -> String {
+    three_ds_data
+        .indicator
+        .clone()
+        .or_else(|| three_ds_data.ecommerce_indicator.clone())
+        .unwrap_or_else(|| CybersourceCommerceIndicator::Internet.to_string())
+}
+
+/// Builds `consumerAuthenticationInformation` of the authorization from the
+/// authentication leg's `three_ds_data`.
+///
+/// `paresStatus` is the outcome Cybersource returned for the enrollment or the
+/// validation, never a constant. Refused here, before any connector call:
+/// an authentication that failed (`N`), was rejected (`R`) or stopped at an
+/// unvalidated challenge (`C`), and a `three_ds_data` that states no outcome at all
+/// (no `paresStatus`, no authentication value, no enrollment answer).
+///
+/// Everything else is sent, because Cybersource documents "submit your authorization
+/// request" for it: attempted (`A`), unavailable (`U`), and an enrollment check that
+/// answered without authenticating - `veresEnrolled` `U` (authentication not available
+/// on lookup, enrollment error, time out), `B` (bypassed) or `N` (card not enrolled).
+/// Those carry no `paresStatus` and no CAVV; the authorization goes out with the
+/// enrollment's own `ecommerceIndicator` and no liability shift is claimed.
+/// https://developer.cybersource.com/docs/cybs/en-us/payer-authentication/developer/all/rest/payer-auth/pa-testing-intro/pa-testing-3ds-2x-intro/pa-testing-3ds-2x-auth-not-available-lookup.md
+/// https://developer.cybersource.com/docs/cybs/en-us/payer-authentication/developer/all/rest/payer-auth/pa-testing-intro/pa-testing-3ds-2x-intro/pa-testing-3ds-2x-bypassed-auth.md
+fn build_consumer_auth_information_from_three_ds_data(
+    three_ds_data: CybersourceConsumerAuthValidateResponse,
+) -> Result<CybersourceConsumerAuthInformation, error_stack::Report<IntegrationError>> {
+    let has_authentication_value =
+        three_ds_data.cavv.is_some() || three_ds_data.ucaf_authentication_data.is_some();
+    let enrollment_answered_without_authentication = matches!(
+        three_ds_data.veres_enrolled,
+        Some(CybersourceVeresEnrolled::Unavailable)
+            | Some(CybersourceVeresEnrolled::Bypassed)
+            | Some(CybersourceVeresEnrolled::NotEnrolled)
+    );
+    // An unrecognized enrollment value is not evidence that Cybersource told us to proceed.
+    // Keep it fail-closed until its semantics are known instead of treating every future value
+    // like U / B / N and silently authorizing without authentication or liability shift.
+    let refused = match three_ds_data.pares_status {
+        // failed, rejected, or a challenge that was never validated
+        Some(CybersourceParesStatus::AuthenticationFailed)
+        | Some(CybersourceParesStatus::AuthenticationRejected)
+        | Some(CybersourceParesStatus::CardChallenged) => true,
+        Some(CybersourceParesStatus::AuthenticationSuccessful)
+        | Some(CybersourceParesStatus::AuthenticationAttempted)
+        | Some(CybersourceParesStatus::AuthenticationNotCompleted) => false,
+        // no paresStatus: acceptable with an authentication value, or when the
+        // enrollment check itself says no authentication took place
+        None => !has_authentication_value && !enrollment_answered_without_authentication,
+    };
+    if refused {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "connector_feature_data.three_ds_data.paresStatus",
+            context: utils::integration_ctx(
+                "the payer authentication forwarded in three_ds_data failed, was rejected, stopped at an unfinished challenge, or states no outcome at all (no paresStatus, no authentication value, no veresEnrolled U / B / N)",
+                "Do not authorize after a failed authentication; complete the challenge (PostAuthenticate) or send the payment without three_ds_data",
+            ),
+        }
+        .into());
+    }
+    Ok(CybersourceConsumerAuthInformation {
+        // The outcome Cybersource returned (Y / A / U), never a constant; absent when
+        // the enrollment check returned none.
+        pares_status: three_ds_data.pares_status,
+        ucaf_collection_indicator: three_ds_data.ucaf_collection_indicator,
+        cavv: three_ds_data.cavv,
+        ucaf_authentication_data: three_ds_data.ucaf_authentication_data,
+        xid: three_ds_data.xid,
+        directory_server_transaction_id: three_ds_data.directory_server_transaction_id,
+        specification_version: three_ds_data.specification_version.clone(),
+        pa_specification_version: three_ds_data.specification_version,
+        // "Authorization after authentication" field mapping: the enrollment's
+        // veresEnrolled is copied; a value this connector does not list is not.
+        veres_enrolled: three_ds_data
+            .veres_enrolled
+            .filter(|veres_enrolled| !matches!(veres_enrolled, CybersourceVeresEnrolled::Unknown))
+            .map(|veres_enrolled| veres_enrolled.to_string()),
+        eci_raw: None,
+        authentication_date: None,
+        effective_authentication_type: None,
+        challenge_code: None,
+        signed_pares_status_reason: None,
+        challenge_cancel_code: None,
+        network_score: None,
+        acs_transaction_id: None,
+        cavv_algorithm: None,
     })
 }
 
@@ -953,6 +1154,63 @@ pub struct Card<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'sta
 pub struct OrderInformationWithBill {
     amount_details: Amount,
     bill_to: Option<BillTo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ship_to: Option<ShipTo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line_items: Option<Vec<LineItem>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    invoice_details: Option<InvoiceDetails>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShipTo {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    locality: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    country: Option<common_enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone_number: Option<Secret<String>>,
+}
+
+/// One `orderInformation.lineItems[]` entry (Level II / III data).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LineItem {
+    product_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    product_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    product_sku: Option<String>,
+    quantity: u16,
+    unit_price: StringMajorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tax_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unit_of_measure: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    commodity_code: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InvoiceDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    purchase_order_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    taxable: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -972,6 +1230,14 @@ pub struct OrderInformation {
 pub struct Amount {
     total_amount: StringMajorUnit,
     currency: common_enums::Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tax_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    discount_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    duty_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    freight_amount: Option<StringMajorUnit>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1251,10 +1517,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .authentication_data
             .as_ref()
             .and_then(|authn_data| {
-                authn_data
-                    .eci
-                    .clone()
-                    .map(|eci| get_commerce_indicator_for_external_authentication(network, eci))
+                authn_data.eci.clone().map(|eci| {
+                    get_commerce_indicator_for_authentication_result(
+                        network,
+                        eci,
+                        authn_data.trans_status.as_ref(),
+                    )
+                })
             });
 
         Ok(Self {
@@ -1270,6 +1539,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             commerce_indicator: commerce_indicator_for_external_authentication
                 .or(commerce_indicator),
             bank_transfer_options: None,
+            // Level III is declared exactly when line items are sent.
+            purchase_level: has_l2_l3_line_items(
+                item.router_data.resource_common_data.l2_l3_data.as_deref(),
+            )
+            .then_some(CybersourcePurchaseLevel::Three),
         })
     }
 }
@@ -1314,14 +1588,197 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
+        let level_data = build_l2_l3_order_data(item)?;
         Ok(Self {
             amount_details: Amount {
                 total_amount,
                 currency: item.router_data.request.currency,
+                tax_amount: level_data.tax_amount,
+                discount_amount: level_data.discount_amount,
+                duty_amount: level_data.duty_amount,
+                freight_amount: level_data.freight_amount,
             },
             bill_to,
+            ship_to: build_ship_to(
+                item.router_data
+                    .resource_common_data
+                    .get_optional_shipping(),
+            ),
+            line_items: level_data.line_items,
+            invoice_details: level_data.invoice_details,
         })
     }
+}
+
+/// Level II / III order data of an Authorize request, already in wire units.
+struct L2L3OrderData {
+    line_items: Option<Vec<LineItem>>,
+    invoice_details: Option<InvoiceDetails>,
+    tax_amount: Option<StringMajorUnit>,
+    discount_amount: Option<StringMajorUnit>,
+    duty_amount: Option<StringMajorUnit>,
+    freight_amount: Option<StringMajorUnit>,
+}
+
+/// True when the request carries at least one Level II / III line item.
+fn has_l2_l3_line_items(l2_l3_data: Option<&L2L3Data>) -> bool {
+    l2_l3_data
+        .and_then(|data| data.order_info.as_ref())
+        .and_then(|order_info| order_info.order_details.as_ref())
+        .is_some_and(|order_details| !order_details.is_empty())
+}
+
+/// Maps `l2_l3_data` onto `orderInformation.lineItems[]`, `invoiceDetails` and the
+/// tax / discount / duty / freight members of `amountDetails`. Every member stays
+/// `None` when the request carries no Level II / III data, and every amount goes
+/// through the connector's amount converter. Sent on sale and authorization-only
+/// requests alike: the capture request has no carrier for this data.
+fn build_l2_l3_order_data<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    item: &CybersourceRouterData<
+        RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        T,
+    >,
+) -> Result<L2L3OrderData, error_stack::Report<IntegrationError>> {
+    let currency = item.router_data.request.currency;
+    let convert = |amount: MinorUnit, field: &str| {
+        item.connector
+            .amount_converter
+            .convert(amount, currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Failed to convert l2_l3_data {field} to the major-unit amount Cybersource expects."
+                    )),
+                    ..Default::default()
+                },
+            })
+    };
+    let l2_l3_data = item.router_data.resource_common_data.l2_l3_data.as_deref();
+
+    let line_items = l2_l3_data
+        .and_then(L2L3Data::get_order_details)
+        .filter(|order_details| !order_details.is_empty())
+        .map(|order_details| {
+            order_details
+                .into_iter()
+                .map(|detail| {
+                    Ok(LineItem {
+                        product_name: detail.product_name,
+                        // Cybersource's productCode is a product category (it
+                        // defaults to `default`), so it is fed from `category`.
+                        product_code: detail.category,
+                        product_sku: detail.sku,
+                        quantity: detail.quantity,
+                        unit_price: convert(detail.amount, "order_details.amount")?,
+                        tax_amount: detail
+                            .total_tax_amount
+                            .map(|tax| convert(tax, "order_details.total_tax_amount"))
+                            .transpose()?,
+                        unit_of_measure: detail.unit_of_measure,
+                        commodity_code: detail.commodity_code,
+                    })
+                })
+                .collect::<Result<Vec<_>, error_stack::Report<IntegrationError>>>()
+        })
+        .transpose()?;
+
+    let order_tax_amount = l2_l3_data.and_then(L2L3Data::get_order_tax_amount);
+    let purchase_order_number = l2_l3_data.and_then(L2L3Data::get_merchant_order_reference_id);
+    // `taxable` is required by Cybersource when tax is charged on the order.
+    let taxable = order_tax_amount.map(|tax| tax.get_amount_as_i64() > 0);
+    let invoice_details =
+        (purchase_order_number.is_some() || taxable.is_some()).then_some(InvoiceDetails {
+            purchase_order_number,
+            taxable,
+        });
+
+    Ok(L2L3OrderData {
+        line_items,
+        invoice_details,
+        tax_amount: order_tax_amount
+            .map(|tax| convert(tax, "tax_info.order_tax_amount"))
+            .transpose()?,
+        discount_amount: l2_l3_data
+            .and_then(L2L3Data::get_discount_amount)
+            .map(|discount| convert(discount, "order_info.discount_amount"))
+            .transpose()?,
+        duty_amount: l2_l3_data
+            .and_then(L2L3Data::get_duty_amount)
+            .map(|duty| convert(duty, "order_info.duty_amount"))
+            .transpose()?,
+        freight_amount: l2_l3_data
+            .and_then(L2L3Data::get_shipping_cost)
+            .map(|freight| convert(freight, "order_info.shipping_cost"))
+            .transpose()?,
+    })
+}
+
+/// Builds `orderInformation.shipTo` from the shipping address, with the same
+/// new-line handling as `billTo`. `None` when the request carries no shipping
+/// address detail at all.
+fn build_ship_to(shipping: Option<&Address>) -> Option<ShipTo> {
+    let shipping = shipping?;
+    let address = shipping.address.as_ref();
+    // A known state resolves to its code. Anything else is passed through only
+    // while it fits Cybersource's administrativeArea limit: shipping is optional
+    // data and must not fail the payment the way the mandatory billing state does.
+    let administrative_area = address.and_then(|addr| match addr.to_state_code_as_optional() {
+        Ok(state) => state,
+        Err(_) => addr
+            .state
+            .remove_new_line()
+            .filter(|state| state.peek().len() <= CYBERSOURCE_STATE_MAX_LENGTH),
+    });
+    let ship_to = ShipTo {
+        first_name: address.and_then(|addr| addr.first_name.remove_new_line()),
+        last_name: address.and_then(|addr| addr.last_name.remove_new_line()),
+        address1: address.and_then(|addr| addr.line1.remove_new_line()),
+        address2: address.and_then(|addr| addr.line2.remove_new_line()),
+        locality: address.and_then(|addr| addr.city.remove_new_line()),
+        administrative_area,
+        postal_code: address.and_then(|addr| addr.zip.remove_new_line()),
+        country: address.and_then(|addr| addr.country),
+        // Cybersource exposes one `phoneNumber` field, so include the country calling code when
+        // the caller supplies it. The helper falls back to the local number when it is absent.
+        phone_number: shipping
+            .phone
+            .as_ref()
+            .and_then(|phone| phone.get_e123_phone_number())
+            .remove_new_line(),
+    };
+    let has_value = ship_to.country.is_some()
+        || [
+            &ship_to.first_name,
+            &ship_to.last_name,
+            &ship_to.address1,
+            &ship_to.address2,
+            &ship_to.locality,
+            &ship_to.administrative_area,
+            &ship_to.postal_code,
+            &ship_to.phone_number,
+        ]
+        .iter()
+        .any(|field| field.is_some());
+    has_value.then_some(ship_to)
+}
+
+/// Builds `merchantInformation.merchantDescriptor` (dynamic descriptor) from the
+/// request's billing descriptor: its `name`, else its `statement_descriptor`.
+fn build_merchant_information(
+    billing_descriptor: Option<&BillingDescriptor>,
+) -> Option<MerchantInformation> {
+    billing_descriptor
+        .and_then(|descriptor| {
+            descriptor
+                .name
+                .clone()
+                .or_else(|| descriptor.statement_descriptor.clone().map(Secret::new))
+        })
+        .map(|name| MerchantInformation {
+            merchant_descriptor: MerchantDescriptor { name },
+        })
 }
 
 fn build_bill_to(
@@ -1418,26 +1875,61 @@ const VERES_ENROLLED_AUTHENTICATED: &str = "Y";
 /// 3DS Server might not include `cavvAlgorithm` in the challenge response (mirrors
 /// Hyperswitch).
 const DEFAULT_CAVV_ALGORITHM: &str = "2";
+/// Cybersource card type code of Mastercard (`paymentInformation.card.type`).
+const CYBERSOURCE_MASTERCARD_CARD_TYPE: &str = "002";
 
 /// Builds the Cybersource `consumerAuthenticationInformation` block from external 3DS
 /// authentication data, mirroring Hyperswitch's construction at every call site: the
 /// card-network-aware ucaf/cavv split (Mastercard), `authenticationDate` formatted from
 /// `created_at`, and the Cartes Bancaires `networkScore` extracted from `message_extension`.
+///
+/// `card_type` is the resolved Cybersource card type code. Mastercard is recognised
+/// from either input, so a request without `card_network` still sends the UCAF pair
+/// instead of `cavv`.
+///
+/// An authentication with no usable outcome is refused here, before any connector call,
+/// so every caller is covered: failed (`N`), rejected (`R`), and a challenge that was
+/// started but never validated. `ChallengeRequired`,
+/// `ChallengeRequiredDecoupledAuthentication` and `SecurePaymentConfirmationRequired` all
+/// map to `paresStatus` `C`, which is the value the internal path
+/// (`build_consumer_auth_information_from_three_ds_data`) already refuses - the two paths
+/// must not disagree on an unfinished challenge.
 fn build_consumer_auth_information(
     authn_data: &router_request_types::AuthenticationData,
     card_network: Option<&common_enums::CardNetwork>,
-) -> CybersourceConsumerAuthInformation {
+    card_type: Option<&str>,
+) -> Result<CybersourceConsumerAuthInformation, error_stack::Report<IntegrationError>> {
+    if matches!(
+        authn_data.trans_status,
+        Some(common_enums::TransactionStatus::Failure)
+            | Some(common_enums::TransactionStatus::Rejected)
+            | Some(common_enums::TransactionStatus::ChallengeRequired)
+            | Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication)
+            | Some(common_enums::TransactionStatus::SecurePaymentConfirmationRequired)
+    ) {
+        return Err(error_stack::Report::from(
+            IntegrationError::InvalidDataFormat {
+                field_name: "authentication_data.trans_status",
+                context: utils::integration_ctx(
+                    "the external 3DS authentication failed, was rejected, or stopped at a challenge that was never validated",
+                    "Do not authorize after a failed authentication; complete the challenge before authorizing",
+                ),
+            },
+        ));
+    }
     let effective_authentication_type = authn_data.authentication_type.as_ref().map(Into::into);
-    let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
-        if card_network == Some(&common_enums::CardNetwork::Mastercard) {
-            (
-                authn_data.cavv.clone(),
-                None,
-                Some(MASTERCARD_UCAF_COLLECTION_INDICATOR.to_string()),
-            )
-        } else {
-            (None, authn_data.cavv.clone(), None)
-        };
+    let (ucaf_authentication_data, cavv, ucaf_collection_indicator) = if card_network
+        == Some(&common_enums::CardNetwork::Mastercard)
+        || card_type == Some(CYBERSOURCE_MASTERCARD_CARD_TYPE)
+    {
+        (
+            authn_data.cavv.clone(),
+            None,
+            Some(MASTERCARD_UCAF_COLLECTION_INDICATOR.to_string()),
+        )
+    } else {
+        (None, authn_data.cavv.clone(), None)
+    };
     let network_score = (card_network == Some(&common_enums::CardNetwork::CartesBancaires))
         .then_some(authn_data.message_extension.as_ref())
         .flatten()
@@ -1450,11 +1942,12 @@ fn build_consumer_auth_information(
                 .ok()
                 .and_then(|exts| extract_score_id(&exts))
         });
-    CybersourceConsumerAuthInformation {
-        // For all card payments, we are explicitly setting `pares_status` to
-        // `AuthenticationSuccessful` to indicate that the Payer Authentication was
-        // successful, regardless of actual ACS response (mirrors Hyperswitch).
-        pares_status: Some(CybersourceParesStatus::AuthenticationSuccessful),
+    Ok(CybersourceConsumerAuthInformation {
+        // The result the external authentication produced; omitted when the caller states none.
+        pares_status: authn_data
+            .trans_status
+            .clone()
+            .map(CybersourceParesStatus::from),
         ucaf_collection_indicator,
         cavv,
         ucaf_authentication_data,
@@ -1478,7 +1971,7 @@ fn build_consumer_auth_information(
         network_score,
         acs_transaction_id: authn_data.acs_transaction_id.clone(),
         cavv_algorithm: Some(DEFAULT_CAVV_ALGORITHM.to_string()),
-    }
+    })
 }
 
 impl From<&common_enums::DecoupledAuthenticationType> for EffectiveAuthenticationType {
@@ -1530,15 +2023,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         )?;
         let order_information = OrderInformationWithBill::try_from((item, Some(bill_to)))?;
 
-        let raw_card_type = ccard.card_network.clone();
         let card_network = ccard.card_network.clone();
 
-        let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
-            Some(card_network) => Some(card_network.to_string()),
-            None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
-                .ok()
-                .map(card_issuer_to_string),
-        };
+        let card_type =
+            resolve_cybersource_card_type(card_network.clone(), ccard.card_number.peek());
 
         let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
             card: Card {
@@ -1551,11 +2039,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
         }));
 
-        let processing_information = ProcessingInformation::try_from((
-            item,
-            None,
-            raw_card_type.map(|network| network.to_string()),
-        ))?;
+        // The resolved card type, not the optional card_network, selects the
+        // network-specific commerceIndicator of an externally authenticated payment
+        // (`vbv`, `spa`, ...): a request without card_network would otherwise go out
+        // as `internet` next to its cryptogram.
+        let mut processing_information =
+            ProcessingInformation::try_from((item, None, card_type.clone()))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = convert_metadata_to_merchant_defined_info(
             item.router_data
@@ -1566,15 +2055,41 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.router_data.request.merchant_order_id.clone(),
         );
 
-        // Mirror Hyperswitch's cybersource authorize builder: when external 3DS
-        // authentication data is present on a card payment, populate
-        // consumerAuthenticationInformation so the UCS request matches HS.
-        let consumer_authentication_information = item
-            .router_data
-            .request
-            .authentication_data
-            .as_ref()
-            .map(|authn_data| build_consumer_auth_information(authn_data, card_network.as_ref()));
+        // A payer authentication run through Cybersource (Authenticate /
+        // PostAuthenticate) hands its result over in connector_feature_data. When it
+        // is there, the authorization is built from it; otherwise the external-3DS
+        // path below (request.authentication_data) applies unchanged.
+        let three_ds_data = get_three_ds_data_for_authorize(
+            item.router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref(),
+        )?;
+        let consumer_authentication_information = match three_ds_data {
+            Some(three_ds_data) => {
+                processing_information.commerce_indicator =
+                    Some(get_commerce_indicator_for_three_ds_data(&three_ds_data));
+                Some(build_consumer_auth_information_from_three_ds_data(
+                    three_ds_data,
+                )?)
+            }
+            // Mirror Hyperswitch's cybersource authorize builder: when external 3DS
+            // authentication data is present on a card payment, populate
+            // consumerAuthenticationInformation so the UCS request matches HS.
+            None => item
+                .router_data
+                .request
+                .authentication_data
+                .as_ref()
+                .map(|authn_data| {
+                    build_consumer_auth_information(
+                        authn_data,
+                        card_network.as_ref(),
+                        card_type.as_deref(),
+                    )
+                })
+                .transpose()?,
+        };
         Ok(Self {
             processing_information,
             payment_information,
@@ -1582,6 +2097,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             client_reference_information,
             consumer_authentication_information,
             merchant_defined_information,
+            merchant_information: build_merchant_information(
+                item.router_data.request.billing_descriptor.as_ref(),
+            ),
             token_information: None,
         })
     }
@@ -1665,6 +2183,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             client_reference_information,
             consumer_authentication_information: None,
             merchant_defined_information,
+            merchant_information: build_merchant_information(
+                item.router_data.request.billing_descriptor.as_ref(),
+            ),
             token_information: None,
         })
     }
@@ -1780,6 +2301,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             client_reference_information,
             consumer_authentication_information: None,
             merchant_defined_information,
+            merchant_information: build_merchant_information(
+                item.router_data.request.billing_descriptor.as_ref(),
+            ),
             token_information: None,
         })
     }
@@ -1902,6 +2426,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 cavv_algorithm: None,
             }),
             merchant_defined_information,
+            merchant_information: build_merchant_information(
+                item.router_data.request.billing_descriptor.as_ref(),
+            ),
             token_information: None,
         })
     }
@@ -1986,6 +2513,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             client_reference_information,
             consumer_authentication_information: None,
             merchant_defined_information,
+            merchant_information: build_merchant_information(
+                item.router_data.request.billing_descriptor.as_ref(),
+            ),
             token_information: None,
         })
     }
@@ -2109,6 +2639,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 cavv_algorithm: None,
             }),
             merchant_defined_information,
+            merchant_information: build_merchant_information(
+                item.router_data.request.billing_descriptor.as_ref(),
+            ),
             token_information: None,
         })
     }
@@ -2179,6 +2712,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             client_reference_information,
             consumer_authentication_information: None,
             merchant_defined_information,
+            merchant_information: build_merchant_information(
+                item.router_data.request.billing_descriptor.as_ref(),
+            ),
             token_information: None,
         })
     }
@@ -2283,6 +2819,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     bank_transfer_options: Some(BankTransferOptions {
                         sec_code: String::from("WEB"),
                     }),
+                    // purchaseLevel is card data and is not declared on an eCheck; the line
+                    // items and level amounts of orderInformation are still sent.
+                    purchase_level: None,
                 };
 
                 let client_reference_information = ClientReferenceInformation::from(item);
@@ -2302,6 +2841,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     client_reference_information,
                     consumer_authentication_information: None,
                     merchant_defined_information,
+                    merchant_information: build_merchant_information(
+                        item.router_data.request.billing_descriptor.as_ref(),
+                    ),
                     token_information: None,
                 })
             }
@@ -2497,6 +3039,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     cavv_algorithm: None,
                                 },
                             ),
+                            merchant_information: build_merchant_information(
+                                item.router_data.request.billing_descriptor.as_ref(),
+                            ),
                             token_information: None,
                         })
                     }
@@ -2622,6 +3167,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     client_reference_information,
                     consumer_authentication_information: None,
                     merchant_defined_information,
+                    merchant_information: build_merchant_information(
+                        item.router_data.request.billing_descriptor.as_ref(),
+                    ),
                     token_information: Some(CybersourceTokenInformationRequest {
                         transient_token_jwt: token,
                     }),
@@ -2704,16 +3252,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         match payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => {
-                let card_type = match ccard
-                    .card_network
-                    .clone()
-                    .and_then(get_cybersource_card_type)
-                {
-                    Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
-                        .ok()
-                        .map(card_issuer_to_string),
-                };
+                let card_type = resolve_cybersource_card_type(
+                    ccard.card_network.clone(),
+                    ccard.card_number.peek(),
+                );
 
                 let payment_information =
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -2836,13 +3378,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 commerce_indicator: Some(String::from("internet")),
                 payment_solution: None,
                 bank_transfer_options: None,
+                purchase_level: None,
             },
             order_information: OrderInformationWithBill {
                 amount_details: Amount {
+                    tax_amount: None,
+                    discount_amount: None,
+                    duty_amount: None,
+                    freight_amount: None,
                     total_amount,
                     currency: item.router_data.request.currency,
                 },
                 bill_to: None,
+                ship_to: None,
+                line_items: None,
+                invoice_details: None,
             },
             client_reference_information: ClientReferenceInformation {
                 code: Some(
@@ -2936,6 +3486,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             reversal_information: ReversalInformation {
                 amount_details: Amount {
+                    tax_amount: None,
+                    discount_amount: None,
+                    duty_amount: None,
+                    freight_amount: None,
                     total_amount,
                     currency,
                 },
@@ -3029,9 +3583,9 @@ fn map_cybersource_void_pc_status(
         | CybersourcePaymentStatus::PendingAuthentication
         | CybersourcePaymentStatus::PendingReview
         | CybersourcePaymentStatus::Accepted
-        | CybersourcePaymentStatus::StatusNotReceived => {
-            common_enums::PostCaptureVoidStatus::Pending
-        }
+        | CybersourcePaymentStatus::StatusNotReceived
+        | CybersourcePaymentStatus::PartialAuthorized
+        | CybersourcePaymentStatus::Unknown => common_enums::PostCaptureVoidStatus::Pending,
     }
 }
 
@@ -3140,7 +3694,11 @@ pub enum CybersourcePaymentStatus {
     Accepted,
     Cancelled,
     StatusNotReceived,
-    //PartialAuthorized, not being consumed yet.
+    PartialAuthorized,
+    /// Any status this connector does not list. It parses instead of failing the
+    /// whole payment / sync response, and is never mapped to a terminal status.
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -3185,6 +3743,12 @@ pub fn map_cybersource_attempt_status(
         | CybersourcePaymentStatus::Accepted
         | CybersourcePaymentStatus::Pending
         | CybersourcePaymentStatus::AuthorizedPendingReview => common_enums::AttemptStatus::Pending,
+        // A partial approval is not a completed authorization and an unlisted status
+        // proves nothing either way: both stay non-terminal, as Hyperswitch keeps the
+        // previous status for them.
+        CybersourcePaymentStatus::PartialAuthorized | CybersourcePaymentStatus::Unknown => {
+            common_enums::AttemptStatus::Pending
+        }
     }
 }
 impl From<CybersourceIncrementalAuthorizationStatus> for AuthorizationStatus {
@@ -3312,6 +3876,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             capture_options: None,
             payment_solution: None,
             bank_transfer_options: None,
+            purchase_level: None,
         };
 
         let order_information = OrderInformationIncrementalAuthorization {
@@ -3665,12 +4230,75 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     }
 }
 
+/// `consumerAuthenticationInformation.deviceChannel` of the enrollment check: the
+/// channel the cardholder is authenticated on (`Browser` or `SDK`; the documented
+/// third value `3RI` is merchant-initiated and has no request input here).
+#[derive(Debug, Clone, Serialize)]
+pub enum CybersourceDeviceChannel {
+    Browser,
+    #[serde(rename = "SDK")]
+    Sdk,
+}
+
+impl From<&DeviceChannel> for CybersourceDeviceChannel {
+    fn from(channel: &DeviceChannel) -> Self {
+        match channel {
+            DeviceChannel::Browser => Self::Browser,
+            DeviceChannel::App => Self::Sdk,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformationRequest {
     return_url: String,
     reference_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device_channel: Option<CybersourceDeviceChannel>,
 }
+
+/// `deviceInformation` of the enrollment check: the browser data the directory
+/// server needs to qualify a transaction for EMV 3-D Secure. Mirrors Hyperswitch.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceDeviceInformation {
+    http_accept_content: String,
+    http_browser_color_depth: String,
+    http_browser_java_enabled: bool,
+    http_browser_java_script_enabled: bool,
+    http_browser_language: String,
+    http_browser_screen_height: String,
+    http_browser_screen_width: String,
+    http_browser_time_difference: String,
+    ip_address: Secret<String, pii::IpAddress>,
+    user_agent_browser_value: String,
+}
+
+impl TryFrom<&router_request_types::BrowserInformation> for CybersourceDeviceInformation {
+    type Error = error_stack::Report<IntegrationError>;
+
+    /// All ten fields are required once browser information is supplied: a partial
+    /// `deviceInformation` makes the directory server reject the EMV 3DS request, so
+    /// a missing field is refused here (`browser_info.<field>`) instead of being sent.
+    fn try_from(
+        browser_info: &router_request_types::BrowserInformation,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            http_accept_content: browser_info.get_accept_header()?,
+            http_browser_color_depth: browser_info.get_color_depth()?.to_string(),
+            http_browser_java_enabled: browser_info.get_java_enabled()?,
+            http_browser_java_script_enabled: browser_info.get_java_script_enabled()?,
+            http_browser_language: browser_info.get_language()?,
+            http_browser_screen_height: browser_info.get_screen_height()?.to_string(),
+            http_browser_screen_width: browser_info.get_screen_width()?.to_string(),
+            http_browser_time_difference: browser_info.get_time_zone()?.to_string(),
+            ip_address: browser_info.get_ip_address()?,
+            user_agent_browser_value: browser_info.get_user_agent()?,
+        })
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceAuthEnrollmentRequest<
@@ -3680,6 +4308,8 @@ pub struct CybersourceAuthEnrollmentRequest<
     client_reference_information: ClientReferenceInformation,
     consumer_authentication_information: CybersourceConsumerAuthInformationRequest,
     order_information: OrderInformationWithBill,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device_information: Option<CybersourceDeviceInformation>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3746,16 +4376,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         )?;
         let payment_information = match payment_method_data {
             PaymentMethodData::Card(ccard) => {
-                let card_type = match ccard
-                    .card_network
-                    .clone()
-                    .and_then(get_cybersource_card_type)
-                {
-                    Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
-                        .ok()
-                        .map(card_issuer_to_string),
-                };
+                let card_type = resolve_cybersource_card_type(
+                    ccard.card_network.clone(),
+                    ccard.card_number.peek(),
+                );
 
                 Ok(PaymentInformation::Cards(Box::new(
                     CardPaymentInformation {
@@ -3819,6 +4443,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
         let amount_details = Amount {
+            tax_amount: None,
+            discount_amount: None,
+            duty_amount: None,
+            freight_amount: None,
             total_amount,
             currency: item.router_data.request.currency.ok_or(
                 IntegrationError::MissingRequiredField {
@@ -3941,6 +4569,9 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             authentication_data,
                             connector_feature_data,
                             status_code: item.http_code,
+                            mandate_reference: None,
+                            network_txn_id: None,
+                            network_txn_link_id: None,
                         }),
                         ..item.router_data
                     })
@@ -4035,16 +4666,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         )?;
         let payment_information = match payment_method_data {
             PaymentMethodData::Card(ccard) => {
-                let card_type = match ccard
-                    .card_network
-                    .clone()
-                    .and_then(get_cybersource_card_type)
-                {
-                    Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
-                        .ok()
-                        .map(card_issuer_to_string),
-                };
+                let card_type = resolve_cybersource_card_type(
+                    ccard.card_network.clone(),
+                    ccard.card_number.peek(),
+                );
 
                 Ok(PaymentInformation::Cards(Box::new(
                     CardPaymentInformation {
@@ -4108,6 +4733,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
         let amount_details = Amount {
+            tax_amount: None,
+            discount_amount: None,
+            duty_amount: None,
+            freight_amount: None,
             total_amount,
             currency: item.router_data.request.currency.ok_or(
                 IntegrationError::MissingRequiredField {
@@ -4151,7 +4780,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_information = OrderInformationWithBill {
             amount_details,
             bill_to: Some(bill_to),
+            ship_to: None,
+            line_items: None,
+            invoice_details: None,
         };
+        // Absent browser information sends no deviceInformation; partial browser
+        // information is refused (see CybersourceDeviceInformation).
+        let device_information = item
+            .router_data
+            .request
+            .browser_info
+            .as_ref()
+            .map(CybersourceDeviceInformation::try_from)
+            .transpose()?;
+        let device_channel = item
+            .router_data
+            .request
+            .device_channel
+            .as_ref()
+            .map(CybersourceDeviceChannel::from);
 
         Ok(Self {
             payment_information,
@@ -4168,8 +4815,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })?
                     .to_string(),
                 reference_id,
+                device_channel,
             },
             order_information,
+            device_information,
         })
     }
 }
@@ -4294,6 +4943,9 @@ pub enum CybersourceAuthEnrollmentStatus {
     PendingAuthentication,
     AuthenticationSuccessful,
     AuthenticationFailed,
+    /// Any payer-authentication status this connector does not list.
+    #[serde(other)]
+    Unknown,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -4302,6 +4954,9 @@ pub struct CybersourceConsumerAuthValidateResponse {
     /// Also needed for Credit Mutuel-CIC in France and Mastercard Identity Check transactions
     /// This field is only applicable for Mastercard and Visa Transactions
     pares_status: Option<CybersourceParesStatus>,
+    /// Answer of the enrollment check. It is meaningful only when this shared response shape was
+    /// populated by the Authenticate (enrollment) leg and is absent on PostAuthenticate.
+    veres_enrolled: Option<CybersourceVeresEnrolled>,
     ucaf_collection_indicator: Option<String>,
     cavv: Option<Secret<String>>,
     ucaf_authentication_data: Option<Secret<String>>,
@@ -4355,6 +5010,9 @@ impl From<CybersourceAuthEnrollmentStatus> for common_enums::AttemptStatus {
                 Self::AuthenticationSuccessful
             }
             CybersourceAuthEnrollmentStatus::AuthenticationFailed => Self::AuthenticationFailed,
+            // An unlisted status is not an outcome: the leg stays pending and no
+            // authorization follows (Hyperswitch keeps the non-terminal status too).
+            CybersourceAuthEnrollmentStatus::Unknown => Self::AuthenticationPending,
         }
     }
 }
@@ -4562,6 +5220,77 @@ pub struct CybersourceTransactionResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationInformation {
     status: Option<CybersourcePaymentStatus>,
+    reason_code: Option<TssResultCode>,
+    applications: Option<Vec<TssApplication>>,
+}
+
+/// One entry of Transaction Search `applicationInformation.applications[]`: the
+/// result of a single service (`ics_auth`, `ics_bill`, ...) run for the request.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TssApplication {
+    name: Option<String>,
+    r_code: Option<TssResultCode>,
+    reason_code: Option<TssResultCode>,
+}
+
+/// A Transaction Search result code. `applicationInformation.reasonCode` is sent as
+/// a JSON number while `applications[].rCode` / `reasonCode` are sent as strings, so
+/// both encodings are accepted instead of failing the whole sync response.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum TssResultCode {
+    Number(i64),
+    Text(String),
+}
+
+impl TssResultCode {
+    fn is(&self, expected: i64) -> bool {
+        match self {
+            Self::Number(code) => *code == expected,
+            Self::Text(code) => code.trim().parse::<i64>().ok() == Some(expected),
+        }
+    }
+}
+
+/// Transaction Search service names in `applicationInformation.applications[].name`.
+const TSS_APPLICATION_AUTH: &str = "ics_auth";
+const TSS_APPLICATION_BILL: &str = "ics_bill";
+/// Transaction Search result codes: `reasonCode` 100 = success, `rCode` 1 = successful
+/// (0 = declined, -1 = error).
+const TSS_REASON_CODE_SUCCESS: i64 = 100;
+const TSS_R_CODE_SUCCESS: i64 = 1;
+
+impl ApplicationInformation {
+    /// Transaction Search omits `applicationInformation.status` for an authorization
+    /// that has not been captured. The response still proves the authorization when
+    /// the request-level `reasonCode` is 100, the `ics_auth` service succeeded
+    /// (`rCode` 1) and no `ics_bill` (capture) service ran. The services are looked up
+    /// by name: their position in `applications[]` is not part of the contract.
+    fn is_uncaptured_successful_authorization(&self) -> bool {
+        let request_succeeded = self
+            .reason_code
+            .as_ref()
+            .is_some_and(|code| code.is(TSS_REASON_CODE_SUCCESS));
+        let auth_succeeded = self.applications.iter().flatten().any(|application| {
+            application.name.as_deref() == Some(TSS_APPLICATION_AUTH)
+                && application
+                    .r_code
+                    .as_ref()
+                    .is_some_and(|code| code.is(TSS_R_CODE_SUCCESS))
+        });
+        // A capture that was attempted and declined (`rCode` 0 / -1) leaves the
+        // authorization standing, so it must not suppress it. A capture with no `rCode`
+        // yet is still in flight and does count.
+        let capture_ran = self.applications.iter().flatten().any(|application| {
+            application.name.as_deref() == Some(TSS_APPLICATION_BILL)
+                && application
+                    .r_code
+                    .as_ref()
+                    .is_none_or(|code| code.is(TSS_R_CODE_SUCCESS))
+        });
+        request_succeeded && auth_succeeded && !capture_ran
+    }
 }
 
 impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
@@ -4571,7 +5300,15 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
     fn try_from(
         item: ResponseRouterData<CybersourceTransactionResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        match item.response.application_information.status {
+        // One reference id on every path: the merchant reference Transaction Search
+        // echoes back, falling back to the transaction id when it carries none.
+        let connector_response_reference_id = item
+            .response
+            .client_reference_information
+            .as_ref()
+            .and_then(|cref| cref.code.clone())
+            .or_else(|| Some(item.response.id.clone()));
+        match item.response.application_information.status.clone() {
             Some(status) => {
                 let status = map_cybersource_attempt_status(
                     status,
@@ -4611,11 +5348,7 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
                             connector_metadata: None,
                             network_txn_id: None,
                             network_txn_link_id: None,
-                            connector_response_reference_id: item
-                                .response
-                                .client_reference_information
-                                .map(|cref| cref.code)
-                                .unwrap_or(Some(item.response.id)),
+                            connector_response_reference_id,
                             incremental_authorization_allowed,
                             status_code: item.http_code,
                             splits: None,
@@ -4625,26 +5358,50 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
                     })
                 }
             }
-            None => Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    status: common_enums::AttemptStatus::Unspecified,
-                    ..item.router_data.resource_common_data
-                },
-                response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    network_txn_link_id: None,
-                    connector_response_reference_id: Some(item.response.id),
-                    incremental_authorization_allowed: None,
-                    status_code: item.http_code,
-                    splits: None,
-                    payment_account_reference: None,
-                }),
-                ..item.router_data
-            }),
+            None => {
+                // No `applicationInformation.status`: only a response that itself
+                // proves the authorization is given a status. Anything else is
+                // inconclusive and keeps the status the request came in with, as
+                // Hyperswitch does; `Unspecified` is never reported from here.
+                let status = if item
+                    .response
+                    .application_information
+                    .is_uncaptured_successful_authorization()
+                {
+                    common_enums::AttemptStatus::Authorized
+                } else {
+                    match item.router_data.resource_common_data.status {
+                        // the gRPC surface seeds PSync with `Unknown`
+                        common_enums::AttemptStatus::Unspecified
+                        | common_enums::AttemptStatus::Unknown => {
+                            common_enums::AttemptStatus::Pending
+                        }
+                        current_status => current_status,
+                    }
+                };
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        network_txn_link_id: None,
+                        connector_response_reference_id,
+                        incremental_authorization_allowed: (status
+                            == common_enums::AttemptStatus::Authorized)
+                            .then_some(true),
+                        status_code: item.http_code,
+                        splits: None,
+                        payment_account_reference: None,
+                    }),
+                    ..item.router_data
+                })
+            }
         }
     }
 }
@@ -4681,6 +5438,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         Ok(Self {
             order_information: OrderInformation {
                 amount_details: Amount {
+                    tax_amount: None,
+                    discount_amount: None,
+                    duty_amount: None,
+                    freight_amount: None,
                     total_amount,
                     currency: item.router_data.request.currency,
                 },
@@ -4700,8 +5461,11 @@ impl From<CybersourceRefundStatus> for common_enums::RefundStatus {
             }
             CybersourceRefundStatus::Cancelled
             | CybersourceRefundStatus::Failed
-            | CybersourceRefundStatus::Voided => Self::Failure,
-            CybersourceRefundStatus::Pending => Self::Pending,
+            | CybersourceRefundStatus::Voided
+            | CybersourceRefundStatus::Declined
+            | CybersourceRefundStatus::InvalidRequest => Self::Failure,
+            // An unlisted status is not evidence that the refund failed.
+            CybersourceRefundStatus::Pending | CybersourceRefundStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -4715,6 +5479,11 @@ pub enum CybersourceRefundStatus {
     Pending,
     Voided,
     Cancelled,
+    Declined,
+    InvalidRequest,
+    /// Any status this connector does not list; parses instead of failing the response.
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -5090,6 +5859,21 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
     }
 }
 
+/// Resolves the Cybersource card type code (`001` Visa, `002` Mastercard, ...) for a
+/// card: from the card network when the request carries one that Cybersource has a
+/// code for, otherwise from the card number's issuer range.
+fn resolve_cybersource_card_type(
+    card_network: Option<common_enums::CardNetwork>,
+    card_number: &str,
+) -> Option<String> {
+    match card_network.and_then(get_cybersource_card_type) {
+        Some(card_type) => Some(card_type.to_string()),
+        None => domain_types::utils::get_card_issuer(card_number)
+            .ok()
+            .map(card_issuer_to_string),
+    }
+}
+
 pub trait RemoveNewLine {
     fn remove_new_line(&self) -> Self;
 }
@@ -5349,7 +6133,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             }));
 
-        let processing_information = ProcessingInformation::try_from((item, None, card_type))?;
+        let processing_information =
+            ProcessingInformation::try_from((item, None, card_type.clone()))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = convert_metadata_to_merchant_defined_info(
             item.router_data
@@ -5366,8 +6151,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .authentication_data
             .as_ref()
             .map(|authn_data| {
-                build_consumer_auth_information(authn_data, ccard.card_network.as_ref())
-            });
+                build_consumer_auth_information(
+                    authn_data,
+                    ccard.card_network.as_ref(),
+                    card_type.as_deref(),
+                )
+            })
+            .transpose()?;
 
         Ok(Self {
             processing_information,
@@ -5439,7 +6229,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             }));
 
-        let processing_information = ProcessingInformation::try_from((item, None, card_type))?;
+        let processing_information =
+            ProcessingInformation::try_from((item, None, card_type.clone()))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = convert_metadata_to_merchant_defined_info(
             item.router_data
@@ -5456,8 +6247,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .authentication_data
             .as_ref()
             .map(|authn_data| {
-                build_consumer_auth_information(authn_data, token_data.card_network.as_ref())
-            });
+                build_consumer_auth_information(
+                    authn_data,
+                    token_data.card_network.as_ref(),
+                    card_type.as_deref(),
+                )
+            })
+            .transpose()?;
 
         Ok(Self {
             processing_information,
@@ -5514,8 +6310,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount_details: Amount {
                 total_amount,
                 currency: item.router_data.request.currency,
+                tax_amount: None,
+                discount_amount: None,
+                duty_amount: None,
+                freight_amount: None,
             },
             bill_to,
+            ship_to: None,
+            line_items: None,
+            invoice_details: None,
         })
     }
 }
@@ -5778,10 +6581,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .authentication_data
             .as_ref()
             .and_then(|authn_data| {
-                authn_data
-                    .eci
-                    .clone()
-                    .map(|eci| get_commerce_indicator_for_external_authentication(network, eci))
+                authn_data.eci.clone().map(|eci| {
+                    get_commerce_indicator_for_authentication_result(
+                        network,
+                        eci,
+                        authn_data.trans_status.as_ref(),
+                    )
+                })
             });
 
         Ok(Self {
@@ -5798,6 +6604,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 commerce_indicator_for_external_authentication.unwrap_or(commerce_indicator),
             ),
             bank_transfer_options: None,
+            purchase_level: None,
         })
     }
 }
@@ -5879,7 +6686,28 @@ fn get_commerce_indicator_for_external_authentication(
     card_network: Option<String>,
     eci: String,
 ) -> String {
+    get_commerce_indicator_for_authentication_result(card_network, eci, None)
+}
+
+/// Same mapping, additionally reading the 3DS transaction status: a Mastercard /
+/// Maestro Identity Check that failed or was rejected is `spa_failure` whatever the
+/// ECI says (mirrors Hyperswitch).
+fn get_commerce_indicator_for_authentication_result(
+    card_network: Option<String>,
+    eci: String,
+    trans_status: Option<&common_enums::TransactionStatus>,
+) -> String {
     let card_network = normalize_cybersource_card_network(card_network.as_deref());
+    let mastercard_identity_check_failed =
+        matches!(card_network, Some("mastercard") | Some("maestro"))
+            && matches!(
+                trans_status,
+                Some(common_enums::TransactionStatus::Failure)
+                    | Some(common_enums::TransactionStatus::Rejected)
+            );
+    if mastercard_identity_check_failed {
+        return "spa_failure".to_string();
+    }
     match eci.as_str() {
         // Mastercard/Maestro only: 00 = not authenticated, 01 = attempted,
         // 02 = authenticated. Cybersource expects `spa` for all three.
@@ -6180,9 +7008,302 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
     }
 }
 
+// ---- Webhook types ----
+//
+// Cybersource webhook notifications (product `payments`).
+// Envelope: https://developer.cybersource.com/docs/cybs/en-us/webhooks/implementation/all/rest/webhooks/wh-fg-notification-format.html
+// Event list: https://developer.cybersource.com/docs/cybs/en-us/webhooks/implementation/all/rest/webhooks/wh-fg-intro/wh-fg-product-event-types.html
+// Signature scheme: https://developer.cybersource.com/docs/cybs/en-us/webhooks/implementation/all/rest/webhooks/wh-fg-key-dig-sig-intro.html
+
+/// Name of the header that carries the notification signature.
+pub const CYBERSOURCE_WEBHOOK_SIGNATURE_HEADER: &str = "v-c-signature";
+
+/// `eventType` of a notification. Only the `payments` product events that describe a payment
+/// or a refund are mapped; every other value (credits, token management, Decision Manager, ...)
+/// deserializes to `Unknown` and is refused.
+/// https://developer.cybersource.com/docs/cybs/en-us/webhooks/implementation/all/rest/webhooks/wh-fg-intro/wh-fg-product-event-types.html
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum CybersourceWebhookEventType {
+    #[serde(rename = "payments.authorization.status.accepted")]
+    AuthorizationAccepted,
+    #[serde(rename = "payments.authorization.status.rejected")]
+    AuthorizationRejected,
+    #[serde(rename = "payments.authorization.status.reviewed")]
+    AuthorizationReviewed,
+    #[serde(rename = "payments.authorization.status.partiallyApproved")]
+    AuthorizationPartiallyApproved,
+    #[serde(rename = "payments.capture.status.accepted")]
+    CaptureAccepted,
+    #[serde(rename = "payments.capture.status.updated")]
+    CaptureUpdated,
+    #[serde(rename = "payments.void.status.accepted")]
+    VoidAccepted,
+    #[serde(rename = "payments.void.status.rejected")]
+    VoidRejected,
+    #[serde(rename = "payments.reversal.status.accepted")]
+    ReversalAccepted,
+    #[serde(rename = "payments.reversal.status.rejected")]
+    ReversalRejected,
+    #[serde(rename = "payments.refund.status.accepted")]
+    RefundAccepted,
+    #[serde(rename = "payments.refund.status.updated")]
+    RefundUpdated,
+    #[serde(other)]
+    Unknown,
+}
+
+impl CybersourceWebhookEventType {
+    /// Whether the event describes an authorization, capture, void, or reversal. Refunds and
+    /// unknown product events are not payment events. Needs no payment context, so the stateless
+    /// `ParseEvent` path classifies an event with it.
+    /// https://developer.cybersource.com/docs/cybs/en-us/webhooks/implementation/all/rest/webhooks/wh-fg-intro/wh-fg-product-event-types.html
+    pub fn is_payment_event(self) -> bool {
+        match self {
+            Self::AuthorizationAccepted
+            | Self::AuthorizationRejected
+            | Self::AuthorizationReviewed
+            | Self::AuthorizationPartiallyApproved
+            | Self::CaptureAccepted
+            | Self::CaptureUpdated
+            | Self::VoidAccepted
+            | Self::VoidRejected
+            | Self::ReversalAccepted
+            | Self::ReversalRejected => true,
+            Self::RefundAccepted | Self::RefundUpdated | Self::Unknown => false,
+        }
+    }
+
+    /// Payment status carried by the event; `None` for refund events and unsupported events.
+    /// An accepted authorization is `Authorized`, `Charged` for a sale; an accepted capture is
+    /// `PENDING` at Cybersource whatever the capture method, and becomes `Charged` only with
+    /// `payments.capture.status.updated` (`PENDING` to `BATCHED`). A partial approval stays
+    /// `Pending`, as `PARTIAL_AUTHORIZED` does on the payment responses.
+    /// https://developer.cybersource.com/docs/cybs/en-us/webhooks/implementation/all/rest/webhooks/wh-fg-intro/wh-fg-product-event-types.html
+    ///
+    /// `payments.authorization.status.accepted` does not say whether the payment was a sale
+    /// (capture bundled with the authorization) or an authorization only, so it is read together
+    /// with the payment's capture method, exactly as `map_cybersource_attempt_status` reads
+    /// `AUTHORIZED` on Authorize / PSync: a payment context without a capture method is a sale,
+    /// because that is what the Authorize request sent for it (`capture: true` when the capture
+    /// method is absent). With no payment context at all the event is refused. Every other
+    /// event has one status and needs no context.
+    pub fn payment_status(
+        self,
+        event_context: Option<&domain_types::connector_types::EventContext>,
+    ) -> Result<
+        Option<common_enums::AttemptStatus>,
+        error_stack::Report<domain_types::errors::WebhookError>,
+    > {
+        // `true` = the payment is a sale (capture bundled with the authorization).
+        let is_sale = || match event_context.map(|context| context.capture_method) {
+            Some(Some(common_enums::CaptureMethod::Automatic) | None) => Ok(true),
+            Some(Some(
+                common_enums::CaptureMethod::Manual
+                | common_enums::CaptureMethod::ManualMultiple
+                | common_enums::CaptureMethod::Scheduled
+                | common_enums::CaptureMethod::SequentialAutomatic,
+            )) => Ok(false),
+            None => Err(error_stack::report!(
+                domain_types::errors::WebhookError::WebhookMissingRequiredContext {
+                    field: "capture_method",
+                    origin: "payment authorize",
+                }
+            )),
+        };
+        Ok(match self {
+            Self::AuthorizationAccepted => Some(if is_sale()? {
+                common_enums::AttemptStatus::Charged
+            } else {
+                common_enums::AttemptStatus::Authorized
+            }),
+            Self::AuthorizationRejected => Some(common_enums::AttemptStatus::Failure),
+            Self::AuthorizationReviewed
+            | Self::AuthorizationPartiallyApproved
+            | Self::CaptureAccepted => Some(common_enums::AttemptStatus::Pending),
+            Self::CaptureUpdated => Some(common_enums::AttemptStatus::Charged),
+            Self::VoidAccepted | Self::ReversalAccepted => {
+                Some(common_enums::AttemptStatus::Voided)
+            }
+            Self::VoidRejected | Self::ReversalRejected => {
+                Some(common_enums::AttemptStatus::VoidFailed)
+            }
+            Self::RefundAccepted | Self::RefundUpdated | Self::Unknown => None,
+        })
+    }
+
+    /// Refund status carried by the event; `None` for payment events and unsupported events.
+    /// `payments.refund.status.accepted` is `PENDING`, `payments.refund.status.updated` is the
+    /// move to `BATCHED`.
+    /// https://developer.cybersource.com/docs/cybs/en-us/webhooks/implementation/all/rest/webhooks/wh-fg-intro/wh-fg-product-event-types.html
+    pub fn refund_status(self) -> Option<common_enums::RefundStatus> {
+        match self {
+            Self::RefundAccepted => Some(common_enums::RefundStatus::Pending),
+            Self::RefundUpdated => Some(common_enums::RefundStatus::Success),
+            Self::AuthorizationAccepted
+            | Self::AuthorizationRejected
+            | Self::AuthorizationReviewed
+            | Self::AuthorizationPartiallyApproved
+            | Self::CaptureAccepted
+            | Self::CaptureUpdated
+            | Self::VoidAccepted
+            | Self::VoidRejected
+            | Self::ReversalAccepted
+            | Self::ReversalRejected
+            | Self::Unknown => None,
+        }
+    }
+}
+
+impl TryFrom<CybersourceWebhookEventType> for domain_types::connector_types::EventType {
+    type Error = error_stack::Report<domain_types::errors::WebhookError>;
+
+    /// https://developer.cybersource.com/docs/cybs/en-us/webhooks/implementation/all/rest/webhooks/wh-fg-intro/wh-fg-product-event-types.html
+    fn try_from(event_type: CybersourceWebhookEventType) -> Result<Self, Self::Error> {
+        match event_type {
+            CybersourceWebhookEventType::AuthorizationAccepted => {
+                Ok(Self::PaymentIntentAuthorizationSuccess)
+            }
+            CybersourceWebhookEventType::AuthorizationRejected => Ok(Self::PaymentIntentFailure),
+            CybersourceWebhookEventType::AuthorizationReviewed
+            | CybersourceWebhookEventType::AuthorizationPartiallyApproved
+            | CybersourceWebhookEventType::CaptureAccepted => Ok(Self::PaymentIntentProcessing),
+            CybersourceWebhookEventType::CaptureUpdated => Ok(Self::PaymentIntentCaptureSuccess),
+            CybersourceWebhookEventType::VoidAccepted
+            | CybersourceWebhookEventType::ReversalAccepted => Ok(Self::PaymentIntentCancelled),
+            CybersourceWebhookEventType::VoidRejected
+            | CybersourceWebhookEventType::ReversalRejected => Ok(Self::PaymentIntentCancelFailure),
+            CybersourceWebhookEventType::RefundAccepted => Ok(Self::RefundProcessing),
+            CybersourceWebhookEventType::RefundUpdated => Ok(Self::RefundSuccess),
+            // No status is derived from an event this connector does not map.
+            CybersourceWebhookEventType::Unknown => Err(error_stack::report!(
+                domain_types::errors::WebhookError::WebhookEventTypeNotFound
+            ))
+            .attach_printable("Cybersource webhook: unsupported eventType"),
+        }
+    }
+}
+
+/// Notification envelope. Only a plaintext JSON body is readable: a message-level encrypted
+/// (JWE) notification does not deserialize into this shape and is refused.
+/// LIMITATION: Cybersource documents payments.* notifications as message-level encrypted;
+/// until decryption is implemented (plan UD-01 / C-01) such a notification is refused, never parsed.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceWebhookBody {
+    pub event_type: CybersourceWebhookEventType,
+    pub payload: Option<CybersourceWebhookPayload>,
+    pub webhook_id: Option<String>,
+    pub organization_id: Option<Secret<String>>,
+    pub transaction_trace_id: Option<String>,
+    pub event_date: Option<String>,
+    pub retry_number: Option<i32>,
+    pub request_type: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceWebhookPayload {
+    pub data: Option<CybersourceWebhookPayloadData>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceWebhookPayloadData {
+    pub id: Option<String>,
+    pub client_reference_information: Option<ClientReferenceInformation>,
+}
+
+impl CybersourceWebhookBody {
+    /// The object the notification is about: `payload.data.id`, the only payload shape the
+    /// documentation publishes (the `payments.*` payload schema itself is undocumented).
+    /// The plaintext fixtures assume every mapped authorization, capture, void, reversal, and
+    /// refund event carries this field; live encrypted notifications have not verified that
+    /// assumption. An absent or empty id is an error, never a default.
+    pub fn object_reference_id(
+        &self,
+    ) -> Result<String, error_stack::Report<domain_types::errors::WebhookError>> {
+        self.payload
+            .as_ref()
+            .and_then(|payload| payload.data.as_ref())
+            .and_then(|data| data.id.as_ref())
+            .map(|id| id.trim().to_owned())
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| {
+                error_stack::report!(domain_types::errors::WebhookError::WebhookReferenceIdNotFound)
+            })
+            .attach_printable("Cybersource webhook: payload.data.id is absent or empty")
+    }
+
+    /// Caller-assigned payment-attempt or refund id, when Cybersource echoes the request's
+    /// `clientReferenceInformation.code` in the event data. A blank value is treated as absent.
+    pub fn merchant_reference_id(&self) -> Option<String> {
+        self.payload
+            .as_ref()
+            .and_then(|payload| payload.data.as_ref())
+            .and_then(|data| data.client_reference_information.as_ref())
+            .and_then(|reference| reference.code.as_deref())
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned)
+    }
+}
+
+/// Parsed `v-c-signature` header: `t=<timestamp>;keyId=<key id>;sig=<Base64 HMAC-SHA256>`.
+#[derive(Debug)]
+pub struct CybersourceWebhookSignature {
+    pub timestamp: String,
+    /// Parsed for completeness. UCS accepts one configured webhook key and has no key registry,
+    /// so verification uses that key rather than selecting a secret by this untrusted header.
+    pub key_id: Option<String>,
+    pub signature: String,
+}
+
+/// Splits the `v-c-signature` header on `;` into its `t`, `keyId` and `sig` parameters.
+/// Each parameter is split on its first `=` only, because the Base64 `sig` may end in `=`.
+/// https://developer.cybersource.com/docs/cybs/en-us/webhooks/implementation/all/rest/webhooks/wh-fg-key-dig-sig-intro.html
+pub fn parse_cybersource_webhook_signature(
+    header: &str,
+) -> Result<CybersourceWebhookSignature, error_stack::Report<domain_types::errors::WebhookError>> {
+    let mut timestamp = None;
+    let mut key_id = None;
+    let mut signature = None;
+
+    for parameter in header.split(';') {
+        if let Some((name, value)) = parameter.trim().split_once('=') {
+            let value = value.trim();
+            if value.is_empty() {
+                continue;
+            }
+            match name.trim() {
+                "t" => timestamp = Some(value.to_string()),
+                "keyId" => key_id = Some(value.to_string()),
+                "sig" => signature = Some(value.to_string()),
+                // Parameters this connector does not use are ignored.
+                _ => {}
+            }
+        }
+    }
+
+    match (timestamp, signature) {
+        (Some(timestamp), Some(signature)) => Ok(CybersourceWebhookSignature {
+            timestamp,
+            key_id,
+            signature,
+        }),
+        (None, _) | (_, None) => Err(error_stack::report!(
+            domain_types::errors::WebhookError::WebhookSignatureNotFound
+        ))
+        .attach_printable("Cybersource webhook: v-c-signature header has no `t` or no `sig`"),
+    }
+}
+
 #[cfg(test)]
-mod commerce_indicator_tests {
-    use super::get_commerce_indicator_for_external_authentication;
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::{
+        get_commerce_indicator_for_external_authentication, CybersourceWebhookBody,
+        CybersourceWebhookEventType,
+    };
 
     /// Callers pass the Cybersource numeric card type on the Authorize and
     /// RepeatPayment paths, and the card-network name on SetupMandate. Both must
@@ -6236,6 +7357,41 @@ mod commerce_indicator_tests {
                 "99".to_string()
             ),
             "internet"
+        );
+    }
+
+    #[test]
+    fn webhook_merchant_reference_is_trimmed_when_present() {
+        let body: CybersourceWebhookBody = serde_json::from_value(serde_json::json!({
+            "eventType": "payments.capture.status.accepted",
+            "payload": {
+                "data": {
+                    "id": "capture_123",
+                    "clientReferenceInformation": { "code": " attempt_123 " }
+                }
+            }
+        }))
+        .expect("valid Cybersource webhook fixture");
+
+        assert_eq!(body.merchant_reference_id().as_deref(), Some("attempt_123"));
+        assert_eq!(
+            body.object_reference_id()
+                .expect("fixture carries a reference id"),
+            "capture_123"
+        );
+    }
+
+    #[test]
+    fn sequential_automatic_authorization_is_not_a_sale() {
+        let context = domain_types::connector_types::EventContext {
+            capture_method: Some(common_enums::CaptureMethod::SequentialAutomatic),
+        };
+
+        assert_eq!(
+            CybersourceWebhookEventType::AuthorizationAccepted
+                .payment_status(Some(&context))
+                .expect("capture method is supported"),
+            Some(common_enums::AttemptStatus::Authorized)
         );
     }
 }

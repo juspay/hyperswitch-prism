@@ -926,6 +926,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_transaction_id: Some(p.tran_id),
                     // order_id is the merchant-assigned order reference echoed back by Fiuu.
                     merchant_transaction_id: Some(p.order_id),
+                    connector_preprocessing_id: None,
                 })
             }
             FiuuWebhooksResponse::FiuuWebhookRefundResponse(r) => {

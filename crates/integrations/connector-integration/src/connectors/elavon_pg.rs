@@ -8,7 +8,7 @@
 //! gateway 3DS, which it runs inside a Hosted Payment Page: CreateOrder
 //! (`POST /orders`) and PreAuthenticate (`POST /payment-sessions`) set the page up,
 //! the shopper enters the card there, and Authorize settles it with
-//! `POST /transactions {"paymentSession": …}`. One-time payments only, plus the
+//! `POST /transactions {"paymentSession": …, "total": …}`. One-time payments only, plus the
 //! companion PSync / Capture / Void / Refund / RSync flows so that a manual-capture
 //! authorization always has a settle and a release path.
 
@@ -286,7 +286,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     /// Card 3DS: PreAuthenticate opens the hosted payment session and returns the
     /// shopper URL; once the shopper comes back, the settle Authorize completes the sale
-    /// with `POST /transactions {"paymentSession": <href>}`.
+    /// with `POST /transactions {"paymentSession": <href>, "total": <amount>}`.
     ///
     /// There is no Authenticate or PostAuthenticate leg — EPG runs the challenge inside
     /// its own page and hands back a payment session, not an ACS handshake. Every other

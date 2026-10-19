@@ -146,6 +146,14 @@ default = '{}'
 [connector_overrides."get,refund,refund_get".paydotcom]
 "connector_transaction_id" = "chrg_146231656762572800"
 
+# Stripe's cancel endpoint takes an optional `cancellation_reason` restricted to
+# four documented values (https://docs.stripe.com/api/payment_intents/cancel),
+# and the connector omits the field for anything else. The base void request
+# leaves it unset, so the probed body would never show the field; pre-set a
+# documented value so the probe records the wire shape.
+[connector_overrides.void.stripe]
+"cancellation_reason" = "requested_by_customer"
+
 # Braintree's refund_get (RSync) reads `currency` and `merchant_account_id` from
 # `refund_metadata` (a Secret<String> JSON blob) rather than top-level fields.
 # Pre-populate it so the probe never gets stuck on "Missing required field: currency".
@@ -159,6 +167,49 @@ default = '{}'
 # get the same probe customer id `recurring_charge` already uses.
 [connector_overrides."setup_recurring,proxy_setup_recurring,token_setup_recurring".shift4]
 "customer.connector_customer_id" = "cust_probe_123"
+
+# Cybersource serialises shipping details, the dynamic descriptor and Level II/III
+# data only when the request carries them. None of them is a required field, so
+# the patcher never adds them and the probed body would never show
+# orderInformation.shipTo / lineItems / invoiceDetails, purchaseLevel or
+# merchantInformation.merchantDescriptor. Pre-set them. 1 = CountryAlpha2::US.
+[connector_overrides.authorize.cybersource]
+"address.shipping_address.first_name" = "Jane"
+"address.shipping_address.last_name" = "Doe"
+"address.shipping_address.line1" = "123 Main St"
+"address.shipping_address.line2" = "Suite 4"
+"address.shipping_address.city" = "Seattle"
+"address.shipping_address.state" = "WA"
+"address.shipping_address.zip_code" = "98101"
+"address.shipping_address.country_alpha2_code" = 1
+"address.shipping_address.phone_number" = "4155552671"
+"billing_descriptor.name" = "PROBE STORE"
+"billing_descriptor.statement_descriptor" = "PROBE STORE"
+"l2_l3_data.order_info.merchant_order_reference_id" = "PO-PROBE-001"
+"l2_l3_data.order_info.discount_amount" = 0
+"l2_l3_data.order_info.shipping_cost" = 100
+"l2_l3_data.order_info.duty_amount" = 50
+"l2_l3_data.order_info.order_details" = [
+    { product_name = "Probe item", quantity = 1, amount = 800, total_tax_amount = 50, category = "default", sku = "PROBE-SKU-1", unit_of_measure = "EA", commodity_code = "4421" },
+]
+"l2_l3_data.tax_info.order_tax_amount" = 50
+
+# The same holds for the device data of the payer-authentication enrollment
+# call: Cybersource's deviceInformation and deviceChannel are emitted only when
+# browser_info / the device channel are present. The Authenticate request has no
+# device_channel field of its own - it travels in `metadata`, a JSON string.
+[connector_overrides.authenticate.cybersource]
+"browser_info.color_depth" = 24
+"browser_info.screen_height" = 900
+"browser_info.screen_width" = 1440
+"browser_info.java_enabled" = false
+"browser_info.java_script_enabled" = true
+"browser_info.language" = "en-US"
+"browser_info.time_zone_offset_minutes" = -480
+"browser_info.accept_header" = "application/json"
+"browser_info.user_agent" = "Mozilla/5.0 (probe-bot)"
+"browser_info.ip_address" = "1.2.3.4"
+"metadata" = '{"device_channel":"BRW"}'
 
 # Authorize.Net sends several request elements only when the caller supplies the
 # optional input behind them (billTo.phoneNumber / email, shipTo, the Level 2/3

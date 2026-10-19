@@ -76,7 +76,7 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: RepeatPayment,
-            request_body: WorldpayraftRepeatPaymentRequest,
+            request_body: WorldpayraftRepeatPaymentRequest<T>,
             response_body: WorldpayraftRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
@@ -466,7 +466,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Worldpayraft,
-    curl_request: Json(WorldpayraftRepeatPaymentRequest),
+    curl_request: Json(WorldpayraftRepeatPaymentRequest<T>),
     curl_response: WorldpayraftRepeatPaymentResponse,
     flow_name: RepeatPayment,
     resource_common_data: PaymentFlowData,
@@ -487,7 +487,8 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
-            Ok(format!("{base_url}/credit/authorization"))
+            let path = if req.request.is_auto_capture() { "credit/purchase" } else { "credit/authorization" };
+            Ok(format!("{base_url}/{path}"))
         }
     }
 );

@@ -71,6 +71,7 @@ macros::create_all_prerequisites!(
             request_body: TsysTransitAuthorizeRequest,
             response_body: TsysTransitAuthorizeResponse,
             response_format: xml,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
@@ -78,6 +79,7 @@ macros::create_all_prerequisites!(
             request_body: TsysTransitTransactionInquiryRequest,
             response_body: TsysTransitTransactionInquiryResponse,
             response_format: xml,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
@@ -85,6 +87,7 @@ macros::create_all_prerequisites!(
             request_body: TsysTransitCaptureRequest,
             response_body: TsysTransitCaptureResponse,
             response_format: xml,
+            response_router_data: connector,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (
@@ -92,6 +95,7 @@ macros::create_all_prerequisites!(
             request_body: TsysTransitReturnRequest,
             response_body: TsysTransitReturnResponse,
             response_format: xml,
+            response_router_data: connector,
             router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ),
         (
@@ -134,6 +138,7 @@ macros::create_all_prerequisites!(
             request_body: TsysTransitRepeatPaymentRequest,
             response_body: TsysTransitRepeatPaymentResponse,
             response_format: xml,
+            response_router_data: connector,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
@@ -243,24 +248,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TsysTransit<T> {
-    pub fn preprocess_response_bytes<F, FCD, Req, Res>(
-        &self,
-        _req: &RouterDataV2<F, FCD, Req, Res>,
-        bytes: bytes::Bytes,
-        status_code: u16,
-    ) -> CustomResult<bytes::Bytes, IntegrationError> {
-        let raw_response_xml = String::from_utf8_lossy(bytes.as_ref());
-        tracing::info!(
-            connector = "tsysTransit",
-            http_status = status_code,
-            raw_response_xml = %raw_response_xml,
-            "tsysTransit raw connector response"
-        );
-        Ok(bytes)
-    }
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for TsysTransit<T>
 {
@@ -352,7 +339,6 @@ macros::macro_connector_implementation!(
     flow_request: PaymentsAuthorizeData<T>,
     flow_response: PaymentsResponseData,
     http_method: Post,
-    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -390,7 +376,6 @@ macros::macro_connector_implementation!(
     flow_request: PaymentsSyncData,
     flow_response: PaymentsResponseData,
     http_method: Post,
-    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -428,7 +413,6 @@ macros::macro_connector_implementation!(
     flow_request: PaymentsCaptureData,
     flow_response: PaymentsResponseData,
     http_method: Post,
-    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -466,7 +450,6 @@ macros::macro_connector_implementation!(
     flow_request: RefundsData,
     flow_response: RefundsResponseData,
     http_method: Post,
-    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -510,7 +493,6 @@ macros::macro_connector_implementation!(
     flow_request: RefundSyncData,
     flow_response: RefundsResponseData,
     http_method: Post,
-    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -548,7 +530,6 @@ macros::macro_connector_implementation!(
     flow_request: RefundVoidPostRefundData,
     flow_response: RefundsResponseData,
     http_method: Post,
-    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -583,7 +564,6 @@ macros::macro_connector_implementation!(
     flow_request: PaymentVoidData,
     flow_response: PaymentsResponseData,
     http_method: Post,
-    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -621,7 +601,6 @@ macros::macro_connector_implementation!(
     flow_request: PaymentsCancelPostCaptureData,
     flow_response: PaymentsResponseData,
     http_method: Post,
-    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -659,7 +638,6 @@ macros::macro_connector_implementation!(
     flow_request: SetupMandateRequestData<T>,
     flow_response: PaymentsResponseData,
     http_method: Post,
-    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -702,7 +680,6 @@ macros::macro_connector_implementation!(
     flow_request: RepeatPaymentData<T>,
     flow_response: PaymentsResponseData,
     http_method: Post,
-    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {

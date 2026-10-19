@@ -748,6 +748,8 @@ pub struct Revolv3AuthorizeResponse {
     pub response_code: Option<String>,
     pub processor_transaction_id: Option<String>,
     pub auth_code: Option<String>,
+    pub revolv3_response_code: Option<String>,
+    pub revolv3_response_message: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -763,6 +765,8 @@ pub struct Revolv3SaleResponse {
     pub response_code: Option<String>,
     pub processor_transaction_id: Option<String>,
     pub auth_code: Option<String>,
+    pub revolv3_response_code: Option<String>,
+    pub revolv3_response_message: Option<String>,
 }
 
 pub struct DerivedPaymentResponse {
@@ -779,14 +783,19 @@ impl Revolv3SaleResponse {
         let response = if domain_types::utils::is_payment_failure(status) {
             Err(domain_types::router_data::ErrorResponse {
                 code: self
-                    .response_code
+                    .revolv3_response_code
                     .clone()
+                    .or_else(|| self.response_code.clone())
                     .unwrap_or(common_utils::consts::NO_ERROR_CODE.to_string()),
                 message: self
-                    .response_message
+                    .revolv3_response_message
                     .clone()
+                    .or_else(|| self.response_message.clone())
                     .unwrap_or(common_utils::consts::NO_ERROR_MESSAGE.to_string()),
-                reason: self.response_message.clone(),
+                reason: self
+                    .revolv3_response_message
+                    .clone()
+                    .or_else(|| self.response_message.clone()),
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: Some(self.invoice_id.to_string()),
@@ -871,14 +880,19 @@ impl Revolv3AuthorizeResponse {
                 status: AttemptStatus::Failure,
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: self
-                        .response_code
+                        .revolv3_response_code
                         .clone()
+                        .or_else(|| self.response_code.clone())
                         .unwrap_or(common_utils::consts::NO_ERROR_CODE.to_string()),
                     message: self
-                        .response_message
+                        .revolv3_response_message
                         .clone()
+                        .or_else(|| self.response_message.clone())
                         .unwrap_or(common_utils::consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: self.response_message.clone(),
+                    reason: self
+                        .revolv3_response_message
+                        .clone()
+                        .or_else(|| self.response_message.clone()),
                     status_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -970,6 +984,8 @@ pub struct Revolv3InvoiceAttempt {
     pub invoice_attempt_date: String,
     pub response_code: Option<String>,
     pub response_message: Option<String>,
+    pub revolv3_response_code: Option<String>,
+    pub revolv3_response_message: Option<String>,
 }
 
 fn get_latest_attempt(
@@ -998,11 +1014,21 @@ impl TryFrom<ResponseRouterData<Revolv3PaymentSyncResponse, Self>>
         let status = AttemptStatus::from(&item.response.invoice_status);
         let response = if domain_types::utils::is_payment_failure(status) {
             let latest_attempt = get_latest_attempt(&item.response.invoice_attempts);
-            let error_message = latest_attempt.and_then(|attempt| attempt.response_message.clone());
+            let error_message = latest_attempt.and_then(|attempt| {
+                attempt
+                    .revolv3_response_message
+                    .clone()
+                    .or_else(|| attempt.response_message.clone())
+            });
 
             Err(domain_types::router_data::ErrorResponse {
                 code: latest_attempt
-                    .and_then(|attempt| attempt.response_code.clone())
+                    .and_then(|attempt| {
+                        attempt
+                            .revolv3_response_code
+                            .clone()
+                            .or_else(|| attempt.response_code.clone())
+                    })
                     .unwrap_or(common_utils::consts::NO_ERROR_CODE.to_string()),
                 message: error_message
                     .clone()
@@ -1146,13 +1172,21 @@ impl TryFrom<ResponseRouterData<Revolv3RefundResponse, Self>>
         let refund_status = RefundStatus::from(&item.response.invoice.invoice_status);
         let response = if is_refund_failure(refund_status) {
             let latest_attempt = get_latest_attempt(&item.response.refunds);
-            let error_message = latest_attempt
-                .as_ref()
-                .and_then(|attempt| attempt.response_message.clone());
+            let error_message = latest_attempt.as_ref().and_then(|attempt| {
+                attempt
+                    .revolv3_response_message
+                    .clone()
+                    .or_else(|| attempt.response_message.clone())
+            });
             Err(domain_types::router_data::ErrorResponse {
                 code: latest_attempt
                     .as_ref()
-                    .and_then(|attempt| attempt.response_code.clone())
+                    .and_then(|attempt| {
+                        attempt
+                            .revolv3_response_code
+                            .clone()
+                            .or_else(|| attempt.response_code.clone())
+                    })
                     .unwrap_or(common_utils::consts::NO_ERROR_CODE.to_string()),
                 message: error_message
                     .clone()
@@ -1207,13 +1241,21 @@ impl TryFrom<ResponseRouterData<Revolv3RefundSyncResponse, Self>>
         let refund_status = RefundStatus::from(&item.response.invoice_status);
         let response = if is_refund_failure(refund_status) {
             let latest_attempt = get_latest_attempt(&item.response.invoice_attempts);
-            let error_message = latest_attempt
-                .as_ref()
-                .and_then(|attempt| attempt.response_message.clone());
+            let error_message = latest_attempt.as_ref().and_then(|attempt| {
+                attempt
+                    .revolv3_response_message
+                    .clone()
+                    .or_else(|| attempt.response_message.clone())
+            });
             Err(domain_types::router_data::ErrorResponse {
                 code: latest_attempt
                     .as_ref()
-                    .and_then(|attempt| attempt.response_code.clone())
+                    .and_then(|attempt| {
+                        attempt
+                            .revolv3_response_code
+                            .clone()
+                            .or_else(|| attempt.response_code.clone())
+                    })
                     .unwrap_or(common_utils::consts::NO_ERROR_CODE.to_string()),
                 message: error_message
                     .clone()

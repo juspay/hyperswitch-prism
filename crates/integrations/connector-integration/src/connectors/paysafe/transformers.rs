@@ -2359,6 +2359,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthenticateRe
             connector_feature_data,
             connector_response_reference_id: Some(merchant_ref_num.clone()),
             status_code: http_code,
+            mandate_reference: None,
+            network_txn_id: None,
+            network_txn_link_id: None,
         };
 
         Ok(Self {

@@ -7,7 +7,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode, OptionExt},
     pii::{self, Email},
     request::Method,
-    types::{MinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{
@@ -15,12 +15,13 @@ use domain_types::{
         IncrementalAuthorization, PaymentMethodToken, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse,
-        DisputeAdditionalDetails, DisputeNetworkDetails, DisputeWebhookDetailsResponse,
-        DisputeWebhookReference, EventType, L2L3Data, MandateReference, MandateReferenceId,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
+        BillingDescriptor, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorCustomerData, ConnectorCustomerResponse,
+        ConnectorSpecificClientAuthenticationResponse, DisputeAdditionalDetails,
+        DisputeNetworkDetails, DisputeWebhookDetailsResponse, DisputeWebhookReference, EventType,
+        L2L3Data, MandateReference, MandateReferenceId, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RapidDisputeResolution, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
         RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
@@ -300,6 +301,14 @@ pub struct PaymentIntentRequest<
     pub line_items: Option<StripeLineItemsData>,
     #[serde(rename = "payment_method_options[card][moto]")]
     pub moto: Option<bool>,
+    /// 3DS request for a card supplied as a token (`payment_method=pm_...` or
+    /// `payment_method_data[card][token]=tok_...`). The raw-card arm carries the same
+    /// parameter inside `payment_data`; the two are never set together.
+    #[serde(
+        rename = "payment_method_options[card][request_three_d_secure]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub token_request_three_d_secure: Option<Auth3ds>,
     /// The Stripe account ID that these funds are intended for
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<String>,
@@ -1957,6 +1966,93 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
     }
 }
 
+/// Error for an externally authenticated (3DS import) card payment that lacks a field Stripe
+/// marks required.
+fn external_three_ds_missing_field(field_name: &'static str) -> IntegrationError {
+    IntegrationError::MissingRequiredField {
+        field_name,
+        context: IntegrationErrorContext {
+            suggested_action: Some(format!(
+                "send {field_name} from the external 3DS authentication result, or omit authentication_data to let Stripe authenticate"
+            )),
+            doc_url: Some(
+                "https://docs.stripe.com/payments/payment-intents/three-d-secure-import"
+                    .to_string(),
+            ),
+            additional_context: Some(
+                "an external 3DS result is imported only with its outcome (trans_status) and the cryptogram, version and transaction_id Stripe requires"
+                    .to_string(),
+            ),
+        },
+    }
+}
+
+/// Error for an external 3DS import whose authentication did not complete successfully
+/// (G-Authorize-03).
+fn external_three_ds_outcome_not_importable() -> IntegrationError {
+    IntegrationError::InvalidDataFormat {
+        field_name: "authentication_data.trans_status",
+        context: IntegrationErrorContext {
+            suggested_action: Some(
+                "import only a successful (Y), attempted (A) or informational (I) authentication; for any other outcome omit authentication_data and let Stripe authenticate, or do not authorize"
+                    .to_string(),
+            ),
+            doc_url: Some(
+                "https://docs.stripe.com/payments/payment-intents/three-d-secure-import"
+                    .to_string(),
+            ),
+            additional_context: Some(
+                "the external 3DS authentication did not complete successfully; it is not imported"
+                    .to_string(),
+            ),
+        },
+    }
+}
+
+/// Error for an attempted (A) external 3DS import whose ECI is not an attempt ECI
+/// (G-Authorize-03).
+fn external_three_ds_attempt_not_corroborated() -> IntegrationError {
+    IntegrationError::InvalidDataFormat {
+        field_name: "authentication_data.eci",
+        context: IntegrationErrorContext {
+            suggested_action: Some(
+                "send the ECI and trans_status exactly as the 3DS provider returned them: an attempted (A) authentication carries ECI 06 (01 on Mastercard); a full-authentication ECI requires trans_status Y"
+                    .to_string(),
+            ),
+            doc_url: Some(
+                "https://docs.stripe.com/payments/payment-intents/three-d-secure-import"
+                    .to_string(),
+            ),
+            additional_context: Some(
+                "an attempted or unstated authentication outcome is not imported with a full-authentication ECI"
+                    .to_string(),
+            ),
+        },
+    }
+}
+
+/// Error for an informational-only (I) external 3DS import whose ECI claims cardholder
+/// authentication (G-Authorize-03).
+fn external_three_ds_informational_not_corroborated() -> IntegrationError {
+    IntegrationError::InvalidDataFormat {
+        field_name: "authentication_data.eci",
+        context: IntegrationErrorContext {
+            suggested_action: Some(
+                "send the ECI and trans_status exactly as the 3DS provider returned them: an informational-only (I) outcome carries ECI 07 (06 on Mastercard); a full-authentication ECI requires trans_status Y"
+                    .to_string(),
+            ),
+            doc_url: Some(
+                "https://docs.stripe.com/payments/payment-intents/three-d-secure-import"
+                    .to_string(),
+            ),
+            additional_context: Some(
+                "an informational-only authentication outcome is not imported with an ECI that claims cardholder authentication"
+                    .to_string(),
+            ),
+        },
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<(
         &Card<T>,
@@ -1986,29 +2082,115 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ),
     ) -> Result<Self, Self::Error> {
         let payment_method_auth_type = match authentication_data {
-            Some(data) => Some(StripePaymentMethodAuthType::External3ds(
-                StripeExternalThreeDsData {
-                    three_ds_version: data.message_version.as_ref().map(ToString::to_string),
-                    electronic_commerce_indicator: data.eci.clone(),
-                    cryptogram: data.cavv.clone().ok_or(
-                        IntegrationError::MissingRequiredField {
-                            field_name: "authentication_data.cavv",
-                            context: Default::default(),
-                        },
-                    )?,
-                    transaction_id: data.ds_trans_id.clone(),
-                    ares_trans_status: data.trans_status.clone(),
-                    exemption_indicator: data.exemption_indicator.as_ref().and_then(|risk| {
-                        match risk {
-                            common_enums::ExemptionIndicator::LowRiskProgram
-                            | common_enums::ExemptionIndicator::LowValue => {
-                                Some(StripeThreeDsExemptionIndicator::LowRisk)
+            Some(data) => {
+                // G-Authorize-03: only a completed, non-negative authentication is imported.
+                // Stripe accepts every `ares_trans_status` value and its test mode reports
+                // `result: authenticated` even for `N`, so the outcome has to be judged here:
+                // a failed, rejected, unavailable or still-pending authentication must never
+                // be presented to the issuer as a 3DS result, and an import that does not
+                // state its outcome is refused rather than assumed successful.
+                match data.trans_status.as_ref() {
+                    Some(common_enums::TransactionStatus::Success) => {}
+                    // Informational only (I): the issuer acknowledged the requestor's
+                    // no-challenge preference (acquirer exemption / data share). No cardholder
+                    // authentication took place, so it is imported only with an ECI that does
+                    // not claim one: `06` (Mastercard: acquirer SCA exemption) or `07`
+                    // (non-authenticated on the other networks; on Mastercard `07` means fully
+                    // authenticated recurring). Stripe grades the import by the ECI - `I` sent
+                    // with `05` / `02` is reported and charged as `authenticated`
+                    // (https://docs.stripe.com/payments/payment-intents/three-d-secure-import).
+                    Some(common_enums::TransactionStatus::InformationOnly) => {
+                        match (data.eci.as_deref(), card.card_network.as_ref()) {
+                            (Some("06"), _) => {}
+                            (Some("07"), Some(common_enums::CardNetwork::Mastercard)) => {
+                                Err(external_three_ds_informational_not_corroborated())?
                             }
-                            _ => None,
+                            (Some("07"), _) => {}
+                            (Some(_), _) => {
+                                Err(external_three_ds_informational_not_corroborated())?
+                            }
+                            (None, _) => {
+                                Err(external_three_ds_missing_field("authentication_data.eci"))?
+                            }
                         }
-                    }),
-                },
-            )),
+                    }
+                    // An attempted authentication (A) is imported only with an attempt ECI.
+                    // Stripe derives `three_d_secure.result` from the ECI, not from
+                    // `ares_trans_status`: `A` sent with `02`/`05` is reported and charged as
+                    // `authenticated`. `01` (Mastercard) and `06` are the attempt-acknowledged
+                    // values (https://docs.stripe.com/payments/payment-intents/three-d-secure-import).
+                    // This also covers a proto `TRANSACTION_STATUS_UNSPECIFIED`, which the
+                    // shared conversion delivers here as `NotVerified`.
+                    Some(common_enums::TransactionStatus::NotVerified) => {
+                        match data.eci.as_deref() {
+                            Some("01" | "06") => {}
+                            Some(_) => Err(external_three_ds_attempt_not_corroborated())?,
+                            None => {
+                                Err(external_three_ds_missing_field("authentication_data.eci"))?
+                            }
+                        }
+                    }
+                    Some(
+                        common_enums::TransactionStatus::Failure
+                        | common_enums::TransactionStatus::Rejected
+                        | common_enums::TransactionStatus::VerificationNotPerformed
+                        | common_enums::TransactionStatus::ChallengeRequired
+                        | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+                        | common_enums::TransactionStatus::SecurePaymentConfirmationRequired,
+                    ) => Err(external_three_ds_outcome_not_importable())?,
+                    None => Err(external_three_ds_missing_field(
+                        "authentication_data.trans_status",
+                    ))?,
+                }
+                // G-Authorize-02: Stripe marks `cryptogram`, `version` and `transaction_id`
+                // required when importing a 3DS result
+                // (https://docs.stripe.com/payments/payment-intents/three-d-secure-import), so a
+                // missing one is refused here rather than sent as a guaranteed 400.
+                let cryptogram = data
+                    .cavv
+                    .clone()
+                    .ok_or_else(|| external_three_ds_missing_field("authentication_data.cavv"))?;
+                let three_ds_version = data
+                    .message_version
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .ok_or_else(|| {
+                        external_three_ds_missing_field("authentication_data.message_version")
+                    })?;
+                let transaction_id = data.ds_trans_id.clone().ok_or_else(|| {
+                    external_three_ds_missing_field("authentication_data.ds_trans_id")
+                })?;
+                Some(StripePaymentMethodAuthType::External3ds(
+                    StripeExternalThreeDsData {
+                        three_ds_version: Some(three_ds_version),
+                        electronic_commerce_indicator: data.eci.clone(),
+                        cryptogram,
+                        transaction_id: Some(transaction_id),
+                        ares_trans_status: data.trans_status.clone(),
+                        // Stripe's `exemption_indicator` is `low_risk | none`, where `low_risk`
+                        // is the transaction-risk-analysis exemption
+                        // (https://docs.stripe.com/payments/payment-intents/three-d-secure-import).
+                        // A low-value exemption is a different SCA exemption, so it is omitted
+                        // rather than reported to the issuer as `low_risk`.
+                        exemption_indicator: data.exemption_indicator.as_ref().and_then(|risk| {
+                            match risk {
+                                common_enums::ExemptionIndicator::LowRiskProgram => {
+                                    Some(StripeThreeDsExemptionIndicator::LowRisk)
+                                }
+                                common_enums::ExemptionIndicator::LowValue
+                                | common_enums::ExemptionIndicator::SecureCorporatePayment
+                                | common_enums::ExemptionIndicator::TrustedListing
+                                | common_enums::ExemptionIndicator::TransactionRiskAssessment
+                                | common_enums::ExemptionIndicator::ThreeDsOutage
+                                | common_enums::ExemptionIndicator::ScaDelegation
+                                | common_enums::ExemptionIndicator::OutOfScaScope
+                                | common_enums::ExemptionIndicator::Other
+                                | common_enums::ExemptionIndicator::RecurringOperation => None,
+                            }
+                        }),
+                    },
+                ))
+            }
             None => Some(StripePaymentMethodAuthType::Request3ds {
                 payment_method_auth_type,
             }),
@@ -2347,6 +2529,95 @@ fn is_setup_future_usage_supported(
     )
 }
 
+fn has_usable_return_url(router_return_url: Option<&str>) -> bool {
+    router_return_url.is_some_and(|return_url| !return_url.trim().is_empty())
+}
+
+/// G-ThreeDS-01: a payment that asks for 3DS can be answered with `requires_action` and
+/// `next_action.redirect_to_url`, and Stripe sends the shopper back to `return_url` once the
+/// challenge ends (https://docs.stripe.com/payments/3d-secure/authentication-flow). Without a
+/// usable caller-supplied URL the builder's fallback would strand the shopper on a page the
+/// merchant does not own, so such a request is refused. A completed external 3DS result cannot
+/// start another challenge and therefore does not require a return URL.
+///
+/// Covered: a raw card, and an untyped tokenized card (`pm_...`, `tok_...`), which can be
+/// challenged like a raw card. A token typed as a wallet (Apple Pay, Google Pay) is never
+/// refused here: such a payment is charged without a return URL today, and a wallet payment
+/// that works must keep working. A typed Google Pay token without a return URL is sent as
+/// before, with no 3DS request (see `get_token_request_three_d_secure`).
+fn validate_three_ds_return_url<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+    auth_type: common_enums::AuthenticationType,
+    router_return_url: Option<&str>,
+    has_external_three_ds_result: bool,
+) -> Result<(), IntegrationError> {
+    let may_be_challenged = match payment_method_data {
+        PaymentMethodData::Card(_) => true,
+        PaymentMethodData::PaymentMethodToken(token) => !matches!(
+            token.token_payment_method_type,
+            Some(
+                payment_method_data::TokenPaymentMethod::ApplePay
+                    | payment_method_data::TokenPaymentMethod::GooglePay
+            )
+        ),
+        _ => false,
+    };
+    if may_be_challenged
+        && auth_type == common_enums::AuthenticationType::ThreeDs
+        && !has_external_three_ds_result
+        && !has_usable_return_url(router_return_url)
+    {
+        return Err(IntegrationError::MissingRequiredField {
+            field_name: "return_url",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "send return_url with a 3DS card or token payment, or use auth_type NO_THREE_DS"
+                        .to_string(),
+                ),
+                doc_url: Some(
+                    "https://docs.stripe.com/payments/3d-secure/authentication-flow".to_string(),
+                ),
+                additional_context: Some(
+                    "Stripe redirects the shopper to return_url after the 3DS challenge; a 3DS request without one is refused"
+                        .to_string(),
+                ),
+            },
+        });
+    }
+    Ok(())
+}
+
+/// The caller asked for 3DS on a card supplied as a token: ask Stripe for it, as the raw-card
+/// arm does inside `payment_data`. Stripe ignores the parameter for a wallet cryptogram token
+/// (https://docs.stripe.com/payments/3d-secure/authentication-flow). Without a 3DS request
+/// nothing is sent, which leaves Stripe on its default (`automatic`).
+///
+/// A token typed Google Pay may be a funding PAN (PAN_ONLY), which `any` gets challenged, and
+/// the shopper can only come back from that challenge to a caller-supplied return URL. With no
+/// return URL the request is therefore not sent for such a token, and the payment goes out
+/// exactly as it did before the token arms requested 3DS.
+fn get_token_request_three_d_secure<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+    auth_type: common_enums::AuthenticationType,
+    router_return_url: Option<&str>,
+) -> Option<Auth3ds> {
+    let PaymentMethodData::PaymentMethodToken(token) = payment_method_data else {
+        return None;
+    };
+    let google_pay_without_return_url = token.token_payment_method_type
+        == Some(payment_method_data::TokenPaymentMethod::GooglePay)
+        && !has_usable_return_url(router_return_url);
+    (auth_type == common_enums::AuthenticationType::ThreeDs && !google_pay_without_return_url)
+        .then_some(Auth3ds::Any)
+}
+
+/// Whether a connector token is a Stripe card token (`tok_...`, minted by `POST /v1/tokens`)
+/// rather than a PaymentMethod id (`pm_...`). A card token is sent as
+/// `payment_method_data[card][token]`, never as `payment_method`.
+fn is_stripe_card_token(token: &Secret<String>) -> bool {
+    token.peek().starts_with("tok_")
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         StripeRouterData<
@@ -2374,26 +2645,82 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let item = value.router_data;
 
+        // G-Authorize-01: Stripe requires a PaymentIntent `amount` to be a positive integer
+        // (https://docs.stripe.com/api/payment_intents/create#create_payment_intent-amount).
+        if item.request.amount.amount < MinorUnit::zero() {
+            return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "amount",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "send a PaymentIntent amount greater than zero".to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://docs.stripe.com/api/payment_intents/create".to_string(),
+                    ),
+                    additional_context: Some(
+                        "Stripe requires a PaymentIntent amount to be a positive integer; a negative amount cannot be authorized"
+                            .to_string(),
+                    ),
+                },
+            }));
+        }
+
+        // A $0 verification is a SetupIntent. Refused before the payment-method dispatch so it
+        // holds for every payment method and no HTTP call is built.
+        if item.request.amount.amount == MinorUnit::zero() {
+            return Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "zero-amount PaymentIntent".to_string(),
+                connector: "stripe",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "use PaymentService/SetupRecurring (SetupIntent) for a $0 verification"
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://docs.stripe.com/api/payment_intents/create".to_string(),
+                    ),
+                    additional_context: Some(
+                        "Stripe requires a PaymentIntent amount to be a positive integer; an amount of 0 cannot be authorized"
+                            .to_string(),
+                    ),
+                },
+            }));
+        }
+
+        let token_request_three_d_secure = get_token_request_three_d_secure(
+            &item.request.payment_method_data,
+            item.resource_common_data.auth_type,
+            item.request.router_return_url.as_deref(),
+        );
+
         let (transfer_account_id, charge_type, application_fees) = (None, None, None);
 
         // Stripe reads the wallet off the token itself, so `payment_method_types[0]` follows the
         // wallet rather than the token: Apple Pay sends none, Google Pay sends `card`. Mirrors
         // `get_stripe_payment_method_type_from_wallet_data` on the hyperswitch side.
-        let (card_token, payment_method_id, card_token_pm_type) =
-            match &item.request.payment_method_data {
-                PaymentMethodData::PaymentMethodToken(pmt) => match pmt.token_payment_method_type {
-                    Some(payment_method_data::TokenPaymentMethod::ApplePay) => {
-                        (Some(pmt.token.clone()), None, None)
-                    }
-                    Some(payment_method_data::TokenPaymentMethod::GooglePay) => (
-                        Some(pmt.token.clone()),
-                        None,
-                        Some(StripePaymentMethodType::Card),
-                    ),
-                    None => (None, Some(pmt.token.clone()), None),
-                },
-                _ => (None, None, None),
-            };
+        let (card_token, payment_method_id, card_token_pm_type) = match &item
+            .request
+            .payment_method_data
+        {
+            PaymentMethodData::PaymentMethodToken(pmt) => match pmt.token_payment_method_type {
+                Some(payment_method_data::TokenPaymentMethod::ApplePay) => {
+                    (Some(pmt.token.clone()), None, None)
+                }
+                Some(payment_method_data::TokenPaymentMethod::GooglePay) => (
+                    Some(pmt.token.clone()),
+                    None,
+                    Some(StripePaymentMethodType::Card),
+                ),
+                // An untyped token (PaymentService/TokenAuthorize carries no wallet type) that
+                // is a Stripe card token - `tok_...`, minted by `POST /v1/tokens` - is never a
+                // PaymentMethod id: Stripe answers "A token may not be passed in as a
+                // PaymentMethod. Instead, use payment_method_data with type=card and
+                // card[token]". Send it the way Stripe asks.
+                None if is_stripe_card_token(&pmt.token) => (Some(pmt.token.clone()), None, None),
+                None => (None, Some(pmt.token.clone()), None),
+            },
+            _ => (None, None, None),
+        };
         let payment_method_token = card_token.clone().or(payment_method_id.clone());
         // Stripe's split-payment tokenize flow replaces the address blocks with the tokenized
         // payment method, but only for *card* tokens: hyperswitch's
@@ -2683,6 +3010,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let error_on_requires_action =
             get_external_three_ds_error_on_requires_action(payment_data.as_ref());
 
+        validate_three_ds_return_url(
+            &item.request.payment_method_data,
+            item.resource_common_data.auth_type,
+            item.request.router_return_url.as_deref(),
+            error_on_requires_action.is_some(),
+        )?;
+
         // on_behalf_of is only supported for destination charges, not direct charges
         let on_behalf_of = match &item.request.split_payments {
             Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => {
@@ -2742,6 +3076,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             moto: is_moto,
             on_behalf_of,
             error_on_requires_action,
+            token_request_three_d_secure,
         })
     }
 }
@@ -2794,6 +3129,11 @@ pub enum StripePaymentStatus {
     Chargeable,
     Consumed,
     Pending,
+    /// A status Stripe has not documented for PaymentIntent / SetupIntent
+    /// (https://docs.stripe.com/api/payment_intents/object#payment_intent_object-status).
+    /// Kept non-terminal so a later sync settles it instead of failing deserialization.
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<StripePaymentStatus> for common_enums::AttemptStatus {
@@ -2811,6 +3151,7 @@ impl From<StripePaymentStatus> for common_enums::AttemptStatus {
             StripePaymentStatus::Chargeable => Self::Authorizing,
             StripePaymentStatus::Consumed => Self::Authorizing,
             StripePaymentStatus::Pending => Self::Pending,
+            StripePaymentStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -3252,15 +3593,22 @@ fn get_extended_authorization_data(
     }
 }
 
-impl<F, T> TryFrom<ResponseRouterData<PaymentIntentResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
+impl<F, Req, PM> TryFrom<ResponseRouterData<PaymentIntentResponse, StripeRouterData<Self, PM>>>
+    for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 where
-    T: SplitPaymentData + GetRequestIncrementalAuthorization,
+    Req: SplitPaymentData + GetRequestIncrementalAuthorization,
+    PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<PaymentIntentResponse, Self>,
+        item: ResponseRouterData<PaymentIntentResponse, StripeRouterData<Self, PM>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let redirect_data = item.response.next_action.clone();
         let redirection_data = redirect_data
             .and_then(|redirection_data| redirection_data.get_url())
@@ -3372,33 +3720,42 @@ where
             .latest_charge
             .as_ref()
             .and_then(StripeChargeEnum::get_maximum_capturable_amount);
+        let response_currency = item
+            .router_data
+            .resource_common_data
+            .amount
+            .as_ref()
+            .map(|money| money.currency)
+            .unwrap_or_default();
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: item.response.amount_received.map(|amount| {
-                    common_utils::types::Money {
-                        amount,
-                        currency: item
-                            .router_data
-                            .resource_common_data
-                            .amount
-                            .as_ref()
-                            .map(|money| money.currency)
-                            .unwrap_or_default(),
-                    }
-                }),
+                amount_captured: item
+                    .response
+                    .amount_received
+                    .map(|amount| {
+                        crate::utils::response_amount_to_money(
+                            &connector,
+                            amount,
+                            response_currency,
+                            item.http_code,
+                            domain_types::connector_types::ConnectorEnum::Stripe,
+                        )
+                    })
+                    .transpose()?,
                 connector_response: connector_response_data,
-                amount_capturable: amount_capturable.map(|amount| common_utils::types::Money {
-                    amount,
-                    currency: item
-                        .router_data
-                        .resource_common_data
-                        .amount
-                        .as_ref()
-                        .map(|money| money.currency)
-                        .unwrap_or_default(),
-                }),
+                amount_capturable: amount_capturable
+                    .map(|amount| {
+                        crate::utils::response_amount_to_money(
+                            &connector,
+                            amount,
+                            response_currency,
+                            item.http_code,
+                            domain_types::connector_types::ConnectorEnum::Stripe,
+                        )
+                    })
+                    .transpose()?,
                 ..item.router_data.resource_common_data
             },
             response,
@@ -3416,7 +3773,9 @@ impl From<StripePaymentStatus> for common_enums::AuthorizationStatus {
             | StripePaymentStatus::RequiresCustomerAction
             | StripePaymentStatus::RequiresConfirmation
             | StripePaymentStatus::Consumed => Self::Success,
-            StripePaymentStatus::Processing | StripePaymentStatus::Pending => Self::Processing,
+            StripePaymentStatus::Processing
+            | StripePaymentStatus::Pending
+            | StripePaymentStatus::Unknown => Self::Processing,
             StripePaymentStatus::Failed
             | StripePaymentStatus::Canceled
             | StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
@@ -3577,13 +3936,20 @@ pub fn get_payment_method_id(
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
+impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PaymentIntentSyncResponse, StripeRouterData<Self, PM>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<PaymentIntentSyncResponse, Self>,
+        item: ResponseRouterData<PaymentIntentSyncResponse, StripeRouterData<Self, PM>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let redirect_data = item.response.next_action.clone();
         let redirection_data = redirect_data
             .and_then(|redirection_data| redirection_data.get_url())
@@ -3684,12 +4050,12 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
                         item.http_code,
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
-        let amount_in_minor_unit =
-            StripeAmountConvertor::convert_back(item.response.amount, currency_enum)
-                .change_context(crate::utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "stripe",
-                ))?;
+        let amount_in_minor_unit = connector
+            .convert_back(item.response.amount, currency_enum)
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "stripe",
+            ))?;
 
         let response_integrity_object = PaymentSynIntegrityObject {
             amount: amount_in_minor_unit,
@@ -3699,12 +4065,19 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: common_enums::AttemptStatus::from(item.response.status.to_owned()),
-                amount_captured: item.response.amount_received.map(|amount| {
-                    common_utils::types::Money {
-                        amount,
-                        currency: item.router_data.request.currency,
-                    }
-                }),
+                amount_captured: item
+                    .response
+                    .amount_received
+                    .map(|amount| {
+                        crate::utils::response_amount_to_money(
+                            &connector,
+                            amount,
+                            item.router_data.request.currency,
+                            item.http_code,
+                            domain_types::connector_types::ConnectorEnum::Stripe,
+                        )
+                    })
+                    .transpose()?,
                 connector_response: connector_response_data,
                 ..item.router_data.resource_common_data
             },
@@ -3734,10 +4107,10 @@ fn extract_payment_method_connector_response_from_latest_attempt(
     .map(ConnectorResponseData::with_additional_payment_method_data)
 }
 
-impl<F, T> TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
+impl<F, Req> TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 where
-    T: SplitPaymentData,
+    Req: SplitPaymentData,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<SetupMandateResponse, Self>) -> Result<Self, Self::Error> {
@@ -4065,14 +4438,21 @@ pub enum RefundStatus {
     #[default]
     Pending,
     RequiresAction,
+    // Stripe: a refund that needed customer action and was cancelled; documented as a type of
+    // refund failure, so it is terminal.
+    Canceled,
+    // A status Stripe has not documented must not fail deserialization of an otherwise valid
+    // refund; it stays non-terminal until a later sync resolves it.
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<RefundStatus> for common_enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
             RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Pending => Self::Pending,
+            RefundStatus::Failed | RefundStatus::Canceled => Self::Failure,
+            RefundStatus::Pending | RefundStatus::Unknown => Self::Pending,
             RefundStatus::RequiresAction => Self::ManualReview,
         }
     }
@@ -4099,6 +4479,10 @@ pub struct ErrorDetails {
     pub param: Option<String>,
     pub decline_code: Option<String>,
     pub payment_intent: Option<PaymentIntentErrorResponse>,
+    /// The SetupIntent a failed `POST /v1/setup_intents` left behind
+    /// (https://docs.stripe.com/api/errors#errors-setup_intent).
+    #[serde(default)]
+    pub setup_intent: Option<PaymentIntentErrorResponse>,
     pub network_advice_code: Option<String>,
     pub network_decline_code: Option<String>,
     pub advice_code: Option<String>,
@@ -4107,6 +4491,10 @@ pub struct ErrorDetails {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentIntentErrorResponse {
     pub id: String,
+    /// Status of the PaymentIntent / SetupIntent the failed request left behind
+    /// (https://docs.stripe.com/api/errors#errors-payment_intent).
+    #[serde(default)]
+    pub status: Option<StripePaymentStatus>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -4165,9 +4553,43 @@ pub struct StripeRedirectResponse {
     pub source_type: Option<Secret<String>>,
 }
 
+/// The only values Stripe accepts for `cancellation_reason` when cancelling a
+/// PaymentIntent: "Possible values are: `duplicate`, `fraudulent`,
+/// `requested_by_customer`, or `abandoned`".
+/// https://docs.stripe.com/api/payment_intents/cancel
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeCancellationReason {
+    Duplicate,
+    Fraudulent,
+    RequestedByCustomer,
+    Abandoned,
+}
+
+impl StripeCancellationReason {
+    /// Maps the caller's free-text reason onto Stripe's closed set (trimmed,
+    /// ASCII case-insensitive). Any other text yields `None`: the parameter is
+    /// optional, and Stripe rejects an undocumented value with HTTP 400, which
+    /// would fail a void that is otherwise valid. The field is therefore omitted
+    /// and the cancel still proceeds.
+    fn from_free_text(reason: &str) -> Option<Self> {
+        let reason = reason.trim();
+        [
+            (Self::Duplicate, "duplicate"),
+            (Self::Fraudulent, "fraudulent"),
+            (Self::RequestedByCustomer, "requested_by_customer"),
+            (Self::Abandoned, "abandoned"),
+        ]
+        .into_iter()
+        .find(|(_, wire)| reason.eq_ignore_ascii_case(wire))
+        .map(|(variant, _)| variant)
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct CancelRequest {
-    cancellation_reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cancellation_reason: Option<StripeCancellationReason>,
 }
 
 #[derive(Debug, Serialize)]
@@ -4406,6 +4828,14 @@ pub enum WebhookEventType {
     ChargeUpdated,
     #[serde(rename = "charge.refunded")]
     ChargeRefunded,
+    // `refund.*` are the current refund events; `charge.refund.updated` is deprecated
+    // (https://docs.stripe.com/refunds, https://docs.stripe.com/api/events/types).
+    #[serde(rename = "refund.created")]
+    RefundCreated,
+    #[serde(rename = "refund.updated")]
+    RefundUpdated,
+    #[serde(rename = "refund.failed")]
+    RefundFailed,
     #[serde(rename = "payment_intent.canceled")]
     PaymentIntentCanceled,
     #[serde(rename = "payment_intent.created")]
@@ -4446,6 +4876,9 @@ pub enum WebhookEventStatus {
     Canceled,
     Chargeable,
     Failed,
+    /// Dispute status listed by https://docs.stripe.com/api/disputes/object without a
+    /// lifecycle meaning; it is never reported as an opened chargeback.
+    Prevented,
     #[serde(other)]
     Unknown,
 }
@@ -4466,32 +4899,72 @@ pub struct EvidenceDetails {
 // and `adyen::transformers`). The logic below is a verbatim relocation of the
 // pre-refactor `stripe.rs` implementation; semantics are unchanged.
 
-/// Parse the `Stripe-Signature` header into its key/value elements.
+/// The elements of a `Stripe-Signature` header that take part in verification.
+#[derive(Debug)]
+pub(crate) struct StripeSignatureHeader {
+    /// Value of the `t` element, exactly as received (it is part of the signed message).
+    pub timestamp: String,
+    /// Every `v1` value, in header order, still hex-encoded.
+    pub v1_signatures: Vec<String>,
+}
+
+/// Parse the `Stripe-Signature` header into its timestamp and its `v1` signatures.
 ///
-/// Stripe sends a header of the form `t=1700000000,v1=<hex_hmac>[,v0=...]`. We split on `,`
-/// and then on the first `=` of each element, mirroring HS `get_signature_elements_from_header`.
-/// The header lookup is case-insensitive because the gateway may normalise header casing.
+/// Stripe sends `t=<unix>,v1=<hex_hmac>[,v1=<hex_hmac>][,v0=<hex>]` on a single line
+/// (https://docs.stripe.com/webhooks). Per that document:
+/// - "ignore all schemes that aren't `v1`" (downgrade protection), so `v0` and any other
+///   element is discarded;
+/// - while an endpoint secret is being rolled the previous secret stays active for up to 24
+///   hours and "Stripe generates one signature for each secret", so the header can carry
+///   several `v1` values and all of them are kept as candidates.
+///
+/// A missing header, a missing `t`, or no `v1` at all is `WebhookSignatureNotFound`; an element
+/// without `=` is `WebhookSourceVerificationFailed`. The header lookup is case-insensitive
+/// because a gateway may normalise header casing.
 pub(crate) fn get_signature_elements_from_header(
     headers: &HashMap<String, String>,
-) -> Result<HashMap<String, Vec<u8>>, error_stack::Report<WebhookError>> {
+) -> Result<StripeSignatureHeader, error_stack::Report<WebhookError>> {
     let security_header = headers
         .iter()
         .find(|(key, _)| key.eq_ignore_ascii_case("Stripe-Signature"))
-        .map(|(_, value)| value.clone())
+        .map(|(_, value)| value.as_str())
         .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
 
-    let props = security_header.split(',').collect::<Vec<&str>>();
-    let mut security_header_kvs: HashMap<String, Vec<u8>> = HashMap::with_capacity(props.len());
+    let mut timestamp: Option<&str> = None;
+    let mut v1_signatures: Vec<String> = Vec::new();
 
-    for prop_str in &props {
-        let (prop_key, prop_value) = prop_str
+    for element in security_header.split(',') {
+        let (scheme, value) = element
             .split_once('=')
             .ok_or_else(|| report!(WebhookError::WebhookSourceVerificationFailed))?;
 
-        security_header_kvs.insert(prop_key.to_string(), prop_value.bytes().collect());
+        match scheme.trim() {
+            // The first `t` wins: a duplicate must not be able to replace the value that is
+            // fed into the signed message.
+            "t" => {
+                if timestamp.is_none() {
+                    timestamp = Some(value.trim());
+                }
+            }
+            "v1" => v1_signatures.push(value.trim().to_string()),
+            // Every other scheme (including the test-only `v0`) is ignored.
+            _ => {}
+        }
     }
 
-    Ok(security_header_kvs)
+    let timestamp = timestamp
+        .filter(|timestamp| !timestamp.is_empty())
+        .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?
+        .to_string();
+
+    if v1_signatures.is_empty() {
+        return Err(report!(WebhookError::WebhookSignatureNotFound));
+    }
+
+    Ok(StripeSignatureHeader {
+        timestamp,
+        v1_signatures,
+    })
 }
 
 /// Decode the Stripe webhook envelope (`WebhookEvent`) from the raw request body.
@@ -4532,11 +5005,42 @@ pub(crate) fn map_webhook_event_type(details: &WebhookEventTypeBody) -> EventTyp
             }) => EventType::PaymentIntentSuccess,
             _ => EventType::IncomingWebhookEventUnspecified,
         },
-        WebhookEventType::ChargeRefundUpdated => match status.as_ref() {
-            Some(WebhookEventStatus::Succeeded) => EventType::RefundSuccess,
-            Some(WebhookEventStatus::Failed) => EventType::RefundFailure,
-            _ => EventType::IncomingWebhookEventUnspecified,
-        },
+        // `refund.created`, `refund.updated` (current), and `charge.refund.updated` (deprecated)
+        // carry a Refund object; its `status` decides the event
+        // (https://docs.stripe.com/refunds, https://docs.stripe.com/api/refunds/object).
+        WebhookEventType::RefundCreated
+        | WebhookEventType::RefundUpdated
+        | WebhookEventType::ChargeRefundUpdated => {
+            match status.as_ref() {
+                Some(WebhookEventStatus::Succeeded) => EventType::RefundSuccess,
+                Some(WebhookEventStatus::Failed | WebhookEventStatus::Canceled) => {
+                    EventType::RefundFailure
+                }
+                // `pending` / `requires_action` (decoded as `Unknown` / `RequiresAction`), any
+                // status that is not a refund status, or no status: nothing terminal to report.
+                Some(
+                    WebhookEventStatus::WarningNeedsResponse
+                    | WebhookEventStatus::WarningClosed
+                    | WebhookEventStatus::WarningUnderReview
+                    | WebhookEventStatus::Won
+                    | WebhookEventStatus::Lost
+                    | WebhookEventStatus::NeedsResponse
+                    | WebhookEventStatus::UnderReview
+                    | WebhookEventStatus::ChargeRefunded
+                    | WebhookEventStatus::RequiresPaymentMethod
+                    | WebhookEventStatus::RequiresConfirmation
+                    | WebhookEventStatus::RequiresAction
+                    | WebhookEventStatus::Processing
+                    | WebhookEventStatus::RequiresCapture
+                    | WebhookEventStatus::Chargeable
+                    | WebhookEventStatus::Prevented
+                    | WebhookEventStatus::Unknown,
+                )
+                | None => EventType::IncomingWebhookEventUnspecified,
+            }
+        }
+        // "Sent when a refund has failed."
+        WebhookEventType::RefundFailed => EventType::RefundFailure,
         WebhookEventType::SourceChargeable => EventType::SourceChargeable,
         // Dispute events: map the dispute object's `status` directly to the event; when the
         // status is absent, fall back to a per-event-code default.
@@ -4554,8 +5058,23 @@ pub(crate) fn map_webhook_event_type(details: &WebhookEventTypeBody) -> EventTyp
             }
             Some(WebhookEventStatus::Won) => EventType::DisputeWon,
             Some(WebhookEventStatus::Lost) => EventType::DisputeLost,
-            // A non-dispute status on a dispute event is not actionable.
-            Some(_) => EventType::IncomingWebhookEventUnspecified,
+            // `prevented` is a documented dispute status with no lifecycle meaning and no
+            // `DisputeStatus` equivalent: report it as unspecified, never as an opened dispute.
+            Some(WebhookEventStatus::Prevented) => EventType::IncomingWebhookEventUnspecified,
+            // A non-dispute or unrecognised status on a dispute event is not actionable.
+            Some(
+                WebhookEventStatus::ChargeRefunded
+                | WebhookEventStatus::Succeeded
+                | WebhookEventStatus::RequiresPaymentMethod
+                | WebhookEventStatus::RequiresConfirmation
+                | WebhookEventStatus::RequiresAction
+                | WebhookEventStatus::Processing
+                | WebhookEventStatus::RequiresCapture
+                | WebhookEventStatus::Canceled
+                | WebhookEventStatus::Chargeable
+                | WebhookEventStatus::Failed
+                | WebhookEventStatus::Unknown,
+            ) => EventType::IncomingWebhookEventUnspecified,
             None => match code {
                 WebhookEventType::DisputeClosed => EventType::DisputeCancelled,
                 WebhookEventType::ChargeDisputeFundsWithdrawn => EventType::DisputeLost,
@@ -4572,6 +5091,7 @@ pub(crate) fn map_webhook_event_type(details: &WebhookEventTypeBody) -> EventTyp
         | WebhookEventType::ChargeFailed
         | WebhookEventType::ChargePending
         | WebhookEventType::ChargeUpdated
+        // `charge.refunded` carries a Charge, not a Refund.
         | WebhookEventType::ChargeRefunded
         | WebhookEventType::PaymentIntentCreated
         | WebhookEventType::PaymentIntentProcessing
@@ -4593,34 +5113,20 @@ pub(crate) fn get_webhook_reference(
 
     let reference = match event_object.object {
         WebhookEventObjectType::PaymentIntent => {
-            // Mirror HS get_webhook_object_reference_id exactly: when metadata.order_id is
-            // present the reference is the merchant order id (PaymentAttemptId), otherwise the
-            // PaymentIntent object id (ConnectorTransactionId). Either/or — never both, because
-            // the shadow snapshot normaliser prefers connector_transaction_id whenever it is set.
-            match order_id {
-                Some(order_id) => WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: None,
-                    merchant_transaction_id: Some(order_id),
-                }),
-                None => WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: Some(event_object.id.clone()),
-                    merchant_transaction_id: None,
-                }),
-            }
+            // Expose every identifier present in the payload; HS owns lookup precedence.
+            WebhookResourceReference::Payment(PaymentWebhookReference {
+                connector_transaction_id: Some(event_object.id.clone()),
+                merchant_transaction_id: order_id,
+                connector_preprocessing_id: None,
+            })
         }
         WebhookEventObjectType::Charge => {
-            // HS: order_id -> PaymentAttemptId, else the linked payment_intent as the
-            // ConnectorTransactionId. Either/or, as for PaymentIntent.
-            match order_id {
-                Some(order_id) => WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: None,
-                    merchant_transaction_id: Some(order_id),
-                }),
-                None => WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: event_object.payment_intent.clone(),
-                    merchant_transaction_id: None,
-                }),
-            }
+            // Expose the linked PaymentIntent and any echoed merchant reference.
+            WebhookResourceReference::Payment(PaymentWebhookReference {
+                connector_transaction_id: event_object.payment_intent.clone(),
+                merchant_transaction_id: order_id,
+                connector_preprocessing_id: None,
+            })
         }
         WebhookEventObjectType::Dispute => {
             // HS maps a dispute to its PARENT payment:
@@ -4633,11 +5139,11 @@ pub(crate) fn get_webhook_reference(
             })
         }
         WebhookEventObjectType::Source => {
-            // HS uses a PreprocessingId here; prism has no source/preprocessing reference,
-            // so surface the source id as the payment connector transaction id.
+            // Source IDs are preprocessing references, not payment transaction IDs.
             WebhookResourceReference::Payment(PaymentWebhookReference {
-                connector_transaction_id: Some(event_object.id.clone()),
+                connector_transaction_id: None,
                 merchant_transaction_id: None,
+                connector_preprocessing_id: Some(event_object.id.clone()),
             })
         }
         WebhookEventObjectType::Refund => {
@@ -4685,17 +5191,38 @@ fn payment_status_to_attempt_status(status: &WebhookEventStatus) -> common_enums
 
 /// Map a Stripe webhook object `status` to a prism `DisputeStatus`.
 ///
-/// Mirrors the dispute arms of HS `From<WebhookEventStatus> for IncomingWebhookEvent`; statuses
-/// that do not denote a dispute state default to `DisputeOpened`.
-fn dispute_status_to_dispute_status(status: &WebhookEventStatus) -> common_enums::DisputeStatus {
+/// Dispute statuses per https://docs.stripe.com/api/disputes/object. A status that is not one of
+/// the mapped dispute states (`prevented`, a payment/refund status, or a value this connector
+/// does not know) is an error: defaulting it to `DisputeOpened` would raise a chargeback on the
+/// merchant's dashboard for an event that never said so.
+fn dispute_status_to_dispute_status(
+    status: &WebhookEventStatus,
+) -> Result<common_enums::DisputeStatus, error_stack::Report<WebhookError>> {
     use self::WebhookEventStatus as S;
     match status {
-        S::WarningNeedsResponse | S::NeedsResponse => common_enums::DisputeStatus::DisputeOpened,
-        S::WarningClosed => common_enums::DisputeStatus::DisputeCancelled,
-        S::WarningUnderReview | S::UnderReview => common_enums::DisputeStatus::DisputeChallenged,
-        S::Won => common_enums::DisputeStatus::DisputeWon,
-        S::Lost => common_enums::DisputeStatus::DisputeLost,
-        _ => common_enums::DisputeStatus::DisputeOpened,
+        S::WarningNeedsResponse | S::NeedsResponse => {
+            Ok(common_enums::DisputeStatus::DisputeOpened)
+        }
+        S::WarningClosed => Ok(common_enums::DisputeStatus::DisputeCancelled),
+        S::WarningUnderReview | S::UnderReview => {
+            Ok(common_enums::DisputeStatus::DisputeChallenged)
+        }
+        S::Won => Ok(common_enums::DisputeStatus::DisputeWon),
+        S::Lost => Ok(common_enums::DisputeStatus::DisputeLost),
+        S::Prevented
+        | S::ChargeRefunded
+        | S::Succeeded
+        | S::RequiresPaymentMethod
+        | S::RequiresConfirmation
+        | S::RequiresAction
+        | S::Processing
+        | S::RequiresCapture
+        | S::Canceled
+        | S::Chargeable
+        | S::Failed
+        | S::Unknown => Err(report!(WebhookError::WebhookProcessingFailed)).attach_printable(
+            format!("stripe dispute status `{status}` is not a dispute state"),
+        ),
     }
 }
 
@@ -4781,10 +5308,34 @@ pub(crate) fn build_webhook_refund_response(
 ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
     let event_object = &event.event_data.event_object;
 
+    // Refund statuses per https://docs.stripe.com/api/refunds/object: `pending`,
+    // `requires_action`, `succeeded`, `failed`, `canceled`.
     let status = match event_object.status.as_ref() {
         Some(WebhookEventStatus::Succeeded) => common_enums::RefundStatus::Success,
-        Some(WebhookEventStatus::Failed) => common_enums::RefundStatus::Failure,
-        _ => common_enums::RefundStatus::Pending,
+        Some(WebhookEventStatus::Failed | WebhookEventStatus::Canceled) => {
+            common_enums::RefundStatus::Failure
+        }
+        // `pending` (decoded as `Unknown`), `requires_action`, a status that is not a refund
+        // status, or none at all: not terminal.
+        Some(
+            WebhookEventStatus::WarningNeedsResponse
+            | WebhookEventStatus::WarningClosed
+            | WebhookEventStatus::WarningUnderReview
+            | WebhookEventStatus::Won
+            | WebhookEventStatus::Lost
+            | WebhookEventStatus::NeedsResponse
+            | WebhookEventStatus::UnderReview
+            | WebhookEventStatus::ChargeRefunded
+            | WebhookEventStatus::RequiresPaymentMethod
+            | WebhookEventStatus::RequiresConfirmation
+            | WebhookEventStatus::RequiresAction
+            | WebhookEventStatus::Processing
+            | WebhookEventStatus::RequiresCapture
+            | WebhookEventStatus::Chargeable
+            | WebhookEventStatus::Prevented
+            | WebhookEventStatus::Unknown,
+        )
+        | None => common_enums::RefundStatus::Pending,
     };
 
     let (error_code, error_message) = if status == common_enums::RefundStatus::Failure {
@@ -4827,11 +5378,13 @@ pub(crate) fn build_webhook_dispute_response(
         event_object.currency,
     )?;
 
+    // A Dispute object always carries `status`; a missing or foreign one is an error rather
+    // than a silently opened dispute.
     let status = event_object
         .status
         .as_ref()
-        .map(dispute_status_to_dispute_status)
-        .unwrap_or(common_enums::DisputeStatus::DisputeOpened);
+        .ok_or_else(|| report!(WebhookError::WebhookMissingRequiredField { field: "status" }))
+        .and_then(dispute_status_to_dispute_status)?;
 
     Ok(DisputeWebhookDetailsResponse {
         amount,
@@ -5116,17 +5669,20 @@ pub enum PaymentSyncResponse {
     SetupMandateResponse(SetupMandateResponse),
 }
 
-impl<F> TryFrom<ResponseRouterData<PaymentSyncResponse, Self>>
+impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PaymentSyncResponse, StripeRouterData<Self, PM>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<PaymentSyncResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<PaymentSyncResponse, StripeRouterData<Self, PM>>,
+    ) -> Result<Self, Self::Error> {
         // Untagged serde already disambiguates PI vs setup intent; prev code of routing on connector_transaction_id could fail sync when the txn id is missing or not a ConnectorTransactionId.
         match item.response {
             PaymentSyncResponse::SetupMandateResponse(setup_intent_response) => {
                 Self::try_from(ResponseRouterData {
                     response: setup_intent_response,
-                    router_data: item.router_data,
+                    router_data: item.router_data.router_data,
                     http_code: item.http_code,
                 })
             }
@@ -5145,12 +5701,12 @@ impl<F> TryFrom<ResponseRouterData<PaymentSyncResponse, Self>>
 pub struct PaymentsAuthorizeResponse(PaymentIntentResponse);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<PaymentsAuthorizeResponse, Self>>
+    TryFrom<ResponseRouterData<PaymentsAuthorizeResponse, StripeRouterData<Self, T>>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<PaymentsAuthorizeResponse, Self>,
+        item: ResponseRouterData<PaymentsAuthorizeResponse, StripeRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         let currency_enum =
             common_enums::Currency::from_str(item.response.0.currency.to_uppercase().as_str())
@@ -5160,12 +5716,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
-        let amount_in_minor_unit =
-            StripeAmountConvertor::convert_back(item.response.0.amount, currency_enum)
-                .change_context(crate::utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "stripe",
-                ))?;
+        let amount_in_minor_unit = item
+            .router_data
+            .connector
+            .convert_back(item.response.0.amount, currency_enum)
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "stripe",
+            ))?;
 
         let response_integrity_object = AuthoriseIntegrityObject {
             amount: amount_in_minor_unit,
@@ -5192,12 +5750,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsCaptureResponse(PaymentIntentResponse);
 
-impl TryFrom<ResponseRouterData<PaymentsCaptureResponse, Self>>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PaymentsCaptureResponse, StripeRouterData<Self, T>>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<PaymentsCaptureResponse, Self>,
+        item: ResponseRouterData<PaymentsCaptureResponse, StripeRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         let currency_enum =
             common_enums::Currency::from_str(item.response.0.currency.to_uppercase().as_str())
@@ -5211,7 +5770,11 @@ impl TryFrom<ResponseRouterData<PaymentsCaptureResponse, Self>>
             .response
             .0
             .amount_received
-            .map(|amount| StripeAmountConvertor::convert_back(amount, currency_enum))
+            .map(|amount| {
+                item.router_data
+                    .connector
+                    .convert_back(amount, currency_enum)
+            })
             .transpose()
             .change_context(crate::utils::response_handling_fail_for_connector(
                 item.http_code,
@@ -5244,11 +5807,14 @@ impl TryFrom<ResponseRouterData<PaymentsCaptureResponse, Self>>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsVoidResponse(PaymentIntentResponse);
 
-impl TryFrom<ResponseRouterData<PaymentsVoidResponse, Self>>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PaymentsVoidResponse, StripeRouterData<Self, T>>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<PaymentsVoidResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<PaymentsVoidResponse, StripeRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(ResponseRouterData {
             response: item.response.0,
             router_data: item.router_data,
@@ -5273,7 +5839,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            cancellation_reason: item.router_data.request.cancellation_reason.clone(),
+            cancellation_reason: item
+                .router_data
+                .request
+                .cancellation_reason
+                .as_deref()
+                .and_then(StripeCancellationReason::from_free_text),
         })
     }
 }
@@ -5446,11 +6017,20 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
+impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<RefundResponse, StripeRouterData<Self, T>>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<RefundResponse, StripeRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let refund_status = common_enums::RefundStatus::from(item.response.status);
         let response = if is_refund_failure(refund_status) {
             Err(domain_types::router_data::ErrorResponse {
@@ -5489,12 +6069,12 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
-        let refund_amount_in_minor_unit =
-            StripeAmountConvertor::convert_back(item.response.amount, currency_enum)
-                .change_context(crate::utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "stripe",
-                ))?;
+        let refund_amount_in_minor_unit = connector
+            .convert_back(item.response.amount, currency_enum)
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "stripe",
+            ))?;
 
         let response_integrity_object = RefundIntegrityObject {
             currency: currency_enum,
@@ -5596,6 +6176,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             payment_method_data::TokenPaymentMethod::ApplePay
                             | payment_method_data::TokenPaymentMethod::GooglePay,
                         ) => (
+                            None,
+                            Some(StripePaymentMethodData::CardTokenPayment(
+                                StripeCardTokenPayment {
+                                    payment_method_data_type: StripePaymentMethodType::Card,
+                                    token: token_data.token.clone(),
+                                },
+                            )),
+                            Some(StripePaymentMethodType::Card),
+                        ),
+                        // Same rule as Authorize: an untyped token (PaymentService/
+                        // TokenSetupRecurring carries no wallet type) that is a Stripe card
+                        // token - `tok_...`, minted by `POST /v1/tokens` - is never a
+                        // PaymentMethod id, so it goes nested as payment_method_data[card][token].
+                        None if is_stripe_card_token(&token_data.token) => (
                             None,
                             Some(StripePaymentMethodData::CardTokenPayment(
                                 StripeCardTokenPayment {
@@ -6048,12 +6642,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    TryFrom<ResponseRouterData<PaymentsAuthorizeResponse, Self>>
+    TryFrom<ResponseRouterData<PaymentsAuthorizeResponse, StripeRouterData<Self, T>>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<PaymentsAuthorizeResponse, Self>,
+        item: ResponseRouterData<PaymentsAuthorizeResponse, StripeRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         Self::try_from(ResponseRouterData {
             response: item.response.0,
@@ -6061,6 +6655,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
             http_code: item.http_code,
         })
     }
+}
+
+/// The caller's dynamic statement descriptor for a merchant-initiated PaymentIntent, as
+/// `(statement_descriptor_suffix, statement_descriptor)`. Both values are forwarded exactly as
+/// sent, which is what the Authorize builder does for the customer-initiated payment, and both
+/// are `None` when the caller sends no billing descriptor. On a card payment the suffix is the
+/// dynamic part: Stripe appends it to the account's descriptor prefix
+/// (https://docs.stripe.com/get-started/account/statement-descriptors).
+fn get_repeat_payment_statement_descriptors(
+    billing_descriptor: Option<&BillingDescriptor>,
+) -> (Option<String>, Option<String>) {
+    (
+        billing_descriptor.and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
+        billing_descriptor.and_then(|descriptor| descriptor.statement_descriptor.clone()),
+    )
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -6398,11 +7007,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
         };
 
+        let (statement_descriptor_suffix, statement_descriptor) =
+            get_repeat_payment_statement_descriptors(item.request.billing_descriptor.as_ref());
+
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
-            statement_descriptor_suffix: None,
-            statement_descriptor: None,
+            statement_descriptor_suffix,
+            statement_descriptor,
             meta_data,
             return_url: item
                 .request
@@ -6440,6 +7052,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .as_ref()
                 .and_then(|details| details.stripe.as_ref())
                 .and_then(|stripe| stripe.error_on_requires_action),
+            token_request_three_d_secure: None,
         })
     }
 }
@@ -6565,7 +7178,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })
             }
             _ => {
-                create_stripe_payment_method(
+                let payment_method_data = create_stripe_payment_method(
                     &item.router_data.request.payment_method_data,
                     PaymentRequestDetails {
                         auth_type: item.router_data.resource_common_data.auth_type,
@@ -6577,7 +7190,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                     None,
                 )?
-                .0
+                .0;
+                match payment_method_data {
+                    // A decrypted Google Pay payload without a cryptogram is a funding PAN.
+                    // The shared wallet conversion returns it as the PaymentIntent card shape
+                    // (`payment_method_data[card][...]`), which POST /v1/tokens rejects with
+                    // 400 parameter_missing. A token is created from `card[number]`,
+                    // `card[exp_month]` and `card[exp_year]`; Stripe refuses
+                    // `card[tokenization_method]=android_pay` without a cryptogram, so the
+                    // token is a plain card token (https://docs.stripe.com/api/tokens/create_card).
+                    // `type` and `billing_details[...]` are POST /v1/payment_methods parameters
+                    // (the Card and CardDetailsForNetworkTransactionId arms above post there);
+                    // POST /v1/tokens answers 400 parameter_unknown for them, so neither is sent,
+                    // exactly as for the Apple Pay and Google Pay token bodies.
+                    StripePaymentMethodData::CardNetworkTransactionId(card) => {
+                        StripePaymentMethodData::NtidCardToken(StripeNtidCardToken {
+                            payment_method_type: None,
+                            token_card_number: card.payment_method_data_card_number,
+                            token_card_exp_month: card.payment_method_data_card_exp_month,
+                            token_card_exp_year: card.payment_method_data_card_exp_year,
+                            billing: StripeBillingAddressCardToken::default(),
+                        })
+                    }
+                    other => other,
+                }
             }
         };
 
@@ -6771,6 +7407,7 @@ mod error_on_requires_action_tests {
             moto: None,
             on_behalf_of: None,
             error_on_requires_action,
+            token_request_three_d_secure: None,
         }
     }
 

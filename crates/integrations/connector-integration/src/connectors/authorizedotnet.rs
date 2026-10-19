@@ -298,6 +298,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     PaymentWebhookReference {
                         connector_transaction_id: Some(connector_transaction_id),
                         merchant_transaction_id: webhook_body.payload.merchant_reference_id,
+                        connector_preprocessing_id: None,
                     },
                 )))
             }

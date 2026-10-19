@@ -387,7 +387,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Build order data with customer_info
         let order = NexixpayOrderData {
-            order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
+            order_id: get_nexi_order_id(&item.resource_common_data.payment_id)?,
             amount: StringMinorUnitForConnector
                 .convert(item.request.amount.amount, item.request.currency)
                 .change_context(IntegrationError::RequestEncodingFailed {
@@ -1328,7 +1328,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let order = NexixpayPreAuthOrder {
-            order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
+            order_id: get_nexi_order_id(&item.resource_common_data.payment_id)?,
             amount: StringMinorUnitForConnector
                 .convert(item.request.amount.amount, currency)
                 .change_context(IntegrationError::RequestEncodingFailed {
@@ -1767,6 +1767,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
 
+        // MerchantAuthenticationFlowData carries no payment id, so this flow can only use the
+        // request reference id. It stays subject to the 18-char cap; see the PR description.
         let order_id = get_nexi_order_id(
             &router_data
                 .resource_common_data
@@ -2015,7 +2017,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Nexi treats this purely as a contract-creation handshake.
         let currency = item.request.currency;
         let order = NexixpayPreAuthOrder {
-            order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
+            order_id: get_nexi_order_id(&item.resource_common_data.payment_id)?,
             amount: StringMinorUnitForConnector
                 .convert(common_utils::types::MinorUnit::zero(), currency)
                 .change_context(IntegrationError::RequestEncodingFailed {
@@ -2286,7 +2288,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let order = NexixpayOrderData {
-            order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
+            order_id: get_nexi_order_id(&item.resource_common_data.payment_id)?,
             amount: StringMinorUnitForConnector
                 .convert(item.request.amount.amount, item.request.currency)
                 .change_context(IntegrationError::RequestEncodingFailed {

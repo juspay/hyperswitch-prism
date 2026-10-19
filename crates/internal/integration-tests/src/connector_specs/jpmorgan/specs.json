@@ -12,5 +12,19 @@
     "PaymentService/Reverse",
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge"
-  ]
+  ],
+  "suite_dependencies": {
+    "RecurringPaymentService/Charge": {
+      "after": [
+        {
+          "suite": "PaymentService/Authorize",
+          "scenario": "no3ds_auto_capture_credit_card",
+          "context_map": {
+            "payment_method.card": "req.payment_method.card",
+            "connector_recurring_payment_id.network_mandate_id.network_transaction_id": "res.network_transaction_id"
+          }
+        }
+      ]
+    }
+  }
 }
