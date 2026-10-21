@@ -776,6 +776,9 @@ fn get_payments_response(
                 connector_feature_data: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 status_code: http_code,
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
             })
         };
 
@@ -812,6 +815,9 @@ fn get_payments_response(
                 connector_feature_data: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 status_code: http_code,
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
             })
         };
 

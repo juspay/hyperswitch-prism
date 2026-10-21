@@ -10,7 +10,10 @@ use domain_types::{
 
 use crate::connectors::cryptopay::{CryptopayAmountConvertor, CryptopayRouterData};
 use crate::types::ResponseRouterData;
-use common_utils::{pii, types::StringMajorUnit};
+use common_utils::{
+    pii,
+    types::{AmountConvertor, StringMajorUnit},
+};
 
 use url::Url;
 
@@ -180,18 +183,20 @@ pub struct CryptopayPaymentsResponse {
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
+    TryFrom<ResponseRouterData<CryptopayPaymentsResponse, CryptopayRouterData<Self, T>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<CryptopayPaymentsResponse, Self>,
+        item: ResponseRouterData<CryptopayPaymentsResponse, CryptopayRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response: cryptopay_response,
             router_data,
             http_code,
         } = item;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
         let status = common_enums::AttemptStatus::from(cryptopay_response.data.status.clone());
         let response = if is_payment_failure(status) {
             let payment_response = &cryptopay_response.data;
@@ -240,13 +245,12 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         };
         let amount_captured = match cryptopay_response.data.price_amount {
             Some(ref amount) => Some(
-                CryptopayAmountConvertor::convert_back(
-                    amount.clone(),
-                    router_data.request.currency,
-                )
-                .change_context(
-                    crate::utils::response_handling_fail_for_connector(http_code, "cryptopay"),
-                )?,
+                connector
+                    .convert_back(amount.clone(), router_data.request.currency)
+                    .change_context(crate::utils::response_handling_fail_for_connector(
+                        http_code,
+                        "cryptopay",
+                    ))?,
             ),
             None => None,
         }
@@ -330,18 +334,21 @@ pub enum WebhookEvent {
     StatusChanged,
 }
 
-impl<F> TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
+impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<CryptopayPaymentsResponse, CryptopayRouterData<Self, T>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<CryptopayPaymentsResponse, Self>,
+        item: ResponseRouterData<CryptopayPaymentsResponse, CryptopayRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response: cryptopay_response,
             router_data,
             http_code,
         } = item;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
         let status = common_enums::AttemptStatus::from(cryptopay_response.data.status.clone());
         let response = if is_payment_failure(status) {
             let payment_response = &cryptopay_response.data;
@@ -390,13 +397,12 @@ impl<F> TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
         };
         let amount_captured = match cryptopay_response.data.price_amount {
             Some(ref amount) => Some(
-                CryptopayAmountConvertor::convert_back(
-                    amount.clone(),
-                    router_data.request.currency,
-                )
-                .change_context(
-                    crate::utils::response_handling_fail_for_connector(http_code, "cryptopay"),
-                )?,
+                connector
+                    .convert_back(amount.clone(), router_data.request.currency)
+                    .change_context(crate::utils::response_handling_fail_for_connector(
+                        http_code,
+                        "cryptopay",
+                    ))?,
             ),
             None => None,
         }

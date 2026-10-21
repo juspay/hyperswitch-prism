@@ -115,8 +115,7 @@ pub(crate) type ResponseRouterDataType<T, R> = types::ResponseRouterData<
 /// Type-level probe used by generated response bridges. The `&Probe`
 /// implementation is selected when the connector has an extractor declaration;
 /// otherwise method resolution auto-borrows once more and selects the
-/// `&&Probe` no-op fallback. This keeps migration incremental without a second
-/// configuration block in `create_all_prerequisites!`.
+/// `&&Probe` no-op fallback.
 pub(crate) struct FlowStatusMappingProbe<Connector, Flow, Request, Response>(
     PhantomData<(Connector, Flow, Request, Response)>,
     &'static str,
@@ -129,11 +128,6 @@ impl<Connector, Flow, Request, Response>
         Self(PhantomData, connector_name)
     }
 
-    /// Shadow-mode opt-in, keyed on the connector *type* rather than a
-    /// hand-maintained string name, so module/enum rename mismatches are
-    /// impossible. `Connector` here is the concrete struct (e.g. `TsysTransit<T>`),
-    /// which always exists; the `T`-generic wrapper normalizes away the
-    /// payment-method type parameter before lookup.
     pub(crate) fn is_live_status_transformer(&self) -> bool {
         domain_types::flow_status::is_live_status_transformer_connector(std::any::type_name::<
             Connector,
@@ -293,10 +287,113 @@ pub trait BridgeRequestResponse: Send + Sync {
             crate::utils::response_handling_fail_for_connector(status_code, "macros"),
         )
     }
+
+    fn router_data_with_connector(
+        &self,
+        response: types::ResponseRouterData<Self::ResponseBody, Self::ConnectorInputData>,
+        status_code: u16,
+    ) -> CustomResult<RouterDataType<Self::ConnectorInputData>, ConnectorError>;
 }
 
 #[derive(Clone)]
 pub struct Bridge<Q, S, T>(pub PhantomData<(Q, S, T)>);
+
+macro_rules! expand_router_data_with_inner_router_data {
+    () => {
+        fn router_data_with_connector(
+            &self,
+            response: $crate::types::ResponseRouterData<
+                Self::ResponseBody,
+                Self::ConnectorInputData,
+            >,
+            status_code: u16,
+        ) -> common_utils::errors::CustomResult<
+            $crate::connectors::macros::RouterDataType<Self::ConnectorInputData>,
+            domain_types::errors::ConnectorError,
+        > {
+            let $crate::types::ResponseRouterData {
+                response,
+                router_data,
+                http_code,
+            } = response;
+            self.router_data(
+                $crate::types::ResponseRouterData {
+                    response,
+                    router_data: router_data.router_data,
+                    http_code,
+                },
+                status_code,
+            )
+        }
+    };
+}
+pub(crate) use expand_router_data_with_inner_router_data;
+
+macro_rules! expand_router_data_with_connector_router_data {
+    () => {
+        fn router_data_with_connector(
+            &self,
+            response: $crate::types::ResponseRouterData<
+                Self::ResponseBody,
+                Self::ConnectorInputData,
+            >,
+            status_code: u16,
+        ) -> common_utils::errors::CustomResult<
+            $crate::connectors::macros::RouterDataType<Self::ConnectorInputData>,
+            domain_types::errors::ConnectorError,
+        > {
+            $crate::connectors::macros::RouterDataType::<Self::ConnectorInputData>::try_from(
+                response,
+            )
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                status_code,
+                "macros",
+            ))
+        }
+    };
+}
+pub(crate) use expand_router_data_with_connector_router_data;
+
+macro_rules! expand_xml_response_parser {
+    () => {
+        fn response(
+            &self,
+            bytes: bytes::Bytes,
+            status_code: u16,
+        ) -> common_utils::errors::CustomResult<
+            Self::ResponseBody,
+            domain_types::errors::ConnectorError,
+        > {
+            use common_utils::ext_traits::XmlExt;
+            use error_stack::ResultExt;
+
+            if bytes.is_empty() {
+                return Err($crate::utils::response_handling_fail_for_connector(
+                    status_code,
+                    "macros",
+                )
+                .into());
+            }
+
+            let response_str = String::from_utf8(bytes.to_vec())
+                .change_context($crate::utils::response_handling_fail_for_connector(
+                    status_code,
+                    "macros",
+                ))
+                .attach_printable("Failed to convert response bytes to UTF-8 string")?;
+
+            response_str
+                .as_str()
+                .parse_xml::<Self::ResponseBody>()
+                .change_context($crate::utils::response_handling_fail_for_connector(
+                    status_code,
+                    "macros",
+                ))
+                .attach_printable("Failed to parse XML response")
+        }
+    };
+}
+pub(crate) use expand_xml_response_parser;
 
 macro_rules! expand_fn_get_request_body {
     ($connector: ident, $curl_res: ty, $flow: ident, $resource_common_data: ty, $request: ty, $response: ty) => {
@@ -594,12 +691,17 @@ macro_rules! expand_fn_handle_response {
                 }
             }
             tracing::info!(response=?response_body, "response from connector");
-            let response_router_data = ResponseRouterData {
-                response: response_body,
-                router_data: data.clone(),
-                http_code: res.status_code,
+            let response_router_data = paste::paste! {
+                ResponseRouterData {
+                    response: response_body,
+                    router_data: [<$connector RouterData>] {
+                        connector: self.clone(),
+                        router_data: data.clone(),
+                    },
+                    http_code: res.status_code,
+                }
             };
-            let mut result = bridge.router_data(response_router_data, res.status_code)?;
+            let mut result = bridge.router_data_with_connector(response_router_data, res.status_code)?;
             result
                 .resource_common_data
                 .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
@@ -637,12 +739,17 @@ macro_rules! expand_fn_handle_response {
                 }
             }
             tracing::info!(response=?response_body, "response from connector");
-            let response_router_data = ResponseRouterData {
-                response: response_body,
-                router_data: data.clone(),
-                http_code: res.status_code,
+            let response_router_data = paste::paste! {
+                ResponseRouterData {
+                    response: response_body,
+                    router_data: [<$connector RouterData>] {
+                        connector: self.clone(),
+                        router_data: data.clone(),
+                    },
+                    http_code: res.status_code,
+                }
             };
-            let mut result = bridge.router_data(response_router_data, res.status_code)?;
+            let mut result = bridge.router_data_with_connector(response_router_data, res.status_code)?;
             result
                 .resource_common_data
                 .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
@@ -1163,6 +1270,8 @@ macro_rules! expand_bridge_router_data {
             >::new(stringify!($connector));
             (&probe).convert_bridge_response(response, status_code)
         }
+
+        crate::connectors::macros::expand_router_data_with_inner_router_data!();
     };
 }
 pub(crate) use expand_bridge_router_data;
@@ -1185,6 +1294,7 @@ macro_rules! impl_templating {
                 type RequestBody = $curl_req;
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
                 crate::connectors::macros::expand_bridge_router_data!(
                     connector: $connector,
                     generic_type: $generic_type,
@@ -1209,6 +1319,7 @@ macro_rules! impl_templating {
                 type RequestBody = NoRequestBody;
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
                 crate::connectors::macros::expand_bridge_router_data!(
                     connector: $connector,
                     generic_type: $generic_type,
@@ -1216,6 +1327,46 @@ macro_rules! impl_templating {
                     router_data: $router_data,
                     response: $curl_res,
                 );
+            }
+        }
+    };
+    (
+        connector: $connector: ident,
+        curl_request: $curl_req: ident,
+        curl_response: $curl_res: ident,
+        router_data: $router_data: ty,
+        generic_type: $generic_type: tt,
+        response_router_data: connector,
+    ) => {
+        paste::paste!{
+            pub struct [<$curl_req Templating>];
+            pub struct [<$curl_res Templating>];
+
+            impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> BridgeRequestResponse for Bridge<[<$curl_req Templating>], [<$curl_res Templating>], $generic_type>{
+                type RequestBody = $curl_req;
+                type ResponseBody = $curl_res;
+                type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_connector_router_data!();
+            }
+        }
+    };
+    (
+        connector: $connector: ident,
+        curl_response: $curl_res: ident,
+        router_data: $router_data: ty,
+        generic_type: $generic_type:tt,
+        response_router_data: connector,
+    ) => {
+        paste::paste!{
+            pub struct [<$curl_res Templating>];
+
+            impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> BridgeRequestResponse for Bridge<NoRequestBodyTemplating, [<$curl_res Templating>], $generic_type> {
+                type RequestBody = NoRequestBody;
+                type ResponseBody = $curl_res;
+                type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_connector_router_data!();
             }
         }
     };
@@ -1240,6 +1391,7 @@ macro_rules! impl_templating_mixed {
                 type RequestBody = $base_req<$generic_type>;
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
                 crate::connectors::macros::expand_bridge_router_data!(
                     connector: $connector,
                     generic_type: $generic_type,
@@ -1268,6 +1420,7 @@ macro_rules! impl_templating_mixed {
                 type RequestBody = $base_req;
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
                 crate::connectors::macros::expand_bridge_router_data!(
                     connector: $connector,
                     generic_type: $generic_type,
@@ -1275,6 +1428,74 @@ macro_rules! impl_templating_mixed {
                     router_data: $router_data,
                     response: $curl_res,
                 );
+            }
+        }
+    };
+    (
+        connector: $connector: ident,
+        curl_request: $base_req: ident<$req_generic: ident>,
+        curl_response: $curl_res: ident,
+        router_data: $router_data: ty,
+        generic_type: $generic_type: tt,
+        response_router_data: connector,
+    ) => {
+        paste::paste!{
+            pub struct [<$base_req Templating>];
+            pub struct [<$curl_res Templating>];
+
+            impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> BridgeRequestResponse for Bridge<[<$base_req Templating>], [<$curl_res Templating>], $generic_type>{
+                type RequestBody = $base_req<$generic_type>;
+                type ResponseBody = $curl_res;
+                type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_connector_router_data!();
+            }
+        }
+    };
+    (
+        connector: $connector: ident,
+        curl_request: $base_req: ident,
+        curl_response: $curl_res: ident,
+        router_data: $router_data: ty,
+        generic_type: $generic_type: tt,
+        response_router_data: connector,
+    ) => {
+        paste::paste!{
+            pub struct [<$base_req Templating>];
+            pub struct [<$curl_res Templating>];
+
+            impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> BridgeRequestResponse for Bridge<[<$base_req Templating>], [<$curl_res Templating>], $generic_type>{
+                type RequestBody = $base_req;
+                type ResponseBody = $curl_res;
+                type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_connector_router_data!();
+            }
+        }
+    };
+
+    // Pattern for generic request with XML response parsing
+    (
+        connector: $connector: ident,
+        curl_request: $base_req: ident<$req_generic: ident>,
+        curl_response: $curl_res: ident,
+        router_data: $router_data: ty,
+        generic_type: $generic_type: tt,
+        response_format: xml,
+        response_router_data: connector,
+    ) => {
+        paste::paste!{
+            pub struct [<$base_req Templating>];
+            pub struct [<$curl_res Templating>];
+
+            impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> BridgeRequestResponse for Bridge<[<$base_req Templating>], [<$curl_res Templating>], $generic_type>{
+                type RequestBody = $base_req<$generic_type>;
+                type ResponseBody = $curl_res;
+                type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_connector_router_data!();
+
+                crate::connectors::macros::expand_xml_response_parser!();
             }
         }
     };
@@ -1306,35 +1527,33 @@ macro_rules! impl_templating_mixed {
                     response: $curl_res,
                 );
 
-                fn response(
-                    &self,
-                    bytes: bytes::Bytes,
-                    status_code: u16,
-                ) -> CustomResult<Self::ResponseBody, domain_types::errors::ConnectorError> {
-                    use common_utils::ext_traits::XmlExt;
-                    use error_stack::ResultExt;
+                crate::connectors::macros::expand_xml_response_parser!();
+            }
+        }
+    };
 
-                    if bytes.is_empty() {
-                        return Err(
-                            crate::utils::response_handling_fail_for_connector(status_code, "macros")
-                                .into(),
-                        );
-                    }
+    // Pattern for non-generic request with XML response parsing
+    (
+        connector: $connector: ident,
+        curl_request: $base_req: ident,
+        curl_response: $curl_res: ident,
+        router_data: $router_data: ty,
+        generic_type: $generic_type: tt,
+        response_format: xml,
+        response_router_data: connector,
+    ) => {
+        paste::paste!{
+            pub struct [<$base_req Templating>];
+            pub struct [<$curl_res Templating>];
 
-                    let response_str = String::from_utf8(bytes.to_vec())
-                        .change_context(
-                            crate::utils::response_handling_fail_for_connector(status_code, "macros"),
-                        )
-                        .attach_printable("Failed to convert response bytes to UTF-8 string")?;
+            impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> BridgeRequestResponse for Bridge<[<$base_req Templating>], [<$curl_res Templating>], $generic_type>{
+                type RequestBody = $base_req;
+                type ResponseBody = $curl_res;
+                type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
 
-                    response_str
-                        .as_str()
-                        .parse_xml::<Self::ResponseBody>()
-                        .change_context(
-                            crate::utils::response_handling_fail_for_connector(status_code, "macros"),
-                        )
-                        .attach_printable("Failed to parse XML response")
-                }
+                crate::connectors::macros::expand_router_data_with_connector_router_data!();
+
+                crate::connectors::macros::expand_xml_response_parser!();
             }
         }
     };
@@ -1366,35 +1585,7 @@ macro_rules! impl_templating_mixed {
                     response: $curl_res,
                 );
 
-                fn response(
-                    &self,
-                    bytes: bytes::Bytes,
-                    status_code: u16,
-                ) -> CustomResult<Self::ResponseBody, domain_types::errors::ConnectorError> {
-                    use common_utils::ext_traits::XmlExt;
-                    use error_stack::ResultExt;
-
-                    if bytes.is_empty() {
-                        return Err(
-                            crate::utils::response_handling_fail_for_connector(status_code, "macros")
-                                .into(),
-                        );
-                    }
-
-                    let response_str = String::from_utf8(bytes.to_vec())
-                        .change_context(
-                            crate::utils::response_handling_fail_for_connector(status_code, "macros"),
-                        )
-                        .attach_printable("Failed to convert response bytes to UTF-8 string")?;
-
-                    response_str
-                        .as_str()
-                        .parse_xml::<Self::ResponseBody>()
-                        .change_context(
-                            crate::utils::response_handling_fail_for_connector(status_code, "macros"),
-                        )
-                        .attach_printable("Failed to parse XML response")
-                }
+                crate::connectors::macros::expand_xml_response_parser!();
             }
         }
     };
@@ -1454,6 +1645,7 @@ macro_rules! create_all_prerequisites {
                     $(request_body: $flow_request: ident $(<$generic_param: ident>)?,)?
                     response_body: $flow_response: ident,
                     $(response_format: $response_format:ident,)?
+                    $(response_router_data: $response_router_data:ident,)?
                     router_data: $router_data_type: ty,
                 )
             ),*
@@ -1474,6 +1666,7 @@ macro_rules! create_all_prerequisites {
                 $(request_body: $flow_request $(<$generic_param>)?,)?
                 response_body: $flow_response,
                 $(response_format: $response_format,)?
+                $(response_router_data: $response_router_data,)?
                 router_data: $router_data_type,
                 generic_type: $generic_type,
             );
@@ -1537,6 +1730,28 @@ macro_rules! create_all_prerequisites_impl_templating {
         request_body: $flow_request: ident $(<$generic_param: ident>)?,
         response_body: $flow_response: ident,
         response_format: xml,
+        response_router_data: connector,
+        router_data: $router_data_type: ty,
+        generic_type: $generic_type: tt,
+    ) => {
+        crate::connectors::macros::impl_templating_mixed!(
+            connector: $connector,
+            curl_request: $flow_request $(<$generic_param>)?,
+            curl_response: $flow_response,
+            router_data: $router_data_type,
+            generic_type: $generic_type,
+            response_format: xml,
+            response_router_data: connector,
+        );
+    };
+
+    // Pattern with request body and XML response format
+    (
+        connector: $connector: ident,
+        flow: $flow:ty,
+        request_body: $flow_request: ident $(<$generic_param: ident>)?,
+        response_body: $flow_response: ident,
+        response_format: xml,
         router_data: $router_data_type: ty,
         generic_type: $generic_type: tt,
     ) => {
@@ -1548,6 +1763,26 @@ macro_rules! create_all_prerequisites_impl_templating {
             router_data: $router_data_type,
             generic_type: $generic_type,
             response_format: xml,
+        );
+    };
+
+    // Pattern with request body and connector-aware response router data
+    (
+        connector: $connector: ident,
+        flow: $flow:ty,
+        request_body: $flow_request: ident $(<$generic_param: ident>)?,
+        response_body: $flow_response: ident,
+        response_router_data: connector,
+        router_data: $router_data_type: ty,
+        generic_type: $generic_type: tt,
+    ) => {
+        crate::connectors::macros::impl_templating_mixed!(
+            connector: $connector,
+            curl_request: $flow_request $(<$generic_param>)?,
+            curl_response: $flow_response,
+            router_data: $router_data_type,
+            generic_type: $generic_type,
+            response_router_data: connector,
         );
     };
 
@@ -1567,6 +1802,24 @@ macro_rules! create_all_prerequisites_impl_templating {
             curl_response: $flow_response,
             router_data: $router_data_type,
             generic_type: $generic_type,
+        );
+    };
+
+    // Pattern without request body and connector-aware response router data
+    (
+        connector: $connector: ident,
+        flow: $flow:ty,
+        response_body: $flow_response: ident,
+        response_router_data: connector,
+        router_data: $router_data_type: ty,
+        generic_type: $generic_type: tt,
+    ) => {
+        crate::connectors::macros::impl_templating!(
+            connector: $connector,
+            curl_response: $flow_response,
+            router_data: $router_data_type,
+            generic_type: $generic_type,
+            response_router_data: connector,
         );
     };
 
@@ -1695,6 +1948,47 @@ macro_rules! create_amount_converter_wrapper {
                     error_stack::Report<common_utils::errors::ParsingError>,
                 > {
                     domain_types::utils::convert_back_amount_to_minor_units(
+                        &common_utils::types::[<$amount_type ForConnector>],
+                        amount,
+                        currency,
+                    )
+                }
+            }
+
+            impl<
+                T: domain_types::payment_method_data::PaymentMethodDataTypes
+                    + std::fmt::Debug
+                    + std::marker::Sync
+                    + std::marker::Send
+                    + 'static
+                    + serde::Serialize,
+            > common_utils::types::AmountConvertor for $connector_name<T> {
+                type Output = common_utils::types::$amount_type;
+
+                fn convert(
+                    &self,
+                    amount: common_utils::types::MinorUnit,
+                    currency: common_enums::Currency,
+                ) -> Result<
+                    Self::Output,
+                    error_stack::Report<common_utils::errors::ParsingError>,
+                > {
+                    <common_utils::types::[<$amount_type ForConnector>] as common_utils::types::AmountConvertor>::convert(
+                        &common_utils::types::[<$amount_type ForConnector>],
+                        amount,
+                        currency,
+                    )
+                }
+
+                fn convert_back(
+                    &self,
+                    amount: Self::Output,
+                    currency: common_enums::Currency,
+                ) -> Result<
+                    common_utils::types::MinorUnit,
+                    error_stack::Report<common_utils::errors::ParsingError>,
+                > {
+                    <common_utils::types::[<$amount_type ForConnector>] as common_utils::types::AmountConvertor>::convert_back(
                         &common_utils::types::[<$amount_type ForConnector>],
                         amount,
                         currency,

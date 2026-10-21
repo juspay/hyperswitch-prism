@@ -112,6 +112,7 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     return PaymentServiceVoidRequest.newBuilder().apply {
         merchantVoidId = "probe_void_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
+        cancellationReason = "requested_by_customer"  // Void Details.
     }.build()
 }
 
@@ -294,7 +295,7 @@ fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultCo
     val request = PaymentServiceIncrementalAuthorizationRequest.newBuilder().apply {
         merchantAuthorizationId = "probe_auth_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"
-        amountBuilder.apply {  // new amount to be authorized (in minor currency units).
+        amountBuilder.apply {  // New total authorized amount, including this increase.
             minorAmount = 1100L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }

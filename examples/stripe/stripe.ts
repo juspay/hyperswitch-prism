@@ -108,7 +108,7 @@ function _buildIncrementalAuthorizationRequest(): types.IPaymentServiceIncrement
     return {
         "merchantAuthorizationId": "probe_auth_001",  // Identification.
         "connectorTransactionId": "probe_connector_txn_001",
-        "amount": {  // new amount to be authorized (in minor currency units).
+        "amount": {  // New total authorized amount, including this increase.
             "minorAmount": 1100,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
@@ -310,7 +310,8 @@ function _buildTokenSetupRecurringRequest(): types.IPaymentServiceTokenSetupRecu
 function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId
+        "connectorTransactionId": connectorTransactionId,
+        "cancellationReason": "requested_by_customer"  // Void Details.
     };
 }
 

@@ -3,7 +3,7 @@ use common_enums::{
 };
 use common_utils::{
     collect_missing_value_keys,
-    types::{MinorUnit, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -378,27 +378,11 @@ pub(super) fn generate_xml<T: Serialize>(request: &T) -> Result<String, Report<I
     ))
 }
 
-fn generate_logged_xml<T: Serialize>(request: &T, fallback_root: &str) -> String {
+fn generate_xml_or_fallback<T: Serialize>(request: &T, fallback_root: &str) -> String {
     let fallback = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<{fallback_root}/>");
-    let xml = generate_xml(request).unwrap_or(fallback);
-    tracing::info!(
-        connector = "tsysTransit",
-        root = fallback_root,
-        raw_request_xml = %xml,
-        "tsysTransit raw connector request"
-    );
-    xml
+    generate_xml(request).unwrap_or(fallback)
 }
 
-fn log_tsys_transit_response<T: Debug>(flow: &str, status_code: u16, response: &T) {
-    tracing::info!(
-        connector = "tsysTransit",
-        flow,
-        http_status = status_code,
-        connector_response = ?response,
-        "tsysTransit connector response"
-    );
-}
 #[derive(Debug, Serialize)]
 pub enum TsysTransitAuthorizeRequest {
     #[serde(rename = "Sale")]
@@ -418,7 +402,7 @@ impl GetSoapXml for TsysTransitRepeatPaymentRequest {
 
 impl GetSoapXml for TsysTransitAuthorizeRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "Sale")
+        generate_xml_or_fallback(self, "Sale")
     }
 }
 #[derive(Debug, Serialize)]
@@ -562,7 +546,7 @@ pub struct TsysTransitTransactionInquiryRequest {
 
 impl GetSoapXml for TsysTransitTransactionInquiryRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "SearchTransaction")
+        generate_xml_or_fallback(self, "SearchTransaction")
     }
 }
 pub type TsysTransitRSyncRequest = TsysTransitTransactionInquiryRequest;
@@ -589,7 +573,7 @@ pub struct TsysTransitCaptureRequest {
 
 impl GetSoapXml for TsysTransitCaptureRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "Capture")
+        generate_xml_or_fallback(self, "Capture")
     }
 }
 #[derive(Debug, Serialize)]
@@ -617,7 +601,7 @@ pub struct TsysTransitReturnRequest {
 
 impl GetSoapXml for TsysTransitReturnRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "Return")
+        generate_xml_or_fallback(self, "Return")
     }
 }
 #[derive(Debug, Serialize)]
@@ -639,7 +623,7 @@ pub struct TsysTransitVoidRequest {
 
 impl GetSoapXml for TsysTransitVoidRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "Void")
+        generate_xml_or_fallback(self, "Void")
     }
 }
 
@@ -664,7 +648,7 @@ pub type TsysTransitVoidPCResponse = TsysTransitVoidResponse;
 
 impl GetSoapXml for TsysTransitVoidPCRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "Void")
+        generate_xml_or_fallback(self, "Void")
     }
 }
 
@@ -687,7 +671,7 @@ pub struct TsysTransitVoidPostRefundRequest {
 
 impl GetSoapXml for TsysTransitVoidPostRefundRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "Void")
+        generate_xml_or_fallback(self, "Void")
     }
 }
 #[derive(Debug, Serialize)]
@@ -783,7 +767,7 @@ pub struct TsysTransitCardAuthenticationRequest {
 
 impl GetSoapXml for TsysTransitCardAuthenticationRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "CardAuthentication")
+        generate_xml_or_fallback(self, "CardAuthentication")
     }
 }
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -2494,6 +2478,7 @@ pub fn map_authorize_status(response: &TsysTransitAuthorizeResponse) -> AttemptS
 /// transaction hasn't settled or the connector omitted the amount, and
 /// surfaces a genuine parse failure instead of silently dropping it.
 fn derive_amount_captured(
+    amount_converter: &impl AmountConvertor<Output = StringMajorUnit>,
     status: AttemptStatus,
     amount: Option<&StringMajorUnit>,
     currency: common_enums::Currency,
@@ -2509,7 +2494,8 @@ fn derive_amount_captured(
 
     amount
         .map(|amount| {
-            super::TsysTransitAmountConvertor::convert_back(amount.clone(), currency)
+            amount_converter
+                .convert_back(amount.clone(), currency)
                 .change_context(ConnectorError::ResponseDeserializationFailed {
                     context: ResponseTransformationErrorContext {
                         additional_context: Some(format!(
@@ -2524,6 +2510,7 @@ fn derive_amount_captured(
 }
 
 fn derive_amount_capturable(
+    amount_converter: &impl AmountConvertor<Output = StringMajorUnit>,
     status: AttemptStatus,
     amount: Option<&StringMajorUnit>,
     currency: common_enums::Currency,
@@ -2539,7 +2526,8 @@ fn derive_amount_capturable(
 
     amount
         .map(|amount| {
-            super::TsysTransitAmountConvertor::convert_back(amount.clone(), currency)
+            amount_converter
+                .convert_back(amount.clone(), currency)
                 .change_context(ConnectorError::ResponseDeserializationFailed {
                     context: ResponseTransformationErrorContext {
                         additional_context: Some(format!(
@@ -2554,17 +2542,17 @@ fn derive_amount_capturable(
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<TsysTransitAuthorizeResponse, Self>>
+    TryFrom<ResponseRouterData<TsysTransitAuthorizeResponse, TsysTransitRouterData<Self, T>>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<TsysTransitAuthorizeResponse, Self>,
+        item: ResponseRouterData<TsysTransitAuthorizeResponse, TsysTransitRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
-        let router_data = &item.router_data;
+        let connector = item.router_data.connector;
+        let router_data = &item.router_data.router_data;
         let response = &item.response;
-        log_tsys_transit_response("Authorize", item.http_code, response);
         let body = response.body();
 
         let status = map_authorize_status(response);
@@ -2605,14 +2593,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
-        let minor_amount_captured = derive_amount_captured(
+        let amount_captured = derive_amount_captured(
+            &connector,
             status,
             body.processed_amount.as_ref(),
             router_data.request.currency,
             item.http_code,
         )?;
-        let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
-        let minor_amount_capturable = derive_amount_capturable(
+        let amount_capturable = derive_amount_capturable(
+            &connector,
             status,
             body.processed_amount.as_ref(),
             router_data.request.currency,
@@ -2760,6 +2749,7 @@ fn get_payment_status_from_psync_response(
 /// expressed in minor units (e.g. "1234"). A "." is the only reliable signal
 /// to tell the two apart.
 fn parse_ambiguous_transaction_amount(
+    amount_converter: &impl AmountConvertor<Output = StringMajorUnit>,
     amount: &str,
     currency: common_enums::Currency,
     http_status_code: u16,
@@ -2774,7 +2764,8 @@ fn parse_ambiguous_transaction_amount(
             amount.to_string(),
         ))
         .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })?;
-        super::TsysTransitAmountConvertor::convert_back(major_unit, currency)
+        amount_converter
+            .convert_back(major_unit, currency)
             .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })
     } else {
         amount
@@ -2784,17 +2775,22 @@ fn parse_ambiguous_transaction_amount(
     }
 }
 
-impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
-    for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ResponseRouterData<TsysTransitTransactionInquiryResponse, TsysTransitRouterData<Self, T>>,
+    > for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>,
+        item: ResponseRouterData<
+            TsysTransitTransactionInquiryResponse,
+            TsysTransitRouterData<Self, T>,
+        >,
     ) -> Result<Self, Self::Error> {
-        let router_data = &item.router_data;
+        let connector = item.router_data.connector;
+        let router_data = &item.router_data.router_data;
         let response = &item.response;
-        log_tsys_transit_response("PSync", item.http_code, response);
 
         if let Some(transaction_details) = response.transaction_details.as_ref() {
             // Incase of failure error message is not returned in sync call
@@ -2822,6 +2818,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                 .as_deref()
                 .map(|amount| {
                     parse_ambiguous_transaction_amount(
+                        &connector,
                         amount,
                         transaction_details
                             .currency_code
@@ -2958,17 +2955,18 @@ pub fn map_capture_status(response: &TsysTransitCaptureResponse) -> AttemptStatu
     }
 }
 
-impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<TsysTransitCaptureResponse, TsysTransitRouterData<Self, T>>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<TsysTransitCaptureResponse, Self>,
+        item: ResponseRouterData<TsysTransitCaptureResponse, TsysTransitRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
-        let router_data = &item.router_data;
+        let connector = item.router_data.connector;
+        let router_data = &item.router_data.router_data;
         let response = &item.response;
-        log_tsys_transit_response("Capture", item.http_code, response);
 
         let status = map_capture_status(response);
 
@@ -3015,7 +3013,8 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
                 })?,
         };
 
-        let minor_amount_captured = derive_amount_captured(
+        let amount_captured = derive_amount_captured(
+            &connector,
             status,
             response.transaction_amount.as_ref(),
             router_data.request.currency,
@@ -3119,17 +3118,18 @@ pub fn map_refund_status(response: &TsysTransitReturnResponse) -> RefundStatus {
     }
 }
 
-impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<TsysTransitReturnResponse, TsysTransitRouterData<Self, T>>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<TsysTransitReturnResponse, Self>,
+        item: ResponseRouterData<TsysTransitReturnResponse, TsysTransitRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
-        let router_data = &item.router_data;
+        let connector = item.router_data.connector;
+        let router_data = &item.router_data.router_data;
         let response = &item.response;
-        log_tsys_transit_response("Refund", item.http_code, response);
 
         let refund_status = map_refund_status(response);
 
@@ -3182,6 +3182,7 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
             .as_ref()
             .map(|amount| {
                 parse_ambiguous_transaction_amount(
+                    &connector,
                     amount,
                     router_data.request.currency,
                     item.http_code,
@@ -3275,8 +3276,6 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-
-        log_tsys_transit_response("RSync", item.http_code, response);
 
         match response
             .transaction_details
@@ -3437,7 +3436,6 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidPostRefundResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("VoidPostRefund", item.http_code, response);
 
         let void_post_refund_status = map_void_post_refund_status(response);
 
@@ -3605,7 +3603,6 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("Void", item.http_code, response);
 
         let status = map_void_status(response);
 
@@ -3698,7 +3695,6 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("VoidPC", item.http_code, response);
 
         let post_capture_void_status = match map_void_status(response) {
             AttemptStatus::Voided => common_enums::PostCaptureVoidStatus::Succeeded,
@@ -3940,7 +3936,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
-        log_tsys_transit_response("SetupMandate", item.http_code, response);
 
         let is_success = matches!(response.status, Some(TsysTransitStatus::Pass))
             && response.response_code.as_deref() == Some("A0000");
@@ -4182,17 +4177,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<TsysTransitRepeatPaymentResponse, Self>>
+    TryFrom<ResponseRouterData<TsysTransitRepeatPaymentResponse, TsysTransitRouterData<Self, T>>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<TsysTransitRepeatPaymentResponse, Self>,
+        item: ResponseRouterData<TsysTransitRepeatPaymentResponse, TsysTransitRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
-        let router_data = &item.router_data;
+        let connector = item.router_data.connector;
+        let router_data = &item.router_data.router_data;
         let response = &item.response;
-        log_tsys_transit_response("RepeatPayment", item.http_code, response);
         let body = response.body();
         let authorize_view = response.as_authorize();
         let status = map_authorize_status(&authorize_view);
@@ -4235,7 +4230,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
-        let minor_amount_captured = derive_amount_captured(
+        let amount_captured = derive_amount_captured(
+            &connector,
             status,
             body.processed_amount.as_ref(),
             router_data.request.currency,
@@ -4243,7 +4239,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         )?;
         let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
 
-        let minor_amount_capturable = derive_amount_capturable(
+        let amount_capturable = derive_amount_capturable(
+            &connector,
             status,
             body.processed_amount.as_ref(),
             router_data.request.currency,

@@ -198,7 +198,7 @@ fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
 // Flow: PaymentService.Capture
 fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
-    val request = buildCaptureRequest("probe_connector_txn_001")
+    val request = buildCaptureRequest("C|123456|123456789012|000001")
     val response = client.capture(request)
     if (response.status.name == "FAILED")
         throw RuntimeException("Capture failed: ${response.error.unifiedDetails.message}")
@@ -300,7 +300,7 @@ fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
 // Flow: PaymentService.Refund
 fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
-    val request = buildRefundRequest("probe_connector_txn_001")
+    val request = buildRefundRequest("C|123456|123456789012|000001")
     val response = client.refund(request)
     if (response.status.name == "FAILED")
         throw RuntimeException("Refund failed: ${response.error.unifiedDetails.message}")
@@ -349,7 +349,7 @@ fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
-    val request = buildVoidRequest("probe_connector_txn_001")
+    val request = buildVoidRequest("C|123456|123456789012|000001")
     val response = client.void(request)
     if (response.status.name == "FAILED")
         throw RuntimeException("Void failed: ${response.error.unifiedDetails.message}")

@@ -281,6 +281,33 @@ pub struct ConnectorSuiteSpec {
     /// ~30s). Default: no polling (status returned on first call is final).
     #[serde(default)]
     pub sync_poll_until_terminal_seconds: Option<u64>,
+    /// Connector-scoped dependencies added around a global suite's
+    /// `depends_on`, as `suite -> { before, after, dependency_scope }`.
+    ///
+    /// For a connector whose flows need a prerequisite no other connector does
+    /// (for example a session token minted per order), without editing the
+    /// shared `global_suites/<suite>/suite_spec.json`. Absent or empty leaves
+    /// every suite exactly as the global spec defines it.
+    #[serde(default)]
+    pub suite_dependencies: BTreeMap<String, ConnectorSuiteDependencies>,
+}
+
+/// Dependencies one connector adds to one global suite (`specs.json`
+/// `suite_dependencies`). The effective chain is `before ++ global ++ after`;
+/// each entry takes the same shape as a `suite_spec.json` `depends_on` entry,
+/// `context_map` included.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorSuiteDependencies {
+    /// Run before the global suite's own dependencies.
+    #[serde(default)]
+    pub before: Vec<SuiteDependency>,
+    /// Run after the global suite's own dependencies.
+    #[serde(default)]
+    pub after: Vec<SuiteDependency>,
+    /// Replaces the global suite's `dependency_scope` when set.
+    #[serde(default)]
+    pub dependency_scope: Option<DependencyScope>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

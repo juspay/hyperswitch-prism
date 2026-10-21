@@ -5,9 +5,9 @@
 // Cybersource — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx cybersource.ts checkout_autocapture
 
-import { PaymentClient, PaymentMethodAuthenticationClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authenticate", "authorize", "capture", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "reverse", "setup_recurring", "token_authorize", "void"];
+import { PaymentClient, PaymentMethodAuthenticationClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, CountryAlpha2, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["authenticate", "authorize", "capture", "get", "incremental_authorization", "parse_event", "post_authenticate", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "reverse", "setup_recurring", "token_authorize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -48,8 +48,21 @@ function _buildAuthenticateRequest(): types.IPaymentMethodAuthenticationServiceA
             "billingAddress": {
             }
         },
+        "metadata": {"value": "{\"device_channel\":\"BRW\"}"},  // Additional metadata for the connector.
         "returnUrl": "https://example.com/3ds-return",  // URLs for Redirection.
         "continueRedirectionUrl": "https://example.com/3ds-continue",
+        "browserInfo": {  // Contextual Information.
+            "colorDepth": 24,  // Display Information.
+            "screenHeight": 900,
+            "screenWidth": 1440,
+            "javaEnabled": false,  // Browser Settings.
+            "javaScriptEnabled": true,
+            "language": "en-US",
+            "timeZoneOffsetMinutes": -480,
+            "acceptHeader": "application/json",  // Browser Headers.
+            "userAgent": "Mozilla/5.0 (probe-bot)",
+            "ipAddress": "1.2.3.4"  // Device Information.
+        },
         "redirectionResponse": {  // Redirection Information after DDC step.
             "params": "probe_redirect_params",
             "payload": {
@@ -79,11 +92,49 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
             "email": {"value": "test@example.com"}  // Customer's email address.
         },
         "address": {  // Address Information.
+            "shippingAddress": {
+                "firstName": {"value": "Jane"},  // Personal Information.
+                "lastName": {"value": "Doe"},
+                "line1": {"value": "123 Main St"},  // Address Details.
+                "line2": {"value": "Suite 4"},
+                "city": {"value": "Seattle"},
+                "state": {"value": "WA"},
+                "zipCode": {"value": "98101"},
+                "countryAlpha2Code": CountryAlpha2.US,
+                "phoneNumber": {"value": "4155552671"}
+            },
             "billingAddress": {
             }
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
-        "returnUrl": "https://example.com/return"  // URLs for Redirection and Webhooks.
+        "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks.
+        "billingDescriptor": {  // Statement Descriptor.
+            "name": {"value": "PROBE STORE"},  // Customer's billing name.
+            "statementDescriptor": "PROBE STORE"  // Complete description that appears on customers' statements.
+        },
+        "l2L3Data": {  // Level 2 / Level 3 data for enhanced payment processing.
+            "orderInfo": {  // Order-level information.
+                "orderDetails": [  // Line items for the order.
+                    {
+                        "productName": "Probe item",  // Name of the product that is being purchased.
+                        "quantity": 1,  // The quantity of the product to be purchased.
+                        "amount": 800,  // Amount per quantity (in minor currency units).
+                        "totalTaxAmount": 50,  // Total tax amount (in minor currency units).
+                        "category": "default",  // Category of the product that is being purchased.
+                        "unitOfMeasure": "EA",  // Unit of measure used for the item quantity.
+                        "sku": "PROBE-SKU-1",  // Stock Keeping Unit (SKU) or item identifier for the product.
+                        "commodityCode": "4421"  // Commodity code describing the product classification.
+                    }
+                ],
+                "merchantOrderReferenceId": "PO-PROBE-001",  // Merchant's internal reference ID for the order.
+                "discountAmount": 0,  // Discount applied to the order (in minor currency units).
+                "shippingCost": 100,  // Shipping cost for the order (in minor currency units).
+                "dutyAmount": 50  // Duty/customs amount for the order (in minor currency units).
+            },
+            "taxInfo": {  // Tax information.
+                "orderTaxAmount": 50  // Total tax amount for the order (in minor currency units).
+            }
+        }
     };
 }
 
@@ -109,15 +160,40 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
     };
 }
 
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+        "merchantEventId": "probe_event_001",
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
 function _buildIncrementalAuthorizationRequest(): types.IPaymentServiceIncrementalAuthorizationRequest {
     return {
         "merchantAuthorizationId": "probe_auth_001",  // Identification.
         "connectorTransactionId": "probe_connector_txn_001",
-        "amount": {  // new amount to be authorized (in minor currency units).
+        "amount": {  // New total authorized amount, including this increase.
             "minorAmount": 1100,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
         "reason": "incremental_auth_probe"  // Optional Fields.
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
+        }
     };
 }
 
@@ -507,6 +583,15 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.HandleEvent
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+
+    return handleResponse;
+}
+
 // Flow: PaymentService.IncrementalAuthorization
 async function incrementalAuthorization(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -514,6 +599,15 @@ async function incrementalAuthorization(merchantTransactionId: string, config: t
     const incrementalResponse = await paymentClient.incrementalAuthorization(_buildIncrementalAuthorizationRequest());
 
     return incrementalResponse;
+}
+
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
 }
 
 // Flow: PaymentMethodAuthenticationService.PostAuthenticate
@@ -627,7 +721,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, incrementalAuthorization, postAuthenticate, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, recurringRevoke, refund, refundGet, reverse, setupRecurring, tokenAuthorize, voidPayment, _buildAuthenticateRequest, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRecurringRevokeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, handleEvent, incrementalAuthorization, parseEvent, postAuthenticate, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, recurringRevoke, refund, refundGet, reverse, setupRecurring, tokenAuthorize, voidPayment, _buildAuthenticateRequest, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildIncrementalAuthorizationRequest, _buildParseEventRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRecurringRevokeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

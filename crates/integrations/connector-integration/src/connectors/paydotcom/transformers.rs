@@ -2224,6 +2224,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
                 connector_feature_data: pending,
                 connector_response_reference_id: item.response.reference(),
                 status_code: item.http_code,
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
             }),
         };
 
@@ -2263,14 +2266,21 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
     }
 }
 
-impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, PaydotcomRouterData<Self, T>>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<PaydotcomPaymentsResponse, Self>,
+        item: ResponseRouterData<PaydotcomPaymentsResponse, PaydotcomRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let captured_amount = item.response.amount();
         let authorized_amount = item
             .router_data
@@ -2307,8 +2317,17 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: captured_amount.map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured: captured_amount,
+                amount_captured: captured_amount
+                    .map(|amount| {
+                        crate::utils::response_amount_to_money(
+                            &connector,
+                            amount,
+                            item.router_data.request.currency,
+                            item.http_code,
+                            domain_types::connector_types::ConnectorEnum::Paydotcom,
+                        )
+                    })
+                    .transpose()?,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data

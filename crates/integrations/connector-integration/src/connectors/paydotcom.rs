@@ -305,6 +305,8 @@ const PATH_LINKED_AUTH_SESSION: &str = "/v1/sessions/authentication/linked";
 
 // Every amount Pay.com accepts is in the currency's smallest unit, and every request
 // amount except `amount_to_capture` / `amount_to_refund` is a JSON integer.
+macros::create_amount_converter_wrapper!(connector_name: Paydotcom, amount_type: MinorUnit);
+
 macros::create_all_prerequisites!(
     connector_name: Paydotcom,
     generic_type: T,
@@ -324,6 +326,7 @@ macros::create_all_prerequisites!(
             flow: Capture,
             request_body: PaydotcomCaptureRequest,
             response_body: PaydotcomCaptureResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (

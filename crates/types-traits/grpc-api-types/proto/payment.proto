@@ -1049,8 +1049,8 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
-  PAYMAYA = 115;
-  GRAB_PAY = 116;
+  PAYMAYA = 115 [deprecated = true]; // Use MAYA_WALLET.
+  GRAB_PAY = 116 [deprecated = true]; // Use GRABPAY_WALLET.
   // PAYMENT_METHOD_TYPE_KLARNA (not bare KLARNA): the value name KLARNA is already
   // taken by the Connector enum in this same proto package, and protobuf requires
   // enum value names to be unique per-package (C++ scoping). Klarna is legitimately
@@ -1079,9 +1079,13 @@ enum PaymentMethodType {
   QRIS = 134;
   SEPA_GUARANTEED_DEBIT = 135;
   NETELLER = 136;
-  PAY_HERE = 137;
-  TAMARA_REDIRECT = 138;
+  PAY_HERE = 137 [deprecated = true]; // Use PAYHERE_WALLET.
+  TAMARA_REDIRECT = 138 [deprecated = true]; // Use TAMARA_BNPL.
   TED = 139;
+  MAYA_WALLET = 140;
+  GRABPAY_WALLET = 141;
+  PAYHERE_WALLET = 142;
+  TAMARA_BNPL = 143;
 }
 
 // Product type enumeration
@@ -4066,6 +4070,11 @@ message RecurringPaymentServiceChargeRequest {
 
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 42;
+
+  // Connector session token, set by the caller from the session_token returned by
+  // MerchantAuthenticationService.CreateServerSessionAuthenticationToken (e.g. Nuvei's
+  // /getSessionToken.do sessionToken). Leave unset for connectors that do not use one.
+  optional string session_token = 43;
 }
 
 // Response message for repeat payment operation
@@ -4209,6 +4218,11 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Sandbox/test mode flag
   optional bool test_mode = 17;
+
+  // Connector session token, set by the caller from the session_token returned by
+  // MerchantAuthenticationService.CreateServerSessionAuthenticationToken (e.g. Nuvei's
+  // /getSessionToken.do sessionToken). Leave unset for connectors that do not use one.
+  optional string session_token = 18;
 }
 
 // Response message for pre-authentication step
@@ -4285,6 +4299,18 @@ message PaymentMethodAuthenticationServiceAuthenticateRequest {
 
   // Domain-specific data (e.g. student fields for tuition payments)
   optional DomainData domain_data = 16;
+
+  // Stored-credential intent, used when this leg is the charging call
+  optional FutureUsage setup_future_usage = 18; // Indicates future usage intention
+  optional CustomerAcceptance customer_acceptance = 19; // Details of customer acceptance for mandates
+
+  // Payment Options applied when this leg is the charging call
+  optional bool enable_partial_authorization = 20; // Allow partial authorization
+  optional PaymentChannel payment_channel = 21; // Describes the channel through which the payment was initiated
+  optional BillingDescriptor billing_descriptor = 22; // Billing descriptor information
+
+  // Level 2 / Level 3 data
+  optional L2L3Data l2_l3_data = 23;
 }
 
 // Response message for authentication step
@@ -4317,6 +4343,10 @@ message PaymentMethodAuthenticationServiceAuthenticateResponse {
 
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 13;
+
+  // Stored-credential results, set when this leg charged the payment
+  optional MandateReferenceDetails mandate_reference_details = 15; // Reference to the created mandate
+  optional string network_txn_link_id = 16; // Network transaction link identifier
 }
 
 // Request message for post-authentication step
@@ -4400,7 +4430,7 @@ message PaymentServiceIncrementalAuthorizationRequest {
   string connector_transaction_id = 2;
 
   // Amount Information
-  Money amount = 3; // new amount to be authorized (in minor currency units)
+  Money amount = 3; // New total authorized amount, including this increase.
 
   // Optional Fields
   optional string reason = 4;
@@ -4414,6 +4444,12 @@ message PaymentServiceIncrementalAuthorizationRequest {
   // endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
   // the real value; defaulting to None/test mode breaks live-URL substitution.
   optional bool test_mode = 7;
+
+  // Increase over the current authorized total. Must use the same currency as amount.
+  optional Money additional_amount = 8;
+
+  // Network transaction ID returned by the original authorization.
+  optional string network_transaction_id = 9;
 }
 
 // Response message for incremental authorization
@@ -5736,6 +5772,8 @@ message PproConfig {
   SecretString api_key = 1;
   SecretString merchant_id = 2;
   optional string base_url = 50;
+  // HMAC-SHA256 webhook signing secret used to verify the `ppro-signature` header.
+  optional SecretString webhook_secret = 51;
 }
 
 message PaypalConfig {
@@ -6785,6 +6823,8 @@ message PaymentMethodServiceEligibilityRequest {
   // call, avoiding one round-trip per payment method. Preferred over the
   // deprecated scalar `payment_method_type`.
   repeated PaymentMethodType payment_method_types = 13;
+
+  optional string payment_method_token = 14; // PaymentMethod Token Information
 }
 
 // Per-payment-method eligibility verdict. One of these is returned for each

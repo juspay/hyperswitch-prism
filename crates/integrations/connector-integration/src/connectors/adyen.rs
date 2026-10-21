@@ -84,6 +84,8 @@ pub(crate) mod headers {
 
 // Type alias for non-generic trait implementations
 
+macros::create_amount_converter_wrapper!(connector_name: Adyen, amount_type: MinorUnit);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ClientAuthentication for Adyen<T>
 {
@@ -374,12 +376,14 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: AdyenPaymentRequest<T>,
             response_body: AdyenPaymentResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
             request_body: AdyenRedirectRequest,
             response_body: AdyenPSyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
@@ -404,12 +408,14 @@ macros::create_all_prerequisites!(
             flow: SetupMandate,
             request_body: SetupMandateRequest<T>,
             response_body: SetupMandateResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
         (
             flow: RepeatPayment,
             request_body: AdyenRepeatPaymentRequest,
             response_body: AdyenRepeatPaymentResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
         (
@@ -1128,6 +1134,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: notif.original_reference,
                     merchant_transaction_id: Some(notif.merchant_reference),
+                    connector_preprocessing_id: None,
                 })
             }
             // AUTHORISATION-like events carry both the Adyen PSP reference and
@@ -1139,6 +1146,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: Some(notif.psp_reference),
                     merchant_transaction_id: Some(notif.merchant_reference),
+                    connector_preprocessing_id: None,
                 })
             }
             // Refund events carry the refund PSP reference, merchant refund

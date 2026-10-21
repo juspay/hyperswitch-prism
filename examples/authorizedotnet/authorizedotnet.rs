@@ -62,6 +62,8 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
             minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
+        order_tax_amount: Some(100), // Tax amount for the order.
+        shipping_cost: Some(200),    // Cost of shipping for the order.
         payment_method: Some(PaymentMethod {
             // Payment method to be used.
             payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
@@ -81,13 +83,50 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         ), // Method for capturing the payment.
         address: Some(PaymentAddress {
             // Address Information.
-            billing_address: Some(Address {
+            shipping_address: Some(Address {
+                first_name: Some(Secret::new("Jane".to_string())), // Personal Information.
+                last_name: Some(Secret::new("Doe".to_string())),
+                line1: Some(Secret::new("12 Main Street".to_string())), // Address Details.
+                city: Some(Secret::new("Seattle".to_string())),
+                state: Some(Secret::new("WA".to_string())),
+                zip_code: Some(Secret::new("98101".to_string())),
+                country_alpha2_code: Some(CountryAlpha2::Us.into()),
                 ..Default::default()
             }),
-            ..Default::default()
+            billing_address: Some(Address {
+                email: Some(Secret::new("billing.probe@example.com".to_string())), // Contact Information.
+                phone_number: Some(Secret::new("4155550101".to_string())),
+                phone_country_code: Some("+1".to_string()),
+                ..Default::default()
+            }),
         }),
         auth_type: AuthenticationType::NoThreeDs.into(), // Authentication Details.
+        authentication_data: Some(AuthenticationData {
+            eci: Some("05".to_string()), // Electronic Commerce Indicator (ECI) from 3DS.
+            cavv: Some("cHJvYmVfY2F2dl92YWx1ZQ==".to_string()), // Cardholder Authentication Verification Value (CAVV).
+            ..Default::default()
+        }),
         return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
+        billing_descriptor: Some(BillingDescriptor {
+            // Statement Descriptor.
+            statement_descriptor: Some("PROBE DESCRIPTOR".to_string()), // Complete description that appears on customers' statements.
+            ..Default::default()
+        }),
+        l2_l3_data: Some(L2L3Data {
+            // Level 2 / Level 3 data for enhanced payment processing.
+            order_info: Some(OrderInfo {
+                // Order-level information.
+                // order_details: [{"product_name": "Probe item", "quantity": 1, "amount": 650, "total_tax_amount": 100, "product_id": "sku_probe_001", "description": "Probe line item", "unit_of_measure": "EA", "commodity_code": "4900"}]  // Line items for the order.
+                merchant_order_reference_id: Some("probe_po_001".to_string()), // Merchant's internal reference ID for the order.
+                duty_amount: Some(50), // Duty/customs amount for the order (in minor currency units).
+                ..Default::default()
+            }),
+            tax_info: Some(TaxInfo {
+                // Tax information.
+                tax_status: Some(TaxStatus::Exempt.into()), // Tax status of the order.
+                ..Default::default()
+            }),
+        }),
         ..Default::default()
     }
 }
@@ -144,7 +183,7 @@ pub fn build_handle_event_request() -> EventServiceHandleRequest {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
             headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            body: "{\"webhookId\":\"probe_webhook_001\",\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}".as_bytes().to_vec(),  // Body of the HTTP request.
             ..Default::default()
         }),
         ..Default::default()
@@ -157,7 +196,7 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
             headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            body: "{\"webhookId\":\"probe_webhook_001\",\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}".as_bytes().to_vec(),  // Body of the HTTP request.
             ..Default::default()
         }),
     }
@@ -235,7 +274,7 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
     RecurringPaymentServiceChargeRequest {
         connector_recurring_payment_id: Some(MandateReference {
             // Reference to existing mandate.
-            // mandate_id_type: {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}
+            // mandate_id_type: {"network_mandate_id": {"network_transaction_id": "probe_network_txn_001"}}
             ..Default::default()
         }),
         amount: Some(Money {
@@ -245,18 +284,41 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
         }),
         payment_method: Some(PaymentMethod {
             // Optional payment Method Information (for network transaction flows).
-            payment_method: Some(payment_method::PaymentMethod::Token(
-                TokenPaymentMethodType {
-                    token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
-                    ..Default::default()
-                },
-            )),
+            payment_method: Some(
+                payment_method::PaymentMethod::CardDetailsForNetworkTransactionId(
+                    CardDetailsForNetworkTransactionId {
+                        card_number: Some(CardNumber::from_str("4111111111111111").unwrap()),
+                        card_exp_month: Some(Secret::new("03".to_string())),
+                        card_exp_year: Some(Secret::new("2030".to_string())),
+                        card_holder_name: Some(Secret::new("John Doe".to_string())),
+                        ..Default::default()
+                    },
+                ),
+            ),
             ..Default::default()
         }),
         return_url: Some("https://example.com/recurring-return".to_string()),
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                first_name: Some(Secret::new("John".to_string())), // Personal Information.
+                last_name: Some(Secret::new("Doe".to_string())),
+                line1: Some(Secret::new("123 Main St".to_string())), // Address Details.
+                city: Some(Secret::new("Seattle".to_string())),
+                state: Some(Secret::new("WA".to_string())),
+                zip_code: Some(Secret::new("98101".to_string())),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
         connector_customer_id: Some("cust_probe_123".to_string()),
         payment_method_type: Some(PaymentMethodType::PayPal.into()),
         off_session: Some(true), // Behavioral Flags and Preferences.
+        billing_descriptor: Some(BillingDescriptor {
+            // Billing Descriptor.
+            statement_descriptor: Some("PROBE DESCRIPTOR".to_string()), // Complete description that appears on customers' statements.
+            ..Default::default()
+        }),
         ..Default::default()
     }
 }

@@ -31,7 +31,7 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -80,21 +80,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    flow:      Authorize,
-    source:    stripe::StripePaymentStatus,
-    success:   RequiresCapture          => Authorized,
-    failure:   Failed                   => Failure,
-    {
-        Succeeded              => Charged,
-        RequiresPaymentMethod  => Failure,
-        Canceled               => Voided,
-        Processing             => Authorizing,
-        RequiresCustomerAction => AuthenticationPending,
-        RequiresConfirmation   => ConfirmationAwaited,
-        Chargeable             => Authorizing,
-        Consumed               => Authorizing,
-        Pending                => Pending,
-    }
+    flow: Authorize,
+    source: stripe::StripePaymentStatus,
+    mapping: |status| { match status {
+        stripe::StripePaymentStatus::RequiresCapture => success!(Authorized),
+        stripe::StripePaymentStatus::Succeeded => success!(Charged),
+        stripe::StripePaymentStatus::Failed
+        | stripe::StripePaymentStatus::RequiresPaymentMethod => failure!(Failure),
+        stripe::StripePaymentStatus::Canceled => non_terminal!(Voided),
+        stripe::StripePaymentStatus::Processing
+        | stripe::StripePaymentStatus::Chargeable
+        | stripe::StripePaymentStatus::Consumed => non_terminal!(Authorizing),
+        stripe::StripePaymentStatus::RequiresCustomerAction => {
+            non_terminal!(AuthenticationPending)
+        }
+        stripe::StripePaymentStatus::RequiresConfirmation => {
+            non_terminal!(ConfirmationAwaited)
+        }
+        stripe::StripePaymentStatus::Pending | stripe::StripePaymentStatus::Unknown => {
+            non_terminal!(Pending)
+        }
+    } },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: PaymentsAuthorizeResponse,
+        source: |_common_data, _request, response, _http_status_code| Ok(response.status()),
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Stripe<T>
@@ -108,21 +119,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    flow:      PSync,
-    source:    stripe::StripePaymentStatus,
-    success:   Succeeded                => Charged,
-    failure:   Failed                   => Failure,
-    {
-        RequiresCapture        => Authorized,
-        RequiresPaymentMethod  => Failure,
-        Canceled               => Voided,
-        Processing             => Authorizing,
-        RequiresCustomerAction => AuthenticationPending,
-        RequiresConfirmation   => ConfirmationAwaited,
-        Chargeable             => Authorizing,
-        Consumed               => Authorizing,
-        Pending                => Pending,
-    }
+    flow: PSync,
+    source: stripe::StripePaymentStatus,
+    mapping: |status| { match status {
+        stripe::StripePaymentStatus::Succeeded => success!(Charged),
+        stripe::StripePaymentStatus::Canceled => success!(Voided),
+        stripe::StripePaymentStatus::Failed
+        | stripe::StripePaymentStatus::RequiresPaymentMethod => failure!(Failure),
+        stripe::StripePaymentStatus::RequiresCapture => non_terminal!(Pending),
+        stripe::StripePaymentStatus::Processing
+        | stripe::StripePaymentStatus::Chargeable
+        | stripe::StripePaymentStatus::Consumed => non_terminal!(Authorizing),
+        stripe::StripePaymentStatus::RequiresCustomerAction => {
+            non_terminal!(AuthenticationPending)
+        }
+        stripe::StripePaymentStatus::RequiresConfirmation => {
+            non_terminal!(ConfirmationAwaited)
+        }
+        stripe::StripePaymentStatus::Pending | stripe::StripePaymentStatus::Unknown => {
+            non_terminal!(Pending)
+        }
+    } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: PaymentSyncResponse,
+        source: |_common_data, _request, response, _http_status_code| Ok(response.status()),
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Stripe<T>
@@ -133,21 +155,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    flow:      Void,
-    source:    stripe::StripePaymentStatus,
-    success:   Canceled              => Voided,
-    failure:   Failed                => VoidFailed,
-    {
-        RequiresPaymentMethod => VoidFailed,
-        Succeeded             => VoidFailed,
-        Processing            => Pending,
-        RequiresCustomerAction => Pending,
-        RequiresConfirmation  => Pending,
-        RequiresCapture       => Pending,
-        Chargeable            => Pending,
-        Consumed              => Pending,
-        Pending               => Pending,
-    }
+    flow: Void,
+    source: stripe::StripePaymentStatus,
+    mapping: |status| { match status {
+        stripe::StripePaymentStatus::Canceled => success!(Voided),
+        stripe::StripePaymentStatus::Failed
+        | stripe::StripePaymentStatus::RequiresPaymentMethod
+        | stripe::StripePaymentStatus::Succeeded => failure!(VoidFailed),
+        stripe::StripePaymentStatus::Processing
+        | stripe::StripePaymentStatus::RequiresCustomerAction
+        | stripe::StripePaymentStatus::RequiresConfirmation
+        | stripe::StripePaymentStatus::RequiresCapture
+        | stripe::StripePaymentStatus::Chargeable
+        | stripe::StripePaymentStatus::Consumed
+        | stripe::StripePaymentStatus::Pending
+        | stripe::StripePaymentStatus::Unknown => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: PaymentVoidData,
+        response: PaymentsVoidResponse,
+        source: |_common_data, _request, response, _http_status_code| Ok(response.status()),
+    },
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -166,21 +194,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    flow:      Capture,
-    source:    stripe::StripePaymentStatus,
-    success:   Succeeded             => Charged,
-    failure:   Failed                => CaptureFailed,
-    {
-        RequiresPaymentMethod  => CaptureFailed,
-        Processing             => Pending,
-        Canceled               => Failure,
-        RequiresCustomerAction => Pending,
-        RequiresConfirmation   => Pending,
-        RequiresCapture        => Pending,
-        Chargeable             => Pending,
-        Consumed               => Pending,
-        Pending                => Pending,
-    }
+    flow: Capture,
+    source: stripe::StripePaymentStatus,
+    mapping: |status| { match status {
+        stripe::StripePaymentStatus::Succeeded => success!(Charged),
+        stripe::StripePaymentStatus::Failed
+        | stripe::StripePaymentStatus::RequiresPaymentMethod => failure!(CaptureFailed),
+        stripe::StripePaymentStatus::Canceled => failure!(Failure),
+        stripe::StripePaymentStatus::Processing
+        | stripe::StripePaymentStatus::RequiresCustomerAction
+        | stripe::StripePaymentStatus::RequiresConfirmation
+        | stripe::StripePaymentStatus::RequiresCapture
+        | stripe::StripePaymentStatus::Chargeable
+        | stripe::StripePaymentStatus::Consumed
+        | stripe::StripePaymentStatus::Pending
+        | stripe::StripePaymentStatus::Unknown => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: PaymentsCaptureResponse,
+        source: |_common_data, _request, response, _http_status_code| Ok(response.status()),
+    },
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -195,21 +229,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    flow:      IncrementalAuthorization,
-    source:    stripe::StripePaymentStatus,
-    success:   RequiresCapture          => Authorized,
-    failure:   Failed                   => Failure,
-    {
-        Succeeded              => Charged,
-        RequiresPaymentMethod  => Failure,
-        Canceled               => Voided,
-        Processing             => Authorizing,
-        RequiresCustomerAction => AuthenticationPending,
-        RequiresConfirmation   => ConfirmationAwaited,
-        Chargeable             => Authorizing,
-        Consumed               => Authorizing,
-        Pending                => Pending,
-    }
+    flow: IncrementalAuthorization,
+    source: stripe::StripePaymentStatus,
+    mapping: |status| { match status {
+        stripe::StripePaymentStatus::RequiresCapture => success!(Authorized),
+        stripe::StripePaymentStatus::Succeeded => success!(Charged),
+        stripe::StripePaymentStatus::Failed
+        | stripe::StripePaymentStatus::RequiresPaymentMethod => failure!(Failure),
+        stripe::StripePaymentStatus::Canceled => non_terminal!(Voided),
+        stripe::StripePaymentStatus::Processing
+        | stripe::StripePaymentStatus::Chargeable
+        | stripe::StripePaymentStatus::Consumed => non_terminal!(Authorizing),
+        stripe::StripePaymentStatus::RequiresCustomerAction => {
+            non_terminal!(AuthenticationPending)
+        }
+        stripe::StripePaymentStatus::RequiresConfirmation => {
+            non_terminal!(ConfirmationAwaited)
+        }
+        stripe::StripePaymentStatus::Pending | stripe::StripePaymentStatus::Unknown => {
+            non_terminal!(Pending)
+        }
+    } },
+    runtime: {
+        request: PaymentsIncrementalAuthorizationData,
+        response: PaymentIncrementalAuthResponse,
+        source: |_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentIncrementalAuthorization for Stripe<T>
@@ -221,21 +266,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
-    flow:      RepeatPayment,
-    source:    stripe::StripePaymentStatus,
-    success:   Succeeded                => Charged,
-    failure:   Failed                   => Failure,
-    {
-        RequiresCapture        => Authorized,
-        RequiresPaymentMethod  => Failure,
-        Canceled               => Failure,
-        Processing             => Authorizing,
-        RequiresCustomerAction => AuthenticationPending,
-        RequiresConfirmation   => Pending,
-        Chargeable             => Authorizing,
-        Consumed               => Authorizing,
-        Pending                => Pending,
-    }
+    flow: RepeatPayment,
+    source: stripe::StripePaymentStatus,
+    mapping: |status| { match status {
+        stripe::StripePaymentStatus::Succeeded => success!(Charged),
+        stripe::StripePaymentStatus::Failed
+        | stripe::StripePaymentStatus::RequiresPaymentMethod
+        | stripe::StripePaymentStatus::Canceled => failure!(Failure),
+        stripe::StripePaymentStatus::RequiresCapture => non_terminal!(Authorized),
+        stripe::StripePaymentStatus::Processing
+        | stripe::StripePaymentStatus::Chargeable
+        | stripe::StripePaymentStatus::Consumed => non_terminal!(Authorizing),
+        stripe::StripePaymentStatus::RequiresCustomerAction => {
+            non_terminal!(AuthenticationPending)
+        }
+        stripe::StripePaymentStatus::RequiresConfirmation
+        | stripe::StripePaymentStatus::Pending
+        | stripe::StripePaymentStatus::Unknown => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: RepeatPaymentResponse,
+        source: |_common_data, _request, response, _http_status_code| Ok(response.status()),
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Stripe<T>
@@ -250,41 +303,59 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Stripe<T>
 {
+    /// The first `v1` signature of the header, hex-decoded. `verify_webhook_source` does not
+    /// stop at the first one: it checks every `v1` candidate.
     fn get_webhook_source_verification_signature(
         &self,
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, Report<WebhookError>> {
-        let mut security_header_kvs = stripe::get_signature_elements_from_header(&request.headers)?;
+        let header = stripe::get_signature_elements_from_header(&request.headers)?;
 
-        let signature = security_header_kvs
-            .remove("v1")
+        let signature = header
+            .v1_signatures
+            .first()
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
 
         hex::decode(signature).change_context(WebhookError::WebhookSignatureNotFound)
     }
 
+    /// Stripe's `signed_payload`: the header timestamp, a `.`, and the raw request body
+    /// (https://docs.stripe.com/webhooks, "Prepare the `signed_payload` string").
     fn get_webhook_source_verification_message(
         &self,
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, Report<WebhookError>> {
-        let mut security_header_kvs = stripe::get_signature_elements_from_header(&request.headers)?;
+        let header = stripe::get_signature_elements_from_header(&request.headers)?;
 
-        let timestamp = security_header_kvs
-            .remove("t")
-            .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
-
-        // Byte-exact reproduction of HS: "{timestamp}.{raw_body}". The raw request body is used
-        // verbatim (never re-serialized) so the HMAC matches Stripe's.
-        Ok(format!(
-            "{}.{}",
-            String::from_utf8_lossy(&timestamp),
-            String::from_utf8_lossy(&request.body)
-        )
-        .into_bytes())
+        // Concatenate bytes: the body is used exactly as received, never re-serialised and
+        // never passed through a lossy UTF-8 conversion, so the HMAC covers the bytes Stripe
+        // signed and nothing else.
+        let timestamp = header.timestamp.as_bytes();
+        let mut message = Vec::with_capacity(timestamp.len() + 1 + request.body.len());
+        message.extend_from_slice(timestamp);
+        message.push(b'.');
+        message.extend_from_slice(&request.body);
+        Ok(message)
     }
 
+    /// Verifies the `Stripe-Signature` header as https://docs.stripe.com/webhooks specifies:
+    /// HMAC-SHA256, keyed with the endpoint signing secret, over `"{t}.{raw body}"`, compared
+    /// against the header's `v1` signatures. Schemes other than `v1` are ignored.
+    ///
+    /// - The comparison is `crypto::HmacSha256::verify_signature` (constant-time); nothing here
+    ///   compares signature bytes by hand.
+    /// - During secret rolling Stripe sends one `v1` per active secret ("Stripe generates one
+    ///   signature for each secret"), so the event is verified when *any* `v1` matches. Every
+    ///   candidate is evaluated; a `v1` that is not valid hex can never match.
+    /// - No secret, or an empty one, is never verified: an empty HMAC key is public knowledge.
+    /// - Timestamp tolerance is NOT enforced here. The vendor leaves the window to the
+    ///   integrator ("decide if the difference is within your tolerance"; its libraries default
+    ///   to 5 minutes). This service is stateless and its caller may hand it a stored delivery
+    ///   long after receipt, so a fixed window would reject authentic events; the timestamp is
+    ///   still authenticated (it is part of the signed message), and replay protection stays
+    ///   with the caller's event-id de-duplication.
     fn verify_webhook_source(
         &self,
         request: RequestDetails,
@@ -292,20 +363,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, Report<WebhookError>> {
         let connector_webhook_secrets = match connector_webhook_secret {
-            Some(secrets) => secrets,
-            None => return Ok(false),
+            Some(secrets) if !secrets.secret.is_empty() => secrets,
+            Some(_) | None => return Ok(false),
         };
 
-        let algorithm = common_utils::crypto::HmacSha256;
-
-        let signature =
-            self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
+        let header = stripe::get_signature_elements_from_header(&request.headers)?;
         let message =
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
-        algorithm
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
-            .change_context(WebhookError::WebhookSourceVerificationFailed)
+        let algorithm = common_utils::crypto::HmacSha256;
+        let mut verified = false;
+        for candidate in &header.v1_signatures {
+            let Ok(signature) = hex::decode(candidate) else {
+                continue;
+            };
+            verified |= algorithm
+                .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+                .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+        }
+
+        Ok(verified)
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
@@ -420,35 +497,41 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: PaymentIntentRequest<T>,
             response_body: PaymentsAuthorizeResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
             flow: RepeatPayment,
             request_body: RepeatPaymentRequest<T>,
             response_body: RepeatPaymentResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
             response_body: PaymentSyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
             flow: Capture,
             request_body: CaptureRequest,
             response_body: PaymentsCaptureResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (
             flow: Void,
             request_body: CancelRequest,
             response_body: PaymentsVoidResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
             request_body: StripeRefundRequest,
             response_body: RefundResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ),
         (
@@ -577,6 +660,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+        let connector_transaction_id = response
+            .error
+            .payment_intent
+            .as_ref()
+            .or(response.error.setup_intent.as_ref())
+            .map(|intent| intent.id.clone());
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -598,8 +687,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     })
                     .unwrap_or(message)
             }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            // INV-08: non-terminal unless Stripe itself reports the PaymentIntent / SetupIntent
+            // as needing a new payment method, which is how a declined confirm is reported
+            // (https://docs.stripe.com/api/payment_intents/object#payment_intent_object-status).
+            attempt_status: response
+                .error
+                .payment_intent
+                .as_ref()
+                .and_then(|intent| intent.status.as_ref())
+                .or_else(|| {
+                    response
+                        .error
+                        .setup_intent
+                        .as_ref()
+                        .and_then(|intent| intent.status.as_ref())
+                })
+                .and_then(|status| match status {
+                    stripe::StripePaymentStatus::RequiresPaymentMethod
+                    | stripe::StripePaymentStatus::Failed => {
+                        Some(common_enums::AttemptStatus::Failure)
+                    }
+                    stripe::StripePaymentStatus::Succeeded
+                    | stripe::StripePaymentStatus::Processing
+                    | stripe::StripePaymentStatus::RequiresCustomerAction
+                    | stripe::StripePaymentStatus::RequiresConfirmation
+                    | stripe::StripePaymentStatus::Canceled
+                    | stripe::StripePaymentStatus::RequiresCapture
+                    | stripe::StripePaymentStatus::Chargeable
+                    | stripe::StripePaymentStatus::Consumed
+                    | stripe::StripePaymentStatus::Pending
+                    | stripe::StripePaymentStatus::Unknown => None,
+                })
+                .map(FlowStatus::Payment),
+            connector_transaction_id,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -1248,39 +1368,9 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Refund: source is the refund's own status; stripe refunds have a Failed
-// terminal so failure targets are not declared here (the From impl drives it).
-domain_types::impl_refund_flow_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: Stripe<T>,
-    flow: Refund,
-    source: stripe::RefundStatus,
-    context: (),
-    mapping_status: |status, _ctx| { common_enums::RefundStatus::from(status) },
-    runtime: {
-        request: RefundsData,
-        response: RefundResponse,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
-        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
-    },
-}
-
-// RSync mirrors Refund — same `RefundResponse` shape on the sync RPC.
-domain_types::impl_refund_flow_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: Stripe<T>,
-    flow: RSync,
-    source: stripe::RefundStatus,
-    context: (),
-    mapping_status: |status, _ctx| { common_enums::RefundStatus::from(status) },
-    runtime: {
-        request: RefundSyncData,
-        response: RefundSyncResponse,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
-        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
-    },
-}
-
+// 3DS leg count is 0: Stripe authenticates inside `POST /v1/payment_intents` (Authorize returns
+// `requires_action` + a redirect) and the outcome is read with `GET /v1/payment_intents/{id}`
+// (PSync). PreAuthenticate/Authenticate/PostAuthenticate stay unwired: a leg would re-confirm.
 macros::macro_connector_flow_status_impls!(
     connector: Stripe,
     generic_type: T,
