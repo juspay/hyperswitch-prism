@@ -118,6 +118,10 @@ default = '{}'
 [connector_overrides."capture,void,get,refund,reverse,refund_get".helcim]
 "connector_transaction_id" = "12345"
 
+# RAFT follow-up requests carry the credit/debit prefix and authorization traces.
+[connector_overrides."capture,void,refund".worldpayraft]
+"connector_transaction_id" = "C|123456|123456789012|000001"
+
 # Directa24 is the same case: its `deposit_id` is an integer, so PSync and Refund
 # parse `connector_transaction_id` with `parse::<i64>()` and reject the default
 # "probe_connector_txn_001" as InvalidDataFormat. Only `get` and `refund` are

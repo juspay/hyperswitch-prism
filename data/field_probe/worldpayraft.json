@@ -29,24 +29,72 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Failed to parse Apple Pay wallet token. Worldpay RAFT requires the decrypted DPAN, expiry, and cryptogram"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id",
+                  "device_manufacturer_identifier": "040010030273"
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "line1": "123 Main St",
+              "zip_code": "98101"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"AddressVerificationData\":{\"AVSZIPCode\":\"98101\",\"AVSAddress\":\"123 Main St\"},\"TerminalData\":{\"EntryMode\":\"E-COMM\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"05\",\"3dSecureData\":\"AAAAAA==\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_txn_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -69,8 +117,8 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "BillDeskRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -81,8 +129,8 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -132,12 +180,12 @@
         }
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "CashfreeRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
@@ -152,8 +200,8 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -168,8 +216,8 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "EaseBuzzRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -188,8 +236,8 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "GCash": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Giropay": {
         "status": "not_implemented",
@@ -200,20 +248,64 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Failed to parse Google Pay wallet token. Worldpay RAFT requires the decrypted DPAN, expiry, and cryptogram"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "line1": "123 Main St",
+              "zip_code": "98101"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"AddressVerificationData\":{\"AVSZIPCode\":\"98101\",\"AVSAddress\":\"123 Main St\"},\"TerminalData\":{\"EntryMode\":\"E-COMM\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"05\",\"3dSecureData\":\"AAAAAA==\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_txn_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Ideal": {
         "status": "not_implemented",
@@ -244,8 +336,8 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "KakaoPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Klarna": {
         "status": "not_implemented",
@@ -256,8 +348,8 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "LazyPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
@@ -272,12 +364,12 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "MiniStop": {
         "status": "not_implemented",
@@ -288,8 +380,8 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
@@ -352,16 +444,16 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "PayURedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -376,8 +468,8 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "PhonePeRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Pix": {
         "status": "not_implemented",
@@ -400,16 +492,16 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Seicomart": {
         "status": "not_implemented",
@@ -432,28 +524,28 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Skrill": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Sofort": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Swish": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "TouchNGo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Trustly": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Twint": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "UpiCollect": {
         "status": "not_implemented",
@@ -468,20 +560,20 @@
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Vipps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       },
       "Webpay": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId"
+        "status": "not_supported",
+        "error": "Only decrypted Apple Pay and Google Pay wallets are supported is not supported by worldpayraft"
       }
     },
     "capture": {
@@ -489,7 +581,7 @@
         "status": "supported",
         "proto_request": {
           "merchant_capture_id": "probe_capture_001",
-          "connector_transaction_id": "probe_connector_txn_001",
+          "connector_transaction_id": "C|123456|123456789012|000001",
           "amount_to_capture": {
             "minor_amount": 1000,
             "currency": "USD"
@@ -503,7 +595,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditcompletion\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"probe_connector_txn_001\",\"RetrievalREFNumber\":\"\",\"SystemTraceNumber\":\"\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_capture_00\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditcompletion\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\",\"SystemTraceNumber\":\"000001\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_capture_00\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
@@ -585,8 +677,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by worldpayraft connector"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Worldpay RAFT incremental authorization requires the shared follow-up card contract. The incremental authorization request cannot supply the original card yet"
       }
     },
     "parse_event": {
@@ -739,7 +831,7 @@
         "status": "supported",
         "proto_request": {
           "merchant_refund_id": "probe_refund_001",
-          "connector_transaction_id": "probe_connector_txn_001",
+          "connector_transaction_id": "C|123456|123456789012|000001",
           "payment_amount": 1000,
           "refund_amount": {
             "minor_amount": 1000,
@@ -755,7 +847,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditrefund\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"probe_connector_txn_001\",\"RetrievalREFNumber\":\"\",\"SystemTraceNumber\":\"\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_refund_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditrefund\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\",\"SystemTraceNumber\":\"000001\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_refund_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
@@ -836,7 +928,7 @@
         "status": "supported",
         "proto_request": {
           "merchant_void_id": "probe_void_001",
-          "connector_transaction_id": "probe_connector_txn_001",
+          "connector_transaction_id": "C|123456|123456789012|000001",
           "amount": {
             "minor_amount": 1000,
             "currency": "USD"
@@ -850,7 +942,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AuthorizationType\":\"RV\",\"ReversalAdviceReasonCd\":\"000\",\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"probe_connector_txn_001\",\"RetrievalREFNumber\":\"\",\"SystemTraceNumber\":\"\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_void_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AuthorizationType\":\"RV\",\"ReversalAdviceReasonCd\":\"000\",\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\",\"SystemTraceNumber\":\"000001\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_void_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     }

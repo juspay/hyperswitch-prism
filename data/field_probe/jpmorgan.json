@@ -38,7 +38,7 @@
           }
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -124,7 +124,7 @@
           }
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -220,7 +220,7 @@
           }
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -350,7 +350,7 @@
           }
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -654,7 +654,7 @@
           }
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments/probe_connector_txn_001/captures",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments/probe_connector_txn_001/captures",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -682,14 +682,13 @@
           }
         },
         "sample": {
-          "url": "https://id.payments.jpmorgan.com/am/oauth2/alpha/access_token",
+          "url": "https://idag2.jpmorganchase.com/adfs/oauth2/token",
           "method": "Post",
           "headers": {
-            "authorization": "Basic cHJvYmVfaWQ6cHJvYmVfc2VjcmV0",
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "grant_type=client_credentials&scope=jpm%3Apayments%3Asandbox"
+          "body": "grant_type=client_credentials&client_id=probe_id&client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer&client_assertion=YOUR_SIGNED_JWT&resource=probe_id"
         }
       }
     },
@@ -704,14 +703,13 @@
         "status": "supported",
         "proto_request": {},
         "sample": {
-          "url": "https://id.payments.jpmorgan.com/am/oauth2/alpha/access_token",
+          "url": "https://idag2.jpmorganchase.com/adfs/oauth2/token",
           "method": "Post",
           "headers": {
-            "authorization": "Basic cHJvYmVfaWQ6cHJvYmVfc2VjcmV0",
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "grant_type=client_credentials&scope=jpm%3Apayments%3Asandbox"
+          "body": "grant_type=client_credentials&client_id=probe_id&client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer&client_assertion=YOUR_SIGNED_JWT&resource=probe_id"
         }
       }
     },
@@ -781,7 +779,7 @@
           }
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments/probe_connector_txn_001",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments/probe_connector_txn_001",
           "method": "Get",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -859,7 +857,7 @@
           }
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -907,7 +905,7 @@
           "setup_future_usage": "OFF_SESSION"
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/verifications",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -916,7 +914,7 @@
             "request-id": "probe_proxy_mandate_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":0,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"{{$card_number}}\",\"expiry\":{\"month\":3,\"year\":2030}}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"{{$card_number}}\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\",\"cvv\":\"{{$card_cvc}}\"}},\"merchantOrderNumber\":\"probe_proxy_mandate_001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\"}"
         }
       }
     },
@@ -958,7 +956,7 @@
           }
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/refunds",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/refunds",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -987,7 +985,7 @@
           }
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/refunds/probe_refund_id_001",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/refunds/probe_refund_id_001",
           "method": "Get",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -1045,7 +1043,7 @@
           }
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/verifications",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -1054,7 +1052,7 @@
             "request-id": "probe_mandate_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":0,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030}}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\",\"cvv\":\"737\"}},\"merchantOrderNumber\":\"probe_mandate_001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\"}"
         }
       }
     },
@@ -1082,7 +1080,7 @@
           }
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -1097,8 +1095,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is implemented for JPMorgan SetupMandate"
+        "status": "not_supported",
+        "error": "Verification for this payment method is not supported by jpmorgan"
       }
     },
     "verify_redirect": {
@@ -1121,7 +1119,7 @@
           }
         },
         "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments/probe_connector_txn_001",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments/probe_connector_txn_001",
           "method": "Patch",
           "headers": {
             "authorization": "Bearer probe_access_token",

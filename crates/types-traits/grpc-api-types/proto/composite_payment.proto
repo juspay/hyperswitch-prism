@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package types;
 
+import "common_types.proto";
+import "domain.proto";
 import "payment.proto";
 import "events.proto";
 import "payment_methods.proto";
@@ -151,6 +153,10 @@ message CompositeAuthorizeRequest {
 
   // Authorize-only AVS opt-in, forwarded to PaymentServiceAuthorizeRequest.
   optional bool enable_avs_check = 64;
+
+  // Merchant-supplied customer risk-assessment signals, forwarded to
+  // PaymentServiceAuthorizeRequest.
+  optional RiskAssessmentData risk_assessment_data = 65;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -849,6 +855,10 @@ message CompositeVerifyRedirectResponseRequest {
 
   // Preserve the AVS opt-in for authorization after redirect verification.
   optional bool enable_avs_check = 60;
+
+  // Preserve the customer risk-assessment signals for authorization after
+  // redirect verification.
+  optional RiskAssessmentData risk_assessment_data = 61;
 }
 
 // Response message for composite verify redirect response flow.

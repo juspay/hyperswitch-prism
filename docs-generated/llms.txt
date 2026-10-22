@@ -883,7 +883,7 @@ connector_id: stripe
 doc: docs/connectors/stripe.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, Bacs, BacsBankTransfer, BancontactCard, Becs, Blik, Card, CashappQr, Eps, Giropay, GooglePay, GooglePayDecrypted, Ideal, Klarna, MultibancoBankTransfer, Przelewy24, RevolutPay, Sepa, SepaBankTransfer, WeChatPayQr
-flows: authorize, capture, create_client_authentication_token, customer_create, get, handle_event, incremental_authorization, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, token_setup_recurring, void
+flows: authorize, capture, create_client_authentication_token, customer_create, dispute_accept, dispute_submit_evidence, get, handle_event, incremental_authorization, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, token_setup_recurring, void
 examples_python: examples/stripe/stripe.py
 
 ## Tamara
@@ -1010,7 +1010,7 @@ examples_python: examples/worldpay/worldpay.py
 connector_id: worldpayraft
 doc: docs/connectors/worldpayraft.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment
-payment_methods: Card
+payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
 flows: authorize, capture, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, setup_recurring, void
 examples_python: examples/worldpayraft/worldpayraft.py
 

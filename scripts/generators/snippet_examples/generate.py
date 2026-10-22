@@ -48,6 +48,19 @@ from pathlib import Path
 # {message_name: {field_name: proto_type_name}}  — all messages across all protos
 _PROTO_FIELD_TYPES: dict[str, dict[str, str]] = {}
 
+# Deprecated credentials must not appear in generated connector configurations.
+_PROTO_DEPRECATED_FIELDS: dict[str, set[str]] = {}
+
+
+def _config_fields(config_name: str) -> dict[str, str]:
+    deprecated = _PROTO_DEPRECATED_FIELDS.get(config_name, set())
+    return {
+        name: field_type
+        for name, field_type in _PROTO_FIELD_TYPES.get(config_name, {}).items()
+        if name not in deprecated
+    }
+
+
 # Maps message name -> set of field names that are `repeated` in proto.
 # These map to Vec<T> in prost+serde which require the key to be present in
 # JSON (no #[serde(default)] generated), so we must always emit "field": [].
@@ -168,7 +181,7 @@ def _generate_connector_config_rust(connector_name: str) -> str:
     if config_name not in _PROTO_FIELD_TYPES:
         return None
     
-    fields = _PROTO_FIELD_TYPES[config_name]
+    fields = _config_fields(config_name)
     if not fields:
         return None
     
@@ -218,7 +231,7 @@ def _generate_connector_config_python(connector_name: str) -> str:
     kwargs inside ConnectorConfig(options=..., ...).
     """
     config_name = f"{_conn_display(connector_name)}Config"
-    fields = _PROTO_FIELD_TYPES.get(config_name, {})
+    fields = _config_fields(config_name)
     repeated = _PROTO_REPEATED_FIELDS.get(config_name, set())
 
     field_lines: list[str] = []
@@ -265,7 +278,7 @@ def _generate_connector_config_typescript(
     The returned string uses 4-space indentation so it sits flush with 'options:' etc.
     """
     config_name = f"{_conn_display(connector_name)}Config"
-    fields = _PROTO_FIELD_TYPES.get(config_name, {})
+    fields = _config_fields(config_name)
     repeated = _PROTO_REPEATED_FIELDS.get(config_name, set())
 
     field_lines: list[str] = []
@@ -305,7 +318,7 @@ def _generate_connector_config_kotlin(connector_name: str, indent: str = "    ")
     """
     config_name = f"{_conn_display(connector_name)}Config"
     conn_display = _conn_display(connector_name)
-    fields = _PROTO_FIELD_TYPES.get(config_name, {})
+    fields = _config_fields(config_name)
     repeated = _PROTO_REPEATED_FIELDS.get(config_name, set())
     i = indent
 
@@ -348,6 +361,7 @@ def load_proto_type_map(proto_dir: Path) -> None:
     global _PROTO_ENUM_PARENT
 
     type_map: dict[str, dict[str, str]] = {}
+    deprecated_map: dict[str, set[str]] = {}
     repeated_map: dict[str, set[str]] = {}
     optional_map: dict[str, set[str]] = {}
     map_map: dict[str, set[str]] = {}
@@ -405,6 +419,7 @@ def load_proto_type_map(proto_dir: Path) -> None:
             # Extract only top-level lines (not inside nested { })
             # Also parse fields inside oneof blocks (inner_depth == 1 after entering oneof).
             fields: dict[str, str] = {}
+            deprecated_fields: set[str] = set()
             repeated_fields: set[str] = set()
             optional_fields: set[str] = set()
             map_fields: set[str] = set()
@@ -435,12 +450,15 @@ def load_proto_type_map(proto_dir: Path) -> None:
                     is_repeated, is_optional, ftype, fname = fm.group(1), fm.group(2), fm.group(3), fm.group(4)
                     if ftype not in _SKIP_KEYWORDS and fname not in _SKIP_KEYWORDS:
                         fields[fname] = ftype
+                        if re.search(r"\bdeprecated\s*=\s*true\b", line):
+                            deprecated_fields.add(fname)
                         if is_repeated:
                             repeated_fields.add(fname)
                         if is_optional:
                             optional_fields.add(fname)
 
             type_map[msg_name] = fields
+            deprecated_map[msg_name] = deprecated_fields
             repeated_map[msg_name] = repeated_fields
             optional_map[msg_name] = optional_fields
             map_map[msg_name] = map_fields
@@ -450,6 +468,8 @@ def load_proto_type_map(proto_dir: Path) -> None:
     # Clear and update the global dicts in-place so existing references see the changes
     _PROTO_FIELD_TYPES.clear()
     _PROTO_FIELD_TYPES.update(type_map)
+    _PROTO_DEPRECATED_FIELDS.clear()
+    _PROTO_DEPRECATED_FIELDS.update(deprecated_map)
     _PROTO_REPEATED_FIELDS.clear()
     _PROTO_REPEATED_FIELDS.update(repeated_map)
     _PROTO_OPTIONAL_FIELDS.clear()
@@ -2155,6 +2175,14 @@ def render_consolidated_python(
     # Add type annotation for empty list to satisfy mypy
     supported_flows_line = f"SUPPORTED_FLOWS: list[str] = {supported_flows_list}" if supported_flows_list == "[]" else f"SUPPORTED_FLOWS = {supported_flows_list}"
 
+    # Import every pb2 module the generated body actually references. Proto types can
+    # live in any file (e.g. Money/Currency/Address/Customer in common_types.proto), so
+    # derive the import list from the rendered code instead of hardcoding it.
+    config_py = _generate_connector_config_python(connector_name)
+    pb2_modules = {"sdk_config_pb2"}
+    pb2_modules.update(re.findall(r"\b(\w+_pb2)\.", builders_section + functions_text + config_py))
+    pb2_import_line = "from payments.generated import " + ", ".join(sorted(pb2_modules))
+
     return f"""\
 # This file is auto-generated. Do not edit manually.
 # Replace YOUR_API_KEY and placeholder values with real data.
@@ -2166,13 +2194,13 @@ def render_consolidated_python(
 import asyncio
 import sys
 {client_imports}
-from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
+{pb2_import_line}
 
 {supported_flows_line}
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-{_generate_connector_config_python(connector_name)}
+{config_py}
 )
 
 

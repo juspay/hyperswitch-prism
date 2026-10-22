@@ -358,6 +358,7 @@ impl
             mit_category: item.mit_category,
             merchant_request_id: item.merchant_request_id.clone(),
             domain_data: item.domain_data.clone(),
+            risk_assessment_data: item.risk_assessment_data.clone(),
             split_payments: item.split_payments.clone(),
             partner_merchant_identifier_details: item.partner_merchant_identifier_details.clone(),
             currency_conversion_data: item.currency_conversion_data.clone(),
@@ -1291,6 +1292,7 @@ impl
             connector_order_id: request.connector_order_id.clone(),
             merchant_request_id: request.merchant_request_id.clone(),
             domain_data: None,
+            risk_assessment_data: request.risk_assessment_data.clone(),
             split_payments: request.split_payments.clone(),
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details

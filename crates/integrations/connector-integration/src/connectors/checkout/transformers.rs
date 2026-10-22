@@ -2614,6 +2614,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ));
 
         if status == common_enums::AttemptStatus::Failure {
+            let network_advice_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+                .cloned();
+            let network_decline_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_response_code.as_ref())
+                .cloned();
             let error_response = ErrorResponse {
                 status_code: item.http_code,
                 code: item
@@ -2628,8 +2640,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
-                network_advice_code: None,
-                network_decline_code: None,
+                network_advice_code,
+                network_decline_code,
                 network_error_message: None,
                 typed_connector_response: None,
                 raw_connector_response: None,
@@ -2768,6 +2780,18 @@ impl<
 
         match status {
             common_enums::AttemptStatus::Failure => {
+                let network_advice_code = item
+                    .response
+                    .processing
+                    .as_ref()
+                    .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+                    .cloned();
+                let network_decline_code = item
+                    .response
+                    .processing
+                    .as_ref()
+                    .and_then(|processing| processing.partner_response_code.as_ref())
+                    .cloned();
                 let error_response = ErrorResponse {
                     status_code: item.http_code,
                     code: item
@@ -2782,8 +2806,8 @@ impl<
                     reason: item.response.response_summary,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.id.clone()),
-                    network_advice_code: None,
-                    network_decline_code: None,
+                    network_advice_code,
+                    network_decline_code,
                     network_error_message: None,
                     typed_connector_response: None,
                     raw_connector_response: None,
@@ -2929,12 +2953,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .response
             .processing
             .as_ref()
-            .and_then(|processing| {
-                processing
-                    .partner_merchant_advice_code
-                    .as_ref()
-                    .or(processing.partner_response_code.as_ref())
-            })
+            .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+            .cloned();
+        let network_decline_code = item
+            .response
+            .processing
+            .as_ref()
+            .and_then(|processing| processing.partner_response_code.as_ref())
             .cloned();
         let error_response = if status == common_enums::AttemptStatus::Failure {
             Some(ErrorResponse {
@@ -2952,7 +2977,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_advice_code,
-                network_decline_code: None,
+                network_decline_code,
                 network_error_message: None,
                 typed_connector_response: None,
                 raw_connector_response: None,
@@ -3052,6 +3077,18 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
 
         let status = get_attempt_status_intent((item.response.status, checkout_meta.psync_flow));
         let error_response = if status == common_enums::AttemptStatus::Failure {
+            let network_advice_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+                .cloned();
+            let network_decline_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_response_code.as_ref())
+                .cloned();
             Some(ErrorResponse {
                 status_code: item.http_code,
                 code: item
@@ -3066,8 +3103,8 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
-                network_advice_code: None,
-                network_decline_code: None,
+                network_advice_code,
+                network_decline_code,
                 network_error_message: None,
                 typed_connector_response: None,
                 raw_connector_response: None,

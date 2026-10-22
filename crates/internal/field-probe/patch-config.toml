@@ -41,6 +41,14 @@ patches = [
   { path = "address.billing_address.last_name",  type = "secret_string", value = "Doe" },
 ]
 
+[[multi]]
+# Worldpay RAFT requires both AVS fields for Visa wallets or explicit AVS checks.
+aliases = ["billing.address.zip and billing.address.line1"]
+patches = [
+  { path = "address.billing_address.zip_code", type = "secret_string", value = "98101" },
+  { path = "address.billing_address.line1",    type = "secret_string", value = "123 Main St" },
+]
+
 ["address.billing_address.city"]
 aliases = [
   "address.city",

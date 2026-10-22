@@ -14,19 +14,20 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
+        Accept, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
         IncrementalAuthorization, PSync, PaymentMethodToken, RSync, Refund, RepeatPayment,
-        SetupMandate, Void,
+        SetupMandate, SubmitEvidence, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
-        ConnectorWebhookSecrets, DisputeWebhookDetailsResponse, EventContext, EventType,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails, SetupMandateRequestData,
-        WebhookDetailsResponse, WebhookResourceReference,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
+        ConnectorCustomerResponse, ConnectorWebhookSecrets, DisputeFlowData, DisputeResponseData,
+        DisputeWebhookDetailsResponse, EventContext, EventType, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, SetupMandateRequestData, SubmitEvidenceData, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -46,7 +47,8 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as stripe, CancelRequest, CaptureRequest, CreateConnectorCustomerRequest,
-    CreateConnectorCustomerResponse, PaymentIncrementalAuthRequest, PaymentIntentRequest,
+    CreateConnectorCustomerResponse, DisputeObj, DisputeObj as AcceptDisputeObj, Evidence,
+    PaymentIncrementalAuthRequest, PaymentIntentRequest,
     PaymentIntentRequest as RepeatPaymentRequest,
     PaymentIntentResponse as PaymentIncrementalAuthResponse, PaymentSyncResponse,
     PaymentsAuthorizeResponse, PaymentsAuthorizeResponse as RepeatPaymentResponse,
@@ -411,6 +413,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::AcceptDispute for Stripe<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SubmitEvidenceV2 for Stripe<T>
+{
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for Stripe<T>
 {
@@ -517,6 +529,20 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         ),
         (
+            flow: SubmitEvidence,
+            request_body: Evidence,
+            response_body: DisputeObj,
+            router_data: RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+        ),
+        (
+            // `/close` takes no parameters, so this flow declares no request_body. The
+            // response is the same Dispute object SubmitEvidence gets; it is registered
+            // under an alias because the macro derives a type name per response body.
+            flow: Accept,
+            response_body: AcceptDisputeObj,
+            router_data: RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+        ),
+        (
             flow: ClientAuthenticationToken,
             request_body: StripeClientAuthRequest,
             response_body: StripeClientAuthResponse,
@@ -555,6 +581,15 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.stripe.base_url
+        }
+
+        // Disputes live on the same host as payments; Stripe has no separate dispute
+        // endpoint the way Adyen's `dispute_base_url` does.
+        pub fn connector_base_url_disputes<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, DisputeFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.stripe.base_url
         }
@@ -1351,6 +1386,71 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Stripe,
+    curl_request: FormUrlEncoded(Evidence),
+    curl_response: DisputeObj,
+    flow_name: SubmitEvidence,
+    resource_common_data: DisputeFlowData,
+    flow_request: SubmitEvidenceData,
+    flow_response: DisputeResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + std::marker::Sync + std::marker::Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}v1/disputes/{}",
+                self.connector_base_url_disputes(req),
+                req.request.connector_dispute_id
+            ))
+        }
+    }
+);
+
+// `/close` takes no parameters at all (https://docs.stripe.com/api/disputes/close), so this
+// flow sends no body — hence no `curl_request`. Stripe documents the call as irreversible.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Stripe,
+    curl_response: AcceptDisputeObj,
+    flow_name: Accept,
+    resource_common_data: DisputeFlowData,
+    flow_request: AcceptDisputeData,
+    flow_response: DisputeResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + std::marker::Sync + std::marker::Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}v1/disputes/{}/close",
+                self.connector_base_url_disputes(req),
+                req.request.connector_dispute_id
+            ))
+        }
+    }
+);
+
 // 3DS leg count is 0: Stripe authenticates inside `POST /v1/payment_intents` (Authorize returns
 // `requires_action` + a redirect) and the outcome is read with `GET /v1/payment_intents/{id}`
 // (PSync). PreAuthenticate/Authenticate/PostAuthenticate stay unwired: a leg would re-confirm.
@@ -1360,9 +1460,6 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         GetConnectorCustomer,
-        Accept,
-        SubmitEvidence,
-        DefendDispute,
         ServerSessionAuthenticationToken,
         PreAuthenticate,
         Authenticate,
@@ -1374,5 +1471,12 @@ macros::macro_connector_flow_status_impls!(
         MandateRevoke,
         CreateOrder,
         ServerAuthenticationToken,
+        // Stripe's dispute API is exactly four endpoints
+        // (https://docs.stripe.com/api/disputes) and none of them defends a dispute: the
+        // only response mechanisms are `POST /v1/disputes/{id}` (evidence, wired as
+        // SubmitEvidence) and `POST /v1/disputes/{id}/close` (wired as Accept). A reason
+        // code is a read-only output on the dispute object, never an input, so
+        // `DisputeDefendData.defense_reason_code` has nowhere to go. Not a coverage gap.
+        DefendDispute,
     ],
 );

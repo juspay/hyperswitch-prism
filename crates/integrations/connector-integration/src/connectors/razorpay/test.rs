@@ -130,6 +130,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -350,6 +351,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -521,6 +523,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -714,6 +717,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -1109,6 +1113,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                risk_assessment_data: None,
                 split_settlement: None,
                 customer_document_details: None,
                 customer_date_of_birth: None,
@@ -1336,6 +1341,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                risk_assessment_data: None,
                 split_settlement: None,
                 customer_document_details: None,
                 customer_date_of_birth: None,
@@ -1842,6 +1848,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,

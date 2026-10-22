@@ -100,6 +100,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -317,6 +318,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,

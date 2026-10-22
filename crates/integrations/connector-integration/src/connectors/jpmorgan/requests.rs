@@ -3,19 +3,15 @@ use domain_types::payment_method_data::{PaymentMethodDataTypes, RawCardNumber};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-/// Client Authentication Token request — obtains an OAuth2 access token
-/// for client-side SDK initialization via JP Morgan's token endpoint.
-/// Uses form-urlencoded format matching the ServerAuthenticationToken flow.
-#[derive(Debug, Clone, Serialize)]
-pub struct JpmorganClientAuthRequest {
-    pub grant_type: String,
-    pub scope: String,
-}
+pub type JpmorganClientAuthRequest = JpmorganTokenRequest;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct JpmorganTokenRequest {
     pub grant_type: String,
-    pub scope: String,
+    pub client_id: Secret<String>,
+    pub client_assertion_type: String,
+    pub client_assertion: Secret<String>,
+    pub resource: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -229,13 +225,14 @@ pub struct JpmorganRecurring {
     pub is_variable_amount: Option<bool>,
 }
 
-/// JPMorgan card body used by SetupMandate (initial CIT) — carries the PAN and
-/// expiry the cardholder just entered.
+/// Card or decrypted wallet data for verification without a funds hold.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganSetupMandateCard<T: PaymentMethodDataTypes> {
-    pub account_number: RawCardNumber<T>,
-    pub expiry: Expiry,
+    #[serde(flatten)]
+    pub card: JpmorganCard<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvv: Option<Secret<String>>,
 }
 
 /// JPMorgan card body used by RepeatPayment when the upstream mandate is an
@@ -266,20 +263,19 @@ pub struct JpmorganRepeatPaymentMethodType<T: PaymentMethodDataTypes> {
     pub card: Option<JpmorganMitCardByNti<T>>,
 }
 
-/// SetupMandate request (initial CIT with credential storage)
+/// Verification request for initial credential storage without a funds hold.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganSetupMandateRequest<T: PaymentMethodDataTypes> {
-    pub capture_method: CapMethod,
-    pub amount: MinorUnit,
     pub currency: common_enums::Currency,
     pub merchant: JpmorganMerchant,
     pub payment_method_type: JpmorganSetupMandatePaymentMethodType<T>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub recurring: Option<JpmorganRecurring>,
+    pub recurring_sequence: Option<JpmorganRecurringSequence>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_order_number: Option<String>,
     pub initiator_type: JpmorganInitiatorType,
     pub account_on_file: JpmorganAccountOnFile,
-    pub is_amount_final: bool,
 }
 
 /// RepeatPayment request (subsequent MIT).
@@ -347,4 +343,27 @@ pub struct GooglePayIntermediateSigningKey {
 #[serde(rename_all = "camelCase")]
 pub struct GooglePaySignedMessage {
     pub ephemeral_public_key: Secret<String>,
+}
+
+#[derive(Serialize)]
+pub struct JpmorganVerificationMetadata {
+    pub resource: JpmorganResourceContext,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct JpmorganResourceContext {
+    #[serde(rename = "type")]
+    pub resource_type: JpmorganResourceType,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum JpmorganResourceType {
+    Verification,
+}
+
+pub enum JpmorganSyncResource {
+    Payment(String),
+    Verification(String),
 }

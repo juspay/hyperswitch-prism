@@ -19,6 +19,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.22.1
+
+### Features
+
+- **ci:** Add connectors in regression coverage ([#2457](https://github.com/juspay/connector-service/pull/2457)) ([`ffdb408`](https://github.com/juspay/connector-service/commit/ffdb40882084bfb6667bb334634c752eb8dbf6f2))
+- **jpmorgan:** Add zero verification and verification sync ([#2530](https://github.com/juspay/connector-service/pull/2530)) ([`8410ae1`](https://github.com/juspay/connector-service/commit/8410ae125537e07fb571f39093be77d589bb0204))
+
+### Bug Fixes
+
+- **connector:** [WorldpayXML][Checkout] map issuer errors and allow optional return-code attributes ([#2524](https://github.com/juspay/connector-service/pull/2524)) ([`f5f291d`](https://github.com/juspay/connector-service/commit/f5f291d30859b6efbaab274114b55bc724a327fc))
+- **logs:** Skip span lifecycle logs for transformed API logs ([#2528](https://github.com/juspay/connector-service/pull/2528)) ([`c7ec9f6`](https://github.com/juspay/connector-service/commit/c7ec9f60fb4f20d4de1b90d9977cc1442485a8d9))
+
+**Full Changelog:** [`2026.10.22.0...2026.10.22.1`](https://github.com/juspay/connector-service/compare/2026.10.22.0...2026.10.22.1)
+
+- - -
+
+## 2026.10.22.0
+
+### Features
+
+- **connector:** [Stripe] implement dispute evidence submission and accept ([#2559](https://github.com/juspay/connector-service/pull/2559)) ([`c8624d7`](https://github.com/juspay/connector-service/commit/c8624d711bab7dad858232a44f7f999ad49bc14f))
+- **risk:** Add RiskAssessmentData,DomainData for other services ([#2517](https://github.com/juspay/connector-service/pull/2517)) ([`f1b0c22`](https://github.com/juspay/connector-service/commit/f1b0c22bf7d3cc23f399dca03615c931f5ba457b))
+
+### Bug Fixes
+
+- **framework:** Guard rules for command hygiene, permission settings and the private-scenario bucket (grace/ only) ([#2565](https://github.com/juspay/connector-service/pull/2565)) ([`78ea881`](https://github.com/juspay/connector-service/commit/78ea88184a1bf8b4f83db6d2130fcb89f249dd18))
+
+**Full Changelog:** [`2026.10.21.1...2026.10.22.0`](https://github.com/juspay/connector-service/compare/2026.10.21.1...2026.10.22.0)
+
+- - -
+
+## 2026.10.21.1
+
+### Features
+
+- **connector:** [JPMorgan] Update Access Token Flow ([#2533](https://github.com/juspay/connector-service/pull/2533)) ([`e19e837`](https://github.com/juspay/connector-service/commit/e19e837894051ec3240a15679d4cf87ddff2f278))
+
+### Documentation
+
+- Explain Prism webhooks and connector diagnostics ([#2546](https://github.com/juspay/connector-service/pull/2546)) ([`814b6ab`](https://github.com/juspay/connector-service/commit/814b6ab4a5fce7db94295d6ca16687cea1e4640a))
+
+**Full Changelog:** [`2026.10.21.0...2026.10.21.1`](https://github.com/juspay/connector-service/compare/2026.10.21.0...2026.10.21.1)
+
+- - -
+
+## 2026.10.21.0
+
+### Features
+
+- **connector:** Add Worldpay raft IncrementalAuthorization flow ([#2504](https://github.com/juspay/connector-service/pull/2504)) ([`3478360`](https://github.com/juspay/connector-service/commit/347836001d2d22a66f6856b84f0334552c0e41da))
+
+### Bug Fixes
+
+- **framework:** Stop GRACE runs stalling on rm approval prompts (grace/ only) ([#2562](https://github.com/juspay/connector-service/pull/2562)) ([`c5058cb`](https://github.com/juspay/connector-service/commit/c5058cb1d95fc2eb234ad9a22dcb5690b7d1ac7c))
+
+**Full Changelog:** [`2026.10.20.0...2026.10.21.0`](https://github.com/juspay/connector-service/compare/2026.10.20.0...2026.10.21.0)
+
+- - -
+
+## 2026.10.20.0
+
+### Features
+
+- **connector:** [Cybersource] guard the 3DS authorization outcome and make webhook status capture-aware ([#2516](https://github.com/juspay/connector-service/pull/2516)) ([`bf871e2`](https://github.com/juspay/connector-service/commit/bf871e2311f37274c6f95ab9cbbd24e039031682))
+- **jpmorgan:** Support stored cardholder payments ([#2529](https://github.com/juspay/connector-service/pull/2529)) ([`ba06ea5`](https://github.com/juspay/connector-service/commit/ba06ea59420728d3c6bab87d813b833ce367100f))
+
+**Full Changelog:** [`2026.10.19.0...2026.10.20.0`](https://github.com/juspay/connector-service/compare/2026.10.19.0...2026.10.20.0)
+
+- - -
+
 ## 2026.10.19.0
 
 ### Features

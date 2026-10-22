@@ -4152,6 +4152,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         tokenization: None,
         mit_category: req.mit_category.clone(),
         domain_data: None,
+        risk_assessment_data: None,
         partner_merchant_identifier_details: None,
         currency_conversion_data: None,
         is_account_funding_transaction: None,

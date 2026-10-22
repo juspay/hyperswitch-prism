@@ -114,6 +114,7 @@ mod tests {
                     shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -313,6 +314,7 @@ mod tests {
                     shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -498,6 +500,7 @@ mod tests {
                     shop_name: None,
                 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,

@@ -176,9 +176,9 @@ them to this contract (`now` = `date -u +%FT%TZ`):
 The rest are not bookkeeping — git safety, selection rules and process ownership. Write them as given:
 
 ```bash
-snap_tree() { local i="$R/.snap.index"; rm -f "$i"; GIT_INDEX_FILE="$i" git read-tree HEAD
+snap_tree() { local i="$R/.snap.index"; mv -f "$i" "$i.prev" 2>/dev/null || :; GIT_INDEX_FILE="$i" git read-tree HEAD
   claimed_ucs | GIT_INDEX_FILE="$i" xargs git update-index --add --remove -- 2>/dev/null
-  GIT_INDEX_FILE="$i" git write-tree; rm -f "$i"; }
+  GIT_INDEX_FILE="$i" git write-tree; mv -f "$i" "$i.prev" 2>/dev/null || :; }
 snapshot() {  # label stage unit — HEAD, index and working tree untouched; never pushed
   local n t c ref; n=$(printf %03d $(( $(cat "$R/snapshots.tsv" 2>/dev/null | wc -l) + 1 )))
   t=$(snap_tree); c=$(git commit-tree "$t" -p HEAD -m "grace snapshot $RUN_ID $n-$1"); ref="refs/grace/$RUN_ID/$n-$1"
@@ -282,7 +282,13 @@ init ─ S0 ─┬─ S1 wave (links common | links × unit | hs_scout) ─ S1m 
 
 There is no test lane. Test *data* is written by S4 itself (`2.3b_codegen_unit.md` Phase 2t) into the
 connector's committed `connector_specs/` JSON, from plan §8. Nothing in this run designs a case, renders a
-request or stages a harness root — the repo's harness owns all three, and the data it runs is in the diff.
+request or stages a harness root — the repo's harness owns all three, and the data it runs is
+in the diff. **Hard rule: a run never edits shared test infrastructure.** Never stage, and never edit,
+anything under `crates/internal/integration-tests/src/harness/`, nor `src/bin/check_connector_specs.rs`,
+nor `src/webhook_signatures.rs`, nor any `global_suites/` file; and never create
+`connector_specs/<connector>/connector_specific_scenarios.json`. A connector run that changes how every
+connector's tests load has escaped its scope — raise it as a finding and let it be reviewed as
+infrastructure, in its own PR.
 ```
 
 ### S0 — `2.0_preflight.md` (foreground)
@@ -900,7 +906,8 @@ On every terminal exit (success, skip, abort, failure, any stop), under R12: `ki
 `. "$R/env/.vars.sh"` and `own_stop "$R/env/ucs.pid" "$(jq -r .ucs.binary "$R/env/env.json")" 20` (`2.6a_test_env.md`
 Phase 0), the same for `env/hs.pid` with `.hs.binary` and 30 when `.hs.pid` is non-null (run-owned), and `docker stop`
 each `.hs.db_containers[]` (2.6a REPAIR restarts them on Resume); after S7 returned, also `docker rm` them and
-`rm -f ~/.local/state/grace/<run_id>/secrets.env` (earlier stops keep both for Resume);
+delete `~/.local/state/grace/<run_id>/secrets.env` with the `2.0_preflight.md` Rule 4 heredoc form
+(`bash -s "$f" <<'SH'` / `rm -f -- "$1"` / `SH`) (earlier stops keep both for Resume);
 `rj --arg s <STATUS> '.ended_at = (now | todate) | .status = $s'` (STATUS from the table below); write `summary.md`
 (`.tmp` + `mv`) from files only — this return block, the per-unit table of `pr/status.json` (else `test/final.json`),
 the `run.json` rows (id, result, attempt, started, ended), the `events.log` `SKIP` and `LOOPBACK` lines, and `flags`.

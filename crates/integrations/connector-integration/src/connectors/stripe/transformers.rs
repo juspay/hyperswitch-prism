@@ -12,22 +12,23 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        IncrementalAuthorization, PaymentMethodToken, RepeatPayment, SetupMandate, Void,
+        IncrementalAuthorization, PaymentMethodToken, RepeatPayment, SetupMandate, SubmitEvidence,
+        Void,
     },
     connector_types::{
         BillingDescriptor, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorCustomerData, ConnectorCustomerResponse,
-        ConnectorSpecificClientAuthenticationResponse, DisputeAdditionalDetails,
-        DisputeNetworkDetails, DisputeWebhookDetailsResponse, DisputeWebhookReference, EventType,
-        L2L3Data, MandateReference, MandateReferenceId, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
+        ConnectorSpecificClientAuthenticationResponse, DisputeAdditionalDetails, DisputeFlowData,
+        DisputeNetworkDetails, DisputeResponseData, DisputeWebhookDetailsResponse,
+        DisputeWebhookReference, EventType, L2L3Data, MandateReference, MandateReferenceId,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RapidDisputeResolution, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
         RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
         SetupMandateRequestData, SplitPaymentsDetails,
         StripeClientAuthenticationResponse as StripeClientAuthenticationResponseDomain,
-        WebhookDetailsResponse, WebhookResourceReference,
+        SubmitEvidenceData, WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     mandates::AcceptanceType,
@@ -5510,11 +5511,16 @@ fn mandatory_parameters_for_sepa_bank_debit_mandates(
     }
 }
 
+/// The Dispute object, returned by both dispute mutations.
+///
+/// `status` is the certified `WebhookEventStatus`, not a bare `String`: it is the same
+/// `status` field of the same Stripe Dispute object the webhook path already decodes, so a
+/// second spelling of those eight values would be a second thing to keep in sync.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DisputeObj {
     #[serde(rename = "id")]
     pub dispute_id: String,
-    pub status: String,
+    pub status: WebhookEventStatus,
 }
 
 fn get_transaction_metadata(
@@ -7366,6 +7372,127 @@ impl TryFrom<ResponseRouterData<StripeClientAuthResponse, Self>>
                 status_code: item.http_code,
             }),
             ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// DISPUTES
+// =============================================================================
+// Stripe exposes exactly two dispute mutations (https://docs.stripe.com/api/disputes):
+//
+//   POST /v1/disputes/{id}        submit evidence  -> SubmitEvidence
+//   POST /v1/disputes/{id}/close  concede          -> Accept
+//
+// There is no defend endpoint and no reason-code input anywhere in the API, which is why
+// `DefendDispute` is declared `not_supported` rather than `not_implemented`: the flow's
+// `DisputeDefendData.defense_reason_code` has nowhere to go.
+//
+// `Evidence`, `DisputeObj` and `FileUploadResponse` above were ported in #2526 and left
+// unreferenced; the two flows below are what put them to use.
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        StripeRouterData<
+            RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+            T,
+        >,
+    > for Evidence
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: StripeRouterData<
+            RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self::from(item.router_data.request))
+    }
+}
+
+/// Split out of the `TryFrom` so the field mapping can be exercised without building a
+/// whole `RouterDataV2` (the shape adyen uses for `get_defence_documents`).
+///
+/// The eight file keys take the ID of a file uploaded with `purpose=dispute_evidence`,
+/// never bytes, so each maps from its `*_provider_file_id`. The raw `Option<Vec<u8>>`
+/// members of `SubmitEvidenceData` are deliberately unused: UCS declares no `UploadFile`
+/// flow to mint an ID with, so a caller uploads out of band and passes the ID.
+///
+/// `invoice_showing_distinct_transactions` and `recurring_transaction_agreement` have no
+/// Stripe equivalent and stay unmapped, as they are in hyperswitch. Stripe's three
+/// `duplicate_charge_*` keys have no `SubmitEvidenceData` slot to map from.
+///
+/// Reference: <https://docs.stripe.com/api/disputes/update>
+impl From<SubmitEvidenceData> for Evidence {
+    fn from(request: SubmitEvidenceData) -> Self {
+        Self {
+            access_activity_log: request.access_activity_log,
+            billing_address: request.billing_address.map(Secret::new),
+            cancellation_policy: request.cancellation_policy_provider_file_id,
+            cancellation_policy_disclosure: request.cancellation_policy_disclosure,
+            cancellation_rebuttal: request.cancellation_rebuttal,
+            customer_communication: request.customer_communication_provider_file_id,
+            customer_email_address: request.customer_email_address,
+            customer_name: request.customer_name.map(Secret::new),
+            customer_purchase_ip: request.customer_purchase_ip.map(Secret::new),
+            customer_signature: request.customer_signature_provider_file_id.map(Secret::new),
+            product_description: request.product_description,
+            receipt: request.receipt_provider_file_id.map(Secret::new),
+            refund_policy: request.refund_policy_provider_file_id,
+            refund_policy_disclosure: request.refund_policy_disclosure,
+            refund_refusal_explanation: request.refund_refusal_explanation,
+            service_date: request.service_date,
+            service_documentation: request.service_documentation_provider_file_id,
+            shipping_address: request.shipping_address.map(Secret::new),
+            shipping_carrier: request.shipping_carrier,
+            shipping_date: request.shipping_date,
+            shipping_documentation: request
+                .shipping_documentation_provider_file_id
+                .map(Secret::new),
+            shipping_tracking_number: request.shipping_tracking_number.map(Secret::new),
+            uncategorized_file: request.uncategorized_file_provider_file_id,
+            uncategorized_text: request.uncategorized_text,
+            // Stripe defaults `submit` to true and `SubmitEvidenceData` carries no staging
+            // flag, so the flow always submits. Stripe documents that evidence may
+            // typically be submitted only once, so staging it silently would lose the
+            // dispute on its due date.
+            submit: true,
+        }
+    }
+}
+
+impl<F, Req> TryFrom<ResponseRouterData<DisputeObj, Self>>
+    for RouterDataV2<F, DisputeFlowData, Req, DisputeResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(value: ResponseRouterData<DisputeObj, Self>) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        // Derived from the status Stripe actually returned rather than hardcoded per flow
+        // (hyperswitch hardcodes `DisputeChallenged` / `DisputeAccepted`): submitting moves
+        // the dispute to `under_review` and closing it to `lost`, and a status this
+        // connector cannot map is an error rather than a guess — the rule the webhook path
+        // already applies, for the same reason.
+        let dispute_status = dispute_status_to_dispute_status(&response.status).change_context(
+            ConnectorError::UnexpectedResponseError {
+                context: Default::default(),
+            },
+        )?;
+
+        Ok(Self {
+            response: Ok(DisputeResponseData {
+                connector_dispute_id: response.dispute_id,
+                dispute_status,
+                connector_dispute_status: Some(response.status.to_string()),
+                status_code: http_code,
+            }),
+            ..router_data
         })
     }
 }
