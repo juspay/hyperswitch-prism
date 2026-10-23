@@ -105,6 +105,9 @@ pub struct PreRiskCheckRequest {
     /// Domain-specific order context (travel, hotel, airline…) as a typed
     /// object.
     pub domain_data: Option<DomainData>,
+    /// Data-only mode: send the order to the provider for model training with
+    /// riskInquiry=false — no fraud evaluation.
+    pub data_collection_no_inquiry: Option<bool>,
 }
 
 /// Response data for pre-risk check

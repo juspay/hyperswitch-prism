@@ -77,6 +77,10 @@ message FrmServicePreRiskCheckRequest {
   // Domain-specific order context (travel, hotel, airline…) as a typed object.
   // Producers populate the blocks they have data for.
   optional DomainData domain_data = 16;
+
+  // Data-only mode: when true, the evaluate call is data-only (Kount
+  // `riskInquiry=false`) — no fraud evaluation, for model training.
+  optional bool data_collection_no_inquiry = 17;
 }
 
 // Response for FrmService.PreRiskCheck

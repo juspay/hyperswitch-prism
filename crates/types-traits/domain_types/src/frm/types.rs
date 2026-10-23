@@ -351,6 +351,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
                         ..Default::default()
                     },
                 })?,
+            data_collection_no_inquiry: value.data_collection_no_inquiry,
         })
     }
 }
@@ -1162,5 +1163,39 @@ pub fn generate_frm_chargeback_received_response(
                 issuer_details: None,
             }),
         }),
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    /// Guards the grpc→domain copy literal (drop hazard #1): a silently missed
+    /// field yields `None`, which the Kount connector reads as "evaluate with
+    /// `?riskInquiry=true`" — the forbidden outcome for data-only
+    /// (model-training) traffic.
+    #[test]
+    fn data_collection_no_inquiry_survives_grpc_to_domain_conversion() {
+        fn grpc_request(
+            data_collection_no_inquiry: Option<bool>,
+        ) -> grpc_api_types::frm::FrmServicePreRiskCheckRequest {
+            grpc_api_types::frm::FrmServicePreRiskCheckRequest {
+                amount: Some(grpc_api_types::frm::Money {
+                    minor_amount: 100,
+                    currency: i32::from(grpc_api_types::frm::Currency::Usd),
+                }),
+                data_collection_no_inquiry,
+                ..Default::default()
+            }
+        }
+
+        let converted = PreRiskCheckRequest::foreign_try_from(grpc_request(Some(true)))
+            .expect("conversion should succeed");
+        assert_eq!(converted.data_collection_no_inquiry, Some(true));
+
+        let converted_unset = PreRiskCheckRequest::foreign_try_from(grpc_request(None))
+            .expect("conversion should succeed");
+        assert_eq!(converted_unset.data_collection_no_inquiry, None);
     }
 }

@@ -1423,6 +1423,7 @@ impl
             billing_document_data: item.billing_document_data.clone(),
             shipping_document_data: item.shipping_document_data.clone(),
             domain_data: item.domain_data.clone(),
+            data_collection_no_inquiry: item.data_collection_no_inquiry,
         }
     }
 }
@@ -1592,5 +1593,38 @@ impl
             state: resolved_state,
             connector_feature_data: item.connector_feature_data.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use grpc_api_types::{
+        frm::{CompositeFrmPreRiskCheckRequest, FrmServicePreRiskCheckRequest},
+        payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    };
+
+    use super::ForeignFrom;
+
+    /// Guards the composite→granular copy literal: a silently missed field here
+    /// means `data_collection_no_inquiry` degrades to `None`, which the Kount
+    /// connector reads as "evaluate with `?riskInquiry=true`" — the forbidden
+    /// outcome for data-only (model-training) traffic.
+    #[test]
+    fn data_collection_no_inquiry_survives_composite_to_granular_conversion() {
+        let no_token: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        > = None;
+
+        let composite = CompositeFrmPreRiskCheckRequest {
+            data_collection_no_inquiry: Some(true),
+            ..Default::default()
+        };
+        let granular = FrmServicePreRiskCheckRequest::foreign_from((&composite, no_token));
+        assert_eq!(granular.data_collection_no_inquiry, Some(true));
+
+        let composite_unset = CompositeFrmPreRiskCheckRequest::default();
+        let granular_unset =
+            FrmServicePreRiskCheckRequest::foreign_from((&composite_unset, no_token));
+        assert_eq!(granular_unset.data_collection_no_inquiry, None);
     }
 }
