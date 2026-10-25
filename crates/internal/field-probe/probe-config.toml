@@ -119,7 +119,7 @@ default = '{}'
 "connector_transaction_id" = "12345"
 
 # RAFT follow-up requests carry the credit/debit prefix and authorization traces.
-[connector_overrides."capture,void,refund".worldpayraft]
+[connector_overrides."capture,void,refund,incremental_authorization".worldpayraft]
 "connector_transaction_id" = "C|123456|123456789012|000001"
 
 # Directa24 is the same case: its `deposit_id` is an integer, so PSync and Refund
