@@ -82,6 +82,18 @@
       "grpc_req": {
         "setup_future_usage": "OFF_SESSION"
       }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 50
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        }
+      }
     }
   },
   "PaymentService/SetupRecurring": {
@@ -160,6 +172,94 @@
             "card_exp_year": "30",
             "card_cvc": "999"
           }
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
+    "threeds_card_pre_authenticate": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4100000000000100"
+            }
+          }
+        }
+      },
+      "assert": {
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    }
+  },
+  "PaymentService/Void": {
+    "void_authorized_payment": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "VOID_INITIATED",
+            "VOIDED",
+            "PENDING"
+          ]
+        }
+      }
+    },
+    "void_without_cancellation_reason": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "VOID_INITIATED",
+            "VOIDED",
+            "PENDING"
+          ]
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_content.payments_response.status": {
+          "equals": "CHARGED"
+        },
+        "event_ack_response.status_code": {
+          "equals": 200
+        }
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "event_status": null,
+        "event_content.payments_response.status": {
+          "equals": "FAILURE"
+        },
+        "event_ack_response.status_code": {
+          "equals": 200
+        }
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_content.refunds_response.status": {
+          "equals": "REFUND_SUCCESS"
+        },
+        "event_ack_response.status_code": {
+          "equals": 200
+        }
+      }
+    },
+    "invalid_signature": {
+      "assert": {
+        "event_status": null,
+        "event_type": {
+          "equals": "PAYMENT_INTENT_SUCCESS"
+        },
+        "event_ack_response.status_code": {
+          "equals": 200
         }
       }
     }

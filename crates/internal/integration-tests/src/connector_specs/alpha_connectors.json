@@ -69,7 +69,9 @@
     "netcetera": {},
     "nexinets": {},
     "nexixpay": {},
-    "nmi": {},
+    "nmi": {
+      "reason": "No NMI sandbox credentials are configured in CI, so certification cannot run: the repo credentials file carries a PRODUCTION NMI key, which authenticates against secure.nmi.com and is rejected by sandbox.nmi.com with \"User not found\", and it carries no webhook_secret. Every money-moving scenario and every positive webhook-signature scenario is therefore refused before it executes; only read-only query.php syncs and the negative webhook paths can be certified. ConnectorSpecificConfig::Nmi already carries base_url: Option<String>, so a sandbox entry needs a credential and no code change. Remove this entry once an NMI sandbox api_key, public_key and webhook_secret are added to CI so it starts being certified."
+    },
     "noon": {},
     "novalnet": {},
     "nuvei": {},

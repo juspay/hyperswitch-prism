@@ -4,7 +4,7 @@ use domain_types::router_data::ConnectorSpecificConfig;
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, types::FloatMajorUnit};
+use common_utils::{consts, errors::CustomResult, events, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,
@@ -26,7 +26,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::Maskable;
+use hyperswitch_masking::{Maskable, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -130,12 +130,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let message =
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
-        use common_utils::crypto::SignMessage;
+        // `verify_signature` is ring's `hmac::verify`, which compares in constant time;
+        // signing and then `==`-ing the two Vec<u8> leaks the matching prefix length.
+        use common_utils::crypto::VerifySignature;
         common_utils::crypto::HmacSha256
-            .sign_message(&connector_webhook_secrets.secret, &message)
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to sign the NMI webhook message with HMAC-SHA256")
-            .map(|expected_signature| expected_signature == signature)
+            .attach_printable("Failed to verify the NMI webhook HMAC-SHA256 signature")
     }
 
     fn get_webhook_source_verification_signature(
@@ -171,57 +172,148 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        // An empty body will never parse, and NMI retries anything but a 200 up to 20 times
+        // over three days. Answer "event not supported" instead of feeding the retry loop.
+        if request.body.is_empty() {
+            return Ok(EventType::IncomingWebhookEventUnspecified);
+        }
+
         let event_type_body: transformers::NmiWebhookEventBody =
             serde_json::from_slice(&request.body)
                 .change_context(WebhookError::WebhookResourceObjectNotFound)
                 .attach_printable("Failed to decode the NMI webhook event body")?;
+
+        // A chargeback batch publishes no event and no record, so this is the one place the
+        // notification is written down. `get_event_type` is the hook both `EventService.ParseEvent`
+        // and `EventService.HandleEvent` call, so logging here covers either delivery.
+        if matches!(
+            event_type_body.event_type,
+            transformers::NmiWebhookEventType::ChargebackBatchComplete
+        ) {
+            transformers::log_nmi_chargeback_batch(&request);
+        }
 
         Ok(transformers::get_nmi_webhook_event(
             event_type_body.event_type,
         ))
     }
 
-    /// Ports HS `get_webhook_object_reference_id`: NMI echoes back the hyperswitch-side
-    /// identifier in `event_body.order_id` — the payment attempt id for payment actions
-    /// (`PaymentIdType::PaymentAttemptId`) and the refund id for refunds
-    /// (`RefundIdType::RefundId`). Both are caller-assigned (merchant) references, so the
-    /// connector-assigned id fields MUST stay `None` for the reference to normalise
-    /// identically to the Direct gateway.
+    /// Ports HS `get_webhook_object_reference_id`: NMI echoes the merchant-side identifier
+    /// in `event_body.order_id` — the payment attempt id for payment actions and the refund
+    /// id for refunds, both caller-assigned, so the connector-assigned id fields stay `None`
+    /// and the reference normalises identically to the Direct gateway. Where this departs
+    /// from HS: a delivery that omits `order_id` (the spec's verbatim `transaction.void.success`
+    /// payload) falls back to the gateway `transaction_id`, and a chargeback batch resolves
+    /// to no record at all rather than to an error.
     fn get_webhook_event_reference(
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let reference_body: transformers::NmiWebhookObjectReference =
-            serde_json::from_slice(&request.body)
-                .change_context(WebhookError::WebhookResourceObjectNotFound)
-                .attach_printable("Failed to decode the NMI webhook object reference")?;
+        let transformers::NmiWebhookObjectReference {
+            event_type,
+            event_body,
+        } = serde_json::from_slice(&request.body)
+            .change_context(WebhookError::WebhookResourceObjectNotFound)
+            .attach_printable("Failed to decode the NMI webhook object reference")?;
 
-        match reference_body.event_body.action.action_type {
-            transformers::NmiActionType::Sale
-            | transformers::NmiActionType::Auth
-            | transformers::NmiActionType::Capture
-            | transformers::NmiActionType::Void => Ok(Some(WebhookResourceReference::Payment(
-                PaymentWebhookReference {
-                    connector_transaction_id: None,
-                    merchant_transaction_id: Some(reference_body.event_body.order_id),
-                    connector_preprocessing_id: None,
-                },
-            ))),
-            transformers::NmiActionType::Refund => Ok(Some(WebhookResourceReference::Refund(
-                RefundWebhookReference {
-                    connector_refund_id: None,
-                    merchant_refund_id: Some(reference_body.event_body.order_id),
-                    connector_transaction_id: None,
-                    merchant_transaction_id: None,
-                },
-            ))),
+        // The chargeback batch report is `{merchant, processor, count, chargeback_amount,
+        // chargebacks[]}` — no transaction, order or refund id anywhere in it, and the
+        // per-chargeback `id` is accepted by no NMI endpoint. So it selects no record.
+        if matches!(
+            event_type,
+            transformers::NmiWebhookEventType::ChargebackBatchComplete
+        ) {
+            return Ok(None);
+        }
+
+        // Which record family the delivery is about: the action when it carries one, else
+        // the event family, since `action` is absent from some documented payloads.
+        let is_refund = match event_body.action.as_ref().map(|action| &action.action_type) {
+            // An ACH `return` reverses a debit, so it reads as a refund, matching the
+            // `Refund | Return` grouping the sync resolvers already use.
+            Some(transformers::NmiActionType::Refund | transformers::NmiActionType::Return) => true,
+            Some(
+                transformers::NmiActionType::Sale
+                | transformers::NmiActionType::Auth
+                | transformers::NmiActionType::Capture
+                | transformers::NmiActionType::Void
+                | transformers::NmiActionType::Validate,
+            ) => false,
             // HS maps `credit` to `WebhooksNotImplemented`.
-            transformers::NmiActionType::Credit => {
-                Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
+            Some(transformers::NmiActionType::Credit) => {
+                return Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
                     operation: "nmi credit webhooks",
                 }))
             }
-        }
+            // An action type outside the documented set is refused rather than guessed at,
+            // and named in the log so the gap is visible without a repro.
+            Some(transformers::NmiActionType::Unrecognised) => {
+                tracing::warn!(
+                    action_type = ?transformers::raw_webhook_action_type(&request),
+                    "nmi webhook carries an action_type outside the documented set"
+                );
+                return Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
+                    operation: "nmi webhooks for an undocumented action_type",
+                }));
+            }
+            None => matches!(
+                event_type,
+                transformers::NmiWebhookEventType::RefundSuccess
+                    | transformers::NmiWebhookEventType::RefundFailure
+                    | transformers::NmiWebhookEventType::RefundUnknown
+            ),
+        };
+
+        // An echoed `orderid=` is not an identifier. `Some("")` would publish a reference no
+        // record resolves — the same TH-10/TH-16 trap `StandardResponse::connector_reference_id`
+        // guards against on the response side.
+        let order_id = transformers::non_blank_str(event_body.order_id.as_deref());
+        let transaction_id = transformers::non_blank_str(event_body.transaction_id.as_deref());
+
+        let reference = match (is_refund, order_id, transaction_id) {
+            (true, Some(order_id), _) => WebhookResourceReference::Refund(RefundWebhookReference {
+                connector_refund_id: None,
+                merchant_refund_id: Some(order_id),
+                connector_transaction_id: None,
+                merchant_transaction_id: None,
+            }),
+            (false, Some(order_id), _) => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: None,
+                    merchant_transaction_id: Some(order_id),
+                    connector_preprocessing_id: None,
+                })
+            }
+            // `order_id` absent: NMI records a refund as an `<action>` on the original
+            // transaction and mints no refund id (D15), so `transaction_id` here is the
+            // gateway id of the *payment* — which is what `connector_transaction_id` is
+            // documented to hold. The Refund flow publishes the echoed merchant `orderid` as
+            // its `connector_refund_id` (`StandardResponse::connector_reference_id`), so
+            // putting a gateway payment id in `connector_refund_id` would cross the two
+            // identifier spaces and match no refund record (TH-16).
+            (true, None, Some(transaction_id)) => {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: None,
+                    merchant_refund_id: None,
+                    connector_transaction_id: Some(transaction_id),
+                    merchant_transaction_id: None,
+                })
+            }
+            (false, None, Some(transaction_id)) => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(transaction_id),
+                    merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
+                })
+            }
+            (_, None, None) => {
+                return Err(error_stack::report!(
+                    WebhookError::WebhookReferenceIdNotFound
+                ))
+            }
+        };
+
+        Ok(Some(reference))
     }
 
     fn process_payment_webhook(
@@ -237,9 +329,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // HS reshapes payment webhooks into the PSync `SyncResponse` and maps
         // `condition` -> NmiStatus -> AttemptStatus.
-        let status = common_enums::AttemptStatus::from(transformers::NmiStatus::from(
-            webhook_body.event_body.condition.clone(),
-        ));
+        let status = common_enums::AttemptStatus::from(webhook_body.event_body.condition.clone());
 
         Ok(WebhookDetailsResponse {
             connector_returned_payment_method_details: None,
@@ -273,19 +363,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookResourceObjectNotFound)
             .attach_printable("Failed to decode the NMI webhook body")?;
 
-        // `transaction_id` is the NMI-assigned id of the refund transaction;
         // `condition` -> NmiStatus -> RefundStatus mirrors the HS mapping.
-        let status = common_enums::RefundStatus::from(transformers::NmiStatus::from(
-            webhook_body.event_body.condition.clone(),
-        ));
+        let status = common_enums::RefundStatus::from(webhook_body.event_body.condition.clone());
 
         Ok(RefundWebhookDetailsResponse {
-            connector_refund_id: Some(webhook_body.event_body.transaction_id.clone()),
-            // NMI refund webhooks carry no reference to the original payment;
-            // `order_id` here is the merchant refund id (used for the reference).
+            // The echoed `order_id`, which is exactly what the Refund flow publishes as its
+            // `connector_refund_id` (`StandardResponse::connector_reference_id`). NMI mints no
+            // refund id of its own — `event_body.transaction_id` is the gateway id of the
+            // original payment — so publishing that here would key the refund record on an id
+            // from the payment's identifier space and never resolve (TH-16). With no echoed
+            // `order_id` there is no refund reference to publish, and `None` says so.
+            connector_refund_id: transformers::non_blank_str(
+                webhook_body.event_body.order_id.as_deref(),
+            ),
+            // NMI refund webhooks carry no reference to the original payment's merchant id.
             merchant_transaction_id: None,
             status,
-            connector_response_reference_id: None,
+            // The gateway transaction id is still carried, informationally: RSync keys on it
+            // (`NmiSyncRequest`), and it is the only id this delivery is certain to have.
+            connector_response_reference_id: Some(webhook_body.event_body.transaction_id.clone()),
             error_code: None,
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
@@ -311,10 +407,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | transformers::NmiActionType::Auth
             | transformers::NmiActionType::Capture
             | transformers::NmiActionType::Void
-            | transformers::NmiActionType::Credit => Ok(Box::new(
+            | transformers::NmiActionType::Credit
+            | transformers::NmiActionType::Validate => Ok(Box::new(
                 transformers::NmiWebhookSyncResponse::from(&webhook_body),
             )),
-            transformers::NmiActionType::Refund => Ok(Box::new(webhook_body)),
+            // An ACH `return` reverses a debit, so it goes through as-is with the refunds.
+            transformers::NmiActionType::Refund | transformers::NmiActionType::Return => {
+                Ok(Box::new(webhook_body))
+            }
+            transformers::NmiActionType::Unrecognised => {
+                tracing::warn!(
+                    action_type = ?transformers::raw_webhook_action_type(&request),
+                    "nmi webhook carries an action_type outside the documented set"
+                );
+                Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
+                    operation: "nmi webhooks for an undocumented action_type",
+                }))
+            }
         }
     }
 
@@ -337,7 +446,36 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Nmi<T>
 {
-} // ===== CREATE CONNECTOR STRUCT WITH MACROS =====
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: common_enums::PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+        // NMI publishes no server-to-server 3DS endpoint: the only pre-charge call is the
+        // customer-vault add, and it always answers with `RedirectForm::Nmi` for Gateway.js.
+        // That makes this the single-leg shape -- one PreAuthenticate, then Authorize carries
+        // the authentication result. Wallet and ACH instruments are already authenticated (or
+        // not eligible), so they go straight to Authorize.
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == common_enums::PaymentMethod::Card
+        {
+            match (redirect_state, completed_step) {
+                (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
+                (RedirectState::InitialRequest, Some(AuthenticationStep::PreAuthenticate)) => {
+                    AuthenticationStep::Authorize
+                }
+                _ => AuthenticationStep::Authorize,
+            }
+        } else {
+            AuthenticationStep::Authorize
+        }
+    }
+}
+
+// ===== CREATE CONNECTOR STRUCT WITH MACROS =====
 macros::create_all_prerequisites!(
     connector_name: Nmi,
     generic_type: T,
@@ -493,18 +631,60 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        // Parse URL-encoded error response
-        let response: StandardResponse = serde_urlencoded::from_bytes(&res.response)
-            .change_context(
-                crate::utils::response_deserialization_fail(
-                    res.status_code,
-                "nmi: response body did not match the expected format; confirm API version and connector documentation."),
-            )?;
+        // NMI answers HTTP 200 for everything, so this path is reached for transport-level
+        // failures and for bodies that are not a Direct Post response at all (an empty body, an
+        // HTML error page from a proxy). Neither may discard the HTTP status.
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            });
+        }
+
+        let response: StandardResponse = match serde_urlencoded::from_bytes(&res.response) {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                let raw = String::from_utf8_lossy(&res.response).to_string();
+                tracing::warn!(
+                    ?error,
+                    status_code = res.status_code,
+                    "nmi: error response body is not a Direct Post form body; surfacing the raw body"
+                );
+                return Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: Some(raw.clone()),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: Some(Secret::new(raw)),
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                });
+            }
+        };
 
         with_error_response_body!(event_builder, response);
 
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+        let (network_decline_code, network_advice_code, network_error_message) =
+            transformers::nmi_network_codes(&response.response_code, &response.responsetext);
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.response_code.clone(),
@@ -512,9 +692,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             reason: Some(response.responsetext),
             attempt_status: None,
             connector_transaction_id: Some(response.transactionid),
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            network_decline_code,
+            network_advice_code,
+            network_error_message,
             typed_connector_response: typed,
             raw_connector_response: None,
             raw_connector_request: None,

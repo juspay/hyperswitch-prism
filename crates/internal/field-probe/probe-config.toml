@@ -284,6 +284,65 @@ digit_value_fields = ["NUMQUESTION"]
 [wallet_token_overrides.worldpayxml]
 GooglePay = '{"protocolVersion":"ECv2","signature":"probe","signedMessage":"probe"}'
 
+# NMI's 3DS is external: `transact.php` takes the Gateway.js authentication result as
+# passthrough form fields, and the probe's base authorize request carries
+# `auth_type = NO_THREE_DS` and no authentication data, so none of those fields is ever
+# triggered. The same applies to `setup_future_usage`, `billing_descriptor`, `l2_l3_data` and
+# `order_details`, which the base request leaves unset: a conditional field the probe never
+# triggers is a hard refusal_gate CAP-02 failure, not a pass. `set_at_path` traverses objects
+# only, so `order_details` is pre-set whole rather than by index. Fixtures are NMI's own
+# published sandbox 3DS values (/reference/testing-methods).
+# 1 = THREE_DS / TRANSACTION_STATUS_SUCCESS / TAX_STATUS_TAXABLE / OFF_SESSION.
+[connector_overrides.authorize.nmi]
+"auth_type" = 1
+"authentication_data.trans_status" = 1
+"authentication_data.cavv" = "mock_cavv_0002_1234567890"
+"authentication_data.eci" = "05"
+"authentication_data.message_version" = "2.2.0"
+"authentication_data.ds_transaction_id" = "f38e6948-5388-41a6-bca4-b49723c19437"
+# `xid` reads AuthenticationData.transaction_id, whose proto name is connector_transaction_id.
+"authentication_data.connector_transaction_id" = "MDAwMDAwMDAwMDAwMDAwMDAwMDA="
+# `is_mandate_payment()` is `(customer_acceptance | setup_mandate_details) && OFF_SESSION`, so
+# OFF_SESSION alone does not make the CIT markers observable. 1 = ONLINE.
+"setup_future_usage" = 1
+"customer_acceptance.acceptance_type" = 1
+"customer_acceptance.accepted_at" = 1704067200
+"billing_descriptor.name" = "PROBE STORE"
+"billing_descriptor.phone" = "18005550100"
+"l2_l3_data.tax_info.tax_status" = 1
+"l2_l3_data.tax_info.order_tax_amount" = 85
+"l2_l3_data.order_info.merchant_order_reference_id" = "probe_po_001"
+"l2_l3_data.order_info.shipping_cost" = 500
+"l2_l3_data.order_info.duty_amount" = 125
+"l2_l3_data.order_info.discount_amount" = 50
+
+[[connector_overrides.authorize.nmi."l2_l3_data.order_info.order_details"]]
+product_name = "Probe Widget"
+quantity = 2
+amount = 500
+total_amount = 1000
+total_tax_amount = 85
+unit_discount_amount = 25
+discount_percentage = 5.0
+product_id = "PROBE-SKU-1"
+description = "Probe line item"
+commodity_code = "43211508"
+unit_of_measure = "EA"
+
+# NMI charges a stored credential by Customer Vault id and must cite the
+# credential-establishing transaction as `initial_transaction_id`, which it reads from the
+# mandate reference's `mandate_metadata` (there is no RPC field for it). The base
+# recurring_charge request carries `connector_mandate_id` only and leaves `merchant_charge_id`
+# unset, so the probed body is `...&orderid=&customer_vault_id=probe-mandate-123` and neither
+# field can ever appear. The patcher only reacts to *missing-field* errors, so a pre-set is the
+# only form available. `mandate_id_type` is a proto oneof tagged by its PascalCase variant
+# name, so it is set whole (as the NetworkMandateId entries above are) rather than by dotted
+# path -- a dotted path would add a second sibling key and the failed round-trip would silently
+# drop every override here. `mandate_metadata` is a JSON *string* on the wire.
+[connector_overrides.recurring_charge.nmi]
+"merchant_charge_id" = "probe_recurring_001"
+"connector_recurring_payment_id" = { mandate_id_type = { ConnectorMandateId = { connector_mandate_id = "probe-mandate-123", mandate_metadata = '{"initial_transaction_id":"probe_initial_txn_001"}' } } }
+
 # Flows that answer locally without an outbound connector call.
 [local_response_flows]
 worldpayxml = ["pre_authenticate"]

@@ -1,0 +1,67 @@
+{
+  "_webhook_config": {
+    "webhook_secret_key": "fixture_webhook_secret",
+    "signature_algorithm": "hex HMAC-SHA256 of \"{nonce}.{raw_body}\" in Webhook-Signature: t={nonce},s={signature}",
+    "note": "Deterministic offline fixtures: bodies are base64-encoded compact JSON and the Webhook-Signature header is precomputed over the exact decoded bytes with the secret supplied in grpc_req.webhook_secrets. webhook_signatures.rs has no \"nmi\" signer arm (plan P-IncomingWebhook-06 withdrawn; the file is out of scope), so the harness cannot compute one -- same arrangement as connector_specs/cryptopay. webhook_secret_key names a key that is absent from creds.json on purpose: a real nmi webhook_secret must not overwrite grpc_req.webhook_secrets and invalidate these signatures. No signature_header key, so the harness never tries to sign."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "Webhook-Signature": "t=1769990400,s=f0582c2f56c2e068a69c053ba90ea18c461b55f3e236dc1852a18986967cc1c9"
+        },
+        "body": "eyJldmVudF9pZCI6IjBmNmNmNGJhLTRhNGUtNGU1MS05YjJmLTZmMGE0ZmY5YjAwMSIsImV2ZW50X3R5cGUiOiJ0cmFuc2FjdGlvbi5zYWxlLnN1Y2Nlc3MiLCJldmVudF9ib2R5Ijp7Im1lcmNoYW50Ijp7ImlkIjoiOTQ0MDI1IiwibmFtZSI6IlRlc3QgbWVyY2hhbnQgYWNjb3VudCJ9LCJ0cmFuc2FjdGlvbl9pZCI6Ijg1ODQzNDE2NzUiLCJ0cmFuc2FjdGlvbl90eXBlIjoiY2MiLCJjb25kaXRpb24iOiJwZW5kaW5nc2V0dGxlbWVudCIsImN1cnJlbmN5IjoiVVNEIiwicmVxdWVzdGVkX2Ftb3VudCI6IjEwLjAwIiwib3JkZXJfaWQiOiJubWlfcGF5bWVudF9hdHRlbXB0XzAwMDEiLCJhY3Rpb24iOnsiYW1vdW50IjoiMTAuMDAiLCJhY3Rpb25fdHlwZSI6InNhbGUiLCJzdWNjZXNzIjoiMSIsInJlc3BvbnNlX3RleHQiOiJTVUNDRVNTIiwicmVzcG9uc2VfY29kZSI6IjEwMCJ9fX0="
+      },
+      "merchant_event_id": "nmi_webhook_payment_succeeded",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "Webhook-Signature": "t=1769990400,s=10affcdd557d1f7de33349f6aa7c04b78ca6d3ed93c4d51d6cfa23921654fc51"
+        },
+        "body": "eyJldmVudF9pZCI6IjBmNmNmNGJhLTRhNGUtNGU1MS05YjJmLTZmMGE0ZmY5YjAwMiIsImV2ZW50X3R5cGUiOiJ0cmFuc2FjdGlvbi5zYWxlLmZhaWx1cmUiLCJldmVudF9ib2R5Ijp7Im1lcmNoYW50Ijp7ImlkIjoiOTQ0MDI1IiwibmFtZSI6IlRlc3QgbWVyY2hhbnQgYWNjb3VudCJ9LCJ0cmFuc2FjdGlvbl9pZCI6Ijg1ODQzNDE2NzYiLCJ0cmFuc2FjdGlvbl90eXBlIjoiY2MiLCJjb25kaXRpb24iOiJmYWlsZWQiLCJjdXJyZW5jeSI6IlVTRCIsInJlcXVlc3RlZF9hbW91bnQiOiIxMC4wMCIsIm9yZGVyX2lkIjoibm1pX3BheW1lbnRfYXR0ZW1wdF8wMDAyIiwiYWN0aW9uIjp7ImFtb3VudCI6IjEwLjAwIiwiYWN0aW9uX3R5cGUiOiJzYWxlIiwic3VjY2VzcyI6IjAiLCJyZXNwb25zZV90ZXh0IjoiREVDTElORSIsInJlc3BvbnNlX2NvZGUiOiIyMDAifX19"
+      },
+      "merchant_event_id": "nmi_webhook_payment_failed",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "Webhook-Signature": "t=1769990400,s=d1acd6464d28c2b9199f2cc958609cadfad3d11e6967b8973eda9d3b656ed1dd"
+        },
+        "body": "eyJldmVudF9pZCI6IjBmNmNmNGJhLTRhNGUtNGU1MS05YjJmLTZmMGE0ZmY5YjAwMyIsImV2ZW50X3R5cGUiOiJ0cmFuc2FjdGlvbi5yZWZ1bmQuc3VjY2VzcyIsImV2ZW50X2JvZHkiOnsibWVyY2hhbnQiOnsiaWQiOiI5NDQwMjUiLCJuYW1lIjoiVGVzdCBtZXJjaGFudCBhY2NvdW50In0sInRyYW5zYWN0aW9uX2lkIjoiODU4NDM0MTY3NyIsInRyYW5zYWN0aW9uX3R5cGUiOiJjYyIsImNvbmRpdGlvbiI6InBlbmRpbmdzZXR0bGVtZW50IiwiY3VycmVuY3kiOiJVU0QiLCJyZXF1ZXN0ZWRfYW1vdW50IjoiMTAuMDAiLCJvcmRlcl9pZCI6Im5taV9yZWZ1bmRfMDAwMSIsImFjdGlvbiI6eyJhbW91bnQiOiIxMC4wMCIsImFjdGlvbl90eXBlIjoicmVmdW5kIiwic3VjY2VzcyI6IjEiLCJyZXNwb25zZV90ZXh0IjoiU1VDQ0VTUyIsInJlc3BvbnNlX2NvZGUiOiIxMDAifX19"
+      },
+      "merchant_event_id": "nmi_webhook_refund_succeeded",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "Webhook-Signature": "t=1769990400,s=0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "body": "eyJldmVudF9pZCI6IjBmNmNmNGJhLTRhNGUtNGU1MS05YjJmLTZmMGE0ZmY5YjAwNCIsImV2ZW50X3R5cGUiOiJ0cmFuc2FjdGlvbi5zYWxlLnN1Y2Nlc3MiLCJldmVudF9ib2R5Ijp7Im1lcmNoYW50Ijp7ImlkIjoiOTQ0MDI1IiwibmFtZSI6IlRlc3QgbWVyY2hhbnQgYWNjb3VudCJ9LCJ0cmFuc2FjdGlvbl9pZCI6Ijg1ODQzNDE2NzgiLCJ0cmFuc2FjdGlvbl90eXBlIjoiY2MiLCJjb25kaXRpb24iOiJwZW5kaW5nc2V0dGxlbWVudCIsImN1cnJlbmN5IjoiVVNEIiwicmVxdWVzdGVkX2Ftb3VudCI6IjEwLjAwIiwib3JkZXJfaWQiOiJubWlfcGF5bWVudF9hdHRlbXB0XzAwMDQiLCJhY3Rpb24iOnsiYW1vdW50IjoiMTAuMDAiLCJhY3Rpb25fdHlwZSI6InNhbGUiLCJzdWNjZXNzIjoiMSIsInJlc3BvbnNlX3RleHQiOiJTVUNDRVNTIiwicmVzcG9uc2VfY29kZSI6IjEwMCJ9fX0="
+      },
+      "merchant_event_id": "nmi_webhook_invalid_signature",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  }
+}
