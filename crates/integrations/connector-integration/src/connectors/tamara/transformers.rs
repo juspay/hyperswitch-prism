@@ -351,18 +351,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .map(|order_details| {
                 order_details
                     .iter()
-                    .enumerate()
-                    .map(|(i, data)| {
+                    .map(|data| {
                         Ok(TamaraLineItem {
                             name: data.get_product_name(),
                             quantity: data.get_quantity(),
-                            reference_id: data.get_product_id().unwrap_or_else(|_| format!("item_{i}")),
-                            sku: data.get_sku().unwrap_or_else(|_| format!("item_{i}")),
+                            reference_id: data.get_product_id()?,
+                            sku: data.get_sku()?,
                             total_amount: to_tamara_amount(
                                 data.get_total_amount(),
                                 "Failed to convert line item total amount from minor to major units",
                             )?,
-                            item_type: data.get_product_type().unwrap_or_default(),
+                            item_type: data.get_product_type()?,
                             item_url: data.get_optional_product_link(),
                             image_url: data.get_optional_product_img_link(),
                             unit_price: to_tamara_amount(
