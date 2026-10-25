@@ -158,7 +158,8 @@ pub struct TamaraPaymentsRequest {
     pub order_reference_id: String,
     pub country_code: String,
     pub description: String,
-    pub items: Vec<TamaraLineItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub items: Option<Vec<TamaraLineItem>>,
     pub consumer: TamaraConsumer,
     pub merchant_url: TamaraMerchantUrl,
     pub shipping_address: TamaraAddress,
@@ -344,10 +345,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             value.map(|v| to_tamara_amount(v, context)).transpose()
         };
 
-        let items: Vec<TamaraLineItem> = router_data
+        let items = router_data
             .resource_common_data
             .order_details
             .clone()
+            .filter(|order_details| !order_details.is_empty())
             .map(|order_details| {
                 order_details
                     .iter()
@@ -380,7 +382,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     })
                     .collect::<Result<Vec<_>, error_stack::Report<errors::IntegrationError>>>()
             })
-            .unwrap_or(Ok(Vec::new()))?;
+            .transpose()?;
 
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
