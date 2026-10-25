@@ -6361,6 +6361,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
         value: grpc_api_types::payments::Address,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let country_code = value.country_alpha2_code();
+        #[allow(deprecated)]
         let legacy_state = value.state;
         let (state, state_code_iso) = match value.state_details {
             Some(grpc_api_types::payments::address::StateDetails::StateName(state_name)) => {

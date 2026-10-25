@@ -18,6 +18,7 @@ use crate::sample_data::{full_browser_info, usd_money};
 // accidentally pre-populate base requests, which would hide required-field
 // discovery.
 
+#[allow(deprecated)]
 fn full_address() -> grpc_api_types::payments::Address {
     use grpc_api_types::payments as proto;
     use hyperswitch_masking::Secret;
@@ -34,6 +35,7 @@ fn full_address() -> grpc_api_types::payments::Address {
         email: Some(Secret::new("test@example.com".to_string())),
         phone_number: Some(Secret::new("4155552671".to_string())),
         phone_country_code: Some("+1".to_string()),
+        state_details: None,
     }
 }
 
