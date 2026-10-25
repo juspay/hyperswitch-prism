@@ -113,7 +113,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   CardDetailsForNetworkTransactionId: ["cardNumber", "cardExpMonth", "cardExpYear", "nickName", "cardHolderName"],
   DecryptedWalletTokenDetailsForNetworkTransactionId: ["decryptedToken", "tokenExpMonth", "tokenExpYear", "cardHolderName", "deviceManufacturerIdentifier"],
   NetworkTokenData: ["tokenNumber", "tokenExpMonth", "tokenExpYear", "tokenCryptogram", "nickName"],
-  Address: ["firstName", "lastName", "line1", "line2", "line3", "city", "state", "zipCode", "email", "phoneNumber"],
+  Address: ["firstName", "lastName", "line1", "line2", "line3", "city", "state", "zipCode", "email", "phoneNumber", "stateName", "stateCodeIso"],
   Customer: ["email", "phoneNumber", "dateOfBirth"],
   CustomerDocumentDetails: ["documentNumber"],
   StudentDetails: ["studentEmail"],
