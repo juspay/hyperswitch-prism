@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::panic)]
@@ -342,6 +343,7 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
                 line3: None,
                 city: Some("San Francisco".to_string().into()),
                 state: Some("CA".to_string().into()),
+                state_details: None,
                 zip_code: Some(unique_zip.into()),
                 country_alpha2_code: Some(i32::from(CountryAlpha2::Us)),
                 phone_number: None,

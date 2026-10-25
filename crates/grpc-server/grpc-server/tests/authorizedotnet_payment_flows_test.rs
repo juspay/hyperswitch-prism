@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::panic)]
@@ -318,6 +319,7 @@ fn create_payment_authorize_request(
             line3: None,
             city: Some("Pecan Springs".to_string().into()),
             state: Some("TX".to_string().into()),
+            state_details: None,
             zip_code: Some("44628".to_string().into()),
             country_alpha2_code: Some(i32::from(CountryAlpha2::Us)),
             phone_number: None,
@@ -568,6 +570,7 @@ fn create_register_request() -> PaymentServiceSetupRecurringRequest {
             line3: None,
             city: Some("Test City".to_string().into()),
             state: Some("NY".to_string().into()),
+            state_details: None,
             zip_code: Some("10001".to_string().into()),
             country_alpha2_code: Some(i32::from(CountryAlpha2::Us)),
             phone_number: None,

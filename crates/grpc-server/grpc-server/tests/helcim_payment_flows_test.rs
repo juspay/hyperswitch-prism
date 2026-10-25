@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::panic)]
@@ -178,6 +179,7 @@ fn create_test_billing_address() -> PaymentAddress {
             line3: None,
             city: Some("New York".to_string().into()),
             state: Some("NY".to_string().into()),
+            state_details: None,
             zip_code: Some(format!("{:05}", 10001 + (unique_suffix % 1000)).into()),
             country_alpha2_code: Some(CountryAlpha2::Us.into()),
         }),
