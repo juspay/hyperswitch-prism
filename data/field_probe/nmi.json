@@ -27,8 +27,51 @@
           "address": {
             "billing_address": {}
           },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "auth_type": "THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "mock_cavv_0002_1234567890",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "f38e6948-5388-41a6-bca4-b49723c19437",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS",
+            "connector_transaction_id": "MDAwMDAwMDAwMDAwMDAwMDAwMDA="
+          },
+          "return_url": "https://example.com/return",
+          "setup_future_usage": "OFF_SESSION",
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 1704067200
+          },
+          "billing_descriptor": {
+            "name": "PROBE STORE",
+            "phone": "18005550100"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe Widget",
+                  "quantity": 2,
+                  "amount": 500,
+                  "total_tax_amount": 85,
+                  "product_id": "PROBE-SKU-1",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EA",
+                  "commodity_code": "43211508",
+                  "unit_discount_amount": 25,
+                  "discount_percentage": 5.0
+                }
+              ],
+              "merchant_order_reference_id": "probe_po_001",
+              "discount_amount": 50,
+              "shipping_cost": 500,
+              "duty_amount": 125
+            },
+            "tax_info": {
+              "tax_status": "TAX_STATUS_TAXABLE",
+              "order_tax_amount": 85
+            }
+          }
         },
         "sample": {
           "url": "https://secure.nmi.com/api/transact.php",
@@ -37,7 +80,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&payment=check&checkname=John+Doe&checkaba=110000000&checkaccount=000123456789"
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&payment=check&checkname=John+Doe&checkaba=110000000&checkaccount=000123456789&customer_vault=add_customer&cardholder_auth=verified&cavv=mock_cavv_0002_1234567890&xid=MDAwMDAwMDAwMDAwMDAwMDAwMDA%3D&eci=05&three_ds_version=2.2.0&directory_server_id=00000000-0000-0000-0000-000000000000&tax=0.85&shipping=5.0&ponumber=probe_po_001&duty_amount=1.25&discount_amount=0.5&item_commodity_code_1=43211508&item_description_1=Probe+line+item&item_discount_amount_1=0.25&item_discount_rate_1=5&item_product_code_1=PROBE-SKU-1&item_quantity_1=2&item_tax_amount_1=0.85&item_unit_cost_1=5.0&item_unit_of_measure_1=EA&descriptor=PROBE+STORE&descriptor_phone=18005550100&initiated_by=customer&stored_credential_indicator=stored"
         }
       },
       "AchBankTransfer": {
@@ -65,12 +108,176 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "mock_cavv_0002_1234567890",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "f38e6948-5388-41a6-bca4-b49723c19437",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS",
+            "connector_transaction_id": "MDAwMDAwMDAwMDAwMDAwMDAwMDA="
+          },
+          "return_url": "https://example.com/return",
+          "setup_future_usage": "OFF_SESSION",
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 1704067200
+          },
+          "billing_descriptor": {
+            "name": "PROBE STORE",
+            "phone": "18005550100"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe Widget",
+                  "quantity": 2,
+                  "amount": 500,
+                  "total_tax_amount": 85,
+                  "product_id": "PROBE-SKU-1",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EA",
+                  "commodity_code": "43211508",
+                  "unit_discount_amount": 25,
+                  "discount_percentage": 5.0
+                }
+              ],
+              "merchant_order_reference_id": "probe_po_001",
+              "discount_amount": 50,
+              "shipping_cost": 500,
+              "duty_amount": 125
+            },
+            "tax_info": {
+              "tax_status": "TAX_STATUS_TAXABLE",
+              "order_tax_amount": 85
+            }
+          }
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&applepay_payment_data=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&customer_vault=add_customer&cardholder_auth=verified&cavv=mock_cavv_0002_1234567890&xid=MDAwMDAwMDAwMDAwMDAwMDAwMDA%3D&eci=05&three_ds_version=2.2.0&directory_server_id=00000000-0000-0000-0000-000000000000&tax=0.85&shipping=5.0&ponumber=probe_po_001&duty_amount=1.25&discount_amount=0.5&item_commodity_code_1=43211508&item_description_1=Probe+line+item&item_discount_amount_1=0.25&item_discount_rate_1=5&item_product_code_1=PROBE-SKU-1&item_quantity_1=2&item_tax_amount_1=0.85&item_unit_cost_1=5.0&item_unit_of_measure_1=EA&descriptor=PROBE+STORE&descriptor_phone=18005550100&initiated_by=customer&stored_credential_indicator=stored"
+        }
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id",
+                  "device_manufacturer_identifier": "040010030273"
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "mock_cavv_0002_1234567890",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "f38e6948-5388-41a6-bca4-b49723c19437",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS",
+            "connector_transaction_id": "MDAwMDAwMDAwMDAwMDAwMDAwMDA="
+          },
+          "return_url": "https://example.com/return",
+          "setup_future_usage": "OFF_SESSION",
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 1704067200
+          },
+          "billing_descriptor": {
+            "name": "PROBE STORE",
+            "phone": "18005550100"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe Widget",
+                  "quantity": 2,
+                  "amount": 500,
+                  "total_tax_amount": 85,
+                  "product_id": "PROBE-SKU-1",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EA",
+                  "commodity_code": "43211508",
+                  "unit_discount_amount": 25,
+                  "discount_percentage": 5.0
+                }
+              ],
+              "merchant_order_reference_id": "probe_po_001",
+              "discount_amount": 50,
+              "shipping_cost": 500,
+              "duty_amount": 125
+            },
+            "tax_info": {
+              "tax_status": "TAX_STATUS_TAXABLE",
+              "order_tax_amount": 85
+            }
+          }
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&decrypted_applepay_data=1&ccnumber=4111111111111111&ccexp=0330&cavv=AAAAAA%3D%3D&eci=05&customer_vault=add_customer&cardholder_auth=verified&cavv=mock_cavv_0002_1234567890&xid=MDAwMDAwMDAwMDAwMDAwMDAwMDA%3D&eci=05&three_ds_version=2.2.0&directory_server_id=00000000-0000-0000-0000-000000000000&tax=0.85&shipping=5.0&ponumber=probe_po_001&duty_amount=1.25&discount_amount=0.5&item_commodity_code_1=43211508&item_description_1=Probe+line+item&item_discount_amount_1=0.25&item_discount_rate_1=5&item_product_code_1=PROBE-SKU-1&item_quantity_1=2&item_tax_amount_1=0.85&item_unit_cost_1=5.0&item_unit_of_measure_1=EA&descriptor=PROBE+STORE&descriptor_phone=18005550100&initiated_by=customer&stored_credential_indicator=stored"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
@@ -145,8 +352,51 @@
           "address": {
             "billing_address": {}
           },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "auth_type": "THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "mock_cavv_0002_1234567890",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "f38e6948-5388-41a6-bca4-b49723c19437",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS",
+            "connector_transaction_id": "MDAwMDAwMDAwMDAwMDAwMDAwMDA="
+          },
+          "return_url": "https://example.com/return",
+          "setup_future_usage": "OFF_SESSION",
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 1704067200
+          },
+          "billing_descriptor": {
+            "name": "PROBE STORE",
+            "phone": "18005550100"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe Widget",
+                  "quantity": 2,
+                  "amount": 500,
+                  "total_tax_amount": 85,
+                  "product_id": "PROBE-SKU-1",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EA",
+                  "commodity_code": "43211508",
+                  "unit_discount_amount": 25,
+                  "discount_percentage": 5.0
+                }
+              ],
+              "merchant_order_reference_id": "probe_po_001",
+              "discount_amount": 50,
+              "shipping_cost": 500,
+              "duty_amount": 125
+            },
+            "tax_info": {
+              "tax_status": "TAX_STATUS_TAXABLE",
+              "order_tax_amount": 85
+            }
+          }
         },
         "sample": {
           "url": "https://secure.nmi.com/api/transact.php",
@@ -155,7 +405,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&ccnumber=4111111111111111&ccexp=0330&cvv=737"
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&ccnumber=4111111111111111&ccexp=0330&cvv=737&customer_vault=add_customer&cardholder_auth=verified&cavv=mock_cavv_0002_1234567890&xid=MDAwMDAwMDAwMDAwMDAwMDAwMDA%3D&eci=05&three_ds_version=2.2.0&directory_server_id=00000000-0000-0000-0000-000000000000&tax=0.85&shipping=5.0&ponumber=probe_po_001&duty_amount=1.25&discount_amount=0.5&item_commodity_code_1=43211508&item_description_1=Probe+line+item&item_discount_amount_1=0.25&item_discount_rate_1=5&item_product_code_1=PROBE-SKU-1&item_quantity_1=2&item_tax_amount_1=0.85&item_unit_cost_1=5.0&item_unit_of_measure_1=EA&descriptor=PROBE+STORE&descriptor_phone=18005550100&initiated_by=customer&stored_credential_indicator=stored"
         }
       },
       "CashappQr": {
@@ -258,8 +508,51 @@
           "address": {
             "billing_address": {}
           },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "auth_type": "THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "mock_cavv_0002_1234567890",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "f38e6948-5388-41a6-bca4-b49723c19437",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS",
+            "connector_transaction_id": "MDAwMDAwMDAwMDAwMDAwMDAwMDA="
+          },
+          "return_url": "https://example.com/return",
+          "setup_future_usage": "OFF_SESSION",
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 1704067200
+          },
+          "billing_descriptor": {
+            "name": "PROBE STORE",
+            "phone": "18005550100"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe Widget",
+                  "quantity": 2,
+                  "amount": 500,
+                  "total_tax_amount": 85,
+                  "product_id": "PROBE-SKU-1",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EA",
+                  "commodity_code": "43211508",
+                  "unit_discount_amount": 25,
+                  "discount_percentage": 5.0
+                }
+              ],
+              "merchant_order_reference_id": "probe_po_001",
+              "discount_amount": 50,
+              "shipping_cost": 500,
+              "duty_amount": 125
+            },
+            "tax_info": {
+              "tax_status": "TAX_STATUS_TAXABLE",
+              "order_tax_amount": 85
+            }
+          }
         },
         "sample": {
           "url": "https://secure.nmi.com/api/transact.php",
@@ -268,7 +561,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&payment_token=%7B%22id%22%3A%22tok_probe_gpay%22%2C%22object%22%3A%22token%22%2C%22type%22%3A%22card%22%7D"
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&googlepay_payment_data=%7B%22id%22%3A%22tok_probe_gpay%22%2C%22object%22%3A%22token%22%2C%22type%22%3A%22card%22%7D&customer_vault=add_customer&cardholder_auth=verified&cavv=mock_cavv_0002_1234567890&xid=MDAwMDAwMDAwMDAwMDAwMDAwMDA%3D&eci=05&three_ds_version=2.2.0&directory_server_id=00000000-0000-0000-0000-000000000000&tax=0.85&shipping=5.0&ponumber=probe_po_001&duty_amount=1.25&discount_amount=0.5&item_commodity_code_1=43211508&item_description_1=Probe+line+item&item_discount_amount_1=0.25&item_discount_rate_1=5&item_product_code_1=PROBE-SKU-1&item_quantity_1=2&item_tax_amount_1=0.85&item_unit_cost_1=5.0&item_unit_of_measure_1=EA&descriptor=PROBE+STORE&descriptor_phone=18005550100&initiated_by=customer&stored_credential_indicator=stored"
         }
       },
       "GooglePayDecrypted": {
@@ -302,8 +595,51 @@
           "address": {
             "billing_address": {}
           },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "auth_type": "THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "mock_cavv_0002_1234567890",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "f38e6948-5388-41a6-bca4-b49723c19437",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS",
+            "connector_transaction_id": "MDAwMDAwMDAwMDAwMDAwMDAwMDA="
+          },
+          "return_url": "https://example.com/return",
+          "setup_future_usage": "OFF_SESSION",
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 1704067200
+          },
+          "billing_descriptor": {
+            "name": "PROBE STORE",
+            "phone": "18005550100"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe Widget",
+                  "quantity": 2,
+                  "amount": 500,
+                  "total_tax_amount": 85,
+                  "product_id": "PROBE-SKU-1",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EA",
+                  "commodity_code": "43211508",
+                  "unit_discount_amount": 25,
+                  "discount_percentage": 5.0
+                }
+              ],
+              "merchant_order_reference_id": "probe_po_001",
+              "discount_amount": 50,
+              "shipping_cost": 500,
+              "duty_amount": 125
+            },
+            "tax_info": {
+              "tax_status": "TAX_STATUS_TAXABLE",
+              "order_tax_amount": 85
+            }
+          }
         },
         "sample": {
           "url": "https://secure.nmi.com/api/transact.php",
@@ -312,7 +648,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&decrypted_googlepay_data=1&ccnumber=4111111111111111&ccexp=0330&cavv=AAAAAA%3D%3D&eci=05"
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&decrypted_googlepay_data=1&ccnumber=4111111111111111&ccexp=0330&cavv=AAAAAA%3D%3D&eci=05&customer_vault=add_customer&cardholder_auth=verified&cavv=mock_cavv_0002_1234567890&xid=MDAwMDAwMDAwMDAwMDAwMDAwMDA%3D&eci=05&three_ds_version=2.2.0&directory_server_id=00000000-0000-0000-0000-000000000000&tax=0.85&shipping=5.0&ponumber=probe_po_001&duty_amount=1.25&discount_amount=0.5&item_commodity_code_1=43211508&item_description_1=Probe+line+item&item_discount_amount_1=0.25&item_discount_rate_1=5&item_product_code_1=PROBE-SKU-1&item_quantity_1=2&item_tax_amount_1=0.85&item_unit_cost_1=5.0&item_unit_of_measure_1=EA&descriptor=PROBE+STORE&descriptor_phone=18005550100&initiated_by=customer&stored_credential_indicator=stored"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -606,7 +942,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&type=capture&transactionid=probe_connector_txn_001&amount=10.0"
+          "body": "security_key=probe_key&type=capture&transactionid=probe_connector_txn_001&amount=10.0&orderid=probe_capture_001"
         }
       }
     },
@@ -693,7 +1029,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&order_id=probe_merchant_txn_001"
+          "body": "security_key=probe_key&transaction_id=probe_connector_txn_001"
         }
       }
     },
@@ -948,7 +1284,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&order_id=probe_refund_id_001"
+          "body": "security_key=probe_key&transaction_id=probe_connector_txn_001&action_type=refund"
         }
       }
     },
@@ -1031,7 +1367,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&type=void&transactionid=probe_connector_txn_001&void_reason=user_cancel"
+          "body": "security_key=probe_key&type=void&transactionid=probe_connector_txn_001"
         }
       }
     }
