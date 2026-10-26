@@ -1031,7 +1031,12 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
             },
             account_holder: None,
             statement_descriptor: None,
-            merchant_order_number: router_data.request.merchant_order_id.clone(),
+            merchant_order_number: Some(merchant_order_number(
+                router_data.request.merchant_order_id.as_deref(),
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )),
             initiator_type: Some(requests::JpmorganInitiatorType::Cardholder),
             account_on_file: Some(account_on_file),
             is_amount_final: Some(true),
@@ -1166,7 +1171,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_method_type,
                     account_holder: None,
                     statement_descriptor: None,
-                    merchant_order_number: router_data.request.merchant_order_id.clone(),
+                    merchant_order_number: Some(merchant_order_number(
+                        router_data.request.merchant_order_id.as_deref(),
+                        &router_data
+                            .resource_common_data
+                            .connector_request_reference_id,
+                    )),
                     initiator_type: Some(requests::JpmorganInitiatorType::Cardholder),
                     account_on_file: Some(account_on_file),
                     is_amount_final: Some(true),
@@ -1268,7 +1278,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_method_type,
                     account_holder: None,
                     statement_descriptor: None,
-                    merchant_order_number: router_data.request.merchant_order_id.clone(),
+                    merchant_order_number: Some(merchant_order_number(
+                        router_data.request.merchant_order_id.as_deref(),
+                        &router_data
+                            .resource_common_data
+                            .connector_request_reference_id,
+                    )),
                     initiator_type: Some(requests::JpmorganInitiatorType::Cardholder),
                     account_on_file: Some(account_on_file),
                     is_amount_final: Some(true),
@@ -2307,7 +2322,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant: requests::JpmorganMerchant::try_from(&auth)?,
             payment_method_type: requests::JpmorganSetupMandatePaymentMethodType { card },
             recurring_sequence,
-            merchant_order_number: request.merchant_order_id.clone(),
+            merchant_order_number: Some(merchant_order_number(
+                request.merchant_order_id.as_deref(),
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )),
             initiator_type: requests::JpmorganInitiatorType::Cardholder,
             account_on_file: requests::JpmorganAccountOnFile::ToBeStored,
         })
@@ -2586,7 +2606,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant,
             payment_method_type,
             recurring,
-            merchant_order_number: request.merchant_order_id.clone(),
+            merchant_order_number: Some(merchant_order_number(
+                request.merchant_order_id.as_deref(),
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )),
             initiator_type: requests::JpmorganInitiatorType::Merchant,
             account_on_file: requests::JpmorganAccountOnFile::Stored,
             is_amount_final: true,
