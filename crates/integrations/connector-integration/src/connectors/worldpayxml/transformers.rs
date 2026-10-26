@@ -996,7 +996,7 @@ fn build_worldpayxml_recipient_party(
         full_name: requests::WorldpayxmlFullName {
             first: address.get_first_name()?.clone(),
             middle: None,
-            last: Some(address.get_last_name()?.clone()),
+            last: address.get_last_name()?.clone(),
         },
         funding_address: requests::WorldpayxmlFundingAddress {
             address1: address.get_line1()?.clone(),
@@ -1027,22 +1027,18 @@ fn build_worldpayxml_recipient_party(
 }
 
 /// Worldpay has no company-name element, so a corporate sender's name is spread over the
-/// `fullName` parts: first word, middle words, last word. A one-word name fills only first.
+/// `fullName` parts: first word, middle words, last word. AFT requires both a first and a last
+/// name, so a one-word name is rejected.
 fn get_worldpayxml_company_full_name(
     company_name: &Secret<String>,
 ) -> Result<requests::WorldpayxmlFullName, Report<IntegrationError>> {
     let words: Vec<&str> = company_name.peek().split_whitespace().collect();
     match words.as_slice() {
-        [] => Err(utils::missing_field_err("sender_details.company_name")()),
-        [name] => Ok(requests::WorldpayxmlFullName {
-            first: Secret::new((*name).to_string()),
-            middle: None,
-            last: None,
-        }),
+        [] | [_] => Err(utils::missing_field_err("sender_details.company_name")()),
         [first, middle @ .., last] => Ok(requests::WorldpayxmlFullName {
             first: Secret::new((*first).to_string()),
             middle: (!middle.is_empty()).then(|| Secret::new(middle.join(" "))),
-            last: Some(Secret::new((*last).to_string())),
+            last: Secret::new((*last).to_string()),
         }),
     }
 }
@@ -1090,7 +1086,7 @@ fn build_worldpayxml_sender_party(
             requests::WorldpayxmlFullName {
                 first: resource_common_data.get_billing_first_name()?,
                 middle: None,
-                last: Some(resource_common_data.get_billing_last_name()?),
+                last: resource_common_data.get_billing_last_name()?,
             },
             requests::WorldpayxmlFundingAddress {
                 address1: resource_common_data.get_billing_line1()?,
@@ -1109,7 +1105,7 @@ fn build_worldpayxml_sender_party(
             requests::WorldpayxmlFullName {
                 first: individual.first_name.clone(),
                 middle: None,
-                last: Some(individual.last_name.clone()),
+                last: individual.last_name.clone(),
             },
             individual
                 .address
@@ -3672,11 +3668,16 @@ mod sender_party_tests {
     }
 
     #[test]
-    fn single_word_company_name_is_first_only() {
-        assert_eq!(
-            sender_party_xml(Some(&corporate("Acme", None)), None).expect("sender builds"),
-            expected_xml("<first>Acme</first>", SENDER_ADDRESS_XML, ""),
-        );
+    fn single_word_company_name_has_no_last_name() {
+        let error = sender_party_xml(Some(&corporate("Acme", None)), None)
+            .expect_err("last name is required");
+        assert!(matches!(
+            error.current_context(),
+            IntegrationError::MissingRequiredField {
+                field_name: "sender_details.company_name",
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -3708,7 +3709,7 @@ mod sender_party_tests {
     #[test]
     fn sender_details_require_an_address() {
         let sender = SenderDetails::Corporate(CorporateSenderDetails {
-            company_name: secret("Acme"),
+            company_name: secret("Acme Ltd"),
             address: None,
             email: None,
             phone_number: None,
