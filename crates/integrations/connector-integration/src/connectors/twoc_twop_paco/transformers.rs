@@ -1548,12 +1548,14 @@ pub struct PacoPaymentStatusInfo {
     pub payment_step: PacoPaymentStep,
 }
 
-/// Returns the void outcome only for a terminal VD-step result; `None` means PACO has not
-/// reported a final void status yet.
-fn map_post_capture_void_status(info: &PacoPaymentStatusInfo) -> Option<PostCaptureVoidStatus> {
+/// Returns the void outcome: `Succeeded` for a voided payment at the VD step, `Failed` for a
+/// failure at any step; `None` means PACO has not reported a final void status yet.
+pub(super) fn map_post_capture_void_status(
+    info: &PacoPaymentStatusInfo,
+) -> Option<PostCaptureVoidStatus> {
     match (&info.payment_status, &info.payment_step) {
         (PacoPaymentStatus::V, PacoPaymentStep::VD) => Some(PostCaptureVoidStatus::Succeeded),
-        (PacoPaymentStatus::F, PacoPaymentStep::VD) => Some(PostCaptureVoidStatus::Failed),
+        (PacoPaymentStatus::F, _) => Some(PostCaptureVoidStatus::Failed),
         _ => None,
     }
 }
