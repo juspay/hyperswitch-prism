@@ -105,6 +105,19 @@ else
 fi
 
 # ── Step 3.5: Check/Install grpcurl ───────────────────────────────────────────
+info "Building the isolated browser worker (no workspace or credential mounts)..."
+BROWSER_CONTAINER_RUNTIME="${UCS_BROWSER_CONTAINER_RUNTIME:-docker}"
+case "${BROWSER_CONTAINER_RUNTIME}" in
+  docker|podman) ;;
+  *) error "UCS_BROWSER_CONTAINER_RUNTIME must be docker or podman"; exit 1 ;;
+esac
+if ! command -v "${BROWSER_CONTAINER_RUNTIME}" >/dev/null 2>&1; then
+  error "Install ${BROWSER_CONTAINER_RUNTIME} before running browser-backed connector tests."
+  exit 1
+fi
+bash "${BAE_DIR}/scripts/build-worker.sh"
+success "Isolated browser worker image ready"
+
 info "Checking grpcurl..."
 
 if command -v grpcurl &>/dev/null; then
