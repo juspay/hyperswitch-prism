@@ -203,7 +203,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
             })?;
 
-        Ok(hex::encode(final_hash).to_uppercase() == payload.md5sig)
+        // PayHere specifies an uppercase MD5 checksum for this webhook. Keep
+        // the wire format, but compare the received value in constant time.
+        let expected_signature = hex::encode(final_hash).to_uppercase();
+        #[allow(deprecated)] // ring 0.17 renamed the module; comparison remains available
+        Ok(ring::constant_time::verify_slices_are_equal(
+            expected_signature.as_bytes(),
+            payload.md5sig.as_bytes(),
+        )
+        .is_ok())
     }
 
     fn get_event_type(
