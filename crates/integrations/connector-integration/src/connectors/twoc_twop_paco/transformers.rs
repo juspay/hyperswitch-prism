@@ -1950,13 +1950,35 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             .and_then(|block| block.payment_status_info.as_ref())
             .and_then(map_post_capture_void_status)
             .unwrap_or(PostCaptureVoidStatus::Pending);
-        let description = post_capture_void_status
-            .is_post_capture_void_failure()
-            .then(|| error_code_message(&api_response, &prior).1);
         let connector_reference_id = result
             .as_ref()
             .and_then(|block| block.invoice_no2c2p.clone().or(block.order_no.clone()));
         let raw_connector_status = raw_connector_status_from_paco(&api_response, &prior);
+
+        let void_response = if post_capture_void_status.is_post_capture_void_failure() {
+            let (code, message) = error_code_message(&api_response, &prior);
+            Err(ErrorResponse {
+                code,
+                message: message.clone(),
+                reason: Some(message),
+                status_code: http_code,
+                attempt_status: None,
+                connector_transaction_id: connector_reference_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id,
+                status_code: http_code,
+            })
+        };
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -1964,12 +1986,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 raw_connector_status,
                 ..router_data.resource_common_data
             },
-            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
-                post_capture_void_status,
-                connector_reference_id,
-                description,
-                status_code: http_code,
-            }),
+            response: void_response,
             ..router_data
         })
     }

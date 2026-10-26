@@ -3602,27 +3602,24 @@ impl<F> TryFrom<ResponseRouterData<CybersourcePaymentsResponse, Self>>
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
         );
-        let description = post_capture_void_status
-            .is_post_capture_void_failure()
-            .then(|| {
-                get_error_response(
-                    &item.response.error_information,
-                    &item.response.processor_information,
-                    &item.response.risk_information,
-                    None,
-                    item.http_code,
-                    item.response.id.clone(),
-                )
-                .reason
-            })
-            .flatten();
-        Ok(Self {
-            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+        let response = if post_capture_void_status.is_post_capture_void_failure() {
+            Err(get_error_response(
+                &item.response.error_information,
+                &item.response.processor_information,
+                &item.response.risk_information,
+                None,
+                item.http_code,
+                item.response.id.clone(),
+            ))
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id: Some(item.response.id.clone()),
-                description,
                 status_code: item.http_code,
-            }),
+            })
+        };
+        Ok(Self {
+            response,
             ..item.router_data
         })
     }

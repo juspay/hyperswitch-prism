@@ -3742,18 +3742,38 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
             .transaction_id
             .clone()
             .or_else(|| Some(router_data.request.connector_transaction_id.clone()));
-        let description = post_capture_void_status
-            .is_post_capture_void_failure()
-            .then(|| response.response_message.clone())
-            .flatten();
-
-        Ok(Self {
-            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+        let void_response = if post_capture_void_status.is_post_capture_void_failure() {
+            let message = response.response_message.clone();
+            Err(ErrorResponse {
+                code: response
+                    .response_code
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                message: message
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                reason: message,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: connector_reference_id.clone(),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id: connector_reference_id.clone(),
-                description,
                 status_code: item.http_code,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response: void_response,
             // connector_reference_id is TSYS's own <transactionID> when
             // present, falling back to the request's id otherwise.
             request: PaymentsCancelPostCaptureData {

@@ -1388,7 +1388,6 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
             Ok(PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id: Some(item.response.transaction_id.clone()),
-                description: None,
                 status_code: item.http_code,
             })
         };

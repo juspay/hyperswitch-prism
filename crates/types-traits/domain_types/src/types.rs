@@ -9437,24 +9437,8 @@ pub fn generate_payment_void_post_capture_response(
             PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id,
-                description,
                 status_code,
             } => {
-                // The connector's failure message goes out as the error message. Connectors may
-                // also describe a successful void, which is not an error.
-                let error = description
-                    .filter(|_| post_capture_void_status.is_post_capture_void_failure())
-                    .map(|message| grpc_api_types::payments::ErrorInfo {
-                        unified_details: None,
-                        connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                            code: None,
-                            message: Some(message),
-                            reason: None,
-                            connector_transaction_id: connector_reference_id.clone(),
-                            status: None,
-                        }),
-                        issuer_details: None,
-                    });
                 #[allow(deprecated)]
                 Ok(PaymentServiceReverseResponse {
                     connector_transaction_id: original_connector_transaction_id,
@@ -9467,7 +9451,7 @@ pub fn generate_payment_void_post_capture_response(
                     // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                     merchant_reverse_id: connector_reference_id.clone(),
                     connector_reference_id,
-                    error,
+                    error: None,
                     status_code: u32::from(status_code),
                     response_headers: router_data_v2
                         .resource_common_data
@@ -9488,6 +9472,7 @@ pub fn generate_payment_void_post_capture_response(
                 },
             })),
         },
+        // Connectors report a declined void (2xx included) as an ErrorResponse, so it lands here.
         // Server errors leave the void outcome uncertain; report them as pending.
         // Report void errors through post_capture_void_status, never through the payment status.
         Err(e) => {

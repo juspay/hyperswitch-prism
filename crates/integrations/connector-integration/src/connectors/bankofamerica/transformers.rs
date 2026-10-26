@@ -2774,22 +2774,17 @@ impl<F> TryFrom<ResponseRouterData<BankofamericaPaymentsResponse, Self>>
                     }
                     _ => common_enums::PostCaptureVoidStatus::Failed,
                 };
-                let description = void_status
-                    .is_post_capture_void_failure()
-                    .then(|| {
-                        get_error_response(
-                            &info_response.error_information,
-                            &info_response.processor_information,
-                            &info_response.risk_information,
-                            None,
-                            item.http_code,
-                            info_response.id.clone(),
-                        )
-                        .reason
-                    })
-                    .flatten();
-                Ok(Self {
-                    response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                let response = if void_status.is_post_capture_void_failure() {
+                    Err(get_error_response(
+                        &info_response.error_information,
+                        &info_response.processor_information,
+                        &info_response.risk_information,
+                        None,
+                        item.http_code,
+                        info_response.id.clone(),
+                    ))
+                } else {
+                    Ok(PaymentsResponseData::PostCaptureVoidResponse {
                         post_capture_void_status: void_status,
                         connector_reference_id: Some(
                             info_response
@@ -2798,9 +2793,11 @@ impl<F> TryFrom<ResponseRouterData<BankofamericaPaymentsResponse, Self>>
                                 .clone()
                                 .unwrap_or(info_response.id.clone()),
                         ),
-                        description,
                         status_code: item.http_code,
-                    }),
+                    })
+                };
+                Ok(Self {
+                    response,
                     ..item.router_data
                 })
             }
@@ -2817,17 +2814,29 @@ impl<F> TryFrom<ResponseRouterData<BankofamericaPaymentsResponse, Self>>
                                 .collect::<Vec<_>>()
                                 .join(", ")
                         });
-                let description = get_error_reason(
+                let reason = get_error_reason(
                     error_response.error_information.message.clone(),
                     detailed_error_info,
                     None,
                 );
+                let error_message = error_response.error_information.reason.clone();
                 Ok(Self {
-                    response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
-                        post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
-                        connector_reference_id: None,
-                        description,
+                    response: Err(ErrorResponse {
+                        code: error_message
+                            .clone()
+                            .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                        message: error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                        reason,
                         status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(error_response.id.clone()),
+                        network_decline_code: None,
+                        network_advice_code: None,
+                        network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..item.router_data
                 })
