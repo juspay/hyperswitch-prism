@@ -475,6 +475,7 @@ pub enum ConnectorSpecificConfig {
         thumbprint: Secret<String>,
         private_key: Secret<String>,
         resource_id: Secret<String>,
+        merchant_id: HashMap<common_enums::Currency, Secret<String>>,
         base_url: Option<String>,
         secondary_base_url: Option<String>,
         company_name: Option<Secret<String>>,
@@ -2353,6 +2354,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 thumbprint: jpmorgan.thumbprint.ok_or_else(err)?,
                 private_key: jpmorgan.private_key.ok_or_else(err)?,
                 resource_id: jpmorgan.resource_id.ok_or_else(err)?,
+                merchant_id: serde_json::to_value(jpmorgan.merchant_id)
+                    .and_then(serde_json::from_value)
+                    .change_context(errors::IntegrationError::InvalidConnectorConfig {
+                        config: "merchant_id",
+                        context: Default::default(),
+                    })?,
                 base_url: jpmorgan.base_url,
                 secondary_base_url: jpmorgan.secondary_base_url,
                 company_name: jpmorgan.company_name,
@@ -3256,6 +3263,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         thumbprint: key1.clone(),
                         private_key: api_secret.clone(),
                         resource_id: key2.clone(),
+                        merchant_id: HashMap::new(),
                         base_url: None,
                         secondary_base_url: None,
                         company_name: None,
@@ -4876,6 +4884,13 @@ impl ConnectorResponseData {
                 card_network: None,
                 domestic_network: None,
                 auth_code: Some(auth_code),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             },
         };
         Self {
@@ -4929,6 +4944,21 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         domestic_network: Option<String>,
         /// auth code returned by the processor
         auth_code: Option<String>,
+        /// Normalized card network returned by the processor. `card_network` retains the
+        /// connector-specific spelling used by later calls to the same connector.
+        processor_card_network: Option<common_enums::CardNetwork>,
+        /// The card's product/subtype, as returned by the connector
+        card_subtype: Option<String>,
+        /// The card's segment type (consumer vs commercial)
+        card_segment_type: Option<common_enums::CardSegmentType>,
+        /// The card's funding source type
+        funding_source: Option<common_enums::FundingSource>,
+        /// The card type (credit, debit, prepaid, charge)
+        card_type: Option<common_enums::CardType>,
+        /// The name of the card issuer
+        issuer_name: Option<String>,
+        /// The country of the card issuer
+        issuer_country: Option<common_enums::CountryAlpha2>,
     },
     Upi {
         /// UPI source detected from the connector response

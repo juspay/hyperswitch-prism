@@ -2136,6 +2136,16 @@ pub enum CardNetwork {
     PrivateLabel,
     #[serde(alias = "DINACARD")]
     Dinacard,
+    #[serde(alias = "AIRPLUS")]
+    AirPlus,
+    #[serde(alias = "AURORE")]
+    Aurore,
+    #[serde(alias = "EFTPOS_AUSTRALIA")]
+    EftposAustralia,
+    #[serde(alias = "GECAPITAL")]
+    GeCapital,
+    #[serde(alias = "UATP")]
+    Uatp,
 }
 
 impl CardNetwork {
@@ -2153,6 +2163,10 @@ impl CardNetwork {
                 | Self::Prop
                 | Self::PrivateLabel
                 | Self::Dinacard
+                | Self::AirPlus
+                | Self::Aurore
+                | Self::GeCapital
+                | Self::Uatp
         )
     }
 
@@ -3245,7 +3259,7 @@ impl CanadaStatesAbbreviation {
             "nunavut" => Some(Self::NU),
             "ontario" => Some(Self::ON),
             "princeedwardisland" => Some(Self::PE),
-            "quebec" => Some(Self::QC),
+            "quebec" | "québec" => Some(Self::QC),
             "saskatchewan" => Some(Self::SK),
             "yukon" => Some(Self::YT),
             _ => None,
