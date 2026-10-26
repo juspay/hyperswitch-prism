@@ -9429,10 +9429,8 @@ pub fn generate_payment_void_post_capture_response(
         .clone()
         .map(ForeignFrom::foreign_from);
 
-    // The id of the payment being voided; the void's own id goes out as connector_reference_id.
+    // The id of the payment being voided, echoed back as connector_transaction_id.
     let original_connector_transaction_id = router_data_v2.request.connector_transaction_id.clone();
-    // An id the connector returned that is not just the original payment's id echoed back.
-    let void_id = |id: Option<String>| id.filter(|id| *id != original_connector_transaction_id);
 
     match transaction_response {
         Ok(response) => match response {
@@ -9504,7 +9502,7 @@ pub fn generate_payment_void_post_capture_response(
                 connector_transaction_id: original_connector_transaction_id.clone(),
                 status: grpc_api_types::payments::PaymentStatus::Unspecified.into(),
                 post_capture_void_status: post_capture_void_status.into(),
-                connector_reference_id: void_id(e.connector_transaction_id.clone()),
+                connector_reference_id: e.connector_transaction_id.clone(),
                 merchant_reverse_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,

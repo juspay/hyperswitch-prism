@@ -56,7 +56,7 @@ The `Reverse` RPC cancels a captured payment before the funds have been settled 
 | Field | Type | Description |
 |-------|------|-------------|
 | `connector_transaction_id` | string | Connector's ID of the original payment being voided, echoed from the request |
-| `connector_reference_id` | string | Connector's ID for the void itself, when it issues one |
+| `connector_reference_id` | string | Connector's reference for the void, on success and failure alike; may equal `connector_transaction_id` |
 | `post_capture_void_status` | PostCaptureVoidStatus | Outcome of the void: SUCCEEDED, PENDING or FAILED |
 | `status` | PaymentStatus | Deprecated: use `post_capture_void_status`. Always `PAYMENT_STATUS_UNSPECIFIED` |
 | `error` | ErrorInfo | Set when the void is FAILED; carries the connector's failure message |
