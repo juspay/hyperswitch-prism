@@ -1,19 +1,19 @@
-* @juspay/connector-service-maintainers
+* @juspay/connector-service-maintainers @juspay/hyperswitch-maintainers @AmitsinghTanwar007 @JeevaRamu0104
 
 *.md @juspay/connector-service-maintainers
 *.sh @juspay/connector-service-maintainers
 LICENSE @juspay/connector-service-maintainers
 .gitignore @juspay/connector-service-maintainers
 Makefile @juspay/connector-service-maintainers
-.github/ @juspay/connector-service-maintainers
+.github/ @juspay/connector-service-maintainers @AmitsinghTanwar007 @JeevaRamu0104
 Dockerfile @juspay/connector-service-maintainers
 docker-compose.yml @juspay/connector-service-maintainers
 .dockerignore @juspay/connector-service-maintainers
 docs/ @juspay/connector-service-maintainers
 
-crates/integrations/connector-integration/ @juspay/connector-service-connectors
+crates/integrations/connector-integration/ @juspay/connector-service-connectors @juspay/hyperswitch-connector @AmitsinghTanwar007 @JeevaRamu0104
 
-crates/grpc-server/grpc-server/src/server/ @juspay/connector-service-core
+crates/grpc-server/grpc-server/src/server/ @juspay/connector-service-maintainers @juspay/hyperswitch-maintainers @AmitsinghTanwar007 @JeevaRamu0104
 
 crates/types-traits/domain_types/ @juspay/connector-service-framework
 crates/common/external-services/ @juspay/connector-service-framework
