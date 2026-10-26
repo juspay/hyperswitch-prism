@@ -157,6 +157,9 @@ message CompositeAuthorizeRequest {
   // Merchant-supplied customer risk-assessment signals, forwarded to
   // PaymentServiceAuthorizeRequest.
   optional RiskAssessmentData risk_assessment_data = 65;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 66;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -307,6 +310,17 @@ message CompositeGetRequest {
   optional SplitPaymentsDetails split_payments = 19 [deprecated = true];
 
   optional ConnectorMandateReferenceId mandate_reference = 20;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 21;
+
+  // Whether overcapture is enabled for this payment. When true, a connector-reported
+  // amount higher than the requested amount is not treated as an integrity failure.
+  optional bool is_overcapture_enabled = 22;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 23;
 }
 
 // Response message for composite get flow.
@@ -526,6 +540,14 @@ message CompositeCaptureRequest {
   // Deprecated: use split_settlement instead. Legacy split payment configuration.
   optional SplitPaymentsDetails split_payments = 16 [deprecated = true];
   optional SplitSettlement split_settlement = 17;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 18;
+
+  // Whether overcapture is enabled for this payment. When true, a connector-reported
+  // amount higher than the requested amount is not treated as an integrity failure.
+  optional bool is_overcapture_enabled = 19;
+
 }
 
 // Response message for composite capture flow.
@@ -621,6 +643,9 @@ message CompositePaymentMethodGetRequest {
   optional CustomerAcceptance customer_acceptance = 18; // Details of customer consent for mandate setup
   optional SetupMandateDetails setup_mandate_details = 19; // Mandate data for recurring payment setup
   optional BrowserInformation browser_info = 20; // Forwarded to the tokenize step for connector fraud signals
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 21;
 }
 
 // Response message for composite payment method get flow.
@@ -697,6 +722,9 @@ message CompositePaymentMethodEligibilityRequest {
   optional SetupMandateDetails setup_mandate_details = 22;
   optional BrowserInformation browser_info = 23;
   optional string payment_method_token = 24;  // PaymentMethod Token Information
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 25;
 }
 
 // Response message for composite payment method eligibility flow.
@@ -859,6 +887,9 @@ message CompositeVerifyRedirectResponseRequest {
   // Preserve the customer risk-assessment signals for authorization after
   // redirect verification.
   optional RiskAssessmentData risk_assessment_data = 61;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 62;
 }
 
 // Response message for composite verify redirect response flow.

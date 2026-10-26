@@ -57,7 +57,6 @@ interface CliOptions {
   keyPath: string;
   hostedUrl?: string;
   outputPath?: string;
-  screenshotDir?: string;
   timeout: number;
   pretty: boolean;
   validationPort: number;
@@ -98,7 +97,6 @@ function printUsage(): void {
     "  --amount <n>            Payment amount (default: 1.00)",
     "  --currency <code>       Currency code (default: USD)",
     "  --output <path>         Write full token JSON to this file",
-    "  --screenshots <dir>     Directory for debug screenshots",
     "  --validation-port <n>   Port for local merchant validation server (default: 7777)",
     "  --timeout <ms>          Total timeout in ms (default: 300000 — 5 min for user auth)",
     "  --pretty                Pretty-print JSON output",
@@ -132,7 +130,6 @@ function parseArgs(argv: string[]): CliOptions {
   let keyPath = "";
   let hostedUrl: string | undefined;
   let outputPath: string | undefined;
-  let screenshotDir: string | undefined;
   let timeout = 300_000; // 5 minutes
   let pretty = false;
   let validationPort = 7777;
@@ -149,7 +146,6 @@ function parseArgs(argv: string[]): CliOptions {
     if (arg === "--url")                      { hostedUrl = argv[++i]; continue; }
     if (arg === "--merchant-id")              { merchantIdOverride = argv[++i]; continue; }
     if (arg === "--output")                   { outputPath = argv[++i]; continue; }
-    if (arg === "--screenshots")              { screenshotDir = argv[++i]; continue; }
     if (arg === "--timeout")                  { timeout = Number(argv[++i]); continue; }
     if (arg === "--validation-port")          { validationPort = Number(argv[++i]); continue; }
     if (arg === "--pretty")                   { pretty = true; continue; }
@@ -174,7 +170,6 @@ function parseArgs(argv: string[]): CliOptions {
     keyPath,
     hostedUrl,
     outputPath,
-    screenshotDir,
     timeout,
     pretty,
     validationPort,
@@ -335,19 +330,6 @@ function startValidationServer(
   });
 }
 
-// ── Screenshot helper ─────────────────────────────────────────────────────────
-
-async function screenshot(driver: WebDriver, dir: string, name: string): Promise<void> {
-  try {
-    await fs.mkdir(dir, { recursive: true });
-    const data = await driver.takeScreenshot();
-    const p = path.join(dir, `${name}-${Date.now()}.png`);
-    await fs.writeFile(p, data, "base64");
-    console.log(`[apay] Screenshot: ${p}`);
-  } catch {
-    // Non-fatal
-  }
-}
 
 // ── Poll helper ───────────────────────────────────────────────────────────────
 
@@ -373,7 +355,6 @@ async function run(): Promise<void> {
   const options = parseArgs(argv);
 
   const apayDir = path.resolve(__dirname, "..", "applepay");
-  const defaultScreenshotDir = path.join(apayDir, "screenshots");
 
   // Load config
   let config: ApayConfig;
@@ -398,9 +379,6 @@ async function run(): Promise<void> {
     );
   }
 
-  const screenshotDir = options.screenshotDir
-    ? path.resolve(options.screenshotDir)
-    : defaultScreenshotDir;
 
   console.log(`[apay] Merchant ID:        ${config.merchantId}`);
   console.log(`[apay] Merchant Name:      ${config.merchantName}`);
@@ -437,7 +415,6 @@ async function run(): Promise<void> {
   try {
     // Navigate to hosted page
     await driver.get(fullUrl);
-    await screenshot(driver, screenshotDir, "apay-page-loaded");
 
     // Check if ApplePaySession is available
     const apayAvailable = await driver.executeScript(
@@ -465,7 +442,6 @@ async function run(): Promise<void> {
       "var el = document.getElementById('status'); return el ? el.textContent : '';"
     ) as string;
     console.log(`[apay] Page status: ${pageStatus}`);
-    await screenshot(driver, screenshotDir, "apay-button-ready");
 
     // Check for early error (ApplePaySession not available etc.)
     const earlyError = await driver.executeScript("return window.__apayError;") as string | null;
@@ -483,7 +459,6 @@ async function run(): Promise<void> {
 
     if (!btnClicked) throw new Error("Apple Pay button not found or disabled on page");
     console.log(`[apay] Clicked: ${btnClicked}`);
-    await screenshot(driver, screenshotDir, "apay-sheet-triggered");
 
     // ── SEMI-AUTOMATION PAUSE ─────────────────────────────────────────────────
     console.log("\n" + "=".repeat(60));
@@ -503,7 +478,6 @@ async function run(): Promise<void> {
       1000,
     );
 
-    await screenshot(driver, screenshotDir, "apay-after-auth");
 
     const apayResult  = await driver.executeScript("return window.__apayResult;") as object | null;
     const apayError   = await driver.executeScript("return window.__apayError;")  as string | null;
