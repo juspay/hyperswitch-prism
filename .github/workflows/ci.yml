@@ -98,6 +98,7 @@ jobs:
               - 'crates/internal/integration-tests/src/connector_specs/**'
             any-rust:
               - 'crates/**'
+              - 'browser-automation-engine/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'config/**'
@@ -125,6 +126,7 @@ jobs:
             # Read at run time by certification; they match no connector path.
             # Separate from rust-core, which seven other jobs also gate on.
             certification-inputs:
+              - 'browser-automation-engine/**'
               - 'crates/internal/connector-creds/**'
               - 'crates/internal/integration-tests/src/bin/**'
               - 'crates/internal/integration-tests/src/webhook_signatures.rs'
@@ -830,6 +832,22 @@ jobs:
         run: |
           cargo build --workspace --bins \
             --features grpc-server/connector-request-kafka,grpc-server/log-transformations
+
+      - name: Set up Node for browser worker checks
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build and verify isolated browser worker
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
+        working-directory: browser-automation-engine
+        run: |
+          npm ci --ignore-scripts
+          npm run check
+          npm test
+          npm run build:worker
+          npm run test:container
 
       # The test harness shells out to grpcurl to make the actual call.
       - name: Install grpcurl

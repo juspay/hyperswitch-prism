@@ -20,7 +20,9 @@
           "suite": "PaymentService/Authorize",
           "scenario": "no3ds_auto_capture_credit_card",
           "context_map": {
-            "payment_method.card": "req.payment_method.card",
+            "payment_method.card_details_for_network_transaction_id.card_number": "req.payment_method.card.card_number",
+            "payment_method.card_details_for_network_transaction_id.card_exp_month": "req.payment_method.card.card_exp_month",
+            "payment_method.card_details_for_network_transaction_id.card_exp_year": "req.payment_method.card.card_exp_year",
             "connector_recurring_payment_id.network_mandate_id.network_transaction_id": "res.network_transaction_id"
           }
         }
