@@ -108,14 +108,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Authorize only prepares an Interac redirect form; the response carries no
 // transaction status, so the attempt is always AuthenticationPending (matches
 // the TryFrom, which hardcodes the same status).
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Gigadat<T>,
-    flow:      Authorize,
-    status:    AuthenticationPending,
+    flow: Authorize,
+    source: GigadatPaymentsResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(AuthenticationPending) },
     runtime: {
-        request:  PaymentsAuthorizeData<T>,
+        request: PaymentsAuthorizeData<T>,
         response: GigadatPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -128,16 +132,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Gigadat<T>,
     flow: PSync,
     source: transformers::GigadatTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::GigadatTransactionStatus::StatusSuccess => common_enums::AttemptStatus::Charged,
-            transformers::GigadatTransactionStatus::StatusFailed => common_enums::AttemptStatus::Failure,
-            transformers::GigadatTransactionStatus::StatusInited => common_enums::AttemptStatus::Pending,
-            transformers::GigadatTransactionStatus::StatusPending => common_enums::AttemptStatus::Pending,
-            transformers::GigadatTransactionStatus::StatusRejected => common_enums::AttemptStatus::Failure,
-            transformers::GigadatTransactionStatus::StatusRejected1 => common_enums::AttemptStatus::Failure,
-            transformers::GigadatTransactionStatus::StatusExpired => common_enums::AttemptStatus::Failure,
-            transformers::GigadatTransactionStatus::StatusAborted1 => common_enums::AttemptStatus::Failure,
+            transformers::GigadatTransactionStatus::StatusSuccess => success!(Charged),
+            transformers::GigadatTransactionStatus::StatusFailed => failure!(Failure),
+            transformers::GigadatTransactionStatus::StatusInited => non_terminal!(Pending),
+            transformers::GigadatTransactionStatus::StatusPending => non_terminal!(Pending),
+            transformers::GigadatTransactionStatus::StatusRejected => failure!(Failure),
+            transformers::GigadatTransactionStatus::StatusRejected1 => failure!(Failure),
+            transformers::GigadatTransactionStatus::StatusExpired => failure!(Failure),
+            transformers::GigadatTransactionStatus::StatusAborted1 => failure!(Failure),
         }
     },
     runtime: {
@@ -157,11 +161,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Gigadat<T>,
     flow: Refund,
     source: gigadat::GigadatRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            gigadat::GigadatRefundStatus::Success => common_enums::RefundStatus::Success,
-            gigadat::GigadatRefundStatus::Failure => common_enums::RefundStatus::Failure,
-            gigadat::GigadatRefundStatus::Pending => common_enums::RefundStatus::Pending,
+            gigadat::GigadatRefundStatus::Success => success!(Success),
+            gigadat::GigadatRefundStatus::Failure => failure!(Failure),
+            gigadat::GigadatRefundStatus::Pending => non_terminal!(Pending),
         }
     },
     runtime: {

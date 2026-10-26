@@ -85,10 +85,10 @@ domain_types::impl_flow_status_mapping! {
     connector: Authorizedotnet<T>,
     flow: SetupMandate,
     source: bool,
-    mapping_status: |is_success| { if is_success {
-            common_enums::AttemptStatus::Charged
+    mapping: |is_success|{ if is_success {
+            success!(Charged)
         } else {
-            common_enums::AttemptStatus::Failure
+            failure!(Failure)
         } },
     runtime: {
         request: SetupMandateRequestData<T>,
@@ -378,7 +378,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             response_headers: None,
-            minor_amount_captured: None,
             amount_captured: None,
             error_reason: None,
             network_txn_id: None,
@@ -471,12 +470,40 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: transformers::AuthorizedotnetPaymentsResponse,
     context: Option<common_enums::CaptureMethod>,
-    mapping_status: |response, capture_method| { transformers::get_hs_status(
+    mapping: |response, capture_method|{
+        let mapped_status = (|| { transformers::get_hs_status(
             &response,
             0,
             transformers::Operation::Authorize,
             capture_method,
-        ) },
+        ) })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: AuthorizedotnetAuthorizeResponse,

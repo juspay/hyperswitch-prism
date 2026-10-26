@@ -338,7 +338,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -346,14 +345,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Maya<T>,
-    flow:      Authorize,
-    status:    AuthenticationPending,
+    flow: Authorize,
+    source: MayaPaymentsResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(AuthenticationPending) },
     runtime: {
-        request:  PaymentsAuthorizeData<T>,
+        request: PaymentsAuthorizeData<T>,
         response: MayaPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -604,27 +607,27 @@ domain_types::impl_flow_status_mapping! {
     connector: Maya<T>,
     flow: PSync,
     source: transformers::MayaPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::MayaPaymentStatus::PaymentSuccess => common_enums::AttemptStatus::Charged,
-            transformers::MayaPaymentStatus::PaymentFailed => common_enums::AttemptStatus::Failure,
-            transformers::MayaPaymentStatus::PendingToken => common_enums::AttemptStatus::PaymentMethodAwaited,
-            transformers::MayaPaymentStatus::PendingPayment => common_enums::AttemptStatus::PaymentMethodAwaited,
-            transformers::MayaPaymentStatus::ForAuthentication => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::MayaPaymentStatus::Authenticating => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::MayaPaymentStatus::AuthSuccess => common_enums::AttemptStatus::AuthenticationSuccessful,
-            transformers::MayaPaymentStatus::AuthFailed => common_enums::AttemptStatus::AuthenticationFailed,
-            transformers::MayaPaymentStatus::PaymentProcessing => common_enums::AttemptStatus::Authorizing,
-            transformers::MayaPaymentStatus::PaymentExpired => common_enums::AttemptStatus::Expired,
-            transformers::MayaPaymentStatus::PaymentCancelled => common_enums::AttemptStatus::Voided,
-            transformers::MayaPaymentStatus::Voided => common_enums::AttemptStatus::Voided,
-            transformers::MayaPaymentStatus::Refunded => common_enums::AttemptStatus::AutoRefunded,
-            transformers::MayaPaymentStatus::CheckOutDropout => common_enums::AttemptStatus::AuthenticationFailed,
-            transformers::MayaPaymentStatus::ThreeDsPaymentFailure => common_enums::AttemptStatus::AuthenticationFailed,
-            transformers::MayaPaymentStatus::ThreeDsPaymentDropout => common_enums::AttemptStatus::AuthenticationFailed,
-            transformers::MayaPaymentStatus::CheckOutSuccess => common_enums::AttemptStatus::Authorizing,
-            transformers::MayaPaymentStatus::CheckOutFailure => common_enums::AttemptStatus::AuthorizationFailed,
-            transformers::MayaPaymentStatus::ThreeDsPaymentSuccess => common_enums::AttemptStatus::AuthenticationSuccessful,
+            transformers::MayaPaymentStatus::PaymentSuccess => success!(Charged),
+            transformers::MayaPaymentStatus::PaymentFailed => failure!(Failure),
+            transformers::MayaPaymentStatus::PendingToken => non_terminal!(PaymentMethodAwaited),
+            transformers::MayaPaymentStatus::PendingPayment => non_terminal!(PaymentMethodAwaited),
+            transformers::MayaPaymentStatus::ForAuthentication => non_terminal!(AuthenticationPending),
+            transformers::MayaPaymentStatus::Authenticating => non_terminal!(AuthenticationPending),
+            transformers::MayaPaymentStatus::AuthSuccess => non_terminal!(AuthenticationSuccessful),
+            transformers::MayaPaymentStatus::AuthFailed => failure!(AuthenticationFailed),
+            transformers::MayaPaymentStatus::PaymentProcessing => non_terminal!(Authorizing),
+            transformers::MayaPaymentStatus::PaymentExpired => non_terminal!(Expired),
+            transformers::MayaPaymentStatus::PaymentCancelled => success!(Voided),
+            transformers::MayaPaymentStatus::Voided => success!(Voided),
+            transformers::MayaPaymentStatus::Refunded => success!(AutoRefunded),
+            transformers::MayaPaymentStatus::CheckOutDropout => failure!(AuthenticationFailed),
+            transformers::MayaPaymentStatus::ThreeDsPaymentFailure => failure!(AuthenticationFailed),
+            transformers::MayaPaymentStatus::ThreeDsPaymentDropout => failure!(AuthenticationFailed),
+            transformers::MayaPaymentStatus::CheckOutSuccess => non_terminal!(Authorizing),
+            transformers::MayaPaymentStatus::CheckOutFailure => failure!(AuthorizationFailed),
+            transformers::MayaPaymentStatus::ThreeDsPaymentSuccess => non_terminal!(AuthenticationSuccessful),
         }
     },
     runtime: {
@@ -643,11 +646,11 @@ domain_types::impl_flow_status_mapping! {
     connector: Maya<T>,
     flow: Void,
     source: transformers::MayaVoidStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::MayaVoidStatus::Success => common_enums::AttemptStatus::Voided,
-            transformers::MayaVoidStatus::Failed => common_enums::AttemptStatus::VoidFailed,
-            transformers::MayaVoidStatus::Pending => common_enums::AttemptStatus::VoidInitiated,
+            transformers::MayaVoidStatus::Success => success!(Voided),
+            transformers::MayaVoidStatus::Failed => failure!(VoidFailed),
+            transformers::MayaVoidStatus::Pending => non_terminal!(VoidInitiated),
         }
     },
     runtime: {
@@ -666,11 +669,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Maya<T>,
     flow: RSync,
     source: transformers::MayaRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::MayaRefundStatus::Success => common_enums::RefundStatus::Success,
-            transformers::MayaRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::MayaRefundStatus::Pending => common_enums::RefundStatus::Pending,
+            transformers::MayaRefundStatus::Success => success!(Success),
+            transformers::MayaRefundStatus::Failed => failure!(Failure),
+            transformers::MayaRefundStatus::Pending => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -689,11 +692,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Maya<T>,
     flow: Refund,
     source: transformers::MayaRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::MayaRefundStatus::Success => common_enums::RefundStatus::Success,
-            transformers::MayaRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::MayaRefundStatus::Pending => common_enums::RefundStatus::Pending,
+            transformers::MayaRefundStatus::Success => success!(Success),
+            transformers::MayaRefundStatus::Failed => failure!(Failure),
+            transformers::MayaRefundStatus::Pending => non_terminal!(Pending),
         }
     },
     runtime: {

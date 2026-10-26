@@ -950,9 +950,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Sour
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiservcommercehub<T>,
-    flow: domain_types::connector_flow::Authorize,
+    flow: Authorize,
     source: fiservcommercehub::FiservcommercehubTransactionState,
-    mapping_status: |status| { common_enums::AttemptStatus::from(&status) },
+    mapping: |status| { match status {
+            fiservcommercehub::FiservcommercehubTransactionState::Approved
+            | fiservcommercehub::FiservcommercehubTransactionState::Captured => success!(Charged),
+            fiservcommercehub::FiservcommercehubTransactionState::Authorized => success!(Authorized),
+            fiservcommercehub::FiservcommercehubTransactionState::Pending => non_terminal!(Pending),
+            fiservcommercehub::FiservcommercehubTransactionState::Declined
+            | fiservcommercehub::FiservcommercehubTransactionState::Rejected
+            | fiservcommercehub::FiservcommercehubTransactionState::Failed => failure!(Failure),
+            fiservcommercehub::FiservcommercehubTransactionState::Cancelled => non_terminal!(Voided),
+        } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: FiservcommercehubAuthorizeResponse,
@@ -960,29 +969,26 @@ domain_types::impl_flow_status_mapping! {
     },
 }
 
-// NOTE: skipped extractors — the PSync response (`FiservcommercehubPSyncResponse`)
-// is a Vec wrapper and the TryFrom's status lookup is fallible (empty list →
-// deserialization error), so no infallible `fn(&Response) -> Source` extractor can
-// express it.
-domain_types::impl_flow_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: Fiservcommercehub<T>,
-    flow: domain_types::connector_flow::PSync,
-    source: fiservcommercehub::FiservcommercehubTransactionState,
-    params: [status],
-    success: Approved => [Authorized, Charged, Voided],
-    failure: Declined => Failure,
-    {
-        common_enums::AttemptStatus::from(&status)
-    }
-}
+// NOTE: no impl_flow_status_mapping! for PSync — the response
+// (`FiservcommercehubPSyncResponse`) is a Vec wrapper and the TryFrom's status
+// lookup is fallible (empty list → deserialization error), so no infallible
+// `fn(&Response) -> Source` extractor can express it.
 
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiservcommercehub<T>,
-    flow: domain_types::connector_flow::Capture,
+    flow: Capture,
     source: fiservcommercehub::FiservcommercehubTransactionState,
-    mapping_status: |status| { common_enums::AttemptStatus::from(&status) },
+    mapping: |status| { match status {
+            fiservcommercehub::FiservcommercehubTransactionState::Approved
+            | fiservcommercehub::FiservcommercehubTransactionState::Captured => success!(Charged),
+            fiservcommercehub::FiservcommercehubTransactionState::Authorized => failure!(CaptureFailed),
+            fiservcommercehub::FiservcommercehubTransactionState::Pending => non_terminal!(Pending),
+            fiservcommercehub::FiservcommercehubTransactionState::Declined
+            | fiservcommercehub::FiservcommercehubTransactionState::Rejected
+            | fiservcommercehub::FiservcommercehubTransactionState::Failed => failure!(Failure),
+            fiservcommercehub::FiservcommercehubTransactionState::Cancelled => failure!(CaptureFailed),
+        } },
     runtime: {
         request: PaymentsCaptureData,
         response: FiservcommercehubCaptureResponse,
@@ -993,9 +999,18 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiservcommercehub<T>,
-    flow: domain_types::connector_flow::Void,
+    flow: Void,
     source: fiservcommercehub::FiservcommercehubTransactionState,
-    mapping_status: |status| { common_enums::AttemptStatus::from(&status) },
+    mapping: |status| { match status {
+            fiservcommercehub::FiservcommercehubTransactionState::Approved
+            | fiservcommercehub::FiservcommercehubTransactionState::Captured => failure!(VoidFailed),
+            fiservcommercehub::FiservcommercehubTransactionState::Authorized => failure!(VoidFailed),
+            fiservcommercehub::FiservcommercehubTransactionState::Pending => non_terminal!(Pending),
+            fiservcommercehub::FiservcommercehubTransactionState::Declined
+            | fiservcommercehub::FiservcommercehubTransactionState::Rejected
+            | fiservcommercehub::FiservcommercehubTransactionState::Failed => failure!(Failure),
+            fiservcommercehub::FiservcommercehubTransactionState::Cancelled => success!(Voided),
+        } },
     runtime: {
         request: PaymentVoidData,
         response: FiservcommercehubVoidResponse,
@@ -1006,9 +1021,18 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiservcommercehub<T>,
-    flow: domain_types::connector_flow::RepeatPayment,
+    flow: RepeatPayment,
     source: fiservcommercehub::FiservcommercehubTransactionState,
-    mapping_status: |status| { common_enums::AttemptStatus::from(&status) },
+    mapping: |status| { match status {
+            fiservcommercehub::FiservcommercehubTransactionState::Approved
+            | fiservcommercehub::FiservcommercehubTransactionState::Captured => success!(Charged),
+            fiservcommercehub::FiservcommercehubTransactionState::Authorized => non_terminal!(Authorized),
+            fiservcommercehub::FiservcommercehubTransactionState::Pending => non_terminal!(Pending),
+            fiservcommercehub::FiservcommercehubTransactionState::Declined
+            | fiservcommercehub::FiservcommercehubTransactionState::Rejected
+            | fiservcommercehub::FiservcommercehubTransactionState::Failed => failure!(Failure),
+            fiservcommercehub::FiservcommercehubTransactionState::Cancelled => failure!(Failure),
+        } },
     runtime: {
         request: RepeatPaymentData<T>,
         response: FiservcommercehubRepeatResponse,
@@ -1019,13 +1043,17 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiservcommercehub<T>,
-    flow: domain_types::connector_flow::SetupMandate,
+    flow: SetupMandate,
     source: fiservcommercehub::FiservcommercehubTransactionState,
-    mapping_status: |status| { match status {
-            fiservcommercehub::FiservcommercehubTransactionState::Authorized => {
-                common_enums::AttemptStatus::Charged
-            }
-            _ => common_enums::AttemptStatus::from(&status),
+    mapping: |status| { match status {
+            fiservcommercehub::FiservcommercehubTransactionState::Authorized => success!(Charged),
+            fiservcommercehub::FiservcommercehubTransactionState::Approved
+            | fiservcommercehub::FiservcommercehubTransactionState::Captured => success!(Charged),
+            fiservcommercehub::FiservcommercehubTransactionState::Pending => non_terminal!(Pending),
+            fiservcommercehub::FiservcommercehubTransactionState::Declined
+            | fiservcommercehub::FiservcommercehubTransactionState::Rejected
+            | fiservcommercehub::FiservcommercehubTransactionState::Failed
+            | fiservcommercehub::FiservcommercehubTransactionState::Cancelled => failure!(Failure),
         } },
     runtime: {
         request: SetupMandateRequestData<T>,
@@ -1037,9 +1065,18 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Fiservcommercehub<T>,
-    flow: domain_types::connector_flow::Refund,
+    flow: Refund,
     source: fiservcommercehub::FiservcommercehubRefundState,
-    mapping_status: |status| { common_enums::RefundStatus::from(&status) },
+    mapping: |status| { match status {
+            fiservcommercehub::FiservcommercehubRefundState::Approved
+            | fiservcommercehub::FiservcommercehubRefundState::Captured => success!(Success),
+            fiservcommercehub::FiservcommercehubRefundState::Authorized
+            | fiservcommercehub::FiservcommercehubRefundState::Pending => non_terminal!(Pending),
+            fiservcommercehub::FiservcommercehubRefundState::Declined
+            | fiservcommercehub::FiservcommercehubRefundState::Rejected
+            | fiservcommercehub::FiservcommercehubRefundState::Failed
+            | fiservcommercehub::FiservcommercehubRefundState::Cancelled => failure!(Failure),
+        } },
     runtime: {
         request: RefundsData,
         response: FiservcommercehubRefundResponse,
@@ -1047,22 +1084,10 @@ domain_types::impl_refund_flow_status_mapping! {
     },
 }
 
-// NOTE: skipped extractors — the RSync response (`FiservcommercehubRSyncResponse`)
-// is a Vec wrapper and the TryFrom's status lookup is fallible (empty list →
-// deserialization error), so no infallible `fn(&Response) -> Source` extractor can
-// express it.
-domain_types::impl_refund_flow_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: Fiservcommercehub<T>,
-    flow: domain_types::connector_flow::RSync,
-    source: fiservcommercehub::FiservcommercehubRefundState,
-    params: [status],
-    success: Approved => Success,
-    failure: Declined => Failure,
-    {
-        common_enums::RefundStatus::from(&status)
-    }
-}
+// NOTE: no impl_refund_flow_status_mapping! for RSync — the response
+// (`FiservcommercehubRSyncResponse`) is a Vec wrapper and the TryFrom's status
+// lookup is fallible (empty list → deserialization error), so no infallible
+// `fn(&Response) -> Source` extractor can express it.
 
 macros::macro_connector_flow_status_impls!(
     connector: Fiservcommercehub,

@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::{AttemptStatus, CurrencyUnit};
+use common_enums::CurrencyUnit;
 use common_utils::{
     consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit,
 };
@@ -412,24 +412,24 @@ domain_types::impl_flow_status_mapping! {
     // `__typename` yet (pending).,
     source: Option<Option<tesouro::AuthorizeTransactionResponseType>>,
     context: Option<common_enums::CaptureMethod>,
-    mapping_status: |authorization_outcome, capture_method| { let auto_capture = !crate::utils::is_manual_capture(capture_method);
+    mapping: |authorization_outcome, capture_method| { let auto_capture = !crate::utils::is_manual_capture(capture_method);
         match authorization_outcome {
             Some(Some(tesouro::AuthorizeTransactionResponseType::AuthorizationApproval)) => {
                 if auto_capture {
-                    AttemptStatus::Charged
+                    success!(Charged)
                 } else {
-                    AttemptStatus::Authorized
+                    success!(Authorized)
                 }
             }
             Some(Some(tesouro::AuthorizeTransactionResponseType::AuthorizationDecline))
             | None => {
                 if auto_capture {
-                    AttemptStatus::Failure
+                    failure!(Failure)
                 } else {
-                    AttemptStatus::AuthorizationFailed
+                    failure!(AuthorizationFailed)
                 }
             }
-            Some(None) => AttemptStatus::Pending,
+            Some(None) => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
@@ -455,24 +455,24 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: Option<Option<tesouro::AuthorizeTransactionResponseType>>,
     context: Option<common_enums::CaptureMethod>,
-    mapping_status: |authorization_outcome, capture_method| { let auto_capture = !crate::utils::is_manual_capture(capture_method);
+    mapping: |authorization_outcome, capture_method| { let auto_capture = !crate::utils::is_manual_capture(capture_method);
         match authorization_outcome {
             Some(Some(tesouro::AuthorizeTransactionResponseType::AuthorizationApproval)) => {
                 if auto_capture {
-                    AttemptStatus::Charged
+                    success!(Charged)
                 } else {
-                    AttemptStatus::Authorized
+                    non_terminal!(Authorized)
                 }
             }
             Some(Some(tesouro::AuthorizeTransactionResponseType::AuthorizationDecline))
             | None => {
                 if auto_capture {
-                    AttemptStatus::Failure
+                    failure!(Failure)
                 } else {
-                    AttemptStatus::AuthorizationFailed
+                    failure!(AuthorizationFailed)
                 }
             }
-            Some(None) => AttemptStatus::Pending,
+            Some(None) => non_terminal!(Pending),
         } },
     runtime: {
         request: RepeatPaymentData<T>,
@@ -498,37 +498,37 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: Option<tesouro::TesouroSyncStatus>,
     context: Option<common_enums::CaptureMethod>,
-    mapping_status: |status, capture_method| { let auto_capture = !crate::utils::is_manual_capture(capture_method);
+    mapping: |status, capture_method| { let auto_capture = !crate::utils::is_manual_capture(capture_method);
         match status {
             Some(tesouro::TesouroSyncStatus::AcceptedSale)
             | Some(tesouro::TesouroSyncStatus::ApprovedCapture)
-            | Some(tesouro::TesouroSyncStatus::Sale) => AttemptStatus::Charged,
+            | Some(tesouro::TesouroSyncStatus::Sale) => success!(Charged),
             Some(tesouro::TesouroSyncStatus::ApprovedAuthorization) => {
                 if auto_capture {
-                    AttemptStatus::Charged
+                    success!(Charged)
                 } else {
-                    AttemptStatus::Authorized
+                    success!(Authorized)
                 }
             }
             Some(tesouro::TesouroSyncStatus::DeclinedAuthorization) => {
                 if auto_capture {
-                    AttemptStatus::Failure
+                    failure!(Failure)
                 } else {
-                    AttemptStatus::AuthorizationFailed
+                    failure!(AuthorizationFailed)
                 }
             }
-            Some(tesouro::TesouroSyncStatus::ApprovedReversal) => AttemptStatus::Voided,
-            Some(tesouro::TesouroSyncStatus::DeclinedCapture) => AttemptStatus::CaptureFailed,
-            Some(tesouro::TesouroSyncStatus::DeclinedReversal) => AttemptStatus::VoidFailed,
+            Some(tesouro::TesouroSyncStatus::ApprovedReversal) => success!(Voided),
+            Some(tesouro::TesouroSyncStatus::DeclinedCapture) => failure!(CaptureFailed),
+            Some(tesouro::TesouroSyncStatus::DeclinedReversal) => failure!(VoidFailed),
             // The handle_response body folds `GenericPaymentTransaction` and unknown
             // `__typename`s (and a top-level GraphQL error) into the previous attempt
             // status, which is unavailable here; Pending is the closest safe default.
             Some(tesouro::TesouroSyncStatus::GenericPaymentTransaction)
             | Some(tesouro::TesouroSyncStatus::Unknown)
-            | None => AttemptStatus::Pending,
-            Some(tesouro::TesouroSyncStatus::Authorization) => AttemptStatus::Authorizing,
-            Some(tesouro::TesouroSyncStatus::Capture) => AttemptStatus::CaptureInitiated,
-            Some(tesouro::TesouroSyncStatus::Reversal) => AttemptStatus::VoidInitiated,
+            | None => non_terminal!(Pending),
+            Some(tesouro::TesouroSyncStatus::Authorization) => non_terminal!(Authorizing),
+            Some(tesouro::TesouroSyncStatus::Capture) => non_terminal!(CaptureInitiated),
+            Some(tesouro::TesouroSyncStatus::Reversal) => non_terminal!(VoidInitiated),
         } },
     runtime: {
         request: PaymentsSyncData,
@@ -549,10 +549,10 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: bool,
     context: (),
-    mapping_status: |succeeded, _ctx| { if succeeded {
-            AttemptStatus::Charged
+    mapping: |succeeded, _ctx| { if succeeded {
+            success!(Charged)
         } else {
-            AttemptStatus::Failure
+            failure!(Failure)
         } },
     runtime: {
         request: SetupMandateRequestData<T>,

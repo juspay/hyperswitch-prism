@@ -738,7 +738,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Moneris<T>,
     flow: Authorize,
     source: moneris::MonerisPaymentStatus,
-    mapping_status: |status| { common_enums::AttemptStatus::from(status) },
+    mapping: |status| { match status {
+            moneris::MonerisPaymentStatus::Succeeded => success!(Charged),
+            moneris::MonerisPaymentStatus::Authorized => success!(Authorized),
+            moneris::MonerisPaymentStatus::Canceled => non_terminal!(Voided),
+            moneris::MonerisPaymentStatus::Declined
+            | moneris::MonerisPaymentStatus::DeclinedRetry => failure!(Failure),
+            moneris::MonerisPaymentStatus::Processing => non_terminal!(Pending),
+        } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: MonerisAuthorizeResponse,
@@ -746,62 +753,70 @@ domain_types::impl_flow_status_mapping! {
     },
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Moneris<T>,
     flow: PreAuthenticate,
-    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
-    runtime: {
-        request: PaymentsPreAuthenticateData<T>,
-        response: transformers::MonerisPreAuthenticateResponse,
-        status: |_request, response| {
-            use common_enums::AttemptStatus;
+    source: MonerisPreAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+
+
             use transformers::MonerisThreeDSecureTransactionStatus;
             match response.three_d_secure_transaction_status {
                 MonerisThreeDSecureTransactionStatus::Authenticated
                 | MonerisThreeDSecureTransactionStatus::AuthenticatedAttempted
                 | MonerisThreeDSecureTransactionStatus::InformationOnly => {
-                    AttemptStatus::AuthenticationSuccessful
+                    success!(AuthenticationSuccessful)
                 }
                 MonerisThreeDSecureTransactionStatus::ChallengeAuthenticationRequired
                 | MonerisThreeDSecureTransactionStatus::Decoupled => {
-                    AttemptStatus::AuthenticationPending
+                    non_terminal!(AuthenticationPending)
                 }
                 MonerisThreeDSecureTransactionStatus::NotAuthenticated
                 | MonerisThreeDSecureTransactionStatus::Rejected => {
-                    AttemptStatus::AuthenticationFailed
+                    failure!(AuthenticationFailed)
                 }
             }
         },
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: MonerisPreAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Moneris<T>,
     flow: PostAuthenticate,
-    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
-    runtime: {
-        request: PaymentsPostAuthenticateData<T>,
-        response: transformers::MonerisPostAuthenticateResponse,
-        status: |_request, response| {
-            use common_enums::AttemptStatus;
+    source: MonerisPostAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+
+
             use transformers::MonerisThreeDSecureTransactionStatus;
             match response.three_d_secure_transaction_status {
                 Some(MonerisThreeDSecureTransactionStatus::Authenticated)
                 | Some(MonerisThreeDSecureTransactionStatus::AuthenticatedAttempted)
                 | Some(MonerisThreeDSecureTransactionStatus::InformationOnly) => {
-                    AttemptStatus::AuthenticationSuccessful
+                    success!(AuthenticationSuccessful)
                 }
                 Some(MonerisThreeDSecureTransactionStatus::Decoupled)
                 | Some(MonerisThreeDSecureTransactionStatus::ChallengeAuthenticationRequired) => {
-                    AttemptStatus::AuthenticationPending
+                    non_terminal!(AuthenticationPending)
                 }
                 Some(MonerisThreeDSecureTransactionStatus::NotAuthenticated)
                 | Some(MonerisThreeDSecureTransactionStatus::Rejected)
-                | None => AttemptStatus::AuthenticationFailed,
+                | None => failure!(AuthenticationFailed),
             }
         },
+    runtime: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: MonerisPostAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -810,7 +825,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Moneris<T>,
     flow: PSync,
     source: moneris::MonerisPaymentStatus,
-    mapping_status: |status| { common_enums::AttemptStatus::from(status) },
+    mapping: |status| { match status {
+            moneris::MonerisPaymentStatus::Succeeded => success!(Charged),
+            moneris::MonerisPaymentStatus::Authorized => success!(Authorized),
+            moneris::MonerisPaymentStatus::Canceled => success!(Voided),
+            moneris::MonerisPaymentStatus::Declined
+            | moneris::MonerisPaymentStatus::DeclinedRetry => failure!(Failure),
+            moneris::MonerisPaymentStatus::Processing => non_terminal!(Pending),
+        } },
     runtime: {
         request: PaymentsSyncData,
         response: MonerisPaymentSyncResponse,
@@ -823,7 +845,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Moneris<T>,
     flow: RepeatPayment,
     source: moneris::MonerisPaymentStatus,
-    mapping_status: |status| { common_enums::AttemptStatus::from(status) },
+    mapping: |status| { match status {
+            moneris::MonerisPaymentStatus::Succeeded => success!(Charged),
+            moneris::MonerisPaymentStatus::Authorized => non_terminal!(Authorized),
+            moneris::MonerisPaymentStatus::Canceled => failure!(Failure),
+            moneris::MonerisPaymentStatus::Declined
+            | moneris::MonerisPaymentStatus::DeclinedRetry => failure!(Failure),
+            moneris::MonerisPaymentStatus::Processing => non_terminal!(Pending),
+        } },
     runtime: {
         request: RepeatPaymentData<T>,
         response: MonerisRepeatPaymentResponse,
@@ -836,7 +865,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Moneris<T>,
     flow: Void,
     source: moneris::MonerisPaymentStatus,
-    mapping_status: |status| { common_enums::AttemptStatus::from(status) },
+    mapping: |status| { match status {
+            moneris::MonerisPaymentStatus::Succeeded => failure!(VoidFailed),
+            moneris::MonerisPaymentStatus::Authorized => failure!(VoidFailed),
+            moneris::MonerisPaymentStatus::Canceled => success!(Voided),
+            moneris::MonerisPaymentStatus::Declined
+            | moneris::MonerisPaymentStatus::DeclinedRetry => failure!(VoidFailed),
+            moneris::MonerisPaymentStatus::Processing => non_terminal!(Pending),
+        } },
     runtime: {
         request: PaymentVoidData,
         response: MonerisPaymentVoidResponse,
@@ -850,12 +886,22 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: moneris::MonerisPaymentStatus,
     context: (MinorUnit, Option<MinorUnit>),
-    mapping_status: |status, ctx| { moneris::capture_attempt_status(status, ctx.0, ctx.1) },
+    mapping: |status, ctx| { match status {
+            moneris::MonerisPaymentStatus::Succeeded => match ctx.1 {
+                Some(authorized) if ctx.0 < authorized => success!(PartialCharged),
+                _ => success!(Charged),
+            },
+            moneris::MonerisPaymentStatus::Authorized => non_terminal!(CaptureInitiated),
+            moneris::MonerisPaymentStatus::Canceled => failure!(CaptureFailed),
+            moneris::MonerisPaymentStatus::Declined
+            | moneris::MonerisPaymentStatus::DeclinedRetry => failure!(Failure),
+            moneris::MonerisPaymentStatus::Processing => non_terminal!(Pending),
+        } },
     runtime: {
         request: PaymentsCaptureData,
         response: MonerisCaptureResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payment_status.clone()) },
-        context: |_resource_common_data, request, _response, _http_status_code| { Ok((request.minor_amount_to_capture, None)) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok((request.amount_to_capture.amount, None)) },
     },
 }
 
@@ -864,7 +910,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Moneris<T>,
     flow: Refund,
     source: moneris::MonerisRefundStatus,
-    mapping_status: |status| { common_enums::RefundStatus::from(status) },
+    mapping: |status| { match status {
+            moneris::MonerisRefundStatus::Succeeded => success!(Success),
+            moneris::MonerisRefundStatus::Declined
+            | moneris::MonerisRefundStatus::DeclinedRetry => failure!(Failure),
+            moneris::MonerisRefundStatus::Processing => non_terminal!(Pending),
+        } },
     runtime: {
         request: RefundsData,
         response: MonerisRefundResponse,
@@ -877,7 +928,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Moneris<T>,
     flow: RSync,
     source: moneris::MonerisRefundStatus,
-    mapping_status: |status| { common_enums::RefundStatus::from(status) },
+    mapping: |status| { match status {
+            moneris::MonerisRefundStatus::Succeeded => success!(Success),
+            moneris::MonerisRefundStatus::Declined
+            | moneris::MonerisRefundStatus::DeclinedRetry => failure!(Failure),
+            moneris::MonerisRefundStatus::Processing => non_terminal!(Pending),
+        } },
     runtime: {
         request: RefundSyncData,
         response: MonerisRefundSyncResponse,

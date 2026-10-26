@@ -77,14 +77,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Billwerk<T>,
     flow: Authorize,
     source: billwerk::BillwerkPaymentState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            billwerk::BillwerkPaymentState::Settled => common_enums::AttemptStatus::Charged,
-            billwerk::BillwerkPaymentState::Failed => common_enums::AttemptStatus::Failure,
-            billwerk::BillwerkPaymentState::Created => common_enums::AttemptStatus::Pending,
-            billwerk::BillwerkPaymentState::Pending => common_enums::AttemptStatus::Pending,
-            billwerk::BillwerkPaymentState::Authorized => common_enums::AttemptStatus::Authorized,
-            billwerk::BillwerkPaymentState::Cancelled => common_enums::AttemptStatus::Voided,
+            billwerk::BillwerkPaymentState::Settled => success!(Charged),
+            billwerk::BillwerkPaymentState::Failed => failure!(Failure),
+            billwerk::BillwerkPaymentState::Created => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Pending => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Authorized => success!(Authorized),
+            billwerk::BillwerkPaymentState::Cancelled => non_terminal!(Voided),
         }
     },
     runtime: {
@@ -103,14 +103,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Billwerk<T>,
     flow: PSync,
     source: billwerk::BillwerkPaymentState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            billwerk::BillwerkPaymentState::Settled => common_enums::AttemptStatus::Charged,
-            billwerk::BillwerkPaymentState::Failed => common_enums::AttemptStatus::Failure,
-            billwerk::BillwerkPaymentState::Created => common_enums::AttemptStatus::Pending,
-            billwerk::BillwerkPaymentState::Pending => common_enums::AttemptStatus::Pending,
-            billwerk::BillwerkPaymentState::Authorized => common_enums::AttemptStatus::Authorized,
-            billwerk::BillwerkPaymentState::Cancelled => common_enums::AttemptStatus::Voided,
+            billwerk::BillwerkPaymentState::Settled => success!(Charged),
+            billwerk::BillwerkPaymentState::Failed => failure!(Failure),
+            billwerk::BillwerkPaymentState::Created => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Pending => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Authorized => success!(Authorized),
+            billwerk::BillwerkPaymentState::Cancelled => success!(Voided),
         }
     },
     runtime: {
@@ -129,14 +129,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Billwerk<T>,
     flow: Void,
     source: billwerk::BillwerkPaymentState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            billwerk::BillwerkPaymentState::Cancelled => common_enums::AttemptStatus::Voided,
-            billwerk::BillwerkPaymentState::Failed => common_enums::AttemptStatus::VoidFailed,
-            billwerk::BillwerkPaymentState::Created => common_enums::AttemptStatus::VoidInitiated,
-            billwerk::BillwerkPaymentState::Pending => common_enums::AttemptStatus::VoidInitiated,
-            billwerk::BillwerkPaymentState::Authorized => common_enums::AttemptStatus::VoidInitiated,
-            billwerk::BillwerkPaymentState::Settled => common_enums::AttemptStatus::VoidFailed,
+            billwerk::BillwerkPaymentState::Cancelled => success!(Voided),
+            billwerk::BillwerkPaymentState::Failed => failure!(VoidFailed),
+            billwerk::BillwerkPaymentState::Created => non_terminal!(VoidInitiated),
+            billwerk::BillwerkPaymentState::Pending => non_terminal!(VoidInitiated),
+            billwerk::BillwerkPaymentState::Authorized => non_terminal!(VoidInitiated),
+            billwerk::BillwerkPaymentState::Settled => failure!(VoidFailed),
         }
     },
     runtime: {
@@ -155,14 +155,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Billwerk<T>,
     flow: Capture,
     source: billwerk::BillwerkPaymentState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            billwerk::BillwerkPaymentState::Settled => common_enums::AttemptStatus::Charged,
-            billwerk::BillwerkPaymentState::Failed => common_enums::AttemptStatus::CaptureFailed,
-            billwerk::BillwerkPaymentState::Created => common_enums::AttemptStatus::CaptureInitiated,
-            billwerk::BillwerkPaymentState::Pending => common_enums::AttemptStatus::CaptureInitiated,
-            billwerk::BillwerkPaymentState::Authorized => common_enums::AttemptStatus::CaptureInitiated,
-            billwerk::BillwerkPaymentState::Cancelled => common_enums::AttemptStatus::CaptureFailed,
+            billwerk::BillwerkPaymentState::Settled => success!(Charged),
+            billwerk::BillwerkPaymentState::Failed => failure!(CaptureFailed),
+            billwerk::BillwerkPaymentState::Created => non_terminal!(CaptureInitiated),
+            billwerk::BillwerkPaymentState::Pending => non_terminal!(CaptureInitiated),
+            billwerk::BillwerkPaymentState::Authorized => non_terminal!(CaptureInitiated),
+            billwerk::BillwerkPaymentState::Cancelled => failure!(CaptureFailed),
         }
     },
     runtime: {
@@ -181,11 +181,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Billwerk<T>,
     flow: Refund,
     source: billwerk::RefundState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            billwerk::RefundState::Refunded => common_enums::RefundStatus::Success,
-            billwerk::RefundState::Failed => common_enums::RefundStatus::Failure,
-            billwerk::RefundState::Processing => common_enums::RefundStatus::Pending,
+            billwerk::RefundState::Refunded => success!(Success),
+            billwerk::RefundState::Failed => failure!(Failure),
+            billwerk::RefundState::Processing => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -204,11 +204,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Billwerk<T>,
     flow: RSync,
     source: billwerk::RefundState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            billwerk::RefundState::Refunded => common_enums::RefundStatus::Success,
-            billwerk::RefundState::Failed => common_enums::RefundStatus::Failure,
-            billwerk::RefundState::Processing => common_enums::RefundStatus::Pending,
+            billwerk::RefundState::Refunded => success!(Success),
+            billwerk::RefundState::Failed => failure!(Failure),
+            billwerk::RefundState::Processing => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -227,14 +227,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Billwerk<T>,
     flow: SetupMandate,
     source: billwerk::BillwerkPaymentState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            billwerk::BillwerkPaymentState::Settled => common_enums::AttemptStatus::Charged,
-            billwerk::BillwerkPaymentState::Failed => common_enums::AttemptStatus::Failure,
-            billwerk::BillwerkPaymentState::Created => common_enums::AttemptStatus::Pending,
-            billwerk::BillwerkPaymentState::Pending => common_enums::AttemptStatus::Pending,
-            billwerk::BillwerkPaymentState::Authorized => common_enums::AttemptStatus::Pending,
-            billwerk::BillwerkPaymentState::Cancelled => common_enums::AttemptStatus::Failure,
+            billwerk::BillwerkPaymentState::Settled => success!(Charged),
+            billwerk::BillwerkPaymentState::Failed => failure!(Failure),
+            billwerk::BillwerkPaymentState::Created => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Pending => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Authorized => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Cancelled => failure!(Failure),
         }
     },
     runtime: {
@@ -253,14 +253,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Billwerk<T>,
     flow: RepeatPayment,
     source: billwerk::BillwerkPaymentState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            billwerk::BillwerkPaymentState::Settled => common_enums::AttemptStatus::Charged,
-            billwerk::BillwerkPaymentState::Failed => common_enums::AttemptStatus::Failure,
-            billwerk::BillwerkPaymentState::Created => common_enums::AttemptStatus::Pending,
-            billwerk::BillwerkPaymentState::Pending => common_enums::AttemptStatus::Pending,
-            billwerk::BillwerkPaymentState::Authorized => common_enums::AttemptStatus::Authorized,
-            billwerk::BillwerkPaymentState::Cancelled => common_enums::AttemptStatus::Failure,
+            billwerk::BillwerkPaymentState::Settled => success!(Charged),
+            billwerk::BillwerkPaymentState::Failed => failure!(Failure),
+            billwerk::BillwerkPaymentState::Created => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Pending => non_terminal!(Pending),
+            billwerk::BillwerkPaymentState::Authorized => non_terminal!(Authorized),
+            billwerk::BillwerkPaymentState::Cancelled => failure!(Failure),
         }
     },
     runtime: {

@@ -60,9 +60,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, sync::LazyLock};
 
-use common_enums::{
-    AttemptStatus, CaptureMethod, CurrencyUnit, PaymentMethod, PaymentMethodType, RefundStatus,
-};
+use common_enums::{CaptureMethod, CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
@@ -538,7 +536,7 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: PaynearmeAuthorizeResponse,
     context: (),
-    mapping_status: |response, _ctx| { let envelope = &response.0;
+    mapping: |response, _ctx| { let envelope = &response.envelope;
         let status_ok = envelope.status.as_deref().map(|value| value == "ok").unwrap_or(true);
         let code_ok = envelope
             .response_code
@@ -566,17 +564,17 @@ domain_types::impl_flow_status_mapping! {
                 .map(|status| *status == paynearme::PaynearmePaymentStatus::Rejected)
                 .unwrap_or(false)
         {
-            AttemptStatus::Failure
+            failure!(Failure)
         } else {
             match payment.and_then(|payment| payment.payment_status.as_ref()) {
-                Some(paynearme::PaynearmePaymentStatus::Approved) => AttemptStatus::Charged,
-                Some(paynearme::PaynearmePaymentStatus::Authorized) => AttemptStatus::Pending,
-                Some(paynearme::PaynearmePaymentStatus::Canceled) => AttemptStatus::Voided,
-                Some(paynearme::PaynearmePaymentStatus::Refunded) => AttemptStatus::Charged,
-                Some(paynearme::PaynearmePaymentStatus::Rejected) => AttemptStatus::Failure,
+                Some(paynearme::PaynearmePaymentStatus::Approved) => success!(Charged),
+                Some(paynearme::PaynearmePaymentStatus::Authorized) => non_terminal!(Pending),
+                Some(paynearme::PaynearmePaymentStatus::Canceled) => non_terminal!(Voided),
+                Some(paynearme::PaynearmePaymentStatus::Refunded) => success!(Charged),
+                Some(paynearme::PaynearmePaymentStatus::Rejected) => failure!(Failure),
                 Some(paynearme::PaynearmePaymentStatus::WaitingForReview)
                 | Some(paynearme::PaynearmePaymentStatus::Unknown)
-                | None => AttemptStatus::Pending,
+                | None => non_terminal!(Pending),
             }
         } },
     runtime: {
@@ -593,7 +591,7 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: PaynearmeSyncResponse,
     context: (),
-    mapping_status: |response, _ctx| { let envelope = &response.0;
+    mapping: |response, _ctx| { let envelope = &response.0;
         let status_ok = envelope.status.as_deref().map(|value| value == "ok").unwrap_or(true);
         let code_ok = envelope
             .response_code
@@ -603,16 +601,16 @@ domain_types::impl_flow_status_mapping! {
 
         match ((status_ok && code_ok), envelope.payment.as_ref()) {
             (true, Some(payment)) => match payment.payment_status.as_ref() {
-                Some(paynearme::PaynearmePaymentStatus::Approved) => AttemptStatus::Charged,
-                Some(paynearme::PaynearmePaymentStatus::Authorized) => AttemptStatus::Pending,
-                Some(paynearme::PaynearmePaymentStatus::Canceled) => AttemptStatus::Voided,
-                Some(paynearme::PaynearmePaymentStatus::Refunded) => AttemptStatus::Charged,
-                Some(paynearme::PaynearmePaymentStatus::Rejected) => AttemptStatus::Failure,
+                Some(paynearme::PaynearmePaymentStatus::Approved) => success!(Charged),
+                Some(paynearme::PaynearmePaymentStatus::Authorized) => non_terminal!(Pending),
+                Some(paynearme::PaynearmePaymentStatus::Canceled) => success!(Voided),
+                Some(paynearme::PaynearmePaymentStatus::Refunded) => success!(Charged),
+                Some(paynearme::PaynearmePaymentStatus::Rejected) => failure!(Failure),
                 Some(paynearme::PaynearmePaymentStatus::WaitingForReview)
                 | Some(paynearme::PaynearmePaymentStatus::Unknown)
-                | None => AttemptStatus::Pending,
+                | None => non_terminal!(Pending),
             },
-            _ => AttemptStatus::Pending,
+            _ => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentsSyncData,
@@ -628,7 +626,7 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: PaynearmeVoidResponse,
     context: (),
-    mapping_status: |response, _ctx| { let envelope = &response.0;
+    mapping: |response, _ctx| { let envelope = &response.0;
         let status_ok = envelope.status.as_deref().map(|value| value == "ok").unwrap_or(true);
         let code_ok = envelope
             .response_code
@@ -644,9 +642,9 @@ domain_types::impl_flow_status_mapping! {
                 .unwrap_or(false);
 
         if cancelled {
-            AttemptStatus::Voided
+            success!(Voided)
         } else {
-            AttemptStatus::VoidFailed
+            failure!(VoidFailed)
         } },
     runtime: {
         request: PaymentVoidData,
@@ -662,7 +660,7 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: PaynearmeRefundResponse,
     context: (),
-    mapping_status: |response, _ctx| { let envelope = &response.0;
+    mapping: |response, _ctx| { let envelope = &response.0;
         let status_ok = envelope.status.as_deref().map(|value| value == "ok").unwrap_or(true);
         let code_ok = envelope
             .response_code
@@ -671,18 +669,18 @@ domain_types::impl_refund_flow_status_mapping! {
             .unwrap_or(true);
 
         match ((status_ok && code_ok), envelope.payment.as_ref()) {
-            (false, _) => RefundStatus::Failure,
+            (false, _) => failure!(Failure),
             (true, Some(payment)) => match payment
                 .refund
                 .as_ref()
                 .and_then(|refund| refund.refund_status.as_ref())
             {
-                Some(paynearme::PaynearmeRefundStatus::Completed) => RefundStatus::Success,
+                Some(paynearme::PaynearmeRefundStatus::Completed) => success!(Success),
                 Some(paynearme::PaynearmeRefundStatus::Started)
                 | Some(paynearme::PaynearmeRefundStatus::Unknown)
-                | None => RefundStatus::Pending,
+                | None => non_terminal!(Pending),
             },
-            (true, None) => RefundStatus::Pending,
+            (true, None) => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundsData,
@@ -698,7 +696,7 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: PaynearmeRefundSyncResponse,
     context: (),
-    mapping_status: |response, _ctx| { let envelope = &response.0;
+    mapping: |response, _ctx| { let envelope = &response.0;
         let status_ok = envelope.status.as_deref().map(|value| value == "ok").unwrap_or(true);
         let code_ok = envelope
             .response_code
@@ -712,12 +710,12 @@ domain_types::impl_refund_flow_status_mapping! {
                 .as_ref()
                 .and_then(|refund| refund.refund_status.as_ref())
             {
-                Some(paynearme::PaynearmeRefundStatus::Completed) => RefundStatus::Success,
+                Some(paynearme::PaynearmeRefundStatus::Completed) => success!(Success),
                 Some(paynearme::PaynearmeRefundStatus::Started)
                 | Some(paynearme::PaynearmeRefundStatus::Unknown)
-                | None => RefundStatus::Pending,
+                | None => non_terminal!(Pending),
             },
-            _ => RefundStatus::Pending,
+            _ => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundSyncData,

@@ -66,7 +66,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: transformers::PaymentStatus,
     context: bool,
-    mapping_status: |status, is_auto_capture| { use common_enums::AttemptStatus;
+    mapping: |status, is_auto_capture| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         match status {
             transformers::PaymentStatus::Succeeded | transformers::PaymentStatus::Verified => {
                 if is_auto_capture { AttemptStatus::Charged } else { AttemptStatus::Authorized }
@@ -75,7 +76,34 @@ domain_types::impl_flow_status_mapping! {
             transformers::PaymentStatus::RequiresAction => AttemptStatus::AuthenticationPending,
             transformers::PaymentStatus::AwaitingCapture => AttemptStatus::Authorized,
             transformers::PaymentStatus::Failed => AttemptStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: XenditPaymentResponse,
@@ -92,14 +120,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Xendit<T>,
     flow: PSync,
     source: transformers::PaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::PaymentStatus::Succeeded => common_enums::AttemptStatus::Charged,
-            transformers::PaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::PaymentStatus::AwaitingCapture => common_enums::AttemptStatus::Authorized,
-            transformers::PaymentStatus::Verified => common_enums::AttemptStatus::Charged,
-            transformers::PaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            transformers::PaymentStatus::RequiresAction => common_enums::AttemptStatus::AuthenticationPending,
+            transformers::PaymentStatus::Succeeded => success!(Charged),
+            transformers::PaymentStatus::Failed => failure!(Failure),
+            transformers::PaymentStatus::AwaitingCapture => success!(Authorized),
+            transformers::PaymentStatus::Verified => success!(Charged),
+            transformers::PaymentStatus::Pending => non_terminal!(Pending),
+            transformers::PaymentStatus::RequiresAction => non_terminal!(AuthenticationPending),
         }
     },
     runtime: {
@@ -117,15 +145,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Xendit<T>,
     flow: RSync,
     source: transformers::RefundStatus,
-    mapping_status: |status| {
-        match status {
-            transformers::RefundStatus::Succeeded => common_enums::RefundStatus::Success,
-            transformers::RefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::RefundStatus::Cancelled => common_enums::RefundStatus::Failure,
-            transformers::RefundStatus::Pending => common_enums::RefundStatus::Pending,
-            transformers::RefundStatus::RequiresAction => common_enums::RefundStatus::Pending,
-        }
-    },
+    mapping: |status| { match status {
+            transformers::RefundStatus::Succeeded => success!(Success),
+            transformers::RefundStatus::Failed => failure!(Failure),
+            transformers::RefundStatus::Cancelled => failure!(Failure),
+            transformers::RefundStatus::Pending => non_terminal!(Pending),
+            transformers::RefundStatus::RequiresAction => non_terminal!(Pending),
+        } },
     runtime: {
         request: RefundSyncData,
         response: RefundSyncResponse,
@@ -141,15 +167,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Xendit<T>,
     flow: Refund,
     source: transformers::RefundStatus,
-    mapping_status: |status| {
-        match status {
-            transformers::RefundStatus::Succeeded => common_enums::RefundStatus::Success,
-            transformers::RefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::RefundStatus::Cancelled => common_enums::RefundStatus::Failure,
-            transformers::RefundStatus::Pending => common_enums::RefundStatus::Pending,
-            transformers::RefundStatus::RequiresAction => common_enums::RefundStatus::Pending,
-        }
-    },
+    mapping: |status| { match status {
+            transformers::RefundStatus::Succeeded => success!(Success),
+            transformers::RefundStatus::Failed => failure!(Failure),
+            transformers::RefundStatus::Cancelled => failure!(Failure),
+            transformers::RefundStatus::Pending => non_terminal!(Pending),
+            transformers::RefundStatus::RequiresAction => non_terminal!(Pending),
+        } },
     runtime: {
         request: RefundsData,
         response: RefundResponse,
@@ -165,14 +189,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Xendit<T>,
     flow: Capture,
     source: transformers::PaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::PaymentStatus::Succeeded => common_enums::AttemptStatus::Charged,
-            transformers::PaymentStatus::Failed => common_enums::AttemptStatus::CaptureFailed,
-            transformers::PaymentStatus::AwaitingCapture => common_enums::AttemptStatus::Pending,
-            transformers::PaymentStatus::Verified => common_enums::AttemptStatus::Charged,
-            transformers::PaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            transformers::PaymentStatus::RequiresAction => common_enums::AttemptStatus::Pending,
+            transformers::PaymentStatus::Succeeded => success!(Charged),
+            transformers::PaymentStatus::Failed => failure!(CaptureFailed),
+            transformers::PaymentStatus::AwaitingCapture => non_terminal!(Pending),
+            transformers::PaymentStatus::Verified => success!(Charged),
+            transformers::PaymentStatus::Pending => non_terminal!(Pending),
+            transformers::PaymentStatus::RequiresAction => non_terminal!(Pending),
         }
     },
     runtime: {

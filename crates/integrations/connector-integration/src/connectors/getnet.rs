@@ -71,7 +71,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: transformers::GetnetPaymentStatus,
     context: bool,
-    mapping_status: |status, has_redirect| { use common_enums::AttemptStatus;
+    mapping: |status, has_redirect| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use transformers::GetnetPaymentStatus;
         match status {
             GetnetPaymentStatus::Approved | GetnetPaymentStatus::Captured => {
@@ -101,7 +102,34 @@ domain_types::impl_flow_status_mapping! {
             GetnetPaymentStatus::RequiresAction | GetnetPaymentStatus::Redirect => {
                 AttemptStatus::AuthenticationPending
             }
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: GetnetAuthorizeResponse,
@@ -134,39 +162,85 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Getnet<T>,
     flow: PreAuthenticate,
-    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    source: GetnetPreAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { getnet::threeds_status_to_attempt(response.status.as_ref()) })();
+        match mapped_status {
+            common_enums::AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Authorized => non_terminal!(Authorized),
+            common_enums::AttemptStatus::Charged => non_terminal!(Charged),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsPreAuthenticateData<T>,
         response: GetnetPreAuthenticateResponse,
-        status: |_request, response| getnet::threeds_status_to_attempt(response.status.as_ref()),
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Getnet<T>,
     flow: Authenticate,
-    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    source: GetnetAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { getnet::threeds_status_to_attempt(response.status.as_ref()) })();
+        match mapped_status {
+            common_enums::AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthenticateData<T>,
         response: GetnetAuthenticateResponse,
-        status: |_request, response| getnet::threeds_status_to_attempt(response.status.as_ref()),
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Getnet<T>,
     flow: PostAuthenticate,
-    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    source: GetnetPostAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { getnet::threeds_status_to_attempt(response.status.as_ref()) })();
+        match mapped_status {
+            common_enums::AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsPostAuthenticateData<T>,
         response: GetnetPostAuthenticateResponse,
-        status: |_request, response| getnet::threeds_status_to_attempt(response.status.as_ref()),
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -179,23 +253,23 @@ domain_types::impl_flow_status_mapping! {
     connector: Getnet<T>,
     flow: PSync,
     source: transformers::GetnetPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::GetnetPaymentStatus::Approved => common_enums::AttemptStatus::Charged,
-            transformers::GetnetPaymentStatus::Denied => common_enums::AttemptStatus::Failure,
-            transformers::GetnetPaymentStatus::Captured => common_enums::AttemptStatus::Charged,
-            transformers::GetnetPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            transformers::GetnetPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            transformers::GetnetPaymentStatus::Waiting => common_enums::AttemptStatus::Pending,
-            transformers::GetnetPaymentStatus::Open => common_enums::AttemptStatus::Pending,
-            transformers::GetnetPaymentStatus::Unknown => common_enums::AttemptStatus::Pending,
-            transformers::GetnetPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::GetnetPaymentStatus::Error => common_enums::AttemptStatus::Failure,
-            transformers::GetnetPaymentStatus::Expired => common_enums::AttemptStatus::Failure,
-            transformers::GetnetPaymentStatus::Canceled => common_enums::AttemptStatus::Voided,
-            transformers::GetnetPaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
-            transformers::GetnetPaymentStatus::RequiresAction => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::GetnetPaymentStatus::Redirect => common_enums::AttemptStatus::AuthenticationPending,
+            transformers::GetnetPaymentStatus::Approved => success!(Charged),
+            transformers::GetnetPaymentStatus::Denied => failure!(Failure),
+            transformers::GetnetPaymentStatus::Captured => success!(Charged),
+            transformers::GetnetPaymentStatus::Authorized => success!(Authorized),
+            transformers::GetnetPaymentStatus::Pending => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Waiting => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Open => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Unknown => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Failed => failure!(Failure),
+            transformers::GetnetPaymentStatus::Error => failure!(Failure),
+            transformers::GetnetPaymentStatus::Expired => failure!(Failure),
+            transformers::GetnetPaymentStatus::Canceled => success!(Voided),
+            transformers::GetnetPaymentStatus::Cancelled => success!(Voided),
+            transformers::GetnetPaymentStatus::RequiresAction => non_terminal!(AuthenticationPending),
+            transformers::GetnetPaymentStatus::Redirect => non_terminal!(AuthenticationPending),
         }
     },
     runtime: {
@@ -236,23 +310,23 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Getnet<T>,
     flow: Refund,
     source: transformers::GetnetPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::GetnetPaymentStatus::Cancelled => common_enums::RefundStatus::Success,
-            transformers::GetnetPaymentStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::GetnetPaymentStatus::Approved => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Captured => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Pending => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Waiting => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Authorized => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Denied => common_enums::RefundStatus::Failure,
-            transformers::GetnetPaymentStatus::Error => common_enums::RefundStatus::Failure,
-            transformers::GetnetPaymentStatus::Canceled => common_enums::RefundStatus::Success,
-            transformers::GetnetPaymentStatus::Expired => common_enums::RefundStatus::Failure,
-            transformers::GetnetPaymentStatus::RequiresAction => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Redirect => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Open => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Unknown => common_enums::RefundStatus::Pending,
+            transformers::GetnetPaymentStatus::Cancelled => success!(Success),
+            transformers::GetnetPaymentStatus::Failed => failure!(Failure),
+            transformers::GetnetPaymentStatus::Approved => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Captured => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Pending => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Waiting => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Authorized => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Denied => failure!(Failure),
+            transformers::GetnetPaymentStatus::Error => failure!(Failure),
+            transformers::GetnetPaymentStatus::Canceled => success!(Success),
+            transformers::GetnetPaymentStatus::Expired => failure!(Failure),
+            transformers::GetnetPaymentStatus::RequiresAction => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Redirect => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Open => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -273,23 +347,23 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Getnet<T>,
     flow: RSync,
     source: transformers::GetnetPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::GetnetPaymentStatus::Cancelled => common_enums::RefundStatus::Success,
-            transformers::GetnetPaymentStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::GetnetPaymentStatus::Approved => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Captured => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Pending => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Waiting => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Authorized => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Denied => common_enums::RefundStatus::Failure,
-            transformers::GetnetPaymentStatus::Error => common_enums::RefundStatus::Failure,
-            transformers::GetnetPaymentStatus::Canceled => common_enums::RefundStatus::Success,
-            transformers::GetnetPaymentStatus::Expired => common_enums::RefundStatus::Failure,
-            transformers::GetnetPaymentStatus::RequiresAction => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Redirect => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Open => common_enums::RefundStatus::Pending,
-            transformers::GetnetPaymentStatus::Unknown => common_enums::RefundStatus::Pending,
+            transformers::GetnetPaymentStatus::Cancelled => success!(Success),
+            transformers::GetnetPaymentStatus::Failed => failure!(Failure),
+            transformers::GetnetPaymentStatus::Approved => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Captured => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Pending => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Waiting => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Authorized => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Denied => failure!(Failure),
+            transformers::GetnetPaymentStatus::Error => failure!(Failure),
+            transformers::GetnetPaymentStatus::Canceled => success!(Success),
+            transformers::GetnetPaymentStatus::Expired => failure!(Failure),
+            transformers::GetnetPaymentStatus::RequiresAction => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Redirect => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Open => non_terminal!(Pending),
+            transformers::GetnetPaymentStatus::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {

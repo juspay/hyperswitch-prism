@@ -675,7 +675,7 @@ fn build_three_ds_objects<T: PaymentMethodDataTypes>(
                         ..Default::default()
                     },
                 }
-            ));
+            ))
         }
     };
 
@@ -766,7 +766,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         ),
                         ..Default::default()
                     },
-                }));
+                }))
             }
         };
 
@@ -838,7 +838,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 order_id: build_order_id(&common.connector_request_reference_id)?,
                 // Currency is deliberately absent: Orbital derives it from the
                 // Merchant ID setup and has no field to receive it.
-                amount: build_amount(request.minor_amount, request.currency)?,
+                amount: build_amount(request.amount.amount, request.currency)?,
                 industry_type: INDUSTRY_TYPE_ECOMMERCE.to_string(),
                 retry_trace: build_retry_trace(&common.connector_request_reference_id),
             },
@@ -1046,71 +1046,6 @@ pub struct JpmorganOrbitalPaymentsResponse {
 /// framework a distinct response type per flow.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JpmorganOrbitalInquiryResponse(pub JpmorganOrbitalPaymentsResponse);
-
-// ── Typed status enums for the flow-status mapping macros ─────────────────
-// The mapping macros cannot express Orbital's raw string protocol (trimmed decimal
-// `procStatus` / `approvalStatus` code pairs), so each flow boils those down to a
-// binary verdict enum, extracted by the functions below from the deserialized
-// response. These are status-mapping views only — `to_outcome` is wired into the
-// flow macros; the TryFrom impls keep reading the raw code pairs.
-
-/// The Authorize (`/payments`) terminal verdict, equivalent to `is_success()`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum JpmorganOrbitalAuthorizeOutcome {
-    /// Gateway edit checks passed (`procStatus "0"`) and the issuer approved
-    /// (`approvalStatus "1"`).
-    Success,
-    /// Every other combination — Orbital `/payments` is synchronous and terminal.
-    Failure,
-}
-
-impl JpmorganOrbitalPaymentsResponse {
-    /// Collapse the two-level `procStatus` / `approvalStatus` verdict into the typed
-    /// status consumed by the Authorize mapping macro.
-    pub fn authorize_outcome(&self) -> JpmorganOrbitalAuthorizeOutcome {
-        if self.is_success() {
-            JpmorganOrbitalAuthorizeOutcome::Success
-        } else {
-            JpmorganOrbitalAuthorizeOutcome::Failure
-        }
-    }
-}
-
-/// The PSync (`/inquiry`) terminal verdict, mirroring the PSync TryFrom's branches.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum JpmorganOrbitalInquiryOutcome {
-    /// The original transaction was found and approved at the issuer.
-    Success,
-    /// The original transaction was found and declined (`procStatus "0"` with a
-    /// non-approved `approvalStatus`) or completed with the one retriable gateway
-    /// failure (`procStatus "9710"`) — terminal for the PSync answer.
-    Failure,
-    /// The inquiry itself did not complete (`procStatus != "0"`: no record for this
-    /// `retryTrace`, past the 48-hour window, or a mismatched reference). Says nothing
-    /// about the payment, so this never terminates (the TryFrom records
-    /// `Unresolved`, a non-terminal status, for it).
-    #[allow(dead_code)]
-    NotFound,
-}
-
-impl JpmorganOrbitalPaymentsResponse {
-    /// Collapse the `/inquiry` verdict per [`JpmorganOrbitalPaymentsResponse`]'s own
-    /// branch structure (`is_success` / `inquiry_failure_status`).
-    pub fn inquiry_outcome(&self) -> JpmorganOrbitalInquiryOutcome {
-        if self.is_success() {
-            JpmorganOrbitalInquiryOutcome::Success
-        } else if self.proc_status_value().map(str::trim) == Some(PROC_STATUS_TIMED_OUT) {
-            // Gateway accepted the inquiry but the original authorization timed out;
-            // like every other resolved-but-failed inquiry this terminates the sync.
-            JpmorganOrbitalInquiryOutcome::Failure
-        } else if self.gateway_accepted() {
-            // Found and declined.
-            JpmorganOrbitalInquiryOutcome::Failure
-        } else {
-            JpmorganOrbitalInquiryOutcome::NotFound
-        }
-    }
-}
 
 impl JpmorganOrbitalPaymentsResponse {
     fn status(&self) -> Option<&JpmorganOrbitalStatus> {
@@ -1450,5 +1385,61 @@ impl TryFrom<ResponseRouterData<JpmorganOrbitalInquiryResponse, Self>> for SyncR
             },
             ..item.router_data
         })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JpmorganOrbitalInquiryOutcome {
+    /// The original transaction was found and approved at the issuer.
+    Success,
+    /// The original transaction was found and declined (`procStatus "0"` with a
+    /// non-approved `approvalStatus`) or completed with the one retriable gateway
+    /// failure (`procStatus "9710"`) — terminal for the PSync answer.
+    Failure,
+    /// The inquiry itself did not complete (`procStatus != "0"`: no record for this
+    /// `retryTrace`, past the 48-hour window, or a mismatched reference). Says nothing
+    /// about the payment, so this never terminates (the TryFrom records
+    /// `Unresolved`, a non-terminal status, for it).
+    #[allow(dead_code)]
+    NotFound,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JpmorganOrbitalAuthorizeOutcome {
+    /// Gateway edit checks passed (`procStatus "0"`) and the issuer approved
+    /// (`approvalStatus "1"`).
+    Success,
+    /// Every other combination — Orbital `/payments` is synchronous and terminal.
+    Failure,
+}
+
+impl JpmorganOrbitalPaymentsResponse {
+    /// Collapse the two-level `procStatus` / `approvalStatus` verdict into the typed
+    /// status consumed by the Authorize mapping macro.
+    pub fn authorize_outcome(&self) -> JpmorganOrbitalAuthorizeOutcome {
+        if self.is_success() {
+            JpmorganOrbitalAuthorizeOutcome::Success
+        } else {
+            JpmorganOrbitalAuthorizeOutcome::Failure
+        }
+    }
+}
+
+impl JpmorganOrbitalPaymentsResponse {
+    /// Collapse the `/inquiry` verdict per [`JpmorganOrbitalPaymentsResponse`]'s own
+    /// branch structure (`is_success` / `inquiry_failure_status`).
+    pub fn inquiry_outcome(&self) -> JpmorganOrbitalInquiryOutcome {
+        if self.is_success() {
+            JpmorganOrbitalInquiryOutcome::Success
+        } else if self.proc_status_value().map(str::trim) == Some(PROC_STATUS_TIMED_OUT) {
+            // Gateway accepted the inquiry but the original authorization timed out;
+            // like every other resolved-but-failed inquiry this terminates the sync.
+            JpmorganOrbitalInquiryOutcome::Failure
+        } else if self.gateway_accepted() {
+            // Found and declined.
+            JpmorganOrbitalInquiryOutcome::Failure
+        } else {
+            JpmorganOrbitalInquiryOutcome::NotFound
+        }
     }
 }

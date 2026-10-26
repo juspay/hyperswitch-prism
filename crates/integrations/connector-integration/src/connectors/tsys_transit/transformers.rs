@@ -1067,7 +1067,9 @@ fn compute_recurring_context(
     payment_meta: Option<&TsysTransitPaymentRequestMetadata>,
 ) -> Result<RecurringContext, Report<IntegrationError>> {
     let (is_recurring_flag, billing_type) = match mit_category.as_ref() {
-        Some(MitCategory::Recurring) => (Some(TsysTransitIsRecurring::Y), None),
+        Some(MitCategory::Recurring | MitCategory::Subscription) => {
+            (Some(TsysTransitIsRecurring::Y), None)
+        }
         Some(MitCategory::Installment) => (
             Some(TsysTransitIsRecurring::Y),
             Some(TsysTransitBillingType::Installment),
@@ -1103,7 +1105,7 @@ fn compute_recurring_context(
 
     let discover_family_mit_indicator = match (mit_category.as_ref(), card_network) {
         (
-            Some(MitCategory::Recurring),
+            Some(MitCategory::Recurring | MitCategory::Subscription),
             Some(CardNetwork::Discover)
             | Some(CardNetwork::JCB)
             | Some(CardNetwork::DinersClub)
@@ -1124,6 +1126,10 @@ fn compute_recurring_context(
                 Some(TsysTransitMcCitStatusIndicator::C102),
                 Some(TsysTransitMitIndicator::M102),
             ),
+            (Some(MitCategory::Subscription), Some(CardNetwork::Mastercard)) => (
+                Some(TsysTransitMcCitStatusIndicator::C103),
+                Some(TsysTransitMitIndicator::M103),
+            ),
             (Some(MitCategory::Installment), Some(CardNetwork::Mastercard)) => (
                 Some(TsysTransitMcCitStatusIndicator::C104),
                 Some(TsysTransitMitIndicator::M104),
@@ -1132,7 +1138,7 @@ fn compute_recurring_context(
         };
     let original_recurring_amount = recurring_data
         .and_then(|d| d.original_payment_authorized_amount.as_ref())
-        .copied();
+        .map(|money| money.amount);
 
     Ok(RecurringContext {
         enabled: true,
@@ -1636,7 +1642,11 @@ fn compute_commercial_card_context<
         .and_then(|items| items.into_iter().collect());
     let shipping_charges = l2_l3_data
         .and_then(|data| data.get_shipping_cost())
-        .or(router_data.request.shipping_cost)
+        .or(router_data
+            .request
+            .shipping_cost
+            .as_ref()
+            .map(|money| money.amount))
         .map(|amount| {
             super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
         })
@@ -1656,7 +1666,11 @@ fn compute_commercial_card_context<
         .filter(|value| !value.is_empty());
     let order_tax_amount = l2_l3_data
         .and_then(|data| data.get_order_tax_amount())
-        .or(router_data.request.order_tax_amount);
+        .or(router_data
+            .request
+            .order_tax_amount
+            .as_ref()
+            .map(|money| money.amount));
     let sales_tax = order_tax_amount
         .map(|amount| {
             super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
@@ -1936,7 +1950,7 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
         PaymentMethodData::Card(card) => Some(card),
         _ => None,
     };
-    let nti_card_opt: Option<&CardDetailsForNetworkTransactionId> =
+    let nti_card_opt: Option<&CardDetailsForNetworkTransactionId<T>> =
         match &router_data.request.payment_method_data {
             PaymentMethodData::CardDetailsForNetworkTransactionId(nti) => Some(nti),
             _ => None,
@@ -1953,7 +1967,7 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
     let card = card_opt;
 
     let transaction_amount = super::TsysTransitAmountConvertor::convert(
-        router_data.request.minor_amount,
+        router_data.request.amount.amount,
         router_data.request.currency,
     )?;
     let surcharge = router_data
@@ -2163,8 +2177,8 @@ fn assemble_authorize_body(
     // citStatusIndicator and mitStatusIndicator are MUTUALLY EXCLUSIVE
     // (TSYS rejects both on one transaction). The cof_phase decides which:
     // MIT → mitStatusIndicator only; CIT-setup / CIT-using-stored → cit only.
-    // Network-specific MC values (M102/M103/M104, C102/C103) come from the
-    // recurring metadata subtype when present, else the generic rule default.
+    // Network-specific MC values (M102/M103/M104, C102/C103/C104) come from
+    // mit_category; the profile rules provide the fallback when the network is absent.
     let (mit_status_indicator, cit_status_indicator) = if profile.cof_phase.is_mit() {
         let mit = recurring_context
             .mit_status_indicator
@@ -2630,9 +2644,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
-                minor_amount_captured,
-                minor_amount_capturable,
+                amount_captured: amount_captured.map(|amount| common_utils::types::Money {
+                    amount,
+                    currency: router_data.request.currency,
+                }),
+                amount_capturable: amount_capturable.map(|amount| common_utils::types::Money {
+                    amount,
+                    currency: router_data.request.currency,
+                }),
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -2643,9 +2662,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // request build and response handling, not connector-side drift.
             request: PaymentsAuthorizeData {
                 integrity_object: Some(AuthoriseIntegrityObject {
-                    amount: minor_amount_captured
-                        .or(minor_amount_capturable)
-                        .unwrap_or(router_data.request.amount),
+                    amount: amount_captured
+                        .or(amount_capturable)
+                        .unwrap_or(router_data.request.amount.amount),
                     currency: router_data.request.currency, // currency is not echoed in Auth/Sale Response TSYS responses
                 }),
                 ..router_data.request.clone()
@@ -2684,7 +2703,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-fn get_payment_status_from_psync_response(
+pub fn get_payment_status_from_psync_response(
     item: &TsysTransitTransactionDetails,
     response_code: Option<String>,
 ) -> AttemptStatus {
@@ -2828,14 +2847,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })
                 .transpose()?;
 
-            let minor_amount_captured = matches!(
+            let amount_captured = matches!(
                 status,
                 AttemptStatus::Charged | AttemptStatus::PartialCharged
             )
             .then(|| transaction_amount)
             .flatten();
-            let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
-            let minor_amount_capturable = matches!(
+            let amount_capturable = matches!(
                 status,
                 AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized
             )
@@ -2845,17 +2863,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
-                    amount_captured,
-                    minor_amount_captured,
-                    minor_amount_capturable,
+                    amount_captured: amount_captured.map(|amount| common_utils::types::Money {
+                        amount,
+                        currency: transaction_details
+                            .currency_code
+                            .unwrap_or(router_data.request.currency),
+                    }),
+                    amount_capturable: amount_capturable.map(|amount| common_utils::types::Money {
+                        amount,
+                        currency: transaction_details
+                            .currency_code
+                            .unwrap_or(router_data.request.currency),
+                    }),
                     ..router_data.resource_common_data.clone()
                 },
                 response: Ok(payments_response_data),
                 request: PaymentsSyncData {
                     integrity_object: Some(PaymentSynIntegrityObject {
-                        amount: minor_amount_captured
-                            .or(minor_amount_capturable)
-                            .unwrap_or(router_data.request.amount),
+                        amount: amount_captured
+                            .or(amount_capturable)
+                            .unwrap_or(router_data.request.amount.amount),
                         currency: transaction_details
                             .currency_code
                             .unwrap_or(router_data.request.currency),
@@ -2901,8 +2928,9 @@ fn compute_capture_sales_tax(
     router_data
         .request
         .order_tax_amount
+        .as_ref()
         .map(|amount| {
-            super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
+            super::TsysTransitAmountConvertor::convert(amount.amount, router_data.request.currency)
         })
         .transpose()
 }
@@ -2928,7 +2956,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let transaction_id = router_data.request.get_connector_transaction_id()?;
 
         let transaction_amount = super::TsysTransitAmountConvertor::convert(
-            router_data.request.minor_amount_to_capture,
+            router_data.request.amount_to_capture.amount,
             router_data.request.currency,
         )?;
         let sales_tax = compute_capture_sales_tax(router_data)?;
@@ -3020,7 +3048,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.currency,
             item.http_code,
         )?;
-        let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_txn_id.clone()),
@@ -3039,8 +3066,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
-                minor_amount_captured,
+                amount_captured: amount_captured.map(|amount| common_utils::types::Money {
+                    amount,
+                    currency: router_data.request.currency,
+                }),
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -3049,8 +3078,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // rationale as Authorize above.
             request: PaymentsCaptureData {
                 integrity_object: Some(CaptureIntegrityObject {
-                    amount_to_capture: minor_amount_captured
-                        .unwrap_or(router_data.request.minor_amount_to_capture),
+                    amount_to_capture: amount_captured
+                        .unwrap_or(router_data.request.amount_to_capture.amount),
                     currency: router_data.request.currency, // currency is not echoed in CaptureResponse TSYS responses
                 }),
                 ..router_data.request.clone()
@@ -3079,7 +3108,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
 
         let transaction_amount = super::TsysTransitAmountConvertor::convert(
-            router_data.request.minor_refund_amount,
+            router_data.request.refund_amount.amount,
             router_data.request.currency,
         )?;
 
@@ -3200,7 +3229,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // echoes the request's own refund amount/currency.
             request: RefundsData {
                 integrity_object: Some(RefundIntegrityObject {
-                    refund_amount: refund_amount.unwrap_or(router_data.request.minor_refund_amount),
+                    refund_amount: refund_amount
+                        .unwrap_or(router_data.request.refund_amount.amount),
                     currency: router_data.request.currency, // Not returned in ReturnResponse, so echo request's own currency
                 }),
                 ..router_data.request.clone()
@@ -3521,7 +3551,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
 
         let transaction_id = router_data.request.connector_transaction_id.clone();
-        let transaction_amount = match (router_data.request.amount, router_data.request.currency) {
+        let transaction_amount = match (
+            router_data
+                .request
+                .amount
+                .as_ref()
+                .map(|money| money.amount),
+            router_data.request.currency,
+        ) {
             (Some(amount), Some(currency)) => Some(super::TsysTransitAmountConvertor::convert(
                 amount, currency,
             )?),
@@ -4014,7 +4051,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // integrity object echoes the request's own amount/currency.
             request: SetupMandateRequestData {
                 integrity_object: Some(SetupMandateIntegrityObject {
-                    amount: router_data.request.minor_amount,
+                    amount: router_data
+                        .request
+                        .amount
+                        .as_ref()
+                        .map(|money| money.amount),
                     currency: router_data.request.currency,
                 }),
                 ..router_data.request.clone()
@@ -4053,7 +4094,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
 
     PaymentsAuthorizeData {
         payment_method_data: req.payment_method_data.clone(),
-        amount: req.minor_amount,
+        amount: req.amount.clone(),
         order_tax_amount: None,
         surcharge_amount: None,
         email: req.email.clone(),
@@ -4085,9 +4126,8 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         authentication_data: req.authentication_data.clone(),
         split_payments: req.split_payments.clone(),
         split_settlement: req.split_settlement.clone(),
-        minor_amount: req.minor_amount,
         merchant_order_id: req.merchant_order_id.clone(),
-        shipping_cost: req.shipping_cost,
+        shipping_cost: req.shipping_cost.clone(),
         merchant_account_id: req.merchant_account_id.as_ref().map(|s| s.peek().clone()),
         integrity_object: None,
         merchant_config_currency: req.merchant_configured_currency,
@@ -4119,6 +4159,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         additional_connector_details: None,
         customer: None,
         business_country: None,
+        enable_avs_check: None,
     }
 }
 
@@ -4237,7 +4278,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.currency,
             item.http_code,
         )?;
-        let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
 
         let amount_capturable = derive_amount_capturable(
             &connector,
@@ -4280,9 +4320,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
-                minor_amount_captured,
-                minor_amount_capturable,
+                amount_captured: amount_captured.map(|amount| common_utils::types::Money {
+                    amount,
+                    currency: router_data.request.currency,
+                }),
+                amount_capturable: amount_capturable.map(|amount| common_utils::types::Money {
+                    amount,
+                    currency: router_data.request.currency,
+                }),
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -4291,7 +4336,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // rationale as Authorize above.
             request: RepeatPaymentData {
                 integrity_object: Some(RepeatPaymentIntegrityObject {
-                    amount: amount_captured.unwrap_or(router_data.request.amount),
+                    amount: amount_captured.unwrap_or(router_data.request.amount.amount),
                     currency: router_data.request.currency, // Not echoed in RepeatPaymentResponse TSYS responses
                     mandate_reference, // Not returned by TSYS, echo the request's own mandate_reference for integrity check.
                 }),

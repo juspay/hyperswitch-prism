@@ -66,19 +66,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Rapyd<T>
 {
 }
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Rapyd<T>,
-    flow:      CreateOrder,
-    statuses:  [Pending, Charged, Failure],
+    flow: CreateOrder,
+    source: RapydCreateOrderResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        match response.data.as_ref().map(|data| data.status.as_str()) {
+            Some("DON") => success!(Charged),
+            Some("EXP" | "DEC") | None => failure!(Failure),
+            _ => non_terminal!(Pending),
+        }
+    },
     runtime: {
-        request:  PaymentCreateOrderData,
+        request: PaymentCreateOrderData,
         response: RapydCreateOrderResponse,
-        status:   |_request, response| match response.data.as_ref().map(|data| data.status.as_str()) {
-            Some("DON") => common_enums::AttemptStatus::Charged,
-            Some("EXP" | "DEC") | None => common_enums::AttemptStatus::Failure,
-            _ => common_enums::AttemptStatus::Pending,
-        },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -88,7 +93,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: transformers::RapydPaymentStatus,
     context: transformers::NextAction,
-    mapping_status: |status, ctx| { use common_enums::AttemptStatus;
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         match (status, ctx) {
             (transformers::RapydPaymentStatus::Closed, _) => AttemptStatus::Charged,
             (transformers::RapydPaymentStatus::Active, transformers::NextAction::ThreedsVerification | transformers::NextAction::PendingConfirmation) => AttemptStatus::AuthenticationPending,
@@ -96,7 +102,34 @@ domain_types::impl_flow_status_mapping! {
             (transformers::RapydPaymentStatus::CanceledByClientOrBank | transformers::RapydPaymentStatus::Expired | transformers::RapydPaymentStatus::ReversedByRapyd, _) => AttemptStatus::Voided,
             (transformers::RapydPaymentStatus::Error, _) => AttemptStatus::Failure,
             (transformers::RapydPaymentStatus::New, _) => AttemptStatus::Authorizing,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: RapydAuthorizeResponse,
@@ -116,7 +149,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: transformers::RapydPaymentStatus,
     context: transformers::NextAction,
-    mapping_status: |status, ctx| { use common_enums::AttemptStatus;
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         match (status, ctx) {
             (transformers::RapydPaymentStatus::Closed, _) => AttemptStatus::Charged,
             (transformers::RapydPaymentStatus::Active, transformers::NextAction::ThreedsVerification | transformers::NextAction::PendingConfirmation) => AttemptStatus::AuthenticationPending,
@@ -124,7 +158,41 @@ domain_types::impl_flow_status_mapping! {
             (transformers::RapydPaymentStatus::CanceledByClientOrBank | transformers::RapydPaymentStatus::Expired | transformers::RapydPaymentStatus::ReversedByRapyd, _) => AttemptStatus::Voided,
             (transformers::RapydPaymentStatus::Error, _) => AttemptStatus::Failure,
             (transformers::RapydPaymentStatus::New, _) => AttemptStatus::Authorizing,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: RapydPSyncResponse,
@@ -144,7 +212,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: transformers::RapydPaymentStatus,
     context: transformers::NextAction,
-    mapping_status: |status, ctx| { use common_enums::AttemptStatus;
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         match (status, ctx) {
             (transformers::RapydPaymentStatus::Closed, _) => AttemptStatus::VoidFailed,
             (transformers::RapydPaymentStatus::Active, transformers::NextAction::ThreedsVerification | transformers::NextAction::PendingConfirmation) => AttemptStatus::Pending,
@@ -152,7 +221,16 @@ domain_types::impl_flow_status_mapping! {
             (transformers::RapydPaymentStatus::CanceledByClientOrBank | transformers::RapydPaymentStatus::Expired | transformers::RapydPaymentStatus::ReversedByRapyd, _) => AttemptStatus::Voided,
             (transformers::RapydPaymentStatus::Error, _) => AttemptStatus::VoidFailed,
             (transformers::RapydPaymentStatus::New, _) => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: RapydVoidResponse,
@@ -171,14 +249,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Rapyd<T>,
     flow: RSync,
     source: transformers::RefundStatus,
-    mapping_status: |status| {
-        match status {
-            transformers::RefundStatus::Completed => common_enums::RefundStatus::Success,
-            transformers::RefundStatus::Error => common_enums::RefundStatus::Failure,
-            transformers::RefundStatus::Rejected => common_enums::RefundStatus::Failure,
-            transformers::RefundStatus::Pending => common_enums::RefundStatus::Pending,
-        }
-    },
+    mapping: |status| { match status {
+            transformers::RefundStatus::Completed => success!(Success),
+            transformers::RefundStatus::Error => failure!(Failure),
+            transformers::RefundStatus::Rejected => failure!(Failure),
+            transformers::RefundStatus::Pending => non_terminal!(Pending),
+        } },
     runtime: {
         request: RefundSyncData,
         response: RapydRSyncResponse,
@@ -194,14 +270,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Rapyd<T>,
     flow: Refund,
     source: transformers::RefundStatus,
-    mapping_status: |status| {
-        match status {
-            transformers::RefundStatus::Completed => common_enums::RefundStatus::Success,
-            transformers::RefundStatus::Error => common_enums::RefundStatus::Failure,
-            transformers::RefundStatus::Rejected => common_enums::RefundStatus::Failure,
-            transformers::RefundStatus::Pending => common_enums::RefundStatus::Pending,
-        }
-    },
+    mapping: |status| { match status {
+            transformers::RefundStatus::Completed => success!(Success),
+            transformers::RefundStatus::Error => failure!(Failure),
+            transformers::RefundStatus::Rejected => failure!(Failure),
+            transformers::RefundStatus::Pending => non_terminal!(Pending),
+        } },
     runtime: {
         request: RefundsData,
         response: RefundResponse,
@@ -218,14 +292,27 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: transformers::RapydPaymentStatus,
     context: transformers::NextAction,
-    mapping_status: |status, ctx| { use common_enums::AttemptStatus;
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         match (status, ctx) {
             (transformers::RapydPaymentStatus::Closed, _) => AttemptStatus::Charged,
             (transformers::RapydPaymentStatus::Active, _) => AttemptStatus::Pending,
             (transformers::RapydPaymentStatus::CanceledByClientOrBank | transformers::RapydPaymentStatus::Expired | transformers::RapydPaymentStatus::ReversedByRapyd, _) => AttemptStatus::CaptureFailed,
             (transformers::RapydPaymentStatus::Error, _) => AttemptStatus::CaptureFailed,
             (transformers::RapydPaymentStatus::New, _) => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: RapydCaptureResponse,
@@ -253,7 +340,8 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: transformers::RapydPaymentStatus,
     context: transformers::NextAction,
-    mapping_status: |status, ctx| { use common_enums::AttemptStatus;
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         match (status, ctx) {
             (transformers::RapydPaymentStatus::Closed, _) => AttemptStatus::Charged,
             (transformers::RapydPaymentStatus::Active, transformers::NextAction::ThreedsVerification | transformers::NextAction::PendingConfirmation) => AttemptStatus::AuthenticationPending,
@@ -261,7 +349,19 @@ domain_types::impl_flow_status_mapping! {
             (transformers::RapydPaymentStatus::CanceledByClientOrBank | transformers::RapydPaymentStatus::Expired | transformers::RapydPaymentStatus::ReversedByRapyd, _) => AttemptStatus::Failure,
             (transformers::RapydPaymentStatus::Error, _) => AttemptStatus::Failure,
             (transformers::RapydPaymentStatus::New, _) => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: SetupMandateRequestData<T>,
         response: RapydSetupMandateResponse,
@@ -281,7 +381,8 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: transformers::RapydPaymentStatus,
     context: transformers::NextAction,
-    mapping_status: |status, ctx| { use common_enums::AttemptStatus;
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         match (status, ctx) {
             (transformers::RapydPaymentStatus::Closed, _) => AttemptStatus::Charged,
             (transformers::RapydPaymentStatus::Active, transformers::NextAction::ThreedsVerification | transformers::NextAction::PendingConfirmation) => AttemptStatus::AuthenticationPending,
@@ -289,7 +390,23 @@ domain_types::impl_flow_status_mapping! {
             (transformers::RapydPaymentStatus::CanceledByClientOrBank | transformers::RapydPaymentStatus::Expired | transformers::RapydPaymentStatus::ReversedByRapyd, _) => AttemptStatus::Failure,
             (transformers::RapydPaymentStatus::Error, _) => AttemptStatus::Failure,
             (transformers::RapydPaymentStatus::New, _) => AttemptStatus::Authorizing,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Authorized => non_terminal!(Authorized),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: RapydRepeatPaymentResponse,

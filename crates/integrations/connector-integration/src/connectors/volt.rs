@@ -3,7 +3,7 @@ pub mod transformers;
 use domain_types::router_data::ConnectorSpecificConfig;
 use std::fmt::Debug;
 
-use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
+use common_enums::{AttemptStatus, CurrencyUnit};
 use common_utils::{consts::NO_ERROR_CODE, errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Authorize, PSync, Refund, ServerAuthenticationToken},
@@ -441,7 +441,35 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: volt::VoltPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { volt::get_attempt_status(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { volt::get_attempt_status(status) })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: VoltPaymentsResponse,
@@ -456,7 +484,42 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: volt::VoltPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { volt::get_attempt_status(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { volt::get_attempt_status(status) })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: VoltPaymentsResponseData,
@@ -480,7 +543,7 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: (),
     context: (),
-    mapping_status: |_source, _ctx| { RefundStatus::Pending },
+    mapping: |_source, _ctx| { non_terminal!(Pending) },
     runtime: {
         request: RefundsData,
         response: RefundResponse,

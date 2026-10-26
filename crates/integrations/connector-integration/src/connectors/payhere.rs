@@ -33,7 +33,7 @@ use super::macros;
 use crate::types::ResponseRouterData;
 use base64::Engine;
 use common_utils::types::StringMajorUnit;
-use transformers::{self as payhere, *};
+use transformers::*;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use crate::with_error_response_body;
@@ -250,7 +250,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -269,15 +268,16 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payhere<T>,
     flow: PSync,
-    source: payhere::PayherePaymentStatus,
+    source: PayherePaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
-            payhere::PayherePaymentStatus::Received
-            | payhere::PayherePaymentStatus::RefundRequested
-            | payhere::PayherePaymentStatus::RefundProcessing
-            | payhere::PayherePaymentStatus::Refunded
-            | payhere::PayherePaymentStatus::Chargebacked => common_enums::AttemptStatus::Charged,
-            payhere::PayherePaymentStatus::Unknown => common_enums::AttemptStatus::Pending,
+    mapping: |status, _ctx| { match status {
+            PayherePaymentStatus::Received
+            | PayherePaymentStatus::RefundRequested
+            | PayherePaymentStatus::RefundProcessing
+            | PayherePaymentStatus::Refunded
+            | PayherePaymentStatus::Chargebacked => success!(Charged),
+            PayherePaymentStatus::Unknown => non_terminal!(Pending),
+            PayherePaymentStatus::RefundFailed => failure!(Failure),
         } },
     runtime: {
         request: PaymentsSyncData,
@@ -288,7 +288,7 @@ domain_types::impl_flow_status_mapping! {
                 .as_ref()
                 .and_then(|payments| payments.first())
                 .map(|payment| payment.status)
-                .unwrap_or(payhere::PayherePaymentStatus::Unknown)
+                .unwrap_or(PayherePaymentStatus::Unknown)
         }) },
         context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },

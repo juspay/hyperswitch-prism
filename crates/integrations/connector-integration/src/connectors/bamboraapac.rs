@@ -65,13 +65,13 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: u8,
     context: bool,
-    mapping_status: |code, manual_capture| {
+    mapping: |code, manual_capture|{
         if code != 0 {
-            common_enums::AttemptStatus::Failure
+            failure!(Failure)
         } else if manual_capture {
-            common_enums::AttemptStatus::Authorized
+            success!(Authorized)
         } else {
-            common_enums::AttemptStatus::Charged
+            success!(Charged)
         }
     },
     runtime: {
@@ -109,13 +109,13 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: u8,
     context: bool,
-    mapping_status: |code, manual_capture| {
+    mapping: |code, manual_capture|{
         if code != 0 {
-            common_enums::AttemptStatus::Failure
+            failure!(Failure)
         } else if manual_capture {
-            common_enums::AttemptStatus::Authorized
+            success!(Authorized)
         } else {
-            common_enums::AttemptStatus::Charged
+            success!(Charged)
         }
     },
     runtime: {
@@ -151,11 +151,11 @@ domain_types::impl_flow_status_mapping! {
     connector: Bamboraapac<T>,
     flow: Capture,
     source: u8,
-    mapping_status: |code| {
+    mapping: |code|{
         if code != 0 {
-            common_enums::AttemptStatus::Failure
+            failure!(Failure)
         } else {
-            common_enums::AttemptStatus::Charged
+            success!(Charged)
         }
     },
     runtime: {
@@ -188,11 +188,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Bamboraapac<T>,
     flow: Refund,
     source: u8,
-    mapping_status: |code| {
+    mapping: |code|{
         if code != 0 {
-            common_enums::RefundStatus::Failure
+            failure!(Failure)
         } else {
-            common_enums::RefundStatus::Success
+            success!(Success)
         }
     },
     runtime: {
@@ -226,11 +226,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Bamboraapac<T>,
     flow: RSync,
     source: u8,
-    mapping_status: |code| {
+    mapping: |code|{
         if code != 0 {
-            common_enums::RefundStatus::Failure
+            failure!(Failure)
         } else {
-            common_enums::RefundStatus::Success
+            success!(Success)
         }
     },
     runtime: {
@@ -263,11 +263,11 @@ domain_types::impl_flow_status_mapping! {
     connector: Bamboraapac<T>,
     flow: SetupMandate,
     source: u8,
-    mapping_status: |code| {
+    mapping: |code|{
         if code != 0 {
-            common_enums::AttemptStatus::Failure
+            failure!(Failure)
         } else {
-            common_enums::AttemptStatus::Charged
+            success!(Charged)
         }
     },
     runtime: {
@@ -301,13 +301,13 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: u8,
     context: bool,
-    mapping_status: |code, manual_capture| {
+    mapping: |code, manual_capture|{
         if code != 0 {
-            common_enums::AttemptStatus::Failure
+            failure!(Failure)
         } else if manual_capture {
-            common_enums::AttemptStatus::Authorized
+            non_terminal!(Authorized)
         } else {
-            common_enums::AttemptStatus::Charged
+            success!(Charged)
         }
     },
     runtime: {

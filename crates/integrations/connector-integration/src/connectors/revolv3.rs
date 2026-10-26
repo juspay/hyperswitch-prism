@@ -548,7 +548,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: Revolv3PaymentsResponse,
     context: (),
-    mapping_status: |response, _ctx| { match response {
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { match response {
             Revolv3PaymentsResponse::Authorize(auth_response) => {
                 if auth_response.payment_method_authorization_id.is_some() {
                     AttemptStatus::Authorized
@@ -559,7 +560,34 @@ domain_types::impl_flow_status_mapping! {
             Revolv3PaymentsResponse::Sale(sale_response) => {
                 AttemptStatus::from(&sale_response.invoice_status)
             }
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: Revolv3PaymentsResponse,
@@ -574,7 +602,42 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: revolv3::InvoiceStatus,
     context: (),
-    mapping_status: |status, _ctx| { AttemptStatus::from(&status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(&status) })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: Revolv3PaymentSyncResponse,
@@ -589,7 +652,20 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: revolv3::InvoiceStatus,
     context: (),
-    mapping_status: |status, _ctx| { AttemptStatus::from(&status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(&status) })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: Revolv3SaleResponse,
@@ -604,7 +680,17 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: (),
     context: (),
-    mapping_status: |_ack, _ctx| { AttemptStatus::Voided },
+    mapping: |_ack, _ctx| {
+        let mapped_status = (|| { AttemptStatus::Voided })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: Revolv3AuthReversalResponse,
@@ -619,11 +705,24 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: (),
     context: Option<i64>,
-    mapping_status: |_ack, payment_method_authorization_id| { if payment_method_authorization_id.is_some() {
+    mapping: |_ack, payment_method_authorization_id| {
+        let mapped_status = (|| { if payment_method_authorization_id.is_some() {
             AttemptStatus::Charged
         } else {
             AttemptStatus::Failure
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: SetupMandateRequestData<T>,
         response: Revolv3AuthorizeResponse,
@@ -638,7 +737,8 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: Revolv3RepeatPaymentResponse,
     context: (),
-    mapping_status: |response, _ctx| { match response {
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { match response {
             Revolv3RepeatPaymentResponse::Authorize(auth_response) => {
                 if auth_response.payment_method_authorization_id.is_some() {
                     AttemptStatus::Authorized
@@ -649,7 +749,23 @@ domain_types::impl_flow_status_mapping! {
             Revolv3RepeatPaymentResponse::Sale(sale_response) => {
                 AttemptStatus::from(&sale_response.invoice_status)
             }
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorized => non_terminal!(Authorized),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: Revolv3RepeatPaymentResponse,
@@ -664,7 +780,17 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: revolv3::RefundInvoiceStatus,
     context: (),
-    mapping_status: |status, _ctx| { RefundStatus::from(&status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { RefundStatus::from(&status) })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: Revolv3RefundResponse,
@@ -679,7 +805,17 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: revolv3::RefundInvoiceStatus,
     context: (),
-    mapping_status: |status, _ctx| { RefundStatus::from(&status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { RefundStatus::from(&status) })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: Revolv3RefundSyncResponse,

@@ -386,10 +386,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hyperswitch<T>,
-    flow: domain_types::connector_flow::PSync,
+    flow: PSync,
     source: hyperswitch::HyperswitchIntentStatus,
     context: bool,
-    mapping_status: |status, ctx| { hyperswitch::map_intent_status(&status, ctx) },
+    mapping: |status, _ctx| {
+        use hyperswitch::HyperswitchIntentStatus as S;
+        match status {
+            S::Succeeded => success!(Charged),
+            S::Failed | S::Conflicted | S::Expired => failure!(Failure),
+            S::Cancelled | S::CancelledPostCapture => success!(Voided),
+            S::Processing | S::PartiallyCapturedAndProcessing | S::RequiresMerchantAction => {
+                non_terminal!(Pending)
+            }
+            S::RequiresCapture | S::PartiallyAuthorizedAndRequiresCapture => success!(Authorized),
+            S::PartiallyCaptured => success!(PartialCharged),
+            S::PartiallyCapturedAndCapturable => non_terminal!(PartialChargedAndChargeable),
+            S::RequiresPaymentMethod => non_terminal!(PaymentMethodAwaited),
+            S::RequiresConfirmation => non_terminal!(ConfirmationAwaited),
+            S::RequiresCustomerAction => non_terminal!(AuthenticationPending),
+            S::Unknown => non_terminal!(Unknown),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: HyperswitchPSyncResponse,
@@ -406,10 +423,28 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Hyperswitch<T>,
-    flow: domain_types::connector_flow::RepeatPayment,
+    flow: RepeatPayment,
     source: hyperswitch::HyperswitchIntentStatus,
     context: bool,
-    mapping_status: |status, ctx| { hyperswitch::map_intent_status(&status, ctx) },
+    mapping: |status, _ctx| {
+        use hyperswitch::HyperswitchIntentStatus as S;
+        match status {
+            S::Succeeded => success!(Charged),
+            S::Failed | S::Conflicted | S::Expired => failure!(Failure),
+            // An MIT payment that comes back cancelled is rejected, not voided.
+            S::Cancelled | S::CancelledPostCapture => failure!(Failure),
+            S::Processing | S::PartiallyCapturedAndProcessing | S::RequiresMerchantAction => {
+                non_terminal!(Pending)
+            }
+            S::RequiresCapture | S::PartiallyAuthorizedAndRequiresCapture => non_terminal!(Authorized),
+            S::PartiallyCaptured => success!(PartialCharged),
+            S::PartiallyCapturedAndCapturable => non_terminal!(PartialChargedAndChargeable),
+            S::RequiresPaymentMethod => failure!(Failure),
+            S::RequiresConfirmation => non_terminal!(Pending),
+            S::RequiresCustomerAction => non_terminal!(AuthenticationPending),
+            S::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: HyperswitchRepeatPaymentResponse,

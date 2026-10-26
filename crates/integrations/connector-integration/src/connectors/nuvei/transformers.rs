@@ -2485,7 +2485,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     "This payment method",
                     "Use a card, network token, bank redirect or ACH payment method",
                 )
-                .into());
+                .into())
             }
         };
 
@@ -6432,4 +6432,12 @@ mod tests {
             "expected InvalidDataFormat, got {error:?}"
         );
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NuveiSyncTransactionType {
+    Auth,
+    Sale,
+    Settle,
+    Other,
 }

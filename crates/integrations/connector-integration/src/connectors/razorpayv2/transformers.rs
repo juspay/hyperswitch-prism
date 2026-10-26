@@ -267,7 +267,7 @@ pub enum RazorpayStatus {
     Failed,
 }
 
-pub(crate) fn get_psync_razorpay_payment_status(razorpay_status: RazorpayStatus) -> AttemptStatus {
+fn get_psync_razorpay_payment_status(razorpay_status: RazorpayStatus) -> AttemptStatus {
     match razorpay_status {
         RazorpayStatus::Created => AttemptStatus::Pending,
         RazorpayStatus::Authorized => AttemptStatus::Authorized,

@@ -74,7 +74,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: etisalat::EtisalatResponseVerdict,
     context: bool,
-    mapping_status: |verdict, is_auto_capture| { use common_enums::AttemptStatus;
+    mapping: |verdict, is_auto_capture| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use etisalat::EtisalatResponseVerdict;
         match verdict {
             EtisalatResponseVerdict::Success => {
@@ -86,7 +87,34 @@ domain_types::impl_flow_status_mapping! {
             }
             EtisalatResponseVerdict::Pending => AttemptStatus::Pending,
             EtisalatResponseVerdict::Failure => AttemptStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: EtisalatResponse,
@@ -125,11 +153,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Etisalat<T>,
     flow: Refund,
     source: etisalat::EtisalatResponseVerdict,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            etisalat::EtisalatResponseVerdict::Success => common_enums::RefundStatus::Success,
-            etisalat::EtisalatResponseVerdict::Failure => common_enums::RefundStatus::Failure,
-            etisalat::EtisalatResponseVerdict::Pending => common_enums::RefundStatus::Pending,
+            etisalat::EtisalatResponseVerdict::Success => success!(Success),
+            etisalat::EtisalatResponseVerdict::Failure => failure!(Failure),
+            etisalat::EtisalatResponseVerdict::Pending => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -150,11 +178,11 @@ domain_types::impl_flow_status_mapping! {
     connector: Etisalat<T>,
     flow: Void,
     source: etisalat::EtisalatResponseVerdict,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            etisalat::EtisalatResponseVerdict::Success => common_enums::AttemptStatus::Voided,
-            etisalat::EtisalatResponseVerdict::Failure => common_enums::AttemptStatus::VoidFailed,
-            etisalat::EtisalatResponseVerdict::Pending => common_enums::AttemptStatus::Pending,
+            etisalat::EtisalatResponseVerdict::Success => success!(Voided),
+            etisalat::EtisalatResponseVerdict::Failure => failure!(VoidFailed),
+            etisalat::EtisalatResponseVerdict::Pending => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -176,11 +204,11 @@ domain_types::impl_flow_status_mapping! {
     connector: Etisalat<T>,
     flow: RepeatPayment,
     source: etisalat::EtisalatResponseVerdict,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            etisalat::EtisalatResponseVerdict::Success => common_enums::AttemptStatus::Charged,
-            etisalat::EtisalatResponseVerdict::Failure => common_enums::AttemptStatus::Failure,
-            etisalat::EtisalatResponseVerdict::Pending => common_enums::AttemptStatus::Pending,
+            etisalat::EtisalatResponseVerdict::Success => success!(Charged),
+            etisalat::EtisalatResponseVerdict::Failure => failure!(Failure),
+            etisalat::EtisalatResponseVerdict::Pending => non_terminal!(Pending),
         }
     },
     runtime: {

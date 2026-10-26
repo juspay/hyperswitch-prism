@@ -284,21 +284,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 // AUTHORIZE — POST /v3/deposits (non-PCI deposit; WebPay "WP" and local bank
 // transfers "SE"/"COD"/"BM"/"STS"/"AF"/"BQL" (MX) and "IX"/"I"/"NU"/"ME" (BR))
 // =============================================================================
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: D24<T>,
     flow: Authorize,
-    statuses: [AuthenticationPending, Pending],
+    source: D24PaymentsResponse,
+    context: (),
+    mapping: |response, _ctx| {
+
+            if response.redirect_url.is_some() {
+                non_terminal!(AuthenticationPending)
+            } else {
+                non_terminal!(Pending)
+            }
+        },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: D24PaymentsResponse,
-        status: |_request, response| {
-            if response.redirect_url.is_some() {
-                common_enums::AttemptStatus::AuthenticationPending
-            } else {
-                common_enums::AttemptStatus::Pending
-            }
-        },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -349,19 +353,18 @@ domain_types::impl_flow_status_mapping! {
     connector: D24<T>,
     flow: PSync,
     source: d24::D24DepositStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            d24::D24DepositStatus::Completed => common_enums::AttemptStatus::Charged,
-            d24::D24DepositStatus::Declined => common_enums::AttemptStatus::Failure,
-            d24::D24DepositStatus::Pending => common_enums::AttemptStatus::Pending,
-            d24::D24DepositStatus::Created => common_enums::AttemptStatus::AuthenticationPending,
-            d24::D24DepositStatus::Cancelled => common_enums::AttemptStatus::Voided,
-            d24::D24DepositStatus::Expired => common_enums::AttemptStatus::Expired,
-            d24::D24DepositStatus::EarlyReleased => common_enums::AttemptStatus::Pending,
-            d24::D24DepositStatus::ForReview => common_enums::AttemptStatus::Pending,
-            d24::D24DepositStatus::Unknown => common_enums::AttemptStatus::Pending,
-        }
-    },
+            d24::D24DepositStatus::Completed => success!(Charged),
+            d24::D24DepositStatus::Declined => failure!(Failure),
+            d24::D24DepositStatus::Pending => non_terminal!(Pending),
+            d24::D24DepositStatus::Created => non_terminal!(AuthenticationPending),
+            d24::D24DepositStatus::Cancelled => success!(Voided),
+            d24::D24DepositStatus::Expired => non_terminal!(Expired),
+            d24::D24DepositStatus::EarlyReleased => non_terminal!(Pending),
+            d24::D24DepositStatus::ForReview => non_terminal!(Pending),
+            d24::D24DepositStatus::Unknown => non_terminal!(Pending),
+        } },
     runtime: {
         request: PaymentsSyncData,
         response: D24SyncResponse,
@@ -445,12 +448,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: D24<T>,
     flow: Refund,
     source: d24::D24RefundResult,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            d24::D24RefundResult::Success => common_enums::RefundStatus::Success,
-            d24::D24RefundResult::Rejected => common_enums::RefundStatus::Failure,
-            d24::D24RefundResult::InProgress => common_enums::RefundStatus::Pending,
-            d24::D24RefundResult::Unknown => common_enums::RefundStatus::Pending,
+            d24::D24RefundResult::Success => success!(Success),
+            d24::D24RefundResult::Rejected => failure!(Failure),
+            d24::D24RefundResult::InProgress => non_terminal!(Pending),
+            d24::D24RefundResult::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -506,15 +509,15 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: D24<T>,
     flow: RSync,
     source: d24::D24RefundSyncStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            d24::D24RefundSyncStatus::Completed => common_enums::RefundStatus::Success,
-            d24::D24RefundSyncStatus::Rejected => common_enums::RefundStatus::Failure,
-            d24::D24RefundSyncStatus::Cancelled => common_enums::RefundStatus::Failure,
-            d24::D24RefundSyncStatus::Pending => common_enums::RefundStatus::Pending,
-            d24::D24RefundSyncStatus::IncorrectDetails => common_enums::RefundStatus::ManualReview,
-            d24::D24RefundSyncStatus::Delivered => common_enums::RefundStatus::Pending,
-            d24::D24RefundSyncStatus::Unknown => common_enums::RefundStatus::Pending,
+            d24::D24RefundSyncStatus::Completed => success!(Success),
+            d24::D24RefundSyncStatus::Rejected => failure!(Failure),
+            d24::D24RefundSyncStatus::Cancelled => failure!(Failure),
+            d24::D24RefundSyncStatus::Pending => non_terminal!(Pending),
+            d24::D24RefundSyncStatus::IncorrectDetails => non_terminal!(ManualReview),
+            d24::D24RefundSyncStatus::Delivered => non_terminal!(Pending),
+            d24::D24RefundSyncStatus::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {

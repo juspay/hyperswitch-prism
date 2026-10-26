@@ -881,18 +881,29 @@ fn get_webhook_object_from_body(
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Novalnet<T>,
-    flow:      Authorize,
-    source:    novalnet::NovalnetTransactionStatus,
-    success:   Confirmed => Charged,
-    failure:   Failure   => Failure,
-    {
-        Success     => Charged,
-        OnHold      => Authorized,
-        Pending     => Pending,
-        Progress    => AuthenticationPending,
-        Deactivated => Voided,
-        Error       => Failure,
-    }
+    flow: Authorize,
+    source: novalnet::NovalnetTransactionStatus,
+    mapping: |status| {
+        match status {
+            novalnet::NovalnetTransactionStatus::Confirmed => success!(Charged),
+            novalnet::NovalnetTransactionStatus::Failure => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Success => success!(Charged),
+            novalnet::NovalnetTransactionStatus::OnHold => success!(Authorized),
+            novalnet::NovalnetTransactionStatus::Pending => non_terminal!(Pending),
+            novalnet::NovalnetTransactionStatus::Progress => non_terminal!(AuthenticationPending),
+            novalnet::NovalnetTransactionStatus::Deactivated => non_terminal!(Voided),
+            novalnet::NovalnetTransactionStatus::Error => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: NovalnetPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response
+            .transaction
+            .as_ref()
+            .and_then(|data| data.status)
+            .unwrap_or(novalnet::NovalnetTransactionStatus::Pending)) },
+    },
 }
 
 // PSync — mirrors the PSync TryFrom (transformers.rs:1484), same
@@ -902,16 +913,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Novalnet<T>,
     flow: PSync,
     source: novalnet::NovalnetTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            novalnet::NovalnetTransactionStatus::Confirmed => common_enums::AttemptStatus::Charged,
-            novalnet::NovalnetTransactionStatus::Failure => common_enums::AttemptStatus::Failure,
-            novalnet::NovalnetTransactionStatus::Success => common_enums::AttemptStatus::Charged,
-            novalnet::NovalnetTransactionStatus::OnHold => common_enums::AttemptStatus::Authorized,
-            novalnet::NovalnetTransactionStatus::Pending => common_enums::AttemptStatus::Pending,
-            novalnet::NovalnetTransactionStatus::Progress => common_enums::AttemptStatus::AuthenticationPending,
-            novalnet::NovalnetTransactionStatus::Deactivated => common_enums::AttemptStatus::Voided,
-            novalnet::NovalnetTransactionStatus::Error => common_enums::AttemptStatus::Failure,
+            novalnet::NovalnetTransactionStatus::Confirmed => success!(Charged),
+            novalnet::NovalnetTransactionStatus::Failure => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Success => success!(Charged),
+            novalnet::NovalnetTransactionStatus::OnHold => success!(Authorized),
+            novalnet::NovalnetTransactionStatus::Pending => non_terminal!(Pending),
+            novalnet::NovalnetTransactionStatus::Progress => non_terminal!(AuthenticationPending),
+            novalnet::NovalnetTransactionStatus::Deactivated => success!(Voided),
+            novalnet::NovalnetTransactionStatus::Error => failure!(Failure),
         }
     },
     runtime: {
@@ -933,16 +944,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Novalnet<T>,
     flow: Capture,
     source: novalnet::NovalnetTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            novalnet::NovalnetTransactionStatus::Confirmed => common_enums::AttemptStatus::Charged,
-            novalnet::NovalnetTransactionStatus::Failure => common_enums::AttemptStatus::CaptureFailed,
-            novalnet::NovalnetTransactionStatus::Success => common_enums::AttemptStatus::Charged,
-            novalnet::NovalnetTransactionStatus::OnHold => common_enums::AttemptStatus::CaptureInitiated,
-            novalnet::NovalnetTransactionStatus::Pending => common_enums::AttemptStatus::Pending,
-            novalnet::NovalnetTransactionStatus::Progress => common_enums::AttemptStatus::CaptureInitiated,
-            novalnet::NovalnetTransactionStatus::Deactivated => common_enums::AttemptStatus::CaptureFailed,
-            novalnet::NovalnetTransactionStatus::Error => common_enums::AttemptStatus::CaptureFailed,
+            novalnet::NovalnetTransactionStatus::Confirmed => success!(Charged),
+            novalnet::NovalnetTransactionStatus::Failure => failure!(CaptureFailed),
+            novalnet::NovalnetTransactionStatus::Success => success!(Charged),
+            novalnet::NovalnetTransactionStatus::OnHold => non_terminal!(CaptureInitiated),
+            novalnet::NovalnetTransactionStatus::Pending => non_terminal!(Pending),
+            novalnet::NovalnetTransactionStatus::Progress => non_terminal!(CaptureInitiated),
+            novalnet::NovalnetTransactionStatus::Deactivated => failure!(CaptureFailed),
+            novalnet::NovalnetTransactionStatus::Error => failure!(CaptureFailed),
         }
     },
     runtime: {
@@ -964,16 +975,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Novalnet<T>,
     flow: Void,
     source: novalnet::NovalnetTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            novalnet::NovalnetTransactionStatus::Deactivated => common_enums::AttemptStatus::Voided,
-            novalnet::NovalnetTransactionStatus::Failure => common_enums::AttemptStatus::VoidFailed,
-            novalnet::NovalnetTransactionStatus::Success => common_enums::AttemptStatus::VoidFailed,
-            novalnet::NovalnetTransactionStatus::Confirmed => common_enums::AttemptStatus::VoidFailed,
-            novalnet::NovalnetTransactionStatus::OnHold => common_enums::AttemptStatus::VoidFailed,
-            novalnet::NovalnetTransactionStatus::Pending => common_enums::AttemptStatus::VoidFailed,
-            novalnet::NovalnetTransactionStatus::Progress => common_enums::AttemptStatus::VoidFailed,
-            novalnet::NovalnetTransactionStatus::Error => common_enums::AttemptStatus::VoidFailed,
+            novalnet::NovalnetTransactionStatus::Deactivated => success!(Voided),
+            novalnet::NovalnetTransactionStatus::Failure => failure!(VoidFailed),
+            novalnet::NovalnetTransactionStatus::Success => failure!(VoidFailed),
+            novalnet::NovalnetTransactionStatus::Confirmed => failure!(VoidFailed),
+            novalnet::NovalnetTransactionStatus::OnHold => failure!(VoidFailed),
+            novalnet::NovalnetTransactionStatus::Pending => failure!(VoidFailed),
+            novalnet::NovalnetTransactionStatus::Progress => failure!(VoidFailed),
+            novalnet::NovalnetTransactionStatus::Error => failure!(VoidFailed),
         }
     },
     runtime: {
@@ -994,18 +1005,29 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Novalnet<T>,
-    flow:      SetupMandate,
-    source:    novalnet::NovalnetTransactionStatus,
-    success:   Confirmed => Charged,
-    failure:   Failure   => Failure,
-    {
-        Success     => Charged,
-        OnHold      => Charged,
-        Pending     => Pending,
-        Progress    => AuthenticationPending,
-        Deactivated => Failure,
-        Error       => Failure,
-    }
+    flow: SetupMandate,
+    source: novalnet::NovalnetTransactionStatus,
+    mapping: |status| {
+        match status {
+            novalnet::NovalnetTransactionStatus::Confirmed => success!(Charged),
+            novalnet::NovalnetTransactionStatus::Success => success!(Charged),
+            novalnet::NovalnetTransactionStatus::OnHold => success!(Charged),
+            novalnet::NovalnetTransactionStatus::Failure => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Deactivated => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Error => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Pending => non_terminal!(Pending),
+            novalnet::NovalnetTransactionStatus::Progress => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: NovalnetPaymentsResponseMandate,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response
+            .transaction
+            .as_ref()
+            .and_then(|data| data.status)
+            .unwrap_or(novalnet::NovalnetTransactionStatus::Pending)) },
+    },
 }
 
 // NOTE: no extractors — the RepeatPayment TryFrom (transformers.rs:953) shares the
@@ -1015,18 +1037,29 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Novalnet<T>,
-    flow:      RepeatPayment,
-    source:    novalnet::NovalnetTransactionStatus,
-    success:   Confirmed => Charged,
-    failure:   Failure   => Failure,
-    {
-        Success     => Charged,
-        OnHold      => Authorized,
-        Pending     => Pending,
-        Progress    => AuthenticationPending,
-        Deactivated => Failure,
-        Error       => Failure,
-    }
+    flow: RepeatPayment,
+    source: novalnet::NovalnetTransactionStatus,
+    mapping: |status| {
+        match status {
+            novalnet::NovalnetTransactionStatus::Confirmed => success!(Charged),
+            novalnet::NovalnetTransactionStatus::Success => success!(Charged),
+            novalnet::NovalnetTransactionStatus::Failure => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Deactivated => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Error => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::OnHold => non_terminal!(Authorized),
+            novalnet::NovalnetTransactionStatus::Pending => non_terminal!(Pending),
+            novalnet::NovalnetTransactionStatus::Progress => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: NovalnetRepeatPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response
+            .transaction
+            .as_ref()
+            .and_then(|data| data.status)
+            .unwrap_or(novalnet::NovalnetTransactionStatus::Pending)) },
+    },
 }
 
 // NOTE: no extractors — the IncrementalAuthorization TryFrom (transformers.rs:2725)
@@ -1036,18 +1069,29 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Novalnet<T>,
-    flow:      IncrementalAuthorization,
-    source:    novalnet::NovalnetTransactionStatus,
-    success:   OnHold => Authorized,
-    failure:   Failure => Failure,
-    {
-        Success     => Charged,
-        Confirmed   => Charged,
-        Pending     => Pending,
-        Progress    => AuthenticationPending,
-        Deactivated => Voided,
-        Error       => Failure,
-    }
+    flow: IncrementalAuthorization,
+    source: novalnet::NovalnetTransactionStatus,
+    mapping: |status| {
+        match status {
+            novalnet::NovalnetTransactionStatus::OnHold => success!(Authorized),
+            novalnet::NovalnetTransactionStatus::Success => success!(Charged),
+            novalnet::NovalnetTransactionStatus::Confirmed => success!(Charged),
+            novalnet::NovalnetTransactionStatus::Failure => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Error => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Pending => non_terminal!(Pending),
+            novalnet::NovalnetTransactionStatus::Progress => non_terminal!(AuthenticationPending),
+            novalnet::NovalnetTransactionStatus::Deactivated => non_terminal!(Voided),
+        }
+    },
+    runtime: {
+        request: PaymentsIncrementalAuthorizationData,
+        response: NovalnetIncrementalAuthResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response
+            .transaction
+            .as_ref()
+            .and_then(|data| data.status)
+            .unwrap_or(novalnet::NovalnetTransactionStatus::Pending)) },
+    },
 }
 
 // Refund — mirrors `From<NovalnetTransactionStatus> for RefundStatus`
@@ -1058,16 +1102,16 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Novalnet<T>,
     flow: Refund,
     source: novalnet::NovalnetTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            novalnet::NovalnetTransactionStatus::Confirmed => common_enums::RefundStatus::Success,
-            novalnet::NovalnetTransactionStatus::Failure => common_enums::RefundStatus::Failure,
-            novalnet::NovalnetTransactionStatus::Success => common_enums::RefundStatus::Success,
-            novalnet::NovalnetTransactionStatus::Pending => common_enums::RefundStatus::Pending,
-            novalnet::NovalnetTransactionStatus::OnHold => common_enums::RefundStatus::Failure,
-            novalnet::NovalnetTransactionStatus::Deactivated => common_enums::RefundStatus::Failure,
-            novalnet::NovalnetTransactionStatus::Progress => common_enums::RefundStatus::Failure,
-            novalnet::NovalnetTransactionStatus::Error => common_enums::RefundStatus::Failure,
+            novalnet::NovalnetTransactionStatus::Confirmed => success!(Success),
+            novalnet::NovalnetTransactionStatus::Failure => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Success => success!(Success),
+            novalnet::NovalnetTransactionStatus::Pending => non_terminal!(Pending),
+            novalnet::NovalnetTransactionStatus::OnHold => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Deactivated => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Progress => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Error => failure!(Failure),
         }
     },
     runtime: {
@@ -1088,16 +1132,16 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Novalnet<T>,
     flow: RSync,
     source: novalnet::NovalnetTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            novalnet::NovalnetTransactionStatus::Confirmed => common_enums::RefundStatus::Success,
-            novalnet::NovalnetTransactionStatus::Failure => common_enums::RefundStatus::Failure,
-            novalnet::NovalnetTransactionStatus::Success => common_enums::RefundStatus::Success,
-            novalnet::NovalnetTransactionStatus::Pending => common_enums::RefundStatus::Pending,
-            novalnet::NovalnetTransactionStatus::OnHold => common_enums::RefundStatus::Failure,
-            novalnet::NovalnetTransactionStatus::Deactivated => common_enums::RefundStatus::Failure,
-            novalnet::NovalnetTransactionStatus::Progress => common_enums::RefundStatus::Failure,
-            novalnet::NovalnetTransactionStatus::Error => common_enums::RefundStatus::Failure,
+            novalnet::NovalnetTransactionStatus::Confirmed => success!(Success),
+            novalnet::NovalnetTransactionStatus::Failure => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Success => success!(Success),
+            novalnet::NovalnetTransactionStatus::Pending => non_terminal!(Pending),
+            novalnet::NovalnetTransactionStatus::OnHold => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Deactivated => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Progress => failure!(Failure),
+            novalnet::NovalnetTransactionStatus::Error => failure!(Failure),
         }
     },
     runtime: {

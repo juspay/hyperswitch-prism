@@ -62,17 +62,17 @@ domain_types::impl_flow_status_mapping! {
     connector: Hyperpg<T>,
     flow: Authorize,
     source: transformers::HyperpgPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::HyperpgPaymentStatus::Charged => common_enums::AttemptStatus::Charged,
-            transformers::HyperpgPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::HyperpgPaymentStatus::New => common_enums::AttemptStatus::Pending,
-            transformers::HyperpgPaymentStatus::Authorizing => common_enums::AttemptStatus::Pending,
-            transformers::HyperpgPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            transformers::HyperpgPaymentStatus::PendingVbv => common_enums::AttemptStatus::Pending,
-            transformers::HyperpgPaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
-            transformers::HyperpgPaymentStatus::AuthorizationFailed => common_enums::AttemptStatus::AuthorizationFailed,
-            transformers::HyperpgPaymentStatus::AuthenticationFailed => common_enums::AttemptStatus::AuthenticationFailed,
+            transformers::HyperpgPaymentStatus::Charged => success!(Charged),
+            transformers::HyperpgPaymentStatus::Failed => failure!(Failure),
+            transformers::HyperpgPaymentStatus::New => non_terminal!(Pending),
+            transformers::HyperpgPaymentStatus::Authorizing => non_terminal!(Pending),
+            transformers::HyperpgPaymentStatus::Pending => non_terminal!(Pending),
+            transformers::HyperpgPaymentStatus::PendingVbv => non_terminal!(Pending),
+            transformers::HyperpgPaymentStatus::Cancelled => non_terminal!(Voided),
+            transformers::HyperpgPaymentStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            transformers::HyperpgPaymentStatus::AuthenticationFailed => failure!(AuthenticationFailed),
         }
     },
     runtime: {
@@ -91,17 +91,17 @@ domain_types::impl_flow_status_mapping! {
     connector: Hyperpg<T>,
     flow: PSync,
     source: transformers::HyperpgPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::HyperpgPaymentStatus::Charged => common_enums::AttemptStatus::Charged,
-            transformers::HyperpgPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::HyperpgPaymentStatus::New => common_enums::AttemptStatus::Pending,
-            transformers::HyperpgPaymentStatus::Authorizing => common_enums::AttemptStatus::Pending,
-            transformers::HyperpgPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            transformers::HyperpgPaymentStatus::PendingVbv => common_enums::AttemptStatus::Pending,
-            transformers::HyperpgPaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
-            transformers::HyperpgPaymentStatus::AuthorizationFailed => common_enums::AttemptStatus::AuthorizationFailed,
-            transformers::HyperpgPaymentStatus::AuthenticationFailed => common_enums::AttemptStatus::AuthenticationFailed,
+            transformers::HyperpgPaymentStatus::Charged => success!(Charged),
+            transformers::HyperpgPaymentStatus::Failed => failure!(Failure),
+            transformers::HyperpgPaymentStatus::New => non_terminal!(Pending),
+            transformers::HyperpgPaymentStatus::Authorizing => non_terminal!(Pending),
+            transformers::HyperpgPaymentStatus::Pending => non_terminal!(Pending),
+            transformers::HyperpgPaymentStatus::PendingVbv => non_terminal!(Pending),
+            transformers::HyperpgPaymentStatus::Cancelled => success!(Voided),
+            transformers::HyperpgPaymentStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            transformers::HyperpgPaymentStatus::AuthenticationFailed => failure!(AuthenticationFailed),
         }
     },
     runtime: {
@@ -120,11 +120,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Hyperpg<T>,
     flow: Refund,
     source: transformers::HyperpgRefundStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::HyperpgRefundStatus::Success => common_enums::RefundStatus::Success,
-            transformers::HyperpgRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::HyperpgRefundStatus::Pending => common_enums::RefundStatus::Pending,
+            transformers::HyperpgRefundStatus::Success => success!(Success),
+            transformers::HyperpgRefundStatus::Failed => failure!(Failure),
+            transformers::HyperpgRefundStatus::Pending => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -144,7 +144,17 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: Option<transformers::HyperpgRefundStatus>,
     context: common_enums::RefundStatus,
-    mapping_status: |status, previous_status| { status.as_ref().map(common_enums::RefundStatus::from).unwrap_or(previous_status) },
+    mapping: |status, previous_status| {
+        let mapped_status = (|| { status.as_ref().map(common_enums::RefundStatus::from).unwrap_or(previous_status) })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: HyperpgRefundSyncResponse,

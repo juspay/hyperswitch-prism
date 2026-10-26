@@ -74,7 +74,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: helcim::HelcimPaymentStatus,
     context: helcim::HelcimTransactionType,
-    mapping_status: |status, transaction_type| { use common_enums::AttemptStatus;
+    mapping: |status, transaction_type| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use helcim::{HelcimPaymentStatus, HelcimTransactionType};
         match (transaction_type, status) {
             (HelcimTransactionType::Purchase | HelcimTransactionType::Verify, HelcimPaymentStatus::Approved) => {
@@ -97,7 +98,34 @@ domain_types::impl_flow_status_mapping! {
             (HelcimTransactionType::Reverse, HelcimPaymentStatus::Declined) => {
                 AttemptStatus::VoidFailed
             }
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: HelcimPaymentsResponse,
@@ -118,7 +146,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: helcim::HelcimPaymentStatus,
     context: helcim::HelcimTransactionType,
-    mapping_status: |status, transaction_type| { use common_enums::AttemptStatus;
+    mapping: |status, transaction_type| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use helcim::{HelcimPaymentStatus, HelcimTransactionType};
         match (transaction_type, status) {
             (HelcimTransactionType::Purchase | HelcimTransactionType::Verify, HelcimPaymentStatus::Approved) => {
@@ -141,7 +170,41 @@ domain_types::impl_flow_status_mapping! {
             (HelcimTransactionType::Reverse, HelcimPaymentStatus::Declined) => {
                 AttemptStatus::VoidFailed
             }
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: HelcimPaymentsSyncResponse,
@@ -162,7 +225,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: helcim::HelcimPaymentStatus,
     context: helcim::HelcimTransactionType,
-    mapping_status: |status, transaction_type| { use common_enums::AttemptStatus;
+    mapping: |status, transaction_type| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use helcim::{HelcimPaymentStatus, HelcimTransactionType};
         match (transaction_type, status) {
             (HelcimTransactionType::Purchase | HelcimTransactionType::Verify, HelcimPaymentStatus::Approved) => {
@@ -185,7 +249,16 @@ domain_types::impl_flow_status_mapping! {
             (HelcimTransactionType::Reverse, HelcimPaymentStatus::Declined) => {
                 AttemptStatus::VoidFailed
             }
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: HelcimPaymentsVoidResponse,
@@ -207,10 +280,10 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Helcim<T>,
     flow: Refund,
     source: helcim::HelcimPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            helcim::HelcimPaymentStatus::Approved => common_enums::RefundStatus::Success,
-            helcim::HelcimPaymentStatus::Declined => common_enums::RefundStatus::Failure,
+            helcim::HelcimPaymentStatus::Approved => success!(Success),
+            helcim::HelcimPaymentStatus::Declined => failure!(Failure),
         }
     },
     runtime: {
@@ -231,10 +304,10 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Helcim<T>,
     flow: RSync,
     source: helcim::HelcimPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            helcim::HelcimPaymentStatus::Approved => common_enums::RefundStatus::Success,
-            helcim::HelcimPaymentStatus::Declined => common_enums::RefundStatus::Failure,
+            helcim::HelcimPaymentStatus::Approved => success!(Success),
+            helcim::HelcimPaymentStatus::Declined => failure!(Failure),
         }
     },
     runtime: {
@@ -256,7 +329,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: helcim::HelcimPaymentStatus,
     context: helcim::HelcimTransactionType,
-    mapping_status: |status, transaction_type| { use common_enums::AttemptStatus;
+    mapping: |status, transaction_type| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use helcim::{HelcimPaymentStatus, HelcimTransactionType};
         match (transaction_type, status) {
             (HelcimTransactionType::Purchase | HelcimTransactionType::Verify, HelcimPaymentStatus::Approved) => {
@@ -279,7 +353,19 @@ domain_types::impl_flow_status_mapping! {
             (HelcimTransactionType::Reverse, HelcimPaymentStatus::Declined) => {
                 AttemptStatus::VoidFailed
             }
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: HelcimPaymentsCaptureResponse,

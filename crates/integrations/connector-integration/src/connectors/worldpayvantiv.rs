@@ -909,7 +909,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: Option<WorldpayvantivResponseCode>,
     context: transformers::WorldpayvantivPaymentFlow,
-    mapping_status: |code, flow| { match code {
+    mapping: |code, flow| {
+        let mapped_status = (|| { match code {
             None => AttemptStatus::Failure,
             Some(WorldpayvantivResponseCode::Approved)
             | Some(WorldpayvantivResponseCode::PartiallyApproved)
@@ -922,7 +923,34 @@ domain_types::impl_flow_status_mapping! {
                 transformers::WorldpayvantivPaymentFlow::Sale => AttemptStatus::Failure,
                 _ => AttemptStatus::AuthorizationFailed,
             },
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: CnpOnlineResponse,
@@ -952,7 +980,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: Option<WorldpayvantivResponseCode>,
     context: (),
-    mapping_status: |code, _ctx| { match code {
+    mapping: |code, _ctx| {
+        let mapped_status = (|| { match code {
             None => AttemptStatus::CaptureFailed,
             Some(WorldpayvantivResponseCode::Approved)
             | Some(WorldpayvantivResponseCode::PartiallyApproved)
@@ -961,7 +990,19 @@ domain_types::impl_flow_status_mapping! {
                 AttemptStatus::CaptureInitiated
             }
             Some(_) => AttemptStatus::CaptureFailed,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: CnpOnlineResponse,
@@ -979,7 +1020,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: Option<WorldpayvantivResponseCode>,
     context: (),
-    mapping_status: |code, _ctx| { match code {
+    mapping: |code, _ctx| {
+        let mapped_status = (|| { match code {
             None => AttemptStatus::VoidFailed,
             Some(WorldpayvantivResponseCode::Approved)
             | Some(WorldpayvantivResponseCode::PartiallyApproved)
@@ -988,7 +1030,16 @@ domain_types::impl_flow_status_mapping! {
                 AttemptStatus::VoidInitiated
             }
             Some(_) => AttemptStatus::VoidFailed,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: CnpOnlineResponse,
@@ -1007,7 +1058,8 @@ domain_types::impl_flow_status_mapping! {
     flow: VoidPC,
     source: Option<WorldpayvantivResponseCode>,
     context: (),
-    mapping_status: |code, _ctx| { match code {
+    mapping: |code, _ctx| {
+        let mapped_status = (|| { match code {
             None => AttemptStatus::VoidFailed,
             Some(WorldpayvantivResponseCode::Approved)
             | Some(WorldpayvantivResponseCode::PartiallyApproved)
@@ -1016,7 +1068,15 @@ domain_types::impl_flow_status_mapping! {
                 AttemptStatus::VoidPostCaptureInitiated
             }
             Some(_) => AttemptStatus::VoidFailed,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCancelPostCaptureData,
         response: CnpOnlineResponse,
@@ -1034,7 +1094,8 @@ domain_types::impl_flow_status_mapping! {
     flow: IncrementalAuthorization,
     source: Option<WorldpayvantivResponseCode>,
     context: (),
-    mapping_status: |code, _ctx| { match code {
+    mapping: |code, _ctx| {
+        let mapped_status = (|| { match code {
             None => AttemptStatus::AuthorizationFailed,
             Some(WorldpayvantivResponseCode::Approved)
             | Some(WorldpayvantivResponseCode::PartiallyApproved)
@@ -1043,7 +1104,21 @@ domain_types::impl_flow_status_mapping! {
                 AttemptStatus::Authorizing
             }
             Some(_) => AttemptStatus::AuthorizationFailed,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsIncrementalAuthorizationData,
         response: CnpOnlineResponse,
@@ -1061,12 +1136,22 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: Option<WorldpayvantivResponseCode>,
     context: (),
-    mapping_status: |code, _ctx| { match code {
+    mapping: |code, _ctx| {
+        let mapped_status = (|| { match code {
             None => RefundStatus::Failure,
             Some(WorldpayvantivResponseCode::Approved)
             | Some(WorldpayvantivResponseCode::TransactionReceived) => RefundStatus::Pending,
             Some(_) => RefundStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: CnpOnlineResponse,
@@ -1084,7 +1169,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: transformers::PaymentStatus,
     context: Option<String>,
-    mapping_status: |payment_status, merchant_txn_id| { // Mirrors determine_attempt_status_for_psync: the flow leg is read off the
+    mapping: |payment_status, merchant_txn_id| {
+        let mapped_status = (|| { // Mirrors determine_attempt_status_for_psync: the flow leg is read off the
         // merchant transaction id; without it, the TryFrom's simple fallback applies.
         let flow_type = merchant_txn_id.map(|id| {
             let lower = id.to_lowercase();
@@ -1120,7 +1206,41 @@ domain_types::impl_flow_status_mapping! {
             // NotYetProcessed / StatusUnavailable / PaymentStatusNotFound retain the
             // current status in the TryFrom, which the mapping cannot observe.
             _ => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: VantivSyncResponse,
@@ -1156,12 +1276,22 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: transformers::PaymentStatus,
     context: (),
-    mapping_status: |payment_status, _ctx| { match payment_status {
+    mapping: |payment_status, _ctx| {
+        let mapped_status = (|| { match payment_status {
             transformers::PaymentStatus::ProcessedSuccessfully => RefundStatus::Success,
             transformers::PaymentStatus::TransactionDeclined => RefundStatus::Failure,
             // The TryFrom retains the current refund status for other statuses.
             _ => RefundStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: VantivSyncResponse,

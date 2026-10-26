@@ -62,44 +62,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Airwallex<T>,
     flow: CreateOrder,
-    statuses: [
-        PaymentMethodAwaited,
-        AuthenticationPending,
-        Pending,
-        Charged,
-        Failure,
-        Voided,
-        Authorized,
-    ],
-    runtime: {
-        request: PaymentCreateOrderData,
-        response: AirwallexIntentResponse,
-        status: |_request, response| match response.status {
-            airwallex::AirwallexPaymentStatus::RequiresPaymentMethod => {
-                common_enums::AttemptStatus::PaymentMethodAwaited
-            }
+    source: airwallex::AirwallexPaymentStatus,
+    context: (),
+    mapping: |status, _ctx| {
+        match status {
             airwallex::AirwallexPaymentStatus::RequiresCustomerAction => {
-                common_enums::AttemptStatus::AuthenticationPending
+                non_terminal!(AuthenticationPending)
             }
-            airwallex::AirwallexPaymentStatus::Processing
-            | airwallex::AirwallexPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
+            airwallex::AirwallexPaymentStatus::RequiresPaymentMethod
+            | airwallex::AirwallexPaymentStatus::Processing
+            | airwallex::AirwallexPaymentStatus::Pending => non_terminal!(Pending),
             airwallex::AirwallexPaymentStatus::Succeeded
             | airwallex::AirwallexPaymentStatus::Settled
             | airwallex::AirwallexPaymentStatus::Paid
-            | airwallex::AirwallexPaymentStatus::CaptureRequested => {
-                common_enums::AttemptStatus::Charged
-            }
-            airwallex::AirwallexPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            airwallex::AirwallexPaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
+            | airwallex::AirwallexPaymentStatus::CaptureRequested => success!(Charged),
             airwallex::AirwallexPaymentStatus::RequiresCapture
-            | airwallex::AirwallexPaymentStatus::Authorized => {
-                common_enums::AttemptStatus::Authorized
-            }
-        },
+            | airwallex::AirwallexPaymentStatus::Authorized => success!(Authorized),
+            airwallex::AirwallexPaymentStatus::Failed
+            | airwallex::AirwallexPaymentStatus::Cancelled => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentCreateOrderData,
+        response: AirwallexIntentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -114,7 +105,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: transformers::AirwallexPaymentStatus,
     context: Option<transformers::AirwallexNextActionType>,
-    mapping_status: |status, next_action| { use common_enums::AttemptStatus;
+    mapping: |status, next_action| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use transformers::{AirwallexNextActionType, AirwallexPaymentStatus};
         match status {
             AirwallexPaymentStatus::Succeeded
@@ -138,7 +130,34 @@ domain_types::impl_flow_status_mapping! {
                 AttemptStatus::Authorized
             }
             AirwallexPaymentStatus::Cancelled => AttemptStatus::Voided,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: AirwallexPaymentsResponse,
@@ -157,7 +176,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: transformers::AirwallexPaymentStatus,
     context: Option<transformers::AirwallexNextActionType>,
-    mapping_status: |status, next_action| { use common_enums::AttemptStatus;
+    mapping: |status, next_action| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use transformers::{AirwallexNextActionType, AirwallexPaymentStatus};
         match status {
             AirwallexPaymentStatus::Succeeded
@@ -181,7 +201,41 @@ domain_types::impl_flow_status_mapping! {
                 AttemptStatus::Authorized
             }
             AirwallexPaymentStatus::Cancelled => AttemptStatus::Voided,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: AirwallexSyncResponse,
@@ -206,7 +260,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: transformers::AirwallexPaymentStatus,
     context: Option<transformers::AirwallexNextActionType>,
-    mapping_status: |status, next_action| { use common_enums::AttemptStatus;
+    mapping: |status, next_action| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use transformers::AirwallexPaymentStatus;
         let _ = next_action;
         match status {
@@ -224,7 +279,16 @@ domain_types::impl_flow_status_mapping! {
             | AirwallexPaymentStatus::CaptureRequested
             | AirwallexPaymentStatus::Settled
             | AirwallexPaymentStatus::Failed => AttemptStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: AirwallexVoidResponse,
@@ -243,7 +307,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: transformers::AirwallexPaymentStatus,
     context: Option<transformers::AirwallexNextActionType>,
-    mapping_status: |status, next_action| { use common_enums::AttemptStatus;
+    mapping: |status, next_action| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use transformers::AirwallexPaymentStatus;
         let _ = next_action;
         match status {
@@ -263,7 +328,19 @@ domain_types::impl_flow_status_mapping! {
             | AirwallexPaymentStatus::Authorized
             | AirwallexPaymentStatus::Processing
             | AirwallexPaymentStatus::Pending => AttemptStatus::CaptureInitiated,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: AirwallexCaptureResponse,
@@ -283,12 +360,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Airwallex<T>,
     flow: Refund,
     source: transformers::AirwallexRefundStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::AirwallexRefundStatus::Settled => common_enums::RefundStatus::Success,
-            transformers::AirwallexRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::AirwallexRefundStatus::Received => common_enums::RefundStatus::Pending,
-            transformers::AirwallexRefundStatus::Accepted => common_enums::RefundStatus::Pending,
+            transformers::AirwallexRefundStatus::Settled => success!(Success),
+            transformers::AirwallexRefundStatus::Failed => failure!(Failure),
+            transformers::AirwallexRefundStatus::Received => non_terminal!(Pending),
+            transformers::AirwallexRefundStatus::Accepted => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -309,12 +386,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Airwallex<T>,
     flow: RSync,
     source: transformers::AirwallexRefundStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::AirwallexRefundStatus::Settled => common_enums::RefundStatus::Success,
-            transformers::AirwallexRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::AirwallexRefundStatus::Received => common_enums::RefundStatus::Pending,
-            transformers::AirwallexRefundStatus::Accepted => common_enums::RefundStatus::Pending,
+            transformers::AirwallexRefundStatus::Settled => success!(Success),
+            transformers::AirwallexRefundStatus::Failed => failure!(Failure),
+            transformers::AirwallexRefundStatus::Received => non_terminal!(Pending),
+            transformers::AirwallexRefundStatus::Accepted => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -336,7 +413,8 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: transformers::AirwallexPaymentStatus,
     context: Option<transformers::AirwallexNextActionType>,
-    mapping_status: |status, next_action| { use common_enums::AttemptStatus;
+    mapping: |status, next_action| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use transformers::{AirwallexNextActionType, AirwallexPaymentStatus};
         match status {
             AirwallexPaymentStatus::Succeeded
@@ -357,7 +435,19 @@ domain_types::impl_flow_status_mapping! {
                 | Some(AirwallexNextActionType::Other)
                 | None => AttemptStatus::AuthenticationPending,
             },
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: SetupMandateRequestData<T>,
         response: AirwallexSetupMandateResponse,
@@ -376,7 +466,8 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: transformers::AirwallexPaymentStatus,
     context: Option<transformers::AirwallexNextActionType>,
-    mapping_status: |status, next_action| { use common_enums::AttemptStatus;
+    mapping: |status, next_action| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use transformers::{AirwallexNextActionType, AirwallexPaymentStatus};
         match status {
             AirwallexPaymentStatus::Succeeded
@@ -398,7 +489,23 @@ domain_types::impl_flow_status_mapping! {
             AirwallexPaymentStatus::RequiresCapture | AirwallexPaymentStatus::Authorized => {
                 AttemptStatus::Authorized
             }
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Authorized => non_terminal!(Authorized),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: AirwallexRepeatPaymentResponse,

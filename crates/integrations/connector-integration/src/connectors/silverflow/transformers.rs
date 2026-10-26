@@ -130,7 +130,7 @@ pub enum SilverflowClearingStatus {
     Unknown,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SilverflowActionStatus {
     Completed,
@@ -278,7 +278,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 order: SilverflowOrderType::Checkout,
             },
             amount: SilverflowAmount {
-                value: router_data.request.minor_amount,
+                value: router_data.request.amount.amount,
                 currency: router_data.request.currency,
             },
             clearing_mode: match router_data.request.capture_method {
@@ -310,25 +310,25 @@ pub struct SilverflowPaymentsResponse {
     pub version: Option<i32>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SilverflowMerchantAcceptorRef {
     pub key: String,
     pub version: i32,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowCardResponse {
     pub masked_number: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SilverflowAmountResponse {
     pub value: MinorUnit,
     pub currency: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowPaymentTypeResponse {
     pub intent: String,
@@ -336,21 +336,21 @@ pub struct SilverflowPaymentTypeResponse {
     pub order: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SilverflowStatus {
     pub authentication: String,
     pub authorization: SilverflowAuthorizationStatus,
     pub clearing: SilverflowClearingStatus,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SilverflowAuthentication {
     pub sca: Option<SilverflowSca>,
     pub cvc: Option<String>,
     pub avs: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowSca {
     pub compliance: String,
@@ -358,7 +358,7 @@ pub struct SilverflowSca {
     pub method: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowAuthorizationIsoFields {
     pub response_code: String,
@@ -371,7 +371,7 @@ pub struct SilverflowAuthorizationIsoFields {
     pub network_specific_fields: Option<SilverflowNetworkSpecificFields>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowNetworkSpecificFields {
     pub transaction_identifier: Option<String>,
@@ -583,7 +583,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         // Use the capture amount for partial capture, omit for full capture
-        let amount = Some(router_data.request.minor_amount_to_capture);
+        let amount = Some(router_data.request.amount_to_capture.amount);
 
         // Get connector transaction ID string for reference
         let reference = Some(
@@ -681,7 +681,7 @@ pub struct SilverflowAuthorizationResponse {
 }
 
 // Void/Reversal status structure (simpler than charge status)
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SilverflowVoidStatus {
     pub authorization: SilverflowAuthorizationStatus,
 }
@@ -706,7 +706,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         // Use the refund amount for partial refund, omit for full refund
-        let amount = Some(router_data.request.minor_refund_amount);
+        let amount = Some(router_data.request.refund_amount.amount);
 
         // Get refund ID as reference
         let reference = Some(router_data.request.refund_id.clone());

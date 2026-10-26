@@ -177,7 +177,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: Option<fiservemea::FiservemeaPaymentStatus>,
     context: fiservemea::FiservemeaStatusCtx,
-    mapping_status: |status, ctx| { use common_enums::AttemptStatus;
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use fiservemea::{FiservemeaPaymentStatus, FiservemeaTransactionType};
         match status {
             Some(FiservemeaPaymentStatus::Approved) => match ctx.transaction_type {
@@ -211,7 +212,34 @@ domain_types::impl_flow_status_mapping! {
                 Some(fiservemea::FiservemeaPaymentResult::Partial) => AttemptStatus::PartialCharged,
                 Some(fiservemea::FiservemeaPaymentResult::Declined | fiservemea::FiservemeaPaymentResult::Failed | fiservemea::FiservemeaPaymentResult::Fraud) => AttemptStatus::Failure,
             },
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: FiservemeaAuthorizeResponse,
@@ -237,7 +265,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: Option<fiservemea::FiservemeaPaymentStatus>,
     context: fiservemea::FiservemeaStatusCtx,
-    mapping_status: |status, ctx| { use common_enums::AttemptStatus;
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use fiservemea::{FiservemeaPaymentStatus, FiservemeaTransactionType};
         match status {
             Some(FiservemeaPaymentStatus::Approved) => match ctx.transaction_type {
@@ -267,7 +296,41 @@ domain_types::impl_flow_status_mapping! {
                 Some(fiservemea::FiservemeaPaymentResult::Partial) => AttemptStatus::PartialCharged,
                 Some(fiservemea::FiservemeaPaymentResult::Declined | fiservemea::FiservemeaPaymentResult::Failed | fiservemea::FiservemeaPaymentResult::Fraud) => AttemptStatus::Failure,
             },
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: FiservemeaSyncResponse,
@@ -440,7 +503,8 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: Option<fiservemea::FiservemeaPaymentStatus>,
     context: fiservemea::FiservemeaRefundCtx,
-    mapping_status: |_status, ctx| { use common_enums::RefundStatus;
+    mapping: |_status, ctx| {
+        let mapped_status = (|| { use common_enums::RefundStatus;
         use fiservemea::{FiservemeaPaymentResult, FiservemeaPaymentStatus};
         match ctx.transaction_status {
             Some(FiservemeaPaymentStatus::Approved) => RefundStatus::Success,
@@ -464,7 +528,16 @@ domain_types::impl_refund_flow_status_mapping! {
                 ) => RefundStatus::Failure,
                 None => RefundStatus::Pending,
             },
-        } },
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: FiservemeaRefundResponse,
@@ -488,7 +561,8 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: Option<fiservemea::FiservemeaPaymentStatus>,
     context: fiservemea::FiservemeaRefundCtx,
-    mapping_status: |_status, ctx| { use common_enums::RefundStatus;
+    mapping: |_status, ctx| {
+        let mapped_status = (|| { use common_enums::RefundStatus;
         use fiservemea::{FiservemeaPaymentResult, FiservemeaPaymentStatus};
         match ctx.transaction_status {
             Some(FiservemeaPaymentStatus::Approved) => RefundStatus::Success,
@@ -512,7 +586,16 @@ domain_types::impl_refund_flow_status_mapping! {
                 ) => RefundStatus::Failure,
                 None => RefundStatus::Pending,
             },
-        } },
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: FiservemeaRefundSyncResponse,

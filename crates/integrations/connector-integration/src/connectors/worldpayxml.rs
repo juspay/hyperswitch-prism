@@ -696,7 +696,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: (bool, bool, Option<responses::WorldpayxmlLastEvent>),
     context: bool,
-    mapping_status: |status, is_auto_capture| { match status {
+    mapping: |status, is_auto_capture| {
+        let mapped_status = (|| { match status {
             (true, _, _) => AttemptStatus::Failure,
             (false, true, _) => AttemptStatus::AuthenticationPending,
             (false, false, None) => AttemptStatus::Pending,
@@ -719,7 +720,34 @@ domain_types::impl_flow_status_mapping! {
                 }
                 _ => AttemptStatus::Pending,
             },
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: WorldpayxmlAuthorizeResponse,
@@ -747,7 +775,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: (bool, Option<responses::WorldpayxmlLastEvent>),
     context: bool,
-    mapping_status: |status, is_auto_capture| { match status {
+    mapping: |status, is_auto_capture| {
+        let mapped_status = (|| { match status {
             (true, _) => AttemptStatus::Failure,
             (false, None) => AttemptStatus::Pending,
             (false, Some(last_event)) => match last_event {
@@ -769,12 +798,46 @@ domain_types::impl_flow_status_mapping! {
                 }
                 _ => AttemptStatus::Pending,
             },
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: WorldpayxmlTransactionResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
-            responses::WorldpayxmlTransactionResponse::Payment(xml_response) => {
+            WorldpayxmlTransactionResponse::Payment(xml_response) => {
                 let reply = &xml_response.reply;
                 let order_status = reply.order_status.as_ref();
                 let error = reply.error.is_some()
@@ -786,7 +849,7 @@ domain_types::impl_flow_status_mapping! {
                     .map(|payment| payment.last_event);
                 (error, last_event)
             }
-            responses::WorldpayxmlTransactionResponse::Webhook(webhook_response) => {
+            WorldpayxmlTransactionResponse::Webhook(webhook_response) => {
                 (false, Some(webhook_response.payment_status))
             }
         }) },
@@ -804,7 +867,8 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: (bool, Option<responses::WorldpayxmlLastEvent>),
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             (true, _) => AttemptStatus::Failure,
             (false, None) => AttemptStatus::Pending,
             (false, Some(last_event)) => match last_event {
@@ -820,7 +884,19 @@ domain_types::impl_flow_status_mapping! {
                 }
                 _ => AttemptStatus::Pending,
             },
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: SetupMandateRequestData<T>,
         response: WorldpayxmlSetupMandateResponse,
@@ -845,7 +921,8 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: (bool, Option<responses::WorldpayxmlLastEvent>),
     context: bool,
-    mapping_status: |status, is_auto_capture| { match status {
+    mapping: |status, is_auto_capture| {
+        let mapped_status = (|| { match status {
             (true, _) => AttemptStatus::Failure,
             (false, None) => AttemptStatus::Pending,
             (false, Some(last_event)) => match last_event {
@@ -867,7 +944,23 @@ domain_types::impl_flow_status_mapping! {
                 }
                 _ => AttemptStatus::Pending,
             },
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorized => non_terminal!(Authorized),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: WorldpayxmlRepeatPaymentResponse,
@@ -897,11 +990,24 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: bool,
     context: (),
-    mapping_status: |acknowledged, _ctx| { if acknowledged {
+    mapping: |acknowledged, _ctx| {
+        let mapped_status = (|| { if acknowledged {
             AttemptStatus::CaptureInitiated
         } else {
             AttemptStatus::CaptureFailed
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: WorldpayxmlCaptureResponse,
@@ -925,11 +1031,21 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: bool,
     context: (),
-    mapping_status: |acknowledged, _ctx| { if acknowledged {
+    mapping: |acknowledged, _ctx| {
+        let mapped_status = (|| { if acknowledged {
             AttemptStatus::VoidInitiated
         } else {
             AttemptStatus::VoidFailed
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: WorldpayxmlVoidResponse,
@@ -952,11 +1068,20 @@ domain_types::impl_flow_status_mapping! {
     flow: VoidPC,
     source: bool,
     context: (),
-    mapping_status: |acknowledged, _ctx| { if acknowledged {
+    mapping: |acknowledged, _ctx| {
+        let mapped_status = (|| { if acknowledged {
             AttemptStatus::VoidedPostCapture
         } else {
             AttemptStatus::Failure
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCancelPostCaptureData,
         response: WorldpayxmlVoidPCResponse,
@@ -979,11 +1104,21 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: bool,
     context: (),
-    mapping_status: |acknowledged, _ctx| { if acknowledged {
+    mapping: |acknowledged, _ctx| {
+        let mapped_status = (|| { if acknowledged {
             RefundStatus::Pending
         } else {
             RefundStatus::Failure
-        } },
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: WorldpayxmlRefundResponse,
@@ -1007,7 +1142,8 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: (bool, Option<responses::WorldpayxmlLastEvent>),
     context: RefundStatus,
-    mapping_status: |status, previous_status| { match status {
+    mapping: |status, previous_status| {
+        let mapped_status = (|| { match status {
             (true, _) => RefundStatus::Failure,
             (false, None) => RefundStatus::Pending,
             (false, Some(last_event)) => match last_event {
@@ -1023,12 +1159,21 @@ domain_types::impl_refund_flow_status_mapping! {
                 responses::WorldpayxmlLastEvent::Unknown => previous_status,
                 _ => RefundStatus::Pending,
             },
-        } },
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: WorldpayxmlRsyncResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
-            responses::WorldpayxmlTransactionResponse::Payment(xml_response) => {
+            WorldpayxmlTransactionResponse::Payment(xml_response) => {
                 let reply = &xml_response.reply;
                 let order_status = reply.order_status.as_ref();
                 let error = reply.error.is_some();
@@ -1037,7 +1182,7 @@ domain_types::impl_refund_flow_status_mapping! {
                     .map(|payment| payment.last_event);
                 (error, last_event)
             }
-            responses::WorldpayxmlTransactionResponse::Webhook(webhook_response) => {
+            WorldpayxmlTransactionResponse::Webhook(webhook_response) => {
                 (false, Some(webhook_response.payment_status))
             }
         }) },

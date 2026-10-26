@@ -709,40 +709,69 @@ macros::macro_connector_implementation!(
 // not_supported:   EPG's v1 API has no such resource at all.
 // Flow declarations mirror the production transformer mappings, including
 // context-dependent and nonterminal outcomes.
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: ElavonPg<T>,
     flow: CreateOrder,
-    status: Pending,
+    source: ElavonPgCreateOrderResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(Pending) },
     runtime: {
         request: PaymentCreateOrderData,
         response: ElavonPgCreateOrderResponse,
-    },
-}
-
-domain_types::impl_connector_flow_allowed_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: ElavonPg<T>,
-    flow: PreAuthenticate,
-    status: AuthenticationPending,
-    runtime: {
-        request: PaymentsPreAuthenticateData<T>,
-        response: ElavonPgPreAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: ElavonPg<T>,
-    flow: domain_types::connector_flow::Authorize,
+    flow: PreAuthenticate,
+    source: ElavonPgPreAuthenticateResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(AuthenticationPending) },
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: ElavonPgPreAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: ElavonPg<T>,
+    flow: Authorize,
     source: elavon_pg::ElavonPgTransactionState,
     context: (Option<bool>, bool, bool),
-    mapping_status: |status, ctx| { common_enums::AttemptStatus::from(elavon_pg::ElavonPgSaleStatus {
-            state: &status,
-            is_authorized: ctx.0,
-            is_held_for_review: ctx.1,
-            is_auto_capture: ctx.2,
-        }) },
+    mapping: |status, ctx| {
+        use elavon_pg::ElavonPgTransactionState as S;
+        match status {
+            S::Authorized => {
+                if ctx.1 {
+                    non_terminal!(Pending)
+                } else {
+                    match ctx.0 {
+                        Some(false) => failure!(Failure),
+                        Some(true) | None => {
+                            if ctx.2 {
+                                success!(Charged)
+                            } else {
+                                success!(Authorized)
+                            }
+                        }
+                    }
+                }
+            }
+            S::HeldForReview => non_terminal!(Pending),
+            S::Captured | S::Settled | S::SettlementDelayed => success!(Charged),
+            S::Declined | S::Rejected | S::Expired => failure!(Failure),
+            S::Voided => non_terminal!(Voided),
+            S::AuthorizationPending => non_terminal!(Pending),
+            S::Unknown | S::Unrecognized => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: ElavonPgTransactionResponse,
@@ -758,15 +787,36 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: ElavonPg<T>,
-    flow: domain_types::connector_flow::PSync,
+    flow: PSync,
     source: elavon_pg::ElavonPgTransactionState,
     context: (Option<bool>, bool, bool),
-    mapping_status: |status, ctx| { common_enums::AttemptStatus::from(elavon_pg::ElavonPgSaleStatus {
-            state: &status,
-            is_authorized: ctx.0,
-            is_held_for_review: ctx.1,
-            is_auto_capture: ctx.2,
-        }) },
+    mapping: |status, ctx| {
+        use elavon_pg::ElavonPgTransactionState as S;
+        match status {
+            S::Authorized => {
+                if ctx.1 {
+                    non_terminal!(Pending)
+                } else {
+                    match ctx.0 {
+                        Some(false) => failure!(Failure),
+                        Some(true) | None => {
+                            if ctx.2 {
+                                success!(Charged)
+                            } else {
+                                success!(Authorized)
+                            }
+                        }
+                    }
+                }
+            }
+            S::HeldForReview => non_terminal!(Pending),
+            S::Captured | S::Settled | S::SettlementDelayed => success!(Charged),
+            S::Declined | S::Rejected | S::Expired => failure!(Failure),
+            S::Voided => success!(Voided),
+            S::AuthorizationPending => non_terminal!(Pending),
+            S::Unknown | S::Unrecognized => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: ElavonPgPsyncResponse,
@@ -782,15 +832,34 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: ElavonPg<T>,
-    flow: domain_types::connector_flow::Capture,
+    flow: Capture,
     source: elavon_pg::ElavonPgTransactionState,
     context: (Option<bool>, bool),
-    mapping_status: |status, ctx| { common_enums::AttemptStatus::from(elavon_pg::ElavonPgSaleStatus {
-            state: &status,
-            is_authorized: ctx.0,
-            is_held_for_review: ctx.1,
-            is_auto_capture: true,
-        }) },
+    mapping: |status, ctx| {
+        use elavon_pg::ElavonPgTransactionState as S;
+        match status {
+            S::Authorized => {
+                if ctx.1 {
+                    non_terminal!(Pending)
+                } else {
+                    match ctx.0 {
+                        Some(false) => failure!(Failure),
+                        // A Capture whose sale resolves without `isAuthorized` reports the
+                        // captured state; per the sale table this is `Charged`.
+                        Some(true) | None => success!(Charged),
+                    }
+                }
+            }
+            S::HeldForReview => non_terminal!(Pending),
+            S::Captured | S::Settled | S::SettlementDelayed => success!(Charged),
+            S::Declined | S::Rejected | S::Expired => failure!(Failure),
+            // The sale table yields `Voided` here; Capture has no `Voided` slot, so a
+            // capture that lands on a voided parent is reported as a capture failure.
+            S::Voided => failure!(CaptureFailed),
+            S::AuthorizationPending => non_terminal!(Pending),
+            S::Unknown | S::Unrecognized => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: ElavonPgCaptureResponse,
@@ -805,13 +874,24 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: ElavonPg<T>,
-    flow: domain_types::connector_flow::Void,
+    flow: Void,
     source: elavon_pg::ElavonPgTransactionState,
     context: Option<bool>,
-    mapping_status: |status, ctx| { common_enums::AttemptStatus::from(elavon_pg::ElavonPgChildStatus {
-            state: &status,
-            is_authorized: ctx,
-        }) },
+    mapping: |status, ctx| {
+        use elavon_pg::ElavonPgTransactionState as S;
+        if ctx == Some(false) {
+            return failure!(VoidFailed);
+        }
+        match status {
+            S::Authorized | S::Captured | S::Settled | S::SettlementDelayed | S::Voided => {
+                success!(Voided)
+            }
+            S::Declined | S::Rejected | S::Expired => failure!(VoidFailed),
+            S::HeldForReview | S::AuthorizationPending | S::Unknown | S::Unrecognized => {
+                non_terminal!(Pending)
+            }
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: ElavonPgVoidResponse,
@@ -823,13 +903,22 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: ElavonPg<T>,
-    flow: domain_types::connector_flow::Refund,
+    flow: Refund,
     source: elavon_pg::ElavonPgTransactionState,
     context: Option<bool>,
-    mapping_status: |status, ctx| { common_enums::RefundStatus::from(elavon_pg::ElavonPgChildStatus {
-            state: &status,
-            is_authorized: ctx,
-        }) },
+    mapping: |status, ctx| {
+        use elavon_pg::ElavonPgTransactionState as S;
+        if ctx == Some(false) {
+            return failure!(Failure);
+        }
+        match status {
+            S::Authorized | S::Captured | S::Settled | S::SettlementDelayed => success!(Success),
+            S::Declined | S::Rejected | S::Expired | S::Voided => failure!(Failure),
+            S::HeldForReview | S::AuthorizationPending | S::Unknown | S::Unrecognized => {
+                non_terminal!(Pending)
+            }
+        }
+    },
     runtime: {
         request: RefundsData,
         response: ElavonPgRefundResponse,
@@ -841,13 +930,22 @@ domain_types::impl_refund_flow_status_mapping! {
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: ElavonPg<T>,
-    flow: domain_types::connector_flow::RSync,
+    flow: RSync,
     source: elavon_pg::ElavonPgTransactionState,
     context: Option<bool>,
-    mapping_status: |status, ctx| { common_enums::RefundStatus::from(elavon_pg::ElavonPgChildStatus {
-            state: &status,
-            is_authorized: ctx,
-        }) },
+    mapping: |status, ctx| {
+        use elavon_pg::ElavonPgTransactionState as S;
+        if ctx == Some(false) {
+            return failure!(Failure);
+        }
+        match status {
+            S::Authorized | S::Captured | S::Settled | S::SettlementDelayed => success!(Success),
+            S::Declined | S::Rejected | S::Expired | S::Voided => failure!(Failure),
+            S::HeldForReview | S::AuthorizationPending | S::Unknown | S::Unrecognized => {
+                non_terminal!(Pending)
+            }
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: ElavonPgRsyncResponse,

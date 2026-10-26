@@ -107,14 +107,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Loonio<T>,
-    flow:      Authorize,
-    status:    AuthenticationPending,
+    flow: Authorize,
+    source: LoonioAuthorizeResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(AuthenticationPending) },
     runtime: {
-        request:  PaymentsAuthorizeData<T>,
+        request: PaymentsAuthorizeData<T>,
         response: LoonioAuthorizeResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -128,19 +132,19 @@ domain_types::impl_flow_status_mapping! {
     connector: Loonio<T>,
     flow: PSync,
     source: transformers::LoonioTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::LoonioTransactionStatus::Settled => common_enums::AttemptStatus::Charged,
-            transformers::LoonioTransactionStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::LoonioTransactionStatus::Created => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::LoonioTransactionStatus::Prepared => common_enums::AttemptStatus::Pending,
-            transformers::LoonioTransactionStatus::Pending => common_enums::AttemptStatus::Pending,
-            transformers::LoonioTransactionStatus::Available => common_enums::AttemptStatus::Charged,
-            transformers::LoonioTransactionStatus::Abandoned => common_enums::AttemptStatus::Failure,
-            transformers::LoonioTransactionStatus::Rejected => common_enums::AttemptStatus::Failure,
-            transformers::LoonioTransactionStatus::Rollback => common_enums::AttemptStatus::Voided,
-            transformers::LoonioTransactionStatus::Returned => common_enums::AttemptStatus::Failure,
-            transformers::LoonioTransactionStatus::Nsf => common_enums::AttemptStatus::Failure,
+            transformers::LoonioTransactionStatus::Settled => success!(Charged),
+            transformers::LoonioTransactionStatus::Failed => failure!(Failure),
+            transformers::LoonioTransactionStatus::Created => non_terminal!(AuthenticationPending),
+            transformers::LoonioTransactionStatus::Prepared => non_terminal!(Pending),
+            transformers::LoonioTransactionStatus::Pending => non_terminal!(Pending),
+            transformers::LoonioTransactionStatus::Available => success!(Charged),
+            transformers::LoonioTransactionStatus::Abandoned => failure!(Failure),
+            transformers::LoonioTransactionStatus::Rejected => failure!(Failure),
+            transformers::LoonioTransactionStatus::Rollback => success!(Voided),
+            transformers::LoonioTransactionStatus::Returned => failure!(Failure),
+            transformers::LoonioTransactionStatus::Nsf => failure!(Failure),
         }
     },
     runtime: {

@@ -362,7 +362,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 transaction_id,
                 order_id,
                 currency: Some(router_data.request.currency),
-                total: Some(router_data.request.minor_amount),
+                total: Some(router_data.request.amount.amount),
             })),
             // INITIATE leg: create the checkout and mint the redirect URL.
             None => {
@@ -404,7 +404,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     merchant,
                     billing: build_billing_party(router_data)?,
                     shipping: build_shipping_party(router_data),
-                    total: router_data.request.minor_amount,
+                    total: router_data.request.amount.amount,
                     order_id,
                 })))
             }
@@ -615,7 +615,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ref_id => Some(ref_id),
         };
         Ok(Self {
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: item.router_data.request.amount_to_capture.amount,
             order_id,
         })
     }
@@ -750,23 +750,6 @@ impl TryFrom<ResponseRouterData<AffirmVoidResponse, Self>>
 // ===== REFUND =====
 // POST /api/v1/transactions/{id}/refund -> returns refund event { id, type, amount }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AffirmRefundStatus {
-    Refunded,
-    Failed,
-    Pending,
-}
-
-impl From<AffirmRefundStatus> for RefundStatus {
-    fn from(status: AffirmRefundStatus) -> Self {
-        match status {
-            AffirmRefundStatus::Refunded => Self::Success,
-            AffirmRefundStatus::Failed => Self::Failure,
-            AffirmRefundStatus::Pending => Self::Pending,
-        }
-    }
-}
-
 #[derive(Debug, Serialize)]
 pub struct AffirmRefundRequest {
     pub amount: MinorUnit,
@@ -788,7 +771,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_refund_amount,
+            amount: item.router_data.request.refund_amount.amount,
             reference_id: Some(item.router_data.request.refund_id.clone()),
         })
     }
@@ -802,22 +785,20 @@ pub struct AffirmRefundResponse {
     pub amount: Option<MinorUnit>,
 }
 
-impl AffirmRefundResponse {
-    pub fn flow_status(&self) -> AffirmRefundStatus {
-        match self.event_type.as_str() {
-            "refund" => AffirmRefundStatus::Refunded,
-            _ => AffirmRefundStatus::Pending,
-        }
-    }
-}
-
 impl TryFrom<ResponseRouterData<AffirmRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: ResponseRouterData<AffirmRefundResponse, Self>) -> Result<Self, Self::Error> {
-        let refund_status = RefundStatus::from(item.response.flow_status());
+        // Affirm processes refunds synchronously and returns the created event on 2xx.
+        // Confirm it is actually a `refund` event before reporting success; anything
+        // else is left Pending for RSync to resolve rather than assuming any 2xx means
+        // the money moved.
+        let refund_status = match item.response.event_type.as_str() {
+            "refund" => RefundStatus::Success,
+            _ => RefundStatus::Pending,
+        };
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.clone(),
@@ -843,16 +824,6 @@ pub struct AffirmRSyncResponse {
     pub events: Option<Vec<AffirmEvent>>,
 }
 
-impl AffirmRSyncResponse {
-    pub fn has_refund_event(&self, connector_refund_id: &str) -> bool {
-        self.events.as_ref().is_some_and(|events| {
-            events
-                .iter()
-                .any(|event| event.event_type == "refund" && event.id == connector_refund_id)
-        })
-    }
-}
-
 impl TryFrom<ResponseRouterData<AffirmRSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
@@ -869,18 +840,17 @@ impl TryFrom<ResponseRouterData<AffirmRSyncResponse, Self>>
                 .any(|event| event.event_type == "refund" && event.id == connector_refund_id)
         });
 
-        let affirm_status = match (this_refund_settled, &item.response.status) {
+        let refund_status = match (this_refund_settled, &item.response.status) {
             // This refund's own event is present, or the whole transaction is refunded.
-            (true, _) | (_, AffirmTransactionStatus::Refunded) => AffirmRefundStatus::Refunded,
+            (true, _) | (_, AffirmTransactionStatus::Refunded) => RefundStatus::Success,
             // Terminal states in which this refund can never settle (a voided loan was
             // never captured; a declined transaction never funded) — resolve as Failure
             // instead of polling Pending indefinitely.
             (_, AffirmTransactionStatus::Declined | AffirmTransactionStatus::Voided) => {
-                AffirmRefundStatus::Failed
+                RefundStatus::Failure
             }
-            _ => AffirmRefundStatus::Pending,
+            _ => RefundStatus::Pending,
         };
-        let refund_status = RefundStatus::from(affirm_status);
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -891,5 +861,31 @@ impl TryFrom<ResponseRouterData<AffirmRSyncResponse, Self>>
             }),
             ..item.router_data.clone()
         })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AffirmRefundStatus {
+    Refunded,
+    Failed,
+    Pending,
+}
+
+impl AffirmRSyncResponse {
+    pub fn has_refund_event(&self, connector_refund_id: &str) -> bool {
+        self.events.as_ref().is_some_and(|events| {
+            events
+                .iter()
+                .any(|event| event.event_type == "refund" && event.id == connector_refund_id)
+        })
+    }
+}
+
+impl AffirmRefundResponse {
+    pub fn flow_status(&self) -> AffirmRefundStatus {
+        match self.event_type.as_str() {
+            "refund" => AffirmRefundStatus::Refunded,
+            _ => AffirmRefundStatus::Pending,
+        }
     }
 }

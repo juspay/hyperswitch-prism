@@ -118,11 +118,11 @@ domain_types::impl_flow_status_mapping! {
     connector: Fiuu<T>,
     flow: Void,
     source: fiuu::FiuuVoidStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            fiuu::FiuuVoidStatus::Voided => common_enums::AttemptStatus::Voided,
-            fiuu::FiuuVoidStatus::Failed => common_enums::AttemptStatus::VoidFailed,
-            fiuu::FiuuVoidStatus::Other => common_enums::AttemptStatus::VoidFailed,
+            fiuu::FiuuVoidStatus::Voided => success!(Voided),
+            fiuu::FiuuVoidStatus::Failed => failure!(VoidFailed),
+            fiuu::FiuuVoidStatus::Other => failure!(VoidFailed),
         }
     },
     runtime: {
@@ -1173,7 +1173,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             })
                         })
                 }),
-            minor_amount_captured: None,
             amount_captured: None,
             error_reason: error_message,
             network_txn_id: None,

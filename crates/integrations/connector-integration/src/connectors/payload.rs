@@ -69,14 +69,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Payload<T>,
     flow: Authorize,
     source: responses::PayloadPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            responses::PayloadPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            responses::PayloadPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            responses::PayloadPaymentStatus::Processed => common_enums::AttemptStatus::Charged,
-            responses::PayloadPaymentStatus::Processing => common_enums::AttemptStatus::Pending,
-            responses::PayloadPaymentStatus::Rejected => common_enums::AttemptStatus::Failure,
-            responses::PayloadPaymentStatus::Voided => common_enums::AttemptStatus::Voided,
+            responses::PayloadPaymentStatus::Authorized => success!(Authorized),
+            responses::PayloadPaymentStatus::Declined => failure!(Failure),
+            responses::PayloadPaymentStatus::Processed => success!(Charged),
+            responses::PayloadPaymentStatus::Processing => non_terminal!(Pending),
+            responses::PayloadPaymentStatus::Rejected => failure!(Failure),
+            responses::PayloadPaymentStatus::Voided => non_terminal!(Voided),
         }
     },
     runtime: {
@@ -94,14 +94,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Payload<T>,
     flow: PSync,
     source: responses::PayloadPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            responses::PayloadPaymentStatus::Processed => common_enums::AttemptStatus::Charged,
-            responses::PayloadPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            responses::PayloadPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            responses::PayloadPaymentStatus::Processing => common_enums::AttemptStatus::Pending,
-            responses::PayloadPaymentStatus::Rejected => common_enums::AttemptStatus::Failure,
-            responses::PayloadPaymentStatus::Voided => common_enums::AttemptStatus::Voided,
+            responses::PayloadPaymentStatus::Processed => success!(Charged),
+            responses::PayloadPaymentStatus::Declined => failure!(Failure),
+            responses::PayloadPaymentStatus::Authorized => success!(Authorized),
+            responses::PayloadPaymentStatus::Processing => non_terminal!(Pending),
+            responses::PayloadPaymentStatus::Rejected => failure!(Failure),
+            responses::PayloadPaymentStatus::Voided => success!(Voided),
         }
     },
     runtime: {
@@ -119,14 +119,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Payload<T>,
     flow: Void,
     source: responses::PayloadPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            responses::PayloadPaymentStatus::Voided => common_enums::AttemptStatus::Voided,
-            responses::PayloadPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            responses::PayloadPaymentStatus::Authorized => common_enums::AttemptStatus::VoidInitiated,
-            responses::PayloadPaymentStatus::Processed => common_enums::AttemptStatus::VoidFailed,
-            responses::PayloadPaymentStatus::Processing => common_enums::AttemptStatus::Pending,
-            responses::PayloadPaymentStatus::Rejected => common_enums::AttemptStatus::Failure,
+            responses::PayloadPaymentStatus::Voided => success!(Voided),
+            responses::PayloadPaymentStatus::Declined => failure!(Failure),
+            responses::PayloadPaymentStatus::Authorized => non_terminal!(VoidInitiated),
+            responses::PayloadPaymentStatus::Processed => failure!(VoidFailed),
+            responses::PayloadPaymentStatus::Processing => non_terminal!(Pending),
+            responses::PayloadPaymentStatus::Rejected => failure!(Failure),
         }
     },
     runtime: {
@@ -144,14 +144,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Payload<T>,
     flow: RSync,
     source: responses::RefundStatus,
-    mapping_status: |status| {
-        match status {
-            responses::RefundStatus::Processed => common_enums::RefundStatus::Success,
-            responses::RefundStatus::Declined => common_enums::RefundStatus::Failure,
-            responses::RefundStatus::Processing => common_enums::RefundStatus::Pending,
-            responses::RefundStatus::Rejected => common_enums::RefundStatus::Failure,
-        }
-    },
+    mapping: |status| { match status {
+            responses::RefundStatus::Processed => success!(Success),
+            responses::RefundStatus::Declined => failure!(Failure),
+            responses::RefundStatus::Processing => non_terminal!(Pending),
+            responses::RefundStatus::Rejected => failure!(Failure),
+        } },
     runtime: {
         request: RefundSyncData,
         response: PayloadRSyncResponse,
@@ -167,14 +165,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Payload<T>,
     flow: Refund,
     source: responses::RefundStatus,
-    mapping_status: |status| {
-        match status {
-            responses::RefundStatus::Processed => common_enums::RefundStatus::Success,
-            responses::RefundStatus::Declined => common_enums::RefundStatus::Failure,
-            responses::RefundStatus::Processing => common_enums::RefundStatus::Pending,
-            responses::RefundStatus::Rejected => common_enums::RefundStatus::Failure,
-        }
-    },
+    mapping: |status| { match status {
+            responses::RefundStatus::Processed => success!(Success),
+            responses::RefundStatus::Declined => failure!(Failure),
+            responses::RefundStatus::Processing => non_terminal!(Pending),
+            responses::RefundStatus::Rejected => failure!(Failure),
+        } },
     runtime: {
         request: RefundsData,
         response: PayloadRefundResponse,
@@ -190,14 +186,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Payload<T>,
     flow: Capture,
     source: responses::PayloadPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            responses::PayloadPaymentStatus::Processed => common_enums::AttemptStatus::Charged,
-            responses::PayloadPaymentStatus::Declined => common_enums::AttemptStatus::CaptureFailed,
-            responses::PayloadPaymentStatus::Authorized => common_enums::AttemptStatus::Pending,
-            responses::PayloadPaymentStatus::Processing => common_enums::AttemptStatus::Pending,
-            responses::PayloadPaymentStatus::Rejected => common_enums::AttemptStatus::CaptureFailed,
-            responses::PayloadPaymentStatus::Voided => common_enums::AttemptStatus::CaptureFailed,
+            responses::PayloadPaymentStatus::Processed => success!(Charged),
+            responses::PayloadPaymentStatus::Declined => failure!(CaptureFailed),
+            responses::PayloadPaymentStatus::Authorized => non_terminal!(Pending),
+            responses::PayloadPaymentStatus::Processing => non_terminal!(Pending),
+            responses::PayloadPaymentStatus::Rejected => failure!(CaptureFailed),
+            responses::PayloadPaymentStatus::Voided => failure!(CaptureFailed),
         }
     },
     runtime: {
@@ -230,14 +226,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Payload<T>,
     flow: SetupMandate,
     source: responses::PayloadPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            responses::PayloadPaymentStatus::Processed => common_enums::AttemptStatus::Charged,
-            responses::PayloadPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            responses::PayloadPaymentStatus::Authorized => common_enums::AttemptStatus::Pending,
-            responses::PayloadPaymentStatus::Processing => common_enums::AttemptStatus::Pending,
-            responses::PayloadPaymentStatus::Rejected => common_enums::AttemptStatus::Failure,
-            responses::PayloadPaymentStatus::Voided => common_enums::AttemptStatus::Failure,
+            responses::PayloadPaymentStatus::Processed => success!(Charged),
+            responses::PayloadPaymentStatus::Declined => failure!(Failure),
+            responses::PayloadPaymentStatus::Authorized => non_terminal!(Pending),
+            responses::PayloadPaymentStatus::Processing => non_terminal!(Pending),
+            responses::PayloadPaymentStatus::Rejected => failure!(Failure),
+            responses::PayloadPaymentStatus::Voided => failure!(Failure),
         }
     },
     runtime: {
@@ -255,14 +251,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Payload<T>,
     flow: RepeatPayment,
     source: responses::PayloadPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            responses::PayloadPaymentStatus::Processed => common_enums::AttemptStatus::Charged,
-            responses::PayloadPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            responses::PayloadPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            responses::PayloadPaymentStatus::Processing => common_enums::AttemptStatus::Pending,
-            responses::PayloadPaymentStatus::Rejected => common_enums::AttemptStatus::Failure,
-            responses::PayloadPaymentStatus::Voided => common_enums::AttemptStatus::Failure,
+            responses::PayloadPaymentStatus::Processed => success!(Charged),
+            responses::PayloadPaymentStatus::Declined => failure!(Failure),
+            responses::PayloadPaymentStatus::Authorized => non_terminal!(Authorized),
+            responses::PayloadPaymentStatus::Processing => non_terminal!(Pending),
+            responses::PayloadPaymentStatus::Rejected => failure!(Failure),
+            responses::PayloadPaymentStatus::Voided => failure!(Failure),
         }
     },
     runtime: {

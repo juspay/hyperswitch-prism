@@ -63,14 +63,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Flywire<T>,
     flow: Authorize,
-    status: Pending,
+    source: FlywireConfirmResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(Pending) },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: FlywireConfirmResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -78,14 +82,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Flywire<T>,
     flow: Authenticate,
-    status: Pending,
+    source: FlywireCheckoutSessionResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(Pending) },
     runtime: {
         request: PaymentsAuthenticateData<T>,
         response: FlywireCheckoutSessionResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -94,26 +102,26 @@ domain_types::impl_connector_flow_allowed_status_mapping! {
 // are the settled terminals; `Reversed` (a post-hoc clawback) surfaces as
 // AutoRefunded, which PSync's broad ALLOWED set accepts.
 // Deviation: `to_attempt_status` maps `Cancelled | Failed | Expired` to
-// `AttemptStatus::Failure`; Failure ∈ PSync::TERMINAL_FAILURE_SET, so no change.
+// `failure!(Failure)`; Failure ∈ PSync::TERMINAL_FAILURE_SET, so no change.
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Flywire<T>,
     flow: PSync,
     source: flywire::FlywirePaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            flywire::FlywirePaymentStatus::Guaranteed => common_enums::AttemptStatus::Charged,
-            flywire::FlywirePaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            flywire::FlywirePaymentStatus::Delivered => common_enums::AttemptStatus::Charged,
-            flywire::FlywirePaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            flywire::FlywirePaymentStatus::Adjusted => common_enums::AttemptStatus::Authorized,
-            flywire::FlywirePaymentStatus::Cancelled => common_enums::AttemptStatus::Failure,
-            flywire::FlywirePaymentStatus::Expired => common_enums::AttemptStatus::Failure,
-            flywire::FlywirePaymentStatus::Reversed => common_enums::AttemptStatus::AutoRefunded,
-            flywire::FlywirePaymentStatus::Initiated => common_enums::AttemptStatus::Pending,
-            flywire::FlywirePaymentStatus::Processed => common_enums::AttemptStatus::Pending,
-            flywire::FlywirePaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            flywire::FlywirePaymentStatus::Unknown => common_enums::AttemptStatus::Pending,
+            flywire::FlywirePaymentStatus::Guaranteed => success!(Charged),
+            flywire::FlywirePaymentStatus::Failed => failure!(Failure),
+            flywire::FlywirePaymentStatus::Delivered => success!(Charged),
+            flywire::FlywirePaymentStatus::Authorized => success!(Authorized),
+            flywire::FlywirePaymentStatus::Adjusted => success!(Authorized),
+            flywire::FlywirePaymentStatus::Cancelled => failure!(Failure),
+            flywire::FlywirePaymentStatus::Expired => failure!(Failure),
+            flywire::FlywirePaymentStatus::Reversed => success!(AutoRefunded),
+            flywire::FlywirePaymentStatus::Initiated => non_terminal!(Pending),
+            flywire::FlywirePaymentStatus::Processed => non_terminal!(Pending),
+            flywire::FlywirePaymentStatus::Pending => non_terminal!(Pending),
+            flywire::FlywirePaymentStatus::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -135,19 +143,19 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Flywire<T>,
     flow: Refund,
     source: flywire::FlywireRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            flywire::FlywireRefundStatus::Finished => common_enums::RefundStatus::Success,
-            flywire::FlywireRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            flywire::FlywireRefundStatus::Completed => common_enums::RefundStatus::Success,
-            flywire::FlywireRefundStatus::Approved => common_enums::RefundStatus::Success,
-            flywire::FlywireRefundStatus::Rejected => common_enums::RefundStatus::Failure,
-            flywire::FlywireRefundStatus::Cancelled => common_enums::RefundStatus::Failure,
-            flywire::FlywireRefundStatus::Returned => common_enums::RefundStatus::Failure,
-            flywire::FlywireRefundStatus::Initiated => common_enums::RefundStatus::Pending,
-            flywire::FlywireRefundStatus::Pending => common_enums::RefundStatus::Pending,
-            flywire::FlywireRefundStatus::Received => common_enums::RefundStatus::Pending,
-            flywire::FlywireRefundStatus::Unknown => common_enums::RefundStatus::Pending,
+            flywire::FlywireRefundStatus::Finished => success!(Success),
+            flywire::FlywireRefundStatus::Failed => failure!(Failure),
+            flywire::FlywireRefundStatus::Completed => success!(Success),
+            flywire::FlywireRefundStatus::Approved => success!(Success),
+            flywire::FlywireRefundStatus::Rejected => failure!(Failure),
+            flywire::FlywireRefundStatus::Cancelled => failure!(Failure),
+            flywire::FlywireRefundStatus::Returned => failure!(Failure),
+            flywire::FlywireRefundStatus::Initiated => non_terminal!(Pending),
+            flywire::FlywireRefundStatus::Pending => non_terminal!(Pending),
+            flywire::FlywireRefundStatus::Received => non_terminal!(Pending),
+            flywire::FlywireRefundStatus::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -172,19 +180,19 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Flywire<T>,
     flow: RSync,
     source: flywire::FlywireRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            flywire::FlywireRefundStatus::Finished => common_enums::RefundStatus::Success,
-            flywire::FlywireRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            flywire::FlywireRefundStatus::Completed => common_enums::RefundStatus::Success,
-            flywire::FlywireRefundStatus::Approved => common_enums::RefundStatus::Success,
-            flywire::FlywireRefundStatus::Rejected => common_enums::RefundStatus::Failure,
-            flywire::FlywireRefundStatus::Cancelled => common_enums::RefundStatus::Failure,
-            flywire::FlywireRefundStatus::Returned => common_enums::RefundStatus::Failure,
-            flywire::FlywireRefundStatus::Initiated => common_enums::RefundStatus::Pending,
-            flywire::FlywireRefundStatus::Pending => common_enums::RefundStatus::Pending,
-            flywire::FlywireRefundStatus::Received => common_enums::RefundStatus::Pending,
-            flywire::FlywireRefundStatus::Unknown => common_enums::RefundStatus::Pending,
+            flywire::FlywireRefundStatus::Finished => success!(Success),
+            flywire::FlywireRefundStatus::Failed => failure!(Failure),
+            flywire::FlywireRefundStatus::Completed => success!(Success),
+            flywire::FlywireRefundStatus::Approved => success!(Success),
+            flywire::FlywireRefundStatus::Rejected => failure!(Failure),
+            flywire::FlywireRefundStatus::Cancelled => failure!(Failure),
+            flywire::FlywireRefundStatus::Returned => failure!(Failure),
+            flywire::FlywireRefundStatus::Initiated => non_terminal!(Pending),
+            flywire::FlywireRefundStatus::Pending => non_terminal!(Pending),
+            flywire::FlywireRefundStatus::Received => non_terminal!(Pending),
+            flywire::FlywireRefundStatus::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {

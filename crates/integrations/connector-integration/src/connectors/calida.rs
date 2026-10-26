@@ -128,7 +128,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             response_headers: None,
             mandate_reference: None,
-            minor_amount_captured: None,
             amount_captured: None,
             error_reason: None,
             network_txn_id: None,
@@ -163,13 +162,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Calida<T>,
     flow: Authorize,
     source: CalidaPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            CalidaPaymentStatus::Completed => common_enums::AttemptStatus::Charged,
-            CalidaPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            CalidaPaymentStatus::Pending => common_enums::AttemptStatus::AuthenticationPending,
-            CalidaPaymentStatus::PaymentInitiated => common_enums::AttemptStatus::AuthenticationPending,
-            CalidaPaymentStatus::ManualProcessing => common_enums::AttemptStatus::Pending,
+            CalidaPaymentStatus::Completed => success!(Charged),
+            CalidaPaymentStatus::Failed => failure!(Failure),
+            CalidaPaymentStatus::Pending => non_terminal!(AuthenticationPending),
+            CalidaPaymentStatus::PaymentInitiated => non_terminal!(AuthenticationPending),
+            CalidaPaymentStatus::ManualProcessing => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -187,13 +186,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Calida<T>,
     flow: PSync,
     source: CalidaPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            CalidaPaymentStatus::Completed => common_enums::AttemptStatus::Charged,
-            CalidaPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            CalidaPaymentStatus::Pending => common_enums::AttemptStatus::AuthenticationPending,
-            CalidaPaymentStatus::PaymentInitiated => common_enums::AttemptStatus::AuthenticationPending,
-            CalidaPaymentStatus::ManualProcessing => common_enums::AttemptStatus::Pending,
+            CalidaPaymentStatus::Completed => success!(Charged),
+            CalidaPaymentStatus::Failed => failure!(Failure),
+            CalidaPaymentStatus::Pending => non_terminal!(AuthenticationPending),
+            CalidaPaymentStatus::PaymentInitiated => non_terminal!(AuthenticationPending),
+            CalidaPaymentStatus::ManualProcessing => non_terminal!(Pending),
         }
     },
     runtime: {

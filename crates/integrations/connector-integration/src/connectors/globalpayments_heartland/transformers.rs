@@ -609,7 +609,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let amt = GlobalpaymentsHeartlandAmountConvertor::convert(
-            request.minor_amount,
+            request.amount.amount,
             request.currency,
         )?;
 
@@ -932,7 +932,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = GlobalpaymentsHeartlandAuthType::try_from(&router_data.connector_config)?;
 
         let amt = GlobalpaymentsHeartlandAmountConvertor::convert(
-            router_data.request.minor_amount_to_capture,
+            router_data.request.amount_to_capture.amount,
             router_data.request.currency,
         )?;
 
@@ -1180,7 +1180,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = GlobalpaymentsHeartlandAuthType::try_from(&router_data.connector_config)?;
 
         let amt = GlobalpaymentsHeartlandAmountConvertor::convert(
-            router_data.request.minor_refund_amount,
+            router_data.request.refund_amount.amount,
             router_data.request.currency,
         )?;
 
@@ -1346,6 +1346,41 @@ pub struct GlobalpaymentsHeartlandReportBody {
     pub gateway_rsp_msg: Option<String>,
     #[serde(rename = "Data")]
     pub data: Option<GlobalpaymentsHeartlandReportData>,
+}
+
+impl GlobalpaymentsHeartlandReportBody {
+    pub fn sync_ctx(&self) -> GlobalpaymentsHeartlandSyncCtx {
+        let service_name = match self.service_name.as_deref() {
+            Some(SERVICE_NAME_CREDIT_AUTH) => GlobalpaymentsHeartlandServiceName::CreditAuth,
+            Some(SERVICE_NAME_CREDIT_SALE) => GlobalpaymentsHeartlandServiceName::CreditSale,
+            Some(SERVICE_NAME_CREDIT_VOID) => GlobalpaymentsHeartlandServiceName::CreditVoid,
+            Some(SERVICE_NAME_CREDIT_RETURN) => GlobalpaymentsHeartlandServiceName::CreditReturn,
+            _ => GlobalpaymentsHeartlandServiceName::Other,
+        };
+        let txn_status = match self
+            .data
+            .as_ref()
+            .and_then(|data| data.txn_status.as_deref())
+        {
+            Some(TXN_STATUS_ACTIVE) => GlobalpaymentsHeartlandTxnStatus::Active,
+            Some(TXN_STATUS_REVERSED) => GlobalpaymentsHeartlandTxnStatus::Reversed,
+            _ => GlobalpaymentsHeartlandTxnStatus::Other,
+        };
+        let is_declined = self
+            .data
+            .as_ref()
+            .and_then(|data| data.rsp_code.as_deref())
+            .map(|code| {
+                !code.is_empty()
+                    && !matches!(code, ISSUER_RSP_CODE_APPROVAL | ISSUER_RSP_CODE_CARD_OK)
+            })
+            .unwrap_or(false);
+        GlobalpaymentsHeartlandSyncCtx {
+            service_name,
+            txn_status,
+            is_declined,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -1663,21 +1698,6 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsHeartlandRSyncResponse, Self>> for
     }
 }
 
-// =============================================================================
-// FLOW-STATUS MAPPING CONTEXT TYPES
-// =============================================================================
-// Typed descriptors used *only* by the `impl_flow_status_mapping!` /
-// `impl_flow_status_mapping_ctx!` declarations in `globalpayments_heartland.rs`.
-// They restate the decision gates the existing TryFrom bodies apply inline, so
-// the macros get a constructible `source:` / `context:` without touching the
-// `TryFrom` implementations themselves.
-
-/// The single binary decision surface every heartland flow reduces to.
-/// Mirrors `GlobalpaymentsHeartlandResponseHeader::is_gateway_accepted`
-/// (header-only ack flows: Capture, Void, Refund), the Authorize body's
-/// `GlobalpaymentsHeartlandCreditResponseBody::is_approved` (`Approved` is
-/// `RspCode == "00" | "85"`), and the PSync/RSync active-vs-reversed verdict.
-/// `Other` collapses every non-approval code and every missing body.
 #[derive(Debug, Clone, Default)]
 pub enum GlobalpaymentsHeartlandFlowStatus {
     Approved,
@@ -1685,29 +1705,6 @@ pub enum GlobalpaymentsHeartlandFlowStatus {
     Other,
 }
 
-/// Authorize context: the two gates the TryFrom consults beyond the issuer
-/// code — the gateway code and the `is_auto_capture` request flag (the flag
-/// splits both the success terminal (Charged vs Authorized) and the issuer-
-/// decline terminal (Failure vs AuthorizationFailed)).
-///
-/// `Default` = gateway accepted, auto-capture: the canonical charged path.
-#[derive(Debug, Clone)]
-pub struct GlobalpaymentsHeartlandAuthorizeCtx {
-    pub gateway: GlobalpaymentsHeartlandFlowStatus,
-    pub is_auto_capture: bool,
-}
-
-impl Default for GlobalpaymentsHeartlandAuthorizeCtx {
-    fn default() -> Self {
-        Self {
-            gateway: GlobalpaymentsHeartlandFlowStatus::Approved,
-            is_auto_capture: true,
-        }
-    }
-}
-
-/// `ReportTxnDetail` `ServiceName` leg, typed for the PSync / RSync `_ctx`
-/// mappings (the `TryFrom` implementations read the raw string; the same values).
 #[derive(Debug, Clone, Default)]
 pub enum GlobalpaymentsHeartlandServiceName {
     CreditAuth,
@@ -1720,9 +1717,6 @@ pub enum GlobalpaymentsHeartlandServiceName {
     Other,
 }
 
-/// `ReportTxnDetail` `Data/TxnStatus` leg.  `Other` collapses every value
-/// that is not `A` (`Active`) or `R` (`Reversed`), matching the TryFrom
-/// fall-through to Pending.
 #[derive(Debug, Clone, Default)]
 pub enum GlobalpaymentsHeartlandTxnStatus {
     Active,
@@ -1731,16 +1725,15 @@ pub enum GlobalpaymentsHeartlandTxnStatus {
     Other,
 }
 
-/// PSync / RSync context: the full `ReportTxnDetail` decision surface —
-/// service name, txn status, and the issuer `RspCode` gate. `is_declined`
-/// carries the already-computed issuer verdict for auth-bearing services
-/// (skipped for `CreditReturn`, whose successful response reports an empty
-/// code; there, a non-empty non-approval code is itself the decline).
-///
-/// `Default` = active `CreditSale`, not declined: the canonical charged path.
 #[derive(Debug, Clone, Default)]
 pub struct GlobalpaymentsHeartlandSyncCtx {
     pub service_name: GlobalpaymentsHeartlandServiceName,
     pub txn_status: GlobalpaymentsHeartlandTxnStatus,
     pub is_declined: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct GlobalpaymentsHeartlandAuthorizeCtx {
+    pub gateway: GlobalpaymentsHeartlandFlowStatus,
+    pub is_auto_capture: bool,
 }

@@ -69,7 +69,7 @@ domain_types::impl_flow_status_mapping! {
         request: PaymentsAuthorizeData<T>,
         response: AbsaSanlamPaymentsResponse,
         source: |_resource_common_data, _request, response, _http_status_code| {
-            Ok(response.status)
+            Ok(response.status.clone())
         },
     },
 }

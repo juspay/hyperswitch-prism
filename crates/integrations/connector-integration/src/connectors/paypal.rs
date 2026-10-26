@@ -214,7 +214,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -241,11 +240,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (
                 paypal::PaypalResource::PaypalRefundWebhooks(resource),
                 paypal::PaypalWebhookEventType::PaymentCaptureRefunded,
-            ) => (Some(resource.id), common_enums::RefundStatus::Success),
+            ) => (Some(resource.id), RefundStatus::Success),
             (paypal::PaypalResource::PaypalRefundWebhooks(resource), _) => {
-                (Some(resource.id), common_enums::RefundStatus::Pending)
+                (Some(resource.id), RefundStatus::Pending)
             }
-            _ => (None, common_enums::RefundStatus::Pending),
+            _ => (None, RefundStatus::Pending),
         };
 
         Ok(
@@ -1787,7 +1786,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: PaypalAuthResponse,
     context: (),
-    mapping_status: |response, _ctx| { match response {
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { match response {
             PaypalAuthResponse::PaypalOrdersResponse(orders_response) => {
                 let status = orders_response
                     .purchase_units
@@ -1819,7 +1819,34 @@ domain_types::impl_flow_status_mapping! {
             PaypalAuthResponse::PaypalThreeDsResponse(threeds_response) => {
                 paypal::get_order_status(threeds_response.status, paypal::PaypalPaymentIntent::Authenticate)
             }
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: PaypalAuthResponse,
@@ -1834,7 +1861,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: PaypalSyncResponse,
     context: (),
-    mapping_status: |response, _ctx| { match response {
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { match response {
             PaypalSyncResponse::PaypalOrdersSyncResponse(orders_response) => {
                 let status = orders_response
                     .purchase_units
@@ -1869,7 +1897,41 @@ domain_types::impl_flow_status_mapping! {
             // Hardcoded in the 3DS sync handler: this variant is only reached mid
             // card-3DS, before completion of the complete-authorize flow.
             PaypalSyncResponse::PaypalThreeDsSyncResponse(_) => AttemptStatus::AuthenticationPending,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: PaypalSyncResponse,
@@ -1884,7 +1946,20 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: paypal::PaypalPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { AttemptStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(status) })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: PaypalCaptureResponse,
@@ -1899,13 +1974,23 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: paypal::PaypalCancelStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             paypal::PaypalCancelStatus::Voided => AttemptStatus::Voided,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: PaypalPaymentsCancelResponse,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status) },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
         context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
@@ -1916,7 +2001,8 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: PaypalRepeatPaymentResponse,
     context: (),
-    mapping_status: |response, _ctx| { match response {
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { match response {
             PaypalAuthResponse::PaypalOrdersResponse(orders_response) => {
                 let status = orders_response
                     .purchase_units
@@ -1948,7 +2034,23 @@ domain_types::impl_flow_status_mapping! {
             PaypalAuthResponse::PaypalThreeDsResponse(threeds_response) => {
                 paypal::get_order_status(threeds_response.status, paypal::PaypalPaymentIntent::Authenticate)
             }
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorized => non_terminal!(Authorized),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: PaypalRepeatPaymentResponse,
@@ -1963,10 +2065,23 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: (),
     context: (),
-    mapping_status: |_response, _ctx| { // The try_from derives the status from the HTTP code (201 -> Charged, else
+    mapping: |_response, _ctx| {
+        let mapped_status = (|| { // The try_from derives the status from the HTTP code (201 -> Charged, else
         // Failure), which map_runtime_status cannot observe. The success path of this
         // flow always terminates in Charged.
-        AttemptStatus::Charged },
+        AttemptStatus::Charged })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: SetupMandateRequestData<T>,
         response: PaypalSetupMandatesResponse,
@@ -1981,7 +2096,17 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: paypal::RefundStatus,
     context: (),
-    mapping_status: |status, _ctx| { RefundStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { RefundStatus::from(status) })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: RefundResponse,
@@ -1996,7 +2121,17 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: paypal::RefundStatus,
     context: (),
-    mapping_status: |status, _ctx| { RefundStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { RefundStatus::from(status) })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: RefundSyncResponse,

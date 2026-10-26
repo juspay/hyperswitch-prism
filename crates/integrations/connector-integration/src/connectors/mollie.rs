@@ -137,15 +137,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Mollie<T>,
     flow: Authorize,
     source: transformers::MolliePaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::MolliePaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            transformers::MolliePaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::MolliePaymentStatus::Open => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::MolliePaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            transformers::MolliePaymentStatus::Paid => common_enums::AttemptStatus::Charged,
-            transformers::MolliePaymentStatus::Canceled => common_enums::AttemptStatus::Voided,
-            transformers::MolliePaymentStatus::Expired => common_enums::AttemptStatus::Failure,
+            transformers::MolliePaymentStatus::Authorized => success!(Authorized),
+            transformers::MolliePaymentStatus::Failed => failure!(Failure),
+            transformers::MolliePaymentStatus::Open => non_terminal!(AuthenticationPending),
+            transformers::MolliePaymentStatus::Pending => non_terminal!(Pending),
+            transformers::MolliePaymentStatus::Paid => success!(Charged),
+            transformers::MolliePaymentStatus::Canceled => non_terminal!(Voided),
+            transformers::MolliePaymentStatus::Expired => failure!(Failure),
         }
     },
     runtime: {
@@ -166,15 +166,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Mollie<T>,
     flow: PSync,
     source: transformers::MolliePaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::MolliePaymentStatus::Paid => common_enums::AttemptStatus::Charged,
-            transformers::MolliePaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::MolliePaymentStatus::Open => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::MolliePaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            transformers::MolliePaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            transformers::MolliePaymentStatus::Canceled => common_enums::AttemptStatus::Voided,
-            transformers::MolliePaymentStatus::Expired => common_enums::AttemptStatus::Failure,
+            transformers::MolliePaymentStatus::Paid => success!(Charged),
+            transformers::MolliePaymentStatus::Failed => failure!(Failure),
+            transformers::MolliePaymentStatus::Open => non_terminal!(AuthenticationPending),
+            transformers::MolliePaymentStatus::Pending => non_terminal!(Pending),
+            transformers::MolliePaymentStatus::Authorized => success!(Authorized),
+            transformers::MolliePaymentStatus::Canceled => success!(Voided),
+            transformers::MolliePaymentStatus::Expired => failure!(Failure),
         }
     },
     runtime: {
@@ -232,14 +232,14 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Mollie<T>,
     flow: Refund,
     source: transformers::MollieRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::MollieRefundStatus::Refunded => common_enums::RefundStatus::Success,
-            transformers::MollieRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::MollieRefundStatus::Queued => common_enums::RefundStatus::Pending,
-            transformers::MollieRefundStatus::Pending => common_enums::RefundStatus::Pending,
-            transformers::MollieRefundStatus::Processing => common_enums::RefundStatus::Pending,
-            transformers::MollieRefundStatus::Canceled => common_enums::RefundStatus::Failure,
+            transformers::MollieRefundStatus::Refunded => success!(Success),
+            transformers::MollieRefundStatus::Failed => failure!(Failure),
+            transformers::MollieRefundStatus::Queued => non_terminal!(Pending),
+            transformers::MollieRefundStatus::Pending => non_terminal!(Pending),
+            transformers::MollieRefundStatus::Processing => non_terminal!(Pending),
+            transformers::MollieRefundStatus::Canceled => failure!(Failure),
         }
     },
     runtime: {
@@ -260,14 +260,14 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Mollie<T>,
     flow: RSync,
     source: transformers::MollieRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::MollieRefundStatus::Refunded => common_enums::RefundStatus::Success,
-            transformers::MollieRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::MollieRefundStatus::Queued => common_enums::RefundStatus::Pending,
-            transformers::MollieRefundStatus::Pending => common_enums::RefundStatus::Pending,
-            transformers::MollieRefundStatus::Processing => common_enums::RefundStatus::Pending,
-            transformers::MollieRefundStatus::Canceled => common_enums::RefundStatus::Failure,
+            transformers::MollieRefundStatus::Refunded => success!(Success),
+            transformers::MollieRefundStatus::Failed => failure!(Failure),
+            transformers::MollieRefundStatus::Queued => non_terminal!(Pending),
+            transformers::MollieRefundStatus::Pending => non_terminal!(Pending),
+            transformers::MollieRefundStatus::Processing => non_terminal!(Pending),
+            transformers::MollieRefundStatus::Canceled => failure!(Failure),
         }
     },
     runtime: {

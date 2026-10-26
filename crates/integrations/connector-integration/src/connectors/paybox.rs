@@ -282,7 +282,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: PayboxPaymentVerdict,
     context: bool,
-    mapping_status: |status, is_auto_capture| { use common_enums::AttemptStatus;
+    mapping: |status, is_auto_capture| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         match status {
             PayboxPaymentVerdict::Approved => {
                 if is_auto_capture {
@@ -292,11 +293,42 @@ domain_types::impl_flow_status_mapping! {
                 }
             }
             PayboxPaymentVerdict::Rejected => AttemptStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: PayboxAuthorizeResponse,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payment_verdict()) },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(if response.response_code == SUCCESS_CODE {
+            PayboxPaymentVerdict::Approved
+        } else {
+            PayboxPaymentVerdict::Rejected
+        }) },
         context: |_resource_common_data, request, _response, _http_status_code| { Ok(request.is_auto_capture()) },
     },
 }
@@ -310,13 +342,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Paybox<T>,
     flow: PSync,
     source: PayboxStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            PayboxStatus::Captured => common_enums::AttemptStatus::Charged,
-            PayboxStatus::Rejected => common_enums::AttemptStatus::Failure,
-            PayboxStatus::Authorised => common_enums::AttemptStatus::Authorized,
-            PayboxStatus::Cancelled => common_enums::AttemptStatus::Voided,
-            PayboxStatus::Refunded => common_enums::AttemptStatus::AutoRefunded,
+            PayboxStatus::Captured => success!(Charged),
+            PayboxStatus::Rejected => failure!(Failure),
+            PayboxStatus::Authorised => success!(Authorized),
+            PayboxStatus::Cancelled => success!(Voided),
+            PayboxStatus::Refunded => success!(AutoRefunded),
         }
     },
     runtime: {
@@ -337,16 +369,20 @@ domain_types::impl_flow_status_mapping! {
     connector: Paybox<T>,
     flow: Capture,
     source: PayboxPaymentVerdict,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            PayboxPaymentVerdict::Approved => common_enums::AttemptStatus::Charged,
-            PayboxPaymentVerdict::Rejected => common_enums::AttemptStatus::CaptureFailed,
+            PayboxPaymentVerdict::Approved => success!(Charged),
+            PayboxPaymentVerdict::Rejected => failure!(CaptureFailed),
         }
     },
     runtime: {
         request: PaymentsCaptureData,
         response: PayboxCaptureResponse,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payment_verdict()) },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(if response.response_code == SUCCESS_CODE {
+            PayboxPaymentVerdict::Approved
+        } else {
+            PayboxPaymentVerdict::Rejected
+        }) },
     },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -361,10 +397,10 @@ domain_types::impl_flow_status_mapping! {
     connector: Paybox<T>,
     flow: Void,
     source: PayboxPaymentVerdict,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            PayboxPaymentVerdict::Approved => common_enums::AttemptStatus::Voided,
-            PayboxPaymentVerdict::Rejected => common_enums::AttemptStatus::Failure,
+            PayboxPaymentVerdict::Approved => success!(Voided),
+            PayboxPaymentVerdict::Rejected => failure!(Failure),
         }
     },
     runtime: {
@@ -385,16 +421,20 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Paybox<T>,
     flow: Refund,
     source: PayboxPaymentVerdict,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            PayboxPaymentVerdict::Approved => common_enums::RefundStatus::Success,
-            PayboxPaymentVerdict::Rejected => common_enums::RefundStatus::Failure,
+            PayboxPaymentVerdict::Approved => success!(Success),
+            PayboxPaymentVerdict::Rejected => failure!(Failure),
         }
     },
     runtime: {
         request: RefundsData,
         response: PayboxRefundResponse,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payment_verdict()) },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(if response.response_code == SUCCESS_CODE {
+            PayboxPaymentVerdict::Approved
+        } else {
+            PayboxPaymentVerdict::Rejected
+        }) },
     },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -409,13 +449,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Paybox<T>,
     flow: RSync,
     source: PayboxStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            PayboxStatus::Refunded => common_enums::RefundStatus::Success,
-            PayboxStatus::Rejected => common_enums::RefundStatus::Failure,
-            PayboxStatus::Cancelled => common_enums::RefundStatus::Failure,
-            PayboxStatus::Authorised => common_enums::RefundStatus::Failure,
-            PayboxStatus::Captured => common_enums::RefundStatus::Failure,
+            PayboxStatus::Refunded => success!(Success),
+            PayboxStatus::Rejected => failure!(Failure),
+            PayboxStatus::Cancelled => failure!(Failure),
+            PayboxStatus::Authorised => failure!(Failure),
+            PayboxStatus::Captured => failure!(Failure),
         }
     },
     runtime: {
@@ -439,13 +479,30 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: PayboxPaymentVerdict,
     context: bool,
-    mapping_status: |status, is_auto_capture| { use common_enums::AttemptStatus;
+    mapping: |status, is_auto_capture| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         match status {
             PayboxPaymentVerdict::Approved => {
                 if is_auto_capture { AttemptStatus::Charged } else { AttemptStatus::Authorized }
             }
             PayboxPaymentVerdict::Rejected => AttemptStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Authorized => non_terminal!(Authorized),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: PayboxRepeatPaymentResponse,
@@ -465,10 +522,10 @@ domain_types::impl_flow_status_mapping! {
     connector: Paybox<T>,
     flow: SetupMandate,
     source: PayboxPaymentVerdict,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            PayboxPaymentVerdict::Approved => common_enums::AttemptStatus::Charged,
-            PayboxPaymentVerdict::Rejected => common_enums::AttemptStatus::Failure,
+            PayboxPaymentVerdict::Approved => success!(Charged),
+            PayboxPaymentVerdict::Rejected => failure!(Failure),
         }
     },
     runtime: {

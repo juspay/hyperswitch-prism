@@ -143,6 +143,18 @@ pub struct AciMandateResponse {
     pub timestamp: String,
 }
 
+impl AciMandateResponse {
+    pub fn flow_status(&self) -> AciMandateStatus {
+        if SUCCESSFUL_CODES.contains(&self.result.code.as_str()) {
+            AciMandateStatus::Succeeded
+        } else if FAILURE_CODES.contains(&self.result.code.as_str()) {
+            AciMandateStatus::Failed
+        } else {
+            AciMandateStatus::Pending
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum PaymentDetails<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
@@ -1065,7 +1077,7 @@ fn get_transaction_details<
         .connector
         .amount_converter
         .convert(
-            item.router_data.request.minor_amount,
+            item.router_data.request.amount.amount,
             item.router_data.request.currency,
         )
         .change_context(IntegrationError::AmountConversionFailed {
@@ -1278,16 +1290,6 @@ impl FromStr for AciPaymentStatus {
     }
 }
 
-impl AciPaymentsResponse {
-    pub fn flow_status(&self) -> Result<AciPaymentStatus, error_stack::Report<ConnectorError>> {
-        if self.redirect.is_some() {
-            Ok(AciPaymentStatus::RedirectShopper)
-        } else {
-            AciPaymentStatus::from_str(&self.result.code)
-        }
-    }
-}
-
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsResponse {
@@ -1475,7 +1477,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.amount_to_capture.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1509,6 +1511,12 @@ pub struct AciCaptureResponse {
     source: Option<Secret<String>>,
     payment_method: Option<String>,
     short_id: Option<String>,
+}
+
+impl AciCaptureResponse {
+    pub fn flow_status(&self) -> Result<AciStatus, error_stack::Report<ConnectorError>> {
+        AciStatus::from_str(&self.result.code)
+    }
 }
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -1553,12 +1561,6 @@ impl FromStr for AciStatus {
             )
             .attach_printable(s.to_owned()))
         }
-    }
-}
-
-impl AciCaptureResponse {
-    pub fn flow_status(&self) -> Result<AciStatus, error_stack::Report<ConnectorError>> {
-        AciStatus::from_str(&self.result.code)
     }
 }
 
@@ -1634,6 +1636,12 @@ pub struct AciVoidResponse {
     ndc: Secret<String>,
 }
 
+impl AciVoidResponse {
+    pub fn flow_status(&self) -> Result<AciStatus, error_stack::Report<ConnectorError>> {
+        AciStatus::from_str(&self.result.code)
+    }
+}
+
 fn map_aci_void_status(item: AciStatus) -> common_enums::AttemptStatus {
     match item {
         AciStatus::Succeeded => common_enums::AttemptStatus::Voided,
@@ -1684,12 +1692,6 @@ impl<F, T> TryFrom<ResponseRouterData<AciVoidResponse, Self>>
     }
 }
 
-impl AciVoidResponse {
-    pub fn flow_status(&self) -> Result<AciStatus, error_stack::Report<ConnectorError>> {
-        AciStatus::from_str(&self.result.code)
-    }
-}
-
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRefundRequest {
@@ -1715,7 +1717,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1760,32 +1762,6 @@ impl FromStr for AciRefundStatus {
     }
 }
 
-impl AciRefundResponse {
-    pub fn flow_status(&self) -> Result<AciRefundStatus, error_stack::Report<ConnectorError>> {
-        AciRefundStatus::from_str(&self.result.code)
-    }
-}
-
-#[derive(Debug, Default, Clone, Deserialize)]
-pub enum AciMandateStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Pending,
-}
-
-impl AciMandateResponse {
-    pub fn flow_status(&self) -> AciMandateStatus {
-        if SUCCESSFUL_CODES.contains(&self.result.code.as_str()) {
-            AciMandateStatus::Succeeded
-        } else if FAILURE_CODES.contains(&self.result.code.as_str()) {
-            AciMandateStatus::Failed
-        } else {
-            AciMandateStatus::Pending
-        }
-    }
-}
-
 impl From<AciRefundStatus> for common_enums::RefundStatus {
     fn from(item: AciRefundStatus) -> Self {
         match item {
@@ -1805,6 +1781,12 @@ pub struct AciRefundResponse {
     timestamp: String,
     build_number: String,
     pub(super) result: ResultCode,
+}
+
+impl AciRefundResponse {
+    pub fn flow_status(&self) -> Result<AciRefundStatus, error_stack::Report<ConnectorError>> {
+        AciRefundStatus::from_str(&self.result.code)
+    }
 }
 
 impl<F> TryFrom<ResponseRouterData<AciRefundResponse, Self>>
@@ -2044,7 +2026,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -2078,5 +2060,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             three_ds_two_enrolled: None,
             recurring_type,
         })
+    }
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+pub enum AciMandateStatus {
+    Succeeded,
+    Failed,
+    #[default]
+    Pending,
+}
+
+impl AciPaymentsResponse {
+    pub fn flow_status(&self) -> Result<AciPaymentStatus, error_stack::Report<ConnectorError>> {
+        if self.redirect.is_some() {
+            Ok(AciPaymentStatus::RedirectShopper)
+        } else {
+            AciPaymentStatus::from_str(&self.result.code)
+        }
     }
 }

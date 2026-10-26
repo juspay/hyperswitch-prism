@@ -666,7 +666,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let amount = BarclaycardAmountConvertor::convert(
-            router_data.request.amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -959,7 +959,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &value.router_data;
         let amount = BarclaycardAmountConvertor::convert(
-            router_data.request.minor_amount_to_capture,
+            router_data.request.amount_to_capture.amount,
             router_data.request.currency,
         )?;
 
@@ -1017,6 +1017,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data
                 .request
                 .amount
+                .as_ref()
+                .map(|money| money.amount)
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "amount",
                     context: Default::default(),
@@ -1073,7 +1075,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let amount = BarclaycardAmountConvertor::convert(
-            router_data.request.minor_refund_amount,
+            router_data.request.refund_amount.amount,
             router_data.request.currency,
         )?;
 
@@ -1613,7 +1615,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let amount = BarclaycardAmountConvertor::convert(
-            router_data.request.minor_amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -1695,7 +1697,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 let pi = requests::RepeatPaymentInformation::Cards(Box::new(
                     requests::CardWithNtiPaymentInformation {
                         card: requests::CardWithNti {
-                            number: ccard.card_number.clone(),
+                            number: ccard.card_number.try_card_number("Barclaycard")?,
                             expiration_month: ccard.card_exp_month.clone(),
                             expiration_year: ccard.card_exp_year.clone(),
                             security_code: None,
@@ -2225,19 +2227,6 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-pub fn auth_setup_status(
-    response: &responses::BarclaycardAuthSetupResponse,
-) -> common_enums::AttemptStatus {
-    match response {
-        responses::BarclaycardAuthSetupResponse::ClientAuthSetupInfo(_) => {
-            common_enums::AttemptStatus::AuthenticationPending
-        }
-        responses::BarclaycardAuthSetupResponse::ErrorInformation(_) => {
-            common_enums::AttemptStatus::AuthenticationFailed
-        }
-    }
-}
-
 // --- Authenticate (risk/v1/authentications) ---
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -2296,7 +2285,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .currency
             .ok_or_else(|| missing_required_field_error(FIELD_CURRENCY, FLOW_AUTHENTICATE))?;
         let total_amount =
-            BarclaycardAmountConvertor::convert(router_data.request.amount, currency)?;
+            BarclaycardAmountConvertor::convert(router_data.request.amount.amount, currency)?;
 
         let email = router_data
             .resource_common_data
@@ -2471,29 +2460,6 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-pub fn authenticate_status(
-    response: &responses::BarclaycardAuthenticateResponse,
-) -> common_enums::AttemptStatus {
-    match response {
-        responses::BarclaycardAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
-            match &info_response.status {
-                responses::BarclaycardAuthEnrollmentStatus::PendingAuthentication => {
-                    common_enums::AttemptStatus::AuthenticationPending
-                }
-                responses::BarclaycardAuthEnrollmentStatus::AuthenticationSuccessful => {
-                    common_enums::AttemptStatus::AuthenticationSuccessful
-                }
-                responses::BarclaycardAuthEnrollmentStatus::AuthenticationFailed => {
-                    common_enums::AttemptStatus::AuthenticationFailed
-                }
-            }
-        }
-        responses::BarclaycardAuthenticateResponse::ErrorInformation(_) => {
-            common_enums::AttemptStatus::AuthenticationFailed
-        }
-    }
-}
-
 // --- PostAuthenticate (risk/v1/authentication-results) ---
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -2552,7 +2518,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .currency
             .ok_or_else(|| missing_required_field_error(FIELD_CURRENCY, FLOW_POST_AUTHENTICATE))?;
         let total_amount =
-            BarclaycardAmountConvertor::convert(router_data.request.amount, currency)?;
+            BarclaycardAmountConvertor::convert(router_data.request.amount.amount, currency)?;
         let order_information = requests::OrderInformation {
             amount_details: requests::Amount {
                 total_amount,
@@ -2677,6 +2643,42 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ..item.router_data
                 })
             }
+        }
+    }
+}
+
+pub fn authenticate_status(
+    response: &responses::BarclaycardAuthenticateResponse,
+) -> common_enums::AttemptStatus {
+    match response {
+        responses::BarclaycardAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
+            match &info_response.status {
+                responses::BarclaycardAuthEnrollmentStatus::PendingAuthentication => {
+                    common_enums::AttemptStatus::AuthenticationPending
+                }
+                responses::BarclaycardAuthEnrollmentStatus::AuthenticationSuccessful => {
+                    common_enums::AttemptStatus::AuthenticationSuccessful
+                }
+                responses::BarclaycardAuthEnrollmentStatus::AuthenticationFailed => {
+                    common_enums::AttemptStatus::AuthenticationFailed
+                }
+            }
+        }
+        responses::BarclaycardAuthenticateResponse::ErrorInformation(_) => {
+            common_enums::AttemptStatus::AuthenticationFailed
+        }
+    }
+}
+
+pub fn auth_setup_status(
+    response: &responses::BarclaycardAuthSetupResponse,
+) -> common_enums::AttemptStatus {
+    match response {
+        responses::BarclaycardAuthSetupResponse::ClientAuthSetupInfo(_) => {
+            common_enums::AttemptStatus::AuthenticationPending
+        }
+        responses::BarclaycardAuthSetupResponse::ErrorInformation(_) => {
+            common_enums::AttemptStatus::AuthenticationFailed
         }
     }
 }

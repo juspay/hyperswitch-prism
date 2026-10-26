@@ -670,9 +670,9 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: i64,
     context: (),
-    mapping_status: |response_code, _ctx| { match response_code {
-            qwikcilver::QWIKCILVER_SUCCESS_CODE => common_enums::AttemptStatus::Charged,
-            _ => common_enums::AttemptStatus::Failure,
+    mapping: |response_code, _ctx| { match response_code {
+            qwikcilver::QWIKCILVER_SUCCESS_CODE => success!(Charged),
+            _ => failure!(Failure),
         } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
@@ -688,9 +688,9 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: i64,
     context: (),
-    mapping_status: |response_code, _ctx| { match response_code {
-            qwikcilver::QWIKCILVER_SUCCESS_CODE => common_enums::RefundStatus::Success,
-            _ => common_enums::RefundStatus::Failure,
+    mapping: |response_code, _ctx| { match response_code {
+            qwikcilver::QWIKCILVER_SUCCESS_CODE => success!(Success),
+            _ => failure!(Failure),
         } },
     runtime: {
         request: RefundsData,

@@ -59,14 +59,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Forte<T>,
     flow: Authorize,
     source: transformers::FortePaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::FortePaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            transformers::FortePaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::FortePaymentStatus::Complete => common_enums::AttemptStatus::Charged,
-            transformers::FortePaymentStatus::Ready => common_enums::AttemptStatus::Pending,
-            transformers::FortePaymentStatus::Voided => common_enums::AttemptStatus::Voided,
-            transformers::FortePaymentStatus::Settled => common_enums::AttemptStatus::Charged,
+            transformers::FortePaymentStatus::Authorized => success!(Authorized),
+            transformers::FortePaymentStatus::Failed => failure!(Failure),
+            transformers::FortePaymentStatus::Complete => success!(Charged),
+            transformers::FortePaymentStatus::Ready => non_terminal!(Pending),
+            transformers::FortePaymentStatus::Voided => non_terminal!(Voided),
+            transformers::FortePaymentStatus::Settled => success!(Charged),
         }
     },
     runtime: {
@@ -84,14 +84,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Forte<T>,
     flow: PSync,
     source: transformers::FortePaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::FortePaymentStatus::Settled => common_enums::AttemptStatus::Charged,
-            transformers::FortePaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::FortePaymentStatus::Complete => common_enums::AttemptStatus::Charged,
-            transformers::FortePaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            transformers::FortePaymentStatus::Ready => common_enums::AttemptStatus::Pending,
-            transformers::FortePaymentStatus::Voided => common_enums::AttemptStatus::Voided,
+            transformers::FortePaymentStatus::Settled => success!(Charged),
+            transformers::FortePaymentStatus::Failed => failure!(Failure),
+            transformers::FortePaymentStatus::Complete => success!(Charged),
+            transformers::FortePaymentStatus::Authorized => success!(Authorized),
+            transformers::FortePaymentStatus::Ready => non_terminal!(Pending),
+            transformers::FortePaymentStatus::Voided => success!(Voided),
         }
     },
     runtime: {
@@ -109,14 +109,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Forte<T>,
     flow: Void,
     source: transformers::FortePaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::FortePaymentStatus::Voided => common_enums::AttemptStatus::Voided,
-            transformers::FortePaymentStatus::Failed => common_enums::AttemptStatus::VoidFailed,
-            transformers::FortePaymentStatus::Complete => common_enums::AttemptStatus::VoidFailed,
-            transformers::FortePaymentStatus::Authorized => common_enums::AttemptStatus::VoidInitiated,
-            transformers::FortePaymentStatus::Ready => common_enums::AttemptStatus::Pending,
-            transformers::FortePaymentStatus::Settled => common_enums::AttemptStatus::VoidFailed,
+            transformers::FortePaymentStatus::Voided => success!(Voided),
+            transformers::FortePaymentStatus::Failed => failure!(VoidFailed),
+            transformers::FortePaymentStatus::Complete => failure!(VoidFailed),
+            transformers::FortePaymentStatus::Authorized => non_terminal!(VoidInitiated),
+            transformers::FortePaymentStatus::Ready => non_terminal!(Pending),
+            transformers::FortePaymentStatus::Settled => failure!(VoidFailed),
         }
     },
     runtime: {
@@ -134,13 +134,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Forte<T>,
     flow: RSync,
     source: transformers::RefundStatus,
-    mapping_status: |status| {
-        match status {
-            transformers::RefundStatus::Complete => common_enums::RefundStatus::Success,
-            transformers::RefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::RefundStatus::Ready => common_enums::RefundStatus::Pending,
-        }
-    },
+    mapping: |status| { match status {
+            transformers::RefundStatus::Complete => success!(Success),
+            transformers::RefundStatus::Failed => failure!(Failure),
+            transformers::RefundStatus::Ready => non_terminal!(Pending),
+        } },
     runtime: {
         request: RefundSyncData,
         response: RefundSyncResponse,
@@ -156,13 +154,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Forte<T>,
     flow: Refund,
     source: transformers::RefundStatus,
-    mapping_status: |status| {
-        match status {
-            transformers::RefundStatus::Complete => common_enums::RefundStatus::Success,
-            transformers::RefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::RefundStatus::Ready => common_enums::RefundStatus::Pending,
-        }
-    },
+    mapping: |status| { match status {
+            transformers::RefundStatus::Complete => success!(Success),
+            transformers::RefundStatus::Failed => failure!(Failure),
+            transformers::RefundStatus::Ready => non_terminal!(Pending),
+        } },
     runtime: {
         request: RefundsData,
         response: RefundResponse,
@@ -178,14 +174,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Forte<T>,
     flow: Capture,
     source: transformers::FortePaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::FortePaymentStatus::Complete => common_enums::AttemptStatus::Charged,
-            transformers::FortePaymentStatus::Failed => common_enums::AttemptStatus::CaptureFailed,
-            transformers::FortePaymentStatus::Authorized => common_enums::AttemptStatus::Pending,
-            transformers::FortePaymentStatus::Ready => common_enums::AttemptStatus::Pending,
-            transformers::FortePaymentStatus::Voided => common_enums::AttemptStatus::CaptureFailed,
-            transformers::FortePaymentStatus::Settled => common_enums::AttemptStatus::Charged,
+            transformers::FortePaymentStatus::Complete => success!(Charged),
+            transformers::FortePaymentStatus::Failed => failure!(CaptureFailed),
+            transformers::FortePaymentStatus::Authorized => non_terminal!(Pending),
+            transformers::FortePaymentStatus::Ready => non_terminal!(Pending),
+            transformers::FortePaymentStatus::Voided => failure!(CaptureFailed),
+            transformers::FortePaymentStatus::Settled => success!(Charged),
         }
     },
     runtime: {

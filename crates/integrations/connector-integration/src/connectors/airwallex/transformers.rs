@@ -1277,7 +1277,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // Unified response type for all payment operations (Authorize, PSync, Capture, Void)
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AirwallexPaymentsResponse {
     pub id: String,
     pub status: AirwallexPaymentStatus,
@@ -1315,7 +1315,7 @@ pub struct AirwallexPaymentsResponse {
 // Type alias - reuse the same response structure for PSync
 pub type AirwallexSyncResponse = AirwallexPaymentsResponse;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AirwallexPaymentAttempt {
     pub id: Option<String>,
     pub status: Option<String>, // Changed from AirwallexPaymentStatus to String to handle different values
@@ -1345,7 +1345,7 @@ pub enum AirwallexPaymentStatus {
     Pending,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AirwallexPaymentMethodInfo {
     #[serde(rename = "type")]
     pub method_type: String,
@@ -1361,7 +1361,7 @@ pub struct AirwallexPaymentMethodInfo {
     pub updated_at: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AirwallexCardInfo {
     pub last4: Option<String>,
     pub brand: Option<String>,
@@ -1379,7 +1379,7 @@ pub enum AirwallexNextActionType {
     Other,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AirwallexNextAction {
     #[serde(rename = "type")]
     pub action_type: AirwallexNextActionType,
@@ -1392,7 +1392,7 @@ pub struct AirwallexNextAction {
     pub url: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AirwallexProcessorResponse {
     pub code: Option<String>,
     pub message: Option<String>,
@@ -1419,7 +1419,7 @@ fn build_redirection_data(next_action: &Option<AirwallexNextAction>) -> Option<B
 }
 
 // Helper function to get payment status from Airwallex status (following Hyperswitch pattern)
-fn get_payment_status(
+pub fn get_payment_status(
     status: &AirwallexPaymentStatus,
     next_action: &Option<AirwallexNextAction>,
 ) -> AttemptStatus {
@@ -1679,16 +1679,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         // Extract capture amount from the capture data
-        let capture_amount = item.router_data.request.amount_to_capture;
+        let capture_amount = item.router_data.request.amount_to_capture.amount;
 
         // Use connector amount converter for proper amount formatting in major units (hyperswitch pattern)
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                common_utils::MinorUnit::new(capture_amount),
-                item.router_data.request.currency,
-            )
+            .convert(capture_amount, item.router_data.request.currency)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1788,7 +1785,7 @@ pub struct AirwallexRefundResponse {
     pub metadata: Option<serde_json::Value>,        // Additional metadata
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexRefundStatus {
     Received,
@@ -1818,14 +1815,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let payment_intent_id = item.router_data.request.connector_transaction_id.clone();
 
         // Extract refund amount from RefundsData and convert to major units (hyperswitch pattern)
-        let refund_amount = item.router_data.request.refund_amount;
+        let refund_amount = item.router_data.request.refund_amount.amount;
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                common_utils::MinorUnit::new(refund_amount),
-                item.router_data.request.currency,
-            )
+            .convert(refund_amount, item.router_data.request.currency)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -2207,7 +2201,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .map_err(|_| IntegrationError::RequestEncodingFailed {

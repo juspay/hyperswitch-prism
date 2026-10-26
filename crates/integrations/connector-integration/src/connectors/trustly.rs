@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::{self, fmt::Debug};
 
-use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
+use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMajorUnit};
 use domain_types::{
     connector_flow::{Authorize, Refund},
@@ -388,7 +388,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: details.params.data.accountid.clone(),
@@ -534,10 +533,10 @@ domain_types::impl_flow_status_mapping! {
     // arrives via webhooks.,
     source: bool,
     context: (),
-    mapping_status: |acknowledged, _ctx| { if acknowledged {
-            AttemptStatus::AuthenticationPending
+    mapping: |acknowledged, _ctx|{ if acknowledged {
+            non_terminal!(AuthenticationPending)
         } else {
-            AttemptStatus::Failure
+            failure!(Failure)
         } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
@@ -553,9 +552,9 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: Option<trustly::TrustlyRefundResult>,
     context: (),
-    mapping_status: |result, _ctx| { match result {
-            Some(trustly::TrustlyRefundResult::Pending) => RefundStatus::Pending,
-            Some(trustly::TrustlyRefundResult::Failed) | None => RefundStatus::Failure,
+    mapping: |result, _ctx|{ match result {
+            Some(trustly::TrustlyRefundResult::Pending) => non_terminal!(Pending),
+            Some(trustly::TrustlyRefundResult::Failed) | None => failure!(Failure),
         } },
     runtime: {
         request: RefundsData,

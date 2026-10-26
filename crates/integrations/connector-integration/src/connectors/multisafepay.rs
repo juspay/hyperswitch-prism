@@ -1,4 +1,5 @@
 pub mod transformers;
+use transformers::MultisafepayRefundVerdict;
 
 use domain_types::router_data::ConnectorSpecificConfig;
 use std::fmt::Debug;
@@ -449,13 +450,41 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: multisafepay::MultisafepayPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             multisafepay::MultisafepayPaymentStatus::Completed => common_enums::AttemptStatus::Charged,
             multisafepay::MultisafepayPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
             multisafepay::MultisafepayPaymentStatus::Initialized => common_enums::AttemptStatus::AuthenticationPending,
             multisafepay::MultisafepayPaymentStatus::Uncleared => common_enums::AttemptStatus::Pending,
             multisafepay::MultisafepayPaymentStatus::Void => common_enums::AttemptStatus::Voided,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: MultisafepayPaymentsResponse,
@@ -473,13 +502,48 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: multisafepay::MultisafepayPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             multisafepay::MultisafepayPaymentStatus::Completed => common_enums::AttemptStatus::Charged,
             multisafepay::MultisafepayPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
             multisafepay::MultisafepayPaymentStatus::Initialized => common_enums::AttemptStatus::AuthenticationPending,
             multisafepay::MultisafepayPaymentStatus::Uncleared => common_enums::AttemptStatus::Pending,
             multisafepay::MultisafepayPaymentStatus::Void => common_enums::AttemptStatus::Voided,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: MultisafepayPaymentsSyncResponse,
@@ -496,22 +560,20 @@ domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Multisafepay<T>,
     flow: Refund,
-    source: multisafepay::MultisafepayRefundVerdict,
-    mapping_status: |verdict| { use common_enums::RefundStatus;
-        use multisafepay::MultisafepayRefundVerdict;
-        match verdict {
-            MultisafepayRefundVerdict::Succeeded => RefundStatus::Success,
-            MultisafepayRefundVerdict::Failed => RefundStatus::Failure,
-            MultisafepayRefundVerdict::Other => RefundStatus::Failure,
+    source: MultisafepayRefundVerdict,
+    mapping: |verdict| { match verdict {
+            MultisafepayRefundVerdict::Succeeded => success!(Success),
+            MultisafepayRefundVerdict::Failed => failure!(Failure),
+            MultisafepayRefundVerdict::Other => failure!(Failure),
         } },
     runtime: {
         request: RefundsData,
         response: MultisafepayRefundResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok({
             if response.success {
-                multisafepay::MultisafepayRefundVerdict::Succeeded
+                MultisafepayRefundVerdict::Succeeded
             } else {
-                multisafepay::MultisafepayRefundVerdict::Failed
+                MultisafepayRefundVerdict::Failed
             }
         }) },
     },
@@ -523,22 +585,20 @@ domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Multisafepay<T>,
     flow: RSync,
-    source: multisafepay::MultisafepayRefundVerdict,
-    mapping_status: |verdict| { use common_enums::RefundStatus;
-        use multisafepay::MultisafepayRefundVerdict;
-        match verdict {
-            MultisafepayRefundVerdict::Succeeded => RefundStatus::Success,
-            MultisafepayRefundVerdict::Failed => RefundStatus::Failure,
-            MultisafepayRefundVerdict::Other => RefundStatus::Failure,
+    source: MultisafepayRefundVerdict,
+    mapping: |verdict| { match verdict {
+            MultisafepayRefundVerdict::Succeeded => success!(Success),
+            MultisafepayRefundVerdict::Failed => failure!(Failure),
+            MultisafepayRefundVerdict::Other => failure!(Failure),
         } },
     runtime: {
         request: RefundSyncData,
         response: MultisafepayRefundSyncResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok({
             if response.success {
-                multisafepay::MultisafepayRefundVerdict::Succeeded
+                MultisafepayRefundVerdict::Succeeded
             } else {
-                multisafepay::MultisafepayRefundVerdict::Failed
+                MultisafepayRefundVerdict::Failed
             }
         }) },
     },

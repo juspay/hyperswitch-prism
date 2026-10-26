@@ -458,7 +458,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: (Option<travelhub::TravelhubResult>, bool),
     context: Option<common_enums::CaptureMethod>,
-    mapping_status: |source, capture_method| { let (result, is_redirect) = source;
+    mapping: |source, capture_method| {
+        let mapped_status = (|| { let (result, is_redirect) = source;
         let result = result.unwrap_or(travelhub::TravelhubResult::Pending);
         if is_redirect {
             AttemptStatus::AuthenticationPending
@@ -483,7 +484,34 @@ domain_types::impl_flow_status_mapping! {
                 | travelhub::TravelhubResult::Pending
                 | travelhub::TravelhubResult::Unknown => AttemptStatus::Pending,
             }
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: TravelhubAuthorizeResponse,
@@ -505,7 +533,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: Option<travelhub::TravelhubResult>,
     context: (),
-    mapping_status: |result, _ctx| { let result = result.unwrap_or(travelhub::TravelhubResult::Pending);
+    mapping: |result, _ctx| {
+        let mapped_status = (|| { let result = result.unwrap_or(travelhub::TravelhubResult::Pending);
         match result {
             // An approved capture leg means the funds are captured at TravelHub (Charged),
             // not merely held (Authorized).
@@ -520,7 +549,19 @@ domain_types::impl_flow_status_mapping! {
             travelhub::TravelhubResult::Redirected
             | travelhub::TravelhubResult::Pending
             | travelhub::TravelhubResult::Unknown => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: TravelhubCaptureResponse,
@@ -535,7 +576,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: Option<travelhub::TravelhubResult>,
     context: (),
-    mapping_status: |result, _ctx| { let result = result.unwrap_or(travelhub::TravelhubResult::Pending);
+    mapping: |result, _ctx| {
+        let mapped_status = (|| { let result = result.unwrap_or(travelhub::TravelhubResult::Pending);
         match result {
             // An approved cancel is the void success path at TravelHub.
             travelhub::TravelhubResult::Approved | travelhub::TravelhubResult::Cancelled => {
@@ -550,7 +592,16 @@ domain_types::impl_flow_status_mapping! {
             travelhub::TravelhubResult::Redirected
             | travelhub::TravelhubResult::Pending
             | travelhub::TravelhubResult::Unknown => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: TravelhubVoidResponse,
@@ -565,7 +616,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: Option<travelhub::TravelhubResult>,
     context: Option<common_enums::CaptureMethod>,
-    mapping_status: |result, capture_method| { let result = result.unwrap_or(travelhub::TravelhubResult::Pending);
+    mapping: |result, capture_method| {
+        let mapped_status = (|| { let result = result.unwrap_or(travelhub::TravelhubResult::Pending);
         match result {
             travelhub::TravelhubResult::Approved => {
                 if crate::utils::is_manual_capture(capture_method) {
@@ -585,7 +637,41 @@ domain_types::impl_flow_status_mapping! {
             travelhub::TravelhubResult::Redirected
             | travelhub::TravelhubResult::Pending
             | travelhub::TravelhubResult::Unknown => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: TravelhubPSyncResponse,
@@ -600,7 +686,8 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: Option<travelhub::TravelhubResult>,
     context: (),
-    mapping_status: |result, _ctx| { match result.unwrap_or(travelhub::TravelhubResult::Pending) {
+    mapping: |result, _ctx| {
+        let mapped_status = (|| { match result.unwrap_or(travelhub::TravelhubResult::Pending) {
             travelhub::TravelhubResult::Approved
             | travelhub::TravelhubResult::Refunded
             | travelhub::TravelhubResult::Settled => RefundStatus::Success,
@@ -612,7 +699,16 @@ domain_types::impl_refund_flow_status_mapping! {
             | travelhub::TravelhubResult::Cancelled
             | travelhub::TravelhubResult::Pending
             | travelhub::TravelhubResult::Unknown => RefundStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: TravelhubRefundResponse,
@@ -627,7 +723,8 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: Option<travelhub::TravelhubResult>,
     context: (),
-    mapping_status: |result, _ctx| { match result.unwrap_or(travelhub::TravelhubResult::Pending) {
+    mapping: |result, _ctx| {
+        let mapped_status = (|| { match result.unwrap_or(travelhub::TravelhubResult::Pending) {
             travelhub::TravelhubResult::Approved
             | travelhub::TravelhubResult::Refunded
             | travelhub::TravelhubResult::Settled => RefundStatus::Success,
@@ -639,7 +736,16 @@ domain_types::impl_refund_flow_status_mapping! {
             | travelhub::TravelhubResult::Cancelled
             | travelhub::TravelhubResult::Pending
             | travelhub::TravelhubResult::Unknown => RefundStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: TravelhubRSyncResponse,

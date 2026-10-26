@@ -374,9 +374,17 @@ domain_types::impl_flow_status_mapping! {
     connector: JpmorganOrbital<T>,
     flow:      Authorize,
     source:    jpmorganorbital::JpmorganOrbitalAuthorizeOutcome,
-    success:   Success => Charged,
-    failure:   Failure => Failure,
-    {}
+    mapping: |status|{
+        match status {
+            jpmorganorbital::JpmorganOrbitalAuthorizeOutcome::Success => success!(Charged),
+            jpmorganorbital::JpmorganOrbitalAuthorizeOutcome::Failure => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: JpmorganOrbitalPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.authorize_outcome()) },
+    },
 }
 
 // PSync — mirrors the PSync TryFrom (transformers.rs:1384): `/inquiry` is the
@@ -396,16 +404,16 @@ domain_types::impl_flow_status_mapping! {
     connector: JpmorganOrbital<T>,
     flow: PSync,
     source: jpmorganorbital::JpmorganOrbitalInquiryOutcome,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            jpmorganorbital::JpmorganOrbitalInquiryOutcome::Success => common_enums::AttemptStatus::Charged,
-            jpmorganorbital::JpmorganOrbitalInquiryOutcome::Failure => common_enums::AttemptStatus::Failure,
-            jpmorganorbital::JpmorganOrbitalInquiryOutcome::NotFound => common_enums::AttemptStatus::Unresolved,
+            jpmorganorbital::JpmorganOrbitalInquiryOutcome::Success => success!(Charged),
+            jpmorganorbital::JpmorganOrbitalInquiryOutcome::Failure => failure!(Failure),
+            jpmorganorbital::JpmorganOrbitalInquiryOutcome::NotFound => non_terminal!(Unresolved),
         }
     },
     runtime: {
         request: PaymentsSyncData,
-        response: jpmorganorbital::JpmorganOrbitalInquiryResponse,
+        response: JpmorganOrbitalInquiryResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.0.inquiry_outcome()) },
     },
 }

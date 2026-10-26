@@ -655,7 +655,8 @@ domain_types::impl_flow_status_mapping! {
     // `None` when the response array is empty.,
     source: Option<(String, Option<trustpayments::TrustpaymentsSettleStatus>, Option<String>)>,
     context: (),
-    mapping_status: |source, _ctx| { let Some((errorcode, settlestatus, authcode)) = source else {
+    mapping: |source, _ctx| {
+        let mapped_status = (|| { let Some((errorcode, settlestatus, authcode)) = source else {
             return AttemptStatus::Failure;
         };
         if errorcode != "0" {
@@ -682,7 +683,34 @@ domain_types::impl_flow_status_mapping! {
             }
             Some(trustpayments::TrustpaymentsSettleStatus::Cancelled) => AttemptStatus::Voided,
             None => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: TrustpaymentsAuthorizeResponse,
@@ -714,7 +742,8 @@ domain_types::impl_flow_status_mapping! {
         )>,
     )>,
     context: (),
-    mapping_status: |source, _ctx| { let Some((response_errorcode, record)) = source else {
+    mapping: |source, _ctx| {
+        let mapped_status = (|| { let Some((response_errorcode, record)) = source else {
             return AttemptStatus::Failure;
         };
         if response_errorcode != "0" {
@@ -748,7 +777,41 @@ domain_types::impl_flow_status_mapping! {
             }
             Some(trustpayments::TrustpaymentsSettleStatus::Cancelled) => AttemptStatus::Voided,
             None => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: TrustpaymentsPSyncResponse,
@@ -776,11 +839,24 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: Option<String>,
     context: (),
-    mapping_status: |errorcode, _ctx| { match errorcode.as_deref() {
+    mapping: |errorcode, _ctx| {
+        let mapped_status = (|| { match errorcode.as_deref() {
             // A successful TRANSACTIONUPDATE means the capture was accepted.
             Some("0") => AttemptStatus::Charged,
             _ => AttemptStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: TrustpaymentsCaptureResponse,
@@ -800,11 +876,21 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: Option<String>,
     context: (),
-    mapping_status: |errorcode, _ctx| { match errorcode.as_deref() {
+    mapping: |errorcode, _ctx| {
+        let mapped_status = (|| { match errorcode.as_deref() {
             // A successful TRANSACTIONUPDATE means the void was accepted.
             Some("0") => AttemptStatus::Voided,
             _ => AttemptStatus::VoidFailed,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: TrustpaymentsVoidResponse,
@@ -824,7 +910,8 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: Option<(String, Option<trustpayments::TrustpaymentsSettleStatus>, Option<String>)>,
     context: (),
-    mapping_status: |source, _ctx| { let Some((errorcode, settlestatus, authcode)) = source else {
+    mapping: |source, _ctx| {
+        let mapped_status = (|| { let Some((errorcode, settlestatus, authcode)) = source else {
             return AttemptStatus::Failure;
         };
         if errorcode != "0" {
@@ -851,7 +938,19 @@ domain_types::impl_flow_status_mapping! {
             }
             Some(trustpayments::TrustpaymentsSettleStatus::Cancelled) => AttemptStatus::Voided,
             None => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: SetupMandateRequestData<T>,
         response: TrustpaymentsSetupMandateResponse,
@@ -874,7 +973,8 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: Option<(String, Option<trustpayments::TrustpaymentsSettleStatus>, Option<String>)>,
     context: (),
-    mapping_status: |source, _ctx| { let Some((errorcode, settlestatus, authcode)) = source else {
+    mapping: |source, _ctx| {
+        let mapped_status = (|| { let Some((errorcode, settlestatus, authcode)) = source else {
             return AttemptStatus::Failure;
         };
         if errorcode != "0" {
@@ -901,7 +1001,23 @@ domain_types::impl_flow_status_mapping! {
             }
             Some(trustpayments::TrustpaymentsSettleStatus::Cancelled) => AttemptStatus::Voided,
             None => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorized => non_terminal!(Authorized),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: TrustpaymentsRepeatPaymentResponse,
@@ -924,7 +1040,8 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: Option<(String, Option<trustpayments::TrustpaymentsSettleStatus>)>,
     context: (),
-    mapping_status: |source, _ctx| { let Some((errorcode, settlestatus)) = source else {
+    mapping: |source, _ctx| {
+        let mapped_status = (|| { let Some((errorcode, settlestatus)) = source else {
             return RefundStatus::Pending;
         };
         if errorcode != "0" {
@@ -942,7 +1059,16 @@ domain_types::impl_refund_flow_status_mapping! {
                 RefundStatus::ManualReview
             }
             Some(trustpayments::TrustpaymentsSettleStatus::Cancelled) => RefundStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: TrustpaymentsRefundResponse,
@@ -968,7 +1094,8 @@ domain_types::impl_refund_flow_status_mapping! {
         Option<(String, Option<trustpayments::TrustpaymentsSettleStatus>)>,
     )>,
     context: (),
-    mapping_status: |source, _ctx| { let Some((response_errorcode, record)) = source else {
+    mapping: |source, _ctx| {
+        let mapped_status = (|| { let Some((response_errorcode, record)) = source else {
             return RefundStatus::Pending;
         };
         if response_errorcode != "0" {
@@ -993,7 +1120,16 @@ domain_types::impl_refund_flow_status_mapping! {
                 RefundStatus::ManualReview
             }
             Some(trustpayments::TrustpaymentsSettleStatus::Cancelled) => RefundStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: TrustpaymentsRSyncResponse,

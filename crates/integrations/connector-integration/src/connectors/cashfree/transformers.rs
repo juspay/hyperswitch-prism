@@ -19,6 +19,28 @@ use error_stack::{report, Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Default)]
+pub enum CashfreeRefundStatus {
+    Success,
+    Pending,
+    Cancelled,
+    Failed,
+    #[default]
+    Other,
+}
+
+impl From<&str> for CashfreeRefundStatus {
+    fn from(status: &str) -> Self {
+        match status {
+            "SUCCESS" | "OK" => Self::Success,
+            "PENDING" => Self::Pending,
+            "CANCELLED" => Self::Cancelled,
+            "FAILED" => Self::Failed,
+            _ => Self::Other,
+        }
+    }
+}
+
 use crate::types::ResponseRouterData;
 
 // ============================================================================
@@ -81,12 +103,12 @@ pub struct CashfreeOrderCreateRequest {
 }
 
 // Supporting types for Order Response (missing from original implementation)
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CashfreeOrderCreateUrlResponse {
     pub url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreeOrderTagsType {
     pub metadata1: Option<String>,
     pub metadata2: Option<String>,
@@ -96,14 +118,14 @@ pub struct CashfreeOrderTagsType {
     pub metadata6: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreeOrderSplitsType {
     pub vendor_id: String,
     pub amount: f64,
     pub percentage: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreeCustomerDetails {
     pub customer_id: String,
     pub customer_email: Option<Secret<String, EmailStrategy>>,
@@ -111,14 +133,14 @@ pub struct CashfreeCustomerDetails {
     pub customer_name: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreeOrderMeta {
     pub return_url: String,
     pub notify_url: String,
     pub payment_methods: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreeOrderCreateResponse {
     pub payment_session_id: String, // KEY: Used in Authorize flow
     pub cf_order_id: i64,
@@ -245,7 +267,7 @@ pub struct CashfreePaymentSurcharge {
     pub surcharge_percentage: f64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreePaymentResponse {
     pub payment_method: String,
     pub channel: String,
@@ -254,7 +276,7 @@ pub struct CashfreePaymentResponse {
     pub cf_payment_id: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreeResponseData {
     pub url: Option<String>,
     pub payload: Option<CashfreePayloadData>,
@@ -262,7 +284,7 @@ pub struct CashfreeResponseData {
     pub method: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreePayloadData {
     #[serde(rename = "default")]
     pub default_link: String, // Universal deep link for Intent
@@ -440,7 +462,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let converted_amount = converter
             .convert(
-                wrapper.router_data.request.amount,
+                wrapper.router_data.request.amount.amount,
                 wrapper.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -479,7 +501,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let converted_amount = converter
-            .convert(item.request.amount, item.request.currency)
+            .convert(item.request.amount.amount, item.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -915,26 +937,6 @@ pub struct CashfreeCaptureResponse {
     pub captured_amount: Option<f64>,
 }
 
-/// Typed mirror of `map_capture_payment_status` below: `"SUCCESS"` →
-/// `Success`, `"FAILED"` → `Failed`, `"PENDING"` → `Pending`, `"CAPTURE"`
-/// (pre-auth authorization-status variant, capture succeeded) → `Success`,
-/// any other string → `Other`. Used by the `impl_flow_status_mapping_ctx!`
-/// declaration in `cashfree.rs`; `map_capture_payment_status` remains what
-/// the TryFrom actually routes through.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum CashfreeCaptureStatus {
-    /// `"SUCCESS"` (or the pre-auth authorization-status variant `"CAPTURE"`)
-    /// — the capture settled.
-    Success,
-    /// `"FAILED"` — the capture was declined.
-    Failed,
-    /// `"PENDING"` — the capture was initiated.
-    Pending,
-    /// Any other status string — still in flight (the default).
-    #[default]
-    Other,
-}
-
 /// Status mapping for capture flow per techspec section 9.4
 fn map_capture_payment_status(payment_status: &str) -> common_enums::AttemptStatus {
     match payment_status {
@@ -968,7 +970,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let amount = converter
             .convert(
-                router_data.request.minor_amount_to_capture,
+                router_data.request.amount_to_capture.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -1088,24 +1090,6 @@ pub struct CashfreeVoidResponse {
     pub order_id: Option<String>,
     pub action: Option<String>,
     pub status: Option<String>,
-}
-
-/// Typed mirror of `map_void_payment_status` below: `"VOID"` → `Void`,
-/// `"FAILED"` → `Failed`, `"PENDING"` → `Pending`, any other string →
-/// `Other`. Used by the `impl_flow_status_mapping_ctx!` declaration in
-/// `cashfree.rs`; `map_void_payment_status` remains what the TryFrom
-/// actually routes through.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum CashfreeVoidStatus {
-    /// `"VOID"` — the authorization was voided.
-    Void,
-    /// `"FAILED"` — the void was declined.
-    Failed,
-    /// `"PENDING"` — the void is still in flight.
-    Pending,
-    /// Any other status string — still in flight (the default).
-    #[default]
-    Other,
 }
 
 /// Status mapping for void flow per techspec section 9.5
@@ -1313,45 +1297,13 @@ pub struct CashfreeRefundResponse {
     pub refund_note: Option<String>,
 }
 
-/// Cashfree V3 `refund_status` values — typed wrapper over the raw wire string.
-/// `#[default] Other` covers every unrecognized value (which the mapping below
-/// treats as still-in-flight → `Pending`).
-#[derive(Debug, Clone, Default)]
-pub enum CashfreeRefundStatus {
-    /// "SUCCESS" or "OK"
-    Success,
-    /// "PENDING"
-    Pending,
-    /// "CANCELLED"
-    Cancelled,
-    /// "FAILED"
-    Failed,
-    /// Any other raw value
-    #[default]
-    Other,
-}
-
-impl From<&str> for CashfreeRefundStatus {
-    fn from(s: &str) -> Self {
-        match s {
-            "SUCCESS" | "OK" => Self::Success,
-            "PENDING" => Self::Pending,
-            "CANCELLED" => Self::Cancelled,
-            "FAILED" => Self::Failed,
-            _ => Self::Other,
-        }
-    }
-}
-
 /// Cashfree refund status → internal RefundStatus
 pub fn map_refund_status(status: &str) -> common_enums::RefundStatus {
-    match CashfreeRefundStatus::from(status) {
-        CashfreeRefundStatus::Success => common_enums::RefundStatus::Success,
-        CashfreeRefundStatus::Pending => common_enums::RefundStatus::Pending,
-        CashfreeRefundStatus::Cancelled | CashfreeRefundStatus::Failed => {
-            common_enums::RefundStatus::Failure
-        }
-        CashfreeRefundStatus::Other => common_enums::RefundStatus::Pending,
+    match status {
+        "SUCCESS" | "OK" => common_enums::RefundStatus::Success,
+        "PENDING" => common_enums::RefundStatus::Pending,
+        "CANCELLED" | "FAILED" => common_enums::RefundStatus::Failure,
+        _ => common_enums::RefundStatus::Pending,
     }
 }
 
@@ -1376,7 +1328,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let amount = converter
             .convert(
-                router_data.request.minor_refund_amount,
+                router_data.request.refund_amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -1469,4 +1421,31 @@ impl TryFrom<ResponseRouterData<CashfreeRefundSyncResponse, Self>>
             ..router_data
         })
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum CashfreeVoidStatus {
+    /// `"VOID"` — the authorization was voided.
+    Void,
+    /// `"FAILED"` — the void was declined.
+    Failed,
+    /// `"PENDING"` — the void is still in flight.
+    Pending,
+    /// Any other status string — still in flight (the default).
+    #[default]
+    Other,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum CashfreeCaptureStatus {
+    /// `"SUCCESS"` (or the pre-auth authorization-status variant `"CAPTURE"`)
+    /// — the capture settled.
+    Success,
+    /// `"FAILED"` — the capture was declined.
+    Failed,
+    /// `"PENDING"` — the capture was initiated.
+    Pending,
+    /// Any other status string — still in flight (the default).
+    #[default]
+    Other,
 }

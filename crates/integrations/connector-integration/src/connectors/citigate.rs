@@ -410,29 +410,42 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Citigate<T>,
-    flow:            Authorize,
-    source:          citigate::CitigateAuthStatus,
-    context:         citigate::CitigateFlowCtx,
-    params:          [status, ctx],
-    success: Approved => [Charged, Authorized],
-    failure: NotReceived => AuthorizationFailed,
-    {
+    flow: Authorize,
+    source: citigate::CitigateAuthStatus,
+    context: citigate::CitigateFlowCtx,
+    mapping: |status, ctx| {
         use citigate::{CitigateAuthStatus, CitigateTransTypeId};
-        use common_enums::AttemptStatus;
         match status {
             CitigateAuthStatus::Approved => match ctx.trans_type_id {
                 // Sale / Capture — settled in one step.
-                CitigateTransTypeId::Sale | CitigateTransTypeId::Capture => AttemptStatus::Charged,
+                CitigateTransTypeId::Sale | CitigateTransTypeId::Capture => success!(Charged),
                 // Authorise — pre-auth, capture outstanding.
-                CitigateTransTypeId::Authorise => AttemptStatus::Authorized,
+                CitigateTransTypeId::Authorise => success!(Authorized),
                 // Not a settled sale leg — not settled yet.
-                _ => AttemptStatus::Pending,
+                _ => non_terminal!(Pending),
             },
-            CitigateAuthStatus::RedirectRequired => AttemptStatus::AuthenticationPending,
-            CitigateAuthStatus::Pending => AttemptStatus::Pending,
-            CitigateAuthStatus::NotReceived => AttemptStatus::AuthorizationFailed,
+            CitigateAuthStatus::RedirectRequired => non_terminal!(AuthenticationPending),
+            CitigateAuthStatus::Pending => non_terminal!(Pending),
+            CitigateAuthStatus::NotReceived => failure!(AuthorizationFailed),
         }
-    }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: CitigatePaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(match response.response_code.as_deref() {
+                Some("0") => citigate::CitigateAuthStatus::Approved,
+                Some("600") => citigate::CitigateAuthStatus::RedirectRequired,
+                Some("999") if response.trans_type_id.as_deref() == Some("6") => {
+                    citigate::CitigateAuthStatus::Pending
+                }
+                _ => citigate::CitigateAuthStatus::NotReceived,
+            })
+        },
+        context: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(citigate::CitigateFlowCtx::from_trans_type_id(response.trans_type_id.as_deref()))
+        },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Citigate<T>
@@ -452,27 +465,49 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_flow_status_mapping! {
     generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:       Citigate<T>,
-    flow:            PSync,
-    source:          citigate::CitigateSyncStatus,
-    context:         citigate::CitigateFlowCtx,
-    params:          [status, ctx],
-    success: CancelApproved => [Voided],
-    failure: PurchaseNotApproved => Failure,
-    {
+    flow: PSync,
+    source: citigate::CitigateSyncStatus,
+    context: citigate::CitigateFlowCtx,
+    mapping: |status, ctx| {
         use citigate::{CitigateSyncStatus, CitigateTransTypeId};
-        use common_enums::AttemptStatus;
         match status {
             CitigateSyncStatus::PurchaseApproved => match ctx.trans_type_id {
                 // A sale, a captured auth or a settled refund leg of the payment.
-                CitigateTransTypeId::Sale | CitigateTransTypeId::Capture | CitigateTransTypeId::Refund => AttemptStatus::Charged,
-                CitigateTransTypeId::Authorise => AttemptStatus::Authorized,
-                _ => AttemptStatus::Pending,
+                CitigateTransTypeId::Sale | CitigateTransTypeId::Capture | CitigateTransTypeId::Refund => success!(Charged),
+                CitigateTransTypeId::Authorise => success!(Authorized),
+                _ => non_terminal!(Pending),
             },
-            CitigateSyncStatus::CancelApproved => AttemptStatus::Voided,
-            CitigateSyncStatus::PurchaseNotApproved => AttemptStatus::Failure,
-            CitigateSyncStatus::CancelNotApproved => AttemptStatus::Failure,
+            CitigateSyncStatus::CancelApproved => success!(Voided),
+            CitigateSyncStatus::PurchaseNotApproved => failure!(Failure),
+            CitigateSyncStatus::CancelNotApproved => failure!(Failure),
         }
-    }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: CitigateSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            let approved = response.0.response_code.as_deref() == Some("0");
+            Ok(match citigate::CitigateTransTypeId::from_optional_str(response.0.trans_type_id.as_deref()) {
+                citigate::CitigateTransTypeId::Cancel => {
+                    if approved {
+                        citigate::CitigateSyncStatus::CancelApproved
+                    } else {
+                        citigate::CitigateSyncStatus::CancelNotApproved
+                    }
+                }
+                _ => {
+                    if approved {
+                        citigate::CitigateSyncStatus::PurchaseApproved
+                    } else {
+                        citigate::CitigateSyncStatus::PurchaseNotApproved
+                    }
+                }
+            })
+        },
+        context: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(citigate::CitigateFlowCtx::from_trans_type_id(response.0.trans_type_id.as_deref()))
+        },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Citigate<T>
@@ -489,9 +524,9 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: citigate::CitigatePostAuthStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
-            citigate::CitigatePostAuthStatus::Approved => common_enums::AttemptStatus::Charged,
-            citigate::CitigatePostAuthStatus::NotReceived => common_enums::AttemptStatus::CaptureFailed,
+    mapping: |status, _ctx| { match status {
+            citigate::CitigatePostAuthStatus::Approved => success!(Charged),
+            citigate::CitigatePostAuthStatus::NotReceived => failure!(CaptureFailed),
         } },
     runtime: {
         request: PaymentsCaptureData,
@@ -518,9 +553,9 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: citigate::CitigatePostAuthStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
-            citigate::CitigatePostAuthStatus::Approved => common_enums::AttemptStatus::Voided,
-            citigate::CitigatePostAuthStatus::NotReceived => common_enums::AttemptStatus::VoidFailed,
+    mapping: |status, _ctx| { match status {
+            citigate::CitigatePostAuthStatus::Approved => success!(Voided),
+            citigate::CitigatePostAuthStatus::NotReceived => failure!(VoidFailed),
         } },
     runtime: {
         request: PaymentVoidData,
@@ -547,17 +582,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Citigate<T>,
-    flow:           Refund,
-    source:         citigate::CitigatePostAuthStatus,
-    params:         [status],
-    success: Approved => Success,
-    failure: NotReceived => Failure,
-    {
+    flow: Refund,
+    source: citigate::CitigatePostAuthStatus,
+    mapping: |status| {
         match status {
-            citigate::CitigatePostAuthStatus::Approved => common_enums::RefundStatus::Success,
-            citigate::CitigatePostAuthStatus::NotReceived => common_enums::RefundStatus::Failure,
+            citigate::CitigatePostAuthStatus::Approved => success!(Success),
+            citigate::CitigatePostAuthStatus::NotReceived => failure!(Failure),
         }
-    }
+    },
+    runtime: {
+        request: RefundsData,
+        response: CitigateRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(if response.0.response_code.as_deref() == Some("0") {
+            citigate::CitigatePostAuthStatus::Approved
+        } else {
+            citigate::CitigatePostAuthStatus::NotReceived
+        }) },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Citigate<T>
@@ -575,21 +616,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 domain_types::impl_refund_flow_status_mapping! {
     generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector:      Citigate<T>,
-    flow:           RSync,
-    source:         citigate::CitigatePostAuthStatus,
-    context:        citigate::CitigateFlowCtx,
-    params:         [status, ctx],
-    success: Approved => Success,
-    failure: NotReceived => Failure,
-    {
+    flow: RSync,
+    source: citigate::CitigatePostAuthStatus,
+    context: citigate::CitigateFlowCtx,
+    mapping: |status, ctx| {
         use citigate::{CitigatePostAuthStatus, CitigateTransTypeId};
-        use common_enums::RefundStatus;
         match (status, ctx.trans_type_id) {
-            (CitigatePostAuthStatus::Approved, CitigateTransTypeId::Refund) => RefundStatus::Success,
-            (CitigatePostAuthStatus::Approved, _) => RefundStatus::Pending,
-            (CitigatePostAuthStatus::NotReceived, _) => RefundStatus::Failure,
+            (CitigatePostAuthStatus::Approved, CitigateTransTypeId::Refund) => success!(Success),
+            (CitigatePostAuthStatus::Approved, _) => non_terminal!(Pending),
+            (CitigatePostAuthStatus::NotReceived, _) => failure!(Failure),
         }
-    }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: CitigateSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(if response.0.response_code.as_deref() == Some("0") {
+            citigate::CitigatePostAuthStatus::Approved
+        } else {
+            citigate::CitigatePostAuthStatus::NotReceived
+        }) },
+        context: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(citigate::CitigateFlowCtx::from_trans_type_id(response.0.trans_type_id.as_deref()))
+        },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Citigate<T>

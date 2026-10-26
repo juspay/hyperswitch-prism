@@ -143,10 +143,10 @@ domain_types::impl_flow_status_mapping! {
     connector: Easebuzz<T>,
     flow: Authorize,
     source: easebuzz::EasebuzzAuthorizeStatus,
-    mapping_status: |status| { match status {
-            easebuzz::EasebuzzAuthorizeStatus::Success => common_enums::AttemptStatus::Charged,
-            easebuzz::EasebuzzAuthorizeStatus::Failure => common_enums::AttemptStatus::Failure,
-            easebuzz::EasebuzzAuthorizeStatus::Other => common_enums::AttemptStatus::Pending,
+    mapping: |status|{ match status {
+            easebuzz::EasebuzzAuthorizeStatus::Success => success!(Charged),
+            easebuzz::EasebuzzAuthorizeStatus::Failure => failure!(Failure),
+            easebuzz::EasebuzzAuthorizeStatus::Other => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
@@ -180,11 +180,11 @@ domain_types::impl_flow_status_mapping! {
     connector: Easebuzz<T>,
     flow: PSync,
     source: easebuzz::EasebuzzTxnStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            easebuzz::EasebuzzTxnStatus::Success => common_enums::AttemptStatus::Charged,
-            easebuzz::EasebuzzTxnStatus::Other => common_enums::AttemptStatus::Failure,
-            easebuzz::EasebuzzTxnStatus::InFlight => common_enums::AttemptStatus::Pending,
+            easebuzz::EasebuzzTxnStatus::Success => success!(Charged),
+            easebuzz::EasebuzzTxnStatus::Other => failure!(Failure),
+            easebuzz::EasebuzzTxnStatus::InFlight => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -217,11 +217,11 @@ domain_types::impl_flow_status_mapping! {
     connector: Easebuzz<T>,
     flow: Capture,
     source: easebuzz::EasebuzzTxnStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            easebuzz::EasebuzzTxnStatus::Success => common_enums::AttemptStatus::Charged,
-            easebuzz::EasebuzzTxnStatus::Other => common_enums::AttemptStatus::Failure,
-            easebuzz::EasebuzzTxnStatus::InFlight => common_enums::AttemptStatus::Pending,
+            easebuzz::EasebuzzTxnStatus::Success => success!(Charged),
+            easebuzz::EasebuzzTxnStatus::Other => failure!(Failure),
+            easebuzz::EasebuzzTxnStatus::InFlight => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -256,10 +256,10 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Easebuzz<T>,
     flow: Refund,
     source: bool,
-    mapping_status: |accepted| { if accepted {
-            common_enums::RefundStatus::Pending
+    mapping: |accepted|{ if accepted {
+            non_terminal!(Pending)
         } else {
-            common_enums::RefundStatus::Failure
+            failure!(Failure)
         } },
     runtime: {
         request: RefundsData,
@@ -282,13 +282,13 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: (),
     context: easebuzz::EasebuzzRefundSyncStatus,
-    mapping_status: |_source, status| { match status {
+    mapping: |_source, status|{ match status {
             easebuzz::EasebuzzRefundSyncStatus::Refunded
-            | easebuzz::EasebuzzRefundSyncStatus::Settled => common_enums::RefundStatus::Success,
+            | easebuzz::EasebuzzRefundSyncStatus::Settled => success!(Success),
             easebuzz::EasebuzzRefundSyncStatus::Cancelled
             | easebuzz::EasebuzzRefundSyncStatus::ReverseChargeback
-            | easebuzz::EasebuzzRefundSyncStatus::Failed => common_enums::RefundStatus::Failure,
-            easebuzz::EasebuzzRefundSyncStatus::Other => common_enums::RefundStatus::Pending,
+            | easebuzz::EasebuzzRefundSyncStatus::Failed => failure!(Failure),
+            easebuzz::EasebuzzRefundSyncStatus::Other => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundSyncData,

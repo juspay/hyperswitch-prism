@@ -580,13 +580,41 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: saferpay::SaferpayTransactionStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             saferpay::SaferpayTransactionStatus::Authorized => AttemptStatus::Authorized,
             saferpay::SaferpayTransactionStatus::Captured => AttemptStatus::Charged,
             saferpay::SaferpayTransactionStatus::Canceled => AttemptStatus::Voided,
             saferpay::SaferpayTransactionStatus::Pending
             | saferpay::SaferpayTransactionStatus::Unknown => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: SaferpayAuthorizeResponse,
@@ -608,14 +636,49 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: saferpay::SaferpayTransactionStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             saferpay::SaferpayTransactionStatus::Authorized => AttemptStatus::Authorized,
             saferpay::SaferpayTransactionStatus::Captured => AttemptStatus::Charged,
             saferpay::SaferpayTransactionStatus::Canceled => AttemptStatus::Voided,
             saferpay::SaferpayTransactionStatus::Pending | saferpay::SaferpayTransactionStatus::Unknown => {
                 AttemptStatus::Pending
             }
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: SaferpayPSyncResponse,
@@ -637,14 +700,27 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: saferpay::SaferpayTransactionStatus,
     context: bool,
-    mapping_status: |status, is_partial| { match status {
+    mapping: |status, is_partial| {
+        let mapped_status = (|| { match status {
             saferpay::SaferpayTransactionStatus::Captured if is_partial => AttemptStatus::PartialCharged,
             saferpay::SaferpayTransactionStatus::Captured => AttemptStatus::Charged,
             saferpay::SaferpayTransactionStatus::Canceled => AttemptStatus::Failure,
             saferpay::SaferpayTransactionStatus::Authorized
             | saferpay::SaferpayTransactionStatus::Pending
             | saferpay::SaferpayTransactionStatus::Unknown => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: SaferpayCaptureResponse,
@@ -671,7 +747,7 @@ domain_types::impl_flow_status_mapping! {
                         .or_else(|| value.as_i64())
                 });
             authorized_amount
-                .map(|amount| amount > request.minor_amount_to_capture.get_amount_as_i64())
+                .map(|amount| amount > request.amount_to_capture.amount.get_amount_as_i64())
                 .unwrap_or(true)
         }) },
     },
@@ -683,7 +759,17 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: (),
     context: (),
-    mapping_status: |_ack, _ctx| { AttemptStatus::Voided },
+    mapping: |_ack, _ctx| {
+        let mapped_status = (|| { AttemptStatus::Voided })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: SaferpayVoidResponse,
@@ -698,7 +784,7 @@ domain_types::impl_flow_status_mapping! {
     flow: PreAuthenticate,
     source: (),
     context: (),
-    mapping_status: |_ack, _ctx| { AttemptStatus::AuthenticationPending },
+    mapping: |_ack, _ctx| { non_terminal!(AuthenticationPending) },
     runtime: {
         request: PaymentsPreAuthenticateData<T>,
         response: SaferpayPreAuthenticateResponse,
@@ -713,13 +799,23 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: saferpay::SaferpayTransactionStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             saferpay::SaferpayTransactionStatus::Captured => RefundStatus::Success,
             saferpay::SaferpayTransactionStatus::Authorized
             | saferpay::SaferpayTransactionStatus::Pending
             | saferpay::SaferpayTransactionStatus::Unknown => RefundStatus::Pending,
             saferpay::SaferpayTransactionStatus::Canceled => RefundStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: SaferpayRefundResponse,
@@ -741,7 +837,8 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: SaferpayRefundSyncResponse,
     context: (),
-    mapping_status: |response, _ctx| { match response {
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { match response {
             SaferpayRefundSyncResponse::Settled(capture) => {
                 match capture.status.unwrap_or(saferpay::SaferpayTransactionStatus::Unknown) {
                     saferpay::SaferpayTransactionStatus::Captured => RefundStatus::Success,
@@ -765,7 +862,16 @@ domain_types::impl_refund_flow_status_mapping! {
                     saferpay::SaferpayTransactionStatus::Canceled => RefundStatus::Failure,
                 }
             }
-        } },
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: SaferpayRefundSyncResponse,

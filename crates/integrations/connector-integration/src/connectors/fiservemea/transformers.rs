@@ -378,7 +378,7 @@ impl<T: PaymentMethodDataTypes>
         // Use StringMajorUnitForConnector to properly convert minor to major unit
         let converter = StringMajorUnitForConnector;
         let amount_major = converter
-            .convert(item.request.minor_amount, item.request.currency)
+            .convert(item.request.amount.amount, item.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -470,7 +470,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         // Use StringMajorUnitForConnector to properly convert minor to major unit
         let converter = StringMajorUnitForConnector;
         let amount_major = converter
-            .convert(item.request.minor_amount_to_capture, item.request.currency)
+            .convert(item.request.amount_to_capture.amount, item.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -498,7 +498,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         // Use StringMajorUnitForConnector to properly convert minor to major unit
         let converter = StringMajorUnitForConnector;
         let amount_major = converter
-            .convert(item.request.minor_refund_amount, item.request.currency)
+            .convert(item.request.refund_amount.amount, item.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -533,9 +533,7 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[derive(Default)]
 pub enum FiservemeaTransactionType {
-    #[default]
     Sale,
     Preauth,
     Credit,
@@ -549,7 +547,11 @@ pub enum FiservemeaTransactionType {
     Unknown,
 }
 
-// Canonical ctx for `assert_terminal_mapping!`: auto-capture sale, no result leg.
+impl Default for FiservemeaTransactionType {
+    fn default() -> Self {
+        Self::Sale
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -571,33 +573,6 @@ pub enum FiservemeaPaymentResult {
     Waiting,
     Partial,
     Fraud,
-}
-
-/// Mapping context for `impl_flow_status_mapping_ctx!`.  `map_status` takes
-/// three inputs — `transaction_status`, `transaction_result`, and
-/// `transaction_type` — of which only `transaction_status` is the `source:`
-/// enum.  The remaining two ride in this context.
-///
-/// `Default` = no result, `Sale` transaction: the canonical "approved sale"
-/// success path used by `assert_terminal_mapping!`.
-#[derive(Debug, Clone, Default)]
-pub struct FiservemeaStatusCtx {
-    pub transaction_result: Option<FiservemeaPaymentResult>,
-    pub transaction_type: FiservemeaTransactionType,
-}
-
-/// Mapping context for refund `impl_refund_flow_status_mapping_ctx!` — carries
-/// both optional legs consumed by `map_refund_status(Option<status>,
-/// Option<result>)`. The `source:` type stays `FiservemeaPaymentStatus`; the
-/// ctx holds the raw `Option` shape the TryFrom reads so the macro body can
-/// mirror the two-leg decision tree directly.
-///
-/// `Default` = neither leg present: the "approved status" success path used by
-/// `assert_terminal_mapping!` with `source: = FiservemeaPaymentStatus::Approved`.
-#[derive(Debug, Clone, Default)]
-pub struct FiservemeaRefundCtx {
-    pub transaction_status: Option<FiservemeaPaymentStatus>,
-    pub transaction_result: Option<FiservemeaPaymentResult>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -659,7 +634,7 @@ pub struct Processor {
     pub security_code_response: Option<String>,
 }
 
-fn map_status(
+pub fn map_status(
     fiservemea_status: Option<FiservemeaPaymentStatus>,
     fiservemea_result: Option<FiservemeaPaymentResult>,
     transaction_type: FiservemeaTransactionType,
@@ -711,7 +686,7 @@ fn map_status(
     }
 }
 
-fn map_refund_status(
+pub fn map_refund_status(
     fiservemea_status: Option<FiservemeaPaymentStatus>,
     fiservemea_result: Option<FiservemeaPaymentResult>,
 ) -> common_enums::RefundStatus {
@@ -1117,4 +1092,16 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
             ..item.router_data
         })
     }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FiservemeaStatusCtx {
+    pub transaction_result: Option<FiservemeaPaymentResult>,
+    pub transaction_type: FiservemeaTransactionType,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FiservemeaRefundCtx {
+    pub transaction_status: Option<FiservemeaPaymentStatus>,
+    pub transaction_result: Option<FiservemeaPaymentResult>,
 }

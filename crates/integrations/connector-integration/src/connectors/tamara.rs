@@ -182,17 +182,17 @@ domain_types::impl_flow_status_mapping! {
     connector: Tamara<T>,
     flow: Authorize,
     source: transformers::TamaraPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::TamaraPaymentStatus::Authorised => common_enums::AttemptStatus::Authorized,
-            transformers::TamaraPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            transformers::TamaraPaymentStatus::FullyCaptured => common_enums::AttemptStatus::Charged,
-            transformers::TamaraPaymentStatus::PartiallyCaptured => common_enums::AttemptStatus::PartialCharged,
-            transformers::TamaraPaymentStatus::Canceled => common_enums::AttemptStatus::Voided,
-            transformers::TamaraPaymentStatus::Updated => common_enums::AttemptStatus::Voided,
-            transformers::TamaraPaymentStatus::Expired => common_enums::AttemptStatus::Failure,
-            transformers::TamaraPaymentStatus::New => common_enums::AttemptStatus::Pending,
-            transformers::TamaraPaymentStatus::Approved => common_enums::AttemptStatus::Pending,
+            transformers::TamaraPaymentStatus::Authorised => success!(Authorized),
+            transformers::TamaraPaymentStatus::Declined => failure!(Failure),
+            transformers::TamaraPaymentStatus::FullyCaptured => success!(Charged),
+            transformers::TamaraPaymentStatus::PartiallyCaptured => success!(PartialCharged),
+            transformers::TamaraPaymentStatus::Canceled => non_terminal!(Voided),
+            transformers::TamaraPaymentStatus::Updated => non_terminal!(Voided),
+            transformers::TamaraPaymentStatus::Expired => failure!(Failure),
+            transformers::TamaraPaymentStatus::New => non_terminal!(Pending),
+            transformers::TamaraPaymentStatus::Approved => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -344,7 +344,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -426,17 +425,17 @@ domain_types::impl_flow_status_mapping! {
     connector: Tamara<T>,
     flow: Capture,
     source: transformers::TamaraPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::TamaraPaymentStatus::FullyCaptured => common_enums::AttemptStatus::Charged,
-            transformers::TamaraPaymentStatus::Declined => common_enums::AttemptStatus::CaptureFailed,
-            transformers::TamaraPaymentStatus::PartiallyCaptured => common_enums::AttemptStatus::PartialCharged,
-            transformers::TamaraPaymentStatus::Canceled => common_enums::AttemptStatus::CaptureFailed,
-            transformers::TamaraPaymentStatus::Updated => common_enums::AttemptStatus::CaptureFailed,
-            transformers::TamaraPaymentStatus::Expired => common_enums::AttemptStatus::CaptureFailed,
-            transformers::TamaraPaymentStatus::Authorised => common_enums::AttemptStatus::Pending,
-            transformers::TamaraPaymentStatus::New => common_enums::AttemptStatus::Pending,
-            transformers::TamaraPaymentStatus::Approved => common_enums::AttemptStatus::Pending,
+            transformers::TamaraPaymentStatus::FullyCaptured => success!(Charged),
+            transformers::TamaraPaymentStatus::Declined => failure!(CaptureFailed),
+            transformers::TamaraPaymentStatus::PartiallyCaptured => success!(PartialCharged),
+            transformers::TamaraPaymentStatus::Canceled => failure!(CaptureFailed),
+            transformers::TamaraPaymentStatus::Updated => failure!(CaptureFailed),
+            transformers::TamaraPaymentStatus::Expired => failure!(CaptureFailed),
+            transformers::TamaraPaymentStatus::Authorised => non_terminal!(Pending),
+            transformers::TamaraPaymentStatus::New => non_terminal!(Pending),
+            transformers::TamaraPaymentStatus::Approved => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -455,17 +454,17 @@ domain_types::impl_flow_status_mapping! {
     connector: Tamara<T>,
     flow: PSync,
     source: transformers::TamaraPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::TamaraPaymentStatus::FullyCaptured => common_enums::AttemptStatus::Charged,
-            transformers::TamaraPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            transformers::TamaraPaymentStatus::PartiallyCaptured => common_enums::AttemptStatus::PartialCharged,
-            transformers::TamaraPaymentStatus::Authorised => common_enums::AttemptStatus::Authorized,
-            transformers::TamaraPaymentStatus::Canceled => common_enums::AttemptStatus::Voided,
-            transformers::TamaraPaymentStatus::Updated => common_enums::AttemptStatus::Voided,
-            transformers::TamaraPaymentStatus::Expired => common_enums::AttemptStatus::Failure,
-            transformers::TamaraPaymentStatus::New => common_enums::AttemptStatus::Pending,
-            transformers::TamaraPaymentStatus::Approved => common_enums::AttemptStatus::Pending,
+            transformers::TamaraPaymentStatus::FullyCaptured => success!(Charged),
+            transformers::TamaraPaymentStatus::Declined => failure!(Failure),
+            transformers::TamaraPaymentStatus::PartiallyCaptured => success!(PartialCharged),
+            transformers::TamaraPaymentStatus::Authorised => success!(Authorized),
+            transformers::TamaraPaymentStatus::Canceled => success!(Voided),
+            transformers::TamaraPaymentStatus::Updated => success!(Voided),
+            transformers::TamaraPaymentStatus::Expired => failure!(Failure),
+            transformers::TamaraPaymentStatus::New => non_terminal!(Pending),
+            transformers::TamaraPaymentStatus::Approved => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -484,17 +483,17 @@ domain_types::impl_flow_status_mapping! {
     connector: Tamara<T>,
     flow: Void,
     source: transformers::TamaraPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::TamaraPaymentStatus::Canceled => common_enums::AttemptStatus::Voided,
-            transformers::TamaraPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            transformers::TamaraPaymentStatus::Updated => common_enums::AttemptStatus::Voided,
-            transformers::TamaraPaymentStatus::Authorised => common_enums::AttemptStatus::VoidInitiated,
-            transformers::TamaraPaymentStatus::FullyCaptured => common_enums::AttemptStatus::VoidFailed,
-            transformers::TamaraPaymentStatus::PartiallyCaptured => common_enums::AttemptStatus::VoidFailed,
-            transformers::TamaraPaymentStatus::Expired => common_enums::AttemptStatus::Failure,
-            transformers::TamaraPaymentStatus::New => common_enums::AttemptStatus::Pending,
-            transformers::TamaraPaymentStatus::Approved => common_enums::AttemptStatus::Pending,
+            transformers::TamaraPaymentStatus::Canceled => success!(Voided),
+            transformers::TamaraPaymentStatus::Declined => failure!(Failure),
+            transformers::TamaraPaymentStatus::Updated => success!(Voided),
+            transformers::TamaraPaymentStatus::Authorised => non_terminal!(VoidInitiated),
+            transformers::TamaraPaymentStatus::FullyCaptured => failure!(VoidFailed),
+            transformers::TamaraPaymentStatus::PartiallyCaptured => failure!(VoidFailed),
+            transformers::TamaraPaymentStatus::Expired => failure!(Failure),
+            transformers::TamaraPaymentStatus::New => non_terminal!(Pending),
+            transformers::TamaraPaymentStatus::Approved => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -513,19 +512,19 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Tamara<T>,
     flow: Refund,
     source: transformers::TamaraRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::TamaraRefundStatus::FullyRefunded => common_enums::RefundStatus::Success,
-            transformers::TamaraRefundStatus::Declined => common_enums::RefundStatus::Failure,
-            transformers::TamaraRefundStatus::PartiallyRefunded => common_enums::RefundStatus::Success,
-            transformers::TamaraRefundStatus::Expired => common_enums::RefundStatus::Failure,
-            transformers::TamaraRefundStatus::Canceled => common_enums::RefundStatus::Failure,
-            transformers::TamaraRefundStatus::Updated => common_enums::RefundStatus::Failure,
-            transformers::TamaraRefundStatus::Approved => common_enums::RefundStatus::Pending,
-            transformers::TamaraRefundStatus::Authorised => common_enums::RefundStatus::Pending,
-            transformers::TamaraRefundStatus::PartiallyCaptured => common_enums::RefundStatus::Pending,
-            transformers::TamaraRefundStatus::FullyCaptured => common_enums::RefundStatus::Pending,
-            transformers::TamaraRefundStatus::New => common_enums::RefundStatus::Pending,
+            transformers::TamaraRefundStatus::FullyRefunded => success!(Success),
+            transformers::TamaraRefundStatus::Declined => failure!(Failure),
+            transformers::TamaraRefundStatus::PartiallyRefunded => success!(Success),
+            transformers::TamaraRefundStatus::Expired => failure!(Failure),
+            transformers::TamaraRefundStatus::Canceled => failure!(Failure),
+            transformers::TamaraRefundStatus::Updated => failure!(Failure),
+            transformers::TamaraRefundStatus::Approved => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::Authorised => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::PartiallyCaptured => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::FullyCaptured => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::New => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -544,19 +543,19 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Tamara<T>,
     flow: RSync,
     source: transformers::TamaraRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::TamaraRefundStatus::FullyRefunded => common_enums::RefundStatus::Success,
-            transformers::TamaraRefundStatus::Declined => common_enums::RefundStatus::Failure,
-            transformers::TamaraRefundStatus::PartiallyRefunded => common_enums::RefundStatus::Success,
-            transformers::TamaraRefundStatus::Expired => common_enums::RefundStatus::Failure,
-            transformers::TamaraRefundStatus::Canceled => common_enums::RefundStatus::Failure,
-            transformers::TamaraRefundStatus::Updated => common_enums::RefundStatus::Failure,
-            transformers::TamaraRefundStatus::Approved => common_enums::RefundStatus::Pending,
-            transformers::TamaraRefundStatus::Authorised => common_enums::RefundStatus::Pending,
-            transformers::TamaraRefundStatus::PartiallyCaptured => common_enums::RefundStatus::Pending,
-            transformers::TamaraRefundStatus::FullyCaptured => common_enums::RefundStatus::Pending,
-            transformers::TamaraRefundStatus::New => common_enums::RefundStatus::Pending,
+            transformers::TamaraRefundStatus::FullyRefunded => success!(Success),
+            transformers::TamaraRefundStatus::Declined => failure!(Failure),
+            transformers::TamaraRefundStatus::PartiallyRefunded => success!(Success),
+            transformers::TamaraRefundStatus::Expired => failure!(Failure),
+            transformers::TamaraRefundStatus::Canceled => failure!(Failure),
+            transformers::TamaraRefundStatus::Updated => failure!(Failure),
+            transformers::TamaraRefundStatus::Approved => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::Authorised => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::PartiallyCaptured => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::FullyCaptured => non_terminal!(Pending),
+            transformers::TamaraRefundStatus::New => non_terminal!(Pending),
         }
     },
     runtime: {

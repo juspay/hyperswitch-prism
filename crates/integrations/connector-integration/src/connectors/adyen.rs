@@ -96,21 +96,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Adyen<T>,
     flow: CreateOrder,
-    statuses: [Pending, Failure],
+    source: AdyenOrderCreateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+            if response.result_code == "Success" {
+                non_terminal!(Pending)
+            } else {
+                failure!(Failure)
+            }
+        },
     runtime: {
         request: PaymentCreateOrderData,
         response: AdyenOrderCreateResponse,
-        status: |_request, response| {
-            if response.result_code == "Success" {
-                AttemptStatus::Pending
-            } else {
-                AttemptStatus::Failure
-            }
-        },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -122,28 +125,28 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: adyen::AdyenStatus,
     context: (bool, Option<PaymentMethodType>),
-    mapping_status: |status, ctx| { use common_enums::{AttemptStatus, PaymentMethodType};
+    mapping: |status, ctx| { use common_enums::PaymentMethodType;
         use adyen::AdyenStatus;
         match status {
-            AdyenStatus::AuthenticationFinished => AttemptStatus::AuthenticationSuccessful,
-            AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => AttemptStatus::Pending,
+            AdyenStatus::AuthenticationFinished => non_terminal!(Pending),
+            AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => non_terminal!(Pending),
             AdyenStatus::Authorised => {
                 if ctx.0 {
-                    AttemptStatus::Authorized
+                    success!(Authorized)
                 } else {
-                    AttemptStatus::Charged
+                    success!(Charged)
                 }
             }
-            AdyenStatus::Cancelled => AttemptStatus::Voided,
+            AdyenStatus::Cancelled => non_terminal!(Voided),
             AdyenStatus::ChallengeShopper
             | AdyenStatus::RedirectShopper
-            | AdyenStatus::PresentToShopper => AttemptStatus::AuthenticationPending,
-            AdyenStatus::Error | AdyenStatus::Refused => AttemptStatus::Failure,
+            | AdyenStatus::PresentToShopper => non_terminal!(AuthenticationPending),
+            AdyenStatus::Error | AdyenStatus::Refused => failure!(Failure),
             AdyenStatus::Pending => match ctx.1 {
-                Some(PaymentMethodType::Pix) => AttemptStatus::AuthenticationPending,
-                _ => AttemptStatus::Pending,
+                Some(PaymentMethodType::Pix) => non_terminal!(AuthenticationPending),
+                _ => non_terminal!(Pending),
             },
-            AdyenStatus::Unknown => AttemptStatus::Unspecified,
+            AdyenStatus::Unknown => non_terminal!(Unspecified),
         } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
@@ -175,28 +178,28 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: adyen::AdyenStatus,
     context: (bool, Option<PaymentMethodType>),
-    mapping_status: |status, ctx| { use common_enums::{AttemptStatus, PaymentMethodType};
+    mapping: |status, ctx| { use common_enums::PaymentMethodType;
         use adyen::AdyenStatus;
         match status {
-            AdyenStatus::AuthenticationFinished => AttemptStatus::AuthenticationSuccessful,
-            AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => AttemptStatus::Pending,
+            AdyenStatus::AuthenticationFinished => non_terminal!(Pending),
+            AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => non_terminal!(Pending),
             AdyenStatus::Authorised => {
                 if ctx.0 {
-                    AttemptStatus::Authorized
+                    success!(Authorized)
                 } else {
-                    AttemptStatus::Charged
+                    success!(Charged)
                 }
             }
-            AdyenStatus::Cancelled => AttemptStatus::Voided,
+            AdyenStatus::Cancelled => failure!(Failure),
             AdyenStatus::ChallengeShopper
             | AdyenStatus::RedirectShopper
-            | AdyenStatus::PresentToShopper => AttemptStatus::AuthenticationPending,
-            AdyenStatus::Error | AdyenStatus::Refused => AttemptStatus::Failure,
+            | AdyenStatus::PresentToShopper => non_terminal!(AuthenticationPending),
+            AdyenStatus::Error | AdyenStatus::Refused => failure!(Failure),
             AdyenStatus::Pending => match ctx.1 {
-                Some(PaymentMethodType::Pix) => AttemptStatus::AuthenticationPending,
-                _ => AttemptStatus::Pending,
+                Some(PaymentMethodType::Pix) => non_terminal!(AuthenticationPending),
+                _ => non_terminal!(Pending),
             },
-            AdyenStatus::Unknown => AttemptStatus::Unspecified,
+            AdyenStatus::Unknown => non_terminal!(Unspecified),
         } },
     runtime: {
         request: PaymentsSyncData,
@@ -215,16 +218,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Adyen modification responses acknowledge async processing; the terminal outcome
 // is reported via webhook.
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Adyen<T>,
-    connector_name: "adyen",
     flow: Void,
-    status: Pending,
+    source: AdyenVoidResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(Pending) },
     runtime: {
-        request:  PaymentVoidData,
+        request: PaymentVoidData,
         response: AdyenVoidResponse,
-    }
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Adyen<T>
@@ -245,16 +251,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Adyen's /payments/{pspReference}/captures response has no terminal result_code;
 // it acknowledges the request and the actual capture outcome arrives via the
 // CAPTURE webhook.
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Adyen<T>,
-    connector_name: "adyen",
     flow: Capture,
-    status: Pending,
+    source: AdyenCaptureResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(Pending) },
     runtime: {
         request: PaymentsCaptureData,
         response: AdyenCaptureResponse,
-    }
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Adyen<T>
@@ -268,20 +277,20 @@ domain_types::impl_flow_status_mapping! {
     connector: Adyen<T>,
     flow: SetupMandate,
     source: adyen::AdyenStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            adyen::AdyenStatus::Authorised => common_enums::AttemptStatus::Charged,
-            adyen::AdyenStatus::Refused => common_enums::AttemptStatus::Failure,
-            adyen::AdyenStatus::AuthenticationFinished => common_enums::AttemptStatus::AuthenticationSuccessful,
-            adyen::AdyenStatus::AuthenticationNotRequired => common_enums::AttemptStatus::Pending,
-            adyen::AdyenStatus::Received => common_enums::AttemptStatus::Pending,
-            adyen::AdyenStatus::Cancelled => common_enums::AttemptStatus::Failure,
-            adyen::AdyenStatus::ChallengeShopper => common_enums::AttemptStatus::AuthenticationPending,
-            adyen::AdyenStatus::RedirectShopper => common_enums::AttemptStatus::AuthenticationPending,
-            adyen::AdyenStatus::PresentToShopper => common_enums::AttemptStatus::AuthenticationPending,
-            adyen::AdyenStatus::Error => common_enums::AttemptStatus::Failure,
-            adyen::AdyenStatus::Pending => common_enums::AttemptStatus::Pending,
-            adyen::AdyenStatus::Unknown => common_enums::AttemptStatus::Pending,
+            adyen::AdyenStatus::Authorised => success!(Charged),
+            adyen::AdyenStatus::Refused => failure!(Failure),
+            adyen::AdyenStatus::AuthenticationFinished => non_terminal!(AuthenticationSuccessful),
+            adyen::AdyenStatus::AuthenticationNotRequired => non_terminal!(Pending),
+            adyen::AdyenStatus::Received => non_terminal!(Pending),
+            adyen::AdyenStatus::Cancelled => failure!(Failure),
+            adyen::AdyenStatus::ChallengeShopper => non_terminal!(AuthenticationPending),
+            adyen::AdyenStatus::RedirectShopper => non_terminal!(AuthenticationPending),
+            adyen::AdyenStatus::PresentToShopper => non_terminal!(AuthenticationPending),
+            adyen::AdyenStatus::Error => failure!(Failure),
+            adyen::AdyenStatus::Pending => non_terminal!(Pending),
+            adyen::AdyenStatus::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -315,28 +324,28 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: adyen::AdyenStatus,
     context: (bool, Option<PaymentMethodType>),
-    mapping_status: |status, ctx| { use common_enums::{AttemptStatus, PaymentMethodType};
+    mapping: |status, ctx| { use common_enums::PaymentMethodType;
         use adyen::AdyenStatus;
         match status {
-            AdyenStatus::AuthenticationFinished => AttemptStatus::AuthenticationSuccessful,
-            AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => AttemptStatus::Pending,
+            AdyenStatus::AuthenticationFinished => non_terminal!(Pending),
+            AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => non_terminal!(Pending),
             AdyenStatus::Authorised => {
                 if ctx.0 {
-                    AttemptStatus::Authorized
+                    non_terminal!(Authorized)
                 } else {
-                    AttemptStatus::Charged
+                    success!(Charged)
                 }
             }
-            AdyenStatus::Cancelled => AttemptStatus::Voided,
+            AdyenStatus::Cancelled => failure!(Failure),
             AdyenStatus::ChallengeShopper
             | AdyenStatus::RedirectShopper
-            | AdyenStatus::PresentToShopper => AttemptStatus::AuthenticationPending,
-            AdyenStatus::Error | AdyenStatus::Refused => AttemptStatus::Failure,
+            | AdyenStatus::PresentToShopper => non_terminal!(AuthenticationPending),
+            AdyenStatus::Error | AdyenStatus::Refused => failure!(Failure),
             AdyenStatus::Pending => match ctx.1 {
-                Some(PaymentMethodType::Pix) => AttemptStatus::AuthenticationPending,
-                _ => AttemptStatus::Pending,
+                Some(PaymentMethodType::Pix) => non_terminal!(AuthenticationPending),
+                _ => non_terminal!(Pending),
             },
-            AdyenStatus::Unknown => AttemptStatus::Unspecified,
+            AdyenStatus::Unknown => non_terminal!(Pending),
         } },
     runtime: {
         request: RepeatPaymentData<T>,
@@ -1247,7 +1256,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            minor_amount_captured: None,
             amount_captured: None,
             error_reason,
             network_txn_id,

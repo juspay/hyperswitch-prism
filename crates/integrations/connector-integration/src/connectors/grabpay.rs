@@ -1,4 +1,5 @@
 pub mod transformers;
+use transformers::{GrabpayPaymentStatus, GrabpayRefundStatus};
 
 use std::{fmt::Debug, sync::LazyLock};
 
@@ -983,7 +984,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -1175,14 +1175,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Grabpay<T>,
     flow: Authenticate,
-    status: AuthenticationPending,
+    source: GrabpayAuthenticateResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(AuthenticationPending) },
     runtime: {
         request: PaymentsAuthenticateData<T>,
         response: GrabpayAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -1195,18 +1199,13 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Grabpay<T>,
     flow: Authorize,
-    source: grabpay::GrabpayPaymentStatus,
-    mapping_status: |status| { use common_enums::AttemptStatus;
-        use grabpay::GrabpayPaymentStatus;
-        match status {
-            GrabpayPaymentStatus::Success => AttemptStatus::Charged,
-            GrabpayPaymentStatus::Failed
-            | GrabpayPaymentStatus::Cancelled
-            | GrabpayPaymentStatus::AuthorisationDeclined => AttemptStatus::Failure,
-            GrabpayPaymentStatus::Processing
-            | GrabpayPaymentStatus::TransactionAlreadyExist => AttemptStatus::Pending,
-            GrabpayPaymentStatus::Authorised => AttemptStatus::Authorized,
-            GrabpayPaymentStatus::Unknown(_) => AttemptStatus::Pending,
+    source: GrabpayPaymentStatus,
+    mapping: |status| { match status {
+            GrabpayPaymentStatus::Success => success!(Charged),
+            GrabpayPaymentStatus::Failed | GrabpayPaymentStatus::Cancelled | GrabpayPaymentStatus::AuthorisationDeclined => failure!(Failure),
+            GrabpayPaymentStatus::Processing | GrabpayPaymentStatus::TransactionAlreadyExist => non_terminal!(Pending),
+            GrabpayPaymentStatus::Authorised => success!(Authorized),
+            GrabpayPaymentStatus::Unknown(_) => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
@@ -1226,18 +1225,13 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Grabpay<T>,
     flow: PSync,
-    source: grabpay::GrabpayPaymentStatus,
-    mapping_status: |status| { use common_enums::AttemptStatus;
-        use grabpay::GrabpayPaymentStatus;
-        match status {
-            GrabpayPaymentStatus::Success => AttemptStatus::Charged,
-            GrabpayPaymentStatus::Failed
-            | GrabpayPaymentStatus::Cancelled
-            | GrabpayPaymentStatus::AuthorisationDeclined => AttemptStatus::Failure,
-            GrabpayPaymentStatus::Processing
-            | GrabpayPaymentStatus::TransactionAlreadyExist => AttemptStatus::Pending,
-            GrabpayPaymentStatus::Authorised => AttemptStatus::Authorized,
-            GrabpayPaymentStatus::Unknown(_) => AttemptStatus::Pending,
+    source: GrabpayPaymentStatus,
+    mapping: |status| { match status {
+            GrabpayPaymentStatus::Success => success!(Charged),
+            GrabpayPaymentStatus::Failed | GrabpayPaymentStatus::Cancelled | GrabpayPaymentStatus::AuthorisationDeclined => failure!(Failure),
+            GrabpayPaymentStatus::Processing | GrabpayPaymentStatus::TransactionAlreadyExist => non_terminal!(Pending),
+            GrabpayPaymentStatus::Authorised => success!(Authorized),
+            GrabpayPaymentStatus::Unknown(_) => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentsSyncData,
@@ -1258,17 +1252,11 @@ domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Grabpay<T>,
     flow: Refund,
-    source: grabpay::GrabpayRefundStatus,
-    mapping_status: |status| { use common_enums::RefundStatus;
-        use grabpay::GrabpayRefundStatus;
-        match status {
-            GrabpayRefundStatus::Success => RefundStatus::Success,
-            GrabpayRefundStatus::Failed
-            | GrabpayRefundStatus::Cancelled
-            | GrabpayRefundStatus::AuthorisationDeclined => RefundStatus::Failure,
-            GrabpayRefundStatus::Processing
-            | GrabpayRefundStatus::TransactionAlreadyExist
-            | GrabpayRefundStatus::Unknown(_) => RefundStatus::Pending,
+    source: GrabpayRefundStatus,
+    mapping: |status| { match status {
+            GrabpayRefundStatus::Success => success!(Success),
+            GrabpayRefundStatus::Failed | GrabpayRefundStatus::Cancelled | GrabpayRefundStatus::AuthorisationDeclined => failure!(Failure),
+            GrabpayRefundStatus::Processing | GrabpayRefundStatus::TransactionAlreadyExist | GrabpayRefundStatus::Unknown(_) => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundsData,
@@ -1286,17 +1274,11 @@ domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Grabpay<T>,
     flow: RSync,
-    source: grabpay::GrabpayRefundStatus,
-    mapping_status: |status| { use common_enums::RefundStatus;
-        use grabpay::GrabpayRefundStatus;
-        match status {
-            GrabpayRefundStatus::Success => RefundStatus::Success,
-            GrabpayRefundStatus::Failed
-            | GrabpayRefundStatus::Cancelled
-            | GrabpayRefundStatus::AuthorisationDeclined => RefundStatus::Failure,
-            GrabpayRefundStatus::Processing
-            | GrabpayRefundStatus::TransactionAlreadyExist
-            | GrabpayRefundStatus::Unknown(_) => RefundStatus::Pending,
+    source: GrabpayRefundStatus,
+    mapping: |status| { match status {
+            GrabpayRefundStatus::Success => success!(Success),
+            GrabpayRefundStatus::Failed | GrabpayRefundStatus::Cancelled | GrabpayRefundStatus::AuthorisationDeclined => failure!(Failure),
+            GrabpayRefundStatus::Processing | GrabpayRefundStatus::TransactionAlreadyExist | GrabpayRefundStatus::Unknown(_) => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundSyncData,

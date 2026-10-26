@@ -60,12 +60,12 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: aci::AciPaymentStatus,
     context: bool,
-    mapping_status: |status, auto_capture| { match (status, auto_capture) {
-            (aci::AciPaymentStatus::Succeeded, true)  => common_enums::AttemptStatus::Charged,
-            (aci::AciPaymentStatus::Succeeded, false) => common_enums::AttemptStatus::Authorized,
-            (aci::AciPaymentStatus::Failed, _)        => common_enums::AttemptStatus::Failure,
-            (aci::AciPaymentStatus::Pending, _)       => common_enums::AttemptStatus::Authorizing,
-            (aci::AciPaymentStatus::RedirectShopper, _) => common_enums::AttemptStatus::AuthenticationPending,
+    mapping: |status, auto_capture|{ match (status, auto_capture) {
+            (aci::AciPaymentStatus::Succeeded, true)  => success!(Charged),
+            (aci::AciPaymentStatus::Succeeded, false) => success!(Authorized),
+            (aci::AciPaymentStatus::Failed, _)        => failure!(Failure),
+            (aci::AciPaymentStatus::Pending, _)       => non_terminal!(Authorizing),
+            (aci::AciPaymentStatus::RedirectShopper, _) => non_terminal!(AuthenticationPending),
         } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
@@ -88,12 +88,12 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: aci::AciPaymentStatus,
     context: bool,
-    mapping_status: |status, auto_capture| { match (status, auto_capture) {
-            (aci::AciPaymentStatus::Succeeded, true)  => common_enums::AttemptStatus::Charged,
-            (aci::AciPaymentStatus::Succeeded, false) => common_enums::AttemptStatus::Authorized,
-            (aci::AciPaymentStatus::Failed, _)        => common_enums::AttemptStatus::Failure,
-            (aci::AciPaymentStatus::Pending, _)       => common_enums::AttemptStatus::Authorizing,
-            (aci::AciPaymentStatus::RedirectShopper, _) => common_enums::AttemptStatus::AuthenticationPending,
+    mapping: |status, auto_capture|{ match (status, auto_capture) {
+            (aci::AciPaymentStatus::Succeeded, true)  => success!(Charged),
+            (aci::AciPaymentStatus::Succeeded, false) => success!(Authorized),
+            (aci::AciPaymentStatus::Failed, _)        => failure!(Failure),
+            (aci::AciPaymentStatus::Pending, _)       => non_terminal!(Authorizing),
+            (aci::AciPaymentStatus::RedirectShopper, _) => non_terminal!(AuthenticationPending),
         } },
     runtime: {
         request: PaymentsSyncData,
@@ -114,11 +114,11 @@ domain_types::impl_flow_status_mapping! {
     connector: Aci<T>,
     flow: Void,
     source: aci::AciStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            aci::AciStatus::Succeeded => common_enums::AttemptStatus::Voided,
-            aci::AciStatus::Failed => common_enums::AttemptStatus::VoidFailed,
-            aci::AciStatus::Pending => common_enums::AttemptStatus::VoidInitiated,
+            aci::AciStatus::Succeeded => success!(Voided),
+            aci::AciStatus::Failed => failure!(VoidFailed),
+            aci::AciStatus::Pending => non_terminal!(VoidInitiated),
         }
     },
     runtime: {
@@ -139,11 +139,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Aci<T>,
     flow: Refund,
     source: aci::AciRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            aci::AciRefundStatus::Succeeded => common_enums::RefundStatus::Success,
-            aci::AciRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            aci::AciRefundStatus::Pending => common_enums::RefundStatus::Pending,
+            aci::AciRefundStatus::Succeeded => success!(Success),
+            aci::AciRefundStatus::Failed => failure!(Failure),
+            aci::AciRefundStatus::Pending => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -164,11 +164,11 @@ domain_types::impl_flow_status_mapping! {
     connector: Aci<T>,
     flow: Capture,
     source: aci::AciStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            aci::AciStatus::Succeeded => common_enums::AttemptStatus::Charged,
-            aci::AciStatus::Failed => common_enums::AttemptStatus::Failure,
-            aci::AciStatus::Pending => common_enums::AttemptStatus::Pending,
+            aci::AciStatus::Succeeded => success!(Charged),
+            aci::AciStatus::Failed => failure!(Failure),
+            aci::AciStatus::Pending => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -193,11 +193,11 @@ domain_types::impl_flow_status_mapping! {
     connector: Aci<T>,
     flow: SetupMandate,
     source: aci::AciMandateStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            aci::AciMandateStatus::Succeeded => common_enums::AttemptStatus::Charged,
-            aci::AciMandateStatus::Failed => common_enums::AttemptStatus::Failure,
-            aci::AciMandateStatus::Pending => common_enums::AttemptStatus::Pending,
+            aci::AciMandateStatus::Succeeded => success!(Charged),
+            aci::AciMandateStatus::Failed => failure!(Failure),
+            aci::AciMandateStatus::Pending => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -217,12 +217,12 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: aci::AciPaymentStatus,
     context: bool,
-    mapping_status: |status, auto_capture| { match (status, auto_capture) {
-            (aci::AciPaymentStatus::Succeeded, true)  => common_enums::AttemptStatus::Charged,
-            (aci::AciPaymentStatus::Succeeded, false) => common_enums::AttemptStatus::Authorized,
-            (aci::AciPaymentStatus::Failed, _)        => common_enums::AttemptStatus::Failure,
-            (aci::AciPaymentStatus::Pending, _)       => common_enums::AttemptStatus::Pending,
-            (aci::AciPaymentStatus::RedirectShopper, _) => common_enums::AttemptStatus::AuthenticationPending,
+    mapping: |status, auto_capture|{ match (status, auto_capture) {
+            (aci::AciPaymentStatus::Succeeded, true)  => success!(Charged),
+            (aci::AciPaymentStatus::Succeeded, false) => non_terminal!(Authorized),
+            (aci::AciPaymentStatus::Failed, _)        => failure!(Failure),
+            (aci::AciPaymentStatus::Pending, _)       => non_terminal!(Pending),
+            (aci::AciPaymentStatus::RedirectShopper, _) => non_terminal!(AuthenticationPending),
         } },
     runtime: {
         request: RepeatPaymentData<T>,

@@ -147,13 +147,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Cryptopay<T>,
     flow: Authorize,
     source: transformers::CryptopayPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::CryptopayPaymentStatus::Completed => common_enums::AttemptStatus::Charged,
-            transformers::CryptopayPaymentStatus::Cancelled => common_enums::AttemptStatus::Failure,
-            transformers::CryptopayPaymentStatus::New => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::CryptopayPaymentStatus::Unresolved => common_enums::AttemptStatus::Unresolved,
-            transformers::CryptopayPaymentStatus::Refunded => common_enums::AttemptStatus::Unresolved,
+            transformers::CryptopayPaymentStatus::Completed => success!(Charged),
+            transformers::CryptopayPaymentStatus::Cancelled => failure!(Failure),
+            transformers::CryptopayPaymentStatus::New => non_terminal!(AuthenticationPending),
+            transformers::CryptopayPaymentStatus::Unresolved => non_terminal!(Unresolved),
+            transformers::CryptopayPaymentStatus::Refunded => non_terminal!(Unresolved),
         }
     },
     runtime: {
@@ -171,13 +171,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Cryptopay<T>,
     flow: PSync,
     source: transformers::CryptopayPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::CryptopayPaymentStatus::Completed => common_enums::AttemptStatus::Charged,
-            transformers::CryptopayPaymentStatus::Cancelled => common_enums::AttemptStatus::Failure,
-            transformers::CryptopayPaymentStatus::New => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::CryptopayPaymentStatus::Unresolved => common_enums::AttemptStatus::Unresolved,
-            transformers::CryptopayPaymentStatus::Refunded => common_enums::AttemptStatus::Unresolved,
+            transformers::CryptopayPaymentStatus::Completed => success!(Charged),
+            transformers::CryptopayPaymentStatus::Cancelled => failure!(Failure),
+            transformers::CryptopayPaymentStatus::New => non_terminal!(AuthenticationPending),
+            transformers::CryptopayPaymentStatus::Unresolved => non_terminal!(Unresolved),
+            transformers::CryptopayPaymentStatus::Refunded => non_terminal!(Unresolved),
         }
     },
     runtime: {

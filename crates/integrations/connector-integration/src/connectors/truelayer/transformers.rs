@@ -392,7 +392,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ..
             }) => {
                 let currency = item.router_data.request.currency;
-                let amount_in_minor = item.router_data.request.amount;
+                let amount_in_minor = item.router_data.request.amount.amount;
 
                 let hosted_page = HostedPage {
                     return_uri: item.router_data.request.router_return_url.clone().ok_or(
@@ -1553,7 +1553,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .collect::<String>();
 
         Ok(Self {
-            amount_in_minor: item.router_data.request.minor_refund_amount,
+            amount_in_minor: item.router_data.request.refund_amount.amount,
             reference,
         })
     }
@@ -1764,7 +1764,7 @@ fn get_address(billing: &domain_types::payment_address::Address) -> Option<Addre
     })
 }
 
-pub(crate) fn get_attempt_status(item: TruelayerPaymentStatus) -> AttemptStatus {
+pub fn get_attempt_status(item: TruelayerPaymentStatus) -> AttemptStatus {
     match item {
         TruelayerPaymentStatus::Authorized | TruelayerPaymentStatus::Executed => {
             AttemptStatus::Authorized
@@ -1778,7 +1778,7 @@ pub(crate) fn get_attempt_status(item: TruelayerPaymentStatus) -> AttemptStatus 
     }
 }
 
-pub(crate) fn get_refund_status(item: TruelayerRefundStatus) -> common_enums::RefundStatus {
+pub fn get_refund_status(item: TruelayerRefundStatus) -> common_enums::RefundStatus {
     match item {
         TruelayerRefundStatus::Pending | TruelayerRefundStatus::Authorized => {
             common_enums::RefundStatus::Pending

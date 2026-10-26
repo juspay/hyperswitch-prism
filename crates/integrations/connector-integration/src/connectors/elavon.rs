@@ -479,29 +479,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Elavon<T>,
-    flow: domain_types::connector_flow::PSync,
+    flow: PSync,
     source: elavon::TransactionSyncStatus,
     context: elavon::SyncTransactionType,
-    mapping_status: |status, ctx| { use common_enums::AttemptStatus;
+    mapping: |status, ctx| {
         use elavon::{SyncTransactionType, TransactionSyncStatus};
         match status {
             TransactionSyncStatus::STL => match ctx {
-                SyncTransactionType::Sale | SyncTransactionType::AuthOnly => AttemptStatus::Charged,
-                SyncTransactionType::Return => AttemptStatus::Pending,
+                SyncTransactionType::Sale | SyncTransactionType::AuthOnly => success!(Charged),
+                SyncTransactionType::Return => non_terminal!(Pending),
             },
             TransactionSyncStatus::OPN => match ctx {
-                SyncTransactionType::AuthOnly => AttemptStatus::Authorized,
-                SyncTransactionType::Sale | SyncTransactionType::Return => AttemptStatus::Pending,
+                SyncTransactionType::AuthOnly => success!(Authorized),
+                SyncTransactionType::Sale | SyncTransactionType::Return => non_terminal!(Pending),
             },
-            TransactionSyncStatus::PEN | TransactionSyncStatus::REV => AttemptStatus::Pending,
+            TransactionSyncStatus::PEN | TransactionSyncStatus::REV => non_terminal!(Pending),
             TransactionSyncStatus::PST | TransactionSyncStatus::FPR | TransactionSyncStatus::PRE => {
                 if ctx == SyncTransactionType::AuthOnly && status == TransactionSyncStatus::PRE {
-                    AttemptStatus::AuthenticationFailed
+                    failure!(AuthenticationFailed)
                 } else {
-                    AttemptStatus::Failure
+                    failure!(Failure)
                 }
             }
-        } },
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: ElavonPSyncResponse,
@@ -513,22 +514,23 @@ domain_types::impl_flow_status_mapping! {
 domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Elavon<T>,
-    flow: domain_types::connector_flow::RSync,
+    flow: RSync,
     source: elavon::TransactionSyncStatus,
     context: elavon::SyncTransactionType,
-    mapping_status: |status, ctx| { use common_enums::RefundStatus;
+    mapping: |status, ctx| {
         use elavon::{SyncTransactionType, TransactionSyncStatus};
         match ctx {
             SyncTransactionType::Return => match status {
-                TransactionSyncStatus::STL => RefundStatus::Success,
-                TransactionSyncStatus::PEN | TransactionSyncStatus::OPN => RefundStatus::Pending,
-                TransactionSyncStatus::REV => RefundStatus::ManualReview,
+                TransactionSyncStatus::STL => success!(Success),
+                TransactionSyncStatus::PEN | TransactionSyncStatus::OPN => non_terminal!(Pending),
+                TransactionSyncStatus::REV => non_terminal!(ManualReview),
                 TransactionSyncStatus::PST | TransactionSyncStatus::FPR | TransactionSyncStatus::PRE => {
-                    RefundStatus::Failure
+                    failure!(Failure)
                 }
             },
-            _ => RefundStatus::Pending,
-        } },
+            _ => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: ElavonRSyncResponse,
@@ -537,93 +539,14 @@ domain_types::impl_refund_flow_status_mapping! {
     },
 }
 
-// NOTE: skipped extractors — the status-mapping context is the HTTP status
-// code (`u16` `http_code`), which lives alongside the response body rather
-// than in the request or response types, so no runtime extractor can supply it.
-domain_types::impl_flow_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: Elavon<T>,
-    flow: domain_types::connector_flow::Authorize,
-    source: elavon::ElavonResult,
-    context: u16,
-    params: [status, ctx],
-    success: _ => [Charged],
-    failure: none,
-    {
-        elavon::get_elavon_attempt_status(&status, ctx).0
-    }
-}
-
-// NOTE: skipped extractors — the status-mapping context is the HTTP status
-// code (`u16` `http_code`), which lives alongside the response body rather
-// than in the request or response types, so no runtime extractor can supply it.
-domain_types::impl_flow_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: Elavon<T>,
-    flow: domain_types::connector_flow::Capture,
-    source: elavon::ElavonResult,
-    context: u16,
-    params: [status, ctx],
-    success: _ => [Charged],
-    failure: none,
-    {
-        let attempt_status = elavon::get_elavon_attempt_status(&status, ctx).0;
-        match &status {
-            elavon::ElavonResult::Success(payload) => {
-                match payload.ssl_transaction_type.as_deref() {
-                    Some("cccomplete") | Some("ccsale") => match payload.ssl_result {
-                        elavon::SslResult::Approved => common_enums::AttemptStatus::Charged,
-                        _ => common_enums::AttemptStatus::Failure,
-                    },
-                    _ => attempt_status,
-                }
-            }
-            _ => attempt_status,
-        }
-    }
-}
-
-// NOTE: skipped extractors — the status-mapping context is the HTTP status
-// code (`u16` `http_code`), which lives alongside the response body rather
-// than in the request or response types, so no runtime extractor can supply it.
-domain_types::impl_flow_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: Elavon<T>,
-    flow: domain_types::connector_flow::RepeatPayment,
-    source: elavon::ElavonResult,
-    context: u16,
-    params: [status, ctx],
-    success: _ => [Charged],
-    failure: none,
-    {
-        elavon::get_elavon_attempt_status(&status, ctx).0
-    }
-}
-
-domain_types::impl_refund_flow_status_mapping! {
-    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    connector: Elavon<T>,
-    flow: domain_types::connector_flow::Refund,
-    source: elavon::ElavonResult,
-    mapping_status: |status| { match status {
-            elavon::ElavonResult::Success(payload) => {
-                match payload.ssl_transaction_type.as_deref() {
-                    Some("RETURN") => match payload.ssl_result {
-                        elavon::SslResult::Approved => common_enums::RefundStatus::Success,
-                        elavon::SslResult::Declined => common_enums::RefundStatus::Failure,
-                        elavon::SslResult::Other(_) => common_enums::RefundStatus::Pending,
-                    },
-                    _ => common_enums::RefundStatus::Pending,
-                }
-            }
-            elavon::ElavonResult::Error(_) => common_enums::RefundStatus::Failure,
-        } },
-    runtime: {
-        request: RefundsData,
-        response: ElavonRefundResponse,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.result.clone()) },
-    },
-}
+// NOTE: no impl_flow_status_mapping! for Authorize / Capture / RepeatPayment — the
+// status-mapping context is the HTTP status code (`u16` `http_code`), which lives
+// alongside the response body rather than in the request or response types, so no
+// runtime extractor can supply it; the untyped fallback (`get_elavon_attempt_status`)
+// cannot be expressed with typed outcomes without a framework change.
+// NOTE: no impl_refund_flow_status_mapping! for Refund — the mapping is a nested
+// match on `ElavonResult` payload fields; convert to typed outcomes once the refund
+// flow's payload-shape helper is stabilised.
 
 macros::macro_connector_flow_status_impls!(
     connector: Elavon,

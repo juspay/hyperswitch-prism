@@ -866,7 +866,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: Shift4AuthorizeResponse,
     context: (),
-    mapping_status: |response, _ctx| { match response.status {
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { match response.status {
             shift4::Shift4PaymentStatus::Successful => {
                 if response.captured {
                     AttemptStatus::Charged
@@ -875,7 +876,7 @@ domain_types::impl_flow_status_mapping! {
                 }
             }
             shift4::Shift4PaymentStatus::Failed => AttemptStatus::Failure,
-            shift4::Shift4PaymentStatus::Pending => {
+            shift4::Shift4PaymentStatus::Pending | shift4::Shift4PaymentStatus::Unknown => {
                 match response.flow.as_ref().and_then(|flow| flow.next_action.as_ref()) {
                     Some(shift4::NextAction::Redirect) => AttemptStatus::AuthenticationPending,
                     Some(shift4::NextAction::Wait) | Some(shift4::NextAction::None) | None => {
@@ -883,7 +884,34 @@ domain_types::impl_flow_status_mapping! {
                     }
                 }
             }
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: Shift4AuthorizeResponse,
@@ -898,7 +926,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: Shift4PSyncResponse,
     context: (),
-    mapping_status: |response, _ctx| { match response.status {
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { match response.status {
             shift4::Shift4PaymentStatus::Successful => {
                 if response.captured {
                     AttemptStatus::Charged
@@ -907,7 +936,7 @@ domain_types::impl_flow_status_mapping! {
                 }
             }
             shift4::Shift4PaymentStatus::Failed => AttemptStatus::Failure,
-            shift4::Shift4PaymentStatus::Pending => {
+            shift4::Shift4PaymentStatus::Pending | shift4::Shift4PaymentStatus::Unknown => {
                 match response.flow.as_ref().and_then(|flow| flow.next_action.as_ref()) {
                     Some(shift4::NextAction::Redirect) => AttemptStatus::AuthenticationPending,
                     Some(shift4::NextAction::Wait) | Some(shift4::NextAction::None) | None => {
@@ -915,7 +944,41 @@ domain_types::impl_flow_status_mapping! {
                     }
                 }
             }
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: Shift4PSyncResponse,
@@ -930,7 +993,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: Shift4CaptureResponse,
     context: (),
-    mapping_status: |response, _ctx| { match response.status {
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { match response.status {
             shift4::Shift4PaymentStatus::Successful => {
                 if response.captured {
                     AttemptStatus::Charged
@@ -939,7 +1003,7 @@ domain_types::impl_flow_status_mapping! {
                 }
             }
             shift4::Shift4PaymentStatus::Failed => AttemptStatus::Failure,
-            shift4::Shift4PaymentStatus::Pending => {
+            shift4::Shift4PaymentStatus::Pending | shift4::Shift4PaymentStatus::Unknown => {
                 match response.flow.as_ref().and_then(|flow| flow.next_action.as_ref()) {
                     Some(shift4::NextAction::Redirect) => AttemptStatus::AuthenticationPending,
                     Some(shift4::NextAction::Wait) | Some(shift4::NextAction::None) | None => {
@@ -947,7 +1011,19 @@ domain_types::impl_flow_status_mapping! {
                     }
                 }
             }
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: Shift4CaptureResponse,
@@ -962,7 +1038,8 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: Shift4SetupMandateResponse,
     context: (),
-    mapping_status: |response, _ctx| { let mut status = match response.status {
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { let mut status = match response.status {
             shift4::Shift4PaymentStatus::Successful => {
                 if response.captured {
                     AttemptStatus::Charged
@@ -971,7 +1048,7 @@ domain_types::impl_flow_status_mapping! {
                 }
             }
             shift4::Shift4PaymentStatus::Failed => AttemptStatus::Failure,
-            shift4::Shift4PaymentStatus::Pending => {
+            shift4::Shift4PaymentStatus::Pending | shift4::Shift4PaymentStatus::Unknown => {
                 match response.flow.as_ref().and_then(|flow| flow.next_action.as_ref()) {
                     Some(shift4::NextAction::Redirect) => AttemptStatus::AuthenticationPending,
                     Some(shift4::NextAction::Wait) | Some(shift4::NextAction::None) | None => {
@@ -985,7 +1062,19 @@ domain_types::impl_flow_status_mapping! {
         if status == AttemptStatus::Authorized {
             status = AttemptStatus::Charged;
         }
-        status },
+        status })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: SetupMandateRequestData<T>,
         response: Shift4SetupMandateResponse,
@@ -1000,7 +1089,8 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: Shift4RepeatPaymentResponse,
     context: (),
-    mapping_status: |response, _ctx| { match response.status {
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { match response.status {
             shift4::Shift4PaymentStatus::Successful => {
                 if response.captured {
                     AttemptStatus::Charged
@@ -1009,7 +1099,7 @@ domain_types::impl_flow_status_mapping! {
                 }
             }
             shift4::Shift4PaymentStatus::Failed => AttemptStatus::Failure,
-            shift4::Shift4PaymentStatus::Pending => {
+            shift4::Shift4PaymentStatus::Pending | shift4::Shift4PaymentStatus::Unknown => {
                 match response.flow.as_ref().and_then(|flow| flow.next_action.as_ref()) {
                     Some(shift4::NextAction::Redirect) => AttemptStatus::AuthenticationPending,
                     Some(shift4::NextAction::Wait) | Some(shift4::NextAction::None) | None => {
@@ -1017,7 +1107,23 @@ domain_types::impl_flow_status_mapping! {
                     }
                 }
             }
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorized => non_terminal!(Authorized),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: Shift4RepeatPaymentResponse,
@@ -1032,12 +1138,28 @@ domain_types::impl_flow_status_mapping! {
     flow: IncrementalAuthorization,
     source: shift4::Shift4PaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             shift4::Shift4PaymentStatus::Failed => AttemptStatus::AuthorizationFailed,
             shift4::Shift4PaymentStatus::Successful | shift4::Shift4PaymentStatus::Pending => {
                 AttemptStatus::Authorized
             }
-        } },
+            shift4::Shift4PaymentStatus::Unknown => AttemptStatus::Pending,
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsIncrementalAuthorizationData,
         response: Shift4IncrementalAuthResponse,
@@ -1052,11 +1174,21 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: shift4::Shift4RefundStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             shift4::Shift4RefundStatus::Successful => RefundStatus::Success,
             shift4::Shift4RefundStatus::Failed => RefundStatus::Failure,
-            shift4::Shift4RefundStatus::Processing => RefundStatus::Pending,
-        } },
+            shift4::Shift4RefundStatus::Processing | shift4::Shift4RefundStatus::Unknown => RefundStatus::Pending,
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: Shift4RefundResponse,
@@ -1071,11 +1203,21 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: shift4::Shift4RefundStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             shift4::Shift4RefundStatus::Successful => RefundStatus::Success,
             shift4::Shift4RefundStatus::Failed => RefundStatus::Failure,
-            shift4::Shift4RefundStatus::Processing => RefundStatus::Pending,
-        } },
+            shift4::Shift4RefundStatus::Processing | shift4::Shift4RefundStatus::Unknown => RefundStatus::Pending,
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: Shift4RSyncResponse,

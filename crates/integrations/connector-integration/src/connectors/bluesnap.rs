@@ -60,7 +60,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: bluesnap::BluesnapProcessingStatus,
     context: Option<bluesnap::BluesnapTxnType>,
-    mapping_status: |processing_status, txn_type| { use bluesnap::BluesnapProcessingStatus as P;
+    mapping: |processing_status, txn_type| {
+        let mapped_status = (|| { use bluesnap::BluesnapProcessingStatus as P;
         use bluesnap::BluesnapTxnType as Tx;
         match processing_status {
             P::Success => match txn_type {
@@ -73,7 +74,34 @@ domain_types::impl_flow_status_mapping! {
             },
             P::Pending | P::PendingMerchantReview => common_enums::AttemptStatus::Pending,
             P::Fail => common_enums::AttemptStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: BluesnapAuthorizeResponse,
@@ -92,7 +120,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: bluesnap::BluesnapProcessingStatus,
     context: Option<bluesnap::BluesnapTxnType>,
-    mapping_status: |processing_status, txn_type| { use bluesnap::BluesnapProcessingStatus as P;
+    mapping: |processing_status, txn_type| {
+        let mapped_status = (|| { use bluesnap::BluesnapProcessingStatus as P;
         use bluesnap::BluesnapTxnType as Tx;
         match processing_status {
             P::Success => match txn_type {
@@ -105,7 +134,41 @@ domain_types::impl_flow_status_mapping! {
             },
             P::Pending | P::PendingMerchantReview => common_enums::AttemptStatus::Pending,
             P::Fail => common_enums::AttemptStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: BluesnapPSyncResponse,
@@ -124,7 +187,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: bluesnap::BluesnapProcessingStatus,
     context: Option<bluesnap::BluesnapTxnType>,
-    mapping_status: |processing_status, txn_type| { use bluesnap::BluesnapProcessingStatus as P;
+    mapping: |processing_status, txn_type| {
+        let mapped_status = (|| { use bluesnap::BluesnapProcessingStatus as P;
         use bluesnap::BluesnapTxnType as Tx;
         match processing_status {
             P::Success => match txn_type {
@@ -140,7 +204,16 @@ domain_types::impl_flow_status_mapping! {
             },
             P::Pending | P::PendingMerchantReview => common_enums::AttemptStatus::VoidInitiated,
             P::Fail => common_enums::AttemptStatus::VoidFailed,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: BluesnapVoidResponse,
@@ -170,7 +243,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: bluesnap::BluesnapProcessingStatus,
     context: Option<bluesnap::BluesnapTxnType>,
-    mapping_status: |processing_status, txn_type| { use bluesnap::BluesnapProcessingStatus as P;
+    mapping: |processing_status, txn_type| {
+        let mapped_status = (|| { use bluesnap::BluesnapProcessingStatus as P;
         use bluesnap::BluesnapTxnType as Tx;
         match processing_status {
             P::Success => match txn_type {
@@ -184,7 +258,19 @@ domain_types::impl_flow_status_mapping! {
             },
             P::Pending | P::PendingMerchantReview => common_enums::AttemptStatus::Pending,
             P::Fail => common_enums::AttemptStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: BluesnapCaptureResponse,
@@ -206,9 +292,9 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Bluesnap<T>,
     flow: Refund,
     source: bluesnap::BluesnapRefundStatus,
-    mapping_status: |status| { match status {
-            bluesnap::BluesnapRefundStatus::Success => common_enums::RefundStatus::Success,
-            bluesnap::BluesnapRefundStatus::Pending => common_enums::RefundStatus::Pending,
+    mapping: |status| { match status {
+            bluesnap::BluesnapRefundStatus::Success => success!(Success),
+            bluesnap::BluesnapRefundStatus::Pending => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundsData,
@@ -233,13 +319,23 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: bluesnap::BluesnapProcessingStatus,
     context: Option<bluesnap::BluesnapTxnType>,
-    mapping_status: |status, ctx| { let _ = ctx;
+    mapping: |status, ctx| {
+        let mapped_status = (|| { let _ = ctx;
         use bluesnap::BluesnapProcessingStatus as P;
         match status {
             P::Success => common_enums::RefundStatus::Success,
             P::Pending | P::PendingMerchantReview => common_enums::RefundStatus::Pending,
             P::Fail => common_enums::RefundStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: BluesnapRefundSyncResponse,
@@ -405,7 +501,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,

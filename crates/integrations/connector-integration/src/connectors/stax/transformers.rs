@@ -273,7 +273,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let converter = FloatMajorUnitForConnector;
         let total = converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -331,7 +331,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 /// Note: Stax API returns amounts in dollars (f64 major units).
 /// The `total` field is in dollars and needs conversion back to MinorUnit
 /// when mapping to RouterDataV2.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StaxPaymentResponse {
     pub success: bool,
     pub id: String,
@@ -361,7 +361,7 @@ pub type StaxRSyncResponse = StaxPaymentResponse;
 pub type StaxRepeatPaymentResponse = StaxPaymentResponse;
 
 /// Child capture transaction (for pre-auth captures)
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ChildCapture {
     pub id: String,
 }
@@ -373,7 +373,7 @@ pub struct StaxMetaData {
 }
 
 /// Child transaction (for refunds/voids)
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ChildTransaction {
     pub id: String,
     #[serde(rename = "type")]
@@ -507,7 +507,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let converter = FloatMajorUnitForConnector;
         let total = converter
             .convert(
-                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.amount_to_capture.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -555,7 +555,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
     }
 }
 
-fn get_payment_status(
+pub fn get_payment_status(
     response: &StaxPaymentResponse,
     http_status: u16,
 ) -> Result<AttemptStatus, error_stack::Report<ConnectorError>> {
@@ -584,7 +584,7 @@ fn get_payment_status(
     Ok(status)
 }
 
-fn get_capture_status(
+pub fn get_capture_status(
     response: &StaxPaymentResponse,
     http_status: u16,
 ) -> Result<AttemptStatus, error_stack::Report<ConnectorError>> {
@@ -619,7 +619,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let converter = FloatMajorUnitForConnector;
         let total = converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -647,7 +647,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
         let converter = FloatMajorUnitForConnector;
         let refund_amount = converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(crate::utils::response_handling_fail_for_connector(
@@ -706,7 +706,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
     }
 }
 
-fn get_refund_status(
+pub fn get_refund_status(
     response: &StaxPaymentResponse,
     refund_amount: FloatMajorUnit,
     http_status: u16,
@@ -1235,11 +1235,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Stax's /charge endpoint requires a non-zero total. Fail fast if the
         // caller omits an amount rather than silently authorizing $0.01, which
         // would leave a surprise charge on the cardholder's statement.
-        let minor_amount =
-            item.router_data
-                .request
-                .minor_amount
-                .ok_or(IntegrationError::MissingRequiredField {
+        let minor_amount = item
+            .router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name:
                     "minor_amount (Stax requires a non-zero authorization amount for SetupMandate)",
                 context: Default::default(),
@@ -1423,7 +1425,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let total = domain_types::utils::convert_amount(
             item.connector.amount_converter,
-            item.router_data.request.minor_amount,
+            item.router_data.request.amount.amount,
             item.router_data.request.currency,
         )?;
 

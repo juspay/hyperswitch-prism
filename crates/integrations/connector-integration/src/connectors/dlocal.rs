@@ -66,15 +66,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Dlocal<T>,
     flow: Authorize,
     source: DlocalPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            DlocalPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            DlocalPaymentStatus::Rejected => common_enums::AttemptStatus::Failure,
-            DlocalPaymentStatus::Paid => common_enums::AttemptStatus::Charged,
-            DlocalPaymentStatus::Verified => common_enums::AttemptStatus::Charged,
-            DlocalPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            DlocalPaymentStatus::Active => common_enums::AttemptStatus::Pending,
-            DlocalPaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
+            DlocalPaymentStatus::Authorized => success!(Authorized),
+            DlocalPaymentStatus::Rejected => failure!(Failure),
+            DlocalPaymentStatus::Paid => success!(Charged),
+            DlocalPaymentStatus::Verified => success!(Charged),
+            DlocalPaymentStatus::Pending => non_terminal!(Pending),
+            DlocalPaymentStatus::Active => non_terminal!(Pending),
+            DlocalPaymentStatus::Cancelled => non_terminal!(Voided),
         }
     },
     runtime: {
@@ -92,15 +92,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Dlocal<T>,
     flow: PSync,
     source: DlocalPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            DlocalPaymentStatus::Paid => common_enums::AttemptStatus::Charged,
-            DlocalPaymentStatus::Rejected => common_enums::AttemptStatus::Failure,
-            DlocalPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            DlocalPaymentStatus::Verified => common_enums::AttemptStatus::Charged,
-            DlocalPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            DlocalPaymentStatus::Active => common_enums::AttemptStatus::Pending,
-            DlocalPaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
+            DlocalPaymentStatus::Paid => success!(Charged),
+            DlocalPaymentStatus::Rejected => failure!(Failure),
+            DlocalPaymentStatus::Authorized => success!(Authorized),
+            DlocalPaymentStatus::Verified => success!(Charged),
+            DlocalPaymentStatus::Pending => non_terminal!(Pending),
+            DlocalPaymentStatus::Active => non_terminal!(Pending),
+            DlocalPaymentStatus::Cancelled => success!(Voided),
         }
     },
     runtime: {
@@ -118,15 +118,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Dlocal<T>,
     flow: Void,
     source: DlocalPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            DlocalPaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
-            DlocalPaymentStatus::Rejected => common_enums::AttemptStatus::Failure,
-            DlocalPaymentStatus::Authorized => common_enums::AttemptStatus::VoidInitiated,
-            DlocalPaymentStatus::Paid => common_enums::AttemptStatus::VoidFailed,
-            DlocalPaymentStatus::Verified => common_enums::AttemptStatus::VoidFailed,
-            DlocalPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            DlocalPaymentStatus::Active => common_enums::AttemptStatus::Pending,
+            DlocalPaymentStatus::Cancelled => success!(Voided),
+            DlocalPaymentStatus::Rejected => failure!(Failure),
+            DlocalPaymentStatus::Authorized => non_terminal!(VoidInitiated),
+            DlocalPaymentStatus::Paid => failure!(VoidFailed),
+            DlocalPaymentStatus::Verified => failure!(VoidFailed),
+            DlocalPaymentStatus::Pending => non_terminal!(Pending),
+            DlocalPaymentStatus::Active => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -144,14 +144,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Dlocal<T>,
     flow: RSync,
     source: transformers::RefundStatus,
-    mapping_status: |status| {
-        match status {
-            transformers::RefundStatus::Success => common_enums::RefundStatus::Success,
-            transformers::RefundStatus::Rejected => common_enums::RefundStatus::Failure,
-            transformers::RefundStatus::Pending => common_enums::RefundStatus::Pending,
-            transformers::RefundStatus::Cancelled => common_enums::RefundStatus::Failure,
-        }
-    },
+    mapping: |status| { match status {
+            transformers::RefundStatus::Success => success!(Success),
+            transformers::RefundStatus::Rejected => failure!(Failure),
+            transformers::RefundStatus::Pending => non_terminal!(Pending),
+            transformers::RefundStatus::Cancelled => failure!(Failure),
+        } },
     runtime: {
         request: RefundsData,
         response: RefundSyncResponse,
@@ -167,14 +165,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Dlocal<T>,
     flow: Refund,
     source: transformers::RefundStatus,
-    mapping_status: |status| {
-        match status {
-            transformers::RefundStatus::Success => common_enums::RefundStatus::Success,
-            transformers::RefundStatus::Rejected => common_enums::RefundStatus::Failure,
-            transformers::RefundStatus::Pending => common_enums::RefundStatus::Pending,
-            transformers::RefundStatus::Cancelled => common_enums::RefundStatus::Failure,
-        }
-    },
+    mapping: |status| { match status {
+            transformers::RefundStatus::Success => success!(Success),
+            transformers::RefundStatus::Rejected => failure!(Failure),
+            transformers::RefundStatus::Pending => non_terminal!(Pending),
+            transformers::RefundStatus::Cancelled => failure!(Failure),
+        } },
     runtime: {
         request: RefundsData,
         response: RefundResponse,
@@ -190,15 +186,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Dlocal<T>,
     flow: Capture,
     source: DlocalPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            DlocalPaymentStatus::Paid => common_enums::AttemptStatus::Charged,
-            DlocalPaymentStatus::Rejected => common_enums::AttemptStatus::CaptureFailed,
-            DlocalPaymentStatus::Authorized => common_enums::AttemptStatus::Pending,
-            DlocalPaymentStatus::Verified => common_enums::AttemptStatus::Charged,
-            DlocalPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            DlocalPaymentStatus::Active => common_enums::AttemptStatus::Pending,
-            DlocalPaymentStatus::Cancelled => common_enums::AttemptStatus::CaptureFailed,
+            DlocalPaymentStatus::Paid => success!(Charged),
+            DlocalPaymentStatus::Rejected => failure!(CaptureFailed),
+            DlocalPaymentStatus::Authorized => non_terminal!(Pending),
+            DlocalPaymentStatus::Verified => success!(Charged),
+            DlocalPaymentStatus::Pending => non_terminal!(Pending),
+            DlocalPaymentStatus::Active => non_terminal!(Pending),
+            DlocalPaymentStatus::Cancelled => failure!(CaptureFailed),
         }
     },
     runtime: {
@@ -220,15 +216,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Dlocal<T>,
     flow: SetupMandate,
     source: DlocalPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            DlocalPaymentStatus::Paid => common_enums::AttemptStatus::Charged,
-            DlocalPaymentStatus::Rejected => common_enums::AttemptStatus::Failure,
-            DlocalPaymentStatus::Authorized => common_enums::AttemptStatus::Charged,
-            DlocalPaymentStatus::Verified => common_enums::AttemptStatus::Charged,
-            DlocalPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            DlocalPaymentStatus::Active => common_enums::AttemptStatus::Pending,
-            DlocalPaymentStatus::Cancelled => common_enums::AttemptStatus::Failure,
+            DlocalPaymentStatus::Paid => success!(Charged),
+            DlocalPaymentStatus::Rejected => failure!(Failure),
+            DlocalPaymentStatus::Authorized => success!(Charged),
+            DlocalPaymentStatus::Verified => success!(Charged),
+            DlocalPaymentStatus::Pending => non_terminal!(Pending),
+            DlocalPaymentStatus::Active => non_terminal!(Pending),
+            DlocalPaymentStatus::Cancelled => failure!(Failure),
         }
     },
     runtime: {
@@ -246,15 +242,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Dlocal<T>,
     flow: RepeatPayment,
     source: DlocalPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            DlocalPaymentStatus::Paid => common_enums::AttemptStatus::Charged,
-            DlocalPaymentStatus::Rejected => common_enums::AttemptStatus::Failure,
-            DlocalPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            DlocalPaymentStatus::Verified => common_enums::AttemptStatus::Charged,
-            DlocalPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            DlocalPaymentStatus::Active => common_enums::AttemptStatus::Pending,
-            DlocalPaymentStatus::Cancelled => common_enums::AttemptStatus::Failure,
+            DlocalPaymentStatus::Paid => success!(Charged),
+            DlocalPaymentStatus::Rejected => failure!(Failure),
+            DlocalPaymentStatus::Authorized => non_terminal!(Authorized),
+            DlocalPaymentStatus::Verified => success!(Charged),
+            DlocalPaymentStatus::Pending => non_terminal!(Pending),
+            DlocalPaymentStatus::Active => non_terminal!(Pending),
+            DlocalPaymentStatus::Cancelled => failure!(Failure),
         }
     },
     runtime: {
@@ -442,7 +438,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -722,7 +717,7 @@ macros::macro_connector_implementation!(
                     context: Default::default(),
                 })?;
 
-            if req.request.amount == MinorUnit::new(0) {
+            if req.request.amount.amount == MinorUnit::new(0) {
                 Ok(format!(
                     "{}enrollments/{connector_transaction_id}",
                     self.connector_base_url_payments(req),

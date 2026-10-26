@@ -805,14 +805,42 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: PaysafeAuthorizeResponse,
     context: Option<common_enums::CaptureMethod>,
-    mapping_status: |response, capture_method| { match response {
+    mapping: |response, capture_method| {
+        let mapped_status = (|| { match response {
             PaysafeAuthorizeResponse::Payment(payment) => {
                 paysafe::get_paysafe_payment_status(payment.status, capture_method)
             }
             PaysafeAuthorizeResponse::PaymentHandle(payment_handle) => {
                 AttemptStatus::try_from(payment_handle.status).unwrap_or(AttemptStatus::Failure)
             }
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: PaysafeAuthorizeResponse,
@@ -821,20 +849,71 @@ domain_types::impl_flow_status_mapping! {
     },
 }
 
+// Expands inside `mapping:` bodies only (it references the `success!` /
+// `failure!` / `non_terminal!` macros those bodies define). Mirrors
+// `paysafe::get_paysafe_payment_status` for the manual-capture path these
+// auth flows use, mapping each connector status onto the typed outcome class
+// the enclosing flow's per-flow enums allow.
+macro_rules! paysafe_attempt_mapping {
+    ($response:ident, $payment:ident) => {{
+        use transformers::PaysafePaymentStatus;
+        match $payment.status {
+            // PreAuthenticate is an initiate-only flow: a completed payment handle
+            // here means the authentication step has been initiated, not that the
+            // payment succeeded.
+            PaysafePaymentStatus::Completed => {
+                common_enums::AttemptStatus::AuthenticationSuccessful
+            }
+            PaysafePaymentStatus::Failed => common_enums::AttemptStatus::Failure,
+            PaysafePaymentStatus::Pending | PaysafePaymentStatus::Processing => {
+                common_enums::AttemptStatus::Pending
+            }
+            PaysafePaymentStatus::Cancelled => common_enums::AttemptStatus::Failure,
+        }
+    }};
+    ($response:ident, handle: $handle:ident) => {{
+        use transformers::PaysafePaymentHandleStatus;
+        match $handle.status {
+            PaysafePaymentHandleStatus::Completed => {
+                common_enums::AttemptStatus::AuthenticationSuccessful
+            }
+            PaysafePaymentHandleStatus::Failed
+            | PaysafePaymentHandleStatus::Expired
+            | PaysafePaymentHandleStatus::Error => common_enums::AttemptStatus::Failure,
+            PaysafePaymentHandleStatus::Initiated => {
+                common_enums::AttemptStatus::AuthenticationPending
+            }
+            PaysafePaymentHandleStatus::Payable | PaysafePaymentHandleStatus::Processing => {
+                common_enums::AttemptStatus::Pending
+            }
+        }
+    }};
+}
+
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paysafe<T>,
     flow: PreAuthenticate,
     source: PaysafePreAuthenticateResponse,
     context: (),
-    mapping_status: |response, _ctx| { match response {
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { match response {
             PaysafeAuthorizeResponse::Payment(payment) => {
-                paysafe::get_paysafe_payment_status(payment.status, Some(common_enums::CaptureMethod::Manual))
+                paysafe_attempt_mapping!(response, payment)
             }
             PaysafeAuthorizeResponse::PaymentHandle(payment_handle) => {
-                AttemptStatus::try_from(payment_handle.status).unwrap_or(AttemptStatus::Failure)
+                paysafe_attempt_mapping!(response, handle: payment_handle)
             }
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsPreAuthenticateData<T>,
         response: PaysafePreAuthenticateResponse,
@@ -849,26 +928,34 @@ domain_types::impl_flow_status_mapping! {
     flow: Authenticate,
     source: PaysafeAuthenticateResponse,
     context: (),
-    mapping_status: |response, _ctx| { match response {
+    mapping: |response, _ctx| {
+        let mapped_status = match response {
             PaysafeSyncResponse::SinglePayment(payment) => {
-                paysafe::get_paysafe_payment_status(payment.status, Some(common_enums::CaptureMethod::Manual))
+                paysafe_attempt_mapping!(response, payment)
             }
             PaysafeSyncResponse::Payments(payments) => payments
                 .payments
                 .first()
-                .map(|payment| paysafe::get_paysafe_payment_status(payment.status, Some(common_enums::CaptureMethod::Manual)))
+                .map(|payment| paysafe_attempt_mapping!(response, payment))
                 .unwrap_or(AttemptStatus::Pending),
             PaysafeSyncResponse::SinglePaymentHandle(payment_handle) => {
-                AttemptStatus::try_from(payment_handle.status).unwrap_or(AttemptStatus::Failure)
+                paysafe_attempt_mapping!(response, handle: payment_handle)
             }
             PaysafeSyncResponse::PaymentHandle(payment_handles) => payment_handles
                 .payment_handles
                 .first()
-                .map(|payment_handle| {
-                    AttemptStatus::try_from(payment_handle.status).unwrap_or(AttemptStatus::Failure)
-                })
+                .map(|payment_handle| paysafe_attempt_mapping!(response, handle: payment_handle))
                 .unwrap_or(AttemptStatus::Pending),
-        } },
+        };
+        match mapped_status {
+            AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthenticateData<T>,
         response: PaysafeAuthenticateResponse,
@@ -883,7 +970,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: PaysafeSyncResponse,
     context: Option<common_enums::CaptureMethod>,
-    mapping_status: |response, capture_method| { match response {
+    mapping: |response, capture_method| {
+        let mapped_status = (|| { match response {
             PaysafeSyncResponse::SinglePayment(payment) => {
                 paysafe::get_paysafe_payment_status(payment.status, capture_method)
             }
@@ -902,7 +990,41 @@ domain_types::impl_flow_status_mapping! {
                     AttemptStatus::try_from(payment_handle.status).unwrap_or(AttemptStatus::Failure)
                 })
                 .unwrap_or(AttemptStatus::Pending),
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: PaysafeSyncResponse,
@@ -917,7 +1039,20 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: paysafe::PaysafeSettlementStatus,
     context: (),
-    mapping_status: |status, _ctx| { AttemptStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(status) })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: PaysafeCaptureResponse,
@@ -932,7 +1067,17 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: paysafe::PaysafeVoidStatus,
     context: (),
-    mapping_status: |status, _ctx| { AttemptStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(status) })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: PaysafeVoidResponse,
@@ -947,7 +1092,17 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: paysafe::PaysafeRefundStatus,
     context: (),
-    mapping_status: |status, _ctx| { RefundStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { RefundStatus::from(status) })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: PaysafeRefundResponse,
@@ -962,7 +1117,17 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: paysafe::PaysafeRefundStatus,
     context: (),
-    mapping_status: |status, _ctx| { RefundStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { RefundStatus::from(status) })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: PaysafeRSyncResponse,
@@ -977,7 +1142,24 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: paysafe::PaysafePaymentStatus,
     context: Option<common_enums::CaptureMethod>,
-    mapping_status: |status, capture_method| { paysafe::get_paysafe_payment_status(status, capture_method) },
+    mapping: |status, capture_method| {
+        let mapped_status = (|| { paysafe::get_paysafe_payment_status(status, capture_method) })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorized => non_terminal!(Authorized),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: PaysafeRepeatPaymentResponse,

@@ -72,20 +72,20 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: transformers::AffirmTransactionStatus,
     context: bool,
-    mapping_status: |status, is_checkout_initiate| { if is_checkout_initiate {
-            common_enums::AttemptStatus::AuthenticationPending
+    mapping: |status, is_checkout_initiate|{ if is_checkout_initiate {
+            non_terminal!(AuthenticationPending)
         } else {
             match status {
-                transformers::AffirmTransactionStatus::Captured => common_enums::AttemptStatus::Charged,
-                transformers::AffirmTransactionStatus::Declined => common_enums::AttemptStatus::Failure,
-                transformers::AffirmTransactionStatus::Authorized => common_enums::AttemptStatus::Authorized,
-                transformers::AffirmTransactionStatus::PartiallyCaptured => common_enums::AttemptStatus::PartialCharged,
-                transformers::AffirmTransactionStatus::Voided => common_enums::AttemptStatus::Voided,
+                transformers::AffirmTransactionStatus::Captured => success!(Charged),
+                transformers::AffirmTransactionStatus::Declined => failure!(Failure),
+                transformers::AffirmTransactionStatus::Authorized => success!(Authorized),
+                transformers::AffirmTransactionStatus::PartiallyCaptured => success!(PartialCharged),
+                transformers::AffirmTransactionStatus::Voided => non_terminal!(Voided),
                 transformers::AffirmTransactionStatus::Refunded
                 | transformers::AffirmTransactionStatus::PartiallyRefunded
                 | transformers::AffirmTransactionStatus::Disputed
-                | transformers::AffirmTransactionStatus::DisputeRefunded => common_enums::AttemptStatus::Unresolved,
-                transformers::AffirmTransactionStatus::Unknown => common_enums::AttemptStatus::Unknown,
+                | transformers::AffirmTransactionStatus::DisputeRefunded => non_terminal!(Unresolved),
+                transformers::AffirmTransactionStatus::Unknown => non_terminal!(Unknown),
             }
         } },
     runtime: {
@@ -109,18 +109,18 @@ domain_types::impl_flow_status_mapping! {
     connector: Affirm<T>,
     flow: PSync,
     source: transformers::AffirmTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::AffirmTransactionStatus::Captured => common_enums::AttemptStatus::Charged,
-            transformers::AffirmTransactionStatus::Declined => common_enums::AttemptStatus::Failure,
-            transformers::AffirmTransactionStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            transformers::AffirmTransactionStatus::PartiallyCaptured => common_enums::AttemptStatus::PartialCharged,
-            transformers::AffirmTransactionStatus::Voided => common_enums::AttemptStatus::Voided,
-            transformers::AffirmTransactionStatus::Refunded => common_enums::AttemptStatus::Unresolved,
-            transformers::AffirmTransactionStatus::PartiallyRefunded => common_enums::AttemptStatus::Unresolved,
-            transformers::AffirmTransactionStatus::Disputed => common_enums::AttemptStatus::Unresolved,
-            transformers::AffirmTransactionStatus::DisputeRefunded => common_enums::AttemptStatus::Unresolved,
-            transformers::AffirmTransactionStatus::Unknown => common_enums::AttemptStatus::Unknown,
+            transformers::AffirmTransactionStatus::Captured => success!(Charged),
+            transformers::AffirmTransactionStatus::Declined => failure!(Failure),
+            transformers::AffirmTransactionStatus::Authorized => success!(Authorized),
+            transformers::AffirmTransactionStatus::PartiallyCaptured => success!(PartialCharged),
+            transformers::AffirmTransactionStatus::Voided => success!(Voided),
+            transformers::AffirmTransactionStatus::Refunded => non_terminal!(Unresolved),
+            transformers::AffirmTransactionStatus::PartiallyRefunded => non_terminal!(Unresolved),
+            transformers::AffirmTransactionStatus::Disputed => non_terminal!(Unresolved),
+            transformers::AffirmTransactionStatus::DisputeRefunded => non_terminal!(Unresolved),
+            transformers::AffirmTransactionStatus::Unknown => non_terminal!(Unknown),
         }
     },
     runtime: {
@@ -139,18 +139,18 @@ domain_types::impl_flow_status_mapping! {
     connector: Affirm<T>,
     flow: Capture,
     source: transformers::AffirmTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::AffirmTransactionStatus::Captured => common_enums::AttemptStatus::Charged,
-            transformers::AffirmTransactionStatus::Declined => common_enums::AttemptStatus::CaptureFailed,
-            transformers::AffirmTransactionStatus::Authorized => common_enums::AttemptStatus::Pending,
-            transformers::AffirmTransactionStatus::PartiallyCaptured => common_enums::AttemptStatus::PartialCharged,
-            transformers::AffirmTransactionStatus::Voided => common_enums::AttemptStatus::CaptureFailed,
-            transformers::AffirmTransactionStatus::Refunded => common_enums::AttemptStatus::CaptureFailed,
-            transformers::AffirmTransactionStatus::PartiallyRefunded => common_enums::AttemptStatus::CaptureFailed,
-            transformers::AffirmTransactionStatus::Disputed => common_enums::AttemptStatus::Pending,
-            transformers::AffirmTransactionStatus::DisputeRefunded => common_enums::AttemptStatus::CaptureFailed,
-            transformers::AffirmTransactionStatus::Unknown => common_enums::AttemptStatus::Pending,
+            transformers::AffirmTransactionStatus::Captured => success!(Charged),
+            transformers::AffirmTransactionStatus::Declined => failure!(CaptureFailed),
+            transformers::AffirmTransactionStatus::Authorized => non_terminal!(Pending),
+            transformers::AffirmTransactionStatus::PartiallyCaptured => success!(PartialCharged),
+            transformers::AffirmTransactionStatus::Voided => failure!(CaptureFailed),
+            transformers::AffirmTransactionStatus::Refunded => failure!(CaptureFailed),
+            transformers::AffirmTransactionStatus::PartiallyRefunded => failure!(CaptureFailed),
+            transformers::AffirmTransactionStatus::Disputed => non_terminal!(Pending),
+            transformers::AffirmTransactionStatus::DisputeRefunded => failure!(CaptureFailed),
+            transformers::AffirmTransactionStatus::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -169,18 +169,18 @@ domain_types::impl_flow_status_mapping! {
     connector: Affirm<T>,
     flow: Void,
     source: transformers::AffirmTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::AffirmTransactionStatus::Voided => common_enums::AttemptStatus::Voided,
-            transformers::AffirmTransactionStatus::Declined => common_enums::AttemptStatus::Failure,
-            transformers::AffirmTransactionStatus::Authorized => common_enums::AttemptStatus::VoidInitiated,
-            transformers::AffirmTransactionStatus::Captured => common_enums::AttemptStatus::VoidFailed,
-            transformers::AffirmTransactionStatus::PartiallyCaptured => common_enums::AttemptStatus::VoidFailed,
-            transformers::AffirmTransactionStatus::Refunded => common_enums::AttemptStatus::VoidFailed,
-            transformers::AffirmTransactionStatus::PartiallyRefunded => common_enums::AttemptStatus::VoidFailed,
-            transformers::AffirmTransactionStatus::Disputed => common_enums::AttemptStatus::Pending,
-            transformers::AffirmTransactionStatus::DisputeRefunded => common_enums::AttemptStatus::VoidFailed,
-            transformers::AffirmTransactionStatus::Unknown => common_enums::AttemptStatus::Pending,
+            transformers::AffirmTransactionStatus::Voided => success!(Voided),
+            transformers::AffirmTransactionStatus::Declined => failure!(Failure),
+            transformers::AffirmTransactionStatus::Authorized => non_terminal!(VoidInitiated),
+            transformers::AffirmTransactionStatus::Captured => failure!(VoidFailed),
+            transformers::AffirmTransactionStatus::PartiallyCaptured => failure!(VoidFailed),
+            transformers::AffirmTransactionStatus::Refunded => failure!(VoidFailed),
+            transformers::AffirmTransactionStatus::PartiallyRefunded => failure!(VoidFailed),
+            transformers::AffirmTransactionStatus::Disputed => non_terminal!(Pending),
+            transformers::AffirmTransactionStatus::DisputeRefunded => failure!(VoidFailed),
+            transformers::AffirmTransactionStatus::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -199,11 +199,11 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Affirm<T>,
     flow: Refund,
     source: transformers::AffirmRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::AffirmRefundStatus::Refunded => common_enums::RefundStatus::Success,
-            transformers::AffirmRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::AffirmRefundStatus::Pending => common_enums::RefundStatus::Pending,
+            transformers::AffirmRefundStatus::Refunded => success!(Success),
+            transformers::AffirmRefundStatus::Failed => failure!(Failure),
+            transformers::AffirmRefundStatus::Pending => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -223,10 +223,10 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: transformers::AffirmTransactionStatus,
     context: bool,
-    mapping_status: |status, refund_event_found| { match (refund_event_found, status) {
-            (true, _) | (_, transformers::AffirmTransactionStatus::Refunded) => common_enums::RefundStatus::Success,
-            (_, transformers::AffirmTransactionStatus::Declined | transformers::AffirmTransactionStatus::Voided) => common_enums::RefundStatus::Failure,
-            _ => common_enums::RefundStatus::Pending,
+    mapping: |status, refund_event_found|{ match (refund_event_found, status) {
+            (true, _) | (_, transformers::AffirmTransactionStatus::Refunded) => success!(Success),
+            (_, transformers::AffirmTransactionStatus::Declined | transformers::AffirmTransactionStatus::Voided) => failure!(Failure),
+            _ => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundSyncData,

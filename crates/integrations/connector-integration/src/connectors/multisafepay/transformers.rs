@@ -19,6 +19,14 @@ use domain_types::{
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+pub enum MultisafepayRefundVerdict {
+    Succeeded,
+    Failed,
+    #[default]
+    Other,
+}
+
 // ===== ENUMS =====
 
 /// MultiSafepay order type
@@ -767,7 +775,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             gateway,
             currency: item.request.currency,
-            amount: item.request.minor_amount,
+            amount: item.request.amount.amount,
             description: item.resource_common_data.get_description()?,
             payment_options,
             customer,
@@ -869,7 +877,7 @@ impl<T: PaymentMethodDataTypes>
                 .clone(),
             gateway,
             currency: item.request.currency,
-            amount: item.request.minor_amount,
+            amount: item.request.amount.amount,
             description: item.resource_common_data.get_description()?,
             payment_options,
             customer,
@@ -1051,7 +1059,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let item = &wrapper.router_data;
         Ok(Self {
             currency: item.request.currency,
-            amount: item.request.minor_refund_amount,
+            amount: item.request.refund_amount.amount,
         })
     }
 }
@@ -1067,7 +1075,7 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             currency: item.request.currency,
-            amount: item.request.minor_refund_amount,
+            amount: item.request.refund_amount.amount,
         })
     }
 }
@@ -1191,17 +1199,3 @@ impl TryFrom<ResponseRouterData<MultisafepayClientAuthResponse, Self>>
 // ===== VOID FLOW STRUCTURES =====
 // Void flow not implemented - MultiSafepay doesn't support void
 // (requires manual capture support which MultiSafepay doesn't provide)
-
-// ===== FLOW STATUS MAPPING SOURCE TYPES =====
-
-/// Refund verdict derived from the `success: bool` wire flag on the refund-create /
-/// refund-sync responses (`TryFrom<...MultisafepayRefundResponse>` constructs a
-/// `MultisafepayRefundStatus` from this flag — the connector response body has no
-/// refund status enum of its own).
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
-pub enum MultisafepayRefundVerdict {
-    Succeeded,
-    Failed,
-    #[default]
-    Other,
-}

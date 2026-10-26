@@ -154,15 +154,9 @@ pub struct BillwerkPaymentsResponse {
     recurring_payment_method: Option<String>,
 }
 
-impl BillwerkPaymentsResponse {
-    pub fn flow_status(&self) -> BillwerkPaymentState {
-        self.state.clone()
-    }
-}
-
 pub type BillwerkRepeatPaymentResponse = BillwerkPaymentsResponse;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundState {
     Refunded,
@@ -170,16 +164,10 @@ pub enum RefundState {
     Processing,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
     state: RefundState,
-}
-
-impl RefundResponse {
-    pub fn flow_status(&self) -> RefundState {
-        self.state.clone()
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -323,7 +311,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.router_data.request.amount,
+            amount: item.router_data.request.amount.amount,
             source,
             currency: item.router_data.request.currency,
             customer: BillwerkCustomerObject {
@@ -503,7 +491,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: item.router_data.request.amount_to_capture.amount,
         })
     }
 }
@@ -521,7 +509,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_refund_amount,
+            amount: item.router_data.request.refund_amount.amount,
             invoice: item.router_data.request.connector_transaction_id.clone(),
             text: item.router_data.request.reason.clone(),
         })
@@ -618,7 +606,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .router_data
             .request
-            .minor_amount
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
             .unwrap_or(MinorUnit::new(0));
         Ok(Self {
             handle: item
@@ -718,7 +708,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: router_data.request.minor_amount,
+            amount: router_data.request.amount.amount,
             source,
             currency: router_data.request.currency,
             customer_handle: router_data
@@ -838,7 +828,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             order: BillwerkSessionOrder {
                 handle,
-                amount: router_data.request.amount,
+                amount: router_data.request.amount.amount,
                 currency: router_data.request.currency,
                 customer,
             },
@@ -884,5 +874,17 @@ impl TryFrom<ResponseRouterData<BillwerkClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+impl BillwerkPaymentsResponse {
+    pub fn flow_status(&self) -> BillwerkPaymentState {
+        self.state.clone()
+    }
+}
+
+impl RefundResponse {
+    pub fn flow_status(&self) -> RefundState {
+        self.state.clone()
     }
 }

@@ -56,15 +56,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Givepayments<T>,
     flow: Authorize,
     source: transformers::GivepaymentsPaymentProcessingState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::GivepaymentsPaymentProcessingState::Captured => common_enums::AttemptStatus::Charged,
-            transformers::GivepaymentsPaymentProcessingState::Failed => common_enums::AttemptStatus::Failure,
-            transformers::GivepaymentsPaymentProcessingState::Created => common_enums::AttemptStatus::Pending,
-            transformers::GivepaymentsPaymentProcessingState::Authorized => common_enums::AttemptStatus::Pending,
-            transformers::GivepaymentsPaymentProcessingState::Voided => common_enums::AttemptStatus::Voided,
-            transformers::GivepaymentsPaymentProcessingState::Settled => common_enums::AttemptStatus::Charged,
-            transformers::GivepaymentsPaymentProcessingState::Declined => common_enums::AttemptStatus::Failure,
+            transformers::GivepaymentsPaymentProcessingState::Captured => success!(Charged),
+            transformers::GivepaymentsPaymentProcessingState::Failed => failure!(Failure),
+            transformers::GivepaymentsPaymentProcessingState::Created => non_terminal!(Pending),
+            transformers::GivepaymentsPaymentProcessingState::Authorized => non_terminal!(Pending),
+            transformers::GivepaymentsPaymentProcessingState::Voided => non_terminal!(Voided),
+            transformers::GivepaymentsPaymentProcessingState::Settled => success!(Charged),
+            transformers::GivepaymentsPaymentProcessingState::Declined => failure!(Failure),
         }
     },
     runtime: {
@@ -82,15 +82,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Givepayments<T>,
     flow: PSync,
     source: transformers::GivepaymentsPaymentProcessingState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::GivepaymentsPaymentProcessingState::Settled => common_enums::AttemptStatus::Charged,
-            transformers::GivepaymentsPaymentProcessingState::Failed => common_enums::AttemptStatus::Failure,
-            transformers::GivepaymentsPaymentProcessingState::Created => common_enums::AttemptStatus::Pending,
-            transformers::GivepaymentsPaymentProcessingState::Authorized => common_enums::AttemptStatus::Pending,
-            transformers::GivepaymentsPaymentProcessingState::Captured => common_enums::AttemptStatus::Charged,
-            transformers::GivepaymentsPaymentProcessingState::Voided => common_enums::AttemptStatus::Voided,
-            transformers::GivepaymentsPaymentProcessingState::Declined => common_enums::AttemptStatus::Failure,
+            transformers::GivepaymentsPaymentProcessingState::Settled => success!(Charged),
+            transformers::GivepaymentsPaymentProcessingState::Failed => failure!(Failure),
+            transformers::GivepaymentsPaymentProcessingState::Created => non_terminal!(Pending),
+            transformers::GivepaymentsPaymentProcessingState::Authorized => non_terminal!(Pending),
+            transformers::GivepaymentsPaymentProcessingState::Captured => success!(Charged),
+            transformers::GivepaymentsPaymentProcessingState::Voided => success!(Voided),
+            transformers::GivepaymentsPaymentProcessingState::Declined => failure!(Failure),
         }
     },
     runtime: {
@@ -108,15 +108,15 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Givepayments<T>,
     flow: RSync,
     source: transformers::GivepaymentsRefundProcessingState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::GivepaymentsRefundProcessingState::Approved => common_enums::RefundStatus::Success,
-            transformers::GivepaymentsRefundProcessingState::Failed => common_enums::RefundStatus::Failure,
-            transformers::GivepaymentsRefundProcessingState::Created => common_enums::RefundStatus::Pending,
-            transformers::GivepaymentsRefundProcessingState::Pending => common_enums::RefundStatus::Pending,
-            transformers::GivepaymentsRefundProcessingState::Declined => common_enums::RefundStatus::Failure,
-            transformers::GivepaymentsRefundProcessingState::Canceled => common_enums::RefundStatus::Failure,
-            transformers::GivepaymentsRefundProcessingState::Settled => common_enums::RefundStatus::Success,
+            transformers::GivepaymentsRefundProcessingState::Approved => success!(Success),
+            transformers::GivepaymentsRefundProcessingState::Failed => failure!(Failure),
+            transformers::GivepaymentsRefundProcessingState::Created => non_terminal!(Pending),
+            transformers::GivepaymentsRefundProcessingState::Pending => non_terminal!(Pending),
+            transformers::GivepaymentsRefundProcessingState::Declined => failure!(Failure),
+            transformers::GivepaymentsRefundProcessingState::Canceled => failure!(Failure),
+            transformers::GivepaymentsRefundProcessingState::Settled => success!(Success),
         }
     },
     runtime: {
@@ -134,15 +134,15 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Givepayments<T>,
     flow: Refund,
     source: transformers::GivepaymentsRefundProcessingState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::GivepaymentsRefundProcessingState::Approved => common_enums::RefundStatus::Success,
-            transformers::GivepaymentsRefundProcessingState::Failed => common_enums::RefundStatus::Failure,
-            transformers::GivepaymentsRefundProcessingState::Created => common_enums::RefundStatus::Pending,
-            transformers::GivepaymentsRefundProcessingState::Pending => common_enums::RefundStatus::Pending,
-            transformers::GivepaymentsRefundProcessingState::Declined => common_enums::RefundStatus::Failure,
-            transformers::GivepaymentsRefundProcessingState::Canceled => common_enums::RefundStatus::Failure,
-            transformers::GivepaymentsRefundProcessingState::Settled => common_enums::RefundStatus::Success,
+            transformers::GivepaymentsRefundProcessingState::Approved => success!(Success),
+            transformers::GivepaymentsRefundProcessingState::Failed => failure!(Failure),
+            transformers::GivepaymentsRefundProcessingState::Created => non_terminal!(Pending),
+            transformers::GivepaymentsRefundProcessingState::Pending => non_terminal!(Pending),
+            transformers::GivepaymentsRefundProcessingState::Declined => failure!(Failure),
+            transformers::GivepaymentsRefundProcessingState::Canceled => failure!(Failure),
+            transformers::GivepaymentsRefundProcessingState::Settled => success!(Success),
         }
     },
     runtime: {
@@ -160,15 +160,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Givepayments<T>,
     flow: RepeatPayment,
     source: transformers::GivepaymentsPaymentProcessingState,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::GivepaymentsPaymentProcessingState::Settled => common_enums::AttemptStatus::Charged,
-            transformers::GivepaymentsPaymentProcessingState::Failed => common_enums::AttemptStatus::Failure,
-            transformers::GivepaymentsPaymentProcessingState::Created => common_enums::AttemptStatus::Pending,
-            transformers::GivepaymentsPaymentProcessingState::Authorized => common_enums::AttemptStatus::Pending,
-            transformers::GivepaymentsPaymentProcessingState::Captured => common_enums::AttemptStatus::Charged,
-            transformers::GivepaymentsPaymentProcessingState::Voided => common_enums::AttemptStatus::Failure,
-            transformers::GivepaymentsPaymentProcessingState::Declined => common_enums::AttemptStatus::Failure,
+            transformers::GivepaymentsPaymentProcessingState::Settled => success!(Charged),
+            transformers::GivepaymentsPaymentProcessingState::Failed => failure!(Failure),
+            transformers::GivepaymentsPaymentProcessingState::Created => non_terminal!(Pending),
+            transformers::GivepaymentsPaymentProcessingState::Authorized => non_terminal!(Pending),
+            transformers::GivepaymentsPaymentProcessingState::Captured => success!(Charged),
+            transformers::GivepaymentsPaymentProcessingState::Voided => failure!(Failure),
+            transformers::GivepaymentsPaymentProcessingState::Declined => failure!(Failure),
         }
     },
     runtime: {
@@ -361,7 +361,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,

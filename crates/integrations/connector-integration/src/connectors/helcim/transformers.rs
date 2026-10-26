@@ -171,7 +171,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -264,20 +264,6 @@ pub struct HelcimPaymentsResponse {
     transaction_type: HelcimTransactionType,
     #[serde(skip_serializing_if = "Option::is_none")]
     errors: Option<String>,
-}
-
-impl HelcimPaymentsResponse {
-    /// Connector status leg of the `(transaction_type, status)` verdict the
-    /// `From<HelcimPaymentsResponse> for AttemptStatus` mapping keys on —
-    /// exposed for the runtime flow-status extractors in `helcim.rs`.
-    pub fn status(&self) -> &HelcimPaymentStatus {
-        &self.status
-    }
-
-    /// Transaction-type leg of the same verdict.
-    pub fn transaction_type(&self) -> &HelcimTransactionType {
-        &self.transaction_type
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -422,7 +408,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.amount_to_capture.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -636,7 +622,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .convert(
                 item.router_data
                     .request
-                    .minor_amount
+                    .amount
+                    .as_ref()
+                    .map(|money| money.amount)
                     .unwrap_or(common_utils::types::MinorUnit::new(0)),
                 item.router_data.request.currency,
             )
@@ -762,7 +750,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -789,18 +777,10 @@ pub enum HelcimRefundTransactionType {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    status: HelcimPaymentStatus,
+    pub status: HelcimPaymentStatus,
     transaction_id: u64,
     #[serde(rename = "type")]
     transaction_type: HelcimRefundTransactionType,
-}
-
-impl RefundResponse {
-    /// Connector status the `From<RefundResponse> for RefundStatus` mapping
-    /// keys on — exposed for the runtime flow-status extractors in `helcim.rs`.
-    pub fn status(&self) -> &HelcimPaymentStatus {
-        &self.status
-    }
 }
 
 impl From<RefundResponse> for common_enums::RefundStatus {
@@ -872,3 +852,25 @@ pub type HelcimPaymentsSyncResponse = HelcimPaymentsResponse;
 pub type HelcimPaymentsCaptureResponse = HelcimPaymentsResponse;
 pub type HelcimPaymentsVoidResponse = HelcimPaymentsResponse;
 pub type RefundSyncResponse = RefundResponse;
+
+impl HelcimPaymentsResponse {
+    /// Connector status leg of the `(transaction_type, status)` verdict the
+    /// `From<HelcimPaymentsResponse> for AttemptStatus` mapping keys on —
+    /// exposed for the runtime flow-status extractors in `helcim.rs`.
+    pub fn status(&self) -> &HelcimPaymentStatus {
+        &self.status
+    }
+
+    /// Transaction-type leg of the same verdict.
+    pub fn transaction_type(&self) -> &HelcimTransactionType {
+        &self.transaction_type
+    }
+}
+
+impl RefundResponse {
+    /// Connector status the `From<RefundResponse> for RefundStatus` mapping
+    /// keys on — exposed for the runtime flow-status extractors in `helcim.rs`.
+    pub fn status(&self) -> &HelcimPaymentStatus {
+        &self.status
+    }
+}

@@ -44,21 +44,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Payme<T>,
-    flow:      CreateOrder,
-    statuses:  [Pending, Failure],
-    runtime: {
-        request:  PaymentCreateOrderData,
-        response: PaymeGenerateSaleResponse,
-        status:   |_request, response| {
+    flow: CreateOrder,
+    source: PaymeGenerateSaleResponse,
+    context: (),
+    mapping: |response, _ctx| {
+
             if response.status_code == 0 {
-                common_enums::AttemptStatus::Pending
+                non_terminal!(Pending)
             } else {
-                common_enums::AttemptStatus::Failure
+                failure!(Failure)
             }
         },
+    runtime: {
+        request: PaymentCreateOrderData,
+        response: PaymeGenerateSaleResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -67,19 +71,18 @@ domain_types::impl_flow_status_mapping! {
     connector: Payme<T>,
     flow: Authorize,
     source: payme::SaleStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            payme::SaleStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            payme::SaleStatus::Failed => common_enums::AttemptStatus::Failure,
-            payme::SaleStatus::Initial => common_enums::AttemptStatus::Pending,
-            payme::SaleStatus::Completed => common_enums::AttemptStatus::Charged,
-            payme::SaleStatus::Refunded => common_enums::AttemptStatus::AutoRefunded,
-            payme::SaleStatus::PartialRefund => common_enums::AttemptStatus::AutoRefunded,
-            payme::SaleStatus::Voided => common_enums::AttemptStatus::Voided,
-            payme::SaleStatus::PartialVoid => common_enums::AttemptStatus::Voided,
-            payme::SaleStatus::Chargeback => common_enums::AttemptStatus::AutoRefunded,
-        }
-    },
+            payme::SaleStatus::Authorized => success!(Authorized),
+            payme::SaleStatus::Failed => failure!(Failure),
+            payme::SaleStatus::Initial => non_terminal!(Pending),
+            payme::SaleStatus::Completed => success!(Charged),
+            payme::SaleStatus::Refunded => non_terminal!(AutoRefunded),
+            payme::SaleStatus::PartialRefund => non_terminal!(AutoRefunded),
+            payme::SaleStatus::Voided => non_terminal!(Voided),
+            payme::SaleStatus::PartialVoid => non_terminal!(Voided),
+            payme::SaleStatus::Chargeback => non_terminal!(AutoRefunded),
+        } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: PaymePaymentResponse,
@@ -104,17 +107,17 @@ domain_types::impl_flow_status_mapping! {
     connector: Payme<T>,
     flow: PSync,
     source: payme::SaleStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            payme::SaleStatus::Completed => common_enums::AttemptStatus::Charged,
-            payme::SaleStatus::Failed => common_enums::AttemptStatus::Failure,
-            payme::SaleStatus::Initial => common_enums::AttemptStatus::Pending,
-            payme::SaleStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            payme::SaleStatus::Refunded => common_enums::AttemptStatus::AutoRefunded,
-            payme::SaleStatus::PartialRefund => common_enums::AttemptStatus::AutoRefunded,
-            payme::SaleStatus::Voided => common_enums::AttemptStatus::Voided,
-            payme::SaleStatus::PartialVoid => common_enums::AttemptStatus::Voided,
-            payme::SaleStatus::Chargeback => common_enums::AttemptStatus::AutoRefunded,
+            payme::SaleStatus::Completed => success!(Charged),
+            payme::SaleStatus::Failed => failure!(Failure),
+            payme::SaleStatus::Initial => non_terminal!(Pending),
+            payme::SaleStatus::Authorized => success!(Authorized),
+            payme::SaleStatus::Refunded => success!(AutoRefunded),
+            payme::SaleStatus::PartialRefund => success!(AutoRefunded),
+            payme::SaleStatus::Voided => success!(Voided),
+            payme::SaleStatus::PartialVoid => success!(Voided),
+            payme::SaleStatus::Chargeback => success!(AutoRefunded),
         }
     },
     runtime: {
@@ -143,12 +146,12 @@ domain_types::impl_flow_status_mapping! {
     connector: Payme<T>,
     flow: Void,
     source: payme::PaymeVoidFlowStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            payme::PaymeVoidFlowStatus::Voided => common_enums::AttemptStatus::Voided,
-            payme::PaymeVoidFlowStatus::Failed => common_enums::AttemptStatus::VoidFailed,
-            payme::PaymeVoidFlowStatus::Pending => common_enums::AttemptStatus::Pending,
-            payme::PaymeVoidFlowStatus::DefaultVoided => common_enums::AttemptStatus::Voided,
+            payme::PaymeVoidFlowStatus::Voided => success!(Voided),
+            payme::PaymeVoidFlowStatus::Failed => failure!(VoidFailed),
+            payme::PaymeVoidFlowStatus::Pending => non_terminal!(Pending),
+            payme::PaymeVoidFlowStatus::DefaultVoided => success!(Voided),
         }
     },
     runtime: {
@@ -167,17 +170,17 @@ domain_types::impl_flow_status_mapping! {
     connector: Payme<T>,
     flow: Capture,
     source: payme::SaleStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            payme::SaleStatus::Completed => common_enums::AttemptStatus::Charged,
-            payme::SaleStatus::Failed => common_enums::AttemptStatus::CaptureFailed,
-            payme::SaleStatus::Initial => common_enums::AttemptStatus::Pending,
-            payme::SaleStatus::Authorized => common_enums::AttemptStatus::Pending,
-            payme::SaleStatus::Refunded => common_enums::AttemptStatus::CaptureFailed,
-            payme::SaleStatus::PartialRefund => common_enums::AttemptStatus::CaptureFailed,
-            payme::SaleStatus::Voided => common_enums::AttemptStatus::CaptureFailed,
-            payme::SaleStatus::PartialVoid => common_enums::AttemptStatus::CaptureFailed,
-            payme::SaleStatus::Chargeback => common_enums::AttemptStatus::CaptureFailed,
+            payme::SaleStatus::Completed => success!(Charged),
+            payme::SaleStatus::Failed => failure!(CaptureFailed),
+            payme::SaleStatus::Initial => non_terminal!(Pending),
+            payme::SaleStatus::Authorized => non_terminal!(Pending),
+            payme::SaleStatus::Refunded => failure!(CaptureFailed),
+            payme::SaleStatus::PartialRefund => failure!(CaptureFailed),
+            payme::SaleStatus::Voided => failure!(CaptureFailed),
+            payme::SaleStatus::PartialVoid => failure!(CaptureFailed),
+            payme::SaleStatus::Chargeback => failure!(CaptureFailed),
         }
     },
     runtime: {
@@ -205,17 +208,17 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Payme<T>,
     flow: Refund,
     source: payme::SaleStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            payme::SaleStatus::Refunded => common_enums::RefundStatus::Success,
-            payme::SaleStatus::Failed => common_enums::RefundStatus::Failure,
-            payme::SaleStatus::PartialRefund => common_enums::RefundStatus::Success,
-            payme::SaleStatus::Completed => common_enums::RefundStatus::Success,
-            payme::SaleStatus::Initial => common_enums::RefundStatus::Pending,
-            payme::SaleStatus::Authorized => common_enums::RefundStatus::Pending,
-            payme::SaleStatus::Voided => common_enums::RefundStatus::Pending,
-            payme::SaleStatus::PartialVoid => common_enums::RefundStatus::Pending,
-            payme::SaleStatus::Chargeback => common_enums::RefundStatus::Pending,
+            payme::SaleStatus::Refunded => success!(Success),
+            payme::SaleStatus::Failed => failure!(Failure),
+            payme::SaleStatus::PartialRefund => success!(Success),
+            payme::SaleStatus::Completed => success!(Success),
+            payme::SaleStatus::Initial => non_terminal!(Pending),
+            payme::SaleStatus::Authorized => non_terminal!(Pending),
+            payme::SaleStatus::Voided => non_terminal!(Pending),
+            payme::SaleStatus::PartialVoid => non_terminal!(Pending),
+            payme::SaleStatus::Chargeback => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -234,17 +237,17 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Payme<T>,
     flow: RSync,
     source: payme::SaleStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            payme::SaleStatus::Refunded => common_enums::RefundStatus::Success,
-            payme::SaleStatus::Failed => common_enums::RefundStatus::Failure,
-            payme::SaleStatus::PartialRefund => common_enums::RefundStatus::Success,
-            payme::SaleStatus::Completed => common_enums::RefundStatus::Success,
-            payme::SaleStatus::Initial => common_enums::RefundStatus::Pending,
-            payme::SaleStatus::Authorized => common_enums::RefundStatus::Pending,
-            payme::SaleStatus::Voided => common_enums::RefundStatus::Pending,
-            payme::SaleStatus::PartialVoid => common_enums::RefundStatus::Pending,
-            payme::SaleStatus::Chargeback => common_enums::RefundStatus::Pending,
+            payme::SaleStatus::Refunded => success!(Success),
+            payme::SaleStatus::Failed => failure!(Failure),
+            payme::SaleStatus::PartialRefund => success!(Success),
+            payme::SaleStatus::Completed => success!(Success),
+            payme::SaleStatus::Initial => non_terminal!(Pending),
+            payme::SaleStatus::Authorized => non_terminal!(Pending),
+            payme::SaleStatus::Voided => non_terminal!(Pending),
+            payme::SaleStatus::PartialVoid => non_terminal!(Pending),
+            payme::SaleStatus::Chargeback => non_terminal!(Pending),
         }
     },
     runtime: {

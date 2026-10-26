@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::CustomResult,
-    types::{MinorUnit, StringMajorUnit},
+    types::StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
@@ -227,7 +227,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(request.minor_amount, request.currency)
+            .convert(request.amount.amount, request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -306,7 +306,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount_to_capture,
+                router_data.request.amount_to_capture.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -444,7 +444,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                MinorUnit::new(router_data.request.refund_amount),
+                router_data.request.refund_amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -568,7 +568,7 @@ fn error_message_string(
 // Common payment-status mapping shared by the Authorize and PSync flows. `found` is
 // false only for a sync query with no record yet; an approved transaction is `Charged`
 // under auto-capture and `Authorized` under manual capture.
-pub(super) fn map_payment_status(
+pub fn map_payment_status(
     found: bool,
     approved: bool,
     is_auto_capture: bool,
@@ -582,7 +582,7 @@ pub(super) fn map_payment_status(
 }
 
 // Common refund-status mapping shared by the Refund and RSync flows.
-pub(super) fn map_refund_status(found: bool, approved: bool) -> common_enums::RefundStatus {
+pub fn map_refund_status(found: bool, approved: bool) -> common_enums::RefundStatus {
     match (found, approved) {
         (false, _) => common_enums::RefundStatus::Pending,
         (true, true) => common_enums::RefundStatus::Success,

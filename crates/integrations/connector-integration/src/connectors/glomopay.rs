@@ -675,18 +675,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Glomopay<T>,
-    flow:      CreateOrder,
-    statuses:  [Pending, Failure],
+    flow: CreateOrder,
+    source: GlomopayCreateOrderResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        match response.status.as_deref() {
+            Some("action_required" | "failed" | "expired") => failure!(Failure),
+            _ => non_terminal!(Pending),
+        }
+    },
     runtime: {
-        request:  PaymentCreateOrderData,
+        request: PaymentCreateOrderData,
         response: GlomopayCreateOrderResponse,
-        status:   |_request, response| match response.status.as_deref() {
-            Some("action_required" | "failed" | "expired") => common_enums::AttemptStatus::Failure,
-            _ => common_enums::AttemptStatus::Pending,
-        },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -695,13 +700,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Glomopay<T>,
     flow: Authorize,
     source: transformers::GlomopayPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::GlomopayPaymentStatus::Success => common_enums::AttemptStatus::Charged,
-            transformers::GlomopayPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::GlomopayPaymentStatus::InProgress => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::GlomopayPaymentStatus::ActionRequired => common_enums::AttemptStatus::Failure,
-            transformers::GlomopayPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
+            transformers::GlomopayPaymentStatus::Success => success!(Charged),
+            transformers::GlomopayPaymentStatus::Failed => failure!(Failure),
+            transformers::GlomopayPaymentStatus::InProgress => non_terminal!(AuthenticationPending),
+            transformers::GlomopayPaymentStatus::ActionRequired => failure!(Failure),
+            transformers::GlomopayPaymentStatus::Pending => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -720,13 +725,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Glomopay<T>,
     flow: PSync,
     source: transformers::GlomopayPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::GlomopayPaymentStatus::Success => common_enums::AttemptStatus::Charged,
-            transformers::GlomopayPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::GlomopayPaymentStatus::InProgress => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::GlomopayPaymentStatus::ActionRequired => common_enums::AttemptStatus::Pending,
-            transformers::GlomopayPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
+            transformers::GlomopayPaymentStatus::Success => success!(Charged),
+            transformers::GlomopayPaymentStatus::Failed => failure!(Failure),
+            transformers::GlomopayPaymentStatus::InProgress => non_terminal!(AuthenticationPending),
+            transformers::GlomopayPaymentStatus::ActionRequired => non_terminal!(Pending),
+            transformers::GlomopayPaymentStatus::Pending => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -745,13 +750,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Glomopay<T>,
     flow: Refund,
     source: transformers::GlomopayRefundStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::GlomopayRefundStatus::Success => common_enums::RefundStatus::Success,
-            transformers::GlomopayRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::GlomopayRefundStatus::Pending => common_enums::RefundStatus::Pending,
-            transformers::GlomopayRefundStatus::ActionRequired => common_enums::RefundStatus::Pending,
-            transformers::GlomopayRefundStatus::UnderReview => common_enums::RefundStatus::Pending,
+            transformers::GlomopayRefundStatus::Success => success!(Success),
+            transformers::GlomopayRefundStatus::Failed => failure!(Failure),
+            transformers::GlomopayRefundStatus::Pending => non_terminal!(Pending),
+            transformers::GlomopayRefundStatus::ActionRequired => non_terminal!(Pending),
+            transformers::GlomopayRefundStatus::UnderReview => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -771,12 +776,12 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: transformers::GlomopayRefundStatus,
     context: Option<transformers::GlomopayRefundStatus>,
-    mapping_status: |status, matched_status| { match matched_status.unwrap_or(status) {
-            transformers::GlomopayRefundStatus::Success => common_enums::RefundStatus::Success,
-            transformers::GlomopayRefundStatus::Failed => common_enums::RefundStatus::Failure,
+    mapping: |status, matched_status| { match matched_status.unwrap_or(status) {
+            transformers::GlomopayRefundStatus::Success => success!(Success),
+            transformers::GlomopayRefundStatus::Failed => failure!(Failure),
             transformers::GlomopayRefundStatus::Pending
             | transformers::GlomopayRefundStatus::ActionRequired
-            | transformers::GlomopayRefundStatus::UnderReview => common_enums::RefundStatus::Pending,
+            | transformers::GlomopayRefundStatus::UnderReview => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundSyncData,

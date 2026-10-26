@@ -1,10 +1,7 @@
 use super::macros;
 pub mod transformers;
 use crate::{types::ResponseRouterData, with_error_response_body};
-use common_enums::{
-    AttemptStatus, CaptureMethod, CardNetwork, CurrencyUnit, PaymentMethod, PaymentMethodType,
-    RefundStatus,
-};
+use common_enums::{CaptureMethod, CardNetwork, CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{errors::CustomResult, events, StringMinorUnit};
 use hyperswitch_masking::Maskable;
 use serde_json::Value;
@@ -583,12 +580,12 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: String,
     context: bool,
-    mapping_status: |response_code, is_auto_capture| { use zift::ResponseCodeExt;
+    mapping: |response_code, is_auto_capture| { use zift::ResponseCodeExt;
         match (response_code.is_approved(), is_auto_capture) {
-            (true, true) => AttemptStatus::Charged,
-            (true, false) => AttemptStatus::Authorized,
-            _ if response_code.is_pending() => AttemptStatus::Pending,
-            _ => AttemptStatus::Failure,
+            (true, true) => success!(Charged),
+            (true, false) => success!(Authorized),
+            _ if response_code.is_pending() => non_terminal!(Pending),
+            _ => failure!(Failure),
         } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
@@ -604,37 +601,40 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: (zift::PaymentRequestType, zift::TransactionStatus),
     context: (),
-    mapping_status: |transaction, _ctx| { match transaction {
+    mapping: |transaction, _ctx| { match transaction {
             (zift::PaymentRequestType::Sale, zift::TransactionStatus::Processed) => {
-                AttemptStatus::Charged
+                success!(Charged)
             }
             (
                 zift::PaymentRequestType::Sale,
                 zift::TransactionStatus::Pending | zift::TransactionStatus::InRebill,
-            ) => AttemptStatus::Pending,
+            ) => non_terminal!(Pending),
             (zift::PaymentRequestType::Sale, zift::TransactionStatus::Cancelled) => {
-                AttemptStatus::Failure
+                failure!(Failure)
             }
             (zift::PaymentRequestType::Auth, zift::TransactionStatus::Processed) => {
-                AttemptStatus::Authorized
+                success!(Authorized)
             }
             (
                 zift::PaymentRequestType::Auth,
                 zift::TransactionStatus::Pending | zift::TransactionStatus::InRebill,
-            ) => AttemptStatus::Pending,
+            ) => non_terminal!(Pending),
             (zift::PaymentRequestType::Auth, zift::TransactionStatus::Cancelled) => {
-                AttemptStatus::Failure
+                failure!(Failure)
             }
             (zift::PaymentRequestType::Capture, zift::TransactionStatus::Processed) => {
-                AttemptStatus::Charged
+                success!(Charged)
             }
             (
                 zift::PaymentRequestType::Capture,
                 zift::TransactionStatus::Pending | zift::TransactionStatus::InRebill,
-            ) => AttemptStatus::CaptureInitiated,
+            ) => non_terminal!(CaptureInitiated),
             (zift::PaymentRequestType::Capture, zift::TransactionStatus::Cancelled) => {
-                AttemptStatus::CaptureFailed
+                failure!(CaptureFailed)
             }
+            (zift::PaymentRequestType::Void, zift::TransactionStatus::Processed) => success!(Voided),
+            (zift::PaymentRequestType::Void, zift::TransactionStatus::Pending | zift::TransactionStatus::InRebill) => non_terminal!(VoidInitiated),
+            (zift::PaymentRequestType::Void, zift::TransactionStatus::Cancelled) => failure!(VoidFailed),
         } },
     runtime: {
         request: PaymentsSyncData,
@@ -650,11 +650,11 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: String,
     context: (),
-    mapping_status: |response_code, _ctx| { use zift::ResponseCodeExt;
+    mapping: |response_code, _ctx| { use zift::ResponseCodeExt;
         if response_code.is_approved() {
-            AttemptStatus::Charged
+            success!(Charged)
         } else {
-            AttemptStatus::CaptureFailed
+            failure!(CaptureFailed)
         } },
     runtime: {
         request: PaymentsCaptureData,
@@ -670,13 +670,13 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: String,
     context: (),
-    mapping_status: |response_code, _ctx| { use zift::ResponseCodeExt;
+    mapping: |response_code, _ctx| { use zift::ResponseCodeExt;
         if response_code.is_approved() {
-            AttemptStatus::Charged
+            success!(Charged)
         } else if response_code.is_pending() {
-            AttemptStatus::Pending
+            non_terminal!(Pending)
         } else {
-            AttemptStatus::Failure
+            failure!(Failure)
         } },
     runtime: {
         request: SetupMandateRequestData<T>,
@@ -692,11 +692,11 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: String,
     context: (),
-    mapping_status: |response_code, _ctx| { use zift::ResponseCodeExt;
+    mapping: |response_code, _ctx| { use zift::ResponseCodeExt;
         if response_code.is_approved() {
-            AttemptStatus::Voided
+            success!(Voided)
         } else {
-            AttemptStatus::Failure
+            failure!(Failure)
         } },
     runtime: {
         request: PaymentVoidData,
@@ -712,13 +712,13 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: String,
     context: (),
-    mapping_status: |response_code, _ctx| { use zift::ResponseCodeExt;
+    mapping: |response_code, _ctx| { use zift::ResponseCodeExt;
         if response_code.is_approved() {
-            RefundStatus::Success
+            success!(Success)
         } else if response_code.is_pending() {
-            RefundStatus::Pending
+            non_terminal!(Pending)
         } else {
-            RefundStatus::Failure
+            failure!(Failure)
         } },
     runtime: {
         request: RefundsData,
@@ -734,12 +734,12 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: String,
     context: bool,
-    mapping_status: |response_code, is_auto_capture| { use zift::ResponseCodeExt;
+    mapping: |response_code, is_auto_capture| { use zift::ResponseCodeExt;
         match (response_code.is_approved(), is_auto_capture) {
-            (true, true) => AttemptStatus::Charged,
-            (true, false) => AttemptStatus::Authorized,
-            _ if response_code.is_pending() => AttemptStatus::Pending,
-            _ => AttemptStatus::Failure,
+            (true, true) => success!(Charged),
+            (true, false) => non_terminal!(Authorized),
+            _ if response_code.is_pending() => non_terminal!(Pending),
+            _ => failure!(Failure),
         } },
     runtime: {
         request: RepeatPaymentData<T>,

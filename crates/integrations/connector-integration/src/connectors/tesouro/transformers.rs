@@ -645,7 +645,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let amount = TesouroAmountConvertor::convert(
-            router_data.request.minor_amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -935,7 +935,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         );
 
         let amount = TesouroAmountConvertor::convert(
-            router_data.request.minor_amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 
@@ -1435,7 +1435,7 @@ pub struct AuthorizationResponseData {
     pub activity_date: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum AuthorizeTransactionResponseType {
     AuthorizationApproval,
@@ -1653,7 +1653,7 @@ pub struct TesouroPaymentTransactionResponse {
     pub processor_response_message: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum TesouroSyncStatus {
     AcceptedSale,
     ApprovedAuthorization,

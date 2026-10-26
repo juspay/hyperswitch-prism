@@ -167,7 +167,7 @@ pub struct GlobalpayWebhookBody {
 pub struct GlobalpayConfirmRequest {}
 
 /// APM provider details returned in the confirmation response.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GlobalpayConfirmApmDetails {
     pub provider: Option<String>,
     pub provider_payer_reference: Option<String>,
@@ -177,7 +177,7 @@ pub struct GlobalpayConfirmApmDetails {
 }
 
 /// Payment method payload returned by POST /transactions/{id}/confirmation.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GlobalpayConfirmPaymentMethod {
     pub apm: Option<GlobalpayConfirmApmDetails>,
 }
@@ -186,7 +186,7 @@ pub struct GlobalpayConfirmPaymentMethod {
 /// GlobalPay returns the complete transaction object (including `id` and `status`)
 /// alongside the APM-specific fields. The `id` and `status` fields mirror those of
 /// `GlobalpayPaymentsResponse` so we can derive the final attempt status consistently.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GlobalpayConfirmResponse {
     pub id: String,
     pub status: GlobalpayPaymentStatus,

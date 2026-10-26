@@ -1102,7 +1102,7 @@ impl GlobalpaymentsRealexPaymentsResponse {
 /// `AttemptStatus::Pending` is never correct here and every non-`00` code is a `Failure`.
 /// `111` (Strong Customer Authentication Required) is a soft decline — still a failure, but its
 /// `error_code` is surfaced verbatim so callers can choose to retry through 3DS.
-fn map_attempt_status(
+pub fn map_attempt_status(
     result: &str,
     auto_settle: GlobalpaymentsRealexAutoSettleFlag,
 ) -> AttemptStatus {
@@ -2212,7 +2212,7 @@ where
 ///
 /// Every one of these arrives as HTTP 200 in the small error document, so they are classified from
 /// `<result>` here rather than from a transport status.
-fn map_refund_status(result: &str) -> RefundStatus {
+pub fn map_refund_status(result: &str) -> RefundStatus {
     if result == RESULT_SUCCESS {
         return RefundStatus::Success;
     }

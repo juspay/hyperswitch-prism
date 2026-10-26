@@ -226,7 +226,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector
                     .amount_converter
                     .convert(
-                        item.router_data.request.minor_amount,
+                        item.router_data.request.amount.amount,
                         item.router_data.request.currency,
                     )
                     .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
@@ -286,7 +286,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .connector
                         .amount_converter
                         .convert(
-                            item.router_data.request.minor_amount,
+                            item.router_data.request.amount.amount,
                             item.router_data.request.currency,
                         )
                         .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
@@ -402,7 +402,7 @@ impl TryFrom<&ConnectorSpecificConfig> for ForteAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FortePaymentStatus {
     Complete,
@@ -515,20 +515,6 @@ pub struct FortePaymentsResponse {
     pub card: Option<CardResponse>,
     pub echeck: Option<EcheckResponse>,
     pub response: ResponseStatus,
-}
-
-impl FortePaymentsResponse {
-    pub fn flow_status(&self) -> FortePaymentStatus {
-        match (&self.response.response_code, &self.action) {
-            (ForteResponseCode::A01, ForteAction::Authorize) => FortePaymentStatus::Authorized,
-            (ForteResponseCode::A01, ForteAction::Verify | ForteAction::Capture) => {
-                FortePaymentStatus::Complete
-            }
-            (ForteResponseCode::A01, ForteAction::Sale)
-            | (ForteResponseCode::A05 | ForteResponseCode::A06, _) => FortePaymentStatus::Ready,
-            _ => FortePaymentStatus::Failed,
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -660,16 +646,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let minor_amount_authorized = item
+        let amount_authorized = item
             .router_data
             .resource_common_data
-            .minor_amount_capturable
+            .amount_capturable
+            .map(|amount| amount.amount)
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: Default::default(),
             })?;
 
-        if item.router_data.request.minor_amount_to_capture != minor_amount_authorized {
+        if item.router_data.request.amount_to_capture.amount != amount_authorized {
             return Err(IntegrationError::NotSupported {
                 message: "Forte only supports full captures.".to_string(),
                 connector: "Forte",
@@ -722,16 +709,6 @@ pub struct ForteCaptureResponse {
     pub entered_by: String,
     pub authorization_code: String,
     pub response: CaptureResponseStatus,
-}
-
-impl ForteCaptureResponse {
-    pub fn flow_status(&self) -> FortePaymentStatus {
-        match &self.response.response_code {
-            ForteResponseCode::A01 => FortePaymentStatus::Complete,
-            ForteResponseCode::A05 | ForteResponseCode::A06 => FortePaymentStatus::Ready,
-            _ => FortePaymentStatus::Failed,
-        }
-    }
 }
 
 impl<F, T> TryFrom<ResponseRouterData<ForteCaptureResponse, Self>>
@@ -823,16 +800,6 @@ pub struct ForteCancelResponse {
     pub response: CancelResponseStatus,
 }
 
-impl ForteCancelResponse {
-    pub fn flow_status(&self) -> FortePaymentStatus {
-        match &self.response.response_code {
-            ForteResponseCode::A01 => FortePaymentStatus::Voided,
-            ForteResponseCode::A05 | ForteResponseCode::A06 => FortePaymentStatus::Ready,
-            _ => FortePaymentStatus::Failed,
-        }
-    }
-}
-
 impl<F, T> TryFrom<ResponseRouterData<ForteCancelResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
@@ -911,7 +878,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_refund_amount,
+                item.router_data.request.refund_amount.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -964,17 +931,6 @@ pub struct RefundResponse {
     pub response: ResponseStatus,
 }
 
-impl RefundResponse {
-    pub fn flow_status(&self) -> RefundStatus {
-        match &self.response.response_code {
-            ForteResponseCode::A01 | ForteResponseCode::A05 | ForteResponseCode::A06 => {
-                RefundStatus::Ready
-            }
-            _ => RefundStatus::Failed,
-        }
-    }
-}
-
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
@@ -998,14 +954,8 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RefundSyncResponse {
-    status: RefundStatus,
+    pub status: RefundStatus,
     transaction_id: String,
-}
-
-impl RefundSyncResponse {
-    pub fn flow_status(&self) -> RefundStatus {
-        self.status.clone()
-    }
 }
 
 impl<F> TryFrom<ResponseRouterData<RefundSyncResponse, Self>>
@@ -1040,4 +990,55 @@ pub struct ErrorResponseStatus {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ForteErrorResponse {
     pub response: Option<ErrorResponseStatus>,
+}
+
+impl RefundSyncResponse {
+    pub fn flow_status(&self) -> RefundStatus {
+        self.status.clone()
+    }
+}
+
+impl RefundResponse {
+    pub fn flow_status(&self) -> RefundStatus {
+        match &self.response.response_code {
+            ForteResponseCode::A01 | ForteResponseCode::A05 | ForteResponseCode::A06 => {
+                RefundStatus::Ready
+            }
+            _ => RefundStatus::Failed,
+        }
+    }
+}
+
+impl FortePaymentsResponse {
+    pub fn flow_status(&self) -> FortePaymentStatus {
+        match (&self.response.response_code, &self.action) {
+            (ForteResponseCode::A01, ForteAction::Authorize) => FortePaymentStatus::Authorized,
+            (ForteResponseCode::A01, ForteAction::Verify | ForteAction::Capture) => {
+                FortePaymentStatus::Complete
+            }
+            (ForteResponseCode::A01, ForteAction::Sale)
+            | (ForteResponseCode::A05 | ForteResponseCode::A06, _) => FortePaymentStatus::Ready,
+            _ => FortePaymentStatus::Failed,
+        }
+    }
+}
+
+impl ForteCaptureResponse {
+    pub fn flow_status(&self) -> FortePaymentStatus {
+        match &self.response.response_code {
+            ForteResponseCode::A01 => FortePaymentStatus::Complete,
+            ForteResponseCode::A05 | ForteResponseCode::A06 => FortePaymentStatus::Ready,
+            _ => FortePaymentStatus::Failed,
+        }
+    }
+}
+
+impl ForteCancelResponse {
+    pub fn flow_status(&self) -> FortePaymentStatus {
+        match &self.response.response_code {
+            ForteResponseCode::A01 => FortePaymentStatus::Voided,
+            ForteResponseCode::A05 | ForteResponseCode::A06 => FortePaymentStatus::Ready,
+            _ => FortePaymentStatus::Failed,
+        }
+    }
 }

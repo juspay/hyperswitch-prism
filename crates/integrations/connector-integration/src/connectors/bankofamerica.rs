@@ -67,7 +67,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: transformers::BankofamericaPaymentStatus,
     context: bool,
-    mapping_status: |status, auto_capture| { use transformers::BankofamericaPaymentStatus as S;
+    mapping: |status, auto_capture| {
+        let mapped_status = (|| { use transformers::BankofamericaPaymentStatus as S;
         match status {
             S::Authorized | S::AuthorizedPendingReview => {
                 if auto_capture {
@@ -93,7 +94,34 @@ domain_types::impl_flow_status_mapping! {
             | S::ServerError => common_enums::AttemptStatus::Failure,
             S::PendingAuthentication => common_enums::AttemptStatus::AuthenticationPending,
             S::PendingReview | S::Challenge | S::Accepted => common_enums::AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: BankofamericaPaymentsResponse,
@@ -210,7 +238,8 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: transformers::BankofamericaRefundStatus,
     context: Option<String>,
-    mapping_status: |status, ctx| { use common_enums::RefundStatus;
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::RefundStatus;
         use transformers::BankofamericaRefundStatus as S;
         match status {
             S::Succeeded | S::Transmitted => RefundStatus::Success,
@@ -223,7 +252,16 @@ domain_types::impl_refund_flow_status_mapping! {
                     RefundStatus::Pending
                 }
             }
-        } },
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: BankOfAmericaRefundResponseForRefund,
@@ -244,7 +282,8 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: transformers::BankofamericaRefundStatus,
     context: Option<String>,
-    mapping_status: |status, ctx| { use common_enums::RefundStatus;
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::RefundStatus;
         use transformers::BankofamericaRefundStatus as S;
         match status {
             S::Succeeded | S::Transmitted => RefundStatus::Success,
@@ -257,7 +296,16 @@ domain_types::impl_refund_flow_status_mapping! {
                     RefundStatus::Pending
                 }
             }
-        } },
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: BankOfAmericaRefundResponseForRefund,

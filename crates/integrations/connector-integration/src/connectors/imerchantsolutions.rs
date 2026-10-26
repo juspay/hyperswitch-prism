@@ -1,4 +1,10 @@
 pub mod transformers;
+use imerchantsolutions::{
+    ImerchantsolutionsCaptureStatus as CS, ImerchantsolutionsPaymentStatus as PS,
+    ImerchantsolutionsRefundStatus as RS, ImerchantsolutionsRefundStatusSource as RSrc,
+    ImerchantsolutionsStatusSource as Src, ImerchantsolutionsVoidStatus as VS,
+    ImerchantsolutionsWebhookStatus as WS,
+};
 
 use std::{self, fmt::Debug};
 
@@ -251,7 +257,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: amount_captured
+            amount_captured: minor_amount_captured
                 .map(|amount| {
                     crate::utils::webhook_amount_to_money(
                         common_utils::types::AmountConvertor::convert_back(
@@ -747,20 +753,48 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: imerchantsolutions::ImerchantsolutionsPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
-            imerchantsolutions::ImerchantsolutionsPaymentStatus::Captured => common_enums::AttemptStatus::Charged,
-            imerchantsolutions::ImerchantsolutionsPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Captured => AttemptStatus::Charged,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Failed => AttemptStatus::Failure,
             imerchantsolutions::ImerchantsolutionsPaymentStatus::Authorised
             | imerchantsolutions::ImerchantsolutionsPaymentStatus::Authorized
-            | imerchantsolutions::ImerchantsolutionsPaymentStatus::PendingCapture => common_enums::AttemptStatus::Authorized,
-            imerchantsolutions::ImerchantsolutionsPaymentStatus::Pending3ds => common_enums::AttemptStatus::AuthenticationPending,
-            imerchantsolutions::ImerchantsolutionsPaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
-            imerchantsolutions::ImerchantsolutionsPaymentStatus::PartiallyCaptured => common_enums::AttemptStatus::PartialCharged,
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::PendingCapture => AttemptStatus::Authorized,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Pending3ds => AttemptStatus::AuthenticationPending,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Cancelled => AttemptStatus::Voided,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::PartiallyCaptured => AttemptStatus::PartialCharged,
             imerchantsolutions::ImerchantsolutionsPaymentStatus::PartiallyRefunded
-            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Refunded => common_enums::AttemptStatus::Charged,
-            imerchantsolutions::ImerchantsolutionsPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            imerchantsolutions::ImerchantsolutionsPaymentStatus::Refused => common_enums::AttemptStatus::Failure,
-        } },
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Refunded => AttemptStatus::Charged,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Pending => AttemptStatus::Pending,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Refused => AttemptStatus::Failure,
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: ImerchantsolutionsPaymentsResponseData,
@@ -781,20 +815,37 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: imerchantsolutions::ImerchantsolutionsPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
-            imerchantsolutions::ImerchantsolutionsPaymentStatus::Captured => common_enums::AttemptStatus::Charged,
-            imerchantsolutions::ImerchantsolutionsPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Captured => AttemptStatus::Charged,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::Failed => AttemptStatus::Failure,
             imerchantsolutions::ImerchantsolutionsPaymentStatus::Authorised
             | imerchantsolutions::ImerchantsolutionsPaymentStatus::Authorized
             | imerchantsolutions::ImerchantsolutionsPaymentStatus::PendingCapture
             | imerchantsolutions::ImerchantsolutionsPaymentStatus::Pending3ds
-            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Pending => common_enums::AttemptStatus::Authorized,
-            imerchantsolutions::ImerchantsolutionsPaymentStatus::PartiallyCaptured => common_enums::AttemptStatus::PartialCharged,
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Pending => AttemptStatus::Authorized,
+            imerchantsolutions::ImerchantsolutionsPaymentStatus::PartiallyCaptured => AttemptStatus::PartialCharged,
             imerchantsolutions::ImerchantsolutionsPaymentStatus::PartiallyRefunded
-            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Refunded => common_enums::AttemptStatus::Charged,
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Refunded => AttemptStatus::Charged,
             imerchantsolutions::ImerchantsolutionsPaymentStatus::Cancelled
-            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Refused => common_enums::AttemptStatus::Failure,
-        } },
+            | imerchantsolutions::ImerchantsolutionsPaymentStatus::Refused => AttemptStatus::Failure,
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorized => non_terminal!(Authorized),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: ImerchantsolutionsRepeatPaymentResponse,
@@ -815,31 +866,14 @@ domain_types::impl_flow_status_mapping! {
     connector: Imerchantsolutions<T>,
     flow: PSync,
     source: imerchantsolutions::ImerchantsolutionsStatusSource,
-    mapping_status: |status| { use common_enums::AttemptStatus;
-        use imerchantsolutions::{
-            ImerchantsolutionsPaymentStatus as PS, ImerchantsolutionsStatusSource as Src,
-            ImerchantsolutionsWebhookStatus as WS,
-        };
-        match status {
-            Src::Payment(PS::Authorised) | Src::Payment(PS::Authorized)
-            | Src::Payment(PS::PendingCapture) | Src::Webhook(WS::Authorized) => {
-                AttemptStatus::Authorized
-            }
-            Src::Payment(PS::PartiallyCaptured) | Src::Webhook(WS::PartiallyCaptured) => {
-                AttemptStatus::PartialCharged
-            }
-            Src::Payment(PS::Cancelled) | Src::Webhook(WS::Cancelled) => {
-                AttemptStatus::Voided
-            }
-            Src::Payment(PS::Captured) | Src::Payment(PS::PartiallyRefunded)
-            | Src::Payment(PS::Refunded) | Src::Webhook(WS::Captured)
-            | Src::Webhook(WS::PartiallyRefunded) | Src::Webhook(WS::Refunded) => {
-                AttemptStatus::Charged
-            }
-            Src::Payment(PS::Pending) => AttemptStatus::Pending,
-            Src::Payment(PS::Pending3ds) => AttemptStatus::AuthenticationPending,
-            Src::Payment(PS::Refused) | Src::Payment(PS::Failed)
-            | Src::Webhook(WS::Failed) | Src::Webhook(WS::Refused) => AttemptStatus::Failure,
+    mapping: |status| { match status {
+            Src::Payment(PS::Authorised) | Src::Payment(PS::Authorized) | Src::Payment(PS::PendingCapture) | Src::Webhook(WS::Authorized) => success!(Authorized),
+            Src::Payment(PS::Pending3ds) => non_terminal!(AuthenticationPending),
+            Src::Payment(PS::Refused) | Src::Payment(PS::Failed) | Src::Webhook(WS::Failed) | Src::Webhook(WS::Refused) => failure!(Failure),
+            Src::Payment(PS::PartiallyCaptured) | Src::Webhook(WS::PartiallyCaptured) => success!(PartialCharged),
+            Src::Payment(PS::Cancelled) | Src::Webhook(WS::Cancelled) => success!(Voided),
+            Src::Payment(PS::Captured) | Src::Payment(PS::PartiallyRefunded) | Src::Payment(PS::Refunded) | Src::Webhook(WS::Captured) | Src::Webhook(WS::PartiallyRefunded) | Src::Webhook(WS::Refunded) => success!(Charged),
+            Src::Payment(PS::Pending) => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentsSyncData,
@@ -865,11 +899,9 @@ domain_types::impl_flow_status_mapping! {
     connector: Imerchantsolutions<T>,
     flow: Void,
     source: imerchantsolutions::ImerchantsolutionsVoidStatus,
-    mapping_status: |status| { use common_enums::AttemptStatus;
-        use imerchantsolutions::ImerchantsolutionsVoidStatus as VS;
-        match status {
-            VS::Received => AttemptStatus::VoidInitiated,
-            VS::Cancelled => AttemptStatus::Voided,
+    mapping: |status| { match status {
+            VS::Received => non_terminal!(VoidInitiated),
+            VS::Cancelled => success!(Voided),
         } },
     runtime: {
         request: PaymentVoidData,
@@ -887,12 +919,10 @@ domain_types::impl_flow_status_mapping! {
     connector: Imerchantsolutions<T>,
     flow: Capture,
     source: imerchantsolutions::ImerchantsolutionsCaptureStatus,
-    mapping_status: |status| { use common_enums::AttemptStatus;
-        use imerchantsolutions::ImerchantsolutionsCaptureStatus as CS;
-        match status {
-            CS::Received => AttemptStatus::CaptureInitiated,
-            CS::PartiallyCaptured => AttemptStatus::PartialCharged,
-            CS::Captured => AttemptStatus::Charged,
+    mapping: |status| { match status {
+            CS::Received => non_terminal!(CaptureInitiated),
+            CS::PartiallyCaptured => success!(PartialCharged),
+            CS::Captured => success!(Charged),
         } },
     runtime: {
         request: PaymentsCaptureData,
@@ -912,11 +942,9 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Imerchantsolutions<T>,
     flow: Refund,
     source: imerchantsolutions::ImerchantsolutionsRefundStatus,
-    mapping_status: |status| { use common_enums::RefundStatus;
-        use imerchantsolutions::ImerchantsolutionsRefundStatus as RS;
-        match status {
-            RS::Received => RefundStatus::Pending,
-            RS::PartiallyRefunded | RS::Refunded => RefundStatus::Success,
+    mapping: |status| { match status {
+            RS::Received => non_terminal!(Pending),
+            RS::PartiallyRefunded | RS::Refunded => success!(Success),
         } },
     runtime: {
         request: RefundsData,
@@ -937,21 +965,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Imerchantsolutions<T>,
     flow: RSync,
     source: imerchantsolutions::ImerchantsolutionsRefundStatusSource,
-    mapping_status: |status| { use common_enums::RefundStatus;
-        use imerchantsolutions::{
-            ImerchantsolutionsRefundStatus as RS, ImerchantsolutionsRefundStatusSource as RSrc,
-            ImerchantsolutionsWebhookStatus as WS,
-        };
-        match status {
-            RSrc::Status(RS::Received) => RefundStatus::Pending,
-            RSrc::Status(RS::PartiallyRefunded) | RSrc::Status(RS::Refunded)
-            | RSrc::Webhook(WS::PartiallyRefunded) | RSrc::Webhook(WS::Refunded) => {
-                RefundStatus::Success
-            }
-            RSrc::Webhook(WS::Failed) | RSrc::Webhook(WS::Refused) => RefundStatus::Failure,
+    mapping: |status| { match status {
+            RSrc::Status(RS::Received) => non_terminal!(Pending),
+            RSrc::Status(RS::PartiallyRefunded) | RSrc::Status(RS::Refunded) | RSrc::Webhook(WS::PartiallyRefunded) | RSrc::Webhook(WS::Refunded) => success!(Success),
             // Non-refund webhook statuses are rejected by
             // `TryFrom<ImerchantsolutionsWebhookStatus> for RefundStatus` before mapping.
-            RSrc::Webhook(_) => RefundStatus::Failure,
+            RSrc::Webhook(_) => failure!(Failure),
         } },
     runtime: {
         request: RefundSyncData,

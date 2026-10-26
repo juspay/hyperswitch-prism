@@ -169,7 +169,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             description: item.router_data.resource_common_data.get_description()?,
             amount: PlacetopayAmount {
                 currency: item.router_data.request.currency,
-                total: item.router_data.request.minor_amount,
+                total: item.router_data.request.amount.amount,
             },
         };
 
@@ -357,12 +357,6 @@ pub struct PlacetopayPaymentsResponse {
     authorization: Option<Secret<String>>,
 }
 
-impl PlacetopayPaymentsResponse {
-    pub fn flow_status(&self) -> PlacetopayTransactionStatus {
-        self.status.status.clone()
-    }
-}
-
 // Authorize flow uses the unified payment response handling with capture method consideration
 impl<F, T> TryFrom<ResponseRouterData<PlacetopayPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
@@ -405,13 +399,7 @@ impl<F, T> TryFrom<ResponseRouterData<PlacetopayPaymentsResponse, Self>>
 /// of the generic `TransactionResponse`.
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct PlacetopayVoidPcResponse(PlacetopayPaymentsResponse);
-
-impl PlacetopayVoidPcResponse {
-    pub fn flow_status(&self) -> PlacetopayTransactionStatus {
-        self.0.flow_status()
-    }
-}
+pub struct PlacetopayVoidPcResponse(pub PlacetopayPaymentsResponse);
 
 impl TryFrom<ResponseRouterData<PlacetopayVoidPcResponse, Self>>
     for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
@@ -572,8 +560,8 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.minor_refund_amount
-            == item.router_data.request.minor_payment_amount
+        if item.router_data.request.refund_amount.amount
+            == item.router_data.request.payment_amount.amount
         {
             let auth = PlacetopayAuth::try_from(&item.router_data.connector_config)?;
 
@@ -607,7 +595,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlacetopayRefundStatus {
     Ok,
@@ -648,12 +636,6 @@ pub struct PlacetopayRefundStatusResponse {
 pub struct PlacetopayRefundResponse {
     status: PlacetopayRefundStatusResponse,
     internal_reference: u64,
-}
-
-impl PlacetopayRefundResponse {
-    pub fn flow_status(&self) -> PlacetopayRefundStatus {
-        self.status.status.clone()
-    }
 }
 
 impl<F> TryFrom<ResponseRouterData<PlacetopayRefundResponse, Self>>
@@ -750,4 +732,16 @@ pub struct PlacetopayError {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlacetopayErrorStatus {
     Failed,
+}
+
+impl PlacetopayPaymentsResponse {
+    pub fn flow_status(&self) -> PlacetopayTransactionStatus {
+        self.status.status.clone()
+    }
+}
+
+impl PlacetopayRefundResponse {
+    pub fn flow_status(&self) -> PlacetopayRefundStatus {
+        self.status.status.clone()
+    }
 }

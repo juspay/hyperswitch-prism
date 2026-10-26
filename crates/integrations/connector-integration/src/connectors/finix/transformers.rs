@@ -415,7 +415,7 @@ pub struct FinixLink {
     pub href: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FinixPaymentStatus {
     Succeeded,
@@ -533,7 +533,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
-            amount: router_data.request.amount,
+            amount: router_data.request.amount.amount,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -548,30 +548,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
             statement_descriptor,
         })
-    }
-}
-
-/// The `AU*`/`TR*` id-prefix split the payment TryFrom impls (`Authorize`, `PSync`,
-/// `RepeatPayment`) key their `FinixId`-vs-`FinixPaymentStatus` matrix on.
-/// Extracted as its own type so the `impl_flow_status_mapping!` context is
-/// the same semantically-true discriminant the TryFrom impls match on — the
-/// `Author` (authorization, `AU*`) vs `Transfer` (capture/debit, `TR*`)
-/// distinction — rather than the raw id string.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum FinixIdKind {
-    /// `AU*` — an authorization (pre-auth). `Succeeded` maps to `Authorized`.
-    #[default]
-    Authorization,
-    /// `TR*` — a transfer (funds movement). `Succeeded` maps to `Charged`.
-    Transfer,
-}
-
-impl From<&FinixId> for FinixIdKind {
-    fn from(id: &FinixId) -> Self {
-        match id {
-            FinixId::Auth(_) => Self::Authorization,
-            FinixId::Transfer(_) => Self::Transfer,
-        }
     }
 }
 
@@ -833,7 +809,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            capture_amount: MinorUnit::new(item.router_data.request.amount_to_capture),
+            capture_amount: item.router_data.request.amount_to_capture.amount,
             idempotency_id: None,
         })
     }
@@ -1076,7 +1052,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            refund_amount: item.router_data.request.minor_refund_amount,
+            refund_amount: item.router_data.request.refund_amount.amount,
             idempotency_id: None,
         })
     }
@@ -1795,7 +1771,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
-            amount: router_data.request.minor_amount,
+            amount: router_data.request.amount.amount,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -2426,4 +2402,22 @@ pub(super) fn build_finix_dispute_webhook_response(
         status_code: 200,
         response_headers: None,
     })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FinixIdKind {
+    /// `AU*` — an authorization (pre-auth). `Succeeded` maps to `Authorized`.
+    #[default]
+    Authorization,
+    /// `TR*` — a transfer (funds movement). `Succeeded` maps to `Charged`.
+    Transfer,
+}
+
+impl From<&FinixId> for FinixIdKind {
+    fn from(id: &FinixId) -> Self {
+        match id {
+            FinixId::Auth(_) => Self::Authorization,
+            FinixId::Transfer(_) => Self::Transfer,
+        }
+    }
 }

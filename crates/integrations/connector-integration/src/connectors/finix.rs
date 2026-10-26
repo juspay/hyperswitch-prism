@@ -310,7 +310,8 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: finix::FinixPaymentStatus,
     context: finix::FinixIdKind,
-    mapping_status: |status, id_kind| { use common_enums::AttemptStatus;
+    mapping: |status, id_kind| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use finix::{FinixIdKind, FinixPaymentStatus};
         match (id_kind, status) {
             (FinixIdKind::Transfer, FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
@@ -329,7 +330,34 @@ domain_types::impl_flow_status_mapping! {
             (FinixIdKind::Transfer, FinixPaymentStatus::Failed)
             | (FinixIdKind::Transfer, FinixPaymentStatus::Canceled)
             | (FinixIdKind::Transfer, FinixPaymentStatus::Unknown) => AttemptStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: FinixAuthorizeResponse,
@@ -374,7 +402,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: finix::FinixPaymentStatus,
     context: finix::FinixIdKind,
-    mapping_status: |status, id_kind| { use common_enums::AttemptStatus;
+    mapping: |status, id_kind| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use finix::{FinixIdKind, FinixPaymentStatus};
         match (id_kind, status) {
             (FinixIdKind::Authorization, FinixPaymentStatus::Succeeded) => {
@@ -388,7 +417,41 @@ domain_types::impl_flow_status_mapping! {
             (_, FinixPaymentStatus::Failed) => AttemptStatus::Failure,
             (_, FinixPaymentStatus::Canceled) => AttemptStatus::Voided,
             (_, FinixPaymentStatus::Unknown) => AttemptStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: FinixPSyncResponse,
@@ -413,13 +476,13 @@ domain_types::impl_flow_status_mapping! {
     connector: Finix<T>,
     flow: Void,
     source: finix::FinixPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            finix::FinixPaymentStatus::Succeeded => common_enums::AttemptStatus::Voided,
-            finix::FinixPaymentStatus::Failed => common_enums::AttemptStatus::VoidFailed,
-            finix::FinixPaymentStatus::Pending => common_enums::AttemptStatus::Pending,
-            finix::FinixPaymentStatus::Canceled => common_enums::AttemptStatus::Voided,
-            finix::FinixPaymentStatus::Unknown => common_enums::AttemptStatus::Pending,
+            finix::FinixPaymentStatus::Succeeded => success!(Voided),
+            finix::FinixPaymentStatus::Failed => failure!(VoidFailed),
+            finix::FinixPaymentStatus::Pending => non_terminal!(Pending),
+            finix::FinixPaymentStatus::Canceled => success!(Voided),
+            finix::FinixPaymentStatus::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -442,13 +505,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Finix<T>,
     flow: Refund,
     source: finix::FinixPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            finix::FinixPaymentStatus::Succeeded => common_enums::RefundStatus::Success,
-            finix::FinixPaymentStatus::Failed => common_enums::RefundStatus::Failure,
-            finix::FinixPaymentStatus::Pending => common_enums::RefundStatus::Pending,
-            finix::FinixPaymentStatus::Canceled => common_enums::RefundStatus::Failure,
-            finix::FinixPaymentStatus::Unknown => common_enums::RefundStatus::Pending,
+            finix::FinixPaymentStatus::Succeeded => success!(Success),
+            finix::FinixPaymentStatus::Failed => failure!(Failure),
+            finix::FinixPaymentStatus::Pending => non_terminal!(Pending),
+            finix::FinixPaymentStatus::Canceled => failure!(Failure),
+            finix::FinixPaymentStatus::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -470,13 +533,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Finix<T>,
     flow: RSync,
     source: finix::FinixPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            finix::FinixPaymentStatus::Succeeded => common_enums::RefundStatus::Success,
-            finix::FinixPaymentStatus::Failed => common_enums::RefundStatus::Failure,
-            finix::FinixPaymentStatus::Pending => common_enums::RefundStatus::Pending,
-            finix::FinixPaymentStatus::Canceled => common_enums::RefundStatus::Failure,
-            finix::FinixPaymentStatus::Unknown => common_enums::RefundStatus::Pending,
+            finix::FinixPaymentStatus::Succeeded => success!(Success),
+            finix::FinixPaymentStatus::Failed => failure!(Failure),
+            finix::FinixPaymentStatus::Pending => non_terminal!(Pending),
+            finix::FinixPaymentStatus::Canceled => failure!(Failure),
+            finix::FinixPaymentStatus::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -506,7 +569,8 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: finix::FinixPaymentStatus,
     context: finix::FinixIdKind,
-    mapping_status: |status, id_kind| { use common_enums::AttemptStatus;
+    mapping: |status, id_kind| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use finix::{FinixIdKind, FinixPaymentStatus};
         match (id_kind, status) {
             (FinixIdKind::Transfer, FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
@@ -520,7 +584,23 @@ domain_types::impl_flow_status_mapping! {
             (_, FinixPaymentStatus::Failed)
             | (_, FinixPaymentStatus::Canceled)
             | (_, FinixPaymentStatus::Unknown) => AttemptStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Authorized => non_terminal!(Authorized),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: FinixRepeatPaymentResponse,

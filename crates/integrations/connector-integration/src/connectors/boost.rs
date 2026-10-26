@@ -1,5 +1,6 @@
 pub mod crypto;
 pub mod transformers;
+use transformers::BoostPaymentStatus;
 
 use std::fmt::Debug;
 
@@ -453,20 +454,15 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Boost<T>,
     flow: PSync,
-    source: boost::BoostPaymentStatus,
-    mapping_status: |status| { use boost::BoostPaymentStatus;
-        use common_enums::AttemptStatus;
-        match status {
-            BoostPaymentStatus::Succeeded => AttemptStatus::Charged,
-            BoostPaymentStatus::PendingPaymentMethod => AttemptStatus::PaymentMethodAwaited,
-            BoostPaymentStatus::PendingConfirmation
-            | BoostPaymentStatus::AwaitingConfirmation => AttemptStatus::ConfirmationAwaited,
-            BoostPaymentStatus::Processing | BoostPaymentStatus::Unknown => AttemptStatus::Pending,
-            BoostPaymentStatus::Canceled => AttemptStatus::Voided,
-            BoostPaymentStatus::Expired => AttemptStatus::Expired,
-            BoostPaymentStatus::Failed
-            | BoostPaymentStatus::Denied
-            | BoostPaymentStatus::Error => AttemptStatus::Failure,
+    source: BoostPaymentStatus,
+    mapping: |status| { match status {
+            BoostPaymentStatus::Succeeded => success!(Charged),
+            BoostPaymentStatus::PendingPaymentMethod => non_terminal!(PaymentMethodAwaited),
+            BoostPaymentStatus::PendingConfirmation | BoostPaymentStatus::AwaitingConfirmation => non_terminal!(ConfirmationAwaited),
+            BoostPaymentStatus::Processing | BoostPaymentStatus::Unknown => non_terminal!(Pending),
+            BoostPaymentStatus::Canceled => success!(Voided),
+            BoostPaymentStatus::Expired => non_terminal!(Expired),
+            BoostPaymentStatus::Failed | BoostPaymentStatus::Denied | BoostPaymentStatus::Error => failure!(Failure),
         } },
     runtime: {
         request: PaymentsSyncData,
@@ -524,7 +520,8 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: boost::BoostReversalStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             boost::BoostReversalStatus::Succeeded => common_enums::RefundStatus::Success,
             boost::BoostReversalStatus::Failed
             | boost::BoostReversalStatus::Expired
@@ -532,7 +529,16 @@ domain_types::impl_refund_flow_status_mapping! {
             boost::BoostReversalStatus::Pending
             | boost::BoostReversalStatus::PendingApproval
             | boost::BoostReversalStatus::Unknown => common_enums::RefundStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: BoostReversalResponse,
@@ -582,7 +588,8 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: boost::BoostReversalStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             boost::BoostReversalStatus::Succeeded => common_enums::RefundStatus::Success,
             boost::BoostReversalStatus::Failed
             | boost::BoostReversalStatus::Expired
@@ -590,7 +597,16 @@ domain_types::impl_refund_flow_status_mapping! {
             boost::BoostReversalStatus::Pending
             | boost::BoostReversalStatus::PendingApproval
             | boost::BoostReversalStatus::Unknown => common_enums::RefundStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: BoostReversalSyncResponse,

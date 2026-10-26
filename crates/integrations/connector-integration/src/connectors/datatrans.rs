@@ -64,13 +64,41 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: bool,
     context: bool,
-    mapping_status: |requires_challenge, manual_capture| { if requires_challenge {
+    mapping: |requires_challenge, manual_capture| {
+        let mapped_status = (|| { if requires_challenge {
             common_enums::AttemptStatus::AuthenticationPending
         } else if manual_capture {
             common_enums::AttemptStatus::Authorized
         } else {
             common_enums::AttemptStatus::Charged
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: DatatransPaymentsResponse,
@@ -95,7 +123,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: datatrans::DatatransPaymentStatus,
     context: datatrans::DatatransTransactionType,
-    mapping_status: |status, txn_type| { use common_enums::AttemptStatus;
+    mapping: |status, txn_type| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use datatrans::{DatatransPaymentStatus, DatatransTransactionType};
         match txn_type {
             DatatransTransactionType::Payment => match status {
@@ -124,7 +153,41 @@ domain_types::impl_flow_status_mapping! {
                 }
             },
             DatatransTransactionType::Credit => AttemptStatus::Failure,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: DatatransSyncResponse,
@@ -142,7 +205,7 @@ domain_types::impl_flow_status_mapping! {
     connector: Datatrans<T>,
     flow: Void,
     source: (),
-    mapping_status: |_ack| { common_enums::AttemptStatus::Voided },
+    mapping: |_ack| { success!(Voided) },
     runtime: {
         request: PaymentVoidData,
         response: DatatransVoidResponse,
@@ -168,7 +231,7 @@ domain_types::impl_flow_status_mapping! {
     connector: Datatrans<T>,
     flow: Capture,
     source: (),
-    mapping_status: |_ack| { common_enums::AttemptStatus::Charged },
+    mapping: |_ack| { success!(Charged) },
     runtime: {
         request: PaymentsCaptureData,
         response: DatatransCaptureResponse,
@@ -186,13 +249,26 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: bool,
     context: bool,
-    mapping_status: |requires_challenge, manual_capture| { if requires_challenge {
+    mapping: |requires_challenge, manual_capture| {
+        let mapped_status = (|| { if requires_challenge {
             common_enums::AttemptStatus::AuthenticationPending
         } else if manual_capture {
             common_enums::AttemptStatus::Authorized
         } else {
             common_enums::AttemptStatus::Charged
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: SetupMandateRequestData<T>,
         response: DatatransSetupMandateResponse,
@@ -211,13 +287,30 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: bool,
     context: bool,
-    mapping_status: |requires_challenge, manual_capture| { if requires_challenge {
+    mapping: |requires_challenge, manual_capture| {
+        let mapped_status = (|| { if requires_challenge {
             common_enums::AttemptStatus::AuthenticationPending
         } else if manual_capture {
             common_enums::AttemptStatus::Authorized
         } else {
             common_enums::AttemptStatus::Charged
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Authorized => non_terminal!(Authorized),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: DatatransRepeatPaymentResponse,
@@ -253,7 +346,7 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Datatrans<T>,
     flow: Refund,
     source: (),
-    mapping_status: |_ack| { common_enums::RefundStatus::Success },
+    mapping: |_ack| { success!(Success) },
     runtime: {
         request: RefundsData,
         response: DatatransRefundResponse,
@@ -277,7 +370,8 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: datatrans::DatatransPaymentStatus,
     context: datatrans::DatatransTransactionType,
-    mapping_status: |status, txn_type| { use common_enums::RefundStatus;
+    mapping: |status, txn_type| {
+        let mapped_status = (|| { use common_enums::RefundStatus;
         use datatrans::{DatatransPaymentStatus, DatatransTransactionType};
         match txn_type {
             DatatransTransactionType::Credit => match status {
@@ -295,7 +389,16 @@ domain_types::impl_refund_flow_status_mapping! {
             DatatransTransactionType::Payment | DatatransTransactionType::CardCheck => {
                 RefundStatus::Failure
             }
-        } },
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: DatatransRefundSyncResponse,

@@ -57,16 +57,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Celero<T>,
     flow: Authorize,
     source: celero::CeleroTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            celero::CeleroTransactionStatus::Settled => common_enums::AttemptStatus::Charged,
-            celero::CeleroTransactionStatus::Declined => common_enums::AttemptStatus::Failure,
-            celero::CeleroTransactionStatus::Approved => common_enums::AttemptStatus::Authorized,
-            celero::CeleroTransactionStatus::Error => common_enums::AttemptStatus::Failure,
-            celero::CeleroTransactionStatus::Pending => common_enums::AttemptStatus::Pending,
-            celero::CeleroTransactionStatus::PendingSettlement => common_enums::AttemptStatus::Pending,
-            celero::CeleroTransactionStatus::Voided => common_enums::AttemptStatus::Voided,
-            celero::CeleroTransactionStatus::Reversed => common_enums::AttemptStatus::Voided,
+            celero::CeleroTransactionStatus::Settled => success!(Charged),
+            celero::CeleroTransactionStatus::Declined => failure!(Failure),
+            celero::CeleroTransactionStatus::Approved => success!(Authorized),
+            celero::CeleroTransactionStatus::Error => failure!(Failure),
+            celero::CeleroTransactionStatus::Pending => non_terminal!(Pending),
+            celero::CeleroTransactionStatus::PendingSettlement => non_terminal!(Pending),
+            celero::CeleroTransactionStatus::Voided => non_terminal!(Voided),
+            celero::CeleroTransactionStatus::Reversed => non_terminal!(Voided),
         }
     },
     runtime: {
@@ -93,16 +93,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Celero<T>,
     flow: PSync,
     source: celero::CeleroTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            celero::CeleroTransactionStatus::Settled => common_enums::AttemptStatus::Charged,
-            celero::CeleroTransactionStatus::Declined => common_enums::AttemptStatus::Failure,
-            celero::CeleroTransactionStatus::Approved => common_enums::AttemptStatus::Authorized,
-            celero::CeleroTransactionStatus::Error => common_enums::AttemptStatus::Failure,
-            celero::CeleroTransactionStatus::Pending => common_enums::AttemptStatus::Pending,
-            celero::CeleroTransactionStatus::PendingSettlement => common_enums::AttemptStatus::Pending,
-            celero::CeleroTransactionStatus::Voided => common_enums::AttemptStatus::Voided,
-            celero::CeleroTransactionStatus::Reversed => common_enums::AttemptStatus::Voided,
+            celero::CeleroTransactionStatus::Settled => success!(Charged),
+            celero::CeleroTransactionStatus::Declined => failure!(Failure),
+            celero::CeleroTransactionStatus::Approved => success!(Authorized),
+            celero::CeleroTransactionStatus::Error => failure!(Failure),
+            celero::CeleroTransactionStatus::Pending => non_terminal!(Pending),
+            celero::CeleroTransactionStatus::PendingSettlement => non_terminal!(Pending),
+            celero::CeleroTransactionStatus::Voided => success!(Voided),
+            celero::CeleroTransactionStatus::Reversed => success!(Voided),
         }
     },
     runtime: {
@@ -129,10 +129,10 @@ domain_types::impl_flow_status_mapping! {
     connector: Celero<T>,
     flow: Void,
     source: celero::CeleroResponseStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            celero::CeleroResponseStatus::Success => common_enums::AttemptStatus::Voided,
-            celero::CeleroResponseStatus::Error => common_enums::AttemptStatus::VoidFailed,
+            celero::CeleroResponseStatus::Success => success!(Voided),
+            celero::CeleroResponseStatus::Error => failure!(VoidFailed),
         }
     },
     runtime: {
@@ -151,10 +151,10 @@ domain_types::impl_flow_status_mapping! {
     connector: Celero<T>,
     flow: Capture,
     source: celero::CeleroResponseStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            celero::CeleroResponseStatus::Success => common_enums::AttemptStatus::Charged,
-            celero::CeleroResponseStatus::Error => common_enums::AttemptStatus::Failure,
+            celero::CeleroResponseStatus::Success => success!(Charged),
+            celero::CeleroResponseStatus::Error => failure!(Failure),
         }
     },
     runtime: {
@@ -180,10 +180,10 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Celero<T>,
     flow: Refund,
     source: celero::CeleroResponseStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            celero::CeleroResponseStatus::Success => common_enums::RefundStatus::Success,
-            celero::CeleroResponseStatus::Error => common_enums::RefundStatus::Failure,
+            celero::CeleroResponseStatus::Success => success!(Success),
+            celero::CeleroResponseStatus::Error => failure!(Failure),
         }
     },
     runtime: {
@@ -202,10 +202,10 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Celero<T>,
     flow: RSync,
     source: celero::CeleroResponseStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            celero::CeleroResponseStatus::Success => common_enums::RefundStatus::Success,
-            celero::CeleroResponseStatus::Error => common_enums::RefundStatus::Failure,
+            celero::CeleroResponseStatus::Success => success!(Success),
+            celero::CeleroResponseStatus::Error => failure!(Failure),
         }
     },
     runtime: {

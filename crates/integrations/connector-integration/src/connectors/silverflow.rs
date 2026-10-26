@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
+use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
@@ -513,21 +513,21 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: (silverflow::SilverflowAuthorizationStatus, silverflow::SilverflowClearingStatus),
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx|{ match status {
             // Approved authorization - check clearing status for final determination
             (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Cleared)
             | (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Settled) => {
-                AttemptStatus::Charged
+                success!(Charged)
             }
             (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Pending)
             | (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Unknown) => {
-                AttemptStatus::Authorized
+                success!(Authorized)
             }
             (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Failed)
             | (silverflow::SilverflowAuthorizationStatus::Declined, _)
-            | (silverflow::SilverflowAuthorizationStatus::Failed, _) => AttemptStatus::Failure,
+            | (silverflow::SilverflowAuthorizationStatus::Failed, _) => failure!(Failure),
             (silverflow::SilverflowAuthorizationStatus::Pending, _)
-            | (silverflow::SilverflowAuthorizationStatus::Unknown, _) => AttemptStatus::Pending,
+            | (silverflow::SilverflowAuthorizationStatus::Unknown, _) => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
@@ -546,21 +546,21 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: (silverflow::SilverflowAuthorizationStatus, silverflow::SilverflowClearingStatus),
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx|{ match status {
             // Approved authorization - check clearing status for final determination
             (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Cleared)
             | (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Settled) => {
-                AttemptStatus::Charged
+                success!(Charged)
             }
             (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Pending)
             | (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Unknown) => {
-                AttemptStatus::Authorized
+                success!(Authorized)
             }
             (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Failed)
             | (silverflow::SilverflowAuthorizationStatus::Declined, _)
-            | (silverflow::SilverflowAuthorizationStatus::Failed, _) => AttemptStatus::Failure,
+            | (silverflow::SilverflowAuthorizationStatus::Failed, _) => failure!(Failure),
             (silverflow::SilverflowAuthorizationStatus::Pending, _)
-            | (silverflow::SilverflowAuthorizationStatus::Unknown, _) => AttemptStatus::Pending,
+            | (silverflow::SilverflowAuthorizationStatus::Unknown, _) => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentsSyncData,
@@ -579,12 +579,12 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: silverflow::SilverflowActionStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx|{ match status {
             silverflow::SilverflowActionStatus::Completed
-            | silverflow::SilverflowActionStatus::Success => AttemptStatus::Charged,
-            silverflow::SilverflowActionStatus::Failed => AttemptStatus::Failure,
+            | silverflow::SilverflowActionStatus::Success => success!(Charged),
+            silverflow::SilverflowActionStatus::Failed => failure!(Failure),
             silverflow::SilverflowActionStatus::Pending
-            | silverflow::SilverflowActionStatus::Unknown => AttemptStatus::Pending,
+            | silverflow::SilverflowActionStatus::Unknown => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentsCaptureData,
@@ -600,12 +600,12 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: silverflow::SilverflowAuthorizationStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
-            silverflow::SilverflowAuthorizationStatus::Approved => AttemptStatus::Voided,
+    mapping: |status, _ctx|{ match status {
+            silverflow::SilverflowAuthorizationStatus::Approved => success!(Voided),
             silverflow::SilverflowAuthorizationStatus::Declined
-            | silverflow::SilverflowAuthorizationStatus::Failed => AttemptStatus::VoidFailed,
+            | silverflow::SilverflowAuthorizationStatus::Failed => failure!(VoidFailed),
             silverflow::SilverflowAuthorizationStatus::Pending
-            | silverflow::SilverflowAuthorizationStatus::Unknown => AttemptStatus::Pending,
+            | silverflow::SilverflowAuthorizationStatus::Unknown => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentVoidData,
@@ -621,12 +621,12 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: silverflow::SilverflowActionStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx|{ match status {
             silverflow::SilverflowActionStatus::Success
-            | silverflow::SilverflowActionStatus::Completed => RefundStatus::Success,
-            silverflow::SilverflowActionStatus::Failed => RefundStatus::Failure,
+            | silverflow::SilverflowActionStatus::Completed => success!(Success),
+            silverflow::SilverflowActionStatus::Failed => failure!(Failure),
             silverflow::SilverflowActionStatus::Pending
-            | silverflow::SilverflowActionStatus::Unknown => RefundStatus::Pending,
+            | silverflow::SilverflowActionStatus::Unknown => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundsData,
@@ -642,12 +642,12 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: silverflow::SilverflowActionStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx|{ match status {
             silverflow::SilverflowActionStatus::Success
-            | silverflow::SilverflowActionStatus::Completed => RefundStatus::Success,
-            silverflow::SilverflowActionStatus::Failed => RefundStatus::Failure,
+            | silverflow::SilverflowActionStatus::Completed => success!(Success),
+            silverflow::SilverflowActionStatus::Failed => failure!(Failure),
             silverflow::SilverflowActionStatus::Pending
-            | silverflow::SilverflowActionStatus::Unknown => RefundStatus::Pending,
+            | silverflow::SilverflowActionStatus::Unknown => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundSyncData,

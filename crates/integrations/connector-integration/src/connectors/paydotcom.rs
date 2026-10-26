@@ -89,7 +89,35 @@ domain_types::impl_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: Authorize,
     source: transformers::PaydotcomPaymentsResponse,
-    mapping_status: |status| { status.attempt_status() },
+    mapping: |status| {
+        let mapped_status = (|| { status.attempt_status() })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: PaydotcomAuthorizeResponse,
@@ -97,27 +125,57 @@ domain_types::impl_flow_status_mapping! {
     },
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paydotcom<T>,
     flow: PreAuthenticate,
-    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed, Authorized, Charged, Pending, Failure],
+    source: PaydotcomPreAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { response.attempt_status() })();
+        match mapped_status {
+            common_enums::AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Authorized => non_terminal!(Authorized),
+            common_enums::AttemptStatus::Charged => non_terminal!(Charged),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsPreAuthenticateData<T>,
-        response: transformers::PaydotcomPreAuthenticateResponse,
-        status: |_request, response| response.attempt_status(),
+        response: PaydotcomPreAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Paydotcom<T>,
     flow: Authenticate,
-    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed, Authorized, Charged, Pending, Failure],
+    source: PaydotcomAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { response.attempt_status() })();
+        match mapped_status {
+            common_enums::AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthenticateData<T>,
-        response: transformers::PaydotcomAuthenticateResponse,
-        status: |_request, response| response.attempt_status(),
+        response: PaydotcomAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -126,7 +184,42 @@ domain_types::impl_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: PSync,
     source: transformers::PaydotcomPaymentsResponse,
-    mapping_status: |status| { status.attempt_status() },
+    mapping: |status| {
+        let mapped_status = (|| { status.attempt_status() })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: PaydotcomPSyncResponse,
@@ -139,7 +232,17 @@ domain_types::impl_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: Void,
     source: transformers::PaydotcomPaymentsResponse,
-    mapping_status: |status| { status.attempt_status() },
+    mapping: |status| {
+        let mapped_status = (|| { status.attempt_status() })();
+        match mapped_status {
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: PaydotcomVoidResponse,
@@ -153,7 +256,20 @@ domain_types::impl_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: SetupMandate,
     source: transformers::PaydotcomPaymentsResponse,
-    mapping_status: |status| { status.attempt_status() },
+    mapping: |status| {
+        let mapped_status = (|| { status.attempt_status() })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: SetupMandateRequestData<T>,
         response: PaydotcomSetupMandateResponse,
@@ -166,7 +282,24 @@ domain_types::impl_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: RepeatPayment,
     source: transformers::PaydotcomPaymentsResponse,
-    mapping_status: |status| { status.attempt_status() },
+    mapping: |status| {
+        let mapped_status = (|| { status.attempt_status() })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Authorized => non_terminal!(Authorized),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: PaydotcomRepeatPaymentResponse,
@@ -180,8 +313,9 @@ domain_types::impl_flow_status_mapping! {
     connector: Paydotcom<T>,
     flow: Capture,
     source: transformers::PaydotcomPaymentsResponse,
-    context: Option<common_utils::types::MinorUnit>,
-    mapping_status: |status, ctx| { use common_enums::AttemptStatus;
+    context: Option<MinorUnit>,
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         match status.attempt_status() {
             AttemptStatus::Charged => match (status.amount(), ctx) {
                 (Some(captured), Some(authorized)) if captured < authorized => AttemptStatus::PartialCharged,
@@ -190,7 +324,19 @@ domain_types::impl_flow_status_mapping! {
             AttemptStatus::Pending => AttemptStatus::CaptureInitiated,
             AttemptStatus::Failure => AttemptStatus::CaptureFailed,
             other => other,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: PaydotcomCaptureResponse,
@@ -205,11 +351,21 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: transformers::PaydotcomRefundStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             transformers::PaydotcomRefundStatus::Succeeded => common_enums::RefundStatus::Success,
             transformers::PaydotcomRefundStatus::Failed => common_enums::RefundStatus::Failure,
             transformers::PaydotcomRefundStatus::Pending => common_enums::RefundStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: PaydotcomRefundResponse,
@@ -224,11 +380,21 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: transformers::PaydotcomRefundStatus,
     context: (),
-    mapping_status: |status, _ctx| { match status {
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
             transformers::PaydotcomRefundStatus::Succeeded => common_enums::RefundStatus::Success,
             transformers::PaydotcomRefundStatus::Failed => common_enums::RefundStatus::Failure,
             transformers::PaydotcomRefundStatus::Pending => common_enums::RefundStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: PaydotcomRefundSyncResponse,

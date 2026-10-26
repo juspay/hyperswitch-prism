@@ -46,23 +46,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     connector: Axisbank<T>,
     flow: Authorize,
-    statuses: [Failure, AuthenticationPending, Pending],
+    source: AxisbankPaymentsResponse,
+    context: (),
+    mapping: |response, _ctx| {
+
+            if response.response_code.is_failure() {
+                failure!(Failure)
+            } else if response.payload.is_some() {
+                non_terminal!(AuthenticationPending)
+            } else {
+                non_terminal!(Pending)
+            }
+        },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: AxisbankPaymentsResponse,
-        status: |_request, response| {
-            if response.response_code.is_failure() {
-                common_enums::AttemptStatus::Failure
-            } else if response.payload.is_some() {
-                common_enums::AttemptStatus::AuthenticationPending
-            } else {
-                common_enums::AttemptStatus::Pending
-            }
-        },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -78,7 +82,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: crate::connectors::juspay_upi_stack::types::OuterResponseCode,
     context: Option<String>,
-    mapping_status: |status, ctx| { use common_enums::AttemptStatus;
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
         use crate::connectors::juspay_upi_stack::types::{
             GatewayResponseCode, OuterResponseCode as Outer,
         };
@@ -121,7 +126,41 @@ domain_types::impl_flow_status_mapping! {
                 },
                 None => AttemptStatus::Pending,
             },
-        } },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: AxisbankSyncResponse,
@@ -146,14 +185,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Axisbank<T>,
     flow: Refund,
     source: crate::connectors::juspay_upi_stack::types::RefundStatus,
-    mapping_status: |status| {
-        match status {
-            crate::connectors::juspay_upi_stack::types::RefundStatus::Success => common_enums::RefundStatus::Success,
-            crate::connectors::juspay_upi_stack::types::RefundStatus::Failed => common_enums::RefundStatus::Failure,
-            crate::connectors::juspay_upi_stack::types::RefundStatus::Pending => common_enums::RefundStatus::Pending,
-            crate::connectors::juspay_upi_stack::types::RefundStatus::Deemed => common_enums::RefundStatus::Pending,
-        }
-    },
+    mapping: |status| { match status {
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Success => success!(Success),
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Failed => failure!(Failure),
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Pending => non_terminal!(Pending),
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Deemed => non_terminal!(Pending),
+        } },
     runtime: {
         request: RefundsData,
         response: AxisbankRefundResponse,
@@ -179,14 +216,12 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Axisbank<T>,
     flow: RSync,
     source: crate::connectors::juspay_upi_stack::types::RefundStatus,
-    mapping_status: |status| {
-        match status {
-            crate::connectors::juspay_upi_stack::types::RefundStatus::Success => common_enums::RefundStatus::Success,
-            crate::connectors::juspay_upi_stack::types::RefundStatus::Failed => common_enums::RefundStatus::Failure,
-            crate::connectors::juspay_upi_stack::types::RefundStatus::Pending => common_enums::RefundStatus::Pending,
-            crate::connectors::juspay_upi_stack::types::RefundStatus::Deemed => common_enums::RefundStatus::Pending,
-        }
-    },
+    mapping: |status| { match status {
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Success => success!(Success),
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Failed => failure!(Failure),
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Pending => non_terminal!(Pending),
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Deemed => non_terminal!(Pending),
+        } },
     runtime: {
         request: RefundSyncData,
         response: AxisbankRefundSyncResponse,

@@ -587,6 +587,9 @@ impl From<common_enums::TransactionStatus> for CybersourceParesStatus {
             common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
                 Self::CardChallenged
             }
+            common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
+                Self::CardChallenged
+            }
             common_enums::TransactionStatus::InformationOnly => Self::AuthenticationNotCompleted,
         }
     }
@@ -1579,7 +1582,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount.to_owned(),
+                item.router_data.request.amount.amount.to_owned(),
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -2947,7 +2950,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .get_decrypted_apple_pay_payment_data_optional()
                 {
                     Some(decrypt_data) => {
-                        Self::try_from((&item, Box::new(decrypt_data.clone()), apple_pay_data))
+                        Self::try_from((&item, Box::new(decrypt_data.clone()), *apple_pay_data))
                     }
                     None => {
                         let transaction_type = if item.router_data.request.off_session == Some(true)
@@ -3046,10 +3049,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 WalletData::GooglePay(google_pay_data) => {
                     match &google_pay_data.tokenization_data {
                         payment_method_data::GpayTokenizationData::Decrypted(decrypt_data) => {
-                            Self::try_from((&item, Box::new(decrypt_data.clone()), google_pay_data))
+                            Self::try_from((
+                                &item,
+                                Box::new(decrypt_data.clone()),
+                                *google_pay_data,
+                            ))
                         }
                         payment_method_data::GpayTokenizationData::Encrypted(_) => {
-                            Self::try_from((&item, google_pay_data))
+                            Self::try_from((&item, *google_pay_data))
                         }
                     }
                 }
@@ -3351,7 +3358,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.amount_to_capture.amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -3463,7 +3470,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = value
             .connector
             .amount_converter
-            .convert(amount, currency)
+            .convert(amount.amount, currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -3766,14 +3773,6 @@ pub struct CybersourcePaymentsResponse {
     error_information: Option<CybersourceErrorInformation>,
 }
 
-impl CybersourcePaymentsResponse {
-    pub fn flow_status(&self) -> CybersourcePaymentStatus {
-        self.status
-            .clone()
-            .unwrap_or(CybersourcePaymentStatus::StatusNotReceived)
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceErrorInformationResponse {
@@ -3781,7 +3780,7 @@ pub struct CybersourceErrorInformationResponse {
     error_information: CybersourceErrorInformation,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformationResponse {
     access_token: Secret<String>,
@@ -3789,7 +3788,7 @@ pub struct CybersourceConsumerAuthInformationResponse {
     reference_id: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientAuthSetupInfoResponse {
     id: String,
@@ -3797,7 +3796,7 @@ pub struct ClientAuthSetupInfoResponse {
     consumer_authentication_information: CybersourceConsumerAuthInformationResponse,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CybersourceAuthSetupResponse {
     ClientAuthSetupInfo(Box<ClientAuthSetupInfoResponse>),
@@ -3847,7 +3846,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let additional_amount = item
             .connector
             .amount_converter
-            .convert(request.minor_amount, request.currency)
+            .convert(request.amount.amount, request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -4432,7 +4431,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency.ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "currency",
@@ -4483,24 +4482,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CybersourceAuthenticateResponse {
     ClientAuthCheckInfo(Box<ClientAuthCheckInfoResponse>),
     ErrorInformation(Box<CybersourceErrorInformationResponse>),
-}
-
-pub fn authenticate_status(
-    response: &CybersourceAuthenticateResponse,
-) -> common_enums::AttemptStatus {
-    match response {
-        CybersourceAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
-            common_enums::AttemptStatus::from(info_response.status)
-        }
-        CybersourceAuthenticateResponse::ErrorInformation(_) => {
-            common_enums::AttemptStatus::Failure
-        }
-    }
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -4735,7 +4721,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.amount,
+                item.router_data.request.amount.amount,
                 item.router_data.request.currency.ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "currency",
@@ -4951,9 +4937,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[derive(Clone, Copy)]
 pub enum CybersourceAuthEnrollmentStatus {
     PendingAuthentication,
     AuthenticationSuccessful,
@@ -4962,7 +4947,7 @@ pub enum CybersourceAuthEnrollmentStatus {
     #[serde(other)]
     Unknown,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthValidateResponse {
     /// This field is supported only on Asia, Middle East, and Africa Gateway
@@ -4989,7 +4974,7 @@ pub struct CybersourceThreeDSMetadata {
     three_ds_data: CybersourceConsumerAuthValidateResponse,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformationEnrollmentResponse {
     access_token: Option<Secret<String>>,
@@ -5000,7 +4985,7 @@ pub struct CybersourceConsumerAuthInformationEnrollmentResponse {
     validate_response: CybersourceConsumerAuthValidateResponse,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientAuthCheckInfoResponse {
     id: String,
@@ -5453,7 +5438,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_refund_amount.to_owned(),
+                item.router_data.request.refund_amount.amount.to_owned(),
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -6125,7 +6110,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-        &CardDetailsForNetworkTransactionId,
+        &CardDetailsForNetworkTransactionId<T>,
     )> for CybersourceRepeatPaymentRequest
 {
     type Error = error_stack::Report<IntegrationError>;
@@ -6140,7 +6125,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 >,
                 T,
             >,
-            &CardDetailsForNetworkTransactionId,
+            &CardDetailsForNetworkTransactionId<T>,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item
@@ -6163,7 +6148,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let payment_information =
             RepeatPaymentInformation::Cards(Box::new(CardWithNtiPaymentInformation {
                 card: CardWithNti {
-                    number: ccard.card_number.clone(),
+                    number: ccard.card_number.try_card_number("Cybersource")?,
                     expiration_month: ccard.card_exp_month.clone(),
                     expiration_year: ccard.card_exp_year.clone(),
                     security_code: None,
@@ -6339,7 +6324,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                item.router_data.request.minor_amount.to_owned(),
+                item.router_data.request.amount.amount.to_owned(),
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -6411,199 +6396,207 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_merchant_config =
             CybersourceAuthType::try_from(&item.router_data.connector_config)?;
 
-        let (action_list, action_token_types, authorization_options) = match item
-            .router_data
-            .request
-            .mandate_reference
-            .clone()
-        {
-            MandateReferenceId::ConnectorMandateId(_) => {
-                let original_authorized_amount = item
-                    .router_data
-                    .request
-                    .recurring_mandate_payment_data
-                    .as_ref()
-                    .and_then(|recurring_mandate_payment_data| {
-                        recurring_mandate_payment_data
-                            .original_payment_authorized_amount
-                            .clone()
-                    })
-                    .map(|original_amount| (original_amount.amount, original_amount.currency));
+        let (action_list, action_token_types, authorization_options) =
+            match item.router_data.request.mandate_reference.clone() {
+                MandateReferenceId::ConnectorMandateId(_) => {
+                    let original_authorized_amount = item
+                        .router_data
+                        .request
+                        .recurring_mandate_payment_data
+                        .as_ref()
+                        .and_then(|recurring_mandate_payment_data| {
+                            recurring_mandate_payment_data
+                                .original_payment_authorized_amount
+                                .clone()
+                        })
+                        .map(|original_amount| (original_amount.amount, original_amount.currency));
 
-                let original_authorized_amount = match original_authorized_amount {
-                    Some((original_amount, original_currency)) => {
-                        Some(domain_types::utils::get_amount_as_string(
-                            &common_enums::CurrencyUnit::Base,
-                            original_amount,
-                            original_currency,
-                        )?)
-                    }
-                    None => None,
-                };
-                (
-                    None,
-                    None,
-                    Some(CybersourceAuthorizationOptions {
-                        initiator: Some(CybersourcePaymentInitiator {
-                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
-                            credential_stored_on_file: None,
-                            stored_credential_used: Some(true),
+                    let original_authorized_amount = match original_authorized_amount {
+                        Some((original_amount, original_currency)) => {
+                            Some(domain_types::utils::get_amount_as_string(
+                                &common_enums::CurrencyUnit::Base,
+                                original_amount,
+                                original_currency,
+                            )?)
+                        }
+                        None => None,
+                    };
+                    (
+                        None,
+                        None,
+                        Some(CybersourceAuthorizationOptions {
+                            initiator: Some(CybersourcePaymentInitiator {
+                                initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
+                                credential_stored_on_file: None,
+                                stored_credential_used: Some(true),
+                            }),
+                            merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
+                                reason: None,
+                                original_authorized_amount,
+                                previous_transaction_id: None,
+                            }),
+                            ignore_avs_result: connector_merchant_config.disable_avs,
+                            ignore_cv_result: connector_merchant_config.disable_cvn,
                         }),
-                        merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
-                            reason: None,
-                            original_authorized_amount,
-                            previous_transaction_id: None,
-                        }),
-                        ignore_avs_result: connector_merchant_config.disable_avs,
-                        ignore_cv_result: connector_merchant_config.disable_cvn,
-                    }),
-                )
-            }
-            MandateReferenceId::NetworkMandateId(network_transaction_id) => {
-                let (original_amount, original_currency) = match network
-                    .clone()
-                    .map(|network| network.to_lowercase())
-                    .as_deref()
-                {
-                    //This is to make original_authorized_amount mandatory for discover card networks in NetworkMandateId flow
-                    Some("004") => {
-                        let original_amount = Some(
-                            item.router_data
+                    )
+                }
+                MandateReferenceId::NetworkMandateId(network_transaction_id) => {
+                    let (original_amount, original_currency) = match network
+                        .clone()
+                        .map(|network| network.to_lowercase())
+                        .as_deref()
+                    {
+                        //This is to make original_authorized_amount mandatory for discover card networks in NetworkMandateId flow
+                        Some("004") => {
+                            let original_amount = Some(
+                                item.router_data
+                                    .resource_common_data
+                                    .get_recurring_mandate_payment_data()?
+                                    .get_original_payment_amount()?,
+                            );
+                            let original_currency = Some(
+                                item.router_data
+                                    .resource_common_data
+                                    .get_recurring_mandate_payment_data()?
+                                    .get_original_payment_currency()?,
+                            );
+                            (original_amount, original_currency)
+                        }
+                        _ => {
+                            let original_amount = item
+                                .router_data
                                 .resource_common_data
-                                .get_recurring_mandate_payment_data()?
-                                .get_original_payment_amount()?,
-                        );
-                        let original_currency = Some(
-                            item.router_data
+                                .recurring_mandate_payment_data
+                                .as_ref()
+                                .and_then(|recurring_mandate_payment_data| {
+                                    recurring_mandate_payment_data
+                                        .original_payment_authorized_amount
+                                        .as_ref()
+                                        .map(|money| money.amount)
+                                });
+
+                            let original_currency = item
+                                .router_data
                                 .resource_common_data
-                                .get_recurring_mandate_payment_data()?
-                                .get_original_payment_currency()?,
-                        );
-                        (original_amount, original_currency)
-                    }
-                    _ => {
-                        let original_amount = item
-                            .router_data
-                            .resource_common_data
-                            .recurring_mandate_payment_data
-                            .as_ref()
-                            .and_then(|recurring_mandate_payment_data| {
-                                recurring_mandate_payment_data.original_payment_authorized_amount
-                            });
+                                .recurring_mandate_payment_data
+                                .as_ref()
+                                .and_then(|recurring_mandate_payment_data| {
+                                    recurring_mandate_payment_data
+                                        .original_payment_authorized_amount
+                                        .as_ref()
+                                        .map(|money| money.currency)
+                                });
 
-                        let original_currency = item
-                            .router_data
-                            .resource_common_data
-                            .recurring_mandate_payment_data
-                            .as_ref()
-                            .and_then(|recurring_mandate_payment_data| {
-                                recurring_mandate_payment_data.original_payment_authorized_currency
-                            });
-
-                        (original_amount, original_currency)
-                    }
-                };
-                let original_authorized_amount = match original_amount.zip(original_currency) {
-                    Some((original_amount, original_currency)) => {
-                        Some(to_currency_base_unit(original_amount, original_currency)?)
-                    }
-                    None => None,
-                };
-                commerce_indicator = "recurring".to_string();
-                (
-                    None,
-                    None,
-                    Some(CybersourceAuthorizationOptions {
-                        initiator: Some(CybersourcePaymentInitiator {
-                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
-                            credential_stored_on_file: None,
-                            stored_credential_used: Some(true),
+                            (original_amount, original_currency)
+                        }
+                    };
+                    let original_authorized_amount = match original_amount.zip(original_currency) {
+                        Some((original_amount, original_currency)) => {
+                            Some(to_currency_base_unit(original_amount, original_currency)?)
+                        }
+                        None => None,
+                    };
+                    commerce_indicator = "recurring".to_string();
+                    (
+                        None,
+                        None,
+                        Some(CybersourceAuthorizationOptions {
+                            initiator: Some(CybersourcePaymentInitiator {
+                                initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
+                                credential_stored_on_file: None,
+                                stored_credential_used: Some(true),
+                            }),
+                            merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
+                                reason: Some("7".to_string()),
+                                original_authorized_amount,
+                                previous_transaction_id: Some(Secret::new(
+                                    network_transaction_id.network_transaction_id,
+                                )),
+                            }),
+                            ignore_avs_result: connector_merchant_config.disable_avs,
+                            ignore_cv_result: connector_merchant_config.disable_cvn,
                         }),
-                        merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
-                            reason: Some("7".to_string()),
-                            original_authorized_amount,
-                            previous_transaction_id: Some(Secret::new(
-                                network_transaction_id.network_transaction_id,
-                            )),
-                        }),
-                        ignore_avs_result: connector_merchant_config.disable_avs,
-                        ignore_cv_result: connector_merchant_config.disable_cvn,
-                    }),
-                )
-            }
-            MandateReferenceId::NetworkTokenWithNTI(mandate_data) => {
-                let (original_amount, original_currency) = match network
-                    .clone()
-                    .map(|network| network.to_lowercase())
-                    .as_deref()
-                {
-                    //This is to make original_authorized_amount mandatory for discover card networks in NetworkMandateId flow
-                    Some("004") => {
-                        let original_amount = Some(
-                            item.router_data
+                    )
+                }
+                MandateReferenceId::NetworkTokenWithNTI(mandate_data) => {
+                    let (original_amount, original_currency) = match network
+                        .clone()
+                        .map(|network| network.to_lowercase())
+                        .as_deref()
+                    {
+                        //This is to make original_authorized_amount mandatory for discover card networks in NetworkMandateId flow
+                        Some("004") => {
+                            let original_amount = Some(
+                                item.router_data
+                                    .resource_common_data
+                                    .get_recurring_mandate_payment_data()?
+                                    .get_original_payment_amount()?,
+                            );
+                            let original_currency = Some(
+                                item.router_data
+                                    .resource_common_data
+                                    .get_recurring_mandate_payment_data()?
+                                    .get_original_payment_currency()?,
+                            );
+                            (original_amount, original_currency)
+                        }
+                        _ => {
+                            let original_amount = item
+                                .router_data
                                 .resource_common_data
-                                .get_recurring_mandate_payment_data()?
-                                .get_original_payment_amount()?,
-                        );
-                        let original_currency = Some(
-                            item.router_data
+                                .recurring_mandate_payment_data
+                                .as_ref()
+                                .and_then(|recurring_mandate_payment_data| {
+                                    recurring_mandate_payment_data
+                                        .original_payment_authorized_amount
+                                        .as_ref()
+                                        .map(|money| money.amount)
+                                });
+
+                            let original_currency = item
+                                .router_data
                                 .resource_common_data
-                                .get_recurring_mandate_payment_data()?
-                                .get_original_payment_currency()?,
-                        );
-                        (original_amount, original_currency)
-                    }
-                    _ => {
-                        let original_amount = item
-                            .router_data
-                            .resource_common_data
-                            .recurring_mandate_payment_data
-                            .as_ref()
-                            .and_then(|recurring_mandate_payment_data| {
-                                recurring_mandate_payment_data.original_payment_authorized_amount
-                            });
+                                .recurring_mandate_payment_data
+                                .as_ref()
+                                .and_then(|recurring_mandate_payment_data| {
+                                    recurring_mandate_payment_data
+                                        .original_payment_authorized_amount
+                                        .as_ref()
+                                        .map(|money| money.currency)
+                                });
 
-                        let original_currency = item
-                            .router_data
-                            .resource_common_data
-                            .recurring_mandate_payment_data
-                            .as_ref()
-                            .and_then(|recurring_mandate_payment_data| {
-                                recurring_mandate_payment_data.original_payment_authorized_currency
-                            });
-
-                        (original_amount, original_currency)
-                    }
-                };
-                let original_authorized_amount = match original_amount.zip(original_currency) {
-                    Some((original_amount, original_currency)) => {
-                        Some(to_currency_base_unit(original_amount, original_currency)?)
-                    }
-                    None => None,
-                };
-                commerce_indicator = "recurring".to_string();
-                (
-                    None,
-                    None,
-                    Some(CybersourceAuthorizationOptions {
-                        initiator: Some(CybersourcePaymentInitiator {
-                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
-                            credential_stored_on_file: None,
-                            stored_credential_used: Some(true),
+                            (original_amount, original_currency)
+                        }
+                    };
+                    let original_authorized_amount = match original_amount.zip(original_currency) {
+                        Some((original_amount, original_currency)) => {
+                            Some(to_currency_base_unit(original_amount, original_currency)?)
+                        }
+                        None => None,
+                    };
+                    commerce_indicator = "recurring".to_string();
+                    (
+                        None,
+                        None,
+                        Some(CybersourceAuthorizationOptions {
+                            initiator: Some(CybersourcePaymentInitiator {
+                                initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
+                                credential_stored_on_file: None,
+                                stored_credential_used: Some(true),
+                            }),
+                            merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
+                                reason: Some("7".to_string()), // 7 is for MIT using NTI
+                                original_authorized_amount,
+                                previous_transaction_id: Some(Secret::new(
+                                    mandate_data.network_transaction_id,
+                                )),
+                            }),
+                            ignore_avs_result: connector_merchant_config.disable_avs,
+                            ignore_cv_result: connector_merchant_config.disable_cvn,
                         }),
-                        merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
-                            reason: Some("7".to_string()), // 7 is for MIT using NTI
-                            original_authorized_amount,
-                            previous_transaction_id: Some(Secret::new(
-                                mandate_data.network_transaction_id,
-                            )),
-                        }),
-                        ignore_avs_result: connector_merchant_config.disable_avs,
-                        ignore_cv_result: connector_merchant_config.disable_cvn,
-                    }),
-                )
-            }
-        };
+                    )
+                }
+            };
 
         // this logic is for external authenticated card
         let commerce_indicator_for_external_authentication = item
@@ -7424,5 +7417,26 @@ mod tests {
                 .expect("capture method is supported"),
             Some(common_enums::AttemptStatus::Authorized)
         );
+    }
+}
+
+impl CybersourcePaymentsResponse {
+    pub fn flow_status(&self) -> CybersourcePaymentStatus {
+        self.status
+            .clone()
+            .unwrap_or(CybersourcePaymentStatus::StatusNotReceived)
+    }
+}
+
+pub fn authenticate_status(
+    response: &CybersourceAuthenticateResponse,
+) -> common_enums::AttemptStatus {
+    match response {
+        CybersourceAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
+            common_enums::AttemptStatus::from(info_response.status.clone())
+        }
+        CybersourceAuthenticateResponse::ErrorInformation(_) => {
+            common_enums::AttemptStatus::Failure
+        }
     }
 }

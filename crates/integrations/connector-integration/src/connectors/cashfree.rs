@@ -1,5 +1,6 @@
 pub mod test;
 pub mod transformers;
+use transformers::CashfreeRefundStatus;
 
 use std::{fmt::Debug, sync::LazyLock};
 
@@ -80,12 +81,12 @@ domain_types::impl_flow_status_mapping! {
     connector: Cashfree<T>,
     flow: Capture,
     source: cashfree::CashfreeCaptureStatus,
-    mapping_status: |status| { use cashfree::CashfreeCaptureStatus;
+    mapping: |status| { use cashfree::CashfreeCaptureStatus;
         match status {
-            CashfreeCaptureStatus::Success => AttemptStatus::Charged,
-            CashfreeCaptureStatus::Failed => AttemptStatus::CaptureFailed,
-            CashfreeCaptureStatus::Pending => AttemptStatus::CaptureInitiated,
-            CashfreeCaptureStatus::Other => AttemptStatus::Pending,
+            CashfreeCaptureStatus::Success => success!(Charged),
+            CashfreeCaptureStatus::Failed => failure!(CaptureFailed),
+            CashfreeCaptureStatus::Pending => non_terminal!(CaptureInitiated),
+            CashfreeCaptureStatus::Other => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentsCaptureData,
@@ -114,12 +115,12 @@ domain_types::impl_flow_status_mapping! {
     connector: Cashfree<T>,
     flow: Void,
     source: cashfree::CashfreeVoidStatus,
-    mapping_status: |status| { use cashfree::CashfreeVoidStatus;
+    mapping: |status| { use cashfree::CashfreeVoidStatus;
         match status {
-            CashfreeVoidStatus::Void => AttemptStatus::Voided,
-            CashfreeVoidStatus::Failed => AttemptStatus::VoidFailed,
+            CashfreeVoidStatus::Void => success!(Voided),
+            CashfreeVoidStatus::Failed => failure!(VoidFailed),
             CashfreeVoidStatus::Pending | CashfreeVoidStatus::Other => {
-                AttemptStatus::Pending
+                non_terminal!(Pending)
             }
         } },
     runtime: {
@@ -137,30 +138,39 @@ domain_types::impl_flow_status_mapping! {
     },
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cashfree<T>,
     flow: Authorize,
-    statuses: [AuthenticationPending, Pending, Failure],
+    source: CashfreePaymentResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        match response.channel.as_str() {
+            "link" => non_terminal!(AuthenticationPending),
+            "collect" => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: CashfreePaymentResponse,
-        status: |_request, response| match response.channel.as_str() {
-            "link" => AttemptStatus::AuthenticationPending,
-            "collect" => AttemptStatus::Pending,
-            _ => AttemptStatus::Failure,
-        },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cashfree<T>,
     flow: CreateOrder,
-    status: Pending,
+    source: CashfreeOrderCreateResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(Pending) },
     runtime: {
         request: PaymentCreateOrderData,
         response: CashfreeOrderCreateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -174,18 +184,18 @@ domain_types::impl_flow_status_mapping! {
     connector: Cashfree<T>,
     flow: PSync,
     source: cashfree::CashfreePaymentStatus,
-    mapping_status: |status| { match status {
-            cashfree::CashfreePaymentStatus::Success => AttemptStatus::Charged,
+    mapping: |status| { match status {
+            cashfree::CashfreePaymentStatus::Success => success!(Charged),
             cashfree::CashfreePaymentStatus::Pending
             | cashfree::CashfreePaymentStatus::NotAttempted => {
-                AttemptStatus::Pending
+                non_terminal!(Pending)
             }
             cashfree::CashfreePaymentStatus::Failed
             | cashfree::CashfreePaymentStatus::Cancelled
             | cashfree::CashfreePaymentStatus::UserDropped => {
-                AttemptStatus::Failure
+                failure!(Failure)
             }
-            cashfree::CashfreePaymentStatus::Unknown(_) => AttemptStatus::Pending,
+            cashfree::CashfreePaymentStatus::Unknown(_) => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentsSyncData,
@@ -216,21 +226,17 @@ domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cashfree<T>,
     flow: RSync,
-    source: cashfree::CashfreeRefundStatus,
-    mapping_status: |status| { use common_enums::RefundStatus;
-        use cashfree::CashfreeRefundStatus;
-        match status {
-            CashfreeRefundStatus::Success => RefundStatus::Success,
-            CashfreeRefundStatus::Pending => RefundStatus::Pending,
-            CashfreeRefundStatus::Cancelled | CashfreeRefundStatus::Failed => {
-                RefundStatus::Failure
-            }
-            CashfreeRefundStatus::Other => RefundStatus::Pending,
+    source: CashfreeRefundStatus,
+    mapping: |status| { match status {
+            CashfreeRefundStatus::Success => success!(Success),
+            CashfreeRefundStatus::Pending => non_terminal!(Pending),
+            CashfreeRefundStatus::Cancelled | CashfreeRefundStatus::Failed => failure!(Failure),
+            CashfreeRefundStatus::Other => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundSyncData,
         response: CashfreeRefundSyncResponse,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(cashfree::CashfreeRefundStatus::from(response.refund_status.as_str())) },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(CashfreeRefundStatus::from(response.refund_status.as_str())) },
     },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -243,21 +249,17 @@ domain_types::impl_refund_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Cashfree<T>,
     flow: Refund,
-    source: cashfree::CashfreeRefundStatus,
-    mapping_status: |status| { use common_enums::RefundStatus;
-        use cashfree::CashfreeRefundStatus;
-        match status {
-            CashfreeRefundStatus::Success => RefundStatus::Success,
-            CashfreeRefundStatus::Pending => RefundStatus::Pending,
-            CashfreeRefundStatus::Cancelled | CashfreeRefundStatus::Failed => {
-                RefundStatus::Failure
-            }
-            CashfreeRefundStatus::Other => RefundStatus::Pending,
+    source: CashfreeRefundStatus,
+    mapping: |status| { match status {
+            CashfreeRefundStatus::Success => success!(Success),
+            CashfreeRefundStatus::Pending => non_terminal!(Pending),
+            CashfreeRefundStatus::Cancelled | CashfreeRefundStatus::Failed => failure!(Failure),
+            CashfreeRefundStatus::Other => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundsData,
         response: CashfreeRefundResponse,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(cashfree::CashfreeRefundStatus::from(response.refund_status.as_str())) },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(CashfreeRefundStatus::from(response.refund_status.as_str())) },
     },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

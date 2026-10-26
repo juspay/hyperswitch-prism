@@ -269,7 +269,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_amount: item_data
                         .connector
                         .amount_converter
-                        .convert(item.request.minor_amount, item.request.currency)
+                        .convert(item.request.amount.amount, item.request.currency)
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -312,10 +312,9 @@ pub enum TsysPaymentStatus {
     Fail,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TsysTransactionStatus {
-    #[default]
     Approved,
     Declined,
     Void,
@@ -656,13 +655,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // PSync Response
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TsysTransactionDetails {
     #[serde(rename = "transactionID")]
-    pub transaction_id: String,
-    pub transaction_type: String,
-    pub transaction_status: TsysTransactionStatus,
+    transaction_id: String,
+    transaction_type: String,
+    transaction_status: TsysTransactionStatus,
+}
+
+impl Default for TsysTransactionDetails {
+    fn default() -> Self {
+        Self {
+            transaction_id: String::new(),
+            transaction_type: String::new(),
+            transaction_status: TsysTransactionStatus::Declined,
+        }
+    }
 }
 
 impl From<TsysTransactionDetails> for AttemptStatus {
@@ -821,7 +830,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             transaction_amount: item_data
                 .connector
                 .amount_converter
-                .convert(item.request.minor_amount_to_capture, item.request.currency)
+                .convert(item.request.amount_to_capture.amount, item.request.currency)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -928,7 +937,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             transaction_amount: item_data
                 .connector
                 .amount_converter
-                .convert(MinorUnit(item.request.refund_amount), item.request.currency)
+                .convert(item.request.refund_amount.amount, item.request.currency)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1114,7 +1123,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // to 1 minor unit if the request does not carry one.
                 let minor_amount = item
                     .request
-                    .minor_amount
+                    .amount
+                    .as_ref()
+                    .map(|money| money.amount)
                     .unwrap_or_else(|| MinorUnit::new(1));
                 let transaction_amount = item_data
                     .connector
@@ -1329,7 +1340,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item_data
             .connector
             .amount_converter
-            .convert(item.request.minor_amount, item.request.currency)
+            .convert(item.request.amount.amount, item.request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

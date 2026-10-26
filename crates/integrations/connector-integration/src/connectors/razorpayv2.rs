@@ -1,6 +1,6 @@
 pub mod test;
 pub mod transformers;
-use common_enums::{AttemptStatus, RefundStatus};
+use common_enums::AttemptStatus;
 use common_utils::{
     errors::CustomResult,
     events,
@@ -218,7 +218,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let connector_router_data: razorpayv2::RazorpayV2RouterData<&PaymentCreateOrderData, T> =
             razorpayv2::RazorpayV2RouterData::try_from((
-                req.request.amount,
+                req.request.amount.amount,
                 &req.request,
                 Some(
                     req.resource_common_data
@@ -395,7 +395,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone();
         let converted_amount = self
             .amount_converter
-            .convert(req.request.minor_amount, req.request.currency)
+            .convert(req.request.amount.amount, req.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -864,7 +864,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converted_amount = self
             .amount_converter
-            .convert(req.request.minor_refund_amount, req.request.currency)
+            .convert(req.request.refund_amount.amount, req.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -958,11 +958,9 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: (),
     context: (),
-    mapping_status: |_source, _ctx| { // Both UPI and non-UPI authorize handlers set
+    mapping: |_source, _ctx| { // Both UPI and non-UPI authorize handlers set
         // `AttemptStatus::AuthenticationPending` unconditionally.
-        // `Authorized` is the closest target in Authorize::TERMINAL_SUCCESS_SET;
-        // AuthenticationPending (intermediate) is not compile-time asserted.
-        AttemptStatus::AuthenticationPending },
+        non_terminal!(AuthenticationPending) },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: razorpayv2::RazorpayV2PaymentsResponse,
@@ -977,18 +975,26 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: razorpayv2::RazorpayStatus,
     context: (),
-    mapping_status: |status, _ctx| { razorpayv2::get_psync_razorpay_payment_status(status) },
+    mapping: |status, _ctx| { // Mirrors `razorpayv2::get_psync_razorpay_payment_status`
+        // (kept private in transformers for the TryFrom; table expanded here).
+        match status {
+            razorpayv2::RazorpayStatus::Created => non_terminal!(Pending),
+            razorpayv2::RazorpayStatus::Authorized => success!(Authorized),
+            razorpayv2::RazorpayStatus::Captured => success!(Charged),
+            razorpayv2::RazorpayStatus::Refunded => success!(AutoRefunded),
+            razorpayv2::RazorpayStatus::Failed => failure!(Failure),
+        } },
     runtime: {
         request: PaymentsSyncData,
-        response: &razorpayv2::RazorpayV2SyncResponse| match response {
+        response: razorpayv2::RazorpayV2SyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
             razorpayv2::RazorpayV2SyncResponse::PaymentResponse(payment) => payment.status.clone(),
             razorpayv2::RazorpayV2SyncResponse::OrderPaymentsCollection(collection) => collection
                 .items
                 .first()
                 .map(|payment| payment.status.clone())
                 .unwrap_or(razorpayv2::RazorpayStatus::Created),
-        },
-        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(|) },
+        }) },
         context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
@@ -999,16 +1005,16 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: String,
     context: (),
-    mapping_status: |status, _ctx| { match status.as_str() {
-            "processed" => RefundStatus::Success,
-            "pending" | "created" => RefundStatus::Pending,
-            "failed" => RefundStatus::Failure,
-            _ => RefundStatus::Pending,
+    mapping: |status, _ctx| { match status.as_str() {
+            "processed" => success!(Success),
+            "pending" | "created" => non_terminal!(Pending),
+            "failed" => failure!(Failure),
+            _ => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundsData,
-        response: &razorpayv2::RazorpayV2RefundResponse| response.status.clone(),
-        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(|) },
+        response: razorpayv2::RazorpayV2RefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
         context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
@@ -1019,16 +1025,16 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: String,
     context: (),
-    mapping_status: |status, _ctx| { match status.as_str() {
-            "processed" => RefundStatus::Success,
-            "pending" | "created" => RefundStatus::Pending,
-            "failed" => RefundStatus::Failure,
-            _ => RefundStatus::Pending,
+    mapping: |status, _ctx| { match status.as_str() {
+            "processed" => success!(Success),
+            "pending" | "created" => non_terminal!(Pending),
+            "failed" => failure!(Failure),
+            _ => non_terminal!(Pending),
         } },
     runtime: {
         request: RefundSyncData,
-        response: &razorpayv2::RazorpayV2RefundResponse| response.status.clone(),
-        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(|) },
+        response: razorpayv2::RazorpayV2RefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
         context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }

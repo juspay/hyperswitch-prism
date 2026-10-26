@@ -629,7 +629,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         // Get amount and currency - amount is in minor units (cents)
-        let amount = request.minor_amount;
+        let amount = request.amount.amount;
         let currency = request.currency;
 
         // Convert amount using the framework's amount converter
@@ -766,7 +766,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let common_data = &router_data.resource_common_data;
 
         // Amount information
-        let amount = request.minor_amount_to_capture;
+        let amount = request.amount_to_capture.amount;
         let currency = request.currency;
 
         // Convert amount using the framework's amount converter
@@ -883,6 +883,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Amount information - must be provided in the request
         let amount = request
             .amount
+            .as_ref()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: Default::default(),
@@ -898,7 +899,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let total_amount = item
             .connector
             .amount_converter
-            .convert(amount, currency)
+            .convert(amount.amount, currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -958,7 +959,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let request = &router_data.request;
 
         // Amount information
-        let amount = request.minor_refund_amount;
+        let amount = request.refund_amount.amount;
         let currency = request.currency;
 
         // Convert amount using the framework's amount converter
@@ -1718,7 +1719,7 @@ fn is_payment_successful(
 
 /// Maps Wells Fargo payment status to AttemptStatus
 /// The capture flag affects interpretation: Authorized+capture=true → Charged
-pub(super) fn map_attempt_status(
+pub fn map_attempt_status(
     status: &Option<WellsfargoPaymentStatus>,
     capture: bool,
     error_info: &Option<WellsfargoErrorInformation>,
@@ -1768,7 +1769,7 @@ pub(super) fn map_attempt_status(
 }
 
 /// Maps Wells Fargo payment status to RefundStatus
-pub(super) fn get_refund_status(
+pub fn get_refund_status(
     status: &Option<WellsfargoPaymentStatus>,
     error_info: &Option<WellsfargoErrorInformation>,
 ) -> RefundStatus {

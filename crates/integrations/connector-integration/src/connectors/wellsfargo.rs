@@ -741,7 +741,35 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: WellsfargoPaymentsResponse,
     context: bool,
-    mapping_status: |response, capture| { wellsfargo::map_attempt_status(&response.status, capture, &response.error_information) },
+    mapping: |response, capture| {
+        let mapped_status = (|| { wellsfargo::map_attempt_status(&response.status, capture, &response.error_information) })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: WellsfargoPaymentsResponse,
@@ -756,7 +784,8 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: WellsfargoPaymentsResponse,
     context: (),
-    mapping_status: |response, _ctx| { if response.status.is_none()
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { if response.status.is_none()
             && response
                 .status_information
                 .as_ref()
@@ -766,7 +795,41 @@ domain_types::impl_flow_status_mapping! {
             AttemptStatus::Charged
         } else {
             wellsfargo::map_attempt_status(&response.status, false, &response.error_information)
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: WellsfargoPSyncResponse,
@@ -781,7 +844,20 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: WellsfargoPaymentsResponse,
     context: (),
-    mapping_status: |response, _ctx| { wellsfargo::map_attempt_status(&response.status, true, &response.error_information) },
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { wellsfargo::map_attempt_status(&response.status, true, &response.error_information) })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: WellsfargoCaptureResponse,
@@ -796,7 +872,17 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: WellsfargoPaymentsResponse,
     context: (),
-    mapping_status: |response, _ctx| { wellsfargo::map_attempt_status(&response.status, false, &response.error_information) },
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { wellsfargo::map_attempt_status(&response.status, false, &response.error_information) })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: WellsfargoVoidResponse,
@@ -811,12 +897,25 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: WellsfargoPaymentsResponse,
     context: (),
-    mapping_status: |response, _ctx| { let status = wellsfargo::map_attempt_status(&response.status, false, &response.error_information);
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { let status = wellsfargo::map_attempt_status(&response.status, false, &response.error_information);
         if status == AttemptStatus::Authorized {
             AttemptStatus::Charged
         } else {
             status
-        } },
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: SetupMandateRequestData<T>,
         response: WellsfargoSetupMandateResponse,
@@ -831,7 +930,17 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: WellsfargoPaymentsResponse,
     context: (),
-    mapping_status: |response, _ctx| { wellsfargo::get_refund_status(&response.status, &response.error_information) },
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { wellsfargo::get_refund_status(&response.status, &response.error_information) })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: WellsfargoRefundResponse,
@@ -846,11 +955,21 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: Option<wellsfargo::WellsfargoRefundStatus>,
     context: Option<wellsfargo::WellsfargoErrorInformation>,
-    mapping_status: |status, error_information| { match status {
+    mapping: |status, error_information| {
+        let mapped_status = (|| { match status {
             Some(refund_status) => RefundStatus::from(refund_status),
             None if error_information.is_some() => RefundStatus::Failure,
             None => RefundStatus::Pending,
-        } },
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: WellsfargoRefundSyncResponse,

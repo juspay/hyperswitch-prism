@@ -1263,12 +1263,6 @@ pub struct AdyenRepeatPaymentRequest(pub AdyenPaymentRequest<DefaultPCIHolder>);
 #[serde(transparent)]
 pub struct AdyenRepeatPaymentResponse(pub AdyenPaymentResponse);
 
-impl AdyenRepeatPaymentResponse {
-    pub(crate) fn result_code(&self) -> AdyenStatus {
-        self.0.result_code()
-    }
-}
-
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1375,7 +1369,7 @@ fn get_amount_data<
 ) -> Amount {
     Amount {
         currency: item.router_data.request.currency,
-        value: item.router_data.request.minor_amount.to_owned(),
+        value: item.router_data.request.amount.amount.to_owned(),
     }
 }
 
@@ -4053,39 +4047,11 @@ pub enum AdyenPaymentResponse {
     WebhookResponse(Box<AdyenWebhookResponse>),
 }
 
-impl AdyenPaymentResponse {
-    /// The `result_code` carried by every payments-response leg; webhook responses
-    /// have no `result_code`, so they report `AdyenStatus::Unknown` (which maps to
-    /// `AttemptStatus::Unspecified`, preserving the prior attempt status).
-    pub(crate) fn result_code(&self) -> AdyenStatus {
-        match self {
-            Self::Response(x) => x.result_code.clone(),
-            Self::PresentToShopper(x) => x.result_code.clone(),
-            Self::QrCodeResponse(x) => x.result_code.clone(),
-            Self::RedirectionResponse(x) => x.result_code.clone(),
-            Self::RedirectionErrorResponse(x) => x.result_code.clone(),
-            Self::WebhookResponse(_) => AdyenStatus::Unknown,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AdyenPSyncResponse(AdyenPaymentResponse);
 
-impl AdyenPSyncResponse {
-    pub(crate) fn result_code(&self) -> AdyenStatus {
-        self.0.result_code()
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SetupMandateResponse(AdyenPaymentResponse);
-
-impl SetupMandateResponse {
-    pub(crate) fn result_code(&self) -> AdyenStatus {
-        self.0.result_code()
-    }
-}
 
 pub struct AdyenPaymentsResponseData {
     pub status: AttemptStatus,
@@ -4447,7 +4413,7 @@ where
             )?,
         };
 
-        let minor_amount_captured = match adyen_payments_response_data.status {
+        let amount_captured = match adyen_payments_response_data.status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
@@ -4478,8 +4444,7 @@ where
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured,
+                amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
             },
@@ -4592,7 +4557,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )?,
         };
 
-        let minor_amount_captured = match adyen_payments_response_data.status {
+        let amount_captured = match adyen_payments_response_data.status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
@@ -4616,8 +4581,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured,
+                amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
             },
@@ -6428,7 +6392,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant_account: auth_type.merchant_account,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.minor_refund_amount,
+                value: item.router_data.request.refund_amount.amount,
             },
             merchant_refund_reason: item.router_data.request.reason.clone(),
             reference: item.router_data.request.refund_id.clone(),
@@ -6508,13 +6472,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             reference,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.minor_amount_to_capture.to_owned(),
+                value: item.router_data.request.amount_to_capture.amount.to_owned(),
             },
         })
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCaptureResponse {
     merchant_account: Secret<String>,
@@ -7040,7 +7004,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             )?,
         };
 
-        let minor_amount_captured = match adyen_payments_response_data.status {
+        let amount_captured = match adyen_payments_response_data.status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
@@ -7064,8 +7028,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured,
+                amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
             },
@@ -7089,7 +7052,13 @@ fn get_amount_data_for_setup_mandate<
 ) -> Amount {
     Amount {
         currency: item.router_data.request.currency,
-        value: MinorUnit::new(item.router_data.request.amount.unwrap_or(0)),
+        value: item
+            .router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
+            .unwrap_or_else(MinorUnit::zero),
     }
 }
 
@@ -7262,7 +7231,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let mandate_ref_id = item.router_data.request.mandate_reference.clone();
         let amount = Amount {
             currency: item.router_data.request.currency,
-            value: item.router_data.request.minor_amount,
+            value: item.router_data.request.amount.amount,
         };
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::ContinuedAuthentication;
@@ -7323,7 +7292,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .resource_common_data
                             .get_optional_billing_full_name();
                         let raw_card_number = RawCardNumber(
-                            card_details_for_network_transaction_id.card_number.clone(),
+                            card_details_for_network_transaction_id
+                                .card_number
+                                .try_card_number("Adyen")?,
                         );
                         let adyen_card = AdyenCard {
                             number: raw_card_number,
@@ -8226,8 +8197,8 @@ fn get_line_items<
             .collect(),
         None => {
             let line_item = LineItem {
-                amount_including_tax: Some(item.router_data.request.amount),
-                amount_excluding_tax: Some(item.router_data.request.amount),
+                amount_including_tax: Some(item.router_data.request.amount.amount),
+                amount_excluding_tax: Some(item.router_data.request.amount.amount),
                 description: item.router_data.resource_common_data.description.clone(),
                 id: Some(String::from("Items #1")),
                 tax_amount: None,
@@ -8428,7 +8399,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = Amount {
             currency: router_data.request.currency,
-            value: router_data.request.amount,
+            value: router_data.request.amount.amount,
         };
 
         let reference = router_data
@@ -8552,7 +8523,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = Amount {
             currency: router_data.request.currency,
-            value: router_data.request.amount,
+            value: router_data.request.amount.amount,
         };
 
         let reference = router_data
@@ -8682,7 +8653,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant_account: auth_type.merchant_account,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.minor_amount.to_owned(),
+                value: item.router_data.request.amount.amount.to_owned(),
             },
             reference: Some(
                 item.router_data
@@ -8826,5 +8797,39 @@ fn get_capture_delay_hours(
             }
             .into()),
         },
+    }
+}
+
+impl SetupMandateResponse {
+    pub(crate) fn result_code(&self) -> AdyenStatus {
+        self.0.result_code()
+    }
+}
+
+impl AdyenRepeatPaymentResponse {
+    pub(crate) fn result_code(&self) -> AdyenStatus {
+        self.0.result_code()
+    }
+}
+
+impl AdyenPaymentResponse {
+    /// The `result_code` carried by every payments-response leg; webhook responses
+    /// have no `result_code`, so they report `AdyenStatus::Unknown` (which maps to
+    /// `AttemptStatus::Unspecified`, preserving the prior attempt status).
+    pub(crate) fn result_code(&self) -> AdyenStatus {
+        match self {
+            Self::Response(x) => x.result_code.clone(),
+            Self::PresentToShopper(x) => x.result_code.clone(),
+            Self::QrCodeResponse(x) => x.result_code.clone(),
+            Self::RedirectionResponse(x) => x.result_code.clone(),
+            Self::RedirectionErrorResponse(x) => x.result_code.clone(),
+            Self::WebhookResponse(_) => AdyenStatus::Unknown,
+        }
+    }
+}
+
+impl AdyenPSyncResponse {
+    pub(crate) fn result_code(&self) -> AdyenStatus {
+        self.0.result_code()
     }
 }

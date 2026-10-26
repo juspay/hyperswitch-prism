@@ -71,16 +71,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Fiserv<T>,
     flow: Authorize,
     source: transformers::FiservPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::FiservPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            transformers::FiservPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::FiservPaymentStatus::Succeeded => common_enums::AttemptStatus::Charged,
-            transformers::FiservPaymentStatus::Captured => common_enums::AttemptStatus::Charged,
-            transformers::FiservPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            transformers::FiservPaymentStatus::Voided => common_enums::AttemptStatus::Voided,
-            transformers::FiservPaymentStatus::Processing => common_enums::AttemptStatus::Authorizing,
-            transformers::FiservPaymentStatus::Created => common_enums::AttemptStatus::AuthenticationPending,
+            transformers::FiservPaymentStatus::Authorized => success!(Authorized),
+            transformers::FiservPaymentStatus::Failed => failure!(Failure),
+            transformers::FiservPaymentStatus::Succeeded => success!(Charged),
+            transformers::FiservPaymentStatus::Captured => success!(Charged),
+            transformers::FiservPaymentStatus::Declined => failure!(Failure),
+            transformers::FiservPaymentStatus::Voided => non_terminal!(Voided),
+            transformers::FiservPaymentStatus::Processing => non_terminal!(Authorizing),
+            transformers::FiservPaymentStatus::Created => non_terminal!(AuthenticationPending),
         }
     },
     runtime: {
@@ -99,16 +99,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Fiserv<T>,
     flow: PSync,
     source: transformers::FiservPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::FiservPaymentStatus::Succeeded => common_enums::AttemptStatus::Charged,
-            transformers::FiservPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::FiservPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            transformers::FiservPaymentStatus::Captured => common_enums::AttemptStatus::Charged,
-            transformers::FiservPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            transformers::FiservPaymentStatus::Voided => common_enums::AttemptStatus::Voided,
-            transformers::FiservPaymentStatus::Processing => common_enums::AttemptStatus::Authorizing,
-            transformers::FiservPaymentStatus::Created => common_enums::AttemptStatus::AuthenticationPending,
+            transformers::FiservPaymentStatus::Succeeded => success!(Charged),
+            transformers::FiservPaymentStatus::Failed => failure!(Failure),
+            transformers::FiservPaymentStatus::Authorized => success!(Authorized),
+            transformers::FiservPaymentStatus::Captured => success!(Charged),
+            transformers::FiservPaymentStatus::Declined => failure!(Failure),
+            transformers::FiservPaymentStatus::Voided => success!(Voided),
+            transformers::FiservPaymentStatus::Processing => non_terminal!(Authorizing),
+            transformers::FiservPaymentStatus::Created => non_terminal!(AuthenticationPending),
         }
     },
     runtime: {
@@ -126,16 +126,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Fiserv<T>,
     flow: Void,
     source: transformers::FiservPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::FiservPaymentStatus::Voided => common_enums::AttemptStatus::Voided,
-            transformers::FiservPaymentStatus::Failed => common_enums::AttemptStatus::VoidFailed,
-            transformers::FiservPaymentStatus::Authorized => common_enums::AttemptStatus::VoidInitiated,
-            transformers::FiservPaymentStatus::Succeeded => common_enums::AttemptStatus::VoidFailed,
-            transformers::FiservPaymentStatus::Captured => common_enums::AttemptStatus::VoidFailed,
-            transformers::FiservPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            transformers::FiservPaymentStatus::Processing => common_enums::AttemptStatus::Pending,
-            transformers::FiservPaymentStatus::Created => common_enums::AttemptStatus::Pending,
+            transformers::FiservPaymentStatus::Voided => success!(Voided),
+            transformers::FiservPaymentStatus::Failed => failure!(VoidFailed),
+            transformers::FiservPaymentStatus::Authorized => non_terminal!(VoidInitiated),
+            transformers::FiservPaymentStatus::Succeeded => failure!(VoidFailed),
+            transformers::FiservPaymentStatus::Captured => failure!(VoidFailed),
+            transformers::FiservPaymentStatus::Declined => failure!(Failure),
+            transformers::FiservPaymentStatus::Processing => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Created => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -153,16 +153,16 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Fiserv<T>,
     flow: RSync,
     source: transformers::FiservPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::FiservPaymentStatus::Succeeded => common_enums::RefundStatus::Success,
-            transformers::FiservPaymentStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::FiservPaymentStatus::Captured => common_enums::RefundStatus::Success,
-            transformers::FiservPaymentStatus::Authorized => common_enums::RefundStatus::Success,
-            transformers::FiservPaymentStatus::Declined => common_enums::RefundStatus::Failure,
-            transformers::FiservPaymentStatus::Voided => common_enums::RefundStatus::Pending,
-            transformers::FiservPaymentStatus::Processing => common_enums::RefundStatus::Pending,
-            transformers::FiservPaymentStatus::Created => common_enums::RefundStatus::Pending,
+            transformers::FiservPaymentStatus::Succeeded => success!(Success),
+            transformers::FiservPaymentStatus::Failed => failure!(Failure),
+            transformers::FiservPaymentStatus::Captured => success!(Success),
+            transformers::FiservPaymentStatus::Authorized => success!(Success),
+            transformers::FiservPaymentStatus::Declined => failure!(Failure),
+            transformers::FiservPaymentStatus::Voided => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Processing => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Created => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -180,16 +180,16 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Fiserv<T>,
     flow: Refund,
     source: transformers::FiservPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::FiservPaymentStatus::Succeeded => common_enums::RefundStatus::Success,
-            transformers::FiservPaymentStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::FiservPaymentStatus::Captured => common_enums::RefundStatus::Success,
-            transformers::FiservPaymentStatus::Authorized => common_enums::RefundStatus::Success,
-            transformers::FiservPaymentStatus::Declined => common_enums::RefundStatus::Failure,
-            transformers::FiservPaymentStatus::Voided => common_enums::RefundStatus::Pending,
-            transformers::FiservPaymentStatus::Processing => common_enums::RefundStatus::Pending,
-            transformers::FiservPaymentStatus::Created => common_enums::RefundStatus::Pending,
+            transformers::FiservPaymentStatus::Succeeded => success!(Success),
+            transformers::FiservPaymentStatus::Failed => failure!(Failure),
+            transformers::FiservPaymentStatus::Captured => success!(Success),
+            transformers::FiservPaymentStatus::Authorized => success!(Success),
+            transformers::FiservPaymentStatus::Declined => failure!(Failure),
+            transformers::FiservPaymentStatus::Voided => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Processing => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Created => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -207,16 +207,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Fiserv<T>,
     flow: Capture,
     source: transformers::FiservPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::FiservPaymentStatus::Captured => common_enums::AttemptStatus::Charged,
-            transformers::FiservPaymentStatus::Failed => common_enums::AttemptStatus::CaptureFailed,
-            transformers::FiservPaymentStatus::Authorized => common_enums::AttemptStatus::Pending,
-            transformers::FiservPaymentStatus::Succeeded => common_enums::AttemptStatus::Charged,
-            transformers::FiservPaymentStatus::Declined => common_enums::AttemptStatus::CaptureFailed,
-            transformers::FiservPaymentStatus::Voided => common_enums::AttemptStatus::CaptureFailed,
-            transformers::FiservPaymentStatus::Processing => common_enums::AttemptStatus::Pending,
-            transformers::FiservPaymentStatus::Created => common_enums::AttemptStatus::Pending,
+            transformers::FiservPaymentStatus::Captured => success!(Charged),
+            transformers::FiservPaymentStatus::Failed => failure!(CaptureFailed),
+            transformers::FiservPaymentStatus::Authorized => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Succeeded => success!(Charged),
+            transformers::FiservPaymentStatus::Declined => failure!(CaptureFailed),
+            transformers::FiservPaymentStatus::Voided => failure!(CaptureFailed),
+            transformers::FiservPaymentStatus::Processing => non_terminal!(Pending),
+            transformers::FiservPaymentStatus::Created => non_terminal!(Pending),
         }
     },
     runtime: {

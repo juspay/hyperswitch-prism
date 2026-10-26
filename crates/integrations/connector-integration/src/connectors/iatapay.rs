@@ -63,15 +63,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Iatapay<T>,
     flow: Authorize,
     source: transformers::IatapayPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::IatapayPaymentStatus::Authorized => common_enums::AttemptStatus::Charged,
-            transformers::IatapayPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::IatapayPaymentStatus::Created => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::IatapayPaymentStatus::Initiated => common_enums::AttemptStatus::Pending,
-            transformers::IatapayPaymentStatus::Settled => common_enums::AttemptStatus::Charged,
-            transformers::IatapayPaymentStatus::Cleared => common_enums::AttemptStatus::Charged,
-            transformers::IatapayPaymentStatus::UnexpectedSettled => common_enums::AttemptStatus::Failure,
+            transformers::IatapayPaymentStatus::Authorized => success!(Charged),
+            transformers::IatapayPaymentStatus::Failed => failure!(Failure),
+            transformers::IatapayPaymentStatus::Created => non_terminal!(AuthenticationPending),
+            transformers::IatapayPaymentStatus::Initiated => non_terminal!(Pending),
+            transformers::IatapayPaymentStatus::Settled => success!(Charged),
+            transformers::IatapayPaymentStatus::Cleared => success!(Charged),
+            transformers::IatapayPaymentStatus::UnexpectedSettled => failure!(Failure),
         }
     },
     runtime: {
@@ -90,15 +90,15 @@ domain_types::impl_flow_status_mapping! {
     connector: Iatapay<T>,
     flow: PSync,
     source: transformers::IatapayPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::IatapayPaymentStatus::Authorized => common_enums::AttemptStatus::Charged,
-            transformers::IatapayPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::IatapayPaymentStatus::Created => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::IatapayPaymentStatus::Initiated => common_enums::AttemptStatus::Pending,
-            transformers::IatapayPaymentStatus::Settled => common_enums::AttemptStatus::Charged,
-            transformers::IatapayPaymentStatus::Cleared => common_enums::AttemptStatus::Charged,
-            transformers::IatapayPaymentStatus::UnexpectedSettled => common_enums::AttemptStatus::Failure,
+            transformers::IatapayPaymentStatus::Authorized => success!(Charged),
+            transformers::IatapayPaymentStatus::Failed => failure!(Failure),
+            transformers::IatapayPaymentStatus::Created => non_terminal!(AuthenticationPending),
+            transformers::IatapayPaymentStatus::Initiated => non_terminal!(Pending),
+            transformers::IatapayPaymentStatus::Settled => success!(Charged),
+            transformers::IatapayPaymentStatus::Cleared => success!(Charged),
+            transformers::IatapayPaymentStatus::UnexpectedSettled => failure!(Failure),
         }
     },
     runtime: {
@@ -118,15 +118,15 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Iatapay<T>,
     flow: Refund,
     source: transformers::IatapayRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::IatapayRefundStatus::Settled => common_enums::RefundStatus::Success,
-            transformers::IatapayRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::IatapayRefundStatus::Created => common_enums::RefundStatus::Pending,
-            transformers::IatapayRefundStatus::Locked => common_enums::RefundStatus::Pending,
-            transformers::IatapayRefundStatus::Initiated => common_enums::RefundStatus::Pending,
-            transformers::IatapayRefundStatus::Authorized => common_enums::RefundStatus::Pending,
-            transformers::IatapayRefundStatus::Cleared => common_enums::RefundStatus::Success,
+            transformers::IatapayRefundStatus::Settled => success!(Success),
+            transformers::IatapayRefundStatus::Failed => failure!(Failure),
+            transformers::IatapayRefundStatus::Created => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Locked => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Initiated => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Authorized => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Cleared => success!(Success),
         }
     },
     runtime: {
@@ -145,15 +145,15 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Iatapay<T>,
     flow: RSync,
     source: transformers::IatapayRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            transformers::IatapayRefundStatus::Settled => common_enums::RefundStatus::Success,
-            transformers::IatapayRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::IatapayRefundStatus::Created => common_enums::RefundStatus::Pending,
-            transformers::IatapayRefundStatus::Locked => common_enums::RefundStatus::Pending,
-            transformers::IatapayRefundStatus::Initiated => common_enums::RefundStatus::Pending,
-            transformers::IatapayRefundStatus::Authorized => common_enums::RefundStatus::Pending,
-            transformers::IatapayRefundStatus::Cleared => common_enums::RefundStatus::Success,
+            transformers::IatapayRefundStatus::Settled => success!(Success),
+            transformers::IatapayRefundStatus::Failed => failure!(Failure),
+            transformers::IatapayRefundStatus::Created => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Locked => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Initiated => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Authorized => non_terminal!(Pending),
+            transformers::IatapayRefundStatus::Cleared => success!(Success),
         }
     },
     runtime: {

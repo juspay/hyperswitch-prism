@@ -15,7 +15,7 @@ use domain_types::{
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -199,7 +199,7 @@ impl<T: PaymentMethodDataTypes>
         // Use FloatMajorUnitForConnector to properly convert minor to major unit
         let converter = FloatMajorUnitForConnector;
         let amount_major = converter
-            .convert(item.request.minor_amount, item.request.currency)
+            .convert(item.request.amount.amount, item.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -296,7 +296,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         // No validation needed here
 
         // Get capture amount from minor_amount_to_capture
-        let capture_amount = item.request.minor_amount_to_capture;
+        let capture_amount = item.request.amount_to_capture.amount;
 
         // Convert amount to FloatMajorUnit format
         let converter = FloatMajorUnitForConnector;
@@ -320,7 +320,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
 
 // ===== RESPONSE STATUS ENUMS =====
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AuthipayTransactionType {
     Sale,
@@ -333,7 +333,6 @@ pub enum AuthipayTransactionType {
     PayerAuth,
     Disbursement,
     #[serde(other)]
-    #[default]
     Unknown,
 }
 
@@ -374,32 +373,6 @@ pub enum AuthipayTransactionState {
     Settled,
     Voided,
     Waiting,
-}
-
-/// Context bundle for the Authorize/PSync/Capture `impl_flow_status_mapping_ctx!`
-/// declarations. Mirrors the fields `map_status` consults beyond the status enum.
-#[derive(Debug, Clone, Default)]
-pub struct AuthipayPaymentCtx {
-    pub transaction_type: AuthipayTransactionType,
-    pub transaction_status: Option<AuthipayPaymentStatus>,
-    pub transaction_result: Option<AuthipayPaymentResult>,
-    pub transaction_state: Option<AuthipayTransactionState>,
-}
-
-/// Same fields as [`AuthipayPaymentCtx`], reused for the Void flow — its mapper
-/// (`map_void_status`) takes the same four inputs.
-pub type AuthipayVoidCtx = AuthipayPaymentCtx;
-
-/// Context bundle for the Refund/RSync `impl_refund_flow_status_mapping_ctx!`
-/// declarations. Mirrors the four optional fields `map_refund_status` consults;
-/// unlike [`AuthipayPaymentCtx`], `transaction_type` is Option here because
-/// `map_refund_status` treats a missing type as Pending.
-#[derive(Debug, Default, Clone)]
-pub struct AuthipayRefundCtx {
-    pub transaction_type: Option<AuthipayTransactionType>,
-    pub transaction_status: Option<AuthipayPaymentStatus>,
-    pub transaction_result: Option<AuthipayPaymentResult>,
-    pub transaction_state: Option<AuthipayTransactionState>,
 }
 
 // ===== RESPONSE STRUCTURES =====
@@ -526,7 +499,7 @@ fn extract_network_fields(
 // ===== STATUS MAPPING FUNCTION =====
 // CRITICAL: This checks BOTH transactionResult AND transactionStatus, AND considers transactionType
 
-pub(crate) fn map_status(
+pub fn map_status(
     authipay_status: Option<AuthipayPaymentStatus>,
     authipay_result: Option<AuthipayPaymentResult>,
     authipay_state: Option<AuthipayTransactionState>,
@@ -632,8 +605,47 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AuthipayPaymentsRespo
         let (network_txn_id, _network_decline_code, _network_error_message) =
             extract_network_fields(item.response.processor.as_ref());
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        // Authipay signals decline via transactionStatus/transactionResult/transactionState.
+        // Surface declined payments as Err(ErrorResponse) so harness assertions on
+        // error.must_exist and error.connector_details.message work correctly.
+        let is_failure = matches!(
+            status,
+            AttemptStatus::Failure | AttemptStatus::AuthorizationFailed
+        );
+        let response = if is_failure {
+            let decline_message = item
+                .response
+                .error_message
+                .clone()
+                .or_else(|| {
+                    item.response
+                        .processor
+                        .as_ref()
+                        .and_then(|p| p.response_message.clone())
+                })
+                .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string());
+            Err(ErrorResponse {
+                code: item
+                    .response
+                    .processor
+                    .as_ref()
+                    .and_then(|p| p.association_response_code.clone())
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                message: decline_message.clone(),
+                reason: Some(decline_message),
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: Some(item.response.ipg_transaction_id.clone()),
+                network_advice_code: None,
+                network_decline_code: _network_decline_code,
+                network_error_message: _network_error_message,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.ipg_transaction_id.clone(),
                 ),
@@ -647,7 +659,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AuthipayPaymentsRespo
                 status_code: item.http_code,
                 splits: None,
                 payment_account_reference: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -789,7 +805,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         // Convert refund amount to major unit format
         let converter = FloatMajorUnitForConnector;
         let amount_major = converter
-            .convert(item.request.minor_refund_amount, item.request.currency)
+            .convert(item.request.refund_amount.amount, item.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -847,7 +863,7 @@ use common_enums::RefundStatus;
 // 3. transactionState should be CAPTURED for success
 // ONLY returns RefundStatus::Success when ALL conditions are met
 
-pub(crate) fn map_refund_status(
+pub fn map_refund_status(
     transaction_type: Option<AuthipayTransactionType>,
     transaction_status: Option<AuthipayPaymentStatus>,
     transaction_result: Option<AuthipayPaymentResult>,
@@ -987,7 +1003,7 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
 // 3. transactionState should be VOIDED for success
 // ONLY returns AttemptStatus::Voided when ALL conditions are met
 
-pub(crate) fn map_void_status(
+pub fn map_void_status(
     transaction_type: AuthipayTransactionType,
     transaction_status: Option<AuthipayPaymentStatus>,
     transaction_result: Option<AuthipayPaymentResult>,

@@ -824,19 +824,19 @@ domain_types::impl_flow_status_mapping! {
     connector: Nexixpay<T>,
     flow: Authorize,
     source: transformers::NexixpayPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::NexixpayPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            transformers::NexixpayPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::DeniedByRisk => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::ThreedsFailed => common_enums::AttemptStatus::AuthenticationFailed,
-            transformers::NexixpayPaymentStatus::ThreedsValidated => common_enums::AttemptStatus::AuthenticationSuccessful,
-            transformers::NexixpayPaymentStatus::Executed => common_enums::AttemptStatus::Charged,
-            transformers::NexixpayPaymentStatus::Pending => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::NexixpayPaymentStatus::Canceled => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::Voided => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::Refunded => common_enums::AttemptStatus::AutoRefunded,
+            transformers::NexixpayPaymentStatus::Authorized => success!(Authorized),
+            transformers::NexixpayPaymentStatus::Failed => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Declined => failure!(Failure),
+            transformers::NexixpayPaymentStatus::DeniedByRisk => failure!(Failure),
+            transformers::NexixpayPaymentStatus::ThreedsFailed => failure!(AuthenticationFailed),
+            transformers::NexixpayPaymentStatus::ThreedsValidated => non_terminal!(AuthenticationSuccessful),
+            transformers::NexixpayPaymentStatus::Executed => success!(Charged),
+            transformers::NexixpayPaymentStatus::Pending => non_terminal!(AuthenticationPending),
+            transformers::NexixpayPaymentStatus::Canceled => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Voided => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Refunded => non_terminal!(AutoRefunded),
         }
     },
     runtime: {
@@ -853,19 +853,19 @@ domain_types::impl_flow_status_mapping! {
     connector: Nexixpay<T>,
     flow: PSync,
     source: transformers::NexixpayPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::NexixpayPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            transformers::NexixpayPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::DeniedByRisk => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::ThreedsFailed => common_enums::AttemptStatus::AuthenticationFailed,
-            transformers::NexixpayPaymentStatus::ThreedsValidated => common_enums::AttemptStatus::AuthenticationSuccessful,
-            transformers::NexixpayPaymentStatus::Executed => common_enums::AttemptStatus::Charged,
-            transformers::NexixpayPaymentStatus::Pending => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::NexixpayPaymentStatus::Canceled => common_enums::AttemptStatus::Voided,
-            transformers::NexixpayPaymentStatus::Voided => common_enums::AttemptStatus::Voided,
-            transformers::NexixpayPaymentStatus::Refunded => common_enums::AttemptStatus::AutoRefunded,
+            transformers::NexixpayPaymentStatus::Authorized => success!(Authorized),
+            transformers::NexixpayPaymentStatus::Failed => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Declined => failure!(Failure),
+            transformers::NexixpayPaymentStatus::DeniedByRisk => failure!(Failure),
+            transformers::NexixpayPaymentStatus::ThreedsFailed => failure!(AuthenticationFailed),
+            transformers::NexixpayPaymentStatus::ThreedsValidated => non_terminal!(AuthenticationSuccessful),
+            transformers::NexixpayPaymentStatus::Executed => success!(Charged),
+            transformers::NexixpayPaymentStatus::Pending => non_terminal!(AuthenticationPending),
+            transformers::NexixpayPaymentStatus::Canceled => success!(Voided),
+            transformers::NexixpayPaymentStatus::Voided => success!(Voided),
+            transformers::NexixpayPaymentStatus::Refunded => success!(AutoRefunded),
         }
     },
     runtime: {
@@ -885,51 +885,59 @@ domain_types::impl_flow_status_mapping! {
 // + `operationTime` (`NexixpayVoidResponse`), and the TryFrom hardcodes
 // `AttemptStatus::Voided` — no status enum exists on the response to map.
 //
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Nexixpay<T>,
     flow: PreAuthenticate,
-    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
+    source: NexixpayPreAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+
+
+            use transformers::NexixpayPaymentStatus;
+            match &response.operation.operation_result {
+                NexixpayPaymentStatus::ThreedsValidated => {
+                    success!(AuthenticationSuccessful)
+                }
+                NexixpayPaymentStatus::ThreedsFailed
+                | NexixpayPaymentStatus::Declined
+                | NexixpayPaymentStatus::DeniedByRisk => failure!(AuthenticationFailed),
+                _ => non_terminal!(AuthenticationPending),
+            }
+        },
     runtime: {
         request: PaymentsPreAuthenticateData<T>,
         response: NexixpayPreAuthenticateResponse,
-        status: |_request, response| {
-            use common_enums::AttemptStatus;
-            use transformers::NexixpayPaymentStatus;
-            match &response.operation.operation_result {
-                NexixpayPaymentStatus::ThreedsValidated => {
-                    AttemptStatus::AuthenticationSuccessful
-                }
-                NexixpayPaymentStatus::ThreedsFailed
-                | NexixpayPaymentStatus::Declined
-                | NexixpayPaymentStatus::DeniedByRisk => AttemptStatus::AuthenticationFailed,
-                _ => AttemptStatus::AuthenticationPending,
-            }
-        },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Nexixpay<T>,
     flow: PostAuthenticate,
-    statuses: [AuthenticationPending, AuthenticationSuccessful, AuthenticationFailed],
-    runtime: {
-        request: PaymentsPostAuthenticateData<T>,
-        response: NexixpayPostAuthenticateResponse,
-        status: |_request, response| {
-            use common_enums::AttemptStatus;
+    source: NexixpayPostAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+
+
             use transformers::NexixpayPaymentStatus;
             match &response.operation.operation_result {
                 NexixpayPaymentStatus::ThreedsValidated => {
-                    AttemptStatus::AuthenticationSuccessful
+                    success!(AuthenticationSuccessful)
                 }
                 NexixpayPaymentStatus::ThreedsFailed
                 | NexixpayPaymentStatus::Declined
-                | NexixpayPaymentStatus::DeniedByRisk => AttemptStatus::AuthenticationFailed,
-                _ => AttemptStatus::AuthenticationPending,
+                | NexixpayPaymentStatus::DeniedByRisk => failure!(AuthenticationFailed),
+                _ => non_terminal!(AuthenticationPending),
             }
         },
+    runtime: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: NexixpayPostAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
 }
 
@@ -948,21 +956,20 @@ domain_types::impl_flow_status_mapping! {
     connector: Nexixpay<T>,
     flow: RepeatPayment,
     source: transformers::NexixpayPaymentStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::NexixpayPaymentStatus::Executed => common_enums::AttemptStatus::Charged,
-            transformers::NexixpayPaymentStatus::Failed => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::DeniedByRisk => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::ThreedsFailed => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
-            transformers::NexixpayPaymentStatus::Pending => common_enums::AttemptStatus::AuthenticationPending,
-            transformers::NexixpayPaymentStatus::Canceled => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::Voided => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::Refunded => common_enums::AttemptStatus::Failure,
-            transformers::NexixpayPaymentStatus::ThreedsValidated => common_enums::AttemptStatus::Failure,
-        }
-    },
+            transformers::NexixpayPaymentStatus::Executed => success!(Charged),
+            transformers::NexixpayPaymentStatus::Failed => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Declined => failure!(Failure),
+            transformers::NexixpayPaymentStatus::DeniedByRisk => failure!(Failure),
+            transformers::NexixpayPaymentStatus::ThreedsFailed => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Authorized => non_terminal!(Authorized),
+            transformers::NexixpayPaymentStatus::Pending => non_terminal!(AuthenticationPending),
+            transformers::NexixpayPaymentStatus::Canceled => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Voided => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Refunded => failure!(Failure),
+            transformers::NexixpayPaymentStatus::ThreedsValidated => failure!(Failure),
+        } },
     runtime: {
         request: RepeatPaymentData<T>,
         response: NexixpayRepeatPaymentResponse,
@@ -982,13 +989,13 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Nexixpay<T>,
     flow: RSync,
     source: transformers::NexixpayRefundResultStatus,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::NexixpayRefundResultStatus::Refunded => common_enums::RefundStatus::Success,
-            transformers::NexixpayRefundResultStatus::Failed => common_enums::RefundStatus::Failure,
-            transformers::NexixpayRefundResultStatus::Executed => common_enums::RefundStatus::Success,
-            transformers::NexixpayRefundResultStatus::Voided => common_enums::RefundStatus::Success,
-            transformers::NexixpayRefundResultStatus::Pending => common_enums::RefundStatus::Pending,
+            transformers::NexixpayRefundResultStatus::Refunded => success!(Success),
+            transformers::NexixpayRefundResultStatus::Failed => failure!(Failure),
+            transformers::NexixpayRefundResultStatus::Executed => success!(Success),
+            transformers::NexixpayRefundResultStatus::Voided => success!(Success),
+            transformers::NexixpayRefundResultStatus::Pending => non_terminal!(Pending),
         }
     },
     runtime: {

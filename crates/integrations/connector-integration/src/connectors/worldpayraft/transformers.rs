@@ -306,7 +306,7 @@ pub(super) fn parse_connector_transaction_id(
     }
 }
 
-fn map_payment_status(return_code: &str, response_code: &str) -> bool {
+pub fn map_payment_status(return_code: &str, response_code: &str) -> bool {
     return_code == RETURN_CODE_SUCCESS && response_code == RESPONSE_CODE_SUCCESS
 }
 

@@ -2,16 +2,16 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
+use common_enums::CurrencyUnit;
 use common_utils::{
     consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, IncrementalAuthorization, Refund, RepeatPayment, SetupMandate, Void,
+        Authorize, Capture, IncrementalAuthorization, Refund, RepeatPayment, SetupMandate,
     },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, RefundFlowData, RefundsData,
         RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
     },
@@ -36,7 +36,7 @@ use transformers::{
     WorldpayraftIncrementalAuthorizationResponse, WorldpayraftRefundRequest,
     WorldpayraftRefundResponse, WorldpayraftRepeatPaymentRequest,
     WorldpayraftRepeatPaymentResponse, WorldpayraftSetupMandateRequest,
-    WorldpayraftSetupMandateResponse, WorldpayraftVoidRequest, WorldpayraftVoidResponse,
+    WorldpayraftSetupMandateResponse,
 };
 
 use crate::{connectors::macros, types::ResponseRouterData, utils, with_error_response_body};
@@ -79,7 +79,7 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: SetupMandate,
-            request_body: WorldpayraftSetupMandateRequest,
+            request_body: WorldpayraftSetupMandateRequest<T>,
             response_body: WorldpayraftSetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
@@ -503,10 +503,10 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: (String, String),
     context: (),
-    mapping_status: |codes, _ctx| { if codes.0 == "0000" && codes.1 == "000" {
-            AttemptStatus::Authorized
+    mapping: |codes, _ctx|{ if codes.0 == "0000" && codes.1 == "000" {
+            success!(Authorized)
         } else {
-            AttemptStatus::Failure
+            failure!(Failure)
         } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
@@ -522,6 +522,14 @@ domain_types::impl_flow_status_mapping! {
                 debitpreauthresponse.return_code.clone(),
                 debitpreauthresponse.response_code.clone(),
             ),
+            WorldpayraftAuthorizeResponse::CreditPurchase { creditpurchaseresponse } => (
+                creditpurchaseresponse.return_code.clone(),
+                creditpurchaseresponse.response_code.clone(),
+            ),
+            WorldpayraftAuthorizeResponse::DebitPurchase { debitpurchaseresponse } => (
+                debitpurchaseresponse.return_code.clone(),
+                debitpurchaseresponse.response_code.clone(),
+            ),
         }) },
         context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
     },
@@ -533,10 +541,10 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: (String, String),
     context: (),
-    mapping_status: |codes, _ctx| { if codes.0 == "0000" && codes.1 == "000" {
-            AttemptStatus::Charged
+    mapping: |codes, _ctx|{ if codes.0 == "0000" && codes.1 == "000" {
+            success!(Charged)
         } else {
-            AttemptStatus::Failure
+            failure!(Failure)
         } },
     runtime: {
         request: PaymentsCaptureData,
@@ -565,10 +573,10 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: (String, String),
     context: (),
-    mapping_status: |codes, _ctx| { if codes.0 == "0000" && codes.1 == "000" {
-            RefundStatus::Success
+    mapping: |codes, _ctx|{ if codes.0 == "0000" && codes.1 == "000" {
+            success!(Success)
         } else {
-            RefundStatus::Failure
+            failure!(Failure)
         } },
     runtime: {
         request: RefundsData,
@@ -597,10 +605,10 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: (String, String),
     context: (),
-    mapping_status: |codes, _ctx| { if codes.0 == "0000" && codes.1 == "000" {
-            AttemptStatus::Charged
+    mapping: |codes, _ctx|{ if codes.0 == "0000" && codes.1 == "000" {
+            success!(Charged)
         } else {
-            AttemptStatus::Failure
+            failure!(Failure)
         } },
     runtime: {
         request: SetupMandateRequestData<T>,
@@ -619,16 +627,19 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: (String, String),
     context: (),
-    mapping_status: |codes, _ctx| { if codes.0 == "0000" && codes.1 == "000" {
-            AttemptStatus::Charged
+    mapping: |codes, _ctx|{ if codes.0 == "0000" && codes.1 == "000" {
+            success!(Charged)
         } else {
-            AttemptStatus::Failure
+            failure!(Failure)
         } },
     runtime: {
         request: RepeatPaymentData<T>,
         response: WorldpayraftRepeatPaymentResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok({
-            let inner = &response.creditauthresponse;
+            let inner = match response {
+                WorldpayraftRepeatPaymentResponse::Credit { creditauthresponse } => creditauthresponse,
+                WorldpayraftRepeatPaymentResponse::CreditPurchase { creditpurchaseresponse } => creditpurchaseresponse,
+            };
             (inner.return_code.clone(), inner.response_code.clone())
         }) },
         context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },

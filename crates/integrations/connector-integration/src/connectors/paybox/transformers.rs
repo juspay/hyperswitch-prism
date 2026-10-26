@@ -84,7 +84,7 @@ const AUTH_AND_CAPTURE_REQUEST: &str = "00003";
 const CANCEL_REQUEST: &str = "00005";
 const REFUND_REQUEST: &str = "00014";
 const SYNC_REQUEST: &str = "00017";
-pub(crate) const SUCCESS_CODE: &str = "00000";
+pub const SUCCESS_CODE: &str = "00000";
 const PAY_ORIGIN_INTERNET: &str = "024";
 const PAY_ORIGIN_RECURRING: &str = "027";
 const SUBSCRIBER_AUTH_REQUEST: &str = "00051";
@@ -239,7 +239,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount,
+                router_data.request.amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -285,28 +285,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             cvv: card_data.card_cvc.clone(),
             activity: PAY_ORIGIN_INTERNET.to_string(),
         })
-    }
-}
-
-/// Typed verdict for the flow-status macros: Paybox payment endpoints answer
-/// with a `CODEREPONSE` ack string, so the connector-local status is just
-/// "accepted" vs anything else. The `TryFrom` implementations treat every non-`00000` code as
-/// an `ErrorResponse` (a failed attempt), which folds to this binary verdict.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PayboxPaymentVerdict {
-    Approved,
-    Rejected,
-}
-
-impl PayboxPaymentResponse {
-    /// Flow-status view used by the `impl_flow_status_mapping!` macros:
-    /// mirrors the TryFrom success test (`CODEREPONSE == "00000"`).
-    pub fn payment_verdict(&self) -> PayboxPaymentVerdict {
-        if self.response_code == SUCCESS_CODE {
-            PayboxPaymentVerdict::Approved
-        } else {
-            PayboxPaymentVerdict::Rejected
-        }
     }
 }
 
@@ -626,7 +604,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount_to_capture,
+                router_data.request.amount_to_capture.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -796,7 +774,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(amount, currency)
+            .convert(amount.amount, currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -946,7 +924,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = connector
             .amount_converter
             .convert(
-                router_data.request.minor_refund_amount,
+                router_data.request.refund_amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -992,18 +970,6 @@ pub struct PayboxRefundResponse {
     pub response_code: String,
     #[serde(rename = "COMMENTAIRE")]
     pub response_message: String,
-}
-
-impl PayboxRefundResponse {
-    /// Flow-status view used by the `impl_refund_flow_status_mapping!` macro:
-    /// mirrors the TryFrom success test (`CODEREPONSE == "00000"`).
-    pub fn payment_verdict(&self) -> PayboxPaymentVerdict {
-        if self.response_code == SUCCESS_CODE {
-            PayboxPaymentVerdict::Approved
-        } else {
-            PayboxPaymentVerdict::Rejected
-        }
-    }
 }
 
 impl TryFrom<ResponseRouterData<PayboxRefundResponse, Self>>
@@ -1237,7 +1203,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let expiration_date = card_data.get_expiry_date_as_mmyy()?;
 
         // Use minor_amount if available, otherwise default to zero for zero-dollar auth
-        let amount = match router_data.request.minor_amount {
+        let amount = match router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| amount.amount)
+        {
             Some(minor_amount) => connector
                 .amount_converter
                 .convert(minor_amount, router_data.request.currency)
@@ -1476,7 +1447,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount,
+                router_data.request.amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1665,4 +1636,22 @@ pub struct PayboxErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PayboxPaymentVerdict {
+    Approved,
+    Rejected,
+}
+
+impl PayboxPaymentResponse {
+    /// Flow-status view used by the `impl_flow_status_mapping!` macros:
+    /// mirrors the TryFrom success test (`CODEREPONSE == "00000"`).
+    pub fn payment_verdict(&self) -> PayboxPaymentVerdict {
+        if self.response_code == SUCCESS_CODE {
+            PayboxPaymentVerdict::Approved
+        } else {
+            PayboxPaymentVerdict::Rejected
+        }
+    }
 }

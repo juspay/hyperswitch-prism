@@ -1371,6 +1371,47 @@ macros::macro_connector_implementation!(
 // 3DS leg count is 0: Stripe authenticates inside `POST /v1/payment_intents` (Authorize returns
 // `requires_action` + a redirect) and the outcome is read with `GET /v1/payment_intents/{id}`
 // (PSync). PreAuthenticate/Authenticate/PostAuthenticate stay unwired: a leg would re-confirm.
+// Refund: source is the refund's own status; Stripe refunds have a Failed terminal.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stripe<T>,
+    flow: Refund,
+    source: stripe::RefundStatus,
+    mapping: |status| { match status {
+        stripe::RefundStatus::Succeeded => success!(Success),
+        stripe::RefundStatus::Failed => failure!(Failure),
+        stripe::RefundStatus::Pending => non_terminal!(Pending),
+        stripe::RefundStatus::RequiresAction => non_terminal!(ManualReview),
+        stripe::RefundStatus::Canceled => failure!(Failure),
+        stripe::RefundStatus::Unknown => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: RefundsData,
+        response: RefundResponse,
+        source: |_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stripe<T>,
+    flow: RSync,
+    source: stripe::RefundStatus,
+    mapping: |status| { match status {
+        stripe::RefundStatus::Succeeded => success!(Success),
+        stripe::RefundStatus::Failed => failure!(Failure),
+        stripe::RefundStatus::Pending => non_terminal!(Pending),
+        stripe::RefundStatus::RequiresAction => non_terminal!(ManualReview),
+        stripe::RefundStatus::Canceled => failure!(Failure),
+        stripe::RefundStatus::Unknown => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: RefundSyncData,
+        response: RefundSyncResponse,
+        source: |_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    },
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Stripe,
     generic_type: T,

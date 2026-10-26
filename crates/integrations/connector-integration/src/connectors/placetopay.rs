@@ -135,16 +135,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Placetopay<T>,
     flow: Authorize,
     source: placetopay::PlacetopayTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            placetopay::PlacetopayTransactionStatus::Ok => common_enums::AttemptStatus::Charged,
-            placetopay::PlacetopayTransactionStatus::Failed => common_enums::AttemptStatus::Failure,
-            placetopay::PlacetopayTransactionStatus::Approved => common_enums::AttemptStatus::Charged,
-            placetopay::PlacetopayTransactionStatus::Rejected => common_enums::AttemptStatus::Failure,
-            placetopay::PlacetopayTransactionStatus::Error => common_enums::AttemptStatus::Failure,
-            placetopay::PlacetopayTransactionStatus::Pending => common_enums::AttemptStatus::Pending,
-            placetopay::PlacetopayTransactionStatus::PendingValidation => common_enums::AttemptStatus::Pending,
-            placetopay::PlacetopayTransactionStatus::PendingProcess => common_enums::AttemptStatus::Pending,
+            placetopay::PlacetopayTransactionStatus::Ok => success!(Charged),
+            placetopay::PlacetopayTransactionStatus::Failed => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Approved => success!(Charged),
+            placetopay::PlacetopayTransactionStatus::Rejected => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Error => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingProcess => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -169,16 +169,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Placetopay<T>,
     flow: PSync,
     source: placetopay::PlacetopayTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            placetopay::PlacetopayTransactionStatus::Ok => common_enums::AttemptStatus::Charged,
-            placetopay::PlacetopayTransactionStatus::Failed => common_enums::AttemptStatus::Failure,
-            placetopay::PlacetopayTransactionStatus::Approved => common_enums::AttemptStatus::Charged,
-            placetopay::PlacetopayTransactionStatus::Rejected => common_enums::AttemptStatus::Failure,
-            placetopay::PlacetopayTransactionStatus::Error => common_enums::AttemptStatus::Failure,
-            placetopay::PlacetopayTransactionStatus::Pending => common_enums::AttemptStatus::Pending,
-            placetopay::PlacetopayTransactionStatus::PendingValidation => common_enums::AttemptStatus::Pending,
-            placetopay::PlacetopayTransactionStatus::PendingProcess => common_enums::AttemptStatus::Pending,
+            placetopay::PlacetopayTransactionStatus::Ok => success!(Charged),
+            placetopay::PlacetopayTransactionStatus::Failed => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Approved => success!(Charged),
+            placetopay::PlacetopayTransactionStatus::Rejected => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Error => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingProcess => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -197,16 +197,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Placetopay<T>,
     flow: Void,
     source: placetopay::PlacetopayTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            placetopay::PlacetopayTransactionStatus::Ok => common_enums::AttemptStatus::Voided,
-            placetopay::PlacetopayTransactionStatus::Failed => common_enums::AttemptStatus::Failure,
-            placetopay::PlacetopayTransactionStatus::Approved => common_enums::AttemptStatus::Voided,
-            placetopay::PlacetopayTransactionStatus::Rejected => common_enums::AttemptStatus::Failure,
-            placetopay::PlacetopayTransactionStatus::Error => common_enums::AttemptStatus::Failure,
-            placetopay::PlacetopayTransactionStatus::Pending => common_enums::AttemptStatus::Pending,
-            placetopay::PlacetopayTransactionStatus::PendingValidation => common_enums::AttemptStatus::Pending,
-            placetopay::PlacetopayTransactionStatus::PendingProcess => common_enums::AttemptStatus::Pending,
+            placetopay::PlacetopayTransactionStatus::Ok => success!(Voided),
+            placetopay::PlacetopayTransactionStatus::Failed => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Approved => success!(Voided),
+            placetopay::PlacetopayTransactionStatus::Rejected => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Error => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingProcess => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -245,17 +245,17 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Placetopay<T>,
     flow: Refund,
     source: placetopay::PlacetopayRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            placetopay::PlacetopayRefundStatus::Ok => common_enums::RefundStatus::Success,
-            placetopay::PlacetopayRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            placetopay::PlacetopayRefundStatus::Approved => common_enums::RefundStatus::Success,
-            placetopay::PlacetopayRefundStatus::Refunded => common_enums::RefundStatus::Success,
-            placetopay::PlacetopayRefundStatus::Rejected => common_enums::RefundStatus::Failure,
-            placetopay::PlacetopayRefundStatus::Error => common_enums::RefundStatus::Failure,
-            placetopay::PlacetopayRefundStatus::Pending => common_enums::RefundStatus::Pending,
-            placetopay::PlacetopayRefundStatus::PendingValidation => common_enums::RefundStatus::Pending,
-            placetopay::PlacetopayRefundStatus::PendingProcess => common_enums::RefundStatus::Pending,
+            placetopay::PlacetopayRefundStatus::Ok => success!(Success),
+            placetopay::PlacetopayRefundStatus::Failed => failure!(Failure),
+            placetopay::PlacetopayRefundStatus::Approved => success!(Success),
+            placetopay::PlacetopayRefundStatus::Refunded => success!(Success),
+            placetopay::PlacetopayRefundStatus::Rejected => failure!(Failure),
+            placetopay::PlacetopayRefundStatus::Error => failure!(Failure),
+            placetopay::PlacetopayRefundStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayRefundStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayRefundStatus::PendingProcess => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -274,16 +274,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Placetopay<T>,
     flow: Capture,
     source: placetopay::PlacetopayTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            placetopay::PlacetopayTransactionStatus::Ok => common_enums::AttemptStatus::Charged,
-            placetopay::PlacetopayTransactionStatus::Failed => common_enums::AttemptStatus::CaptureFailed,
-            placetopay::PlacetopayTransactionStatus::Approved => common_enums::AttemptStatus::Charged,
-            placetopay::PlacetopayTransactionStatus::Rejected => common_enums::AttemptStatus::CaptureFailed,
-            placetopay::PlacetopayTransactionStatus::Error => common_enums::AttemptStatus::CaptureFailed,
-            placetopay::PlacetopayTransactionStatus::Pending => common_enums::AttemptStatus::Pending,
-            placetopay::PlacetopayTransactionStatus::PendingValidation => common_enums::AttemptStatus::Pending,
-            placetopay::PlacetopayTransactionStatus::PendingProcess => common_enums::AttemptStatus::Pending,
+            placetopay::PlacetopayTransactionStatus::Ok => success!(Charged),
+            placetopay::PlacetopayTransactionStatus::Failed => failure!(CaptureFailed),
+            placetopay::PlacetopayTransactionStatus::Approved => success!(Charged),
+            placetopay::PlacetopayTransactionStatus::Rejected => failure!(CaptureFailed),
+            placetopay::PlacetopayTransactionStatus::Error => failure!(CaptureFailed),
+            placetopay::PlacetopayTransactionStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingProcess => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -302,17 +302,17 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Placetopay<T>,
     flow: RSync,
     source: placetopay::PlacetopayRefundStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            placetopay::PlacetopayRefundStatus::Ok => common_enums::RefundStatus::Success,
-            placetopay::PlacetopayRefundStatus::Failed => common_enums::RefundStatus::Failure,
-            placetopay::PlacetopayRefundStatus::Approved => common_enums::RefundStatus::Success,
-            placetopay::PlacetopayRefundStatus::Refunded => common_enums::RefundStatus::Success,
-            placetopay::PlacetopayRefundStatus::Rejected => common_enums::RefundStatus::Failure,
-            placetopay::PlacetopayRefundStatus::Error => common_enums::RefundStatus::Failure,
-            placetopay::PlacetopayRefundStatus::Pending => common_enums::RefundStatus::Pending,
-            placetopay::PlacetopayRefundStatus::PendingValidation => common_enums::RefundStatus::Pending,
-            placetopay::PlacetopayRefundStatus::PendingProcess => common_enums::RefundStatus::Pending,
+            placetopay::PlacetopayRefundStatus::Ok => success!(Success),
+            placetopay::PlacetopayRefundStatus::Failed => failure!(Failure),
+            placetopay::PlacetopayRefundStatus::Approved => success!(Success),
+            placetopay::PlacetopayRefundStatus::Refunded => success!(Success),
+            placetopay::PlacetopayRefundStatus::Rejected => failure!(Failure),
+            placetopay::PlacetopayRefundStatus::Error => failure!(Failure),
+            placetopay::PlacetopayRefundStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayRefundStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayRefundStatus::PendingProcess => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -331,22 +331,22 @@ domain_types::impl_flow_status_mapping! {
     connector: Placetopay<T>,
     flow: VoidPC,
     source: placetopay::PlacetopayTransactionStatus,
-    mapping_status: |status| {
+    mapping: |status|{
         match status {
-            placetopay::PlacetopayTransactionStatus::Ok => common_enums::AttemptStatus::VoidedPostCapture,
-            placetopay::PlacetopayTransactionStatus::Failed => common_enums::AttemptStatus::Failure,
-            placetopay::PlacetopayTransactionStatus::Approved => common_enums::AttemptStatus::VoidedPostCapture,
-            placetopay::PlacetopayTransactionStatus::Rejected => common_enums::AttemptStatus::Failure,
-            placetopay::PlacetopayTransactionStatus::Error => common_enums::AttemptStatus::Failure,
-            placetopay::PlacetopayTransactionStatus::Pending => common_enums::AttemptStatus::Pending,
-            placetopay::PlacetopayTransactionStatus::PendingValidation => common_enums::AttemptStatus::Pending,
-            placetopay::PlacetopayTransactionStatus::PendingProcess => common_enums::AttemptStatus::Pending,
+            placetopay::PlacetopayTransactionStatus::Ok => success!(VoidedPostCapture),
+            placetopay::PlacetopayTransactionStatus::Failed => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Approved => success!(VoidedPostCapture),
+            placetopay::PlacetopayTransactionStatus::Rejected => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Error => failure!(Failure),
+            placetopay::PlacetopayTransactionStatus::Pending => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingValidation => non_terminal!(Pending),
+            placetopay::PlacetopayTransactionStatus::PendingProcess => non_terminal!(Pending),
         }
     },
     runtime: {
         request: PaymentsCancelPostCaptureData,
         response: PlacetopayVoidPcResponse,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.flow_status()) },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.0.flow_status()) },
     },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

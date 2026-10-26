@@ -73,67 +73,6 @@ impl TryFrom<&ConnectorSpecificConfig> for EasebuzzAuthType {
 }
 
 // ============================================================================
-// FLOW-STATUS MAPPING TYPES
-// ============================================================================
-// Typed status enums consumed by the `impl_flow_status_mapping!` /
-// `impl_refund_flow_status_mapping!` declarations in `easebuzz.rs`. Each
-// collapses a raw-string match in one of the TryFrom impls below into a
-// unit-variant enum so the macro bodies match variants instead of magic
-// strings.
-
-/// Typed version of the Authorize TryFrom's `get_str("status")` match on the
-/// seamless-payment response object (`"success" | "SUCCESS"` → Charged,
-/// `"failure" | "FAILURE" | "failed" | "FAILED"` → Failure, anything else —
-/// including non-JSON HTML-redirect bodies — → Pending).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum EasebuzzAuthorizeStatus {
-    /// `status: "success"` — the transaction settled (auto-capture only, so
-    /// a success is always `Charged`).
-    Success,
-    /// `status: "failure" | "failed"` — the transaction failed.
-    Failure,
-    /// Any other status, or a non-JSON (HTML redirect) body (the default).
-    #[default]
-    Other,
-}
-
-/// Typed version of the `status.to_lowercase()` match shared by the PSync
-/// TryFrom (`txn_resp.status`) and the Capture TryFrom (`_data.status`):
-/// `"success"` → Charged, `"initiated" | "pending" | "in_process"` → Pending,
-/// anything else → Failure.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum EasebuzzTxnStatus {
-    /// `"success"` — the transaction settled.
-    Success,
-    /// `"initiated"` / `"pending"` / `"in_process"` — still in flight.
-    InFlight,
-    /// Any other status string (the default) — the `TryFrom` implementations map these to a
-    /// failure outcome.
-    #[default]
-    Other,
-}
-
-/// Typed version of the RSync TryFrom's `refund_status.to_lowercase()` match
-/// (`"refunded" | "settled"` → Success, `"cancelled" | "reverse chargeback" |
-/// "failed"` → Failure, anything else → Pending).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum EasebuzzRefundSyncStatus {
-    /// `"refunded"` — the refund settled.
-    Refunded,
-    /// `"settled"` — the refund settled.
-    Settled,
-    /// `"cancelled"` — the refund was cancelled.
-    Cancelled,
-    /// `"reverse chargeback"` — the refund was clawed back.
-    ReverseChargeback,
-    /// `"failed"` — the refund failed.
-    Failed,
-    /// Any other status string, or none (the default).
-    #[default]
-    Other,
-}
-
-// ============================================================================
 // Error Response
 // ============================================================================
 
@@ -249,7 +188,10 @@ impl
         )?;
 
         let amount_str = StringMajorUnitForConnector
-            .convert(router_data.request.amount, router_data.request.currency)
+            .convert(
+                router_data.request.amount.amount,
+                router_data.request.currency,
+            )
             .change_context(IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: Some(
@@ -764,7 +706,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                router_data.request.minor_amount_to_capture,
+                router_data.request.amount_to_capture.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1031,7 +973,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                router_data.request.minor_refund_amount,
+                router_data.request.refund_amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1269,7 +1211,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(router_data.request.amount, router_data.request.currency)
+            .convert(
+                router_data.request.amount.amount,
+                router_data.request.currency,
+            )
             .change_context(IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: Some(
@@ -1602,4 +1547,45 @@ impl TryFrom<ResponseRouterData<EasebuzzRefundSyncResponse, Self>>
             }
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum EasebuzzRefundSyncStatus {
+    /// `"refunded"` — the refund settled.
+    Refunded,
+    /// `"settled"` — the refund settled.
+    Settled,
+    /// `"cancelled"` — the refund was cancelled.
+    Cancelled,
+    /// `"reverse chargeback"` — the refund was clawed back.
+    ReverseChargeback,
+    /// `"failed"` — the refund failed.
+    Failed,
+    /// Any other status string, or none (the default).
+    #[default]
+    Other,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum EasebuzzTxnStatus {
+    /// `"success"` — the transaction settled.
+    Success,
+    /// `"initiated"` / `"pending"` / `"in_process"` — still in flight.
+    InFlight,
+    /// Any other status string (the default) — the `TryFrom` implementations map these to a
+    /// failure outcome.
+    #[default]
+    Other,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum EasebuzzAuthorizeStatus {
+    /// `status: "success"` — the transaction settled (auto-capture only, so
+    /// a success is always `Charged`).
+    Success,
+    /// `status: "failure" | "failed"` — the transaction failed.
+    Failure,
+    /// Any other status, or a non-JSON (HTML redirect) body (the default).
+    #[default]
+    Other,
 }

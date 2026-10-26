@@ -416,7 +416,35 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: responses::PeachpaymentsPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { AttemptStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(status) })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: PeachpaymentsPaymentsResponse,
@@ -443,7 +471,17 @@ domain_types::impl_flow_status_mapping! {
     flow: Void,
     source: responses::PeachpaymentsPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { AttemptStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(status) })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentVoidData,
         response: PeachpaymentsVoidResponse,
@@ -463,7 +501,20 @@ domain_types::impl_flow_status_mapping! {
     flow: Capture,
     source: responses::PeachpaymentsPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { AttemptStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(status) })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsCaptureData,
         response: PeachpaymentsCaptureResponse,
@@ -483,7 +534,17 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: Refund,
     source: responses::PeachpaymentsRefundStatus,
     context: (),
-    mapping_status: |status, _ctx| { RefundStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { RefundStatus::from(status) })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundsData,
         response: PeachpaymentsRefundResponse,
@@ -503,7 +564,17 @@ domain_types::impl_refund_flow_status_mapping! {
     flow: RSync,
     source: responses::PeachpaymentsRefundStatus,
     context: (),
-    mapping_status: |status, _ctx| { RefundStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { RefundStatus::from(status) })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
     runtime: {
         request: RefundSyncData,
         response: PeachpaymentsRefundSyncResponse,
@@ -523,7 +594,42 @@ domain_types::impl_flow_status_mapping! {
     flow: PSync,
     source: responses::PeachpaymentsPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { AttemptStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(status) })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: PeachpaymentsSyncResponse,
@@ -559,7 +665,20 @@ domain_types::impl_flow_status_mapping! {
     flow: SetupMandate,
     source: responses::PeachpaymentsPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { AttemptStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(status) })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: SetupMandateRequestData<T>,
         response: PeachpaymentsSetupMandateResponse,
@@ -581,7 +700,24 @@ domain_types::impl_flow_status_mapping! {
     flow: RepeatPayment,
     source: responses::PeachpaymentsPaymentStatus,
     context: (),
-    mapping_status: |status, _ctx| { AttemptStatus::from(status) },
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(status) })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorized => non_terminal!(Authorized),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: RepeatPaymentData<T>,
         response: PeachpaymentsRepeatPaymentResponse,
@@ -704,22 +840,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .transaction
             .ok_or_else(|| report!(WebhookError::WebhookResourceObjectNotFound))?;
 
-        let status: common_enums::AttemptStatus = transaction.transaction_result.clone().into();
+        let status: AttemptStatus = transaction.transaction_result.clone().into();
 
-        let (error_code, error_message, error_reason) =
-            if status == common_enums::AttemptStatus::Failure {
-                (
-                    Some(transformers::get_error_code(
-                        transaction.response_code.as_ref(),
-                    )),
-                    Some(transformers::get_error_message(
-                        transaction.response_code.as_ref(),
-                    )),
-                    transaction.error_message.clone(),
-                )
-            } else {
-                (None, None, None)
-            };
+        let (error_code, error_message, error_reason) = if status == AttemptStatus::Failure {
+            (
+                Some(transformers::get_error_code(
+                    transaction.response_code.as_ref(),
+                )),
+                Some(transformers::get_error_message(
+                    transaction.response_code.as_ref(),
+                )),
+                transaction.error_message.clone(),
+            )
+        } else {
+            (None, None, None)
+        };
 
         Ok(WebhookDetailsResponse {
             connector_returned_payment_method_details: None,
@@ -737,7 +872,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -761,15 +895,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .transaction
             .ok_or_else(|| report!(WebhookError::WebhookResourceObjectNotFound))?;
 
-        let refund_status: common_enums::RefundStatus = match transaction.transaction_result {
+        let refund_status: RefundStatus = match transaction.transaction_result {
             responses::PeachpaymentsPaymentStatus::ApprovedConfirmed
-            | responses::PeachpaymentsPaymentStatus::Successful => {
-                common_enums::RefundStatus::Success
-            }
-            _ => common_enums::RefundStatus::Failure,
+            | responses::PeachpaymentsPaymentStatus::Successful => RefundStatus::Success,
+            _ => RefundStatus::Failure,
         };
 
-        let (error_code, error_message) = if refund_status == common_enums::RefundStatus::Failure {
+        let (error_code, error_message) = if refund_status == RefundStatus::Failure {
             (
                 Some(transformers::get_error_code(
                     transaction.response_code.as_ref(),

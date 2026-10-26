@@ -577,15 +577,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-domain_types::impl_connector_flow_allowed_status_mapping! {
+domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Ilixium<T>,
-    flow:      PreAuthenticate,
-    statuses:  [AuthenticationPending, Authorized, Charged, Pending, Failure],
+    flow: PreAuthenticate,
+    source: IlixiumPreAuthenticateResponse,
+    context: bool,
+    mapping: |response, is_auto_capture| {
+        use transformers::{IlixiumOperationType as Operation, IlixiumStatusCode as Status};
+
+        match response.status.code {
+            Status::Success => match response.operation_type {
+                Some(Operation::AuthCap) => non_terminal!(Charged),
+                Some(Operation::Auth) => non_terminal!(Authorized),
+                _ if is_auto_capture => non_terminal!(Charged),
+                _ => non_terminal!(Authorized),
+            },
+            Status::Pending if response.three_ds_acs_url().is_some() => {
+                non_terminal!(AuthenticationPending)
+            }
+            Status::Pending | Status::Resubmission | Status::Unknown => non_terminal!(Pending),
+            Status::Cancelled => failure!(Failure),
+            Status::Declined | Status::Rejected | Status::Error => failure!(Failure),
+        }
+    },
     runtime: {
-        request:  PaymentsPreAuthenticateData<T>,
+        request: PaymentsPreAuthenticateData<T>,
         response: IlixiumPreAuthenticateResponse,
-        status:   |request, response| transformers::pre_authenticate_status(request, response),
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(request.is_auto_capture().unwrap_or(true)) },
     },
 }
 
@@ -595,27 +615,27 @@ domain_types::impl_flow_status_mapping! {
     flow: Authorize,
     source: transformers::IlixiumStatusCode,
     context: transformers::IlixiumAuthorizeCtx,
-    mapping_status: |status, ctx| { use common_enums::AttemptStatus;
+    mapping: |status, ctx| {
         use transformers::{IlixiumStatusCode, IlixiumOperationType};
         match status {
             IlixiumStatusCode::Success => match ctx.operation_type {
-                Some(IlixiumOperationType::AuthCap) => AttemptStatus::Charged,
-                Some(IlixiumOperationType::Auth)    => AttemptStatus::Authorized,
-                _ if ctx.is_auto_capture            => AttemptStatus::Charged,
-                _                                   => AttemptStatus::Authorized,
+                Some(IlixiumOperationType::AuthCap) => success!(Charged),
+                Some(IlixiumOperationType::Auth)    => success!(Authorized),
+                _ if ctx.is_auto_capture            => success!(Charged),
+                _                                   => success!(Authorized),
             },
             IlixiumStatusCode::Pending => {
                 if ctx.has_three_ds_url {
-                    AttemptStatus::AuthenticationPending
+                    non_terminal!(AuthenticationPending)
                 } else {
-                    AttemptStatus::Pending
+                    non_terminal!(Pending)
                 }
             }
-            IlixiumStatusCode::Cancelled => AttemptStatus::Voided,
+            IlixiumStatusCode::Cancelled => failure!(Failure),
             IlixiumStatusCode::Declined
             | IlixiumStatusCode::Rejected
-            | IlixiumStatusCode::Error => AttemptStatus::Failure,
-            IlixiumStatusCode::Resubmission | IlixiumStatusCode::Unknown => AttemptStatus::Pending,
+            | IlixiumStatusCode::Error => failure!(Failure),
+            IlixiumStatusCode::Resubmission | IlixiumStatusCode::Unknown => non_terminal!(Pending),
         } },
     runtime: {
         request: PaymentsAuthorizeData<T>,
@@ -643,16 +663,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Ilixium<T>,
     flow: Capture,
     source: transformers::IlixiumStatusCode,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::IlixiumStatusCode::Success => common_enums::AttemptStatus::Charged,
-            transformers::IlixiumStatusCode::Declined => common_enums::AttemptStatus::CaptureFailed,
-            transformers::IlixiumStatusCode::Pending => common_enums::AttemptStatus::CaptureInitiated,
-            transformers::IlixiumStatusCode::Cancelled => common_enums::AttemptStatus::CaptureFailed,
-            transformers::IlixiumStatusCode::Rejected => common_enums::AttemptStatus::CaptureFailed,
-            transformers::IlixiumStatusCode::Error => common_enums::AttemptStatus::CaptureFailed,
-            transformers::IlixiumStatusCode::Resubmission => common_enums::AttemptStatus::CaptureInitiated,
-            transformers::IlixiumStatusCode::Unknown => common_enums::AttemptStatus::CaptureInitiated,
+            transformers::IlixiumStatusCode::Success => success!(Charged),
+            transformers::IlixiumStatusCode::Declined => failure!(CaptureFailed),
+            transformers::IlixiumStatusCode::Pending => non_terminal!(CaptureInitiated),
+            transformers::IlixiumStatusCode::Cancelled => failure!(CaptureFailed),
+            transformers::IlixiumStatusCode::Rejected => failure!(CaptureFailed),
+            transformers::IlixiumStatusCode::Error => failure!(CaptureFailed),
+            transformers::IlixiumStatusCode::Resubmission => non_terminal!(CaptureInitiated),
+            transformers::IlixiumStatusCode::Unknown => non_terminal!(CaptureInitiated),
         }
     },
     runtime: {
@@ -671,16 +691,16 @@ domain_types::impl_flow_status_mapping! {
     connector: Ilixium<T>,
     flow: Void,
     source: transformers::IlixiumStatusCode,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::IlixiumStatusCode::Success => common_enums::AttemptStatus::Voided,
-            transformers::IlixiumStatusCode::Declined => common_enums::AttemptStatus::VoidFailed,
-            transformers::IlixiumStatusCode::Cancelled => common_enums::AttemptStatus::Voided,
-            transformers::IlixiumStatusCode::Pending => common_enums::AttemptStatus::VoidInitiated,
-            transformers::IlixiumStatusCode::Rejected => common_enums::AttemptStatus::VoidFailed,
-            transformers::IlixiumStatusCode::Error => common_enums::AttemptStatus::VoidFailed,
-            transformers::IlixiumStatusCode::Resubmission => common_enums::AttemptStatus::VoidInitiated,
-            transformers::IlixiumStatusCode::Unknown => common_enums::AttemptStatus::VoidInitiated,
+            transformers::IlixiumStatusCode::Success => success!(Voided),
+            transformers::IlixiumStatusCode::Declined => failure!(VoidFailed),
+            transformers::IlixiumStatusCode::Cancelled => success!(Voided),
+            transformers::IlixiumStatusCode::Pending => non_terminal!(VoidInitiated),
+            transformers::IlixiumStatusCode::Rejected => failure!(VoidFailed),
+            transformers::IlixiumStatusCode::Error => failure!(VoidFailed),
+            transformers::IlixiumStatusCode::Resubmission => non_terminal!(VoidInitiated),
+            transformers::IlixiumStatusCode::Unknown => non_terminal!(VoidInitiated),
         }
     },
     runtime: {
@@ -704,7 +724,42 @@ domain_types::impl_flow_status_mapping! {
     connector: Ilixium<T>,
     flow: PSync,
     source: common_enums::AttemptStatus,
-    mapping_status: |status| { status },
+    mapping: |status| {
+        let mapped_status = (|| { status })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
     runtime: {
         request: PaymentsSyncData,
         response: IlixiumHistoryResponse,
@@ -752,16 +807,16 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Ilixium<T>,
     flow: Refund,
     source: transformers::IlixiumStatusCode,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::IlixiumStatusCode::Success => common_enums::RefundStatus::Success,
-            transformers::IlixiumStatusCode::Declined => common_enums::RefundStatus::Failure,
-            transformers::IlixiumStatusCode::Pending => common_enums::RefundStatus::Pending,
-            transformers::IlixiumStatusCode::Cancelled => common_enums::RefundStatus::Failure,
-            transformers::IlixiumStatusCode::Rejected => common_enums::RefundStatus::Failure,
-            transformers::IlixiumStatusCode::Error => common_enums::RefundStatus::Failure,
-            transformers::IlixiumStatusCode::Resubmission => common_enums::RefundStatus::Pending,
-            transformers::IlixiumStatusCode::Unknown => common_enums::RefundStatus::Pending,
+            transformers::IlixiumStatusCode::Success => success!(Success),
+            transformers::IlixiumStatusCode::Declined => failure!(Failure),
+            transformers::IlixiumStatusCode::Pending => non_terminal!(Pending),
+            transformers::IlixiumStatusCode::Cancelled => failure!(Failure),
+            transformers::IlixiumStatusCode::Rejected => failure!(Failure),
+            transformers::IlixiumStatusCode::Error => failure!(Failure),
+            transformers::IlixiumStatusCode::Resubmission => non_terminal!(Pending),
+            transformers::IlixiumStatusCode::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {
@@ -780,17 +835,17 @@ domain_types::impl_refund_flow_status_mapping! {
     connector: Ilixium<T>,
     flow: RSync,
     source: transformers::IlixiumHistoryStatusCode,
-    mapping_status: |status| {
+    mapping: |status| {
         match status {
-            transformers::IlixiumHistoryStatusCode::Success => common_enums::RefundStatus::Success,
-            transformers::IlixiumHistoryStatusCode::Declined => common_enums::RefundStatus::Failure,
-            transformers::IlixiumHistoryStatusCode::Pending => common_enums::RefundStatus::Pending,
-            transformers::IlixiumHistoryStatusCode::Cancelled => common_enums::RefundStatus::Failure,
-            transformers::IlixiumHistoryStatusCode::Rejected => common_enums::RefundStatus::Failure,
-            transformers::IlixiumHistoryStatusCode::Error => common_enums::RefundStatus::Failure,
-            transformers::IlixiumHistoryStatusCode::Exception => common_enums::RefundStatus::Failure,
-            transformers::IlixiumHistoryStatusCode::ValidationErrors => common_enums::RefundStatus::Failure,
-            transformers::IlixiumHistoryStatusCode::Unknown => common_enums::RefundStatus::Pending,
+            transformers::IlixiumHistoryStatusCode::Success => success!(Success),
+            transformers::IlixiumHistoryStatusCode::Declined => failure!(Failure),
+            transformers::IlixiumHistoryStatusCode::Pending => non_terminal!(Pending),
+            transformers::IlixiumHistoryStatusCode::Cancelled => failure!(Failure),
+            transformers::IlixiumHistoryStatusCode::Rejected => failure!(Failure),
+            transformers::IlixiumHistoryStatusCode::Error => failure!(Failure),
+            transformers::IlixiumHistoryStatusCode::Exception => failure!(Failure),
+            transformers::IlixiumHistoryStatusCode::ValidationErrors => failure!(Failure),
+            transformers::IlixiumHistoryStatusCode::Unknown => non_terminal!(Pending),
         }
     },
     runtime: {

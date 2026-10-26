@@ -205,7 +205,9 @@ fn derive_ecommerce_indicator(
 
     match mit_category {
         Some(MitCategory::Installment) => EcommerceIndicator::MailTelephoneOrderInstalment,
-        Some(MitCategory::Recurring) => EcommerceIndicator::MailTelephoneOrderRecurring,
+        Some(MitCategory::Recurring | MitCategory::Subscription) => {
+            EcommerceIndicator::MailTelephoneOrderRecurring
+        }
         None if is_recurring => EcommerceIndicator::MailTelephoneOrderRecurring,
         None => EcommerceIndicator::MailTelephoneOrderSingle,
         Some(MitCategory::Unscheduled | MitCategory::Resubmission) => {
@@ -577,7 +579,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .as_ref()
                     .is_some_and(|a| a.cavv.is_some());
                 let amount = Money {
-                    amount: item.router_data.request.minor_amount,
+                    amount: item.router_data.request.amount.amount,
                     currency: item.router_data.request.currency,
                 };
                 let ecommerce_indicator = Some(derive_ecommerce_indicator(
@@ -845,7 +847,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 let amount = Money {
-                    amount: item.router_data.request.minor_amount,
+                    amount: item.router_data.request.amount.amount,
                     currency: item.router_data.request.currency,
                 };
 
@@ -1015,22 +1017,6 @@ pub struct MonerisCaptureResponse {
     payment_method: MonerisPaymentMethodData,
 }
 
-pub(super) fn capture_attempt_status(
-    status: MonerisPaymentStatus,
-    captured: common_utils::types::MinorUnit,
-    capturable: Option<common_utils::types::MinorUnit>,
-) -> common_enums::AttemptStatus {
-    match status {
-        MonerisPaymentStatus::Succeeded => match capturable {
-            Some(authorized) if captured < authorized => {
-                common_enums::AttemptStatus::PartialCharged
-            }
-            _ => common_enums::AttemptStatus::Charged,
-        },
-        other => common_enums::AttemptStatus::from(other),
-    }
-}
-
 impl TryFrom<ResponseRouterData<MonerisCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
@@ -1038,13 +1024,18 @@ impl TryFrom<ResponseRouterData<MonerisCaptureResponse, Self>>
     fn try_from(
         item: ResponseRouterData<MonerisCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let status = capture_attempt_status(
-            item.response.payment_status,
-            item.router_data.request.minor_amount_to_capture,
-            item.router_data
-                .resource_common_data
-                .minor_amount_capturable,
-        );
+        let status = match item.response.payment_status {
+            MonerisPaymentStatus::Succeeded => {
+                let captured = item.router_data.request.amount_to_capture.amount;
+                match item.router_data.resource_common_data.amount_capturable {
+                    Some(ref authorized) if captured < authorized.amount => {
+                        common_enums::AttemptStatus::PartialCharged
+                    }
+                    _ => common_enums::AttemptStatus::Charged,
+                }
+            }
+            other => common_enums::AttemptStatus::from(other),
+        };
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
@@ -1150,7 +1141,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }),
                 });
                 let amount = Money {
-                    amount: item.router_data.request.minor_amount,
+                    amount: item.router_data.request.amount.amount,
                     currency: item.router_data.request.currency,
                 };
                 Ok(Self {
@@ -1208,7 +1199,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let amount = Money {
             currency: item.router_data.request.currency,
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: item.router_data.request.amount_to_capture.amount,
         };
         let idempotency_key = format!(
             "capture_{}",
@@ -1285,7 +1276,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let refund_amount = Money {
             currency: item.router_data.request.currency,
-            amount: item.router_data.request.minor_refund_amount,
+            amount: item.router_data.request.refund_amount.amount,
         };
         let idempotency_key = format!(
             "refund_{}",
@@ -1738,7 +1729,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = Money {
             currency: req.currency.unwrap_or_default(),
-            amount: req.amount,
+            amount: req.amount.amount,
         };
 
         let idempotency_key = format!("3ds_{}", resource.connector_request_reference_id);
