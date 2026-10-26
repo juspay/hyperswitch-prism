@@ -874,8 +874,8 @@ fn aes_encrypt(data: &str, key: &str) -> CustomResult<String, IntegrationError> 
         constants::AES_128_KEY_LENGTH => {
             // AES-128-CBC with PKCS7 padding
             type Aes128CbcEnc = Encryptor<Aes128>;
-            let encryptor =
-                Aes128CbcEnc::new_from_slices(key_bytes, &iv).map_err(|_| paytm_aes_key_error())?;
+            let encryptor = Aes128CbcEnc::new_from_slices(key_bytes, &iv)
+                .map_err(|_| paytm_aes_key_error(key_bytes.len()))?;
 
             // Encrypt with proper buffer management
             let mut buffer = Vec::with_capacity(data_bytes.len() + constants::AES_BUFFER_PADDING);
@@ -895,8 +895,8 @@ fn aes_encrypt(data: &str, key: &str) -> CustomResult<String, IntegrationError> 
         constants::AES_192_KEY_LENGTH => {
             // AES-192-CBC with PKCS7 padding
             type Aes192CbcEnc = Encryptor<Aes192>;
-            let encryptor =
-                Aes192CbcEnc::new_from_slices(key_bytes, &iv).map_err(|_| paytm_aes_key_error())?;
+            let encryptor = Aes192CbcEnc::new_from_slices(key_bytes, &iv)
+                .map_err(|_| paytm_aes_key_error(key_bytes.len()))?;
 
             let mut buffer = Vec::with_capacity(data_bytes.len() + constants::AES_BUFFER_PADDING);
             buffer.extend_from_slice(data_bytes);
@@ -915,8 +915,8 @@ fn aes_encrypt(data: &str, key: &str) -> CustomResult<String, IntegrationError> 
         constants::AES_256_KEY_LENGTH => {
             // AES-256-CBC with PKCS7 padding
             type Aes256CbcEnc = Encryptor<Aes256>;
-            let encryptor =
-                Aes256CbcEnc::new_from_slices(key_bytes, &iv).map_err(|_| paytm_aes_key_error())?;
+            let encryptor = Aes256CbcEnc::new_from_slices(key_bytes, &iv)
+                .map_err(|_| paytm_aes_key_error(key_bytes.len()))?;
 
             let mut buffer = Vec::with_capacity(data_bytes.len() + constants::AES_BUFFER_PADDING);
             buffer.extend_from_slice(data_bytes);
@@ -932,17 +932,16 @@ fn aes_encrypt(data: &str, key: &str) -> CustomResult<String, IntegrationError> 
             buffer.truncate(encrypted_len);
             Ok(general_purpose::STANDARD.encode(&buffer))
         }
-        _ => Err(paytm_aes_key_error().into()),
+        _ => Err(paytm_aes_key_error(key_bytes.len()).into()),
     }
 }
 
-fn paytm_aes_key_error() -> IntegrationError {
+fn paytm_aes_key_error(received_key_length: usize) -> IntegrationError {
     IntegrationError::RequestEncodingFailed {
         context: IntegrationErrorContext {
-            additional_context: Some(
-                "Paytm checksum encryption requires a supported AES merchant key length."
-                    .to_string(),
-            ),
+            additional_context: Some(format!(
+                "Paytm checksum encryption received a {received_key_length}-byte merchant key; supported lengths are 16, 24, and 32 bytes."
+            )),
             suggested_action: Some(
                 "Configure the Paytm merchant key as exactly 16, 24, or 32 bytes.".to_string(),
             ),
