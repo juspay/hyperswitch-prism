@@ -843,7 +843,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
         working-directory: browser-automation-engine
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run check
           npm test
           npm run build:worker
