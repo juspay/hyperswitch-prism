@@ -127,8 +127,9 @@ where
         let future = self.inner.call(request);
 
         Box::pin(async move {
+            let result = future.await;
             let outgoing_latency_ms = tracker.outgoing_latency_millis().to_string();
-            match future.await {
+            match result {
                 Ok(mut response) => {
                     if let Ok(value) = outgoing_latency_ms.parse() {
                         response
