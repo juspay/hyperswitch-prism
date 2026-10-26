@@ -1586,6 +1586,7 @@ mod satispay_request_tests {
                 confirm: true,
                 capture_method: None,
                 integrity_object: None,
+                integrity_specifications: None,
                 router_return_url,
                 webhook_url: Some("https://example.com/webhook".to_string()),
                 complete_authorize_url: None,
