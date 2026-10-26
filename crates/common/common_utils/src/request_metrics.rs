@@ -29,11 +29,11 @@ impl ConnectorLatencyTracker {
     /// Add the exact millisecond value emitted on an outgoing golden log line.
     pub fn add_outgoing_latency_millis(&self, elapsed_millis: u64) {
         // The closure always returns `Some`, so the update cannot fail.
-        let _ =
-            self.outgoing_millis
-                .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-                    Some(current.saturating_add(elapsed_millis))
-                });
+        let _ = self
+            .outgoing_millis
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+                Some(current.saturating_add(elapsed_millis))
+            });
     }
 
     /// Sum of the `latency_ms` values emitted by outgoing calls in this request.
