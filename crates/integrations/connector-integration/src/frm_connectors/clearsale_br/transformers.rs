@@ -80,7 +80,7 @@ pub const CLEARSALE_DOC_URL: &str =
 ///
 /// Merchants on a different ClearSale product override it per request
 /// (`connector_feature_data.product`) or account-wide on the connector config.
-pub const DEFAULT_CLEARSALE_PRODUCT_TOTAL_GARANTIDO: i32 = 4;
+pub const DEFAULT_CLEARSALE_PRODUCT_TOTAL_GARANTIDO: u32 = 4;
 
 // ──────────────────────────────────────────────────────────────────────────
 // Auth
@@ -141,7 +141,7 @@ pub struct ClearSaleAuthType {
     pub username: Secret<String>,
     pub password: Secret<String>,
     pub b2b_b2c: Option<CustomerType>,
-    pub product: Option<i32>,
+    pub product: Option<u32>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for ClearSaleAuthType {
@@ -159,7 +159,25 @@ impl TryFrom<&ConnectorSpecificConfig> for ClearSaleAuthType {
                 username: username.clone(),
                 password: password.clone(),
                 b2b_b2c: customer_type_from_config(b2b_b2c.as_deref())?,
-                product: *product,
+                product: product
+                    .map(|code| u32::try_from(code).map_err(|_| {
+                        error_stack::report!(
+                            errors::IntegrationError::FailedToObtainAuthType {
+                                context: errors::IntegrationErrorContext {
+                                    additional_context: Some(format!(
+                                        "ClearSale product id must be a non-negative code, got {code}"
+                                    )),
+                                    suggested_action: Some(
+                                        "Set clearsale_br.product to a valid ClearSale product id \
+                                         (e.g. 4 = Total Garantido)"
+                                            .to_owned(),
+                                    ),
+                                    doc_url: Some(CLEARSALE_DOC_URL.to_owned()),
+                                },
+                            }
+                        )
+                    }))
+                    .transpose()?,
             }),
             _ => Err(error_stack::report!(
                 errors::IntegrationError::FailedToObtainAuthType {
@@ -340,7 +358,7 @@ impl<F> TryFrom<ResponseRouterData<ClearSaleAuthenticateResponse, Self>>
 #[derive(Debug, Clone, Serialize)]
 pub struct ClearSalePerson {
     #[serde(rename = "type")]
-    pub person_type: i32,
+    pub person_type: u32,
     /// CPF (type 1) or CNPJ (type 2).
     #[serde(rename = "primaryDocument")]
     pub primary_document: Secret<String>,
@@ -401,13 +419,13 @@ pub struct ClearSaleAddress {
 #[derive(Debug, Clone, Serialize)]
 pub struct ClearSalePhone {
     #[serde(rename = "type")]
-    pub phone_type: i32,
+    pub phone_type: u32,
     /// Area code (2 digits). ClearSale expects integer, not string.
-    pub ddd: i64,
+    pub ddd: u64,
     /// Phone number digits. ClearSale expects integer, not string.
-    pub number: i64,
+    pub number: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ddi: Option<i64>,
+    pub ddi: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extension: Option<String>,
 }
@@ -415,18 +433,18 @@ pub struct ClearSalePhone {
 #[derive(Debug, Clone, Serialize)]
 pub struct ClearSalePayment {
     #[serde(rename = "type")]
-    pub payment_type: i32,
+    pub payment_type: u32,
     pub value: FloatMajorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub date: Option<String>,
     /// ISO-4217 numeric code (e.g. `986` for BRL).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub currency: Option<i32>,
+    pub currency: Option<u32>,
     /// Payment sequence within the order (1-based).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sequential: Option<i32>,
+    pub sequential: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub installments: Option<i32>,
+    pub installments: Option<u32>,
     /// Installment interest rate (percent).
     #[serde(rename = "interestRate", skip_serializing_if = "Option::is_none")]
     pub interest_rate: Option<FloatMajorUnit>,
@@ -452,7 +470,7 @@ pub struct ClearSaleCard {
     pub hash: Option<Secret<String>>,
     /// Bandeira: 1 Diners, 2 Master, 3 Visa, 5 Amex, 6 HiperCard, 10 Elo.
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub card_type: Option<i32>,
+    pub card_type: Option<u32>,
     #[serde(rename = "validityDate", skip_serializing_if = "Option::is_none")]
     pub validity_date: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -473,7 +491,7 @@ pub struct ClearSaleItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<u16>,
     #[serde(rename = "categoryID", skip_serializing_if = "Option::is_none")]
-    pub category_id: Option<i64>,
+    pub category_id: Option<u64>,
     #[serde(rename = "categoryName", skip_serializing_if = "Option::is_none")]
     pub category_name: Option<String>,
     #[serde(rename = "isGift", skip_serializing_if = "Option::is_none")]
@@ -514,7 +532,7 @@ pub struct ClearSaleOrderRequest {
         rename = "numberOfInstallments",
         skip_serializing_if = "Option::is_none"
     )]
-    pub number_of_installments: Option<i32>,
+    pub number_of_installments: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ip: Option<String>,
     #[serde(rename = "isGift", skip_serializing_if = "Option::is_none")]
@@ -525,7 +543,7 @@ pub struct ClearSaleOrderRequest {
     pub observation: Option<String>,
     /// 0 / 9 / 41 / 45.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub status: Option<i32>,
+    pub status: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub origin: Option<String>,
     #[serde(rename = "channelID", skip_serializing_if = "Option::is_none")]
@@ -537,10 +555,10 @@ pub struct ClearSaleOrderRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nationality: Option<String>,
     /// `4` = Total Garantido.
-    pub product: i32,
+    pub product: u32,
     /// Custom SLA in seconds for the analysis decision.
     #[serde(rename = "customSla", skip_serializing_if = "Option::is_none")]
-    pub custom_sla: Option<i32>,
+    pub custom_sla: Option<u32>,
     /// 3DS authentication result text (e.g. "Aprovado 3DS").
     #[serde(rename = "bankAuthentication", skip_serializing_if = "Option::is_none")]
     pub bank_authentication: Option<String>,
@@ -570,7 +588,7 @@ pub struct ClearSaleOrderRequest {
 #[derive(Debug, Clone, Serialize)]
 pub struct ClearSaleList {
     #[serde(rename = "typeID")]
-    pub type_id: i32,
+    pub type_id: u32,
     pub id: String,
 }
 
@@ -614,9 +632,9 @@ pub struct ClearSalePurchaseInformation {
 #[derive(Debug, Clone, Serialize)]
 pub struct ClearSaleSocialNetwork {
     #[serde(rename = "optInCompreConfie", skip_serializing_if = "Option::is_none")]
-    pub opt_in_compre_confie: Option<i32>,
+    pub opt_in_compre_confie: Option<u32>,
     #[serde(rename = "typeSocialNetwork", skip_serializing_if = "Option::is_none")]
-    pub type_social_network: Option<i32>,
+    pub type_social_network: Option<u32>,
     #[serde(
         rename = "authenticationToken",
         skip_serializing_if = "Option::is_none"
@@ -635,7 +653,7 @@ pub struct ClearSalePassenger {
     /// ID type per spec: 1=CPF, 2=CNPJ, 3=RG, 4=IE, 5=Passport, 6=CTPS, 7=Voter ID.
     /// Required only when identificationNumber is present.
     #[serde(rename = "identificationType", skip_serializing_if = "Option::is_none")]
-    pub identification_type: Option<i32>,
+    pub identification_type: Option<u32>,
     #[serde(
         rename = "identificationNumber",
         skip_serializing_if = "Option::is_none"
@@ -659,7 +677,7 @@ pub struct ClearSaleConnection {
         rename = "identificationNumber",
         skip_serializing_if = "Option::is_none"
     )]
-    pub identification_number: Option<i64>,
+    pub identification_number: Option<u64>,
     /// Departure date (required per spec); fall back from boarding if needed.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub date: Option<String>,
@@ -848,20 +866,20 @@ pub struct ClearSaleWebhookPayload {
 // Request construction — PreRiskCheck / PostRiskCheck
 // ──────────────────────────────────────────────────────────────────────────
 
-pub(crate) const CLEARSALE_PERSON_TYPE_PF: i32 = 1;
+pub(crate) const CLEARSALE_PERSON_TYPE_PF: u32 = 1;
 /// `type` for Pessoa Jurídica (legal entity) — spec §5.1. Mapped from
 /// `DocumentKind::Cnpj`.
-pub(crate) const CLEARSALE_PERSON_TYPE_PJ: i32 = 2;
-pub(crate) const CLEARSALE_PAYMENT_TYPE_CREDIT_CARD: i32 = 1;
-pub(crate) const CLEARSALE_PAYMENT_TYPE_BANK_SLIP: i32 = 2;
-pub(crate) const CLEARSALE_PAYMENT_TYPE_BANK_DEBIT: i32 = 3;
-pub(crate) const CLEARSALE_PAYMENT_TYPE_BANK_TRANSFER: i32 = 6;
-pub(crate) const CLEARSALE_PAYMENT_TYPE_VOUCHER: i32 = 16;
-pub(crate) const CLEARSALE_PAYMENT_TYPE_DEBIT_CARD: i32 = 19;
-pub(crate) const CLEARSALE_PAYMENT_TYPE_PIX: i32 = 27;
-pub(crate) const CLEARSALE_PAYMENT_TYPE_CASHBACK: i32 = 28;
-pub(crate) const CLEARSALE_PAYMENT_TYPE_VIRTUAL_GIFT_CARD: i32 = 1041;
-pub(crate) const CLEARSALE_PHONE_TYPE_HOME: i32 = 1;
+pub(crate) const CLEARSALE_PERSON_TYPE_PJ: u32 = 2;
+pub(crate) const CLEARSALE_PAYMENT_TYPE_CREDIT_CARD: u32 = 1;
+pub(crate) const CLEARSALE_PAYMENT_TYPE_BANK_SLIP: u32 = 2;
+pub(crate) const CLEARSALE_PAYMENT_TYPE_BANK_DEBIT: u32 = 3;
+pub(crate) const CLEARSALE_PAYMENT_TYPE_BANK_TRANSFER: u32 = 6;
+pub(crate) const CLEARSALE_PAYMENT_TYPE_VOUCHER: u32 = 16;
+pub(crate) const CLEARSALE_PAYMENT_TYPE_DEBIT_CARD: u32 = 19;
+pub(crate) const CLEARSALE_PAYMENT_TYPE_PIX: u32 = 27;
+pub(crate) const CLEARSALE_PAYMENT_TYPE_CASHBACK: u32 = 28;
+pub(crate) const CLEARSALE_PAYMENT_TYPE_VIRTUAL_GIFT_CARD: u32 = 1041;
+pub(crate) const CLEARSALE_PHONE_TYPE_HOME: u32 = 1;
 pub(crate) fn missing_field_err(field_name: &'static str) -> Error {
     error_stack::report!(errors::IntegrationError::MissingRequiredField {
         field_name,
@@ -878,7 +896,7 @@ pub(crate) fn missing_field_err(field_name: &'static str) -> Error {
     })
 }
 
-pub(crate) fn clearsale_currency_code(currency: Currency) -> Result<i32, Error> {
+pub(crate) fn clearsale_currency_code(currency: Currency) -> Result<u32, Error> {
     match currency {
         Currency::BRL => Ok(986),
         other => Err(error_stack::report!(
@@ -907,7 +925,7 @@ pub(crate) struct OrderInputs<'a> {
     session_id: String,
     feature_data: &'a ClearSaleFeatureData,
     b2b_b2c: Option<CustomerType>,
-    config_product: Option<i32>,
+    config_product: Option<u32>,
     email: Email,
     money: common_utils::types::Money,
     ip: Option<String>,
@@ -927,7 +945,7 @@ impl<'a> OrderInputs<'a> {
         req: &'a PreRiskCheckRequest,
         feature_data: &'a ClearSaleFeatureData,
         b2b_b2c: Option<CustomerType>,
-        config_product: Option<i32>,
+        config_product: Option<u32>,
     ) -> Result<Self, Error> {
         let travel_data = ClearSaleTravelData::from_domain_data(req.domain_data.as_ref());
         Ok(Self {
@@ -963,7 +981,7 @@ impl<'a> OrderInputs<'a> {
         req: &'a PostRiskCheckRequest,
         feature_data: &'a ClearSaleFeatureData,
         b2b_b2c: Option<CustomerType>,
-        config_product: Option<i32>,
+        config_product: Option<u32>,
     ) -> Result<Self, Error> {
         let travel_data = ClearSaleTravelData::from_domain_data(req.domain_data.as_ref());
         Ok(Self {
@@ -1172,7 +1190,7 @@ pub(crate) fn build_clear_sale_address(
 pub(crate) fn split_phone(
     number: &str,
     country_code: Option<&str>,
-    phone_type: i32,
+    phone_type: u32,
 ) -> Result<ClearSalePhone, Error> {
     let digits: String = number.chars().filter(|c| c.is_ascii_digit()).collect();
     if digits.is_empty() {
@@ -1191,7 +1209,7 @@ pub(crate) fn split_phone(
             } else {
                 digits.clone()
             };
-            (code.parse::<i64>().ok(), national)
+            (code.parse::<u64>().ok(), national)
         }
         None => {
             // E.164 without an explicit country_code: `55` + DDD + number.
@@ -1208,10 +1226,10 @@ pub(crate) fn split_phone(
     }
     let (ddd_str, local_str) = national.split_at(2);
     let ddd = ddd_str
-        .parse::<i64>()
+        .parse::<u64>()
         .map_err(|_| missing_field_err("phone.ddd"))?;
     let number = local_str
-        .parse::<i64>()
+        .parse::<u64>()
         .map_err(|_| missing_field_err("phone.number"))?;
     if ddd == 0 || number == 0 {
         return Err(missing_field_err("phone.number"));
@@ -1231,7 +1249,7 @@ pub(crate) fn split_phone(
 pub(crate) fn collect_phones(
     address: Option<&domain_types::payment_address::Address>,
     customer_info: Option<&domain_types::connector_types::CustomerInfo>,
-    phone_type: i32,
+    phone_type: u32,
 ) -> Result<Vec<ClearSalePhone>, Error> {
     let from_address = address
         .and_then(|addr| addr.phone.as_ref())
@@ -1360,7 +1378,7 @@ pub(crate) fn build_person(
 
 /// ClearSale bandeira int for a card network (spec §5.1). Networks with no
 /// ClearSale code return `None` and the `card.type` field is simply omitted.
-pub(crate) fn clearsale_card_type(network: Option<&CardNetwork>) -> Option<i32> {
+pub(crate) fn clearsale_card_type(network: Option<&CardNetwork>) -> Option<u32> {
     match network? {
         CardNetwork::DinersClub => Some(1),
         CardNetwork::Mastercard => Some(2),
@@ -1463,7 +1481,7 @@ pub(crate) fn card_with_no_cvc_validity_date(card: &CardWithNoCvc) -> String {
 
 pub(crate) fn clearsale_payment_type(
     payment_method: &PaymentMethodData<DefaultPCIHolder>,
-) -> Result<i32, Error> {
+) -> Result<u32, Error> {
     match payment_method {
         PaymentMethodData::Card(card) => {
             let is_debit = card
@@ -1565,7 +1583,7 @@ pub(crate) fn build_clear_sale_payment(
     payment_method: Option<&PaymentMethodData<DefaultPCIHolder>>,
     value: FloatMajorUnit,
     date: &str,
-    installments: Option<i32>,
+    installments: Option<u32>,
     card_document: Option<Secret<String>>,
     currency: Currency,
 ) -> Result<ClearSalePayment, Error> {
@@ -1669,7 +1687,7 @@ pub(crate) struct OrderRequestParts {
     origin: Option<String>,
     channel_id: Option<String>,
     b2b_b2c: Option<CustomerType>,
-    product: i32,
+    product: u32,
     country: Option<String>,
 }
 
@@ -1787,24 +1805,24 @@ pub struct ClearSaleFeatureData {
     #[serde(default)]
     pub observation: Option<String>,
     #[serde(default)]
-    pub status: Option<i32>,
+    pub status: Option<u32>,
     #[serde(default, rename = "reservationDate")]
     pub reservation_date: Option<String>,
     /// Custom SLA for the analysis decision, in seconds.
     #[serde(default, rename = "customSla")]
-    pub custom_sla: Option<i32>,
+    pub custom_sla: Option<u32>,
     /// Compre e Confie opt-in block, merchant-supplied.
     #[serde(default)]
     pub social_network: Option<ClearSaleSocialNetworkFeature>,
     #[serde(default)]
-    pub billing_phone_type: Option<i32>,
+    pub billing_phone_type: Option<u32>,
     /// Same, for `shipping.phones[].type`.
     #[serde(default)]
-    pub shipping_phone_type: Option<i32>,
+    pub shipping_phone_type: Option<u32>,
     #[serde(default)]
-    pub installments: Option<i32>,
+    pub installments: Option<u32>,
     #[serde(default)]
-    pub product: Option<i32>,
+    pub product: Option<u32>,
     #[serde(default)]
     pub nationality: Option<String>,
 }
@@ -1935,7 +1953,7 @@ pub(crate) fn travel_segment_to_clear_sale_connection(
     let identification_number = if identifier.is_empty() {
         None
     } else {
-        identifier.parse::<i64>().ok()
+        identifier.parse::<u64>().ok()
     };
     // Fall back: departure → boarding → booking travel date → fail
     let date = segment
@@ -2029,9 +2047,9 @@ pub(crate) fn accommodation_to_clear_sale(a: &HotelSegment) -> Option<ClearSaleH
 #[serde(rename_all = "camelCase")]
 pub struct ClearSaleSocialNetworkFeature {
     #[serde(default, rename = "optInCompreConfie")]
-    pub opt_in_compre_confie: Option<i32>,
+    pub opt_in_compre_confie: Option<u32>,
     #[serde(default, rename = "typeSocialNetwork")]
-    pub type_social_network: Option<i32>,
+    pub type_social_network: Option<u32>,
     #[serde(default, rename = "authenticationToken")]
     pub authentication_token: Option<Secret<String>>,
 }
