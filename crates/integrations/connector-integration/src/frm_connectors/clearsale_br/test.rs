@@ -139,9 +139,7 @@ mod tests {
             merchant_transaction_id: Some("order-abc-001".to_owned()),
             order_details: Some(order_details()),
             address: Some(payment_address()),
-            metadata: Some(Secret::new(
-                r#"{"session_id":"sdk-session-42"}"#.to_owned(),
-            )),
+            metadata: Some(Secret::new(r#"{"session_id":"sdk-session-42"}"#.to_owned())),
             connector_feature_data: Some(Secret::new(r#"{"installments":1}"#.to_owned())),
             test_mode: Some(true),
             mandate_details: None,
@@ -1412,7 +1410,7 @@ mod tests {
 
         let segments = travel.travel_segments.expect("segments projected");
         assert_eq!(segments.len(), 2);
-        let c = travel_segment_to_clear_sale_connection(&segments[0].0, &segments[0].1)
+        let c = travel_segment_to_clear_sale_connection(segments[0].0, segments[0].1)
             .expect("required fields present");
         assert_eq!(c.company, "LA");
         assert_eq!(c.identification_number, Some(101));
@@ -1422,14 +1420,14 @@ mod tests {
         assert_eq!(c.arriving.as_deref(), Some("2025-06-01T12:00:00"));
         // "G3-1234" is not numeric — no identificationNumber on the wire.
         // Booking-level `carrier_name` ("LA") wins over the identifier prefix.
-        let c2 = travel_segment_to_clear_sale_connection(&segments[1].0, &segments[1].1)
+        let c2 = travel_segment_to_clear_sale_connection(segments[1].0, segments[1].1)
             .expect("required fields present");
         assert_eq!(c2.identification_number, None);
         assert_eq!(c2.company, "LA");
         assert_eq!(c2.date.as_deref(), Some("2025-06-10T09:00:00"));
 
         let hotels = travel.accommodations.expect("hotel projected");
-        let h = accommodation_to_clear_sale(&hotels[0]).expect("hotel name present");
+        let h = accommodation_to_clear_sale(hotels[0]).expect("hotel name present");
         assert_eq!(h.name, "Hotel Rio");
 
         // No travel/hotel blocks at all → not a travel order.

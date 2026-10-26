@@ -1,10 +1,7 @@
 use common_enums::{
     AttemptStatus, CardNetwork, CountryAlpha2, Currency, CustomerType, FrmDecision, Gender,
 };
-use common_utils::{
-    pii::Email,
-    types::FloatMajorUnit,
-};
+use common_utils::{pii::Email, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{FrmPaymentOutcome, PostRiskCheck, PreRiskCheck, ServerAuthenticationToken},
     connector_types::{
@@ -57,8 +54,7 @@ impl ClearSaleFrmMetadata {
                             "FRM request `metadata` must be a JSON object: {err}"
                         )),
                         suggested_action: Some(
-                            "Send a JSON object carrying `session_id`"
-                                .to_owned(),
+                            "Send a JSON object carrying `session_id`".to_owned(),
                         ),
                         doc_url: Some(CLEARSALE_DOC_URL.to_owned()),
                     },
@@ -935,7 +931,10 @@ impl<'a> OrderInputs<'a> {
     ) -> Result<Self, Error> {
         let travel_data = ClearSaleTravelData::from_domain_data(req.domain_data.as_ref());
         Ok(Self {
-            code: req.merchant_transaction_id.clone().ok_or_else(|| missing_field_err("merchant_transaction_id"))?,
+            code: req
+                .merchant_transaction_id
+                .clone()
+                .ok_or_else(|| missing_field_err("merchant_transaction_id"))?,
             session_id: get_session_id_from_metadata(req.metadata.as_ref())?,
             feature_data,
             b2b_b2c,
@@ -968,7 +967,10 @@ impl<'a> OrderInputs<'a> {
     ) -> Result<Self, Error> {
         let travel_data = ClearSaleTravelData::from_domain_data(req.domain_data.as_ref());
         Ok(Self {
-            code: req.merchant_transaction_id.clone().ok_or_else(|| missing_field_err("merchant_transaction_id"))?,
+            code: req
+                .merchant_transaction_id
+                .clone()
+                .ok_or_else(|| missing_field_err("merchant_transaction_id"))?,
             session_id: get_session_id_from_metadata(req.metadata.as_ref())?,
             feature_data,
             b2b_b2c,
@@ -2255,9 +2257,8 @@ impl TryFrom<ResponseRouterData<ClearSaleOrderCreateResponse, Self>>
                 frm_decision: Some(frm_decision),
                 risk_score: score,
                 reason: Some(format!("packageID: {}", item.response.package_id)),
-                frm_transaction_id: order_code.or_else(|| {
-                    item.router_data.request.merchant_transaction_id.clone()
-                }),
+                frm_transaction_id: order_code
+                    .or_else(|| item.router_data.request.merchant_transaction_id.clone()),
                 status_code: item.http_code,
             }),
             ..item.router_data
@@ -2279,9 +2280,8 @@ impl TryFrom<ResponseRouterData<ClearSaleOrderReanalysisResponse, Self>>
                 frm_decision: Some(frm_decision),
                 risk_score: score,
                 reason: Some(format!("packageID: {}", item.response.0.package_id)),
-                frm_transaction_id: order_code.or_else(|| {
-                    item.router_data.request.merchant_transaction_id.clone()
-                }),
+                frm_transaction_id: order_code
+                    .or_else(|| item.router_data.request.merchant_transaction_id.clone()),
                 status_code: item.http_code,
             }),
             ..item.router_data
