@@ -376,6 +376,9 @@ fn create_payment_authorize_request(
 // Helper function to create a payment sync request
 fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        enable_partial_authorization: None,
+        integrity_specifications: None,
+        is_overcapture_enabled: None,
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         capture_method: None,
@@ -404,7 +407,10 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
     let request_ref_id = generate_unique_request_ref_id("capture");
 
     PaymentServiceCaptureRequest {
+        integrity_specifications: None,
+        is_overcapture_enabled: None,
         split_settlement: None,
+        payment_method: None,
         merchant_capture_id: Some(request_ref_id),
         connector_transaction_id: transaction_id.to_string(),
         amount_to_capture: Some(grpc_api_types::payments::Money {
