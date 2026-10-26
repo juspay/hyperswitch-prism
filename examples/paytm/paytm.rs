@@ -12,11 +12,7 @@ use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &[
-    "authorize",
-    "create_server_session_authentication_token",
-    "get",
-];
+pub const SUPPORTED_FLOWS: &[&str] = &["authorize"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -80,27 +76,6 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
     }
 }
 
-pub fn build_create_server_session_authentication_token_request(
-) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
-    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
-        // domain_context: {"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}}}
-        ..Default::default()
-    }
-}
-
-pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
-    PaymentServiceGetRequest {
-        merchant_transaction_id: Some("probe_merchant_txn_001".to_string()), // Identification.
-        connector_transaction_id: connector_transaction_id.to_string(),
-        amount: Some(Money {
-            // Amount Information.
-            minor_amount: 1000,
-            currency: Currency::Usd.into(),
-        }),
-        ..Default::default()
-    }
-}
-
 // Flow: PaymentService.Authorize (UpiCollect)
 #[allow(dead_code)]
 pub async fn process_authorize(
@@ -122,38 +97,6 @@ pub async fn process_authorize(
     }
 }
 
-// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
-#[allow(dead_code)]
-pub async fn process_create_server_session_authentication_token(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .create_server_session_authentication_token(
-            build_create_server_session_authentication_token_request(),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status_code))
-}
-
-// Flow: PaymentService.Get
-#[allow(dead_code)]
-pub async fn process_get(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .get(
-            build_get_request("probe_connector_txn_001"),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 #[allow(dead_code)]
 #[tokio::main]
 async fn main() {
@@ -163,12 +106,8 @@ async fn main() {
         .unwrap_or_else(|| "process_authorize".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "process_authorize" => process_authorize(&client, "txn_001").await,
-        "process_create_server_session_authentication_token" => {
-            process_create_server_session_authentication_token(&client, "txn_001").await
-        }
-        "process_get" => process_get(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_authorize, process_create_server_session_authentication_token, process_get", flow);
+            eprintln!("Unknown flow: {}. Available: process_authorize", flow);
             return;
         }
     };
