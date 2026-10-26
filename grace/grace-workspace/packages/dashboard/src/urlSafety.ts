@@ -26,15 +26,3 @@ export function isSupportedImageMimeType(mimeType: string): boolean {
 export function isSupportedImageFile(file: File): boolean {
   return isSupportedImageMimeType(file.type);
 }
-
-/** FileReader previews must remain raster image data URLs. */
-export function safeImageDataUrl(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const comma = value.indexOf(",");
-  if (comma < 0 || comma === value.length - 1) return undefined;
-  const header = value.slice(0, comma);
-  const mimeType = header.slice("data:".length, -";base64".length);
-  return header === `data:${mimeType};base64` && isSupportedImageMimeType(mimeType)
-    ? value
-    : undefined;
-}

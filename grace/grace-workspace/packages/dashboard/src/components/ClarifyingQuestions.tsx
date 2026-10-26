@@ -4,7 +4,6 @@ import { Markdown } from "./Markdown";
 import {
   isSupportedImageFile,
   isSupportedImageMimeType,
-  safeImageDataUrl,
 } from "../urlSafety";
 
 interface Attachment {
@@ -232,7 +231,7 @@ export function ClarifyingQuestions({
                   boxSizing: "border-box",
                 }}
               />
-              {/* Attachment previews */}
+              {/* Attachment names; the data URL is only sent with the answer. */}
               {attached.length > 0 && (
                 <div
                   style={{
@@ -254,21 +253,11 @@ export function ClarifyingQuestions({
                         width: 120,
                       }}
                     >
-                      <img
-                        src={safeImageDataUrl(att.dataUrl)}
-                        alt={att.name}
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          height: 80,
-                          objectFit: "cover",
-                        }}
-                      />
                       <div
                         style={{
                           fontSize: 10,
                           color: T.textMuted,
-                          padding: "4px 6px",
+                          padding: "10px 28px 10px 6px",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",

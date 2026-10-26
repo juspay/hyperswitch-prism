@@ -3,7 +3,6 @@ import test from "node:test";
 import {
   isSupportedImageMimeType,
   safeHttpUrl,
-  safeImageDataUrl,
 } from "./urlSafety.ts";
 
 test("external links only accept absolute HTTP(S) URLs", () => {
@@ -14,11 +13,8 @@ test("external links only accept absolute HTTP(S) URLs", () => {
   }
 });
 
-test("attachment previews accept raster data URLs and reject active content", () => {
+test("attachments only accept raster image types", () => {
   assert.equal(isSupportedImageMimeType("image/png"), true);
+  assert.equal(isSupportedImageMimeType("image/jpeg"), true);
   assert.equal(isSupportedImageMimeType("image/svg+xml"), false);
-  assert.equal(safeImageDataUrl("data:image/png;base64,iVBORw0KGgo="), "data:image/png;base64,iVBORw0KGgo=");
-  for (const value of ["data:image/svg+xml;base64,PHN2Zz4=", "data:text/html;base64,PHNjcmlwdD4=", "javascript:alert(1)", "data:image/png;base64,"]) {
-    assert.equal(safeImageDataUrl(value), undefined);
-  }
 });
