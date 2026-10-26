@@ -5,9 +5,9 @@
 // Paytm — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx paytm.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize"];
+export const SUPPORTED_FLOWS = ["authorize", "create_server_session_authentication_token", "get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -48,6 +48,28 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
     };
 }
 
+function _buildCreateServerSessionAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+    return {
+        "payment": {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
+            "amount": {
+                "minorAmount": 1000,
+                "currency": Currency.USD
+            }
+        }
+    };
+}
+
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
+    return {
+        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,
+            "currency": Currency.USD
+        }
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // Flow: PaymentService.Authorize (UpiCollect)
@@ -59,10 +81,28 @@ async function authorize(merchantTransactionId: string, config: types.IConnector
     return authorizeResponse;
 }
 
+// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
+async function createServerSessionAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createServerSessionAuthenticationToken(_buildCreateServerSessionAuthenticationTokenRequest());
+
+    return createResponse;
+}
+
+// Flow: PaymentService.Get
+async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
+
+    return getResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    authorize, _buildAuthorizeRequest
+    authorize, createServerSessionAuthenticationToken, get, _buildAuthorizeRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest
 };
 
 // CLI runner

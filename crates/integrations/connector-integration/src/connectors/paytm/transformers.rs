@@ -860,7 +860,8 @@ pub fn generate_paytm_signature(
 // AES-CBC encryption implementation for PayTM v2
 // This follows the exact PayTMv1 encrypt function used by PayTMv2:
 // - Fixed IV: "@@@@&&&&####$$$$" (16 bytes) - exact value from Haskell code
-// - Key length determines AES variant: 16→AES-128, 24→AES-192, other→AES-256
+// - Key length determines AES variant: 16→AES-128, 24→AES-192, 32→AES-256
+// - Other key lengths are rejected rather than silently padded or truncated
 // - Mode: CBC with PKCS7 padding (16-byte blocks)
 // - Output: Base64 encoded encrypted data
 fn aes_encrypt(data: &str, key: &str) -> CustomResult<String, IntegrationError> {

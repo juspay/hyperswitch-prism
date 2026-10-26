@@ -556,8 +556,26 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "error",
-        "error": "Failed to encode connector request. Paytm checksum encryption requires a supported AES merchant key length."
+        "status": "supported",
+        "proto_request": {
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://securestage.paytmpayments.com/theia/api/v1/initiateTransaction?mid=probe_merchant&orderId=",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"head\":{\"clientId\":null,\"version\":\"v1\",\"requestTimestamp\":\"0000000000\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"body\":{\"requestType\":\"Payment\",\"mid\":\"probe_merchant\",\"orderId\":\"\",\"websiteName\":\"probe_website\",\"txnAmount\":{\"value\":\"10.00\",\"currency\":\"USD\"},\"userInfo\":{\"custId\":\"cus_default\",\"mobile\":null,\"email\":null,\"firstName\":null,\"lastName\":null},\"enablePaymentMode\":[{\"mode\":\"UPI\",\"channels\":[\"UPIPUSH\",\"UPI\"]}],\"callbackUrl\":\"https://default-callback.com\",\"shippingInfo\":[{\"trackingNo\":\"\",\"chargeAmount\":{\"value\":\"10.00\",\"currency\":\"USD\"}}]}}"
+        }
       }
     },
     "customer_create": {
@@ -603,8 +621,24 @@
     },
     "get": {
       "default": {
-        "status": "error",
-        "error": "Failed to encode connector request. Paytm checksum encryption requires a supported AES merchant key length."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://securestage.paytmpayments.com//v3/order/status",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"head\":{\"clientId\":null,\"version\":\"v1\",\"requestTimestamp\":\"0000000000\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"body\":{\"mid\":\"probe_merchant\",\"orderId\":\"probe_merchant_txn_001\"}}"
+        }
       }
     },
     "handle_event": {

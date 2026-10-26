@@ -124,6 +124,8 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
+| [MerchantAuthenticationService.CreateServerSessionAuthenticationToken](#merchantauthenticationservicecreateserversessionauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
+| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 
 ### Payments
 
@@ -254,4 +256,28 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L54) · [Kotlin](../../examples/paytm/paytm.kt#L67) · [Rust](../../examples/paytm/paytm.rs)
+**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L76) · [Kotlin](../../examples/paytm/paytm.kt#L79) · [Rust](../../examples/paytm/paytm.rs)
+
+#### PaymentService.Get
+
+Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceGetRequest` |
+| **Response** | `PaymentServiceGetResponse` |
+
+**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L94) · [Kotlin](../../examples/paytm/paytm.kt#L106) · [Rust](../../examples/paytm/paytm.rs)
+
+### Authentication
+
+#### MerchantAuthenticationService.CreateServerSessionAuthenticationToken
+
+Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
+
+| | Message |
+|---|---------|
+| **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
+
+**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L85) · [Kotlin](../../examples/paytm/paytm.kt#L91) · [Rust](../../examples/paytm/paytm.rs)

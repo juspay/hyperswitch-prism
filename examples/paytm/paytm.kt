@@ -11,6 +11,7 @@ import types.Payment.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.MerchantAuthenticationClient
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
@@ -21,7 +22,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.PaytmConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "create_server_session_authentication_token", "get")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -63,6 +64,17 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
     }.build()
 }
 
+private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
+    return PaymentServiceGetRequest.newBuilder().apply {
+        merchantTransactionId = "probe_merchant_txn_001"  // Identification.
+        connectorTransactionId = connectorTransactionIdStr
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L
+            currency = Currency.USD
+        }
+    }.build()
+}
+
 // Flow: PaymentService.Authorize (UpiCollect)
 fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -75,12 +87,37 @@ fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     }
 }
 
+// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
+fun createServerSessionAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
+    val request = MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest.newBuilder().apply {
+        paymentBuilder.apply {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
+            amountBuilder.apply {
+                minorAmount = 1000L
+                currency = Currency.USD
+            }
+        }
+    }.build()
+    val response = client.create_server_session_authentication_token(request)
+    println("Session token: ${response.sessionToken} (statusCode=${response.statusCode})")
+}
+
+// Flow: PaymentService.Get
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildGetRequest("probe_connector_txn_001")
+    val response = client.get(request)
+    println("Status: ${response.status.name}")
+}
+
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
     val flow = args.firstOrNull() ?: "authorize"
     when (flow) {
         "authorize" -> authorize(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: authorize")
+        "createServerSessionAuthenticationToken" -> createServerSessionAuthenticationToken(txnId)
+        "get" -> get(txnId)
+        else -> System.err.println("Unknown flow: $flow. Available: authorize, createServerSessionAuthenticationToken, get")
     }
 }
