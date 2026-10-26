@@ -42,7 +42,9 @@ def _build_authorize_request(capture_method: str):
         ),
         capture_method=payment_pb2.CaptureMethod.Value(capture_method),  # Method for capturing the payment.
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=common_types_pb2.Address(),
+            billing_address=common_types_pb2.Address(
+                country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
+            ),
         ),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
         return_url="https://example.com/return",  # URLs for Redirection and Webhooks.

@@ -69,6 +69,7 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
+                country_alpha2_code: Some(CountryAlpha2::Us.into()),
                 ..Default::default()
             }),
             ..Default::default()
