@@ -4,7 +4,7 @@ use crate::connectors::tamara::TamaraRouterData;
 use crate::types::ResponseRouterData;
 use crate::utils;
 use common_enums::EligibilityStatus;
-use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_enums::{AttemptStatus, Currency, ProductType, RefundStatus};
 use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
     Email,
@@ -171,6 +171,13 @@ pub struct TamaraLineItem {
     pub reference_id: String,
     pub sku: String,
     pub total_amount: TamaraAmount,
+    #[serde(rename = "type")]
+    pub item_type: ProductType,
+    pub item_url: Option<String>,
+    pub image_url: Option<String>,
+    pub unit_price: TamaraAmount,
+    pub discount_amount: Option<TamaraAmount>,
+    pub tax_amount: Option<TamaraAmount>,
 }
 
 #[derive(Debug, Serialize)]
@@ -186,7 +193,6 @@ pub struct TamaraMerchantUrl {
     pub success: String,
     pub failure: String,
     pub cancel: String,
-    pub notification: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -242,7 +248,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .resource_common_data
             .connector_request_reference_id
             .clone();
-        let webhook = router_data.request.webhook_url.clone().unwrap_or_default();
         let return_url = router_data
             .request
             .router_return_url
@@ -324,45 +329,61 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .resource_common_data
             .get_optional_shipping_or_billing_country_string();
 
+        let to_tamara_amount = |value: MinorUnit, context: &'static str| {
+            converter
+                .convert(value, currency)
+                .map(|amount| TamaraAmount { amount, currency })
+                .change_context(errors::IntegrationError::RequestEncodingFailed {
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(context.to_string()),
+                        ..Default::default()
+                    },
+                })
+        };
+        let optional_amount = |value: Option<MinorUnit>, context: &'static str| {
+            value.map(|v| to_tamara_amount(v, context)).transpose()
+        };
+
         let items: Vec<TamaraLineItem> = router_data
             .resource_common_data
             .order_details
             .clone()
-            .map(|od| {
-                od.iter()
-                    .enumerate()
-                    .map(|(i, data)| {
-                        let item_amount = converter
-                            .convert(data.amount, currency)
-                            .change_context(errors::IntegrationError::RequestEncodingFailed {
-                                context: errors::IntegrationErrorContext {
-                                    additional_context: Some(
-                                        "Failed to convert line item amount from minor to major units"
-                                            .to_string(),
-                                    ),
-                                    ..Default::default()
-                                },
-                            })?;
-                        Ok(TamaraLineItem {
-                            name: data.product_name.clone(),
-                            quantity: data.quantity,
-                            reference_id: data
-                                .product_id
-                                .clone()
-                                .unwrap_or_else(|| format!("item_{i}")),
-                            sku: data
-                                .product_id
-                                .clone()
-                                .unwrap_or_else(|| format!("item_{i}")),
-                            total_amount: TamaraAmount {
-                                amount: item_amount,
-                                currency,
-                            },
-                        })
-                    })
-                    .collect::<Result<Vec<_>, error_stack::Report<errors::IntegrationError>>>()
+            .filter(|od| !od.is_empty())
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "order_details",
+                    context: errors::IntegrationErrorContext::default(),
+                }
+            ))?
+            .iter()
+            .map(|data| {
+                Ok(TamaraLineItem {
+                    name: data.get_product_name(),
+                    quantity: data.get_quantity(),
+                    reference_id: data.get_product_id()?,
+                    sku: data.get_sku()?,
+                    total_amount: to_tamara_amount(
+                        data.get_total_amount(),
+                        "Failed to convert line item total amount from minor to major units",
+                    )?,
+                    item_type: data.get_product_type()?,
+                    item_url: data.get_optional_product_link(),
+                    image_url: data.get_optional_product_img_link(),
+                    unit_price: to_tamara_amount(
+                        data.get_unit_amount(),
+                        "Failed to convert line item unit price from minor to major units",
+                    )?,
+                    discount_amount: optional_amount(
+                        data.get_optional_unit_discount_amount(),
+                        "Failed to convert line item discount amount from minor to major units",
+                    )?,
+                    tax_amount: optional_amount(
+                        data.get_optional_total_tax_amount(),
+                        "Failed to convert line item tax amount from minor to major units",
+                    )?,
+                })
             })
-            .unwrap_or(Ok(Vec::new()))?;
+            .collect::<Result<Vec<_>, error_stack::Report<errors::IntegrationError>>>()?;
 
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
@@ -388,11 +409,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 success: return_url.clone(),
                 failure: return_url.clone(),
                 cancel: return_url.clone(),
-                notification: if webhook.is_empty() {
-                    None
-                } else {
-                    Some(webhook)
-                },
             },
             shipping_address: TamaraAddress {
                 first_name,
