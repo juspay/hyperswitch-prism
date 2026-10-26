@@ -1,0 +1,40 @@
+name: Generated Report Check
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  report-artifacts:
+    name: Reject tracked integration test reports
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check generated report paths
+        shell: bash
+        run: |
+          tracked_reports="$(git ls-files -- \
+            crates/internal/integration-tests/report.json \
+            crates/internal/integration-tests/test_report)"
+
+          if [[ -n "${tracked_reports}" ]]; then
+            printf '%s\n' \
+              '::error::Generated integration test reports must not be committed.' \
+              'They can contain connector credentials even when the report generator masks known fields.'
+            while IFS= read -r report; do
+              printf 'Tracked report artifact: %s\n' "${report}"
+            done <<< "${tracked_reports}"
+            exit 1
+          fi
