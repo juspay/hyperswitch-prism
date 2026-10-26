@@ -471,7 +471,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: sdk/javascript/package-lock.json
+          cache-dependency-path: sdk/javascript/package.json
 
       - name: Install Python dependencies
         run: |
@@ -482,7 +482,7 @@ jobs:
         run: |
           pip install -r sdk/python/requirements.txt grpcio-tools protobuf
           make -C sdk install-deps
-          cd sdk/javascript && npm ci && cd ../..
+          cd sdk/javascript && npm install && cd ../..
 
       - name: Format Rust code
         run: cargo +nightly fmt --all
@@ -1132,7 +1132,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: |
-            sdk/javascript/package-lock.json
+            sdk/javascript/package.json
             sdk/tests/package.json
 
       - name: Cache pip dependencies
@@ -1151,7 +1151,7 @@ jobs:
       - name: Install Node dependencies
         if: matrix.node
         run: |
-          cd sdk/javascript && npm ci && cd ../..
+          cd sdk/javascript && npm install && cd ../..
           cd sdk/tests && npm install && cd ../..
 
       - name: Generate flows.json

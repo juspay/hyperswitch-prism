@@ -677,7 +677,7 @@ jobs:
         continue-on-error: true
         working-directory: sdk/javascript
         run: |
-          npm ci
+          npm install
           npm publish ../../artifacts/sdk-javascript/*.tgz --dry-run --access public
 
       - name: Pre-Publish Check Summary
@@ -930,5 +930,5 @@ jobs:
         if: ${{ needs.setup.outputs.preview_only == 'false' }}
         working-directory: sdk/javascript
         run: |
-          npm ci
+          npm install
           npm publish ../../artifacts/sdk-javascript/*.tgz --access public
