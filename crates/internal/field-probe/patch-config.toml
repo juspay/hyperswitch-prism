@@ -41,6 +41,37 @@ patches = [
   { path = "address.billing_address.last_name",  type = "secret_string", value = "Doe" },
 ]
 
+[[multi]]
+# Worldpay RAFT requires both AVS fields for Visa wallets or explicit AVS checks.
+aliases = ["billing.address.zip and billing.address.line1"]
+patches = [
+  { path = "address.billing_address.zip_code", type = "secret_string", value = "98101" },
+  { path = "address.billing_address.line1",    type = "secret_string", value = "123 Main St" },
+]
+
+[[multi]]
+# connector_feature_data is a Secret<String> containing JSON, not a nested proto
+# message. Patch the serialized metadata when RAFT asks for its authorization ID.
+aliases = ["connector_feature_data.api_transaction_id"]
+patches = [
+  { path = "connector_feature_data", type = "secret_string", value = '{"api_transaction_id":"0000000000000001"}' },
+]
+
+[payment_method]
+aliases = ["payment_method", "payment_method_data"]
+type = "card_with_no_cvc"
+
+[network_transaction_id]
+aliases = ["network_transaction_id"]
+type = "string"
+value = "probe_network_txn_001"
+
+["incremental_authorization.additional_amount"]
+aliases = ["additional_amount"]
+type = "usd_money"
+# The base request's new total is $11; increase the previous $10 by $1.
+value = "100"
+
 ["address.billing_address.city"]
 aliases = [
   "address.city",

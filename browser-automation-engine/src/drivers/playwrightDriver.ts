@@ -1,19 +1,46 @@
 import { Browser, BrowserContext, Frame, Locator, Page, chromium } from "playwright";
 import type { BrowserDriverFactory, BrowserSession, SessionOptions } from "./browserDriver";
 import type { WaitState, WaitUntil } from "../types/dsl";
+import { navigationUrl } from "../utils/validation";
+import { startNetworkGuard } from "../utils/networkGuard";
 
 class PlaywrightSession implements BrowserSession {
   constructor(
     private readonly browser: Browser,
     private readonly context: BrowserContext,
-    private readonly page: Page
+    private readonly page: Page,
+    private readonly closeNetworkGuard: () => Promise<void>,
+    private readonly networkBlocked: () => boolean
   ) {}
 
   async goto(url: string, opts?: { timeoutMs?: number; waitUntil?: WaitUntil }): Promise<void> {
-    await this.page.goto(url, {
+    await this.page.goto(navigationUrl(url), {
       timeout: opts?.timeoutMs,
       waitUntil: opts?.waitUntil ?? "domcontentloaded"
     });
+  }
+
+  async submitForm(url: string, fields: Record<string, string>, timeoutMs: number): Promise<void> {
+    const endpoint = navigationUrl(url);
+    await this.page.setContent("<!doctype html><html><body></body></html>");
+    await Promise.all([
+      this.page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: timeoutMs }),
+      this.page.evaluate(({ endpoint, fields }) => {
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = endpoint;
+        for (const [name, value] of Object.entries(fields)) {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = name;
+          input.value = value;
+          form.appendChild(input);
+        }
+        document.body.appendChild(form);
+        // A field named "submit" must not shadow the method.
+        HTMLFormElement.prototype.submit.call(form);
+      }, { endpoint, fields })
+    ]);
   }
 
   async click(selector: string, opts?: { timeoutMs?: number }): Promise<void> {
@@ -135,17 +162,25 @@ class PlaywrightSession implements BrowserSession {
     return this.page.url();
   }
 
-  async evaluate(expression: string): Promise<unknown> {
-    return this.page.evaluate(expression);
+  assertNetworkPolicy(): void {
+    if (this.networkBlocked()) throw new Error("Browser job attempted a blocked network destination");
   }
 
-  async screenshot(path: string, opts?: { fullPage?: boolean }): Promise<void> {
-    await this.page.screenshot({ path, fullPage: opts?.fullPage ?? true });
+  async initializeCashfreeSandbox(): Promise<void> {
+    const url = new URL(this.page.url());
+    if (url.protocol !== "https:" || url.hostname !== "sandbox.cashfree.com") {
+      throw new Error("Cashfree initialization is restricted to its sandbox origin");
+    }
+    await this.page.evaluate(() => {
+      const pageWindow = window as unknown as { loadPage?: () => void };
+      if (typeof pageWindow.loadPage === "function") pageWindow.loadPage();
+    });
   }
 
   async close(): Promise<void> {
     await this.context.close().catch(() => undefined);
     await this.browser.close().catch(() => undefined);
+    await this.closeNetworkGuard();
   }
 
   private locatorContexts(): Frame[] {
@@ -248,23 +283,94 @@ class PlaywrightSession implements BrowserSession {
 }
 
 export class PlaywrightDriverFactory implements BrowserDriverFactory {
+  private readonly sessions = new Set<BrowserSession>();
+
+  async cleanup(): Promise<void> {
+    await Promise.all([...this.sessions].map(session => session.close()));
+    this.sessions.clear();
+  }
+
   async createSession(options: SessionOptions): Promise<BrowserSession> {
-    const browser = await chromium.launch({
-      headless: options.headless,
-      slowMo: options.slowMoMs
-    });
-    const context = await browser.newContext({ viewport: options.viewport });
-    // Hide the `navigator.webdriver` flag so pages with casual bot checks
-    // (e.g. Cashfree's UPI simulator) don't refuse to enable their own
-    // submit buttons when driven by Playwright.
-    await context.addInitScript(() => {
-      Object.defineProperty(navigator, "webdriver", { get: () => undefined });
-    });
-    const page = await context.newPage();
+    const guard = await startNetworkGuard();
+    let browser: Browser | undefined;
+    try {
+      browser = await chromium.launch({
+        headless: true,
+        chromiumSandbox: true,
+        slowMo: options.slowMoMs,
+        proxy: { server: guard.server, bypass: "<-loopback>" },
+        args: ["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"]
+      });
+      const context = await browser.newContext({
+        viewport: options.viewport,
+        serviceWorkers: "block",
+        acceptDownloads: false
+      });
+      const callback = options.callbackUrl ? new URL(navigationUrl(options.callbackUrl)) : undefined;
+      await context.route("**/*", async route => {
+        try {
+          const target = new URL(navigationUrl(route.request().url()));
+          if (callback && target.origin === callback.origin && target.pathname === callback.pathname) {
+            await route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>Payment callback</title>" });
+          } else {
+            await route.continue();
+          }
+        } catch {
+          await route.abort();
+        }
+      });
+      // Hide the `navigator.webdriver` flag so pages with casual bot checks
+      // (e.g. Cashfree's UPI simulator) don't refuse to enable their own
+      // submit buttons when driven by Playwright.
+      await context.addInitScript(() => {
+        Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+      });
+      const configuredPages = new WeakMap<Page, Promise<void>>();
+      const configureCallback = (targetPage: Page): Promise<void> => {
+        const existing = configuredPages.get(targetPage);
+        if (existing) return existing;
+        const setup = (async () => {
+          if (!callback) return;
+          const cdp = await context.newCDPSession(targetPage);
+          // Fetch interception sees redirect hops that Playwright route.continue()
+          // may not revisit. Callback URLs are completed without network access.
+          cdp.on("Fetch.requestPaused", event => {
+            void (async () => {
+              const target = new URL(event.request.url);
+              if (target.origin === callback.origin && target.pathname === callback.pathname) {
+                await cdp.send("Fetch.fulfillRequest", {
+                  requestId: event.requestId,
+                  responseCode: 200,
+                  responseHeaders: [{ name: "Content-Type", value: "text/html" }],
+                  body: Buffer.from("<!doctype html><title>Payment callback</title>").toString("base64")
+                });
+              } else {
+                await cdp.send("Fetch.continueRequest", { requestId: event.requestId });
+              }
+            })().catch(() => cdp.send("Fetch.failRequest", { requestId: event.requestId, errorReason: "Aborted" }).catch(() => undefined));
+          });
+          await cdp.send("Fetch.enable", { patterns: [{ urlPattern: `${callback.origin}/*`, requestStage: "Request" }] });
+        })();
+        configuredPages.set(targetPage, setup);
+        return setup;
+      };
+      context.on("page", targetPage => { void configureCallback(targetPage).catch(() => targetPage.close()); });
+      const page = await context.newPage();
+      await configureCallback(page);
 
-    page.setDefaultTimeout(options.defaultTimeoutMs);
-    page.setDefaultNavigationTimeout(options.navigationTimeoutMs);
+      page.setDefaultTimeout(options.defaultTimeoutMs);
+      page.setDefaultNavigationTimeout(options.navigationTimeoutMs);
 
-    return new PlaywrightSession(browser, context, page);
+      const session = new PlaywrightSession(browser, context, page, async () => {
+        this.sessions.delete(session);
+        await guard.close();
+      }, guard.blocked);
+      this.sessions.add(session);
+      return session;
+    } catch (error) {
+      await browser?.close().catch(() => undefined);
+      await guard.close();
+      throw error;
+    }
   }
 }

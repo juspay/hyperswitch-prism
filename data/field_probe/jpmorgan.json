@@ -133,7 +133,7 @@
             "request-id": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"DEVICE_TOKEN\",\"walletProvider\":\"APPLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}},\"merchantOrderNumber\":\"probe_txn_001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"DEVICE_TOKEN\",\"walletProvider\":\"APPLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -229,7 +229,7 @@
             "request-id": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\"}},\"merchantOrderNumber\":\"probe_txn_001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\"}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
         }
       },
       "CashappQr": {
@@ -359,7 +359,7 @@
             "request-id": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"DEVICE_TOKEN\",\"walletProvider\":\"GOOGLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}},\"merchantOrderNumber\":\"probe_txn_001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"DEVICE_TOKEN\",\"walletProvider\":\"GOOGLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -866,7 +866,7 @@
             "request-id": "probe_proxy_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"{{$card_number}}\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\"}},\"merchantOrderNumber\":\"probe_proxy_txn_001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"{{$card_number}}\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\"}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
         }
       }
     },
@@ -905,7 +905,7 @@
           "setup_future_usage": "OFF_SESSION"
         },
         "sample": {
-          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/verifications",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -914,14 +914,59 @@
             "request-id": "probe_proxy_mandate_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":0,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"{{$card_number}}\",\"expiry\":{\"month\":3,\"year\":2030}}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"{{$card_number}}\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\",\"cvv\":\"{{$card_cvc}}\"}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\"}"
         }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_supported",
-        "error": "Connector mandate references for repeat payments is not supported by jpmorgan"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "network_mandate_id": {
+                "network_transaction_id": "probe_network_txn_001"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card_details_for_network_transaction_id": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_network": "VISA",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "CREDIT",
+          "off_session": true,
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "mit_category": "UNSCHEDULED_MIT"
+        },
+        "sample": {
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-id": "",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"originalNetworkTransactionId\":\"probe_network_txn_001\"}},\"initiatorType\":\"MERCHANT\",\"accountOnFile\":\"STORED\",\"isAmountFinal\":true}"
+        }
       }
     },
     "recurring_revoke": {
@@ -1067,7 +1112,7 @@
           }
         },
         "sample": {
-          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments",
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/verifications",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -1076,7 +1121,7 @@
             "request-id": "probe_mandate_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":0,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030}}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\",\"cvv\":\"737\"}},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\"}"
         }
       }
     },
@@ -1119,8 +1164,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is implemented for JPMorgan SetupMandate"
+        "status": "not_supported",
+        "error": "Verification for this payment method is not supported by jpmorgan"
       }
     },
     "verify_redirect": {

@@ -19,6 +19,7 @@ const _defaultConfig: types.IConnectorConfig = {
             thumbprint: { value: 'YOUR_THUMBPRINT' },
             privateKey: { value: 'YOUR_PRIVATE_KEY' },
             resourceId: { value: 'YOUR_RESOURCE_ID' },
+            merchantId: { USD: { value: 'YOUR_USD_MERCHANT_ID' } },
             baseUrl: 'YOUR_BASE_URL',
             companyName: { value: 'YOUR_COMPANY_NAME' },
             productName: { value: 'YOUR_PRODUCT_NAME' },
@@ -183,27 +184,39 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
     };
 }
 
-function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
+function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeRequest {
     return {
-        "merchantRefundId": "probe_refund_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "paymentAmount": 1000,  // Amount Information.
-        "refundAmount": {
+        "connectorRecurringPaymentId": {  // Reference to existing mandate.
+        },
+        "amount": {  // Amount Information.
             "minorAmount": 1000,
             "currency": Currency.USD
         },
-        "reason": "customer_request",  // Reason for the refund.
-        "state": {  // State data for access token storage and.
+        "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
+            "cardDetailsForNetworkTransactionId": {  // Card details with network transaction ID.
+                "cardNumber": {"value": "4111111111111111"},
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardNetwork": CardNetwork.VISA,
+                "cardHolderName": {"value": "John Doe"}
+            }
+        },
+        "returnUrl": "https://example.com/recurring-return",
+        "connectorCustomerId": "cust_probe_123",
+        "paymentMethodType": PaymentMethodType.CREDIT,
+        "offSession": true,  // Behavioral Flags and Preferences.
+        "state": {  // State Information.
             "accessToken": {  // Access token obtained from connector.
                 "token": {"value": "probe_access_token"},  // The token string.
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
                 "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
-        }
+        },
+        "mitCategory": MitCategory.UNSCHEDULED_MIT  // MIT Category.
     };
 }
 
-function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
+function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
     return {
         "merchantRefundId": "probe_refund_001",  // Identification.
         "connectorTransactionId": "probe_connector_txn_001",
@@ -495,20 +508,20 @@ async function proxySetupRecurring(merchantTransactionId: string, config: types.
     return proxyResponse;
 }
 
+// Flow: RecurringPaymentService.Charge
+async function recurringCharge(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const recurringPaymentClient = new RecurringPaymentClient(config);
+
+    const recurringResponse = await recurringPaymentClient.charge(_buildRecurringChargeRequest());
+
+    return recurringResponse;
+}
+
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
     const refundResponse = await paymentClient.refund(_buildRefundRequest('probe_connector_txn_001'));
-
-    return refundResponse;
-}
-
-// Flow: RefundService.Get
-async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const refundClient = new RefundClient(config);
-
-    const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
 
     return refundResponse;
 }

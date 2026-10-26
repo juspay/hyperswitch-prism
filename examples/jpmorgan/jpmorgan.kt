@@ -12,13 +12,15 @@ import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
-import payments.RefundClient
+import payments.RecurringPaymentClient
 import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.CardNetwork
 import payments.Currency
 import payments.FutureUsage
+import payments.MitCategory
+import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -37,6 +39,7 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
                 .setThumbprint(SecretString.newBuilder().setValue("YOUR_THUMBPRINT").build())
                 .setPrivateKey(SecretString.newBuilder().setValue("YOUR_PRIVATE_KEY").build())
                 .setResourceId(SecretString.newBuilder().setValue("YOUR_RESOURCE_ID").build())
+                .putMerchantId("USD", SecretString.newBuilder().setValue("YOUR_USD_MERCHANT_ID").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .setCompanyName(SecretString.newBuilder().setValue("YOUR_COMPANY_NAME").build())
                 .setProductName(SecretString.newBuilder().setValue("YOUR_PRODUCT_NAME").build())
@@ -427,8 +430,20 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
             currency = Currency.USD
         }
     }.build()
-    val response = client.refund_get(request)
-    println("Status: ${response.status.name}")
+    val response = client.charge(request)
+    if (response.status.name == "FAILED")
+        throw RuntimeException("Recurring_Charge failed: ${response.error.unifiedDetails.message}")
+    println("Done: ${response.status.name}")
+}
+
+// Flow: PaymentService.Refund
+fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildRefundRequest("probe_connector_txn_001")
+    val response = client.refund(request)
+    if (response.status.name == "FAILED")
+        throw RuntimeException("Refund failed: ${response.error.unifiedDetails.message}")
+    println("Done: ${response.status.name}")
 }
 
 // Flow: PaymentService.Reverse
@@ -540,6 +555,7 @@ fun main(args: Array<String>) {
         "get" -> get(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
+        "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "reverse" -> reverse(txnId)
