@@ -53,6 +53,3 @@ default = ["actix-web"]
 actix-web = ["dep:actix-web"]
 # Déjà record/replay. Instruments `generate_random_bytes`; forwards to common_utils.
 deja = ["dep:deja", "common_utils/deja"]
-
-[dev-dependencies]
-prost = { workspace = true }
