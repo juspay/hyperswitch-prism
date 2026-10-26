@@ -58,6 +58,13 @@ option go_package = "github.com/juspay/connector-service/crates/types-traits/grp
 // CORE DATA TYPES
 // ============================================================================
 
+// Integrity-check settings applied when comparing the connector response with the request.
+message IntegritySpecifications {
+  // When true, an amount mismatch between request and connector response is not
+  // treated as an integrity failure, in either direction. A currency mismatch still is.
+  optional bool allow_amount_mismatch = 1;
+}
+
 // Quote details associated with a currency conversion decision.
 message CurrencyConversionQuote {
   // Order amount for the transaction, expressed in the merchant's currency.
@@ -1664,6 +1671,13 @@ message CardConnectorResponse {
   optional string domestic_network = 4; // Domestic (co-branded) card network
   optional string auth_code =
       5; // Unique authorisation code generated for the payment
+  optional CardNetwork processor_card_network = 6; // Normalized network returned by the processor
+  optional string card_subtype = 7; // The card's product/subtype
+  optional CardSegmentType card_segment_type = 8; // Consumer or commercial segment
+  optional FundingSource funding_source = 9; // The card's funding source
+  optional CardType card_type = 10; // Credit, debit, prepaid, or charge
+  optional string issuer_name = 11; // The name of the card issuer
+  optional CountryAlpha2 issuer_country = 12; // The issuer's ISO alpha-2 country
 }
 
 // Additional card information for payment processing.
@@ -2516,6 +2530,9 @@ message PaymentServiceAuthorizeRequest {
   // history, premium status, etc.) for connectors that factor customer risk
   // into authorization / onboarding decisions.
   optional RiskAssessmentData risk_assessment_data = 58;
+
+ // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 59;
 }
 
 // Customer risk-assessment signals supplied by the merchant, used by
@@ -2686,6 +2703,17 @@ message PaymentServiceGetRequest {
   optional SplitPaymentsDetails split_payments = 17;
 
   optional ConnectorMandateReferenceId mandate_reference = 18;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 19;
+
+  // Whether overcapture is enabled for this payment. When true, a connector-reported
+  // amount higher than the requested amount is not treated as an integrity failure.
+  optional bool is_overcapture_enabled = 20;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 21;
 }
 
 // Settlement phase reported by the connector on PaymentServiceGetResponse.
@@ -2786,6 +2814,13 @@ message PaymentServiceGetResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
    optional string payment_account_reference = 42;
+
+  // Captured amount and currency, as reported by the connector.
+  optional Money captured_money = 43;
+  // Amount and currency still capturable, as reported by the connector.
+  optional Money capturable_money = 44;
+  // Amount and currency the connector reported for this payment, as used by the integrity check.
+  optional Money authorized_money = 45;
 }
 
 // Request message for voiding a payment
@@ -2823,6 +2858,9 @@ message PaymentServiceVoidRequest {
   // (platform fees, transfers, etc.), read only by connectors still on the old
   // split_payments contract (e.g. Stripe, Adyen).
   optional SplitPaymentsDetails split_payments = 13;
+
+  // Original payment method, for connectors that require it again on void (e.g. Worldpay RAFT).
+  optional PaymentMethod payment_method = 14;
 }
 
 // Response message for a payment void operation
@@ -2900,6 +2938,9 @@ message PaymentServiceReverseRequest {
   // endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
   // the real value; defaulting to None/test mode breaks live-URL substitution.
   optional bool test_mode = 9;
+
+  // Original payment amount and currency.
+  optional Money amount = 10;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
@@ -3112,6 +3153,16 @@ message PaymentServiceCaptureRequest {
   // Unified, connector-agnostic split settlement: a marketplace/platform cut plus
   // N per-vendor splits. Supersedes split_payments; new connectors read this field.
   optional SplitSettlement split_settlement = 15;
+
+  // Original payment method, for connectors that require it again on capture (e.g. Worldpay RAFT).
+  optional PaymentMethod payment_method = 16;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 17;
+
+  // Whether overcapture is enabled for this payment. When true, a connector-reported
+  // amount higher than the requested amount is not treated as an integrity failure.
+  optional bool is_overcapture_enabled = 18;
 }
 
 // Response message for a payment capture operation
@@ -3285,7 +3336,7 @@ message PaymentServiceRefundRequest {
   // Connector-side identifier for the original payment that this refund targets.
   optional string connector_order_id = 18;
 
-  // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
+  // Original payment method, for connectors that require it again on refund (e.g. Worldpay RAFT).
   optional PaymentMethod payment_method = 19;
 
   // Split refund data for platform fee reversals and transfers
@@ -3773,6 +3824,9 @@ message RecurringPaymentServiceChargeRequest {
   // MerchantAuthenticationService.CreateServerSessionAuthenticationToken (e.g. Nuvei's
   // /getSessionToken.do sessionToken). Leave unset for connectors that do not use one.
   optional string session_token = 43;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 44;
 }
 
 // Response message for repeat payment operation
@@ -3833,6 +3887,13 @@ message RecurringPaymentServiceChargeResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
    optional string payment_account_reference = 24;
+
+  // Captured amount and currency, as reported by the connector.
+  optional Money captured_money = 25;
+  // Amount and currency still capturable, as reported by the connector.
+  optional Money capturable_money = 26;
+  // Amount and currency the connector reported for this payment, as used by the integrity check.
+  optional Money authorized_money = 27;
 }
 
 // Request message for a mandate revoke operation
@@ -4148,6 +4209,9 @@ message PaymentServiceIncrementalAuthorizationRequest {
 
   // Network transaction ID returned by the original authorization.
   optional string network_transaction_id = 9;
+
+  // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
+  optional PaymentMethod payment_method = 10;
 }
 
 // Response message for incremental authorization
@@ -4415,6 +4479,9 @@ message PaymentMethodServiceTokenizeRequest {
   // Browser context forwarded to connectors that use it for fraud signals when
   // creating a reusable payment method (for example Stripe's ip/user_agent).
   optional BrowserInformation browser_info = 15;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 16;
 }
 
 // Response message for tokenizing a payment method
@@ -5032,6 +5099,8 @@ message JpmorganConfig {
   SecretString thumbprint = 3; // certificate thumbprint; hex SHA-1 format, colons allowed
   SecretString private_key = 4; // base64 encoded PEM
   SecretString resource_id = 5;
+  // JPMorgan merchant IDs keyed by currency, e.g. USD, CAD, EUR, GBP, JPY.
+  map<string, SecretString> merchant_id = 6;
   optional string base_url = 50;
   optional SecretString company_name = 51;
   optional SecretString product_name = 52;
@@ -6265,6 +6334,13 @@ message PaymentServiceTokenAuthorizeRequest {
 
   // Opt in to address verification using the supplied billing details.
   optional bool enable_avs_check = 24;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 25;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 26;
 }
 
 message PaymentServiceTokenSetupRecurringRequest {
@@ -6327,6 +6403,13 @@ message PaymentServiceProxyAuthorizeRequest {
 
   // Opt in to address verification using the supplied billing details.
   optional bool enable_avs_check = 29;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 30;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 31;
 }
 
 message PaymentServiceProxySetupRecurringRequest {
