@@ -97,6 +97,15 @@ pub struct Card {
     pub masked_account_number: Option<Secret<String>>,
     pub card_type_indicators: Option<CardTypeIndicators>,
     pub network_response: Option<NetworkResponse>,
+    pub payment_tokens: Option<Vec<PaymentToken>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentToken {
+    pub token_provider: Option<String>,
+    pub token_number: Option<Secret<String>>,
+    pub response_status: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

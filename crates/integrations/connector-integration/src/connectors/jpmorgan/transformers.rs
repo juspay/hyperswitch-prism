@@ -13,11 +13,11 @@ use domain_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         JpmorganClientAuthenticationResponse as JpmorganClientAuthenticationResponseDomain,
-        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        SetupMandateRequestData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
@@ -109,6 +109,28 @@ impl requests::JpmorganSyncResource {
     }
 }
 
+impl responses::Card {
+    fn safetech_mandate_reference(&self) -> Option<Box<MandateReference>> {
+        self.payment_tokens
+            .as_ref()?
+            .iter()
+            .filter(|token| {
+                token.token_provider.as_deref() == Some("SAFETECH")
+                    && token.response_status.as_deref() == Some("SUCCESS")
+            })
+            .filter_map(|token| token.token_number.as_ref())
+            .find(|number| !number.peek().trim().is_empty())
+            .map(|number| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(number.peek().clone()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
+                })
+            })
+    }
+}
+
 impl responses::JpmorganVerificationResponse {
     fn status(&self, http_code: u16) -> Result<AttemptStatus, ResponseError> {
         match self.response_status {
@@ -150,6 +172,11 @@ impl responses::JpmorganVerificationResponse {
         };
         let metadata = serde_json::to_value(metadata)
             .change_context(requests::JpmorganSyncResource::response_context(http_code))?;
+        let mandate_reference = self
+            .payment_method_type
+            .card
+            .as_ref()
+            .and_then(responses::Card::safetech_mandate_reference);
         let network = self
             .payment_method_type
             .card
@@ -157,7 +184,7 @@ impl responses::JpmorganVerificationResponse {
         Ok(Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(self.transaction_id),
             redirection_data: None,
-            mandate_reference: None,
+            mandate_reference,
             connector_metadata: Some(metadata),
             network_txn_id: network
                 .as_ref()
@@ -1478,26 +1505,18 @@ fn map_transaction_state_to_attempt_status(
 impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
     type Error = ResponseError;
     fn try_from(item: &responses::JpmorganPaymentsResponse) -> Result<Self, Self::Error> {
-        // Extract networkTransactionId from card.networkResponse for MIT flows
-        let network_txn_id = item
+        let card = item
             .payment_method_type
             .as_ref()
-            .and_then(|pmt| pmt.card.as_ref())
-            .and_then(|card| card.network_response.as_ref())
-            .and_then(|nr| nr.network_transaction_id.clone());
-
-        let network_txn_link_id = item
-            .payment_method_type
-            .as_ref()
-            .and_then(|method| method.card.as_ref())
-            .and_then(|card| card.network_response.as_ref())
-            .and_then(|network| network.transaction_link_id.clone());
+            .and_then(|method| method.card.as_ref());
+        let network = card.and_then(|card| card.network_response.as_ref());
+        let network_txn_id = network.and_then(|network| network.network_transaction_id.clone());
+        let network_txn_link_id = network.and_then(|network| network.transaction_link_id.clone());
 
         Ok(Self::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.transaction_id.clone()),
             redirection_data: None,
-            // Safetech reuse needs a real token and its credential metadata, not a payment transaction ID.
-            mandate_reference: None,
+            mandate_reference: card.and_then(responses::Card::safetech_mandate_reference),
             connector_metadata: None,
             network_txn_id,
             network_txn_link_id,
