@@ -71,6 +71,7 @@ pub enum JpmorganAccountNumberType {
     Pan,
     DeviceToken,
     NetworkToken,
+    SafetechToken,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -248,11 +249,20 @@ pub struct JpmorganSetupMandateCard<T: PaymentMethodDataTypes> {
     pub cvv: Option<Secret<String>>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum JpmorganMitAccountNumber<T: PaymentMethodDataTypes> {
+    Card(RawCardNumber<T>),
+    SafetechToken(Secret<String>),
+}
+
 /// Credential and original network references for a merchant-initiated payment.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct JpmorganMitCardByNti<T: PaymentMethodDataTypes> {
-    pub account_number: RawCardNumber<T>,
+pub struct JpmorganMitCard<T: PaymentMethodDataTypes> {
+    pub account_number: JpmorganMitAccountNumber<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_number_type: Option<JpmorganAccountNumberType>,
     pub expiry: Expiry,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wallet_provider: Option<JpmorganWalletProvider>,
@@ -272,7 +282,7 @@ pub struct JpmorganSetupMandatePaymentMethodType<T: PaymentMethodDataTypes> {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganRepeatPaymentMethodType<T: PaymentMethodDataTypes> {
-    pub card: JpmorganMitCardByNti<T>,
+    pub card: JpmorganMitCard<T>,
 }
 
 /// Verification request for initial credential storage without a funds hold.

@@ -1219,6 +1219,15 @@ message ConnectorMandateReferenceId {
   optional string payment_method_id = 2;
   optional string connector_mandate_request_reference_id = 3;
   optional SecretString mandate_metadata = 4;
+  optional AdditionalMandateDetails additional_mandate_details = 5;
+}
+
+// Card expiry and original transaction references used for a recurring payment.
+message AdditionalMandateDetails {
+  optional SecretString card_exp_month = 1;
+  optional SecretString card_exp_year = 2;
+  optional string network_transaction_id = 3;
+  optional string transaction_link_id = 4;
 }
 
 message NetworkMandateId {
