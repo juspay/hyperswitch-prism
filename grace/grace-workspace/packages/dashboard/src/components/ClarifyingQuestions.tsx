@@ -1,6 +1,11 @@
 import { useState, useCallback } from "react";
 import { T } from "../theme";
 import { Markdown } from "./Markdown";
+import {
+  isSupportedImageFile,
+  isSupportedImageMimeType,
+  safeImageDataUrl,
+} from "../urlSafety";
 
 interface Attachment {
   name: string;
@@ -28,12 +33,12 @@ export function ClarifyingQuestions({
   const handlePaste = useCallback(
     (q: string, e: React.ClipboardEvent<HTMLTextAreaElement>) => {
       const items = Array.from(e.clipboardData.items);
-      const images = items.filter((i) => i.type.startsWith("image/"));
+      const images = items.filter((i) => isSupportedImageMimeType(i.type));
       if (images.length === 0) return;
       e.preventDefault();
       for (const item of images) {
         const file = item.getAsFile();
-        if (!file) continue;
+        if (!file || !isSupportedImageFile(file)) continue;
         const reader = new FileReader();
         reader.onload = () => {
           const dataUrl = reader.result as string;
@@ -54,7 +59,7 @@ export function ClarifyingQuestions({
   const handleFile = (q: string, files: FileList | null) => {
     if (!files) return;
     for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
+      if (!isSupportedImageFile(file)) continue;
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = reader.result as string;
@@ -250,7 +255,7 @@ export function ClarifyingQuestions({
                       }}
                     >
                       <img
-                        src={att.dataUrl}
+                        src={safeImageDataUrl(att.dataUrl)}
                         alt={att.name}
                         style={{
                           display: "block",
@@ -310,7 +315,7 @@ export function ClarifyingQuestions({
                 + attach image
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/gif,image/webp,image/avif"
                   multiple
                   onChange={(e) => handleFile(q, e.target.files)}
                   style={{ display: "none" }}
