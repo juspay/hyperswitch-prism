@@ -395,7 +395,9 @@ pub struct WorldpayxmlFundingAddress {
     pub address2: Option<Secret<String>>,
     pub postal_code: Secret<String>,
     pub city: String,
-    pub state: Secret<String>,
+    // Required by Worldpay only for US and CA addresses.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
     pub country_code: common_enums::CountryAlpha2,
 }
 

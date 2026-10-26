@@ -1003,7 +1003,11 @@ fn build_worldpayxml_recipient_party(
             address2: address.get_optional_line2(),
             postal_code: address.get_zip()?.clone(),
             city: address.get_city()?.clone().expose(),
-            state: address.get_state()?.clone(),
+            state: get_worldpayxml_funding_state(
+                address.get_optional_state(),
+                *address.get_country()?,
+                "recipient_details.address.state",
+            )?,
             country_code: *address.get_country()?,
         },
         funding_data: recipient_details
@@ -1043,9 +1047,29 @@ fn get_worldpayxml_company_full_name(
     }
 }
 
+/// Worldpay needs a state only for US and CA addresses, as its 2-letter code; elsewhere it is
+/// sent when given.
+fn get_worldpayxml_funding_state(
+    state: Option<Secret<String>>,
+    country: common_enums::CountryAlpha2,
+    field_name: &'static str,
+) -> Result<Option<Secret<String>>, Report<IntegrationError>> {
+    let convert_to_code: fn(&str) -> String = match country {
+        common_enums::CountryAlpha2::US => domain_types::utils::convert_us_state_to_code,
+        common_enums::CountryAlpha2::CA => domain_types::utils::convert_canada_state_to_code,
+        _ => return Ok(state),
+    };
+    state
+        .map(|state| Some(Secret::new(convert_to_code(state.peek()))))
+        .ok_or_else(utils::missing_field_err(field_name))
+}
+
 fn build_worldpayxml_sender_funding_address(
     address: &SenderAddress,
 ) -> Result<requests::WorldpayxmlFundingAddress, Report<IntegrationError>> {
+    let country_code = address
+        .country
+        .ok_or_else(utils::missing_field_err("sender_details.address.country"))?;
     Ok(requests::WorldpayxmlFundingAddress {
         address1: address
             .line1
@@ -1061,13 +1085,12 @@ fn build_worldpayxml_sender_funding_address(
             .clone()
             .ok_or_else(utils::missing_field_err("sender_details.address.city"))?
             .expose(),
-        state: address
-            .state
-            .clone()
-            .ok_or_else(utils::missing_field_err("sender_details.address.state"))?,
-        country_code: address
-            .country
-            .ok_or_else(utils::missing_field_err("sender_details.address.country"))?,
+        state: get_worldpayxml_funding_state(
+            address.state.clone(),
+            country_code,
+            "sender_details.address.state",
+        )?,
+        country_code,
     })
 }
 
@@ -1093,7 +1116,11 @@ fn build_worldpayxml_sender_party(
                 address2: resource_common_data.get_optional_billing_line2(),
                 postal_code: resource_common_data.get_billing_zip()?,
                 city: resource_common_data.get_billing_city()?.expose(),
-                state: resource_common_data.get_billing_state()?,
+                state: get_worldpayxml_funding_state(
+                    resource_common_data.get_optional_billing_state(),
+                    resource_common_data.get_billing_country()?,
+                    "payment_method_data.billing.address.state",
+                )?,
                 country_code: resource_common_data.get_billing_country()?,
             },
             Some(requests::WorldpayxmlFundingData {
