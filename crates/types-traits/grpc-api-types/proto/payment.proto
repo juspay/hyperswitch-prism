@@ -2928,9 +2928,8 @@ message PaymentServiceReverseResponse {
   // The connector's reported status for this response.
   optional RawConnectorStatus raw_connector_status = 9;
 
-  // The connector's reference for the void, as the connector returned it, on
-  // success and failure alike. Connectors that identify a void by the original
-  // payment's id return that id, so this may equal connector_transaction_id.
+  // The connector's reference for the void, as the connector returned it. Not
+  // set when the connector returns an error. 
   optional string connector_reference_id = 10;
 
   // Outcome of the void.

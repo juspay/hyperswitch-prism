@@ -9502,7 +9502,7 @@ pub fn generate_payment_void_post_capture_response(
                 connector_transaction_id: original_connector_transaction_id.clone(),
                 status: grpc_api_types::payments::PaymentStatus::Unspecified.into(),
                 post_capture_void_status: post_capture_void_status.into(),
-                connector_reference_id: e.connector_transaction_id.clone(),
+                connector_reference_id: None,
                 merchant_reverse_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
