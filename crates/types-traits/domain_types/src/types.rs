@@ -4607,19 +4607,6 @@ impl TryFrom<grpc_payment_types::DocumentKind> for crate::payment_method_data::D
     }
 }
 
-/// Domain -> proto mapping for the document kind (response-side). `Other` maps
-/// to the proto's `OTHER` catch-all; the proto's `UNSPECIFIED` is never produced.
-impl From<crate::payment_method_data::DocumentKind> for grpc_payment_types::DocumentKind {
-    fn from(value: crate::payment_method_data::DocumentKind) -> Self {
-        match value {
-            crate::payment_method_data::DocumentKind::Cpf => Self::Cpf,
-            crate::payment_method_data::DocumentKind::Cnpj => Self::Cnpj,
-            crate::payment_method_data::DocumentKind::Psn => Self::Psn,
-            crate::payment_method_data::DocumentKind::Other => Self::Other,
-        }
-    }
-}
-
 /// Builds the optional domain `CustomerDocumentDetails` from the gRPC message:
 /// convert the document kind first, then make the whole thing optional. Returns
 /// `None` when the document type is `UNSPECIFIED` or the document number is missing
@@ -4719,9 +4706,9 @@ impl_enum_foreign_from! {
         First => First,
     },
     Gender => Gender {
-        M => Male,
-        F => Female,
-        X => Other,
+        Male => Male,
+        Female => Female,
+        Other => Other,
     },
     DepositPaymentType => DepositPaymentType {
         Cash => Cash,

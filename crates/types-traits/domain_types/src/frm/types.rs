@@ -409,12 +409,6 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
                 },
             })?;
 
-        let payment_method_type = value
-            .payment_method
-            .clone()
-            .and_then(|pm| Option::<PaymentMethodType>::foreign_try_from(pm).ok())
-            .flatten();
-
         let payment_method = value
             .payment_method
             .map(|pm| {
@@ -518,7 +512,6 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
                 .shipping_document_data
                 .as_ref()
                 .and_then(crate::types::map_customer_document_details),
-            payment_method_type,
             domain_data: value
                 .domain_data
                 .map(crate::connector_types::DomainData::foreign_try_from)

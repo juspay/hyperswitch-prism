@@ -103,7 +103,7 @@ pub struct PreRiskCheckRequest {
     /// Falls back to the billing document when absent.
     pub shipping_document_data: Option<CustomerDocumentDetails>,
     /// Domain-specific order context (travel, hotel, airline…) as a typed
-    /// object. Replaces the earlier free-form merchant_transient_info JSON.
+    /// object.
     pub domain_data: Option<DomainData>,
 }
 
@@ -137,7 +137,6 @@ pub struct PostRiskCheckRequest {
     pub billing_document_data: Option<CustomerDocumentDetails>,
     /// Shipping/buyer identity document.
     pub shipping_document_data: Option<CustomerDocumentDetails>,
-    pub payment_method_type: Option<PaymentMethodType>,
     pub domain_data: Option<DomainData>,
 }
 

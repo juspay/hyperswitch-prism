@@ -1019,9 +1019,6 @@ pub enum ConnectorSpecificConfig {
         /// merchant-specific, stored on the RiskManagementAccount.
         b2b_b2c: Option<String>,
         /// ClearSale product id for the order `product` field, when the
-        /// merchant runs a product other than the connector's default
-        /// (Total Garantido). A per-request `connector_feature_data.product`
-        /// overrides this.
         product: Option<i32>,
         base_url: Option<String>,
     },

@@ -75,8 +75,7 @@ message FrmServicePreRiskCheckRequest {
   optional CustomerDocumentDetails shipping_document_data = 15;
 
   // Domain-specific order context (travel, hotel, airline…) as a typed object.
-  // Replaces the earlier free-form merchant_transient_info JSON string;
-  // producers (euler / Hyperswitch) populate the blocks they have data for.
+  // Producers populate the blocks they have data for.
   optional DomainData domain_data = 16;
 }
 
@@ -161,6 +160,10 @@ message FrmServicePostRiskCheckRequest {
 
   // Browser/device information for risk scoring (same as PreRiskCheck).
   optional BrowserInformation browser_info = 16;
+
+  // Held for mandate_details / merchant_details, which PreRiskCheck already
+  // carries at 12 / 13.
+  reserved 17, 18;
 
   // Domain-specific order context (travel, hotel, airline…) as a typed object
   // (same as PreRiskCheck). Re-analysis must replay the same order body.

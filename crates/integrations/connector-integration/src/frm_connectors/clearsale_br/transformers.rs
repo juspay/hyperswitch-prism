@@ -3,7 +3,7 @@ use common_enums::{
 };
 use common_utils::{
     pii::Email,
-    types::{FloatMajorUnit, MinorUnit},
+    types::FloatMajorUnit,
 };
 use domain_types::{
     connector_flow::{FrmPaymentOutcome, PostRiskCheck, PreRiskCheck, ServerAuthenticationToken},
@@ -43,8 +43,6 @@ type ResponseError = error_stack::Report<errors::ConnectorError>;
 pub struct ClearSaleFrmMetadata {
     #[serde(default, rename = "sessionId", alias = "session_id")]
     pub session_id: Option<String>,
-    #[serde(default, rename = "merchantOrderId", alias = "merchant_order_id")]
-    pub merchant_order_id: Option<String>,
 }
 
 impl ClearSaleFrmMetadata {
@@ -59,7 +57,7 @@ impl ClearSaleFrmMetadata {
                             "FRM request `metadata` must be a JSON object: {err}"
                         )),
                         suggested_action: Some(
-                            "Send a JSON object carrying `session_id` and `merchant_order_id`"
+                            "Send a JSON object carrying `session_id`"
                                 .to_owned(),
                         ),
                         doc_url: Some(CLEARSALE_DOC_URL.to_owned()),
@@ -76,20 +74,6 @@ pub(crate) fn get_session_id_from_metadata(
     ClearSaleFrmMetadata::parse(metadata)?
         .session_id
         .ok_or_else(|| missing_field_err("sessionID"))
-}
-
-pub(crate) fn get_merchant_order_id_from_metadata(
-    metadata: Option<&Secret<String>>,
-) -> Result<String, Error> {
-    ClearSaleFrmMetadata::parse(metadata)?
-        .merchant_order_id
-        .ok_or_else(|| missing_field_err("metadata.merchant_order_id"))
-}
-
-fn merchant_order_id_from_metadata_optional(metadata: Option<&Secret<String>>) -> Option<String> {
-    ClearSaleFrmMetadata::parse(metadata)
-        .ok()
-        .and_then(|parsed| parsed.merchant_order_id)
 }
 
 /// ClearSale Total / Total Garantido API reference.
@@ -278,7 +262,8 @@ pub struct ClearSaleAuthenticateResponse {
     pub expiration_date: String,
 }
 
-/// Parse ClearSale's absolute `ExpirationDate` into an offset instant.
+const CLEARSALE_NAIVE_OFFSET: &str = "-03:00";
+
 pub(crate) fn parse_clearsale_expiration_date(raw: &str) -> Result<time::OffsetDateTime, Error> {
     let raw = raw.trim();
     if raw.is_empty() {
@@ -289,7 +274,7 @@ pub(crate) fn parse_clearsale_expiration_date(raw: &str) -> Result<time::OffsetD
     {
         return Ok(instant);
     }
-    let normalized = format!("{}Z", to_clearsale_datetime(raw));
+    let normalized = format!("{}{CLEARSALE_NAIVE_OFFSET}", to_clearsale_datetime(raw));
     time::OffsetDateTime::parse(&normalized, &time::format_description::well_known::Rfc3339)
         .map_err(|error| {
             error_stack::report!(errors::IntegrationError::InvalidDataFormat {
@@ -490,7 +475,7 @@ pub struct ClearSaleItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<FloatMajorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<u16>,
     #[serde(rename = "categoryID", skip_serializing_if = "Option::is_none")]
     pub category_id: Option<i64>,
     #[serde(rename = "categoryName", skip_serializing_if = "Option::is_none")]
@@ -564,7 +549,8 @@ pub struct ClearSaleOrderRequest {
     #[serde(rename = "bankAuthentication", skip_serializing_if = "Option::is_none")]
     pub bank_authentication: Option<String>,
     pub billing: ClearSalePerson,
-    pub shipping: ClearSalePerson,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping: Option<ClearSalePerson>,
     pub payments: Vec<ClearSalePayment>,
     pub items: Vec<ClearSaleItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -937,7 +923,7 @@ pub(crate) struct OrderInputs<'a> {
     billing_document_data: Option<&'a CustomerDocumentDetails>,
     /// Typed shipping document. Falls back to the billing document when absent.
     shipping_document_data: Option<&'a CustomerDocumentDetails>,
-    travel_data: ClearSaleTravelData,
+    travel_data: ClearSaleTravelData<'a>,
 }
 
 impl<'a> OrderInputs<'a> {
@@ -949,7 +935,7 @@ impl<'a> OrderInputs<'a> {
     ) -> Result<Self, Error> {
         let travel_data = ClearSaleTravelData::from_domain_data(req.domain_data.as_ref());
         Ok(Self {
-            code: get_merchant_order_id_from_metadata(req.metadata.as_ref())?,
+            code: req.merchant_transaction_id.clone().ok_or_else(|| missing_field_err("merchant_transaction_id"))?,
             session_id: get_session_id_from_metadata(req.metadata.as_ref())?,
             feature_data,
             b2b_b2c,
@@ -982,7 +968,7 @@ impl<'a> OrderInputs<'a> {
     ) -> Result<Self, Error> {
         let travel_data = ClearSaleTravelData::from_domain_data(req.domain_data.as_ref());
         Ok(Self {
-            code: get_merchant_order_id_from_metadata(req.metadata.as_ref())?,
+            code: req.merchant_transaction_id.clone().ok_or_else(|| missing_field_err("merchant_transaction_id"))?,
             session_id: get_session_id_from_metadata(req.metadata.as_ref())?,
             feature_data,
             b2b_b2c,
@@ -1034,7 +1020,7 @@ pub(crate) fn split_street_and_number(
     label: &str,
     line1: Option<&Secret<String>>,
     line3: Option<&Secret<String>>,
-) -> Result<(Secret<String>, String), Error> {
+) -> Result<(Secret<String>, String, Option<String>), Error> {
     let (err_number, err_street) = match label {
         "billing" => ("billing.address.number", "billing.address.street"),
         _ => ("shipping.address.number", "shipping.address.street"),
@@ -1042,9 +1028,9 @@ pub(crate) fn split_street_and_number(
     let line1 = line1
         .map(|value| value.peek().trim().to_owned())
         .filter(|value| !value.is_empty());
-    let line3_number = line3
+    let line3_trimmed = line3
         .map(|value| value.peek().trim().to_owned())
-        .filter(|value| is_house_number_token(value));
+        .filter(|value| !value.is_empty());
     // No street at all: a bare `line3` number cannot carry the address.
     let Some(line1) = line1 else {
         return Err(missing_field_err(err_street));
@@ -1060,7 +1046,11 @@ pub(crate) fn split_street_and_number(
             let first = segment.split([' ', '/']).next().unwrap_or("");
             is_house_number_token(first).then_some(first)
         }) {
-            return Ok((Secret::new((*street_part).to_owned()), number.to_owned()));
+            return Ok((
+                Secret::new((*street_part).to_owned()),
+                number.to_owned(),
+                line3_trimmed,
+            ));
         }
     }
 
@@ -1068,7 +1058,11 @@ pub(crate) fn split_street_and_number(
         let first = first.trim();
         let rest = rest.trim();
         if is_house_number_token(first) && !rest.is_empty() {
-            return Ok((Secret::new(rest.to_owned()), first.to_owned()));
+            return Ok((
+                Secret::new(rest.to_owned()),
+                first.to_owned(),
+                line3_trimmed,
+            ));
         }
     }
 
@@ -1088,26 +1082,28 @@ pub(crate) fn split_street_and_number(
         if street.is_empty() {
             // line1 was nothing but a number — send it as `number` only when
             // `line3` can supply the street name.
-            let street = line3
-                .map(|value| value.peek().trim().to_owned())
-                .filter(|value| !value.is_empty());
-            return match street {
-                Some(street) => Ok((Secret::new(street), number.to_owned())),
+            return match line3_trimmed {
+                Some(street) => Ok((Secret::new(street), number.to_owned(), None)),
                 None => Err(missing_field_err(err_street)),
             };
         }
-        return Ok((Secret::new(street), number.to_owned()));
+        return Ok((Secret::new(street), number.to_owned(), line3_trimmed));
     }
 
     // 4. Bare number in line3.
-    if let Some(number) = line3_number {
-        return Ok((Secret::new(line1), number));
+    if let Some(number) = line3_trimmed
+        .as_deref()
+        .filter(|value| is_house_number_token(value))
+        .map(ToOwned::to_owned)
+    {
+        return Ok((Secret::new(line1), number, None));
     }
 
     // 5. Street present, no house number anywhere — *sem número*.
     Ok((
         Secret::new(line1),
         CLEARSALE_ADDRESS_NUMBER_SEM_NUMERO.to_owned(),
+        line3_trimmed,
     ))
 }
 
@@ -1115,22 +1111,12 @@ pub(crate) fn build_clear_sale_address(
     label: &str,
     address_details: Option<&domain_types::payment_address::AddressDetails>,
 ) -> Result<ClearSaleAddress, Error> {
-    let raw_line3 = address_details
-        .and_then(|details| details.line3.as_ref())
-        .map(|line| line.peek().trim().to_owned());
-    let (street, number) = split_street_and_number(
+    let (street, number, additional_line) = split_street_and_number(
         label,
         address_details.and_then(|details| details.line1.as_ref()),
         address_details.and_then(|details| details.line3.as_ref()),
     )?;
-    // `line3` doubles as the number only when it is a bare alphanumeric token;
-    // otherwise it belongs in `additionalInformation` — never both.
-    let additional_information = raw_line3
-        .filter(|line| !(line.chars().all(|c| c.is_ascii_alphanumeric()) && !line.is_empty()))
-        .filter(|line| !line.is_empty())
-        .map(Secret::new);
-    // ClearSale marks county/city/state/zipcode required (spec §5.1). Emitting
-    // empty strings silently misrepresents the address — fail at each access.
+    let additional_information = additional_line.map(Secret::new);
     let (n_county, n_city, n_state, n_zipcode) = match label {
         "billing" => (
             "billing.address.county",
@@ -1404,11 +1390,11 @@ pub(crate) fn to_clearsale_datetime(raw: &str) -> String {
         return format!("{raw}T00:00:00.000");
     }
     let body = match raw.rfind(['Z', 'z']) {
-        Some(i) if i >= 19 => &raw[..i],
+        Some(i) if i >= 19 => raw.get(..i).unwrap_or(raw),
         _ => {
-            let after = &raw[raw.len().min(19)..];
+            let after = raw.get(19..).unwrap_or("");
             match after.find(['+', '-']) {
-                Some(rel) => &raw[..19 + rel],
+                Some(rel) => raw.get(..19 + rel).unwrap_or(raw),
                 None => raw,
             }
         }
@@ -1542,16 +1528,17 @@ pub(crate) fn clearsale_payment_type(
     }
 }
 
-/// Shared `payments[].card` projection for `Card` and `CardWithNoCvc`
-/// (identical PAN/expiry fields; the types cannot share a match arm).
 fn build_clear_sale_card(
     number: &str,
-    owner_name: Option<Secret<String>>,
+    owner_name: Secret<String>,
     network: Option<&CardNetwork>,
     validity_date: String,
     document: Option<Secret<String>>,
-) -> ClearSaleCard {
-    ClearSaleCard {
+) -> Result<ClearSaleCard, Error> {
+    if owner_name.peek().trim().is_empty() {
+        return Err(missing_field_err("card.card_holder_name"));
+    }
+    Ok(ClearSaleCard {
         bin: Secret::new(number.chars().take(6).collect()),
         end: Secret::new(
             number
@@ -1563,13 +1550,13 @@ fn build_clear_sale_card(
                 .rev()
                 .collect(),
         ),
-        owner_name: owner_name.unwrap_or_else(|| Secret::new(String::new())),
+        owner_name,
         hash: None,
         card_type: clearsale_card_type(network),
         validity_date: Some(validity_date),
         document,
         nsu: None,
-    }
+    })
 }
 
 pub(crate) fn build_clear_sale_payment(
@@ -1591,19 +1578,19 @@ pub(crate) fn build_clear_sale_payment(
     let card = match payment_method {
         Some(PaymentMethodData::Card(card)) if is_credit_card => Some(build_clear_sale_card(
             card.card_number.peek(),
-            card.card_holder_name.clone(),
+            card.get_cardholder_name()?,
             card.card_network.as_ref(),
             card_validity_date(card),
             card_document,
-        )),
+        )?),
         Some(PaymentMethodData::CardWithNoCvc(card)) if is_credit_card => {
             Some(build_clear_sale_card(
                 card.card_number.peek(),
-                card.card_holder_name.clone(),
+                card.get_cardholder_name()?,
                 card.card_network.as_ref(),
                 card_with_no_cvc_validity_date(card),
                 card_document,
-            ))
+            )?)
         }
         _ => None,
     };
@@ -1650,8 +1637,8 @@ pub(crate) fn build_clear_sale_items(
                     detail.amount,
                     currency,
                 )?),
-                // Integer on the wire (docs) — the line quantity, not the total.
-                amount: Some(MinorUnit::new(i64::from(detail.quantity))),
+                // Line quantity, not money — the wire field is ClearSale's `amount`.
+                amount: Some(detail.quantity),
                 category_id: None,
                 category_name: detail.category.clone(),
                 is_gift: order_is_gift,
@@ -1673,7 +1660,7 @@ pub(crate) struct OrderRequestParts {
     email: Email,
     total_value: FloatMajorUnit,
     billing: ClearSalePerson,
-    shipping: ClearSalePerson,
+    shipping: Option<ClearSalePerson>,
     payments: Vec<ClearSalePayment>,
     items: Vec<ClearSaleItem>,
     ip: Option<String>,
@@ -1684,10 +1671,19 @@ pub(crate) struct OrderRequestParts {
     country: Option<String>,
 }
 
+fn items_subtotal(items: &[ClearSaleItem]) -> Option<FloatMajorUnit> {
+    let mut subtotal = 0.0;
+    for item in items {
+        let unit_value = item.value?.0;
+        subtotal += unit_value * f64::from(item.amount.unwrap_or(1));
+    }
+    Some(FloatMajorUnit(subtotal))
+}
+
 pub(crate) fn build_order_request(
     parts: OrderRequestParts,
     feature_data: &ClearSaleFeatureData,
-    travel_data: &ClearSaleTravelData,
+    travel_data: &ClearSaleTravelData<'_>,
 ) -> ClearSaleOrderCreateRequest {
     let OrderRequestParts {
         code,
@@ -1717,7 +1713,7 @@ pub(crate) fn build_order_request(
             ),
             email,
             b2b_b2c,
-            item_value: Some(total_value),
+            item_value: items_subtotal(&items),
             total_value,
             number_of_installments: feature_data.installments,
             ip,
@@ -1766,6 +1762,7 @@ pub(crate) fn build_order_request(
             hotels: travel_data.accommodations.as_ref().and_then(|list| {
                 let mapped: Vec<ClearSaleHotel> = list
                     .iter()
+                    .copied()
                     .filter_map(accommodation_to_clear_sale)
                     .collect();
                 (!mapped.is_empty()).then_some(mapped)
@@ -1811,31 +1808,53 @@ pub struct ClearSaleFeatureData {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ClearSaleTravelData {
+pub struct ClearSaleTravelData<'a> {
     pub passengers: Option<Vec<Traveller>>,
-    pub travel_segments: Option<Vec<(TravelData, TravelSegment)>>,
-    pub accommodations: Option<Vec<HotelSegment>>,
+    pub travel_segments: Option<Vec<(&'a TravelData, &'a TravelSegment)>>,
+    pub accommodations: Option<Vec<&'a HotelSegment>>,
 }
 
-impl ClearSaleTravelData {
-    pub(crate) fn from_domain_data(domain_data: Option<&DomainData>) -> Self {
+fn traveller_identity(p: &Traveller) -> (String, String, String) {
+    let first = p
+        .first_name
+        .as_ref()
+        .map(|s| s.peek().trim().to_owned())
+        .unwrap_or_default();
+    let last = p
+        .last_name
+        .as_ref()
+        .map(|s| s.peek().trim().to_owned())
+        .unwrap_or_default();
+    let document = p
+        .document
+        .as_ref()
+        .map(|doc| doc.document_number.peek().trim().to_owned())
+        .unwrap_or_default();
+    (first, last, document)
+}
+
+impl<'a> ClearSaleTravelData<'a> {
+    pub(crate) fn from_domain_data(domain_data: Option<&'a DomainData>) -> Self {
         let Some(domain_data) = domain_data else {
             return Self::default();
         };
-        let mut passengers = Vec::new();
+        let mut passengers: Vec<Traveller> = Vec::new();
+        let mut seen = std::collections::HashSet::new();
         let mut travel_segments = Vec::new();
-        // `DomainData.travel_data` / `hotel_data` are singular Options (not
-        // repeated) — one booking of each kind per request.
         if let Some(booking) = domain_data.travel_data.as_ref() {
             for segment in &booking.travel_segments {
-                passengers.extend(segment.passengers.iter().cloned());
-                travel_segments.push((booking.clone(), segment.clone()));
+                for passenger in &segment.passengers {
+                    if seen.insert(traveller_identity(passenger)) {
+                        passengers.push(passenger.clone());
+                    }
+                }
+                travel_segments.push((booking, segment));
             }
         }
-        let segments: Vec<HotelSegment> = domain_data
+        let segments: Vec<&HotelSegment> = domain_data
             .hotel_data
             .as_ref()
-            .map(|booking| booking.hotel_segments.clone())
+            .map(|booking| booking.hotel_segments.iter().collect())
             .unwrap_or_default();
         Self {
             passengers: (!passengers.is_empty()).then_some(passengers),
@@ -1882,8 +1901,7 @@ pub(crate) fn passenger_to_clear_sale(p: &Traveller) -> Option<ClearSalePassenge
         identification_type: p.document.as_ref().and_then(|doc| match doc.document_type {
             DocumentKind::Cpf => Some(1),
             DocumentKind::Cnpj => Some(2),
-            DocumentKind::Other => Some(5),
-            DocumentKind::Psn => None,
+            DocumentKind::Psn | DocumentKind::Other => None,
         }),
         identification_number: p.document.as_ref().and_then(|doc| {
             let number = doc.document_number.peek().trim();
@@ -2087,15 +2105,15 @@ pub(crate) fn order_from_common(
     )?;
 
     let shipping = match address.and_then(|addr| addr.get_shipping()) {
-        None => billing.clone(),
-        Some(shipping_addr) => build_person(
+        None => None,
+        Some(shipping_addr) => Some(build_person(
             "shipping",
             Some(shipping_addr),
             customer_info,
             shipping_document.as_ref(),
             shipping_document_kind.as_ref(),
             feature_data,
-        )?,
+        )?),
     };
 
     let now = to_clearsale_datetime(
@@ -2132,8 +2150,11 @@ pub(crate) fn order_from_common(
             origin: feature_data.origin.clone(),
             channel_id: feature_data.channel_id.clone(),
             b2b_b2c,
-            // Per-request `connector_feature_data.product` wins, then the
-            // account-level connector config, then the Total Garantido default.
+            // Two scopes, one value: `connector_feature_data.product` is the
+            // per-request override, `config_product` is the account-wide
+            // default on the connector config. A merchant provisioned for one
+            // product never sets the request field; one who sells under more
+            // than one product picks per order. Falls back to Total Garantido.
             product: feature_data
                 .product
                 .or(config_product)
@@ -2235,9 +2256,7 @@ impl TryFrom<ResponseRouterData<ClearSaleOrderCreateResponse, Self>>
                 risk_score: score,
                 reason: Some(format!("packageID: {}", item.response.package_id)),
                 frm_transaction_id: order_code.or_else(|| {
-                    merchant_order_id_from_metadata_optional(
-                        item.router_data.request.metadata.as_ref(),
-                    )
+                    item.router_data.request.merchant_transaction_id.clone()
                 }),
                 status_code: item.http_code,
             }),
@@ -2261,9 +2280,7 @@ impl TryFrom<ResponseRouterData<ClearSaleOrderReanalysisResponse, Self>>
                 risk_score: score,
                 reason: Some(format!("packageID: {}", item.response.0.package_id)),
                 frm_transaction_id: order_code.or_else(|| {
-                    merchant_order_id_from_metadata_optional(
-                        item.router_data.request.metadata.as_ref(),
-                    )
+                    item.router_data.request.merchant_transaction_id.clone()
                 }),
                 status_code: item.http_code,
             }),
@@ -2359,6 +2376,20 @@ impl TryFrom<ResponseRouterData<ClearSaleStatusUpdateResponse, Self>>
     fn try_from(
         item: ResponseRouterData<ClearSaleStatusUpdateResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        if !item.response.status.eq_ignore_ascii_case("OK") {
+            return Err(error_stack::report!(
+                errors::ConnectorError::UnexpectedResponseError {
+                    context: errors::ResponseTransformationErrorContext {
+                        http_status_code: Some(item.http_code),
+                        additional_context: Some(format!(
+                            "ClearSale status push was not accepted: status = {:?}, message = {:?}",
+                            item.response.status,
+                            item.response.message.as_deref().unwrap_or_default(),
+                        )),
+                    },
+                }
+            ));
+        }
         Ok(Self {
             response: Ok(FrmPaymentOutcomeResponse {
                 status_code: item.http_code,
