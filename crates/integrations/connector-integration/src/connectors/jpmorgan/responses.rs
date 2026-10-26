@@ -184,12 +184,41 @@ pub struct JpmorganClientAuthResponse {
     pub expires_in: i64,
 }
 
-pub type JpmorganPSyncResponse = JpmorganPaymentsResponse;
 pub type JpmorganCaptureResponse = JpmorganPaymentsResponse;
 pub type JpmorganVoidResponse = JpmorganPaymentsResponse;
 /// VoidPC (post-capture void/reversal) response — JPMorgan returns the same payment
 /// response shape for both pre-capture void and post-capture void operations.
 pub type JpmorganVoidPcResponse = JpmorganPaymentsResponse;
 pub type JpmorganRSyncResponse = JpmorganRefundResponse;
-pub type JpmorganSetupMandateResponse = JpmorganPaymentsResponse;
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganVerificationResponse {
+    pub transaction_id: String,
+    pub request_id: String,
+    pub currency: common_enums::Currency,
+    pub response_status: JpmorganVerificationStatus,
+    pub response_code: String,
+    pub response_message: String,
+    pub host_message: String,
+    pub payment_method_type: PaymentMethodType,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum JpmorganVerificationStatus {
+    Success,
+    Denied,
+    Error,
+    #[serde(other)]
+    Unknown,
+}
+
+pub type JpmorganSetupMandateResponse = JpmorganVerificationResponse;
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum JpmorganPSyncResponse {
+    Payment(Box<JpmorganPaymentsResponse>),
+    Verification(Box<JpmorganVerificationResponse>),
+}
 pub type JpmorganRepeatPaymentResponse = JpmorganPaymentsResponse;

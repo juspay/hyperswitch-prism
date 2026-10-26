@@ -55,7 +55,7 @@ macros::create_all_prerequisites!(
     api: [
         (
             flow: IncrementalAuthorization,
-            request_body: WorldpayraftIncrementalAuthorizationRequest<T>,
+            request_body: WorldpayraftIncrementalAuthorizationRequest,
             response_body: WorldpayraftIncrementalAuthorizationResponse,
             router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         ),
@@ -305,7 +305,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Worldpayraft,
-    curl_request: Json(WorldpayraftIncrementalAuthorizationRequest<T>),
+    curl_request: Json(WorldpayraftIncrementalAuthorizationRequest),
     curl_response: WorldpayraftIncrementalAuthorizationResponse,
     flow_name: IncrementalAuthorization,
     resource_common_data: PaymentFlowData,

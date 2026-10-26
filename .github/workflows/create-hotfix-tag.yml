@@ -92,6 +92,7 @@ jobs:
           # Search for date-like tags (no strict checking), sort and obtain previous tag
           PREVIOUS_TAG="$(
               git tag --merged \
+                | grep --invert-match '^cd-' \
                 | grep --extended-regexp '[0-9]{4}\.[0-9]{2}\.[0-9]{2}' \
                 | sort --version-sort \
                 | tail --lines 1

@@ -11,7 +11,10 @@
   ],
   "unsupported_scenarios": {
     "PaymentService/Authorize": {
-      "no3ds_manual_capture_incremental_auth": "Worldpay RAFT incremental authorization requires the deferred shared follow-up card contract"
+      "no3ds_manual_capture_incremental_auth": "Worldpay RAFT incremental authorization requires the deferred shared follow-up card contract",
+      "no3ds_auto_capture_google_pay_encrypted": "Worldpay RAFT requires Hyperswitch-decrypted wallet data (DPAN, expiry, and cryptogram).",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "Wallet stored-credential setup is not supported; use a one-off wallet authorization.",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "Wallet stored-credential setup is not supported; use a one-off wallet authorization."
     },
     "PaymentService/IncrementalAuthorization": {
       "incremental_auth_basic": "Deferred shared follow-up card contract: incremental requests cannot supply the original card required by Worldpay RAFT",
