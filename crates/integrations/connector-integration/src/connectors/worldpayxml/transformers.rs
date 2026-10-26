@@ -3321,6 +3321,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // connector_transaction_id is a String directly in PaymentsCancelPostCaptureData
         let order_code = router_data.request.connector_transaction_id.clone();
+        let amount = router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| {
+                Ok::<_, Self::Error>(requests::WorldpayxmlAmount {
+                    value: super::WorldpayxmlAmountConvertor::convert(
+                        amount.amount,
+                        amount.currency,
+                    )?,
+                    currency_code: amount.currency,
+                    exponent: get_worldpayxml_exponent(amount.currency)?,
+                })
+            })
+            .transpose()?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -3328,7 +3343,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             modify: requests::WorldpayxmlVoidPCModify {
                 order_modification: requests::WorldpayxmlVoidPCOrderModification {
                     order_code,
-                    cancel_or_refund: requests::WorldpayxmlCancelOrRefund {},
+                    cancel_or_refund: requests::WorldpayxmlCancelOrRefund { amount },
                 },
             },
         })

@@ -3608,13 +3608,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
+        // Amount to void; TSYS voids the full transaction amount when it is omitted.
+        let transaction_amount = router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| {
+                super::TsysTransitAmountConvertor::convert(amount.amount, amount.currency)
+            })
+            .transpose()?;
 
         Ok(Self {
             device_id: auth.device_id,
             transaction_key: auth.transaction_key,
             developer_id: auth.developer_id,
             transaction_id: router_data.request.connector_transaction_id.clone(),
-            transaction_amount: None,
+            transaction_amount,
             void_reason: "PARTIAL_REVERSAL".to_string(),
         })
     }

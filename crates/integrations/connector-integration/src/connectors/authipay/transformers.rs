@@ -1112,12 +1112,13 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
 // ===== VOIDPC REQUEST STRUCTURE =====
 // VoidPostCapture (Reverse) — cancels a captured (PostAuth) transaction before settlement
 // Uses requestType: VoidTransaction (distinct from Void which uses VoidPreAuthTransactions)
-// AUTHIPAY always voids the full original amount; partial void is not supported
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthipayVoidPCRequest {
     pub request_type: AuthipayRequestType,
+    /// Amount to void; optional on VoidTransaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_amount: Option<TransactionAmount>,
 }
 
 // ===== VOIDPC REQUEST TRANSFORMATION =====
@@ -1130,16 +1131,33 @@ impl
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        _item: &RouterDataV2<
+        item: &RouterDataV2<
             VoidPC,
             PaymentFlowData,
             PaymentsCancelPostCaptureData,
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        // VoidTransaction requires no amount — AUTHIPAY always voids the full original amount
+        // VoidTransaction voids the full original amount unless transactionAmount is sent.
+        let transaction_amount = item
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| {
+                FloatMajorUnitForConnector
+                    .convert(amount.amount, amount.currency)
+                    .change_context(IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    })
+                    .map(|total| TransactionAmount {
+                        total,
+                        currency: amount.currency,
+                    })
+            })
+            .transpose()?;
         Ok(Self {
             request_type: AuthipayRequestType::VoidTransaction,
+            transaction_amount,
         })
     }
 }
