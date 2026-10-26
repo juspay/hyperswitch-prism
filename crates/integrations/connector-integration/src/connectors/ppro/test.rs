@@ -1319,7 +1319,10 @@ mod transformer_tests {
             }) => {
                 ensure_eq!(payload, Some("qr_payload_abc".to_string()));
                 ensure_eq!(image_base64, None);
-                ensure_eq!(image_url, None);
+                ensure_eq!(
+                    image_url,
+                    Some("https://images.ppro.com/qr/abc.png".to_string())
+                );
                 ensure!(expires_at.is_some(), "expires_at should have parsed");
             }
             other => return Err(format!("expected RedirectForm::Qr, got {other:?}").into()),
@@ -1445,7 +1448,7 @@ mod satispay_request_tests {
     use domain_types::{
         connector_flow::Authorize,
         connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData},
-        payment_address::PaymentAddress,
+        payment_address::{Address, AddressDetails, PaymentAddress},
         payment_method_data::{DefaultPCIHolder, PaymentMethodData, SatispayData, WalletData},
         router_data::{ConnectorSpecificConfig, ErrorResponse},
         router_data_v2::RouterDataV2,
@@ -1505,7 +1508,19 @@ mod satispay_request_tests {
                 description: None,
                 return_url: router_return_url.clone(),
                 order_details: None,
-                address: PaymentAddress::new(None, None, None, None),
+                address: PaymentAddress::new(
+                    None,
+                    Some(Address {
+                        address: Some(AddressDetails {
+                            country: Some(common_enums::CountryAlpha2::NL),
+                            ..Default::default()
+                        }),
+                        phone: None,
+                        email: None,
+                    }),
+                    None,
+                    None,
+                ),
                 auth_type: common_enums::AuthenticationType::NoThreeDs,
                 connector_feature_data: None,
                 amount_captured: None,
@@ -1731,5 +1746,25 @@ mod satispay_request_tests {
             .ok_or("expected authentication_settings to be present")?;
         ensure_eq!(settings.r#type, PproAuthenticationType::ScanCode);
         Ok(())
+    }
+
+    /// PPRO requires a consumer country for every payment method: a request with no
+    /// billing country must be rejected regardless of the payment method.
+    #[test]
+    fn test_missing_billing_country_is_rejected() {
+        let mut router_data = base_router_data(
+            common_enums::PaymentMethodType::SatispayIntent,
+            Some("https://example.com/return".to_string()),
+        );
+        router_data.resource_common_data.address = PaymentAddress::new(None, None, None, None);
+        let ppro_router_data = PproRouterData {
+            connector: (*Ppro::<DefaultPCIHolder>::new()).clone(),
+            router_data,
+        };
+        let result = PproPaymentsRequest::try_from(ppro_router_data);
+        assert!(
+            result.is_err(),
+            "request without a billing country should be rejected"
+        );
     }
 }

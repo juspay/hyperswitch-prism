@@ -174,62 +174,30 @@ where
         };
 
         let authentication_settings = match router_data.request.payment_method_type {
-            Some(common_enums::PaymentMethodType::UpiIntent) => {
-                Some(vec![PproAuthenticationSettings {
-                    r#type: PproAuthenticationType::AppIntent,
-                    settings: Some(PproAuthSettingsDetails {
-                        return_url: None,
-                        scan_by: None,
-                        mobile_intent_uri: router_data.request.router_return_url.clone(),
-                    }),
-                }])
-            }
-            Some(common_enums::PaymentMethodType::UpiQr) => {
-                Some(vec![PproAuthenticationSettings {
-                    r#type: PproAuthenticationType::ScanCode,
-                    settings: None,
-                }])
-            }
-            Some(common_enums::PaymentMethodType::SatispayIntent) => {
-                Some(vec![PproAuthenticationSettings {
-                    r#type: PproAuthenticationType::AppIntent,
-                    settings: Some(PproAuthSettingsDetails {
-                        return_url: None,
-                        scan_by: None,
-                        mobile_intent_uri: router_data.request.router_return_url.clone(),
-                    }),
-                }])
-            }
-            Some(common_enums::PaymentMethodType::SatispayQr) => {
-                Some(vec![PproAuthenticationSettings {
-                    r#type: PproAuthenticationType::ScanCode,
-                    settings: None,
-                }])
-            }
-            Some(common_enums::PaymentMethodType::BancontactIntent) => {
-                Some(vec![PproAuthenticationSettings {
-                    r#type: PproAuthenticationType::AppIntent,
-                    settings: Some(PproAuthSettingsDetails {
-                        return_url: None,
-                        scan_by: None,
-                        mobile_intent_uri: router_data.request.router_return_url.clone(),
-                    }),
-                }])
-            }
-            Some(common_enums::PaymentMethodType::BancontactQr) => {
-                Some(vec![PproAuthenticationSettings {
-                    r#type: PproAuthenticationType::ScanCode,
-                    settings: None,
-                }])
-            }
-            Some(common_enums::PaymentMethodType::WeChatPayQr) => {
-                Some(vec![PproAuthenticationSettings {
-                    r#type: PproAuthenticationType::ScanCode,
-                    settings: None,
-                }])
-            }
-            // Plain Satispay (REDIRECT flow) falls through to the generic
-            // `router_return_url`-based REDIRECT handling below, same as before.
+            // Intent-based APP_INTENT flows (mobileIntentUri sourced from router_return_url).
+            Some(
+                common_enums::PaymentMethodType::UpiIntent
+                | common_enums::PaymentMethodType::SatispayIntent
+                | common_enums::PaymentMethodType::BancontactIntent,
+            ) => Some(vec![PproAuthenticationSettings {
+                r#type: PproAuthenticationType::AppIntent,
+                settings: Some(PproAuthSettingsDetails {
+                    return_url: None,
+                    scan_by: None,
+                    mobile_intent_uri: router_data.request.router_return_url.clone(),
+                }),
+            }]),
+            // QR-based SCAN_CODE flows.
+            Some(
+                common_enums::PaymentMethodType::UpiQr
+                | common_enums::PaymentMethodType::SatispayQr
+                | common_enums::PaymentMethodType::WeChatPayQr
+                | common_enums::PaymentMethodType::BancontactQr,
+            ) => Some(vec![PproAuthenticationSettings {
+                r#type: PproAuthenticationType::ScanCode,
+                settings: None,
+            }]),
+            // Everything else (e.g. plain Satispay): REDIRECT via router_return_url.
             _ => router_data
                 .request
                 .router_return_url
@@ -251,23 +219,25 @@ where
             .get_optional_billing_email()
             .or_else(|| router_data.request.get_optional_email());
 
-        // PPRO requires consumer email and country for Afterpay payments.
+        // PPRO requires consumer email for Afterpay payments.
         if matches!(
             router_data.request.payment_method_type,
             Some(common_enums::PaymentMethodType::AfterpayClearpay)
-        ) {
-            if email.is_none() {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name: "email",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Afterpay requires consumer email".to_string()),
-                        ..Default::default()
-                    },
-                }
-                .into());
+        ) && email.is_none()
+        {
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "email",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Afterpay requires consumer email".to_string()),
+                    ..Default::default()
+                },
             }
-            router_data.resource_common_data.get_billing_country()?;
+            .into());
         }
+
+        // PPRO requires a consumer country for all payment methods, so the billing
+        // country must always be present.
+        router_data.resource_common_data.get_billing_country()?;
 
         let merchant_consumer_reference = if matches!(
             router_data.request.payment_method_type,
@@ -282,34 +252,9 @@ where
         if matches!(
             router_data.request.payment_method_type,
             Some(common_enums::PaymentMethodType::WeChatPayQr)
+                | Some(common_enums::PaymentMethodType::WeChatPay)
         ) {
             router_data.resource_common_data.get_billing_full_name()?;
-            router_data.resource_common_data.get_billing_country()?;
-        }
-
-        if matches!(
-            router_data.request.payment_method_type,
-            Some(common_enums::PaymentMethodType::BancontactIntent)
-                | Some(common_enums::PaymentMethodType::BancontactQr)
-        ) {
-            if router_data.request.currency != common_enums::Currency::EUR {
-                return Err(IntegrationError::NotSupported {
-                    message: "Bancontact requires EUR currency".to_string(),
-                    connector: "ppro",
-                    context: Default::default(),
-                }
-                .into());
-            }
-            if router_data.resource_common_data.get_billing_country()?
-                != common_enums::CountryAlpha2::BE
-            {
-                return Err(IntegrationError::NotSupported {
-                    message: "Bancontact requires consumer country BE".to_string(),
-                    connector: "ppro",
-                    context: Default::default(),
-                }
-                .into());
-            }
         }
 
         let consumer = router_data
@@ -1253,7 +1198,7 @@ pub(crate) fn build_auth_redirect(
                 Some(RedirectForm::Qr {
                     payload: Some(payload),
                     image_base64: None,
-                    image_url: None,
+                    image_url: details.code_image.clone(),
                     fallback_url: None,
                     expires_at: details.scan_by.as_deref().and_then(parse_scan_by_expiry),
                 })

@@ -1457,8 +1457,8 @@ message QrData {
   // content directly.
   optional string fallback_url = 4;
 
-  // Absolute expiry timestamp for this QR code, as sent by the gateway,
-  // if present.
+  // Absolute expiry time (unix timestamp, in seconds) for this QR code, as
+  // sent by the gateway, if present.
   optional int64 expires_at = 5;
 }
 
