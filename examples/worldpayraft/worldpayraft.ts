@@ -7,7 +7,7 @@
 
 import { PaymentClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -56,6 +56,33 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
         "amountToCapture": {  // Capture Details.
             "minorAmount": 1000,
             "currency": Currency.USD
+        },
+        "connectorFeatureData": {"value": "{\"api_transaction_id\":\"0000000000000001\"}"}  // Connector-specific metadata for the transaction.
+    };
+}
+
+function _buildIncrementalAuthorizationRequest(): types.IPaymentServiceIncrementalAuthorizationRequest {
+    return {
+        "merchantAuthorizationId": "probe_auth_001",  // Identification.
+        "connectorTransactionId": "C|123456|123456789012|000001",
+        "amount": {  // New total authorized amount, including this increase.
+            "minorAmount": 1100,
+            "currency": Currency.USD
+        },
+        "reason": "incremental_auth_probe",  // Optional Fields.
+        "additionalAmount": {  // Increase over the current authorized total. Must use the same currency as amount.
+            "minorAmount": 100,
+            "currency": Currency.USD
+        },
+        "networkTransactionId": "probe_network_txn_001",  // Network transaction ID returned by the original authorization.
+        "paymentMethod": {  // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
+            "cardWithNoCvc": {  // Card payment where CVC is not required.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+                "cardNetwork": CardNetwork.VISA
+            }
         }
     };
 }
@@ -142,7 +169,16 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
             "minorAmount": 1000,
             "currency": Currency.USD
         },
-        "reason": "customer_request"  // Reason for the refund.
+        "reason": "customer_request",  // Reason for the refund.
+        "paymentMethod": {  // Original payment method, for connectors that require it again on refund (e.g. Worldpay RAFT).
+            "cardWithNoCvc": {  // Card payment where CVC is not required.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+                "cardNetwork": CardNetwork.VISA
+            }
+        }
     };
 }
 
@@ -185,7 +221,8 @@ function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServic
         "amount": {  // Amount Information.
             "minorAmount": 1000,
             "currency": Currency.USD
-        }
+        },
+        "connectorFeatureData": {"value": "{\"api_transaction_id\":\"0000000000000001\"}"}  // Connector-specific metadata for the transaction.
     };
 }
 
@@ -302,6 +339,15 @@ async function capture(merchantTransactionId: string, config: types.IConnectorCo
     return captureResponse;
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+async function incrementalAuthorization(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const incrementalResponse = await paymentClient.incrementalAuthorization(_buildIncrementalAuthorizationRequest());
+
+    return incrementalResponse;
+}
+
 // Flow: PaymentService.ProxyAuthorize
 async function proxyAuthorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -359,7 +405,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, incrementalAuthorization, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildIncrementalAuthorizationRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner
