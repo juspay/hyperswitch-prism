@@ -4147,6 +4147,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         shipping_cost: req.shipping_cost.clone(),
         merchant_account_id: req.merchant_account_id.as_ref().map(|s| s.peek().clone()),
         integrity_object: None,
+        integrity_specifications: req.integrity_specifications,
         merchant_config_currency: req.merchant_configured_currency,
         all_keys_required: None,
         request_extended_authorization: None,
