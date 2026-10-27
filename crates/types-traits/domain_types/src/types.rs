@@ -3098,8 +3098,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::NetworkToken)
             }
             grpc_api_types::payments::PaymentMethodType::MbWay => Ok(PaymentMethodType::MbWay),
-            grpc_api_types::payments::PaymentMethodType::Satispay
-            | grpc_api_types::payments::PaymentMethodType::SatispayWallet => {
+            grpc_api_types::payments::PaymentMethodType::Satispay => {
                 Ok(PaymentMethodType::Satispay)
             }
             grpc_api_types::payments::PaymentMethodType::Wero => Ok(PaymentMethodType::Wero),
@@ -10508,8 +10507,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Cashapp => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::RevolutPay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::MbWay => Ok(Self::Wallet),
-            grpc_api_types::payments::PaymentMethodType::Satispay
-            | grpc_api_types::payments::PaymentMethodType::SatispayWallet => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::Satispay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Wero => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::LazyPay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::PhonePe => Ok(Self::Wallet),

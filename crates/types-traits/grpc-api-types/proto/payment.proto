@@ -894,7 +894,6 @@ enum PaymentMethodType {
   GRABPAY_WALLET = 141;
   PAYHERE_WALLET = 142;
   TAMARA_BNPL = 143;
-  SATISPAY_WALLET = 144;
 }
 
 // Product type enumeration
