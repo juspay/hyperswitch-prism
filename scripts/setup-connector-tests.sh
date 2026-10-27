@@ -70,14 +70,14 @@ success "npm $(npm --version) OK"
 # ── Step 2: npm install ────────────────────────────────────────────────────────
 info "Installing browser-automation-engine dependencies..."
 
-LOCK_FILE="${BAE_DIR}/package-lock.json"
+MANIFEST="${BAE_DIR}/package.json"
 NODE_MODULES="${BAE_DIR}/node_modules"
 
-# Check whether node_modules is up-to-date with package-lock.json
+# Check whether node_modules is up-to-date with package.json
 needs_install=true
-if [[ -d "${NODE_MODULES}" && -f "${LOCK_FILE}" ]]; then
-  # node_modules newer than package-lock.json → already installed
-  if [[ "${NODE_MODULES}" -nt "${LOCK_FILE}" ]]; then
+if [[ -d "${NODE_MODULES}" && -f "${MANIFEST}" ]]; then
+  # node_modules newer than package.json → already installed
+  if [[ "${NODE_MODULES}" -nt "${MANIFEST}" ]]; then
     needs_install=false
   fi
 fi
@@ -105,6 +105,19 @@ else
 fi
 
 # ── Step 3.5: Check/Install grpcurl ───────────────────────────────────────────
+info "Building the isolated browser worker (no workspace or credential mounts)..."
+BROWSER_CONTAINER_RUNTIME="${UCS_BROWSER_CONTAINER_RUNTIME:-docker}"
+case "${BROWSER_CONTAINER_RUNTIME}" in
+  docker|podman) ;;
+  *) error "UCS_BROWSER_CONTAINER_RUNTIME must be docker or podman"; exit 1 ;;
+esac
+if ! command -v "${BROWSER_CONTAINER_RUNTIME}" >/dev/null 2>&1; then
+  error "Install ${BROWSER_CONTAINER_RUNTIME} before running browser-backed connector tests."
+  exit 1
+fi
+bash "${BAE_DIR}/scripts/build-worker.sh"
+success "Isolated browser worker image ready"
+
 info "Checking grpcurl..."
 
 if command -v grpcurl &>/dev/null; then

@@ -13,7 +13,6 @@ import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
 import payments.RecurringPaymentClient
-import payments.RefundClient
 import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
@@ -29,7 +28,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.JpmorganConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_server_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_server_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -40,6 +39,7 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
                 .setThumbprint(SecretString.newBuilder().setValue("YOUR_THUMBPRINT").build())
                 .setPrivateKey(SecretString.newBuilder().setValue("YOUR_PRIVATE_KEY").build())
                 .setResourceId(SecretString.newBuilder().setValue("YOUR_RESOURCE_ID").build())
+                .putMerchantId("USD", SecretString.newBuilder().setValue("YOUR_USD_MERCHANT_ID").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .setCompanyName(SecretString.newBuilder().setValue("YOUR_COMPANY_NAME").build())
                 .setProductName(SecretString.newBuilder().setValue("YOUR_PRODUCT_NAME").build())
@@ -146,6 +146,10 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     return PaymentServiceVoidRequest.newBuilder().apply {
         merchantVoidId = "probe_void_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L
+            currency = Currency.USD
+        }
         stateBuilder.apply {  // State Information.
             accessTokenBuilder.apply {  // Access token obtained from connector.
                 tokenBuilder.value = "probe_access_token"  // The token string.
@@ -436,25 +440,6 @@ fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Done: ${response.status.name}")
 }
 
-// Flow: RefundService.Get
-fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = RefundClient(config)
-    val request = RefundServiceGetRequest.newBuilder().apply {
-        merchantRefundId = "probe_refund_001"  // Identification.
-        connectorTransactionId = "probe_connector_txn_001"
-        refundId = "probe_refund_id_001"  // Deprecated.
-        stateBuilder.apply {  // State Information.
-            accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
-                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
-        }
-    }.build()
-    val response = client.refund_get(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: PaymentService.SetupRecurring
 fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -558,10 +543,9 @@ fun main(args: Array<String>) {
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
-        "refundGet" -> refundGet(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createServerAuthenticationToken, get, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createServerAuthenticationToken, get, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, tokenAuthorize, void")
     }
 }
