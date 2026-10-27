@@ -1,52 +1,35 @@
 # End-to-end tests
 
-This directory reserves the structure for end-to-end payment tests. This PR adds directories and documentation only; executable tests, dependencies, credentials, and CI configuration are added separately.
+These tests exercise payment flows through Hyperswitch and UCS against processor sandbox environments.
 
-```text
-tests/e2e/
-  framework/
-    configuration.ts          # Runtime URLs and options
-    credentials.ts            # External sandbox credential loading
-    hyperswitch.ts             # Typed Hyperswitch API access
-    merchant-setup.ts          # Merchant, profile, API key, connector, and routing setup
-    scenario.ts                # Typed scenario and connector contracts
-    runner.ts                  # Shared lifecycle execution and assertions
-  connectors/
-    adyen.ts                   # Connector capabilities and sandbox test data
-    index.ts                   # Registered connectors
-  scenarios/
-    payments/
-      one-time/
-        server/
-          card.spec.ts         # Server-side one-time card scenarios
-      mandates/
-        customer-initiated/
-          card.spec.ts
-        zero-amount/
-          card.spec.ts
-      recurring/
-        connector-mandate/
-          card.spec.ts
-        network-transaction-id/
-          card.spec.ts
-  stack/
-    compose.yml                # Isolated local dependencies
-    stack.mjs                  # Stack startup and shutdown
-  playwright.config.ts
-  package.json
-  package-lock.json
-  tsconfig.json
+## Run locally
+
+Requirements: Node.js 22+, Docker, and a Hyperswitch-compatible connector credentials JSON file.
+
+```sh
+cd tests/e2e
+npm ci
+CONNECTOR_AUTH_FILE_PATH=/path/to/connector-auth.json npm run stack:up
+CONNECTOR_AUTH_FILE_PATH=/path/to/connector-auth.json npm test
 ```
 
-## Structure
+Open the HTML report with `npx playwright show-report`. Stop the isolated stack with `npm run stack:down`.
 
-- `framework/` owns common setup, API calls, lifecycle execution, assertions, and reporting. Scenario and connector declarations contain data, not custom execution callbacks.
-- `connectors/` declares connector capabilities, credential keys, and sandbox test data. A connector does not duplicate scenario execution.
-- `scenarios/` describes payment behavior. The path identifies the product area, lifecycle, integration channel, and payment-method family; typed fields describe variants such as No3DS or 3DS and automatic or manual capture.
-- `stack/` operates the isolated local services required by the tests and remains independent of payment behavior.
+`HS_IMAGE`, `UCS_IMAGE`, `HS_BASE_URL`, and `HS_SOURCE_DIR` are optional. The defaults run the latest published Hyperswitch and UCS images locally. The source checkout supplies configuration and database migrations matching the Hyperswitch image and is cached after the first run.
 
-The first implementation targets `scenarios/payments/one-time/server/card.spec.ts`. A scenario declaration describes the intended behavior, while the shared runner owns its API sequence and assertions. Adding another compatible connector reuses that scenario.
+## Extend coverage
 
-The mandate and recurring directories are reserved extension points and do not represent implemented coverage in this scaffold. New flows should be added to the matching lifecycle rather than copied into connector directories.
+- `scenarios/` declares payment behavior. Scenario files contain typed data and register tests through the shared runner.
+- `connectors/` declares supported capabilities and connector-required test data. It does not implement payment lifecycles.
+- `framework/` owns merchant setup, API sequences, assertions, and reporting.
+- `stack/` owns the isolated local services.
 
-The `.gitkeep` files preserve the empty directories until their implementations are added.
+All compatible registered connectors automatically receive a shared scenario. Add connector-specific data only when the processor requires it; do not copy the scenario or runner.
+
+The current scenario is a server-side, one-time No3DS card payment with automatic capture:
+
+```text
+create payment -> confirm payment -> retrieve payment -> verify success and UCS routing
+```
+
+Connector credentials are read only at runtime. Do not commit credentials, reports, runtime files, or copied production data.

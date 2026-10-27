@@ -1,0 +1,82 @@
+services:
+  pg:
+    ports: !override
+      - "127.0.0.1:${HS_DB_PORT:-15432}:5432"
+
+  redis-standalone:
+    ports: !reset []
+
+  superposition:
+    ports: !reset []
+
+  ucs:
+    image: ${UCS_IMAGE:-juspaydotin/hyperswitch-prism:latest}
+    pull_policy: missing
+    environment:
+      CS__SERVER__HOST: 0.0.0.0
+      CS__SERVER__PORT: 8000
+      CS__COMMON__ENVIRONMENT: development
+      CS__LOG__CONSOLE__ENABLED: "true"
+      CS__LOG__CONSOLE__LEVEL: info
+      CS__LOG__CONSOLE__LOG_FORMAT: json
+    networks:
+      - router_net
+
+  ucs-ready:
+    image: ghcr.io/grpc-ecosystem/grpc-health-probe:v0.4.38
+    command:
+      - -addr=ucs:8000
+      - -connect-timeout=5s
+      - -rpc-timeout=5s
+    networks:
+      - router_net
+    depends_on:
+      ucs:
+        condition: service_started
+    restart: "no"
+
+  migration_runner:
+    command:
+      - bash
+      - -c
+      - >-
+        set -eu &&
+        apt-get update &&
+        apt-get install -y curl xz-utils &&
+        curl --proto '=https' --tlsv1.2 -LsSf
+        https://github.com/diesel-rs/diesel/releases/download/v2.3.5/diesel_cli-installer.sh
+        -o /tmp/install-diesel.sh &&
+        bash /tmp/install-diesel.sh &&
+        /root/.cargo/bin/diesel migration run
+        --database-url "$${DATABASE_URL}"
+        --migration-dir /app/migrations
+        --config-file /e2e-diesel.toml
+    volumes:
+      - ${E2E_DIESEL_CONFIG}:/e2e-diesel.toml:ro
+    depends_on:
+      pg:
+        condition: service_healthy
+
+  superposition-init:
+    command:
+      - sh
+      - -c
+      - apk add --no-cache bash curl jq yq && bash /seed_superposition.sh
+
+  hyperswitch-server:
+    image: ${HS_IMAGE:-docker.juspay.io/juspaydotin/hyperswitch-router:latest}
+    pull_policy: missing
+    command:
+      - /local/bin/router
+      - -f
+      - /local/config/e2e.toml
+    ports: !override
+      - "127.0.0.1:${HS_PORT:-8080}:8080"
+    volumes:
+      - ${E2E_HS_CONFIG}:/local/config/e2e.toml:ro
+    depends_on:
+      ucs-ready:
+        condition: service_completed_successfully
+    healthcheck:
+      start_period: 60s
+      retries: 30

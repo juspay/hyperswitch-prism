@@ -1,0 +1,20 @@
+{
+  "name": "ucs-e2e",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "list": "playwright test --list",
+    "test": "playwright test",
+    "stack:up": "node stack/stack.mjs up",
+    "stack:down": "node stack/stack.mjs down"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.0",
+    "pg": "^8.16.0",
+    "typescript": "^5.9.0"
+  }
+}
