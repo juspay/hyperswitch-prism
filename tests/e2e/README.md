@@ -18,7 +18,12 @@ tests/e2e/
     payments/
       one-time/
         server/
-          card.spec.ts         # Server-side one-time card scenarios
+          card/
+            no3ds-automatic-create-confirm.spec.ts
+            no3ds-automatic-create-then-confirm.spec.ts
+            no3ds-manual-create-confirm-then-capture.spec.ts
+            no3ds-manual-create-confirm-then-cancel.spec.ts
+            no3ds-automatic-create-confirm-then-refund.spec.ts
       mandates/
         customer-initiated/
           card.spec.ts
@@ -45,7 +50,9 @@ tests/e2e/
 - `scenarios/` describes payment behavior. The path identifies the product area, lifecycle, integration channel, and payment-method family; typed fields describe variants such as No3DS or 3DS and automatic or manual capture.
 - `stack/` operates the isolated local services required by the tests and remains independent of payment behavior.
 
-The first implementation targets `scenarios/payments/one-time/server/card.spec.ts`. A scenario declaration describes the intended behavior, while the shared runner owns its API sequence and assertions. Adding another compatible connector reuses that scenario.
+Each scenario has its own file. `create-confirm` means a single create request with `confirm: true`; `create-then-confirm` means separate create and confirm requests. `automatic` and `manual` describe capture mode. Retrieval and verification steps are declared within each scenario.
+
+The five card scenario files are empty placeholders. The first implementation targets `scenarios/payments/one-time/server/card/no3ds-automatic-create-confirm.spec.ts`. Adding another compatible connector reuses that scenario.
 
 The mandate and recurring directories are reserved extension points and do not represent implemented coverage in this scaffold. New flows should be added to the matching lifecycle rather than copied into connector directories.
 
