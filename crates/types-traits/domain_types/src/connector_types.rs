@@ -1562,6 +1562,10 @@ impl crate::flow_status::FlowStatusReader<AttemptStatus> for PaymentFlowData {
     fn connector_request_reference_id(&self) -> Option<&str> {
         Some(&self.connector_request_reference_id)
     }
+
+    fn payment_amount(&self) -> Option<MinorUnit> {
+        self.amount.as_ref().map(|amount| amount.amount)
+    }
 }
 
 impl RawConnectorRequestResponse for PaymentFlowData {
