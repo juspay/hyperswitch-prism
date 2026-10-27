@@ -961,7 +961,7 @@ domain_types::impl_flow_status_mapping! {
     source: (),
     context: AttemptStatus,
     mapping: |_source, status| {
-        let mapped_status = (|| { status })();
+        let mapped_status = status;
         match mapped_status {
             AttemptStatus::Authorized => success!(Authorized),
             AttemptStatus::AutoRefunded => success!(AutoRefunded),
@@ -1093,7 +1093,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source: (),
     context: RefundStatus,
     mapping: |_source, status| {
-        let mapped_status = (|| { status })();
+        let mapped_status = status;
         match mapped_status {
             RefundStatus::Success => success!(Success),
             RefundStatus::Failure => failure!(Failure),

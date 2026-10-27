@@ -126,18 +126,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Etisalat<T>
 {
 }
-// NOTE: no impl_flow_status_mapping! for Capture. The Capture TryFrom
-// (transformers.rs:847) computes `is_partial` by comparing the capture amount
-// against the authorized amount on the request — that comparison is
-// request-data, not connector-response status, so the dispatcher macro cannot
-// consume it — and routes the success leg to `PartialCharged`/`Charged`
-// accordingly. A fixed `success_connector_status()` therefore has no honest
-// target (`EtisalatResponseVerdict::Success` maps to either Charged or
-// PartialCharged depending on that comparison); both are in
-// Capture::TERMINAL_SUCCESS_SET but the const-asserted single `success:`
-// variant cannot express the split, and synthesising a bool ctx for a
-// *request-side* amount comparison would lie about the source type being
-// response-derived.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Etisalat<T>,
+    flow: Capture,
+    source: etisalat::EtisalatResponseVerdict,
+    context: bool,
+    mapping: |verdict, is_partial| { match verdict {
+        etisalat::EtisalatResponseVerdict::Success if is_partial => success!(PartialCharged),
+        etisalat::EtisalatResponseVerdict::Success => success!(Charged),
+        etisalat::EtisalatResponseVerdict::Pending => non_terminal!(Pending),
+        etisalat::EtisalatResponseVerdict::Failure => failure!(CaptureFailed),
+    } },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: EtisalatResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(etisalat::EtisalatResponseVerdict::from(&response.transaction))
+        },
+        context: |resource_common_data, request, _response, _http_status_code| {
+            Ok(domain_types::flow_status::FlowStatusReader::payment_amount(resource_common_data)
+                .is_some_and(|authorized| request.amount_to_capture.amount < authorized))
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Etisalat<T>
 {

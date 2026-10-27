@@ -162,10 +162,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Adyen<T>
 {
 }
-// NOTE: no impl_flow_status_mapping! for IncrementalAuthorization. The TryFrom never
-// sets PaymentFlowData.status — it maps the raw `additionalData.authorisationStatus`
-// string to a `common_enums::AuthorizationStatus` inside the response body — so there
-// is no typed AttemptStatus mapping to enforce.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    flow: IncrementalAuthorization,
+    source: (),
+    mapping: |_response| { preserve_existing!() },
+    runtime: {
+        request: PaymentsIncrementalAuthorizationData,
+        response: AdyenIncrementalAuthResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentIncrementalAuthorization for Adyen<T>
 {
@@ -236,10 +244,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Adyen<T>
 {
 }
-// NOTE: no impl_flow_status_mapping! for VoidPC. Adyen's /reversals endpoint returns a
-// bare acknowledgement (`AdyenReversalStatus::Received`, single variant) and the TryFrom
-// preserves the existing attempt status, reporting outcome via PostCaptureVoidResponse.
-// Deferred outcome arrives via the CANCEL_OR_REFUND webhook.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    flow: VoidPC,
+    source: (),
+    mapping: |_response| { preserve_existing!() },
+    runtime: {
+        request: PaymentsCancelPostCaptureData,
+        response: AdyenReversalResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidPostCaptureV2 for Adyen<T>
 {

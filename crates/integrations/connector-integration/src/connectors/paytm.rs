@@ -250,7 +250,7 @@ domain_types::impl_flow_status_mapping! {
     source: String,
     context: (),
     mapping: |result_code, _ctx| {
-        let mapped_status = (|| { paytm::map_paytm_authorize_status_to_attempt_status(&result_code) })();
+        let mapped_status = paytm::map_paytm_authorize_status_to_attempt_status(&result_code);
         match mapped_status {
             AttemptStatus::Authorized => success!(Authorized),
             AttemptStatus::Charged => success!(Charged),
@@ -305,7 +305,7 @@ domain_types::impl_flow_status_mapping! {
     source: String,
     context: (),
     mapping: |result_code, _ctx| {
-        let mapped_status = (|| { paytm::map_paytm_sync_status_to_attempt_status(&result_code) })();
+        let mapped_status = paytm::map_paytm_sync_status_to_attempt_status(&result_code);
         match mapped_status {
             AttemptStatus::Authorized => success!(Authorized),
             AttemptStatus::AutoRefunded => success!(AutoRefunded),

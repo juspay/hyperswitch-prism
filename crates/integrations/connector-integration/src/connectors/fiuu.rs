@@ -101,10 +101,43 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Fiuu<T>
 {
 }
-// NOTE: no impl_flow_status_mapping! for PSync.  `TryFrom<FiuuSyncStatus>` takes a
-// struct (`stat_code` + `stat_name`) rather than an enum, and the full mapping is a
-// tuple match across both fields — not expressible as a single-variant `success:` /
-// `failure:` declaration.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiuu<T>,
+    flow: PSync,
+    source: common_enums::AttemptStatus,
+    mapping: |status| {
+        match status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: FiuuPaymentResponse,
+        source: |_resource_common_data, request, response, _http_status_code| {
+            match response {
+                FiuuPaymentResponse::FiuuPaymentSyncResponse(response) => {
+                    common_enums::AttemptStatus::try_from(fiuu::FiuuSyncStatus {
+                        stat_name: response.stat_name,
+                        stat_code: response.stat_code.clone(),
+                    }).map_err(|error| error.current_context().clone())
+                }
+                FiuuPaymentResponse::FiuuWebhooksPaymentResponse(response) => {
+                    common_enums::AttemptStatus::try_from(fiuu::FiuuWebhookStatus {
+                        capture_method: request.capture_method,
+                        status: response.status.clone(),
+                    }).map_err(|error| error.current_context().clone())
+                }
+            }
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Fiuu<T>
 {
@@ -232,17 +265,60 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
     for Fiuu<T>
 {
 }
-// NOTE: no impl_flow_status_mapping! for RepeatPayment.  RepeatPayment reuses the
-// shared `FiuuPaymentsResponse` TryFrom: its status comes from either the string
-// `stat_code` leg (auto_capture disambiguated) or `FiuuRecurringStautus` — no
-// single `source:` enum covers both branches.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiuu<T>,
+    flow: RepeatPayment,
+    source: fiuu::FiuuPaymentOutcome,
+    mapping: |outcome| {
+        match outcome {
+            fiuu::FiuuPaymentOutcome::Charged => success!(Charged),
+            fiuu::FiuuPaymentOutcome::Authorized => non_terminal!(Authorized),
+            fiuu::FiuuPaymentOutcome::AuthenticationPending => non_terminal!(AuthenticationPending),
+            fiuu::FiuuPaymentOutcome::Pending => non_terminal!(Pending),
+            fiuu::FiuuPaymentOutcome::Failure => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: FiuuRepeatPaymentsResponse,
+        source: |_resource_common_data, request, response, _http_status_code| {
+            Ok(fiuu::classify_payment_response(response, request.is_auto_capture()))
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Fiuu<T>
 {
 }
-// NOTE: no impl_flow_status_mapping! for SetupMandate.  SetupMandate shares the
-// Authorize TryFrom (`FiuuPaymentsResponse`) — status is computed from the raw
-// string `stat_code` leg plus `is_auto_capture()`, not a typed enum.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiuu<T>,
+    flow: SetupMandate,
+    source: fiuu::FiuuPaymentOutcome,
+    mapping: |outcome| {
+        match outcome {
+            fiuu::FiuuPaymentOutcome::Charged => success!(Charged),
+            fiuu::FiuuPaymentOutcome::Authorized => success!(Charged),
+            fiuu::FiuuPaymentOutcome::AuthenticationPending => non_terminal!(AuthenticationPending),
+            fiuu::FiuuPaymentOutcome::Pending => non_terminal!(Pending),
+            fiuu::FiuuPaymentOutcome::Failure => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: FiuuSetupMandateResponse,
+        source: |_resource_common_data, request, response, _http_status_code| {
+            let is_auto_capture = !matches!(
+                request.capture_method,
+                Some(common_enums::CaptureMethod::Manual)
+                    | Some(common_enums::CaptureMethod::ManualMultiple)
+                    | Some(common_enums::CaptureMethod::Scheduled)
+            );
+            Ok(fiuu::classify_payment_response(response, is_auto_capture))
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Fiuu<T>
 {

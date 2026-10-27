@@ -151,6 +151,19 @@ pub enum NetceteraPreAuthenticateResponse {
     Failure(Box<NetceteraPreAuthFailureResponse>),
 }
 
+pub fn pre_authenticate_attempt_status(
+    response: &NetceteraPreAuthenticateResponse,
+) -> common_enums::AttemptStatus {
+    match response {
+        NetceteraPreAuthenticateResponse::Success(_) => {
+            common_enums::AttemptStatus::AuthenticationPending
+        }
+        NetceteraPreAuthenticateResponse::Failure(_) => {
+            common_enums::AttemptStatus::AuthenticationFailed
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NetceteraPreAuthFailureResponse {
@@ -536,6 +549,41 @@ pub enum NetceteraAuthenticateResponse {
     Success(Box<NetceteraAuthenticationSuccessResponse>),
 }
 
+fn transaction_attempt_status(
+    status: common_enums::TransactionStatus,
+) -> common_enums::AttemptStatus {
+    match status {
+        common_enums::TransactionStatus::Success => {
+            common_enums::AttemptStatus::AuthenticationSuccessful
+        }
+        common_enums::TransactionStatus::ChallengeRequired
+        | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+        | common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
+            common_enums::AttemptStatus::AuthenticationPending
+        }
+        common_enums::TransactionStatus::Failure
+        | common_enums::TransactionStatus::VerificationNotPerformed
+        | common_enums::TransactionStatus::NotVerified
+        | common_enums::TransactionStatus::Rejected
+        | common_enums::TransactionStatus::InformationOnly => {
+            common_enums::AttemptStatus::AuthenticationFailed
+        }
+    }
+}
+
+pub fn authenticate_attempt_status(
+    response: &NetceteraAuthenticateResponse,
+) -> common_enums::AttemptStatus {
+    match response {
+        NetceteraAuthenticateResponse::Success(response) => {
+            transaction_attempt_status(response.trans_status.clone())
+        }
+        NetceteraAuthenticateResponse::Error(_) => {
+            common_enums::AttemptStatus::AuthenticationFailed
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NetceteraAuthenticationSuccessResponse {
@@ -775,6 +823,19 @@ pub struct NetceteraPostAuthenticateResponse {
     pub authentication_value: Option<Secret<String>>,
     pub eci: Option<String>,
     pub error_details: Option<NetceteraErrorDetails>,
+}
+
+pub fn post_authenticate_attempt_status(
+    response: &NetceteraPostAuthenticateResponse,
+) -> common_enums::AttemptStatus {
+    if response.error_details.is_some() {
+        common_enums::AttemptStatus::AuthenticationFailed
+    } else {
+        response.trans_status.clone().map_or(
+            common_enums::AttemptStatus::AuthenticationPending,
+            transaction_attempt_status,
+        )
+    }
 }
 
 impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

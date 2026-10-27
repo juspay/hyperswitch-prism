@@ -988,11 +988,11 @@ domain_types::impl_flow_status_mapping! {
         request: PaymentsSyncData,
         response: razorpayv2::RazorpayV2SyncResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
-            razorpayv2::RazorpayV2SyncResponse::PaymentResponse(payment) => payment.status.clone(),
+            razorpayv2::RazorpayV2SyncResponse::PaymentResponse(payment) => payment.status,
             razorpayv2::RazorpayV2SyncResponse::OrderPaymentsCollection(collection) => collection
                 .items
                 .first()
-                .map(|payment| payment.status.clone())
+                .map(|payment| payment.status)
                 .unwrap_or(razorpayv2::RazorpayStatus::Created),
         }) },
         context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },

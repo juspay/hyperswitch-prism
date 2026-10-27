@@ -1012,20 +1012,20 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
 #[serde(rename_all = "camelCase")]
 pub struct NoonRefundResponseTransactions {
     id: String,
-    status: RefundStatus,
-    transaction_reference: Option<String>,
+    pub status: RefundStatus,
+    pub transaction_reference: Option<String>,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonRefundSyncResponseResult {
-    transactions: Vec<NoonRefundResponseTransactions>,
+    pub transactions: Vec<NoonRefundResponseTransactions>,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundSyncResponse {
-    result: NoonRefundSyncResponseResult,
+    pub result: NoonRefundSyncResponseResult,
     result_code: u32,
     class_description: String,
     message: String,

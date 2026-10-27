@@ -779,8 +779,7 @@ domain_types::impl_flow_status_mapping! {
                             .then(current.ds_transactiontype.cmp(&next.ds_transactiontype))
                     });
                     ops.into_iter()
-                        .filter(|op| op.ds_date.is_some() && op.ds_hour.is_some())
-                        .last()
+                        .rfind(|op| op.ds_date.is_some() && op.ds_hour.is_some())
                 });
             match latest {
                 Some(op) => op.ds_response,
@@ -926,8 +925,7 @@ domain_types::impl_refund_flow_status_mapping! {
                             .then(current.ds_transactiontype.cmp(&next.ds_transactiontype))
                     });
                     ops.into_iter()
-                        .filter(|op| op.ds_date.is_some() && op.ds_hour.is_some())
-                        .last()
+                        .rfind(|op| op.ds_date.is_some() && op.ds_hour.is_some())
                 })
                 .and_then(|op| op.ds_response)
         }) },

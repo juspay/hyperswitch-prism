@@ -1061,10 +1061,29 @@ domain_types::impl_refund_flow_status_mapping! {
     },
 }
 
-// NOTE: no impl_refund_flow_status_mapping! for RSync — the RSync response carries
-// a transactions *list* and the RSync TryFrom selects the refund record by scanning
-// `transactions` for the entry with a `transaction_reference` (fallible); a runtime
-// extractor cannot reproduce that selection exactly.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Noon<T>,
+    flow: RSync,
+    source: noon::RefundStatus,
+    mapping: |status| { match status {
+        noon::RefundStatus::Success => success!(Success),
+        noon::RefundStatus::Failed => failure!(Failure),
+        noon::RefundStatus::Pending => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: RefundSyncData,
+        response: RefundSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            response.result.transactions.iter()
+                .find(|transaction| transaction.transaction_reference.is_some())
+                .map(|transaction| transaction.status.clone())
+                .ok_or(ConnectorError::ResponseDeserializationFailed {
+                    context: Default::default(),
+                })
+        },
+    },
+}
 
 macros::macro_connector_flow_status_impls!(
     connector: Noon,

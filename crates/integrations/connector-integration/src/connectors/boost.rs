@@ -365,15 +365,18 @@ macros::create_all_prerequisites!(
 // =============================================================================
 // AUTHORIZE — POST /v1/payments/init (paymentMethod="card", hosted/3DS redirect)
 // =============================================================================
-// NOTE: no impl_flow_status_mapping! for Authorize. The Init response
-// (`BoostPaymentInitResponse`, `uuid`/`referenceId`/`paymentUrl` only) carries
-// no `status` field at all — the TryFrom at transformers.rs:537 hardcodes
-// `AttemptStatus::AuthenticationPending` because the customer must still
-// complete the hosted/3DS redirect before BCPG reports any outcome. That
-// value is a non-terminal in Authorize::ALLOWED, not a member of
-// TERMINAL_SUCCESS_SET, so there is no honest `success_connector_status` to
-// declare; the outcome arrives later via webhook callback or PSync's
-// `BoostPaymentStatus`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Boost<T>,
+    flow: Authorize,
+    source: (),
+    mapping: |_ack| { non_terminal!(AuthenticationPending) },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: BoostPaymentInitResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Boost,

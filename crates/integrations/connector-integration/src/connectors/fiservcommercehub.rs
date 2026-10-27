@@ -969,10 +969,34 @@ domain_types::impl_flow_status_mapping! {
     },
 }
 
-// NOTE: no impl_flow_status_mapping! for PSync — the response
-// (`FiservcommercehubPSyncResponse`) is a Vec wrapper and the TryFrom's status
-// lookup is fallible (empty list → deserialization error), so no infallible
-// `fn(&Response) -> Source` extractor can express it.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiservcommercehub<T>,
+    flow: PSync,
+    source: fiservcommercehub::FiservcommercehubTransactionState,
+    mapping: |status| { match status {
+        fiservcommercehub::FiservcommercehubTransactionState::Approved
+        | fiservcommercehub::FiservcommercehubTransactionState::Captured => success!(Charged),
+        fiservcommercehub::FiservcommercehubTransactionState::Authorized => success!(Authorized),
+        fiservcommercehub::FiservcommercehubTransactionState::Pending => non_terminal!(Pending),
+        fiservcommercehub::FiservcommercehubTransactionState::Cancelled => success!(Voided),
+        _ => failure!(Failure),
+    } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: FiservcommercehubPSyncResponse,
+        source: |_resource_common_data, _request, response, http_status_code| {
+            response.0.first().map(|item| item.gateway_response.transaction_state.clone()).ok_or(
+                errors::ConnectorError::ResponseDeserializationFailed {
+                    context: errors::ResponseTransformationErrorContext {
+                        http_status_code: Some(http_status_code),
+                        additional_context: Some("Fiserv Commerce Hub PSync returned an empty list".to_string()),
+                    },
+                },
+            )
+        },
+    },
+}
 
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
@@ -1084,10 +1108,33 @@ domain_types::impl_refund_flow_status_mapping! {
     },
 }
 
-// NOTE: no impl_refund_flow_status_mapping! for RSync — the response
-// (`FiservcommercehubRSyncResponse`) is a Vec wrapper and the TryFrom's status
-// lookup is fallible (empty list → deserialization error), so no infallible
-// `fn(&Response) -> Source` extractor can express it.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiservcommercehub<T>,
+    flow: RSync,
+    source: fiservcommercehub::FiservcommercehubRefundState,
+    mapping: |status| { match status {
+        fiservcommercehub::FiservcommercehubRefundState::Approved
+        | fiservcommercehub::FiservcommercehubRefundState::Captured => success!(Success),
+        fiservcommercehub::FiservcommercehubRefundState::Authorized
+        | fiservcommercehub::FiservcommercehubRefundState::Pending => non_terminal!(Pending),
+        _ => failure!(Failure),
+    } },
+    runtime: {
+        request: RefundSyncData,
+        response: FiservcommercehubRSyncResponse,
+        source: |_resource_common_data, _request, response, http_status_code| {
+            response.0.first().map(|item| item.gateway_response.transaction_state.clone()).ok_or(
+                errors::ConnectorError::ResponseDeserializationFailed {
+                    context: errors::ResponseTransformationErrorContext {
+                        http_status_code: Some(http_status_code),
+                        additional_context: Some("Fiserv Commerce Hub RSync returned an empty list".to_string()),
+                    },
+                },
+            )
+        },
+    },
+}
 
 macros::macro_connector_flow_status_impls!(
     connector: Fiservcommercehub,

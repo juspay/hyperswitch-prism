@@ -875,16 +875,32 @@ domain_types::impl_flow_status_mapping! {
     },
 }
 
-// NOTE: no impl_flow_status_mapping! for Capture. The Capture TryFrom
-// hardcodes `AttemptStatus::Pending` — the wire shape (`NexixpayCaptureResponse`) carries no status
-// field, so there is no connector status from which a success terminal could be declared;
-// the capture outcome is confirmed via PSync.
-//
-// NOTE: no impl_flow_status_mapping! for Void. Same structural reason: the void endpoint
-// (`POST /operations/{id}/refunds` with the full amount) answers with only `operationId`
-// + `operationTime` (`NexixpayVoidResponse`), and the TryFrom hardcodes
-// `AttemptStatus::Voided` — no status enum exists on the response to map.
-//
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: Capture,
+    source: (),
+    mapping: |_ack| { non_terminal!(Pending) },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: NexixpayCaptureResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: Void,
+    source: (),
+    mapping: |_ack| { success!(Voided) },
+    runtime: {
+        request: PaymentVoidData,
+        response: NexixpayVoidResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Nexixpay<T>,
@@ -941,10 +957,27 @@ domain_types::impl_flow_status_mapping! {
     },
 }
 
-// NOTE: no impl_flow_status_mapping! for SetupMandate / ClientAuthenticationToken.
-// SetupMandate issues a zero-amount `/init` and reuses the PreAuthenticate mapping
-// (Threeds-challenge → `AuthenticationPending`), producing no terminal. ClientAuthenticationToken
-// returns a session token only.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: SetupMandate,
+    source: transformers::NexixpayPaymentStatus,
+    mapping: |status| {
+        use transformers::NexixpayPaymentStatus as S;
+        match status {
+            S::ThreedsValidated => non_terminal!(AuthenticationSuccessful),
+            S::ThreedsFailed | S::Declined | S::DeniedByRisk => failure!(AuthenticationFailed),
+            _ => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: NexixpaySetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(response.operation.operation_result.clone())
+        },
+    },
+}
 
 // RepeatPayment — mirrors the MIT TryFrom (transformers.rs:2326), same
 // `From<NexixpayPaymentStatus>` mapping adapted to `RepeatPayment::ALLOWED`:
@@ -977,10 +1010,18 @@ domain_types::impl_flow_status_mapping! {
     },
 }
 
-// NOTE: no impl_refund_flow_status_mapping! for Refund. Nexi refund creation is
-// acknowledge-only: the Refund TryFrom (transformers.rs:855) always returns
-// `RefundStatus::Pending` ("CRITICAL: NOT Success!") — the wire response carries only an
-// `operationId`, so no honest success variant exists; the outcome resolves via RSync.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: Refund,
+    source: (),
+    mapping: |_ack| { non_terminal!(Pending) },
+    runtime: {
+        request: RefundsData,
+        response: NexixpayRefundResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 
 // RSync — mirrors `From<NexixpayRefundResultStatus> for RefundStatus`
 // (transformers.rs:1053) used by the RSync TryFrom (transformers.rs:1072).

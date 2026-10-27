@@ -531,9 +531,10 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FiservemeaTransactionType {
+    #[default]
     Sale,
     Preauth,
     Credit,
@@ -545,12 +546,6 @@ pub enum FiservemeaTransactionType {
     Disbursement,
     #[serde(other)]
     Unknown,
-}
-
-impl Default for FiservemeaTransactionType {
-    fn default() -> Self {
-        Self::Sale
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

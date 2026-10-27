@@ -85,7 +85,7 @@ domain_types::impl_flow_status_mapping! {
     source: transformers::CheckoutPaymentStatus,
     context: Option<common_enums::CaptureMethod>,
     mapping: |status, capture_method| {
-        let mapped_status = (|| { use common_enums::AttemptStatus;
+        let mapped_status = { use common_enums::AttemptStatus;
         use transformers::CheckoutPaymentStatus;
         match status {
             CheckoutPaymentStatus::Authorized => {
@@ -108,7 +108,7 @@ domain_types::impl_flow_status_mapping! {
             CheckoutPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
             CheckoutPaymentStatus::RetryScheduled | CheckoutPaymentStatus::Unknown => AttemptStatus::Pending,
             CheckoutPaymentStatus::Voided => AttemptStatus::Voided,
-        } })();
+        } };
         match mapped_status {
             common_enums::AttemptStatus::Authorized => success!(Authorized),
             common_enums::AttemptStatus::Charged => success!(Charged),

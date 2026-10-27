@@ -7322,7 +7322,7 @@ pub fn parse_cybersource_webhook_signature(
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::items_after_test_module)]
 mod tests {
     use super::{
         get_commerce_indicator_for_external_authentication, CybersourceWebhookBody,

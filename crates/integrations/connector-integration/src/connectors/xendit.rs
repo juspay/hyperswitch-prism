@@ -67,7 +67,7 @@ domain_types::impl_flow_status_mapping! {
     source: transformers::PaymentStatus,
     context: bool,
     mapping: |status, is_auto_capture| {
-        let mapped_status = (|| { use common_enums::AttemptStatus;
+        let mapped_status = { use common_enums::AttemptStatus;
         match status {
             transformers::PaymentStatus::Succeeded | transformers::PaymentStatus::Verified => {
                 if is_auto_capture { AttemptStatus::Charged } else { AttemptStatus::Authorized }
@@ -76,7 +76,7 @@ domain_types::impl_flow_status_mapping! {
             transformers::PaymentStatus::RequiresAction => AttemptStatus::AuthenticationPending,
             transformers::PaymentStatus::AwaitingCapture => AttemptStatus::Authorized,
             transformers::PaymentStatus::Failed => AttemptStatus::Failure,
-        } })();
+        } };
         match mapped_status {
             common_enums::AttemptStatus::Authorized => success!(Authorized),
             common_enums::AttemptStatus::Charged => success!(Charged),

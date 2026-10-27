@@ -217,10 +217,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// NOTE: no impl_flow_status_mapping! for VoidPC. The reverse endpoint returns
-// 204 No Content and the TryFrom answers with
-// `PaymentsResponseData::PostCaptureVoidResponse` (status `Success`), reporting
-// no `AttemptStatus` at all — nothing to map.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Datatrans<T>,
+    flow: VoidPC,
+    source: (),
+    mapping: |_ack| { success!(VoidedPostCapture) },
+    runtime: {
+        request: PaymentsCancelPostCaptureData,
+        response: DatatransVoidPCResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidPostCaptureV2 for Datatrans<T>
 {

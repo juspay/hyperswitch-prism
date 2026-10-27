@@ -471,12 +471,12 @@ domain_types::impl_flow_status_mapping! {
     source: transformers::AuthorizedotnetPaymentsResponse,
     context: Option<common_enums::CaptureMethod>,
     mapping: |response, capture_method|{
-        let mapped_status = (|| { transformers::get_hs_status(
+        let mapped_status = transformers::get_hs_status(
             &response,
             0,
             transformers::Operation::Authorize,
             capture_method,
-        ) })();
+        );
         match mapped_status {
             common_enums::AttemptStatus::Authorized => success!(Authorized),
             common_enums::AttemptStatus::Charged => success!(Charged),

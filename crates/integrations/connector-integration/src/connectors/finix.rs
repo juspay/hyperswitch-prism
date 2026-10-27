@@ -372,15 +372,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// NOTE: no impl_flow_status_mapping! for Capture. Finix capture is an async
-// handoff — the TryFrom (transformers.rs:826) never reports a terminal success:
-// a SUCCEEDED capture only confirms the authorization update, so the attempt
-// stays `Pending` until a PSync on the transfer id confirms the charge
-// (`Charged`). The `(state, is_void)` pair maps the capture's own success into
-// `Pending`, which is not in Capture::TERMINAL_SUCCESS_SET, so the macro's
-// const-asserted `success:` variant has no honest target: declaring
-// `Succeeded => Charged` would claim a terminal the TryFrom deliberately never
-// produces on this call.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Finix<T>,
+    flow: Capture,
+    source: finix::FinixPaymentStatus,
+    mapping: |status| {
+        use finix::FinixPaymentStatus as S;
+        match status {
+            S::Pending | S::Succeeded => non_terminal!(Pending),
+            S::Failed | S::Canceled | S::Unknown => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: FinixCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.state.clone()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Finix<T>
 {
@@ -621,14 +630,22 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
-// NOTE: no impl_flow_status_mapping! for SetupMandate. The mandate-setup leg
-// creates a Finix payment *instrument* (`POST /payment_instruments`) whose
-// response (`FinixInstrumentResponse`) has no transaction state at all — the
-// TryFrom (transformers.rs:1630) keys success off `id.is_some() && enabled`,
-// and hardcodes `AttemptStatus::Charged` on that structural verdict (the
-// instrument being live), `AttemptStatus::Failure` otherwise. There is no
-// connector *status* enum on the wire to mirror, so the macro's
-// `source_connector_status` has nothing honest to name.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Finix<T>,
+    flow: SetupMandate,
+    source: bool,
+    mapping: |is_enabled_instrument| {
+        if is_enabled_instrument { success!(Charged) } else { failure!(Failure) }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: FinixSetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(response.id.is_some() && response.enabled)
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Finix<T>
 {

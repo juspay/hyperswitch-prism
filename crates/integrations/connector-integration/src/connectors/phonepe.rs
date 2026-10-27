@@ -900,7 +900,7 @@ domain_types::impl_flow_status_mapping! {
     source: (),
     context: enums::AttemptStatus,
     mapping: |_source, status|{
-        let mapped_status = (|| { status })();
+        let mapped_status = status;
         match mapped_status {
             common_enums::AttemptStatus::Authorized => success!(Authorized),
             common_enums::AttemptStatus::Charged => success!(Charged),
@@ -958,7 +958,7 @@ domain_types::impl_flow_status_mapping! {
     source: (),
     context: enums::AttemptStatus,
     mapping: |_source, status|{
-        let mapped_status = (|| { status })();
+        let mapped_status = status;
         match mapped_status {
             common_enums::AttemptStatus::Authorized => success!(Authorized),
             common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
@@ -1027,7 +1027,7 @@ domain_types::impl_flow_status_mapping! {
     source: (),
     context: enums::AttemptStatus,
     mapping: |_source, status|{
-        let mapped_status = (|| { status })();
+        let mapped_status = status;
         match mapped_status {
             common_enums::AttemptStatus::Charged => success!(Charged),
             common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
@@ -1073,7 +1073,7 @@ domain_types::impl_flow_status_mapping! {
     source: (),
     context: enums::AttemptStatus,
     mapping: |_source, status|{
-        let mapped_status = (|| { status })();
+        let mapped_status = status;
         match mapped_status {
             common_enums::AttemptStatus::Voided => success!(Voided),
             common_enums::AttemptStatus::Failure => failure!(Failure),
@@ -1108,7 +1108,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source: (),
     context: enums::RefundStatus,
     mapping: |_source, status|{
-        let mapped_status = (|| { status })();
+        let mapped_status = status;
         match mapped_status {
             common_enums::RefundStatus::Success => success!(Success),
             common_enums::RefundStatus::Failure => failure!(Failure),
@@ -1149,7 +1149,7 @@ domain_types::impl_refund_flow_status_mapping! {
     source: (),
     context: enums::RefundStatus,
     mapping: |_source, status|{
-        let mapped_status = (|| { status })();
+        let mapped_status = status;
         match mapped_status {
             common_enums::RefundStatus::Success => success!(Success),
             common_enums::RefundStatus::Failure => failure!(Failure),

@@ -837,7 +837,7 @@ domain_types::impl_flow_status_mapping! {
         request: PaymentsAuthorizeData<T>,
         response: JpmorganPaymentsResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.transaction_state.clone()) },
-        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.capture_method.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.capture_method) },
     },
 }
 
@@ -887,7 +887,7 @@ domain_types::impl_flow_status_mapping! {
         request: PaymentsSyncData,
         response: JpmorganPaymentsResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.transaction_state.clone()) },
-        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.capture_method.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.capture_method) },
     },
 }
 
@@ -915,7 +915,7 @@ domain_types::impl_flow_status_mapping! {
         request: PaymentsCaptureData,
         response: JpmorganPaymentsResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.transaction_state.clone()) },
-        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.capture_method.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.capture_method) },
     },
 }
 
@@ -940,7 +940,7 @@ domain_types::impl_flow_status_mapping! {
         request: PaymentVoidData,
         response: JpmorganPaymentsResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.transaction_state.clone()) },
-        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.capture_method.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.capture_method) },
     },
 }
 
@@ -968,7 +968,7 @@ domain_types::impl_flow_status_mapping! {
         request: SetupMandateRequestData<T>,
         response: JpmorganPaymentsResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.transaction_state.clone()) },
-        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.capture_method.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.capture_method) },
     },
 }
 
@@ -1000,7 +1000,7 @@ domain_types::impl_flow_status_mapping! {
         request: RepeatPaymentData<T>,
         response: JpmorganPaymentsResponse,
         source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.transaction_state.clone()) },
-        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.capture_method.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.capture_method) },
     },
 }
 

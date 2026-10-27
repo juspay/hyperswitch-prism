@@ -828,24 +828,11 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
         // A SUCCEEDED capture only confirms the authorization update; the funds
         // movement (transfer) settles asynchronously, so the attempt stays Pending
         // until a PSync on the transfer id confirms the charge.
-        let status = if response.is_void == Some(true) {
-            match response.state {
-                FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => {
-                    AttemptStatus::Voided
-                }
-                FinixPaymentStatus::Failed
-                | FinixPaymentStatus::Canceled
-                | FinixPaymentStatus::Unknown => AttemptStatus::VoidFailed,
-            }
-        } else {
-            match response.state {
-                FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => {
-                    AttemptStatus::Pending
-                }
-                FinixPaymentStatus::Failed
-                | FinixPaymentStatus::Canceled
-                | FinixPaymentStatus::Unknown => AttemptStatus::Failure,
-            }
+        let status = match response.state {
+            FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => AttemptStatus::Pending,
+            FinixPaymentStatus::Failed
+            | FinixPaymentStatus::Canceled
+            | FinixPaymentStatus::Unknown => AttemptStatus::Failure,
         };
 
         let connector_response = build_finix_connector_response(&response);

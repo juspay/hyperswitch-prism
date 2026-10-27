@@ -1047,17 +1047,28 @@ domain_types::impl_refund_flow_status_mapping! {
     },
 }
 
-// RSync — mirrors the RSync TryFrom (transformers.rs:1182): the matched transaction's
-// `condition` maps through `From<NmiStatus> for RefundStatus`. A query with no record is
-// hard `ResponseDeserializationFailed`, so every variant here stands for a found record.
-// `Abandoned`/`Cancelled`/`Failed`/`Unknown` → `Failure` mirrors the shared impl exactly.
-//
-// NOTE: no impl_refund_flow_status_mapping! for RSync. The TryFrom selects the
-// transaction by matching `response.transaction[*].order_id` against
-// `request.connector_refund_id` (falling back to the last record) — a
-// request-dependent list lookup that a `source: |response| ...` closure cannot
-// express; and an empty list errors out instead of mapping, so there is no
-// response-only source value in general.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nmi<T>,
+    flow: RSync,
+    source: nmi::NmiStatus,
+    mapping: |status| { match status {
+        nmi::NmiStatus::Pendingsettlement | nmi::NmiStatus::Complete => success!(Success),
+        nmi::NmiStatus::Pending | nmi::NmiStatus::InProgress => non_terminal!(Pending),
+        _ => failure!(Failure),
+    } },
+    runtime: {
+        request: RefundSyncData,
+        response: SyncResponse,
+        source: |_resource_common_data, request, response, _http_status_code| {
+            response.transaction.iter()
+                .find(|txn| txn.order_id == request.connector_refund_id)
+                .or_else(|| response.transaction.last())
+                .map(|txn| nmi::NmiStatus::from(txn.condition.clone()))
+                .ok_or(ConnectorError::ResponseDeserializationFailed { context: Default::default() })
+        },
+    },
+}
 
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
