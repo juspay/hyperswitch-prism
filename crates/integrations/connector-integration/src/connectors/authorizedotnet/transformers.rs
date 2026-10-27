@@ -2069,7 +2069,6 @@ pub struct AuthorizedotnetTransactionVoidPCDetails {
     // Transaction details for VoidPostCapture (same structure as Void)
     transaction_type: TransactionType,
     ref_trans_id: String,
-    amount: Option<f64>,
 }
 
 #[skip_serializing_none]
@@ -2151,7 +2150,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_void_pc_details = AuthorizedotnetTransactionVoidPCDetails {
             transaction_type: TransactionType::VoidTransaction,
             ref_trans_id: transaction_id,
-            amount: None,
         };
 
         let merchant_authentication =
