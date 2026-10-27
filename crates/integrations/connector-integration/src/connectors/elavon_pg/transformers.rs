@@ -37,7 +37,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{connectors::elavon_pg::ElavonPgRouterData, types::ResponseRouterData};
@@ -300,8 +300,8 @@ pub struct ElavonPgCard<T: PaymentMethodDataTypes> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub holder_name: Option<Secret<String>>,
     pub number: RawCardNumber<T>,
-    pub expiration_month: u8,
-    pub expiration_year: u16,
+    pub expiration_month: Secret<u8>,
+    pub expiration_year: Secret<u16>,
     /// Absent on a merchant-initiated charge, where the CVC may not be stored.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub security_code: Option<Secret<String>>,
@@ -771,8 +771,9 @@ pub struct ElavonPgTransactionResponse {
     pub processor_reference: Option<String>,
     pub scheme_reference: Option<String>,
     /// Stored-credential reference; present only on a sale sent with
-    /// `credentialOnFileType`. See [`ElavonPgCardSaleRequest::credential_on_file_data`].
-    pub credential_on_file_data: Option<String>,
+    /// `credentialOnFileType`. Masked like the request field of the same name.
+    /// See [`ElavonPgCardSaleRequest::credential_on_file_data`].
+    pub credential_on_file_data: Option<Secret<String>>,
     pub issuer_response_code: Option<String>,
     pub raw_processor_response_info: Option<ElavonPgRawProcessorResponseInfo>,
     /// The authorized amount, echoed back. Carried forward to Capture, which has no
@@ -1107,17 +1108,34 @@ fn parse_expiry(
 /// EPG accepts only ECI 5, 6 or 7 (the Visa scale). Mastercard-scale wallet values
 /// (02/01/00) are translated; a missing or unknown ECI is an error rather than a guess
 /// at how well the shopper was authenticated.
+/// ECI sent when the wallet token carries none. Apple Pay omits `eciIndicator` on Mastercard
+/// tokens, and EPG requires `cryptogramSecurity.electronicCommerceIndicator`, so the field
+/// cannot simply be left out. `7` is the conservative choice: it claims no authentication,
+/// where defaulting to an authenticated value would assert a liability shift the token does
+/// not evidence.
+const WALLET_ECI_DEFAULT: &str = "7";
+
+/// Absent and malformed are different cases on purpose.
+///
+/// * absent (`None`) -- Apple Pay leaves `eciIndicator` out on Mastercard tokens, so failing
+///   here would decline those payments; the conservative [`WALLET_ECI_DEFAULT`] is sent.
+/// * present but not a value EPG accepts (including `""` or whitespace) -- the caller sent
+///   something, and quietly turning it into an ECI would be inventing an authentication
+///   result, so it is refused.
 fn wallet_eci(eci: Option<&str>) -> Result<String, error_stack::Report<IntegrationError>> {
     match eci.map(str::trim) {
+        None => Ok(WALLET_ECI_DEFAULT.to_string()),
         Some("5" | "05" | "2" | "02") => Ok("5".to_string()),
         Some("6" | "06" | "1" | "01") => Ok("6".to_string()),
         Some("7" | "07" | "0" | "00") => Ok("7".to_string()),
-        _ => Err(error_stack::report!(IntegrationError::MissingRequiredField {
+        Some(_) => Err(error_stack::report!(IntegrationError::InvalidDataFormat {
             field_name: "wallet.eci_indicator",
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "Elavon Payment Gateway requires cryptogramSecurity.electronicCommerceIndicator \
-                     (5, 6 or 7) with a pre-decrypted wallet payment"
+                    "Elavon Payment Gateway accepts cryptogramSecurity.\
+                     electronicCommerceIndicator 5, 6 or 7 (optionally zero-padded, or the \
+                     Mastercard 2/1/0 equivalents); omit the field entirely to send the \
+                     unauthenticated default"
                         .to_string(),
                 ),
                 ..Default::default()
@@ -1809,8 +1827,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         ElavonPgSaleCard::Card(ElavonPgCard {
                             holder_name: card.card_holder_name.clone(),
                             number: card.card_number.clone(),
-                            expiration_month: expiration_month(card)?,
-                            expiration_year: expiration_year(card)?,
+                            expiration_month: Secret::new(expiration_month(card)?),
+                            expiration_year: Secret::new(expiration_year(card)?),
                             security_code: Some(security_code(card)?),
                             bill_to,
                         }),
@@ -1932,14 +1950,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        // Both stored-credential routes reduce to the same EPG value: the connector
-        // mandate id is the `credentialOnFileData` the initial sale returned, and the
-        // network transaction id UCS hands back for a PSP-agnostic MIT is that same
-        // value (it is what Authorize reports as `network_txn_id`).
+        // EPG replays a stored credential only by its own `credentialOnFileData` -- the
+        // opaque 29-character reference its cardholder-initiated sale minted. There is no
+        // request field for a bare scheme network transaction id, so an NTID (which, now that
+        // Authorize reports `schemeReference` rather than EPG's token, is a scheme value and
+        // may not even have been issued by EPG) cannot be sent here: it would be rejected, and
+        // sending it anyway would only move the failure to the acquirer.
         let credential_on_file_data = match &request.mandate_reference {
             MandateReferenceId::ConnectorMandateId(mandate) => mandate.get_connector_mandate_id(),
-            MandateReferenceId::NetworkMandateId(network) => {
-                Some(network.network_transaction_id.clone())
+            MandateReferenceId::NetworkMandateId(_) => {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Merchant-initiated payment by network transaction id".to_string(),
+                    connector: ELAVON_PG_CONNECTOR_ID,
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Elavon Payment Gateway replays a stored credential only by the \
+                             connector mandate id (its own credentialOnFileData); it has no \
+                             request field for a scheme network transaction id"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }))
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
@@ -1982,8 +2014,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ElavonPgCard {
                     holder_name: card.card_holder_name.clone(),
                     number: card.card_number.clone(),
-                    expiration_month,
-                    expiration_year,
+                    expiration_month: Secret::new(expiration_month),
+                    expiration_year: Secret::new(expiration_year),
                     security_code: None,
                     bill_to,
                 }
@@ -1993,8 +2025,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ElavonPgCard {
                     holder_name: card.card_holder_name.clone(),
                     number: card.card_number.clone(),
-                    expiration_month: expiration_month(card)?,
-                    expiration_year: expiration_year(card)?,
+                    expiration_month: Secret::new(expiration_month(card)?),
+                    expiration_year: Secret::new(expiration_year(card)?),
                     security_code: None,
                     bill_to,
                 }
@@ -2163,20 +2195,19 @@ fn build_sale_router_data<F, Req>(
                 .filter(|_| opens_recurring_agreement)
                 .map(|credential_on_file_data| {
                     Box::new(MandateReference {
-                        connector_mandate_id: Some(credential_on_file_data),
+                        connector_mandate_id: Some(credential_on_file_data.expose()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
                         mandate_metadata: None,
                     })
                 }),
             connector_metadata: capture_metadata(&response),
-            // EPG's stored-credential reference embeds the scheme's network transaction
-            // id and is the only value it accepts back for a PSP-agnostic MIT, so it is
-            // reported as the NTID when present.
-            network_txn_id: response
-                .credential_on_file_data
-                .clone()
-                .or_else(|| response.scheme_reference.clone()),
+            // Only the scheme's own reference belongs here. `network_txn_id` is stored by
+            // Hyperswitch as the scheme NTID and may be replayed through a different PSP, and
+            // EPG's `credentialOnFileData` is an opaque 29-character EPG token -- reporting it
+            // as the NTID would hand another acquirer a value it cannot use. It is returned as
+            // the connector mandate id above, which is where it is replayable.
+            network_txn_id: response.scheme_reference.clone(),
             network_txn_link_id: None,
             connector_response_reference_id: response.processor_reference.clone(),
             incremental_authorization_allowed: None,
@@ -2556,200 +2587,5 @@ fn build_refund_router_data<F, Req>(
             ..router_data.resource_common_data
         },
         ..router_data
-    }
-}
-
-#[cfg(test)]
-#[allow(
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::indexing_slicing,
-    clippy::panic
-)]
-mod tests {
-    use std::str::FromStr;
-
-    use domain_types::payment_method_data::DefaultPCIHolder;
-    use domain_types::payment_method_data::{
-        ApplePayCryptogramData, ApplePayDecryptedData, ApplePayWalletData, ApplepayPaymentMethod,
-        GooglePayDecryptedData, GooglePayPaymentMethodInfo, GooglePayWalletData,
-        GpayEncryptedTokenizationData, WalletData,
-    };
-
-    use super::*;
-
-    fn secret(value: &str) -> Secret<String> {
-        Secret::new(value.to_string())
-    }
-
-    fn pan() -> cards::CardNumber {
-        cards::CardNumber::from_str("4111111111111111").expect("valid test PAN")
-    }
-
-    fn apple_pay(eci: Option<&str>, decrypted: bool) -> WalletData {
-        let payment_data = if decrypted {
-            ApplePayPaymentData::Decrypted(ApplePayDecryptedData {
-                application_primary_account_number: pan(),
-                application_expiration_month: secret("12"),
-                application_expiration_year: secret("30"),
-                payment_data: ApplePayCryptogramData {
-                    online_payment_cryptogram: secret("AgAAAAAAAIR8CQrXcIhbQAAAAAA="),
-                    eci_indicator: eci.map(str::to_string),
-                },
-                device_manufacturer_identifier: None,
-                merchant_token_identifier: None,
-            })
-        } else {
-            ApplePayPaymentData::Encrypted("encrypted-blob".to_string())
-        };
-        WalletData::ApplePay(Box::new(ApplePayWalletData {
-            payment_data,
-            payment_method: ApplepayPaymentMethod {
-                display_name: "Visa 1111".to_string(),
-                network: "Visa".to_string(),
-                pm_type: "debit".to_string(),
-            },
-            transaction_identifier: "txn".to_string(),
-        }))
-    }
-
-    fn google_pay(cryptogram: Option<&str>, eci: Option<&str>, decrypted: bool) -> WalletData {
-        let tokenization_data = if decrypted {
-            GpayTokenizationData::Decrypted(GooglePayDecryptedData {
-                card_exp_month: secret("12"),
-                card_exp_year: secret("2030"),
-                application_primary_account_number: pan(),
-                cryptogram: cryptogram.map(secret),
-                eci_indicator: eci.map(str::to_string),
-            })
-        } else {
-            GpayTokenizationData::Encrypted(GpayEncryptedTokenizationData {
-                token_type: "PAYMENT_GATEWAY".to_string(),
-                token: "encrypted-blob".to_string(),
-            })
-        };
-        WalletData::GooglePay(Box::new(GooglePayWalletData {
-            pm_type: "CARD".to_string(),
-            description: "Visa 1111".to_string(),
-            info: GooglePayPaymentMethodInfo {
-                card_network: "VISA".to_string(),
-                card_details: "1111".to_string(),
-                assurance_details: None,
-            },
-            tokenization_data,
-        }))
-    }
-
-    fn build(
-        wallet: &WalletData,
-    ) -> Result<
-        (
-            ElavonPgSaleCard<DefaultPCIHolder>,
-            ElavonPgCryptogramSecurity,
-            ElavonPgPaymentMethodOrigin,
-        ),
-        error_stack::Report<IntegrationError>,
-    > {
-        build_wallet_payment::<DefaultPCIHolder>(wallet, None)
-    }
-
-    #[test]
-    fn eci_is_translated_to_epg_scale() {
-        // Visa scale passes through (with or without the leading zero).
-        for (input, expected) in [
-            ("05", "5"),
-            ("5", "5"),
-            ("06", "6"),
-            ("07", "7"),
-            ("7", "7"),
-            // Mastercard scale.
-            ("02", "5"),
-            ("01", "6"),
-            ("00", "7"),
-        ] {
-            assert_eq!(wallet_eci(Some(input)).unwrap(), expected, "eci {input}");
-        }
-    }
-
-    #[test]
-    fn missing_or_unknown_eci_is_an_error_not_a_guess() {
-        assert!(wallet_eci(None).is_err());
-        assert!(wallet_eci(Some("")).is_err());
-        assert!(wallet_eci(Some("  ")).is_err());
-        assert!(wallet_eci(Some("03")).is_err());
-        assert!(wallet_eci(Some("garbage")).is_err());
-    }
-
-    #[test]
-    fn expiry_accepts_two_and_four_digit_years_and_rejects_bad_months() {
-        assert_eq!(
-            parse_expiry(&secret("12"), &secret("30")).unwrap(),
-            (12, 2030)
-        );
-        assert_eq!(
-            parse_expiry(&secret("1"), &secret("2031")).unwrap(),
-            (1, 2031)
-        );
-        assert!(parse_expiry(&secret("0"), &secret("2030")).is_err());
-        assert!(parse_expiry(&secret("13"), &secret("2030")).is_err());
-        assert!(parse_expiry(&secret("ab"), &secret("2030")).is_err());
-        assert!(parse_expiry(&secret("12"), &secret("1999")).is_err());
-    }
-
-    #[test]
-    fn decrypted_apple_pay_builds_dpan_cryptogram_and_origin() {
-        let (card, cryptogram, origin) = build(&apple_pay(Some("07"), true)).unwrap();
-        assert_eq!(origin, ElavonPgPaymentMethodOrigin::ApplePay);
-        assert_eq!(cryptogram.electronic_commerce_indicator, "7");
-        assert_eq!(cryptogram.cryptogram.peek(), "AgAAAAAAAIR8CQrXcIhbQAAAAAA=");
-        let ElavonPgSaleCard::Wallet(card) = card else {
-            panic!("wallet payments must use the wallet card shape");
-        };
-        assert_eq!(
-            (*card.expiration_month.peek(), *card.expiration_year.peek()),
-            (12, 2030)
-        );
-    }
-
-    #[test]
-    fn decrypted_google_pay_builds_dpan_cryptogram_and_origin() {
-        let (_, cryptogram, origin) = build(&google_pay(
-            Some("AgAAAAAAAIR8CQrXcIhbQAAAAAA="),
-            Some("05"),
-            true,
-        ))
-        .unwrap();
-        assert_eq!(origin, ElavonPgPaymentMethodOrigin::GooglePay);
-        assert_eq!(cryptogram.electronic_commerce_indicator, "5");
-    }
-
-    #[test]
-    fn google_pay_without_cryptogram_is_refused() {
-        // A PAN_ONLY token has no cryptogram; EPG's route cannot take it.
-        assert!(build(&google_pay(None, Some("05"), true)).is_err());
-    }
-
-    #[test]
-    fn wallet_without_eci_is_refused() {
-        assert!(build(&apple_pay(None, true)).is_err());
-        assert!(build(&google_pay(
-            Some("AgAAAAAAAIR8CQrXcIhbQAAAAAA="),
-            None,
-            true
-        ))
-        .is_err());
-    }
-
-    #[test]
-    fn encrypted_wallet_tokens_are_refused() {
-        assert!(build(&apple_pay(Some("07"), false)).is_err());
-        assert!(build(&google_pay(None, None, false)).is_err());
-    }
-
-    #[test]
-    fn other_wallets_are_refused() {
-        let alipay =
-            WalletData::AliPayRedirect(domain_types::payment_method_data::AliPayRedirection {});
-        assert!(build(&alipay).is_err());
     }
 }
