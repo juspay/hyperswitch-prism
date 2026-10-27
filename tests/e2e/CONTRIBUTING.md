@@ -4,7 +4,7 @@ Start with `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.
 
 ## One supported contribution pattern
 
-1. Add one shared spec in the matching product/lifecycle/payment-method directory. Give it a stable, unique scenario ID, a readable title, and a description of the behavior being verified.
+1. Add one shared spec in the matching product/lifecycle/payment-method directory. Give it a stable, unique scenario ID, a readable title, a description of the behavior being verified, and `paymentMethodsEnabled` describing the methods its merchant connector account needs.
 2. Import `test` from `framework/fixtures.ts` and the connector registry from `connectors/index.ts`. Use the same `for`/`describe`/`test.use` registration pattern as the reference spec. The loop includes every registered connector.
 3. Write the calls in execution order using the `payments` fixture. Keep their request fields, use of returned values, and expected outcomes visible in the spec.
 4. Use `checks.fields` for exact field comparisons and `checks.oneOf` for an explicitly allowed set. Both produce the standard expected/actual report. Do not create a second assertion or attachment format in a scenario.

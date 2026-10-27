@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 export type ConnectorCredentials = {
   connector_account_details: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  additional_merchant_data?: Record<string, unknown>;
+  connector_webhook_details?: Record<string, unknown>;
 };
 
 export function loadConnectorCredentials(
@@ -46,13 +48,23 @@ export function loadConnectorCredentials(
   if (
     !isObject(entry) ||
     !isObject(entry.connector_account_details) ||
-    (entry.metadata != null && !isObject(entry.metadata))
+    (entry.metadata != null && !isObject(entry.metadata)) ||
+    (entry.additional_merchant_data != null &&
+      !isObject(entry.additional_merchant_data)) ||
+    (entry.connector_webhook_details != null &&
+      !isObject(entry.connector_webhook_details))
   ) {
     throw new Error(`Missing sandbox credentials for ${key}`);
   }
   return structuredClone({
     connector_account_details: entry.connector_account_details,
     ...(isObject(entry.metadata) ? { metadata: entry.metadata } : {}),
+    ...(isObject(entry.additional_merchant_data)
+      ? { additional_merchant_data: entry.additional_merchant_data }
+      : {}),
+    ...(isObject(entry.connector_webhook_details)
+      ? { connector_webhook_details: entry.connector_webhook_details }
+      : {}),
   });
 }
 

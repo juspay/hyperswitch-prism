@@ -23,6 +23,7 @@ export class HyperswitchClient {
       await request.newContext({
         baseURL: configuration.hyperswitchBaseUrl,
         timeout: 60_000,
+        extraHTTPHeaders: { Accept: "application/json" },
       }),
     );
   }

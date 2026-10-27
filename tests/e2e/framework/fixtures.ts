@@ -73,8 +73,10 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
       await hs.dispose();
     }
   },
-  _merchant: async ({ _hs, connector }, use) => {
-    await use(await setupMerchant(_hs, connector));
+  _merchant: async ({ _hs, connector, scenario }, use) => {
+    await use(
+      await setupMerchant(_hs, connector, scenario.paymentMethodsEnabled),
+    );
   },
   merchant: async ({ _merchant }, use) => {
     await use({

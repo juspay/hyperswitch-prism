@@ -30,4 +30,5 @@ export type Scenario = {
   id: string;
   title: string;
   description: string;
+  paymentMethodsEnabled: readonly JsonObject[];
 };

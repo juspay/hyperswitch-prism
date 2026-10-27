@@ -27,7 +27,7 @@ For an existing dedicated test stack, set `HS_BASE_URL`, `HS_ADMIN_API_KEY`, and
 
 The loader accepts a direct entry such as `adyen.connector_account_details`, or a nested entry such as `adyen.connector_1.connector_account_details`. A single nested credential entry is selected automatically. If the connector has several entries, set `credentialEntry: "connector_1"` alongside `credentialKey: "adyen"` in its definition. Multiple entries are never selected by object ordering.
 
-The credential entry's optional `metadata` is forwarded to the merchant connector account during setup. This is distinct from payment `metadata` or `connector_metadata` in a payment request. Supply actual connector-required account metadata in the external credential file; use request overrides only for justified payment-request differences. An absent or null account metadata value means no account metadata.
+The credential entry's optional `metadata` is forwarded to the merchant connector account during setup. This is distinct from payment `metadata` or `connector_metadata` in a payment request. The account fields `additional_merchant_data` and `connector_webhook_details` are also forwarded when supplied in the external entry. Supply actual connector-required account data in that file; use request overrides only for justified payment-request differences. Absent or null optional account fields are omitted.
 
 ### CI preparation
 
@@ -55,6 +55,10 @@ CONNECTOR_AUTH_FILE_PATH="$credentials_dir/creds.json" npm test
 If CI already provides a decrypted JSON secret file, set `CONNECTOR_AUTH_FILE_PATH` to that file directly. Do not include downloaded or decrypted files in test artifacts.
 
 ## Scenarios
+
+Before payment calls, fixtures create an isolated merchant, issue an API key expiring in one day, use its default business profile (or create one if absent), create the sandbox connector account, and activate a single-connector routing rule. Setup validates the returned merchant association, profile, sandbox mode, and enabled payment methods.
+
+Each scenario declares `paymentMethodsEnabled`, which is sent as the connector account's `payment_methods_enabled`. The current scenario enables card credit only. Declare additional methods in scenarios that exercise them; the common setup does not assume every test uses cards. Optional merchant contact fields, webhook subscriptions, parent merchants, tokenization, and mandate settings are not prerequisites for this fresh-card scenario and are not enabled implicitly. Customer creation belongs in a journey that actually uses a customer.
 
 Each file contains one complete shared scenario. Read it top to bottom to see the requests, response checks, polling, and database evidence. Calls run in the order written.
 

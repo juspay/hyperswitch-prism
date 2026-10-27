@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
-import type { ConnectorDefinition } from "./types.js";
+import type { ConnectorDefinition, JsonObject } from "./types.js";
 import { loadConnectorCredentials } from "./connector-credentials.js";
 import { configuration } from "./configuration.js";
 import { HyperswitchClient, stringField } from "./hyperswitch-client.js";
@@ -15,6 +15,7 @@ export type TestMerchant = {
 export async function setupMerchant(
   hs: HyperswitchClient,
   connector: ConnectorDefinition,
+  paymentMethodsEnabled: readonly JsonObject[],
 ): Promise<TestMerchant> {
   return test.step("Set up merchant, connector account, and routing", async () => {
     const credentials = loadConnectorCredentials(
@@ -33,6 +34,7 @@ export async function setupMerchant(
         primary_business_details: [{ country: "US", business: "default" }],
       },
     );
+    expect(account.merchant_id, "Created merchant identifier").toBe(merchantId);
     const apiKeyResponse = await hs.call(
       "POST",
       `/api_keys/${merchantId}`,
@@ -44,6 +46,10 @@ export async function setupMerchant(
       },
     );
     const apiKey = stringField(apiKeyResponse, "api_key");
+    expect(
+      apiKeyResponse.merchant_id,
+      "API key belongs to the test merchant",
+    ).toBe(merchantId);
 
     let profileId =
       typeof account.default_profile === "string"
@@ -69,9 +75,8 @@ export async function setupMerchant(
         connector_name: connector.id,
         connector_label: `${connector.id}_e2e`,
         connector_type: "payment_processor",
-        connector_account_details: credentials.connector_account_details,
-        metadata: credentials.metadata ?? {},
-        payment_methods_enabled: [],
+        ...credentials,
+        payment_methods_enabled: paymentMethodsEnabled,
         profile_id: profileId,
         test_mode: true,
         disabled: false,
@@ -81,6 +86,21 @@ export async function setupMerchant(
       merchantConnector,
       "merchant_connector_id",
     );
+    expect(merchantConnector.connector_name, "Configured connector").toBe(
+      connector.id,
+    );
+    expect(
+      merchantConnector.profile_id,
+      "Connector account uses the test profile",
+    ).toBe(profileId);
+    expect(
+      merchantConnector.test_mode,
+      "Connector account uses sandbox mode",
+    ).toBe(true);
+    expect(
+      merchantConnector.payment_methods_enabled,
+      "Required payment methods are enabled",
+    ).toMatchObject([...paymentMethodsEnabled]);
 
     const routing = await hs.call("POST", "/routing", apiKey, {
       name: "ucs-e2e",

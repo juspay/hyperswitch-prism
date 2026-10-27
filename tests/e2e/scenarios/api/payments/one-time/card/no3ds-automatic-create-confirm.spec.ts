@@ -6,6 +6,12 @@ const scenario = {
   title: "One-time card payment — No3DS, automatic capture",
   description:
     "Create and confirm in one server API request, retrieve the successful payment, and verify the recorded UCS gateway and processor reference.",
+  paymentMethodsEnabled: [
+    {
+      payment_method: "card",
+      payment_method_types: [{ payment_method_type: "credit" }],
+    },
+  ],
 };
 
 for (const connector of connectors) {
