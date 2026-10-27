@@ -15,25 +15,25 @@ tests/e2e/
     adyen.ts                   # Connector capabilities and sandbox test data
     index.ts                   # Registered connectors
   scenarios/
-    payments/
-      one-time/
-        server/
+    api/
+      payments/
+        one-time/
           card/
             no3ds-automatic-create-confirm.spec.ts
             no3ds-automatic-create-then-confirm.spec.ts
             no3ds-manual-create-confirm-then-capture.spec.ts
             no3ds-manual-create-confirm-then-cancel.spec.ts
             no3ds-automatic-create-confirm-then-refund.spec.ts
-      mandates/
-        customer-initiated/
-          card.spec.ts
-        zero-amount/
-          card.spec.ts
-      recurring/
-        connector-mandate/
-          card.spec.ts
-        network-transaction-id/
-          card.spec.ts
+        mandates/
+          customer-initiated/
+            card.spec.ts
+          zero-amount/
+            card.spec.ts
+        recurring/
+          connector-mandate/
+            card.spec.ts
+          network-transaction-id/
+            card.spec.ts
   stack/
     compose.yml                # Isolated local dependencies
     stack.mjs                  # Stack startup and shutdown
@@ -47,12 +47,12 @@ tests/e2e/
 
 - `framework/` owns common setup, API calls, lifecycle execution, assertions, and reporting. Scenario and connector declarations contain data, not custom execution callbacks.
 - `connectors/` declares connector capabilities, credential keys, and sandbox test data. A connector does not duplicate scenario execution.
-- `scenarios/` describes payment behavior. The path identifies the product area, lifecycle, integration channel, and payment-method family; typed fields describe variants such as No3DS or 3DS and automatic or manual capture.
+- `scenarios/api/` describes journeys driven through direct HS API calls, using server or client credentials as appropriate. The path identifies the product area, lifecycle, and payment-method family. Future tests operating an actual Web SDK checkout belong under `scenarios/web-sdk/checkout/`.
 - `stack/` operates the isolated local services required by the tests and remains independent of payment behavior.
 
 Each scenario has its own file. `create-confirm` means a single create request with `confirm: true`; `create-then-confirm` means separate create and confirm requests. `automatic` and `manual` describe capture mode. Retrieval and verification steps are declared within each scenario.
 
-The five card scenario files are empty placeholders. The first implementation targets `scenarios/payments/one-time/server/card/no3ds-automatic-create-confirm.spec.ts`. Adding another compatible connector reuses that scenario.
+The five card scenario files are empty placeholders. The first implementation targets `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.spec.ts`. Adding another compatible connector reuses that scenario.
 
 The mandate and recurring directories are reserved extension points and do not represent implemented coverage in this scaffold. New flows should be added to the matching lifecycle rather than copied into connector directories.
 
