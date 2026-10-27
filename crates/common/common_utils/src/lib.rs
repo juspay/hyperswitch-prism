@@ -41,8 +41,9 @@ pub use superposition_config::{
     get_optional_nonempty_string, get_string, SuperpositionConfig, SuperpositionConfigError,
 };
 pub use types::{
-    AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector,
-    StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit, StringTwoDecimalUnit,
+    AmountConvertor, ConnectorMinorUnit, ConnectorMinorUnitForConnector, FloatMajorUnit,
+    FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector, StringMajorUnit,
+    StringMajorUnitForConnector, StringMinorUnit, StringTwoDecimalUnit,
     StringTwoDecimalUnitForConnector,
 };
 pub mod connector_request_kafka;

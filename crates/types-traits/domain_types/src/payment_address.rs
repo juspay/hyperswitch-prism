@@ -535,3 +535,70 @@ pub struct OrderDetailsWithAmount {
 }
 
 impl SerializableSecret for OrderDetailsWithAmount {}
+
+impl OrderDetailsWithAmount {
+    /// Product name (`name` on most connector line items).
+    pub fn get_product_name(&self) -> String {
+        self.product_name.clone()
+    }
+
+    /// Quantity of the product (`quantity` on most connector line items).
+    pub fn get_quantity(&self) -> u16 {
+        self.quantity
+    }
+
+    /// Merchant product reference (`reference_id` on most connector line items).
+    pub fn get_product_id(&self) -> Result<String, Error> {
+        self.product_id
+            .clone()
+            .ok_or_else(missing_field_err("order_details[].product_id"))
+    }
+
+    /// Stock keeping unit (`sku` on most connector line items).
+    pub fn get_sku(&self) -> Result<String, Error> {
+        self.sku
+            .clone()
+            .ok_or_else(missing_field_err("order_details[].sku"))
+    }
+
+    /// Line total in minor units: the explicit `total_amount` when present, else the unit
+    /// `amount`.
+    pub fn get_total_amount(&self) -> MinorUnit {
+        self.total_amount.unwrap_or(self.amount)
+    }
+
+    /// Product type (`item_type`/`type` on most connector line items).
+    pub fn get_product_type(&self) -> Result<ProductType, Error> {
+        self.product_type
+            .clone()
+            .ok_or_else(missing_field_err("order_details[].product_type"))
+    }
+
+    /// Product page URL (`item_url` on most connector line items).
+    pub fn get_optional_product_link(&self) -> Option<String> {
+        self.product_link.clone()
+    }
+
+    /// Product image URL (`image_url` on most connector line items).
+    pub fn get_optional_product_img_link(&self) -> Option<String> {
+        self.product_img_link.clone()
+    }
+
+    /// Unit price in minor units (`amount` is per-quantity, `unit_price` on most connector
+    /// line items).
+    pub fn get_unit_amount(&self) -> MinorUnit {
+        self.amount
+    }
+
+    /// Discount amount on the unit, in minor units (`discount_amount` on most connector
+    /// line items).
+    pub fn get_optional_unit_discount_amount(&self) -> Option<MinorUnit> {
+        self.unit_discount_amount
+    }
+
+    /// Total tax amount for the line, in minor units (`tax_amount` on most connector
+    /// line items).
+    pub fn get_optional_total_tax_amount(&self) -> Option<MinorUnit> {
+        self.total_tax_amount
+    }
+}

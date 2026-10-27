@@ -1,4 +1,3 @@
-import path from "node:path";
 import type { BrowserDriverFactory, BrowserSession } from "../drivers/browserDriver";
 import type { RunRequest, RunResponse, StepResult } from "../types/api";
 import { executeRule } from "./interpreter";
@@ -27,13 +26,12 @@ export class AutomationEngine {
   async run(input: RunRequest): Promise<RunResponse> {
     const startedAt = Date.now();
     const steps: StepResult[] = [];
-    const data: Record<string, unknown> = {};
+    const data: Record<string, unknown> = Object.create(null);
 
     const headless = input.options?.headless ?? true;
     const slowMoMs = input.options?.slowMoMs ?? 0;
     const defaultTimeoutMs = input.options?.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS;
     const navigationTimeoutMs = input.options?.navigationTimeoutMs ?? DEFAULT_NAV_TIMEOUT_MS;
-    const screenshotDir = input.options?.screenshotDir ?? path.join(process.cwd(), "screenshots");
     const viewport = input.options?.viewport ?? DEFAULT_VIEWPORT;
 
     let session: BrowserSession | undefined;
@@ -44,13 +42,19 @@ export class AutomationEngine {
         slowMoMs,
         defaultTimeoutMs,
         navigationTimeoutMs,
-        viewport
+        viewport,
+        callbackUrl: input.callbackUrl
       });
 
-      await session.goto(input.url, {
-        timeoutMs: navigationTimeoutMs,
-        waitUntil: "domcontentloaded"
-      });
+      if (input.formFields !== undefined) {
+        await session.submitForm(input.url, input.formFields, navigationTimeoutMs);
+      } else {
+        await session.goto(input.url, {
+          timeoutMs: navigationTimeoutMs,
+          waitUntil: "domcontentloaded"
+        });
+      }
+      session.assertNetworkPolicy();
 
       for (let index = 0; index < input.rules.length; index += 1) {
         const rule = input.rules[index];
@@ -59,10 +63,9 @@ export class AutomationEngine {
         try {
           await executeRule(session, rule, {
             requestUrl: input.url,
-            stepIndex: index,
-            data,
-            screenshotDir
+            data
           });
+          session.assertNetworkPolicy();
 
           steps.push({
             index,

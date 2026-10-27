@@ -17,6 +17,7 @@ use std::str::FromStr;
 pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
     "capture",
+    "incremental_authorization",
     "proxy_authorize",
     "proxy_setup_recurring",
     "recurring_charge",
@@ -94,6 +95,43 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
             // Capture Details.
             minor_amount: 1000,
             currency: Currency::Usd.into(),
+        }),
+        connector_feature_data: Some(Secret::new(
+            "{\"api_transaction_id\":\"0000000000000001\"}".to_string(),
+        )), // Connector-specific metadata for the transaction.
+        ..Default::default()
+    }
+}
+
+pub fn build_incremental_authorization_request() -> PaymentServiceIncrementalAuthorizationRequest {
+    PaymentServiceIncrementalAuthorizationRequest {
+        merchant_authorization_id: Some("probe_auth_001".to_string()), // Identification.
+        connector_transaction_id: "C|123456|123456789012|000001".to_string(),
+        amount: Some(Money {
+            // New total authorized amount, including this increase.
+            minor_amount: 1100,
+            currency: Currency::Usd.into(),
+        }),
+        reason: Some("incremental_auth_probe".to_string()), // Optional Fields.
+        additional_amount: Some(Money {
+            // Increase over the current authorized total. Must use the same currency as amount.
+            minor_amount: 100,
+            currency: Currency::Usd.into(),
+        }),
+        network_transaction_id: Some("probe_network_txn_001".to_string()), // Network transaction ID returned by the original authorization.
+        payment_method: Some(PaymentMethod {
+            // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
+            payment_method: Some(payment_method::PaymentMethod::CardWithNoCvc(
+                CardDetailsWithNoCvc {
+                    card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+                    card_exp_month: Some(Secret::new("03".to_string())),
+                    card_exp_year: Some(Secret::new("2030".to_string())),
+                    card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+                    card_network: Some(CardNetwork::Visa.into()),
+                    ..Default::default()
+                },
+            )),
+            ..Default::default()
         }),
         ..Default::default()
     }
@@ -203,6 +241,20 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
             currency: Currency::Usd.into(),
         }),
         reason: Some("customer_request".to_string()), // Reason for the refund.
+        payment_method: Some(PaymentMethod {
+            // Original payment method, for connectors that require it again on refund (e.g. Worldpay RAFT).
+            payment_method: Some(payment_method::PaymentMethod::CardWithNoCvc(
+                CardDetailsWithNoCvc {
+                    card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+                    card_exp_month: Some(Secret::new("03".to_string())),
+                    card_exp_year: Some(Secret::new("2030".to_string())),
+                    card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+                    card_network: Some(CardNetwork::Visa.into()),
+                    ..Default::default()
+                },
+            )),
+            ..Default::default()
+        }),
         ..Default::default()
     }
 }
@@ -257,6 +309,9 @@ pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidR
             minor_amount: 1000,
             currency: Currency::Usd.into(),
         }),
+        connector_feature_data: Some(Secret::new(
+            "{\"api_transaction_id\":\"0000000000000001\"}".to_string(),
+        )), // Connector-specific metadata for the transaction.
         ..Default::default()
     }
 }
@@ -453,6 +508,22 @@ pub async fn process_capture(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+#[allow(dead_code)]
+pub async fn process_incremental_authorization(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .incremental_authorization(
+            build_incremental_authorization_request(),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn process_proxy_authorize(
@@ -540,13 +611,16 @@ async fn main() {
         "process_void_payment" => process_void_payment(&client, "order_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
+        "process_incremental_authorization" => {
+            process_incremental_authorization(&client, "txn_001").await
+        }
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_authorize, process_capture, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_authorize, process_capture, process_incremental_authorization, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_setup_recurring, process_void", flow);
             return;
         }
     };

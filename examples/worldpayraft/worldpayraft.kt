@@ -26,7 +26,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.WorldpayraftConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -77,6 +77,7 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
             minorAmount = 1000L
             currency = Currency.USD
         }
+        connectorFeatureDataBuilder.value = "{\"api_transaction_id\":\"0000000000000001\"}"  // Connector-specific metadata for the transaction.
     }.build()
 }
 
@@ -90,6 +91,15 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
             currency = Currency.USD
         }
         reason = "customer_request"  // Reason for the refund.
+        paymentMethodBuilder.apply {  // Original payment method, for connectors that require it again on refund (e.g. Worldpay RAFT).
+            cardWithNoCvcBuilder.apply {  // Card payment where CVC is not required.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+                cardNetwork = CardNetwork.VISA
+            }
+        }
     }.build()
 }
 
@@ -101,6 +111,7 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
             minorAmount = 1000L
             currency = Currency.USD
         }
+        connectorFeatureDataBuilder.value = "{\"api_transaction_id\":\"0000000000000001\"}"  // Connector-specific metadata for the transaction.
     }.build()
 }
 
@@ -203,6 +214,36 @@ fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
     if (response.status.name == "FAILED")
         throw RuntimeException("Capture failed: ${response.error.unifiedDetails.message}")
     println("Done: ${response.status.name}")
+}
+
+// Flow: PaymentService.IncrementalAuthorization
+fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceIncrementalAuthorizationRequest.newBuilder().apply {
+        merchantAuthorizationId = "probe_auth_001"  // Identification.
+        connectorTransactionId = "C|123456|123456789012|000001"
+        amountBuilder.apply {  // New total authorized amount, including this increase.
+            minorAmount = 1100L
+            currency = Currency.USD
+        }
+        reason = "incremental_auth_probe"  // Optional Fields.
+        additionalAmountBuilder.apply {  // Increase over the current authorized total. Must use the same currency as amount.
+            minorAmount = 100L
+            currency = Currency.USD
+        }
+        networkTransactionId = "probe_network_txn_001"  // Network transaction ID returned by the original authorization.
+        paymentMethodBuilder.apply {  // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
+            cardWithNoCvcBuilder.apply {  // Card payment where CVC is not required.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+                cardNetwork = CardNetwork.VISA
+            }
+        }
+    }.build()
+    val response = client.incremental_authorization(request)
+    println("Status: ${response.status.name}")
 }
 
 // Flow: PaymentService.ProxyAuthorize
@@ -367,12 +408,13 @@ fun main(args: Array<String>) {
         "processVoidPayment" -> processVoidPayment(txnId)
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
+        "incrementalAuthorization" -> incrementalAuthorization(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, incrementalAuthorization, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, void")
     }
 }

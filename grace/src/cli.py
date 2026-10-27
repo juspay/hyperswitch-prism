@@ -21,7 +21,7 @@ def cli():
     """Grace CLI - Generate technical specifications with Firecrawl and PDF support.
 
     Use 'grace techspec <connector>' to generate specs for a specific connector. 
-    Use -e flag for Claude Agent SDK enhancement and field analysis, and -m to enable mock server generation for testing. 
+    Use -e flag for Claude Agent SDK enhancement and field analysis.
     Use -f flag allows you to specify a folder with existing documentation.
     """
     pass
@@ -33,9 +33,8 @@ def cli():
 @click.option('--output', '-o', help='Output directory for generated specs')
 @click.option('--test-only', is_flag=True, help='Run in test mode without generating files')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
-@click.option('--mock-server', '-m', is_flag=True, help='Enable mock server for testing')
 @click.option('--enhance', '-e', is_flag=True, help='Enable Claude Agent SDK enhancement')
-def techspec(connector, folder, urls, output, test_only, verbose, mock_server, enhance):
+def techspec(connector, folder, urls, output, test_only, verbose, enhance):
     """Generate technical specification for a connector.
     
     CONNECTOR: Name of the connector (e.g., gigadat)
@@ -43,7 +42,6 @@ def techspec(connector, folder, urls, output, test_only, verbose, mock_server, e
     -u: Path to file containing URLs to scrape
     -f: Path to folder with existing documentation
     -e: Enable Claude Agent SDK enhancement and field analysis
-    -m: Enable mock server generation
     """
     async def run_techspec():
         """Async wrapper for techspec workflow."""
@@ -53,8 +51,6 @@ def techspec(connector, folder, urls, output, test_only, verbose, mock_server, e
                 click.echo(f"Connector: {connector}")
                 if output:
                     click.echo(f"Output dir: {output}")
-                if mock_server:
-                    click.echo("Mock server: ENABLED")
                 if enhance:
                     click.echo("Claude Agent Enhancement: ENABLED")
                 if test_only:
@@ -74,7 +70,6 @@ def techspec(connector, folder, urls, output, test_only, verbose, mock_server, e
                 output_dir=output_dir,
                 test_only=test_only,
                 verbose=verbose,
-                mock_server=mock_server,
                 enhance=enhance,
             )
 

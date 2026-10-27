@@ -9,7 +9,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::config::{connector_flow_overrides, get_patch_config, PatchConfig};
-use crate::sample_data::{full_browser_info, usd_money};
+use crate::sample_data::{card_with_no_cvc_payment_method, full_browser_info, usd_money};
 
 // ── Struct-level patch values ─────────────────────────────────────────────────
 // These build full proto structs used as patch values (e.g. when a connector
@@ -193,7 +193,14 @@ pub(crate) fn patch_type_to_value(patch_type: &str, value: Option<&str>) -> Opti
         "future_usage_off_session" => Some(Value::Number(
             (proto::FutureUsage::OffSession as i32).into(),
         )),
-        "usd_money" => serde_json::to_value(usd_money(1000)).ok(),
+        "usd_money" => {
+            let amount = match value {
+                Some(value) => value.parse::<i64>().ok()?,
+                None => 1000,
+            };
+            serde_json::to_value(usd_money(amount)).ok()
+        }
+        "card_with_no_cvc" => serde_json::to_value(card_with_no_cvc_payment_method()).ok(),
         "full_browser_info" => serde_json::to_value(full_browser_info()).ok(),
         "full_address" => serde_json::to_value(full_address()).ok(),
         "full_customer" => serde_json::to_value(full_customer()).ok(),

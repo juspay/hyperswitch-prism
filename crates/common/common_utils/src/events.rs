@@ -657,14 +657,31 @@ pub fn apply_log_fields(
         .then(|| log_utils::Storage::with_current_span(|storage| storage.values().clone()))
         .flatten();
 
+    // `time` is added by the JSON formatter after transformations run, so it is not
+    // available in span storage. Expose it as a virtual source for mappings such as
+    // `timestamp = { source = "time" }` on golden log lines.
+    let implicit_time = compiled
+        .rules
+        .iter()
+        .any(|rule| matches!(&rule.entry, CompiledFieldEntry::Source(field) if field == "time"))
+        .then(|| {
+            time::OffsetDateTime::now_utc()
+                .format(&time::format_description::well_known::Iso8601::DEFAULT)
+                .ok()
+                .map(serde_json::Value::String)
+        })
+        .flatten();
+
     for rule in &compiled.rules {
         let resolved_value = match &rule.entry {
             CompiledFieldEntry::Value(v) => v.clone(),
             CompiledFieldEntry::Source(field) => {
-                match snapshot
+                let stored_value = snapshot
                     .as_ref()
                     .and_then(|s| s.get(field.as_str()))
-                    .cloned()
+                    .cloned();
+                match stored_value
+                    .or_else(|| (field == "time").then(|| implicit_time.clone()).flatten())
                 {
                     Some(v) => v,
                     None => continue, // source field not present in span, skip

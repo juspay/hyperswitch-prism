@@ -1,13 +1,9 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import type { BrowserSession } from "../drivers/browserDriver";
 import type { Rule } from "../types/dsl";
 
 export interface InterpreterContext {
   requestUrl: string;
-  stepIndex: number;
   data: Record<string, unknown>;
-  screenshotDir: string;
 }
 
 export async function executeRule(
@@ -128,29 +124,8 @@ export async function executeRule(
       return;
     }
 
-    case "screenshot": {
-      const targetPath =
-        rule.path ?? path.join(ctx.screenshotDir, `step-${ctx.stepIndex}-${Date.now()}.png`);
-
-      await fs.mkdir(path.dirname(targetPath), { recursive: true });
-      await session.screenshot(targetPath, {
-        fullPage: rule.fullPage
-      });
-
-      if (rule.as) {
-        ctx.data[rule.as] = targetPath;
-      }
-      return;
-    }
-
-    case "evaluate": {
-      // SECURITY: This executes arbitrary JavaScript in the browser context.
-      // Ensure this API endpoint is protected with authentication/authorization
-      // if the server is exposed to untrusted networks.
-      const result = await session.evaluate(rule.expression);
-      if (rule.as) {
-        ctx.data[rule.as] = result;
-      }
+    case "initializeCashfreeSandbox": {
+      await session.initializeCashfreeSandbox();
       return;
     }
 

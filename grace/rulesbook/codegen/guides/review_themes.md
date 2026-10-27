@@ -31,14 +31,24 @@ acceptable answer for any theme; silence is not.
 Re-distil when the sample has drifted — roughly every 20 merged PRs, or after a review cycle raises a
 theme this file does not carry.
 
+Both repositories, always. A connector change is two PRs, and the layer, parity and shadow-mode comments
+land on the Hyperswitch one — TH-18 and TH-22 both come from a `juspay/hyperswitch` thread. A prism-only
+sample cannot see them, and a run that scans only prism will re-ship them.
+
 ```bash
-gh pr list --repo juspay/hyperswitch-prism --state merged --limit 20 \
-  --json number --jq '.[].number' > /tmp/prs.txt
-while read -r n; do
-  gh api "repos/juspay/hyperswitch-prism/pulls/$n/comments"      --paginate
-  gh api "repos/juspay/hyperswitch-prism/issues/$n/comments"     --paginate
-done < /tmp/prs.txt > /tmp/comments.json
+: > /tmp/comments.json
+for repo in juspay/hyperswitch-prism juspay/hyperswitch; do
+  gh pr list --repo "$repo" --state merged --limit 20 \
+    --json number --jq '.[].number' > /tmp/prs.txt
+  while read -r n; do
+    gh api "repos/$repo/pulls/$n/comments"    --paginate
+    gh api "repos/$repo/pulls/$n/reviews"     --paginate
+    gh api "repos/$repo/issues/$n/comments"   --paginate
+  done < /tmp/prs.txt >> /tmp/comments.json
+done
 ```
+
+Read each thread to its end, not just its first comment — see the editing rules below.
 
 Drop bot accounts (`github-actions[bot]`, `hyperswitch-bot[bot]`) and the PR author's own replies, then
 group what remains by the requirement each comment states.
@@ -46,6 +56,12 @@ group what remains by the requirement each comment states.
 Rules for editing this file:
 
 - Add a theme only when it recurs across **≥2 PRs**. A one-off belongs in `feedback.md`.
+- **Distil a thread only once it is resolved, and record what was settled — not what was first asked.** A
+  theme taken from an open review can carry an ask that the same thread later overrules. That has already
+  cost a run: TH-18 was written from #14316's first comment, the thread then reversed it, and the next
+  connector shipped the superseded design and drew the same comment again. Where an entry cites a PR that
+  was open when it was written, re-read the thread and the merged diff once it merges, and correct the
+  entry.
 - **Never renumber or reuse a `TH-NN`.** A theme that stops applying is struck through with a one-line
   reason and keeps its id; the planner and reviewer cite these ids in stored artifacts.
 - Keep every entry connector-agnostic: no connector names, no run ids, no merchant or site identifiers, no
@@ -77,6 +93,8 @@ Rules for editing this file:
 | TH-19 | A mapping cites the document it came from |
 | TH-20 | Collection selection |
 | TH-21 | Registration completeness |
+| TH-22 | A UCS flow's legs mirror the direct integration |
+| TH-23 | Derive serde; renames, not hand-written impls |
 
 ---
 
@@ -494,8 +512,11 @@ rather than in the connector service; the same reviewer asking that a capture va
 that layer at all. A silent unspecified-to-`None` enum conversion added inside a shared types module, where
 the reviewer asked for a reusable function or trait covering every call site instead. On the Hyperswitch
 side, a maintainer's blocking comment on a core authorize flow against a literal `is_<connector> && …`
-condition, asking that a named predicate be introduced inside the existing gate function instead — a
-CHANGES_REQUESTED that is still blocking that PR.
+condition, asking that a named predicate be introduced inside the existing gate function instead. Read that
+thread to its end before following it: on that PR the suggestion was itself overruled three weeks later.
+Moving the branch into the connector's own predicate was not accepted, because the predicate then keyed on
+the execution path — see TH-22. What was settled instead was to delete the gate and make the UCS leg
+sequence match the direct integration's, leaving the connector file identical to `main`.
 
 **Check.**
 
@@ -510,7 +531,11 @@ Every hit needs either a trait method / predicate the connector implements, or a
 branch cannot be expressed that way. Run the second grep over the paired Hyperswitch diff as well.
 
 **PRs.** #2330, #2340, and Hyperswitch PR juspay/hyperswitch#14316 — representative:
-<https://github.com/juspay/hyperswitch-prism/pull/2330#discussion_r4102182541>
+<https://github.com/juspay/hyperswitch-prism/pull/2330#discussion_r4102182541>. #14316's own resolution,
+recorded here because this entry was first distilled while that PR was still open and captured only its
+first ask: <https://github.com/juspay/hyperswitch/pull/14316#discussion_r4247930515> and
+<https://github.com/juspay/hyperswitch/pull/14316#discussion_r4247943891>, merged as
+`8b153c59f2d2b6e38abb98439c39094919b9d2e2` — six files, the connector file untouched.
 
 ---
 
@@ -610,3 +635,91 @@ their methods — being listed there and overriding are mutually exclusive.
 
 **PRs.** #2341, and Hyperswitch PRs juspay/hyperswitch#14347 and juspay/hyperswitch#14299 —
 representative: <https://github.com/juspay/hyperswitch-prism/pull/2341#issuecomment-5771011440>
+
+---
+
+### TH-22 — A UCS flow's legs mirror the direct integration
+
+**Rule.** A connector's UCS flow sequence is the same sequence its direct Hyperswitch integration runs, leg
+for leg. Where UCS would name or split the legs differently, change the UCS side to match, not the
+orchestrator. No connector decides which legs run from `ExecutionPath` — not in a `ConnectorSpecifications`
+predicate, not in a request builder, not behind a helper that takes the path as an argument. A connector
+that genuinely needs a leg the direct path does not have is a design question for the PR body, answered
+before the code.
+
+**Why it is not just taste.** `ExecutionPath::ShadowUnifiedConnectorService.is_direct_gateway()` returns
+`true` (`crates/common_enums/src/enums.rs`). A gate written as `!execution_path.is_direct_gateway()`
+therefore evaluates false in shadow mode, so shadow exercises the direct leg sequence while production UCS
+exercises the split one — the two paths being compared stop being the same payment, and the comparison is
+silently worthless. That is the mechanism behind the reviewer's "in shadow mode things will not work
+correctly".
+
+**Seen as.** A reviewer writing "should not be based on execution path", or "both hs and ucs should have
+same behaviour", or "in ucs we are mapping flows differently … then in shadow mode things will not work
+correctly". A paired HS PR that adds `*_for_execution_path` variants of existing predicates, or threads
+`gateway_context.execution_path` into a connector predicate, so a UCS-only leg can be selected.
+
+**Check.**
+
+```bash
+# the connector, or its paired HS diff, deciding a flow from the execution path
+git diff {BASE} -- <files> | grep -nE '^\+.*(ExecutionPath|execution_path|is_direct_gateway)'   # gate: blocking
+# new predicate variants that exist only to carry the path
+git diff {BASE} -- <files> | grep -nE '^\+.*fn [a-z_]*_for_execution_path'   # gate: blocking
+```
+
+Run both greps over the paired Hyperswitch diff as well — that is where the predicates live. A hit is
+cleared only by removing the path from the decision.
+
+**Measured** (the standard `2.3b_codegen_unit.md` sets for `blocking`): 38 hits on the Hyperswitch diff
+that drew the comment (juspay/hyperswitch#14870 at `88188ac412`), **0** on the merged resolution of
+#14316 and **0** on merged juspay/hyperswitch#14843. The classes separate cleanly, so this blocks. Before adding any authentication leg, list
+the direct integration's legs for the same payment — for a redirect 3DS card that is usually Authorize
+returning the challenge and then one sync or complete-authorize call — and match them; `grep -n
+'flow_name:' crates/integrations/connector-integration/src/connectors/<connector>.rs` against the HS
+connector's `ConnectorIntegration` impls is the comparison. A connector may keep a standalone `Authenticate`
+flow registered for composite callers as long as `next_authentication_step` does not step into it and the
+request builder is shared.
+
+**PRs.** Hyperswitch PR juspay/hyperswitch#14316 (merged
+`8b153c59f2d2b6e38abb98439c39094919b9d2e2`) and prism #2330, which moved the UCS legs to match; raised
+again on juspay/hyperswitch#14870 — representative:
+<https://github.com/juspay/hyperswitch/pull/14316#discussion_r4247943891>
+
+---
+
+### TH-23 — Derive serde; renames, not hand-written impls
+
+**Rule.** A connector's wire types derive `Serialize` / `Deserialize` and spell the wire name with
+`#[serde(rename = "…")]`, including names that carry dots (`enhancedSchemeData.totalTaxAmount`,
+`riskdata.basket.item1.quantity`, `payment_method_data[billing_details][address][line1]`) and
+`#[serde_with::skip_serializing_none]` for omit-when-absent. A hand-written `impl Serialize` that builds key
+strings is not how this repo talks to a gateway: roughly 180 dotted renames exist across the connectors and,
+before this rule, exactly one hand-written key builder. Where the key carries a runtime index, flatten a
+map the constructor fills (`#[serde(flatten)] BTreeMap<String, String>`) rather than writing a serializer —
+`NmiMerchantDefinedField` and `NoonOrderNvp` are the precedents. A group that must not be read back from a
+response is `#[serde(flatten, skip_deserializing)]` on the parent field, not a no-op `Deserialize` impl.
+
+**Seen as.** A reviewer asking whether the custom serializer can be avoided and a rename used instead, or asking for a
+visible `#[serde(rename)]` instead of an undocumented variant, or for a typed struct in place of raw
+`serde_json::Value` key filtering, or noting that `#[serde(default)]` is not needed. Also a reviewer's
+"same here" on a sibling site: one generated serializer becomes several comments.
+
+**Check.**
+
+```bash
+# a hand-written serde impl, or key strings built at serialization time, in a connector module
+git diff {BASE} -- <files> | grep -nE "^\+.*(impl( <.*>)? Serialize for|impl<'de> Deserialize<'de> for|serialize_map|serialize_entry)"   # gate: blocking
+```
+
+**Measured**: 19 hits on the diff that drew the comment (#2553 at `feb3274e4a`), **0** on merged #2330 as
+a clean control — so this blocks.
+
+Cleared by deriving instead. The two legitimate shapes that survive this grep are an enum or newtype
+delegating with `Serialize::serialize(inner, serializer)`, and a whole-body wrapper that serializes to one
+XML or string payload; both are visible in one line of the hit's context, so say which one it is in the
+justification. Before writing any serializer, grep the same file for `rename = "` — the pattern is usually
+two structs away.
+
+**PRs.** #2463, #2464, #2515, #2516, #2553 — representative:
+<https://github.com/juspay/hyperswitch-prism/pull/2553#discussion_r4336412173>

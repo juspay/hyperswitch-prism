@@ -186,7 +186,22 @@ fn handle_success<Req: Serialize>(
     let proto_json = serde_json::to_value(&req)
         .ok()
         .map(|v| convert_rust_to_proto_json(&v))
-        .map(|v| clean_proto_request(&v));
+        .map(|v| {
+            let mut cleaned = clean_proto_request(&v);
+            // Connector-returned metadata is normally omitted from examples, but
+            // omitting a discovered required input makes the example unusable.
+            for key in crate::json_utils::PROBE_INTERNAL_KEYS {
+                let required = required_fields
+                    .iter()
+                    .any(|field| field.as_str() == *key || field.starts_with(&format!("{key}.")));
+                if required {
+                    if let Some(value) = v.get(*key).filter(|value| !value.is_null()) {
+                        cleaned[*key] = value.clone();
+                    }
+                }
+            }
+            cleaned
+        });
 
     FlowResult {
         status: FlowStatus::Supported.to_string(),

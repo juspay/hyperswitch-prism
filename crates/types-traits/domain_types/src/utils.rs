@@ -554,7 +554,7 @@ pub fn convert_canada_state_to_code(state: &str) -> String {
         "british columbia" => "BC".to_string(),
         "manitoba" => "MB".to_string(),
         "new brunswick" => "NB".to_string(),
-        "newfoundland and labrador" | "newfoundland" => "NL".to_string(),
+        "newfoundland and labrador" | "newfoundland" | "labrador" => "NL".to_string(),
         "northwest territories" => "NT".to_string(),
         "nova scotia" => "NS".to_string(),
         "nunavut" => "NU".to_string(),

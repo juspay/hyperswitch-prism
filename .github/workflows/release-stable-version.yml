@@ -42,6 +42,13 @@ jobs:
       next_tag: ${{ steps.version.outputs.next_tag }}
 
     steps:
+      - name: Generate GitHub app token
+        id: generate_app_token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
       - name: Validate CalVer tag
         shell: bash
         env:
@@ -59,7 +66,7 @@ jobs:
         with:
           ref: ${{ inputs.calver_tag }}
           fetch-depth: 0
-          token: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+          token: ${{ steps.generate_app_token.outputs.token }}
 
       - name: Install cocogitto
         uses: taiki-e/install-action@v2
@@ -151,7 +158,7 @@ jobs:
         if: ${{ inputs.dry_run == false }}
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
         run: |
           TAG="${{ steps.version.outputs.next_tag }}"
           CALVER_SHA="$(git rev-parse HEAD)"
@@ -179,7 +186,7 @@ jobs:
         if: ${{ inputs.dry_run == false }}
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
         run: |
           TAG="${{ steps.version.outputs.next_tag }}"
           if [ "$(wc -c < release-notes.md)" -gt 124000 ]; then
@@ -206,17 +213,24 @@ jobs:
   # against the single registered publisher (juspay/hyperswitch-prism ::
   # release-sdks.yml).
   #
-  # A PAT is required: a workflow_dispatch triggered with GITHUB_TOKEN does not
-  # create a new workflow run.
+  # An app token is required: a workflow_dispatch triggered with GITHUB_TOKEN
+  # does not create a new workflow run.
   publish-sdks:
     name: Publish SDKs
     runs-on: ubuntu-latest
     needs: [tag-release]
     if: ${{ inputs.dry_run == false && needs.tag-release.result == 'success' }}
     steps:
+      - name: Generate GitHub app token
+        id: generate_app_token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
       - name: Dispatch SDK release
         env:
-          GH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
           TAG: ${{ needs.tag-release.outputs.next_tag }}
           VERSION: ${{ needs.tag-release.outputs.version }}
         run: |

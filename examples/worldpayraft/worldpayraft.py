@@ -11,7 +11,7 @@ from payments import PaymentClient
 from payments import RecurringPaymentClient
 from payments.generated import common_types_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -58,6 +58,32 @@ def _build_capture_request(connector_transaction_id: str):
         amount_to_capture=common_types_pb2.Money(  # Capture Details.
             minor_amount=1000,
             currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"api_transaction_id\":\"0000000000000001\"}"),  # Connector-specific metadata for the transaction.
+    )
+
+def _build_incremental_authorization_request():
+    return payment_pb2.PaymentServiceIncrementalAuthorizationRequest(
+        merchant_authorization_id="probe_auth_001",  # Identification.
+        connector_transaction_id="C|123456|123456789012|000001",
+        amount=common_types_pb2.Money(  # New total authorized amount, including this increase.
+            minor_amount=1100,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        reason="incremental_auth_probe",  # Optional Fields.
+        additional_amount=common_types_pb2.Money(  # Increase over the current authorized total. Must use the same currency as amount.
+            minor_amount=100,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        network_transaction_id="probe_network_txn_001",  # Network transaction ID returned by the original authorization.
+        payment_method=payment_methods_pb2.PaymentMethod(  # Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
+            card_with_no_cvc=payment_methods_pb2.CardDetailsWithNoCvc(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+                card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
+            ),
         ),
     )
 
@@ -142,6 +168,15 @@ def _build_refund_request(connector_transaction_id: str):
             currency=common_types_pb2.Currency.Value("USD"),
         ),
         reason="customer_request",  # Reason for the refund.
+        payment_method=payment_methods_pb2.PaymentMethod(  # Original payment method, for connectors that require it again on refund (e.g. Worldpay RAFT).
+            card_with_no_cvc=payment_methods_pb2.CardDetailsWithNoCvc(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+                card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
+            ),
+        ),
     )
 
 def _build_setup_recurring_request():
@@ -182,6 +217,7 @@ def _build_void_request(connector_transaction_id: str):
             minor_amount=1000,
             currency=common_types_pb2.Currency.Value("USD"),
         ),
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"api_transaction_id\":\"0000000000000001\"}"),  # Connector-specific metadata for the transaction.
     )
 async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """One-step Payment (Authorize + Capture)
@@ -290,6 +326,15 @@ async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.C
     capture_response = await payment_client.capture(_build_capture_request("C|123456|123456789012|000001"))
 
     return {"status": capture_response.status}
+
+
+async def process_incremental_authorization(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.IncrementalAuthorization"""
+    payment_client = PaymentClient(config)
+
+    incremental_response = await payment_client.incremental_authorization(_build_incremental_authorization_request())
+
+    return {"status": incremental_response.status}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

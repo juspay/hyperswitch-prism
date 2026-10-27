@@ -1,5 +1,3 @@
-use std::cmp;
-
 use aes::{Aes128, Aes192, Aes256};
 use base64::{engine::general_purpose, Engine};
 use cbc::{
@@ -14,7 +12,7 @@ use domain_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, UpiData},
     router_data::{ConnectorSpecificConfig, FlowStatus},
@@ -862,7 +860,8 @@ pub fn generate_paytm_signature(
 // AES-CBC encryption implementation for PayTM v2
 // This follows the exact PayTMv1 encrypt function used by PayTMv2:
 // - Fixed IV: "@@@@&&&&####$$$$" (16 bytes) - exact value from Haskell code
-// - Key length determines AES variant: 16→AES-128, 24→AES-192, other→AES-256
+// - Key length determines AES variant: 16→AES-128, 24→AES-192, 32→AES-256
+// - Other key lengths are rejected rather than silently padded or truncated
 // - Mode: CBC with PKCS7 padding (16-byte blocks)
 // - Output: Base64 encoded encrypted data
 fn aes_encrypt(data: &str, key: &str) -> CustomResult<String, IntegrationError> {
@@ -876,10 +875,8 @@ fn aes_encrypt(data: &str, key: &str) -> CustomResult<String, IntegrationError> 
         constants::AES_128_KEY_LENGTH => {
             // AES-128-CBC with PKCS7 padding
             type Aes128CbcEnc = Encryptor<Aes128>;
-            let mut key_array = [0u8; constants::AES_128_KEY_LENGTH];
-            key_array.copy_from_slice(key_bytes);
-
-            let encryptor = Aes128CbcEnc::new(&key_array.into(), &iv.into());
+            let encryptor = Aes128CbcEnc::new_from_slices(key_bytes, &iv)
+                .map_err(|_| paytm_aes_key_error(key_bytes.len()))?;
 
             // Encrypt with proper buffer management
             let mut buffer = Vec::with_capacity(data_bytes.len() + constants::AES_BUFFER_PADDING);
@@ -899,10 +896,8 @@ fn aes_encrypt(data: &str, key: &str) -> CustomResult<String, IntegrationError> 
         constants::AES_192_KEY_LENGTH => {
             // AES-192-CBC with PKCS7 padding
             type Aes192CbcEnc = Encryptor<Aes192>;
-            let mut key_array = [0u8; constants::AES_192_KEY_LENGTH];
-            key_array.copy_from_slice(key_bytes);
-
-            let encryptor = Aes192CbcEnc::new(&key_array.into(), &iv.into());
+            let encryptor = Aes192CbcEnc::new_from_slices(key_bytes, &iv)
+                .map_err(|_| paytm_aes_key_error(key_bytes.len()))?;
 
             let mut buffer = Vec::with_capacity(data_bytes.len() + constants::AES_BUFFER_PADDING);
             buffer.extend_from_slice(data_bytes);
@@ -918,20 +913,11 @@ fn aes_encrypt(data: &str, key: &str) -> CustomResult<String, IntegrationError> 
             buffer.truncate(encrypted_len);
             Ok(general_purpose::STANDARD.encode(&buffer))
         }
-        _ => {
-            // Default to AES-256-CBC with PKCS7 padding (for any other key length)
+        constants::AES_256_KEY_LENGTH => {
+            // AES-256-CBC with PKCS7 padding
             type Aes256CbcEnc = Encryptor<Aes256>;
-
-            // For AES-256, we need exactly 32 bytes, so pad or truncate the key
-            let mut aes256_key = [0u8; constants::AES_256_KEY_LENGTH];
-            let copy_len = cmp::min(key_bytes.len(), constants::AES_256_KEY_LENGTH);
-            if let (Some(dest), Some(src)) =
-                (aes256_key.get_mut(..copy_len), key_bytes.get(..copy_len))
-            {
-                dest.copy_from_slice(src);
-            }
-
-            let encryptor = Aes256CbcEnc::new(&aes256_key.into(), &iv.into());
+            let encryptor = Aes256CbcEnc::new_from_slices(key_bytes, &iv)
+                .map_err(|_| paytm_aes_key_error(key_bytes.len()))?;
 
             let mut buffer = Vec::with_capacity(data_bytes.len() + constants::AES_BUFFER_PADDING);
             buffer.extend_from_slice(data_bytes);
@@ -947,6 +933,21 @@ fn aes_encrypt(data: &str, key: &str) -> CustomResult<String, IntegrationError> 
             buffer.truncate(encrypted_len);
             Ok(general_purpose::STANDARD.encode(&buffer))
         }
+        _ => Err(paytm_aes_key_error(key_bytes.len()).into()),
+    }
+}
+
+fn paytm_aes_key_error(received_key_length: usize) -> IntegrationError {
+    IntegrationError::RequestEncodingFailed {
+        context: IntegrationErrorContext {
+            additional_context: Some(format!(
+                "Paytm checksum encryption received a {received_key_length}-byte merchant key; supported lengths are 16, 24, and 32 bytes."
+            )),
+            suggested_action: Some(
+                "Configure the Paytm merchant key as exactly 16, 24, or 32 bytes.".to_string(),
+            ),
+            doc_url: Some("https://business.paytm.com/docs/checksum".to_string()),
+        },
     }
 }
 
@@ -1077,4 +1078,27 @@ pub fn get_wait_screen_metadata() -> Option<serde_json::Value> {
         e
     })
     .ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::aes_encrypt;
+
+    #[test]
+    fn paytm_aes_accepts_supported_key_lengths() {
+        for key in [
+            "0123456789abcdef",
+            "0123456789abcdefghijklmn",
+            "0123456789abcdefghijklmnopqrstuv",
+        ] {
+            assert!(aes_encrypt("paytm-checksum", key).is_ok());
+        }
+    }
+
+    #[test]
+    fn paytm_aes_rejects_unsupported_key_lengths() {
+        for key in ["", "short-key", "0123456789abcdefghijklmnop"] {
+            assert!(aes_encrypt("paytm-checksum", key).is_err());
+        }
+    }
 }

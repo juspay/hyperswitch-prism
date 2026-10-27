@@ -12,25 +12,41 @@ export interface PayloadSpec {
   fixturePath?: string;
 }
 
-const PAYLOAD_BLOCK_RE = /```json\s*([\s\S]+?)```/i;
-const EXPECTED_BLOCK_RE = /Expected oracle field[s]?[:\s]*```json\s*([\s\S]+?)```/i;
 const RPC_LINE_RE = /(?:RPC|Service)\s*:\s*([A-Za-z_]+(?:\.[A-Za-z_]+)?)\s*\/\s*([A-Za-z_]+)/;
 const PROTO_LINE_RE = /Proto\s*:\s*([a-z0-9_-]+\.proto)/i;
 
+function jsonFenceAt(body: string, opening: number): string | null {
+  if (opening < 0 || body.slice(opening, opening + 7).toLowerCase() !== "```json") return null;
+  const contentStart = opening + 7;
+  const closing = body.indexOf("```", contentStart);
+  return closing < 0 ? null : body.slice(contentStart, closing).trim();
+}
+
+function expectedFenceStart(body: string): number {
+  const lower = body.toLowerCase();
+  const marker = "expected oracle field";
+  const start = lower.indexOf(marker);
+  if (start < 0) return -1;
+  let i = start + marker.length;
+  if (lower[i] === "s") i++;
+  while (i < body.length && (body[i] === ":" || /\s/.test(body[i]))) i++;
+  return lower.startsWith("```json", i) ? i : -1;
+}
+
 function parseFromBody(body: string): Partial<PayloadSpec> | null {
-  const payloadMatch = body.match(PAYLOAD_BLOCK_RE);
-  if (!payloadMatch) return null;
+  const payloadBlock = jsonFenceAt(body, body.toLowerCase().indexOf("```json"));
+  if (payloadBlock === null) return null;
   let payload: unknown;
   try {
-    payload = JSON.parse(payloadMatch[1]);
+    payload = JSON.parse(payloadBlock);
   } catch {
     return null;
   }
-  const expectedMatch = body.match(EXPECTED_BLOCK_RE);
+  const expectedBlock = jsonFenceAt(body, expectedFenceStart(body));
   let expected: Record<string, unknown> = {};
-  if (expectedMatch) {
+  if (expectedBlock !== null) {
     try {
-      expected = JSON.parse(expectedMatch[1]);
+      expected = JSON.parse(expectedBlock);
     } catch {
       // tolerate; expected can still come from issue text fallback
     }

@@ -12,7 +12,7 @@ Scenario-driven integration testing for payment connectors. Each connector is ex
 make setup-connector-tests
 ```
 
-Installs browser automation deps, `grpcurl`, Netlify CLI (Google Pay), and the `test-prism` runner CLI.
+Installs browser automation deps, builds the isolated browser worker image, and installs `grpcurl`, Netlify CLI (Google Pay), and the `test-prism` runner CLI. Docker or Podman is required for browser-backed scenarios. Browser jobs use stdin/stdout in disposable containers, with no execution HTTP endpoint or screenshots. See [worker setup and isolation](../../../browser-automation-engine/README.md).
 
 ### 2. Run
 

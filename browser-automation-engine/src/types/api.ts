@@ -5,7 +5,6 @@ export interface RunOptions {
   slowMoMs?: number;
   defaultTimeoutMs?: number;
   navigationTimeoutMs?: number;
-  screenshotDir?: string;
   viewport?: {
     width: number;
     height: number;
@@ -14,6 +13,10 @@ export interface RunOptions {
 
 export interface RunRequest {
   url: string;
+  /** POST redirect fields supplied by the harness; never written to an HTML file. */
+  formFields?: Record<string, string>;
+  /** Completion URL intercepted locally, without contacting the callback server. */
+  callbackUrl?: string;
   rules: Rule[];
   options?: RunOptions;
 }

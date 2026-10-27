@@ -143,7 +143,7 @@ export function useSessions(controlUrl: string): UseSessionsResult {
               )
             );
             const w = startWaitersRef.current.get(payload.sessionId);
-            if (w) {
+            if (typeof w === "function") {
               w({ wsPort: payload.wsPort, runId: payload.runId });
               startWaitersRef.current.delete(payload.sessionId);
             }
@@ -162,7 +162,7 @@ export function useSessions(controlUrl: string): UseSessionsResult {
           case "sessions:start:error": {
             setLastError({ kind: "start", message: payload?.error ?? "unknown" });
             const w = startWaitersRef.current.get(payload.sessionId);
-            if (w) {
+            if (typeof w === "function") {
               w(null);
               startWaitersRef.current.delete(payload.sessionId);
             }
@@ -228,7 +228,7 @@ export function useSessions(controlUrl: string): UseSessionsResult {
           // the caller forever. 8s is generous; child spawn is sub-second.
           window.setTimeout(() => {
             const w = startWaitersRef.current.get(sessionId);
-            if (w) {
+            if (typeof w === "function") {
               w(null);
               startWaitersRef.current.delete(sessionId);
             }

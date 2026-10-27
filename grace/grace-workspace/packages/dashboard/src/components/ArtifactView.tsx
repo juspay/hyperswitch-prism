@@ -3,6 +3,7 @@ import { T } from "../theme";
 import { Markdown } from "./Markdown";
 import { L2GenerationLog } from "./L2GenerationLog";
 import { FilesChangedPreview } from "./FilesChangedPreview";
+import { safeHttpUrl } from "../urlSafety";
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
@@ -138,7 +139,7 @@ function TaskArtifact({ task }: { task: any }) {
       )}
       {task.figmaUrl && (
         <Field label="Figma">
-          <a href={task.figmaUrl} target="_blank" rel="noreferrer" style={{ color: T.accent }}>
+          <a href={safeHttpUrl(task.figmaUrl)} target="_blank" rel="noopener noreferrer" style={{ color: T.accent }}>
             {task.figmaUrl}
           </a>
         </Field>
@@ -320,7 +321,7 @@ function DesignGateArtifact({ gate }: { gate: any }) {
       </div>
       {gate.figmaUrl && (
         <Field label="Figma reference">
-          <a href={gate.figmaUrl} target="_blank" rel="noreferrer" style={{ color: T.accent }}>
+          <a href={safeHttpUrl(gate.figmaUrl)} target="_blank" rel="noopener noreferrer" style={{ color: T.accent }}>
             {gate.figmaUrl}
           </a>
         </Field>
@@ -1723,9 +1724,9 @@ function PrReviewArtifact({ result }: { result: any }) {
         )}
         {r.prUrl ? (
           <a
-            href={r.prUrl}
+            href={safeHttpUrl(r.prUrl)}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             style={{
               marginLeft: "auto",
               fontSize: 12,
