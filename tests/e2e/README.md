@@ -6,14 +6,14 @@ This directory reserves the structure for end-to-end payment tests. This PR adds
 tests/e2e/
   framework/
     configuration.ts          # Runtime URLs and options
-    credentials.ts            # External sandbox credential loading
-    hyperswitch.ts             # Typed Hyperswitch API access
+    connector-credentials.ts   # External sandbox connector credentials
+    hyperswitch-client.ts      # HS HTTP transport and response handling
     merchant-setup.ts          # Merchant, profile, API key, connector, and routing setup
-    scenario.ts                # Scenario metadata and data-only connector configuration
+    types.ts                   # Shared JSON, connector, and scenario data types
     fixtures.ts                # Playwright setup/cleanup and connector exclusions
-    operations.ts              # Individual reusable payment operations
-    checks.ts                  # Shared assertions, polling, and report comparisons
-    payment-records.ts         # Read-only payment routing evidence from the test DB
+    payment-operations.ts      # Payment calls, status polling, and recorded-state access
+    assertions.ts              # Shared assertions, polling, and report comparisons
+    payment-records.ts         # Read-only payment and active-attempt database queries
   connectors/
     adyen.ts                   # Sandbox data, overrides, and reasoned exclusions
     index.ts                   # Registered connectors
