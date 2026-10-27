@@ -33,44 +33,55 @@ pub enum ConnectorFlowStatus<Flow: FlowSpec> {
     Success(Flow::Success),
     Failure(Flow::Failure),
     NonTerminal(Flow::NonTerminal),
+    PreserveExistingStatus,
 }
 
 impl<Flow: FlowSpec> ConnectorFlowStatus<Flow> {
-    pub fn status(&self) -> Flow::Status {
+    pub fn status(&self) -> Option<Flow::Status> {
         match self {
-            Self::Success(status) => (*status).into(),
-            Self::Failure(status) => (*status).into(),
-            Self::NonTerminal(status) => (*status).into(),
+            Self::Success(status) => Some((*status).into()),
+            Self::Failure(status) => Some((*status).into()),
+            Self::NonTerminal(status) => Some((*status).into()),
+            Self::PreserveExistingStatus => None,
         }
     }
 
-    pub fn into_status(self) -> Flow::Status {
+    pub fn into_status(self) -> Option<Flow::Status> {
         match self {
-            Self::Success(status) => status.into(),
-            Self::Failure(status) => status.into(),
-            Self::NonTerminal(status) => status.into(),
+            Self::Success(status) => Some(status.into()),
+            Self::Failure(status) => Some(status.into()),
+            Self::NonTerminal(status) => Some(status.into()),
+            Self::PreserveExistingStatus => None,
         }
     }
 }
 
 impl<Flow: PaymentFlowSpec> From<ConnectorFlowStatus<Flow>> for AttemptStatus {
     fn from(status: ConnectorFlowStatus<Flow>) -> Self {
-        status.into_status()
+        status
+            .into_status()
+            .expect("a status-preserving outcome cannot be converted to AttemptStatus")
     }
 }
 impl<Flow: RefundFlowSpec> From<ConnectorFlowStatus<Flow>> for RefundStatus {
     fn from(status: ConnectorFlowStatus<Flow>) -> Self {
-        status.into_status()
+        status
+            .into_status()
+            .expect("a status-preserving outcome cannot be converted to RefundStatus")
     }
 }
 impl<Flow: DisputeFlowSpec> From<ConnectorFlowStatus<Flow>> for DisputeStatus {
     fn from(status: ConnectorFlowStatus<Flow>) -> Self {
-        status.into_status()
+        status
+            .into_status()
+            .expect("a status-preserving outcome cannot be converted to DisputeStatus")
     }
 }
 impl<Flow: PayoutFlowSpec> From<ConnectorFlowStatus<Flow>> for PayoutStatus {
     fn from(status: ConnectorFlowStatus<Flow>) -> Self {
-        status.into_status()
+        status
+            .into_status()
+            .expect("a status-preserving outcome cannot be converted to PayoutStatus")
     }
 }
 

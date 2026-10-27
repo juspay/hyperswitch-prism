@@ -1549,7 +1549,9 @@ impl<F: crate::flow_status::PaymentFlowSpec>
         &mut self,
         status: crate::flow_status::ConnectorFlowStatus<F>,
     ) -> Result<(), crate::ConnectorError> {
-        self.status = status.into();
+        if let Some(status) = status.into_status() {
+            self.status = status;
+        }
         Ok(())
     }
 }
@@ -3039,7 +3041,9 @@ impl<F: crate::flow_status::RefundFlowSpec>
         &mut self,
         status: crate::flow_status::ConnectorFlowStatus<F>,
     ) -> Result<(), crate::ConnectorError> {
-        self.status = status.into();
+        if let Some(status) = status.into_status() {
+            self.status = status;
+        }
         Ok(())
     }
 }

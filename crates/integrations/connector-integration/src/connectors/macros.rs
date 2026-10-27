@@ -179,12 +179,15 @@ where
             status_code,
         )
         .map_err(error_stack::Report::new)?;
-        let framework_status = mapped_status.status();
         let mut result = RouterDataV2::<Flow, CommonData, Request, Response>::try_from(response)
             .change_context(crate::utils::response_handling_fail_for_connector(
                 status_code,
                 "macros",
             ))?;
+
+        let Some(framework_status) = mapped_status.status() else {
+            return Ok(result);
+        };
 
         if self.is_live_status_transformer() {
             let transformer_status = result.resource_common_data.current_mapped_flow_status();

@@ -74,6 +74,30 @@ macro_rules! __flow_mapping_non_terminal_count {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __flow_mapping_preserve_count {
+    () => { 0usize };
+    (preserve_existing ! () $($remaining:tt)*) => {
+        1usize + $crate::__flow_mapping_preserve_count!($($remaining)*)
+    };
+    (($($nested:tt)*) $($remaining:tt)*) => {
+        $crate::__flow_mapping_preserve_count!($($nested)*)
+            + $crate::__flow_mapping_preserve_count!($($remaining)*)
+    };
+    ([$($nested:tt)*] $($remaining:tt)*) => {
+        $crate::__flow_mapping_preserve_count!($($nested)*)
+            + $crate::__flow_mapping_preserve_count!($($remaining)*)
+    };
+    ({$($nested:tt)*} $($remaining:tt)*) => {
+        $crate::__flow_mapping_preserve_count!($($nested)*)
+            + $crate::__flow_mapping_preserve_count!($($remaining)*)
+    };
+    ($_token:tt $($remaining:tt)*) => {
+        $crate::__flow_mapping_preserve_count!($($remaining)*)
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __validate_flow_mapping_outcomes {
     ($connector:ty, CreateOrder, $($mapping:tt)*) => {
         $crate::__validate_flow_mapping_outcomes!(@allow_without_success $($mapping)*);
@@ -92,6 +116,12 @@ macro_rules! __validate_flow_mapping_outcomes {
     };
     ($connector:ty, SetupMandate, $($mapping:tt)*) => {
         $crate::__validate_flow_mapping_outcomes!(@allow_without_success $($mapping)*);
+    };
+    ($connector:ty, IncrementalAuthorization, $($mapping:tt)*) => {
+        $crate::__validate_flow_mapping_outcomes!(@require_success_or_preserve $($mapping)*);
+    };
+    ($connector:ty, VoidPC, $($mapping:tt)*) => {
+        $crate::__validate_flow_mapping_outcomes!(@require_success_or_preserve $($mapping)*);
     };
     ($connector:ty, Capture, $($mapping:tt)*) => {
         $crate::__validate_flow_mapping_outcomes!(
@@ -117,11 +147,25 @@ macro_rules! __validate_flow_mapping_outcomes {
             const FAILURE_COUNT: usize = $crate::__flow_mapping_failure_count!($($mapping)*);
             const NON_TERMINAL_COUNT: usize =
                 $crate::__flow_mapping_non_terminal_count!($($mapping)*);
+            const PRESERVE_COUNT: usize = $crate::__flow_mapping_preserve_count!($($mapping)*);
 
             assert!(
                 SUCCESS_COUNT + FAILURE_COUNT + NON_TERMINAL_COUNT > 0,
                 "flow status mapping must declare at least one outcome"
             );
+            assert!(PRESERVE_COUNT == 0, "preserve_existing is not allowed for this flow");
+        };
+    };
+    (@require_success_or_preserve $($mapping:tt)*) => {
+        const _: () = {
+            const SUCCESS_COUNT: usize = $crate::__flow_mapping_success_count!($($mapping)*);
+            const FAILURE_COUNT: usize = $crate::__flow_mapping_failure_count!($($mapping)*);
+            const NON_TERMINAL_COUNT: usize = $crate::__flow_mapping_non_terminal_count!($($mapping)*);
+            const PRESERVE_COUNT: usize = $crate::__flow_mapping_preserve_count!($($mapping)*);
+            assert!(SUCCESS_COUNT + FAILURE_COUNT + NON_TERMINAL_COUNT + PRESERVE_COUNT > 0,
+                "flow status mapping must declare at least one outcome");
+            assert!(SUCCESS_COUNT > 0 || PRESERVE_COUNT > 0,
+                "success or preserve_existing mapping is mandatory for this flow");
         };
     };
     (@require_success $($mapping:tt)*) => {
@@ -130,6 +174,7 @@ macro_rules! __validate_flow_mapping_outcomes {
             const FAILURE_COUNT: usize = $crate::__flow_mapping_failure_count!($($mapping)*);
             const NON_TERMINAL_COUNT: usize =
                 $crate::__flow_mapping_non_terminal_count!($($mapping)*);
+            const PRESERVE_COUNT: usize = $crate::__flow_mapping_preserve_count!($($mapping)*);
 
             assert!(
                 SUCCESS_COUNT + FAILURE_COUNT + NON_TERMINAL_COUNT > 0,
@@ -139,6 +184,7 @@ macro_rules! __validate_flow_mapping_outcomes {
                 SUCCESS_COUNT > 0,
                 "success mapping is mandatory for this flow"
             );
+            assert!(PRESERVE_COUNT == 0, "preserve_existing is not allowed for this flow");
         };
     };
     (@require_success_or_async_ack $connector:ty, $($mapping:tt)*) => {
@@ -147,6 +193,7 @@ macro_rules! __validate_flow_mapping_outcomes {
             const FAILURE_COUNT: usize = $crate::__flow_mapping_failure_count!($($mapping)*);
             const NON_TERMINAL_COUNT: usize =
                 $crate::__flow_mapping_non_terminal_count!($($mapping)*);
+            const PRESERVE_COUNT: usize = $crate::__flow_mapping_preserve_count!($($mapping)*);
 
             assert!(
                 SUCCESS_COUNT + FAILURE_COUNT + NON_TERMINAL_COUNT > 0,
@@ -160,6 +207,7 @@ macro_rules! __validate_flow_mapping_outcomes {
                     ),
                 "success mapping is mandatory for terminal flows unless the connector is listed in ASYNC_ACK_STATUS_MAPPING_CONNECTORS"
             );
+            assert!(PRESERVE_COUNT == 0, "preserve_existing is not allowed for this flow");
         };
     };
 }
@@ -230,6 +278,12 @@ macro_rules! impl_flow_status_mapping {
                             Ok($crate::flow_status::ConnectorFlowStatus::NonTerminal(
                                 $crate::flow_status::__status_mapping::[<$flow NonTerminalStatus>]::$target,
                             ))
+                        };
+                    }
+                    #[allow(unused_macros)]
+                    macro_rules! preserve_existing {
+                        () => {
+                            Ok($crate::flow_status::ConnectorFlowStatus::PreserveExistingStatus)
                         };
                     }
 
@@ -315,6 +369,12 @@ macro_rules! impl_flow_status_mapping {
                             Ok($crate::flow_status::ConnectorFlowStatus::NonTerminal(
                                 $crate::flow_status::__status_mapping::[<$flow NonTerminalStatus>]::$target,
                             ))
+                        };
+                    }
+                    #[allow(unused_macros)]
+                    macro_rules! preserve_existing {
+                        () => {
+                            Ok($crate::flow_status::ConnectorFlowStatus::PreserveExistingStatus)
                         };
                     }
 
