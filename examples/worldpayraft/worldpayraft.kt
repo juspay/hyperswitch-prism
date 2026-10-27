@@ -107,7 +107,7 @@ private fun buildReverseRequest(connectorTransactionIdStr: String): PaymentServi
     return PaymentServiceReverseRequest.newBuilder().apply {
         merchantReverseId = "probe_reverse_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
-        amountBuilder.apply {  // Captured amount to reverse, including its currency. Required by connectors such as Worldpay RAFT that include the amount in the reversal request.
+        amountBuilder.apply {  // Original payment amount and currency.
             minorAmount = 1000L
             currency = Currency.USD
         }

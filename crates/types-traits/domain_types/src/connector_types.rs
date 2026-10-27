@@ -2214,7 +2214,6 @@ pub enum PaymentsResponseData {
     PostCaptureVoidResponse {
         post_capture_void_status: common_enums::PostCaptureVoidStatus,
         connector_reference_id: Option<String>,
-        description: Option<String>,
         status_code: u16,
     },
 }
@@ -3774,6 +3773,8 @@ pub struct RefundsData {
     pub connector_order_id: Option<String>,
     pub payment_method_data:
         Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
+    /// Merchant-supplied settlement quote for this operation.
+    pub currency_conversion_data: Option<CurrencyConversionData>,
 }
 
 impl RefundsData {
@@ -3854,6 +3855,8 @@ pub struct PaymentsCaptureData {
     /// Unified split settlement (supersedes split_payments). Boxed to keep the
     /// enclosing request (and its RouterDataV2 clones) small on the async stack.
     pub split_settlement: Option<Box<SplitSettlement>>,
+    /// Merchant-supplied settlement quote for this operation.
+    pub currency_conversion_data: Option<CurrencyConversionData>,
 }
 
 impl PaymentsCaptureData {
@@ -4051,6 +4054,8 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
+    /// Merchant-supplied settlement quote for this operation.
+    pub currency_conversion_data: Option<CurrencyConversionData>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
@@ -4988,6 +4993,8 @@ pub struct CurrencyConversionQuote {
     pub currency_conversion_type: Option<CurrencyConversionType>,
     pub quoted_at: Option<i64>,
     pub expires_at: Option<i64>,
+    pub conversion_reason_code: Option<String>,
+    pub user_id: Option<String>,
 }
 
 /// A validated currency conversion decision and the quote presented to the cardholder.

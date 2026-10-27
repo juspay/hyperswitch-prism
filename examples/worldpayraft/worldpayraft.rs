@@ -265,7 +265,7 @@ pub fn build_reverse_request(connector_transaction_id: &str) -> PaymentServiceRe
         merchant_reverse_id: Some("probe_reverse_001".to_string()), // Identification.
         connector_transaction_id: connector_transaction_id.to_string(),
         amount: Some(Money {
-            // Captured amount to reverse, including its currency. Required by connectors such as Worldpay RAFT that include the amount in the reversal request.
+            // Original payment amount and currency.
             minor_amount: 1000,
             currency: Currency::Usd.into(),
         }),

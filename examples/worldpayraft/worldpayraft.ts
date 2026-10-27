@@ -186,7 +186,7 @@ function _buildReverseRequest(connectorTransactionId: string): types.IPaymentSer
     return {
         "merchantReverseId": "probe_reverse_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
-        "amount": {  // Captured amount to reverse, including its currency. Required by connectors such as Worldpay RAFT that include the amount in the reversal request.
+        "amount": {  // Original payment amount and currency.
             "minorAmount": 1000,
             "currency": Currency.USD
         },

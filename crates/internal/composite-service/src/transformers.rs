@@ -509,6 +509,7 @@ impl
             connector_order_id: item.connector_order_id.clone(),
             payment_method: item.payment_method.clone(),
             split_refunds: item.split_refunds.clone(),
+            currency_conversion_data: item.currency_conversion_data.clone(),
         }
     }
 }
@@ -863,6 +864,7 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             order_tax_amount: item.order_tax_amount,
             split_payments: item.split_payments.clone(),
+            currency_conversion_data: item.currency_conversion_data.clone(),
         }
     }
 }

@@ -380,6 +380,9 @@ message CompositeRefundRequest {
   optional SplitRefundsDetails split_refunds = 21;
   // Unified split settlement refund (supersedes split_refunds); forwarded to Refund.
   optional SplitSettlementRefund split_settlement_refund = 22;
+
+  // Currency conversion quote and customer decision supplied for the refund.
+  optional CurrencyConversionData currency_conversion_data = 23;
 }
 
 // Response message for composite refund flow.
@@ -548,9 +551,12 @@ message CompositeCaptureRequest {
   // amount higher than the requested amount is not treated as an integrity failure.
   optional bool is_overcapture_enabled = 19;
 
-  // Network reference returned by the authorization being completed.
-  optional string network_transaction_id = 20;
 
+  // Currency conversion quote and customer decision supplied for the capture.
+  optional CurrencyConversionData currency_conversion_data = 20;
+
+  // Network reference returned by the authorization being completed.
+  optional string network_transaction_id = 21;
 }
 
 // Response message for composite capture flow.

@@ -183,7 +183,7 @@ def _build_reverse_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceReverseRequest(
         merchant_reverse_id="probe_reverse_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
-        amount=common_types_pb2.Money(  # Captured amount to reverse, including its currency. Required by connectors such as Worldpay RAFT that include the amount in the reversal request.
+        amount=common_types_pb2.Money(  # Original payment amount and currency.
             minor_amount=1000,
             currency=common_types_pb2.Currency.Value("USD"),
         ),
