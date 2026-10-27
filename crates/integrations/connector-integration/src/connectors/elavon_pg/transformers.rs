@@ -1115,15 +1115,18 @@ fn parse_expiry(
 /// not evidence.
 const WALLET_ECI_DEFAULT: &str = "7";
 
-/// Absent and malformed are different cases on purpose.
+/// Not supplied and malformed are different cases on purpose.
 ///
-/// * absent (`None`) -- Apple Pay leaves `eciIndicator` out on Mastercard tokens, so failing
-///   here would decline those payments; the conservative [`WALLET_ECI_DEFAULT`] is sent.
-/// * present but not a value EPG accepts (including `""` or whitespace) -- the caller sent
-///   something, and quietly turning it into an ECI would be inventing an authentication
-///   result, so it is refused.
+/// * not supplied -- absent, empty or whitespace. Apple Pay leaves `eciIndicator` out on
+///   Mastercard tokens and Google Pay documents it as empty for a Mastercard
+///   `CRYPTOGRAM_3DS` token, and the gRPC layer turns an omitted proto string into
+///   `Some("")` in places, so an empty value is the same "no indicator" as an absent one --
+///   treating it as malformed would decline those payments. [`WALLET_ECI_DEFAULT`] is sent.
+/// * present and non-empty but not a value EPG accepts -- the caller supplied an actual
+///   indicator, and quietly turning it into a different one would be inventing an
+///   authentication result, so it is refused.
 fn wallet_eci(eci: Option<&str>) -> Result<String, error_stack::Report<IntegrationError>> {
-    match eci.map(str::trim) {
+    match eci.map(str::trim).filter(|eci| !eci.is_empty()) {
         None => Ok(WALLET_ECI_DEFAULT.to_string()),
         Some("5" | "05" | "2" | "02") => Ok("5".to_string()),
         Some("6" | "06" | "1" | "01") => Ok("6".to_string()),
@@ -1134,7 +1137,7 @@ fn wallet_eci(eci: Option<&str>) -> Result<String, error_stack::Report<Integrati
                 additional_context: Some(
                     "Elavon Payment Gateway accepts cryptogramSecurity.\
                      electronicCommerceIndicator 5, 6 or 7 (optionally zero-padded, or the \
-                     Mastercard 2/1/0 equivalents); omit the field entirely to send the \
+                     Mastercard 2/1/0 equivalents); leave it unset or empty to send the \
                      unauthenticated default"
                         .to_string(),
                 ),
@@ -1781,8 +1784,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // already ran 3DS — sending `card` or `threeDSecure` alongside it is rejected.
         // Only then does the external/pass-through 3DS shape apply, and failing that,
         // the plain card sale.
+        let opens_recurring_agreement =
+            request.setup_future_usage == Some(common_enums::FutureUsage::OffSession);
+
         if let Some(payment_session) = elavon_pg_payment_session_href(&request.payment_method_data)
         {
+            // The payment-session body carries only the href and the total; EPG rejects a
+            // `card` or `threeDSecure` alongside it, and there is no confirmed way to open a
+            // stored-credential agreement on this route. Returning the sale regardless would
+            // report success for a payment that stored nothing, leaving the merchant with no
+            // credential to charge later -- the same silent-drop the wallet arm below refuses.
+            if opens_recurring_agreement {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Recurring payments on a hosted payment session".to_string(),
+                    connector: ELAVON_PG_CONNECTOR_ID,
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Open the agreement with a direct card sale (setup_future_usage \
+                             OFF_SESSION), then charge it by the connector mandate id"
+                                .to_string(),
+                        ),
+                        additional_context: Some(
+                            "Elavon Payment Gateway's payment-session sale takes only the \
+                             session href and the total, so it cannot carry \
+                             credentialOnFileType and mints no credentialOnFileData"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }));
+            }
             return Ok(Self::PaymentSession(ElavonPgPaymentSessionSaleRequest {
                 payment_session,
                 total: ElavonPgAmount {
@@ -1793,8 +1824,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let bill_to = ElavonPgContact::from_billing(&router_data.resource_common_data);
-        let opens_recurring_agreement =
-            request.setup_future_usage == Some(common_enums::FutureUsage::OffSession);
 
         let (sale_card, cryptogram_security, payment_method_origin, three_d_secure) =
             match &request.payment_method_data {

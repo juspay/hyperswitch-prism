@@ -679,6 +679,24 @@ fn google_pay_json() -> Value {
     }})
 }
 
+/// Google Pay Mastercard `CRYPTOGRAM_3DS`: Google documents `eciIndicator` as empty for
+/// these, and the gRPC layer also turns an omitted proto string into `Some("")`, so the
+/// connector must read it as "no indicator" and send the default rather than refuse the sale.
+fn mastercard_google_pay_json() -> Value {
+    json!({ "google_pay_sdk": {
+        "type": "CARD",
+        "description": "Mastercard 4444",
+        "info": { "card_network": "MASTERCARD", "card_details": "4444" },
+        "tokenization_data": { "tokenization_data": { "decrypted_data": {
+            "card_exp_month": "12",
+            "card_exp_year": "2030",
+            "application_primary_account_number": "5555555555554444",
+            "cryptogram": "AgAAAAAAAIR8CQrXcIhbQAAAAAA=",
+            "eci_indicator": ""
+        }}}
+    }})
+}
+
 fn apple_pay_json() -> Value {
     json!({ "apple_pay_sdk": {
         "payment_data": { "payment_data": { "decrypted_data": {
@@ -809,6 +827,7 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
         for (suffix, wallet) in [
             ("google_pay", google_pay_json()),
             ("apple_pay", apple_pay_json()),
+            ("mastercard_google_pay", mastercard_google_pay_json()),
         ] {
             let mut wallet_request = Request::new(
                 serde_json::from_value::<PaymentServiceAuthorizeRequest>(authorize_request(
@@ -860,8 +879,8 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             .filter(|request| request.original_url.ends_with("/transactions"))
             .map(|request| &request.body)
             .collect();
-        // CIT, 1 repeat, 2 wallets; the two refused requests never reached EPG.
-        assert_eq!(sales.len(), 4, "{sales:?}");
+        // CIT, 1 repeat, 3 wallets; the two refused requests never reached EPG.
+        assert_eq!(sales.len(), 5, "{sales:?}");
 
         assert_eq!(sales[0]["credentialOnFileType"], json!("recurring"));
         assert_eq!(sales[0]["shopperInteraction"], json!("ecommerce"));
@@ -890,6 +909,19 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             assert!(wallet["card"].get("securityCode").is_none());
             assert!(wallet.get("credentialOnFileType").is_none());
         }
+
+        // The Mastercard token carried an empty eciIndicator: it reaches EPG as the
+        // unauthenticated default rather than failing the sale or being sent through blank.
+        let mastercard = sales[4];
+        assert_eq!(mastercard["paymentMethodOrigin"], json!("Google Pay"));
+        assert_eq!(mastercard["card"]["number"], json!("5555555555554444"));
+        assert_eq!(
+            mastercard["cryptogramSecurity"],
+            json!({
+                "cryptogram": "AgAAAAAAAIR8CQrXcIhbQAAAAAA=",
+                "electronicCommerceIndicator": "7"
+            })
+        );
     };
 
     tokio::select! {
