@@ -122,6 +122,14 @@ default = '{}'
 [connector_overrides."capture,void,refund,incremental_authorization".worldpayraft]
 "connector_transaction_id" = "C|123456|123456789012|000001"
 
+# Reverse probes a prior-auth completion reversal with the original payment context.
+[connector_overrides.reverse.worldpayraft]
+"connector_transaction_id" = "C|123456|123456789012|000001"
+"capture_method" = "MANUAL"
+"amount" = { minor_amount = 1000, currency = "USD" }
+"payment_method" = { payment_method = { card_with_no_cvc = { card_number = "4111111111111111", card_exp_month = "03", card_exp_year = "2030", card_network = "VISA" } } }
+"connector_feature_data" = '{"api_transaction_id":"0000000000000001","original_authorized_amount":{"amount":1000,"currency":"USD"},"terminal_data":{"EntryMode":"KEYED","POSConditionCode":"59","TerminalEntryCap":"0"},"ecommerce_data":{"E-commerceIndicator":"07"}}'
+
 # Directa24 is the same case: its `deposit_id` is an integer, so PSync and Refund
 # parse `connector_transaction_id` with `parse::<i64>()` and reject the default
 # "probe_connector_txn_001" as InvalidDataFormat. Only `get` and `refund` are

@@ -2953,6 +2953,14 @@ message PaymentServiceReverseRequest {
 
   // Original payment amount and currency.
   optional Money amount = 10;
+
+  // Original payment method for connectors that require PAN and expiry again.
+  optional PaymentMethod payment_method = 11;
+
+  // Original payment's capture method, not the reversal's disposition.
+  // Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at
+  // different endpoints.
+  optional CaptureMethod capture_method = 12;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
