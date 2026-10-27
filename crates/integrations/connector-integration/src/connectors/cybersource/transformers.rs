@@ -6,7 +6,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     ext_traits::{BytesExt, OptionExt, ValueExt},
     pii,
-    types::{MinorUnit, SemanticVersion, StringMajorUnit},
+    types::{SemanticVersion, StringMajorUnit},
 };
 
 use crate::{connectors::cybersource::CybersourceRouterData, types::ResponseRouterData, utils};
@@ -1642,10 +1642,10 @@ fn build_l2_l3_order_data<
     >,
 ) -> Result<L2L3OrderData, error_stack::Report<IntegrationError>> {
     let currency = item.router_data.request.currency;
-    let convert = |amount: MinorUnit, field: &str| {
+    let convert = |money: &common_utils::types::Money, field: &str| {
         item.connector
             .amount_converter
-            .convert(&common_utils::types::Money { amount, currency })
+            .convert(money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
@@ -1671,9 +1671,10 @@ fn build_l2_l3_order_data<
                         product_code: detail.category,
                         product_sku: detail.sku,
                         quantity: detail.quantity,
-                        unit_price: convert(detail.amount, "order_details.amount")?,
+                        unit_price: convert(&detail.amount, "order_details.amount")?,
                         tax_amount: detail
                             .total_tax_amount
+                            .as_ref()
                             .map(|tax| convert(tax, "order_details.total_tax_amount"))
                             .transpose()?,
                         unit_of_measure: detail.unit_of_measure,
@@ -1698,19 +1699,51 @@ fn build_l2_l3_order_data<
         line_items,
         invoice_details,
         tax_amount: order_tax_amount
-            .map(|tax| convert(tax, "tax_info.order_tax_amount"))
+            .map(|tax| {
+                convert(
+                    &common_utils::types::Money {
+                        amount: tax,
+                        currency,
+                    },
+                    "tax_info.order_tax_amount",
+                )
+            })
             .transpose()?,
         discount_amount: l2_l3_data
             .and_then(L2L3Data::get_discount_amount)
-            .map(|discount| convert(discount, "order_info.discount_amount"))
+            .map(|discount| {
+                convert(
+                    &common_utils::types::Money {
+                        amount: discount,
+                        currency,
+                    },
+                    "order_info.discount_amount",
+                )
+            })
             .transpose()?,
         duty_amount: l2_l3_data
             .and_then(L2L3Data::get_duty_amount)
-            .map(|duty| convert(duty, "order_info.duty_amount"))
+            .map(|duty| {
+                convert(
+                    &common_utils::types::Money {
+                        amount: duty,
+                        currency,
+                    },
+                    "order_info.duty_amount",
+                )
+            })
             .transpose()?,
         freight_amount: l2_l3_data
             .and_then(L2L3Data::get_shipping_cost)
-            .map(|freight| convert(freight, "order_info.shipping_cost"))
+            .map(|freight| {
+                convert(
+                    &common_utils::types::Money {
+                        amount: freight,
+                        currency,
+                    },
+                    "order_info.shipping_cost",
+                )
+            })
             .transpose()?,
     })
 }

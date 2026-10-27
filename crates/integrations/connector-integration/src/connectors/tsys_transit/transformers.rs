@@ -1264,7 +1264,6 @@ fn format_country_alpha3(country: common_enums::CountryAlpha2) -> String {
 
 fn build_tsys_product_details(
     detail: &domain_types::payment_address::OrderDetailsWithAmount,
-    currency: common_enums::Currency,
     card_network: Option<&CardNetwork>,
     payment_channel: &Option<PaymentChannel>,
 ) -> Result<Option<TsysTransitProductDetails>, Report<IntegrationError>> {
@@ -1299,31 +1298,20 @@ fn build_tsys_product_details(
             .unwrap_or_else(|| sanitize_alphanumeric_space(&detail.product_name, 20));
 
         let product_name = truncate_chars(&detail.product_name, 50);
-        let price = super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
-            amount: detail.amount,
-            currency,
-        })?;
+        let price = super::TsysTransitAmountConvertor::convert(&detail.amount)?;
         let quantity = u32::from(detail.quantity);
         let measurement_unit = detail.unit_of_measure.clone();
         let unit_discount_amount = detail
             .unit_discount_amount
-            .map(|amount| {
-                super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
-                    amount,
-                    currency,
-                })
-            })
+            .as_ref()
+            .map(super::TsysTransitAmountConvertor::convert)
             .transpose()?;
         let product_tax_name = detail.product_tax_code.clone();
 
         let product_tax_amount = detail
             .total_tax_amount
-            .map(|amount| {
-                super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
-                    amount,
-                    currency,
-                })
-            })
+            .as_ref()
+            .map(super::TsysTransitAmountConvertor::convert)
             .transpose()?;
 
         let product_tax_percentage = detail.tax_rate.map(format_decimal);
@@ -1353,7 +1341,8 @@ fn build_tsys_product_details(
         let priority = 1;
         let has_discount = detail
             .unit_discount_amount
-            .map(|amount| amount.get_amount_as_i64() > 0)
+            .as_ref()
+            .map(|money| money.amount.get_amount_as_i64() > 0)
             .unwrap_or(false);
         let stackable = if has_discount {
             TsysTransitYesNo::Yes
@@ -1643,12 +1632,7 @@ fn compute_commercial_card_context<
     let product_details: Option<Vec<TsysTransitProductDetails>> = order_details
         .iter()
         .map(|detail| {
-            build_tsys_product_details(
-                detail,
-                router_data.request.currency,
-                card_network,
-                &router_data.request.payment_channel,
-            )
+            build_tsys_product_details(detail, card_network, &router_data.request.payment_channel)
         })
         .collect::<Result<Vec<Option<TsysTransitProductDetails>>, Report<IntegrationError>>>()
         .ok()

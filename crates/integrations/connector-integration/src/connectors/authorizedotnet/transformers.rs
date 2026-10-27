@@ -1,9 +1,5 @@
 use common_enums::{self, enums, AttemptStatus, RefundStatus};
-use common_utils::{
-    consts,
-    pii::Email,
-    types::{FloatMajorUnit, MinorUnit},
-};
+use common_utils::{consts, pii::Email, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment,
@@ -1277,23 +1273,21 @@ fn create_regular_transaction_request<
 
     // Level 2 / Level 3 data. Every amount goes through the connector's
     // FloatMajorUnit converter; nothing is computed here.
-    let to_major_unit =
-        |amount: MinorUnit, currency: enums::Currency| -> Result<FloatMajorUnit, Error> {
-            item.connector
-                .amount_converter
-                .convert(&common_utils::types::Money { amount, currency })
-                .change_context(IntegrationError::AmountConversionFailed {
-                    context: IntegrationErrorContext {
-                        suggested_action: None,
-                        doc_url: None,
-                        additional_context: Some(
-                            "Failed to convert a Level 2/3 amount for the authorize transaction"
-                                .to_owned(),
-                        ),
-                    },
-                })
-        };
-    let request_currency = item.router_data.request.currency;
+    let to_major_unit = |money: &common_utils::types::Money| -> Result<FloatMajorUnit, Error> {
+        item.connector
+            .amount_converter
+            .convert(money)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: IntegrationErrorContext {
+                    suggested_action: None,
+                    doc_url: None,
+                    additional_context: Some(
+                        "Failed to convert a Level 2/3 amount for the authorize transaction"
+                            .to_owned(),
+                    ),
+                },
+            })
+    };
     let l2_l3_data = item.router_data.resource_common_data.l2_l3_data.as_deref();
     let order_info = l2_l3_data.and_then(|data| data.order_info.as_ref());
     let tax_info = l2_l3_data.and_then(|data| data.tax_info.as_ref());
@@ -1326,15 +1320,17 @@ fn create_regular_transaction_request<
                         name: detail.product_name.clone(),
                         description: detail.description.clone(),
                         quantity: detail.quantity,
-                        unit_price: to_major_unit(detail.amount, request_currency)?,
+                        unit_price: to_major_unit(&detail.amount)?,
                         unit_of_measure: detail.unit_of_measure.clone(),
                         tax_amount: detail
                             .total_tax_amount
-                            .map(|amount| to_major_unit(amount, request_currency))
+                            .as_ref()
+                            .map(to_major_unit)
                             .transpose()?,
                         total_amount: detail
                             .total_amount
-                            .map(|amount| to_major_unit(amount, request_currency))
+                            .as_ref()
+                            .map(to_major_unit)
                             .transpose()?,
                         commodity_code: detail.commodity_code.clone(),
                     })
@@ -1351,13 +1347,13 @@ fn create_regular_transaction_request<
         .order_tax_amount
         .as_ref()
         .or_else(|| tax_info.and_then(|info| info.order_tax_amount.as_ref()))
-        .map(|money| to_major_unit(money.amount, money.currency))
+        .map(to_major_unit)
         .transpose()?
         .map(|amount| ExtendedAmount { amount });
 
     let duty = order_info
         .and_then(|info| info.duty_amount.as_ref())
-        .map(|money| to_major_unit(money.amount, money.currency))
+        .map(to_major_unit)
         .transpose()?
         .map(|amount| ExtendedAmount { amount });
 
@@ -1368,7 +1364,7 @@ fn create_regular_transaction_request<
         .shipping_cost
         .as_ref()
         .or_else(|| order_info.and_then(|info| info.shipping_cost.as_ref()))
-        .map(|money| to_major_unit(money.amount, money.currency))
+        .map(to_major_unit)
         .transpose()?
         .map(|amount| ExtendedAmount { amount });
 

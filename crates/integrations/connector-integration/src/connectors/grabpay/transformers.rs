@@ -1140,7 +1140,7 @@ fn build_items(
         .map(|detail| GrabpayItem {
             item_name: detail.product_name.clone(),
             quantity: detail.quantity,
-            price: detail.amount,
+            price: detail.amount.amount,
             category: detail.category.clone(),
             item_category: detail.sub_category.clone(),
             image_url: detail.product_img_link.clone(),

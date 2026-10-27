@@ -391,7 +391,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][unit_cost]"),
-                        order_item.amount.get_amount_as_i64().to_string(),
+                        order_item.amount.amount.get_amount_as_i64().to_string(),
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][quantity]"),
@@ -403,11 +403,11 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                             product_code.clone(),
                         );
                     }
-                    if let Some(tax_amount) = order_item.total_tax_amount {
+                    if let Some(tax_amount) = order_item.total_tax_amount.as_ref() {
                         has_line_item_tax = true;
                         items_map.insert(
                             format!("amount_details[line_items][{index}][tax][total_tax_amount]"),
-                            tax_amount.get_amount_as_i64().to_string(),
+                            tax_amount.amount.get_amount_as_i64().to_string(),
                         );
                     }
                     if let Some(unit_of_measure) = order_item.unit_of_measure.as_ref() {
@@ -416,10 +416,10 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                             unit_of_measure.clone(),
                         );
                     }
-                    if let Some(line_discount) = order_item.unit_discount_amount {
+                    if let Some(line_discount) = order_item.unit_discount_amount.as_ref() {
                         items_map.insert(
                             format!("amount_details[line_items][{index}][discount_amount]"),
-                            line_discount.get_amount_as_i64().to_string(),
+                            line_discount.amount.get_amount_as_i64().to_string(),
                         );
                     }
                     if let Some(commodity_code) = order_item.commodity_code.as_ref() {

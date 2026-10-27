@@ -1338,15 +1338,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .iter()
                         .map(|item| CheckoutLineItem {
                             commodity_code: item.commodity_code.clone(),
-                            discount_amount: item.unit_discount_amount,
+                            discount_amount: item
+                                .unit_discount_amount
+                                .as_ref()
+                                .map(|money| money.amount),
                             name: Some(item.product_name.clone()),
                             quantity: Some(item.quantity),
                             reference: item.product_id.clone(),
                             tax_exempt: None,
-                            tax_amount: item.total_tax_amount,
-                            total_amount: item.total_amount,
+                            tax_amount: item.total_tax_amount.as_ref().map(|money| money.amount),
+                            total_amount: item.total_amount.as_ref().map(|money| money.amount),
                             unit_of_measure: item.unit_of_measure.clone(),
-                            unit_price: Some(item.amount),
+                            unit_price: Some(item.amount.amount),
                         })
                         .collect::<Vec<_>>()
                 }),
@@ -1807,15 +1810,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .iter()
                         .map(|item| CheckoutLineItem {
                             commodity_code: item.commodity_code.clone(),
-                            discount_amount: item.unit_discount_amount,
+                            discount_amount: item
+                                .unit_discount_amount
+                                .as_ref()
+                                .map(|money| money.amount),
                             name: Some(item.product_name.clone()),
                             quantity: Some(item.quantity),
                             reference: item.product_id.clone(),
                             tax_exempt: None,
-                            tax_amount: item.total_tax_amount,
-                            total_amount: item.total_amount,
+                            tax_amount: item.total_tax_amount.as_ref().map(|money| money.amount),
+                            total_amount: item.total_amount.as_ref().map(|money| money.amount),
                             unit_of_measure: item.unit_of_measure.clone(),
-                            unit_price: Some(item.amount),
+                            unit_price: Some(item.amount.amount),
                         })
                         .collect::<Vec<_>>()
                 }),
@@ -2214,15 +2220,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .iter()
                         .map(|item| CheckoutLineItem {
                             commodity_code: item.commodity_code.clone(),
-                            discount_amount: item.unit_discount_amount,
+                            discount_amount: item
+                                .unit_discount_amount
+                                .as_ref()
+                                .map(|money| money.amount),
                             name: Some(item.product_name.clone()),
                             quantity: Some(item.quantity),
                             reference: item.product_id.clone(),
                             tax_exempt: None,
-                            tax_amount: item.total_tax_amount,
-                            total_amount: item.total_amount,
+                            tax_amount: item.total_tax_amount.as_ref().map(|money| money.amount),
+                            total_amount: item.total_amount.as_ref().map(|money| money.amount),
                             unit_of_measure: item.unit_of_measure.clone(),
-                            unit_price: Some(item.amount),
+                            unit_price: Some(item.amount.amount),
                         })
                         .collect::<Vec<_>>()
                 }),

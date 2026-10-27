@@ -6421,11 +6421,19 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderDetailsWithAmount {
+impl
+    ForeignTryFrom<(
+        grpc_api_types::payments::OrderDetailsWithAmount,
+        common_enums::Currency,
+    )> for OrderDetailsWithAmount
+{
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        item: grpc_api_types::payments::OrderDetailsWithAmount,
+        (item, currency): (
+            grpc_api_types::payments::OrderDetailsWithAmount,
+            common_enums::Currency,
+        ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             product_name: item.product_name,
@@ -6440,11 +6448,17 @@ impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderD
                     },
                 },
             )?,
-            amount: common_utils::types::MinorUnit::new(item.amount),
+            amount: common_utils::types::Money {
+                amount: common_utils::types::MinorUnit::new(item.amount),
+                currency,
+            },
             tax_rate: item.tax_rate,
             total_tax_amount: item
                 .total_tax_amount
-                .map(common_utils::types::MinorUnit::new),
+                .map(|amount| common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(amount),
+                    currency,
+                }),
             requires_shipping: item.requires_shipping,
             product_img_link: item.product_img_link,
             product_id: item.product_id,
@@ -6463,10 +6477,16 @@ impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderD
             commodity_code: item.commodity_code,
             sku: item.sku,
             upc: item.upc,
-            unit_discount_amount: item
-                .unit_discount_amount
-                .map(common_utils::types::MinorUnit::new),
-            total_amount: item.total_amount.map(common_utils::types::MinorUnit::new),
+            unit_discount_amount: item.unit_discount_amount.map(|amount| {
+                common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(amount),
+                    currency,
+                }
+            }),
+            total_amount: item.total_amount.map(|amount| common_utils::types::Money {
+                amount: common_utils::types::MinorUnit::new(amount),
+                currency,
+            }),
             discount_name: item.discount_name,
             discount_percentage: item.discount_percentage,
             discount_type: item.discount_type,
@@ -6587,10 +6607,16 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
 
         let order_details = (!value.order_details.is_empty())
             .then(|| {
+                let currency = l2_l3_currency.ok_or_else(|| {
+                    report!(IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext::default(),
+                    })
+                })?;
                 value
                     .order_details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| OrderDetailsWithAmount::foreign_try_from((item, currency)))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
@@ -6724,9 +6750,15 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
         let order_details = value
             .order_details
             .map(|details| {
+                let currency = l2_l3_currency.ok_or_else(|| {
+                    report!(IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext::default(),
+                    })
+                })?;
                 details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| OrderDetailsWithAmount::foreign_try_from((item, currency)))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
@@ -7280,10 +7312,17 @@ impl
         // Cart line items, when supplied.
         let order_details = (!value.order_details.is_empty())
             .then(|| {
+                let amount = value.amount.as_ref().ok_or_else(|| {
+                    report!(IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext::default(),
+                    })
+                })?;
+                let currency = common_enums::Currency::foreign_try_from(amount.currency())?;
                 value
                     .order_details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| OrderDetailsWithAmount::foreign_try_from((item, currency)))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
@@ -14212,7 +14251,7 @@ impl ForeignTryFrom<(&grpc_api_types::payments::OrderInfo, common_enums::Currenc
                     .order_details
                     .clone()
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| OrderDetailsWithAmount::foreign_try_from((item, currency)))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
@@ -15113,17 +15152,17 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
         // in their CreateOrder transformer are unaffected.
         let customer_id = Option::<CustomerId>::foreign_try_from(value.customer.clone())?;
 
+        let currency = amount.currency;
+
         let order_details = (!value.order_details.is_empty())
             .then(|| {
                 value
                     .order_details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| OrderDetailsWithAmount::foreign_try_from((item, currency)))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
-
-        let currency = amount.currency;
 
         Ok(Self {
             amount,

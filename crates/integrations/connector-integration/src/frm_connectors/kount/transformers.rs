@@ -1959,10 +1959,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .iter()
                 .map(|detail| {
                     Ok::<_, Self::Error>(KountItem {
-                        price: super::KountAmountConvertor::convert(&common_utils::types::Money {
-                            amount: detail.amount,
-                            currency,
-                        })?,
+                        price: super::KountAmountConvertor::convert(&detail.amount)?,
                         name: detail.product_name.clone(),
                         quantity: detail.quantity,
                         description: detail.description.clone(),
@@ -2102,10 +2099,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         });
 
-        let amount = super::KountAmountConvertor::convert(&common_utils::types::Money {
-            amount: req.amount.amount,
-            currency,
-        })?;
+        let amount = super::KountAmountConvertor::convert(&req.amount)?;
         let transactions = vec![KountTransaction {
             subtotal: amount.clone(),
             order_total: amount,

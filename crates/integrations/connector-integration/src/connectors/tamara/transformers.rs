@@ -330,12 +330,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .resource_common_data
             .get_optional_shipping_or_billing_country_string();
 
-        let to_tamara_amount = |value: MinorUnit, context: &'static str| {
+        let to_tamara_amount = |value: common_utils::types::Money, context: &'static str| {
             converter
-                .convert(&common_utils::types::Money {
-                    amount: value,
-                    currency,
-                })
+                .convert(&value)
                 .map(|amount| TamaraAmount { amount, currency })
                 .change_context(errors::IntegrationError::RequestEncodingFailed {
                     context: errors::IntegrationErrorContext {
@@ -344,7 +341,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 })
         };
-        let optional_amount = |value: Option<MinorUnit>, context: &'static str| {
+        let optional_amount = |value: Option<common_utils::types::Money>, context: &'static str| {
             value.map(|v| to_tamara_amount(v, context)).transpose()
         };
 

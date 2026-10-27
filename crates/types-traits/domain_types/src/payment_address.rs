@@ -1,5 +1,5 @@
 use common_enums::ProductType;
-use common_utils::{ext_traits::ConfigExt, Email, MinorUnit};
+use common_utils::{ext_traits::ConfigExt, Email, Money};
 use hyperswitch_masking::{PeekInterface, Secret, SerializableSecret};
 
 use crate::{
@@ -489,11 +489,11 @@ pub struct OrderDetailsWithAmount {
     /// The quantity of the product to be purchased
     pub quantity: u16,
     /// the amount per quantity of product
-    pub amount: MinorUnit,
+    pub amount: Money,
     /// tax rate applicable to the product
     pub tax_rate: Option<f64>,
     /// total tax amount applicable to the product
-    pub total_tax_amount: Option<MinorUnit>,
+    pub total_tax_amount: Option<Money>,
     // Does the order includes shipping
     pub requires_shipping: Option<bool>,
     /// The image URL of the product
@@ -521,9 +521,9 @@ pub struct OrderDetailsWithAmount {
     /// commodity code of the product
     pub commodity_code: Option<String>,
     /// total amount of the product
-    pub total_amount: Option<MinorUnit>,
+    pub total_amount: Option<Money>,
     /// discount amount on the unit
-    pub unit_discount_amount: Option<MinorUnit>,
+    pub unit_discount_amount: Option<Money>,
     // discount name applied to this item
     pub discount_name: Option<String>,
     // discount percentage applied to this item
@@ -561,10 +561,11 @@ impl OrderDetailsWithAmount {
             .ok_or_else(missing_field_err("order_details[].sku"))
     }
 
-    /// Line total in minor units: the explicit `total_amount` when present, else the unit
-    /// `amount`.
-    pub fn get_total_amount(&self) -> MinorUnit {
-        self.total_amount.unwrap_or(self.amount)
+    /// Line total: the explicit `total_amount` when present, else the unit `amount`.
+    pub fn get_total_amount(&self) -> Money {
+        self.total_amount
+            .clone()
+            .unwrap_or_else(|| self.amount.clone())
     }
 
     /// Product type (`item_type`/`type` on most connector line items).
@@ -584,21 +585,20 @@ impl OrderDetailsWithAmount {
         self.product_img_link.clone()
     }
 
-    /// Unit price in minor units (`amount` is per-quantity, `unit_price` on most connector
-    /// line items).
-    pub fn get_unit_amount(&self) -> MinorUnit {
-        self.amount
+    /// Unit price (`amount` is per-quantity, `unit_price` on most connector line items).
+    pub fn get_unit_amount(&self) -> Money {
+        self.amount.clone()
     }
 
     /// Discount amount on the unit, in minor units (`discount_amount` on most connector
     /// line items).
-    pub fn get_optional_unit_discount_amount(&self) -> Option<MinorUnit> {
-        self.unit_discount_amount
+    pub fn get_optional_unit_discount_amount(&self) -> Option<Money> {
+        self.unit_discount_amount.clone()
     }
 
     /// Total tax amount for the line, in minor units (`tax_amount` on most connector
     /// line items).
-    pub fn get_optional_total_tax_amount(&self) -> Option<MinorUnit> {
-        self.total_tax_amount
+    pub fn get_optional_total_tax_amount(&self) -> Option<Money> {
+        self.total_tax_amount.clone()
     }
 }

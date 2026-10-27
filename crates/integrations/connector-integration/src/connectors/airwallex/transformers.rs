@@ -2222,10 +2222,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         let unit_price = item
                             .connector
                             .amount_converter
-                            .convert(&common_utils::types::Money {
-                                amount: detail.amount,
-                                currency: item.router_data.request.currency,
-                            })
+                            .convert(&detail.amount)
                             .map_err(|_| IntegrationError::RequestEncodingFailed {
                                 context: aw_err_ctx(
                                     "Failed to convert an order line item amount into the \

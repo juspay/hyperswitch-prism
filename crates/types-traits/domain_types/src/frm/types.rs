@@ -280,7 +280,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
                 value
                     .order_details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| OrderDetailsWithAmount::foreign_try_from((item, currency)))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()
@@ -445,7 +445,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
                 value
                     .order_details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| OrderDetailsWithAmount::foreign_try_from((item, currency)))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()

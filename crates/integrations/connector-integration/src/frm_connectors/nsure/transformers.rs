@@ -650,12 +650,7 @@ fn nsure_cart(
                     // Pending confirmation from nSure; quantity is 1 in every
                     // request exercised so far, where both readings agree.
                     selling_price: NsureAmount {
-                        value_in_currency: super::NsureAmountConvertor::convert(
-                            &common_utils::types::Money {
-                                amount: detail.amount,
-                                currency: total.currency,
-                            },
-                        )?,
+                        value_in_currency: super::NsureAmountConvertor::convert(&detail.amount)?,
                         currency: total.currency,
                     },
                     sku: detail.sku.clone().or_else(|| detail.product_id.clone()),
@@ -760,10 +755,7 @@ impl<
         };
 
         let paid_amount = NsureAmount {
-            value_in_currency: super::NsureAmountConvertor::convert(&common_utils::types::Money {
-                amount: req.amount.amount,
-                currency,
-            })?,
+            value_in_currency: super::NsureAmountConvertor::convert(&req.amount)?,
             currency,
         };
         let cart = nsure_cart(req.order_details.as_ref(), &paid_amount, &feature_data)?;
