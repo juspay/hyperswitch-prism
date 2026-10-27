@@ -41,6 +41,31 @@ pub fn integration_error_context(
     }
 }
 
+/// Betterpayment accepts an alphanumeric merchant order reference.
+/// Keep the transformation deterministic so retries use the same order ID.
+fn sanitize_merchant_transaction_id(
+    merchant_transaction_id: &str,
+) -> Result<String, error_stack::Report<errors::IntegrationError>> {
+    let betterpayment_order_id: String = merchant_transaction_id
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .collect();
+
+    if betterpayment_order_id.is_empty() || betterpayment_order_id.len() > 35 {
+        return Err(errors::IntegrationError::InvalidDataFormat {
+            field_name: "merchant_transaction_id",
+            context: integration_error_context(
+                PAYMENT_DOC_URL,
+                "Provide a merchant transaction ID containing 1 to 35 ASCII alphanumeric characters after sanitization.",
+                "Betterpayment order_id accepts alphanumeric characters; non-alphanumeric characters are removed.",
+            ),
+        }
+        .into());
+    }
+
+    Ok(betterpayment_order_id)
+}
+
 #[derive(Debug, Clone)]
 pub struct BetterpaymentAuthType {
     /// API key — used as the HTTP Basic Auth username.
@@ -82,6 +107,7 @@ impl TryFrom<&ConnectorSpecificConfig> for BetterpaymentAuthType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BetterpaymentErrorResponse {
     pub error_code: Option<u64>,
+    #[serde(alias = "error_message")]
     pub message: Option<String>,
 }
 
@@ -229,8 +255,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
         })?;
 
-        // A compact UUIDv7 fits Betterpayment's 35-character order_id limit.
-        let order_id = common_utils::fp_utils::generate_uuid_v7().replace('-', "");
+        let order_id = sanitize_merchant_transaction_id(
+            &router_data
+                .resource_common_data
+                .connector_request_reference_id,
+        )?;
 
         match &request.payment_method_data {
             PaymentMethodData::Wallet(WalletData::Wero(_)) => {
@@ -322,7 +351,7 @@ impl From<BetterpaymentPaymentStatus> for AttemptStatus {
             BetterpaymentPaymentStatus::Pending => Self::Pending,
             BetterpaymentPaymentStatus::Completed => Self::Charged,
             BetterpaymentPaymentStatus::Declined => Self::Failure,
-            BetterpaymentPaymentStatus::Canceled => Self::Voided,
+            BetterpaymentPaymentStatus::Canceled => Self::Failure,
             BetterpaymentPaymentStatus::Error => Self::Failure,
             BetterpaymentPaymentStatus::Unknown => Self::Pending,
         }
@@ -371,11 +400,14 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BetterpaymentAuthoriz
             router_data,
             http_code,
         } = item;
-        let status = AttemptStatus::from(connector_response.status);
+        let status = if connector_response.error_code.is_some_and(|code| code != 0) {
+            AttemptStatus::Failure
+        } else {
+            AttemptStatus::from(connector_response.status)
+        };
 
-        // IN-BAND 2xx FAILURE: Betterpayment returns HTTP 200 with `declined`
-        // or `error` status. Turn those into Err(ErrorResponse) here — the
-        // shared `build_error_response` never sees 2xx bodies.
+        // Preserve in-band errors even when the response omits status and transaction_id.
+        // The shared build_error_response does not handle successful HTTP status codes.
         let response = if utils::is_payment_failure(status) {
             Err(ErrorResponse {
                 code: connector_response
@@ -452,7 +484,6 @@ pub struct BetterpaymentPSyncResponse {
     pub transaction_id: Option<String>,
     pub status: BetterpaymentPaymentStatus,
     pub order_id: Option<String>,
-    pub amount: Option<f64>,
     pub error_code: Option<u64>,
     pub message: Option<String>,
 }
@@ -723,8 +754,8 @@ pub struct BetterpaymentWebhookBody {
     pub status_code: Option<i64>,
     pub status: BetterpaymentWebhookStatus,
     pub order_id: String,
-    pub amount: Option<f64>,
-    pub currency: Option<String>,
+    pub amount: Option<common_utils::types::FloatMajorUnit>,
+    pub currency: Option<common_enums::Currency>,
     pub message: Option<String>,
     pub reason_code: Option<String>,
     pub additional_transaction_data: Option<String>,
@@ -734,7 +765,7 @@ pub struct BetterpaymentWebhookBody {
     pub payer_location: Option<String>,
     // Refund-only fields; absent on payment postbacks.
     pub refund_id: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_refund_webhook_status")]
+    #[serde(default)]
     pub refund_status_code: Option<BetterpaymentRefundWebhookStatus>,
     pub refund_reason_code: Option<String>,
     pub refund_wallet_activity_reference: Option<String>,
@@ -778,10 +809,9 @@ impl From<BetterpaymentWebhookStatus> for AttemptStatus {
             BetterpaymentWebhookStatus::Declined | BetterpaymentWebhookStatus::Error => {
                 Self::Failure
             }
-            BetterpaymentWebhookStatus::Started | BetterpaymentWebhookStatus::Pending => {
-                Self::Pending
-            }
-            BetterpaymentWebhookStatus::Canceled => Self::Voided,
+            BetterpaymentWebhookStatus::Started => Self::AuthenticationPending,
+            BetterpaymentWebhookStatus::Pending => Self::Pending,
+            BetterpaymentWebhookStatus::Canceled => Self::Failure,
             BetterpaymentWebhookStatus::Unknown => Self::Pending,
         }
     }
@@ -797,71 +827,54 @@ pub fn get_webhook_event_type(body: &BetterpaymentWebhookBody) -> EventType {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(from = "u64")]
 pub enum BetterpaymentRefundWebhookStatus {
-    #[serde(alias = "0")]
     Started,
-    #[serde(alias = "1")]
     Success,
-    #[serde(alias = "2")]
     Error,
-    #[serde(alias = "3")]
     Local,
-    #[serde(alias = "4")]
     Reversed,
-    #[serde(alias = "5")]
     Declined,
-    #[serde(other)]
     Unknown,
 }
 
-fn deserialize_refund_webhook_status<'de, D>(
-    deserializer: D,
-) -> Result<Option<BetterpaymentRefundWebhookStatus>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let code = Option::<i64>::deserialize(deserializer)?;
-    code.map(|code| {
-        // Serde enum aliases are strings; the API sends an integer code.
-        serde_json::from_value(serde_json::Value::String(code.to_string()))
-            .map_err(serde::de::Error::custom)
-    })
-    .transpose()
+impl From<u64> for BetterpaymentRefundWebhookStatus {
+    fn from(code: u64) -> Self {
+        match code {
+            0 => Self::Started,
+            1 => Self::Success,
+            2 => Self::Error,
+            3 => Self::Local,
+            4 => Self::Reversed,
+            5 => Self::Declined,
+            _ => Self::Unknown,
+        }
+    }
 }
 
 pub fn get_refund_webhook_event_type(
     status: Option<BetterpaymentRefundWebhookStatus>,
 ) -> EventType {
-    match status {
-        Some(BetterpaymentRefundWebhookStatus::Started) => EventType::RefundProcessing,
-        Some(BetterpaymentRefundWebhookStatus::Success) => EventType::RefundSuccess,
-        Some(
-            BetterpaymentRefundWebhookStatus::Error
-            | BetterpaymentRefundWebhookStatus::Reversed
-            | BetterpaymentRefundWebhookStatus::Declined,
-        ) => EventType::RefundFailure,
-        Some(
-            BetterpaymentRefundWebhookStatus::Local | BetterpaymentRefundWebhookStatus::Unknown,
-        )
-        | None => EventType::RefundProcessing,
+    match status
+        .map(common_enums::RefundStatus::from)
+        .unwrap_or_default()
+    {
+        common_enums::RefundStatus::Success => EventType::RefundSuccess,
+        common_enums::RefundStatus::Failure => EventType::RefundFailure,
+        _ => EventType::RefundProcessing,
     }
 }
 
-pub fn get_refund_webhook_status(
-    status: Option<BetterpaymentRefundWebhookStatus>,
-) -> Result<common_enums::RefundStatus, error_stack::Report<errors::WebhookError>> {
-    match status {
-        Some(BetterpaymentRefundWebhookStatus::Started) => Ok(common_enums::RefundStatus::Pending),
-        Some(BetterpaymentRefundWebhookStatus::Success) => Ok(common_enums::RefundStatus::Success),
-        Some(
+impl From<BetterpaymentRefundWebhookStatus> for common_enums::RefundStatus {
+    fn from(status: BetterpaymentRefundWebhookStatus) -> Self {
+        match status {
+            BetterpaymentRefundWebhookStatus::Success => Self::Success,
             BetterpaymentRefundWebhookStatus::Error
             | BetterpaymentRefundWebhookStatus::Reversed
-            | BetterpaymentRefundWebhookStatus::Declined,
-        ) => Ok(common_enums::RefundStatus::Failure),
-        Some(
-            BetterpaymentRefundWebhookStatus::Local | BetterpaymentRefundWebhookStatus::Unknown,
-        )
-        | None => Ok(common_enums::RefundStatus::Pending),
+            | BetterpaymentRefundWebhookStatus::Declined => Self::Failure,
+            BetterpaymentRefundWebhookStatus::Started
+            | BetterpaymentRefundWebhookStatus::Local
+            | BetterpaymentRefundWebhookStatus::Unknown => Self::Pending,
+        }
     }
 }

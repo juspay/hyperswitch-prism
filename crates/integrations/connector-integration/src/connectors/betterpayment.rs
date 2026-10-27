@@ -12,7 +12,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::StringMajorUnit,
+    types::{AmountConvertor, FloatMajorUnitForConnector, Money, StringMajorUnit},
 };
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
@@ -197,13 +197,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: betterpayment::BetterpaymentErrorResponse = res
-            .response
-            .parse_struct("BetterpaymentErrorResponse")
-            .change_context(crate::utils::response_deserialization_fail(
-                res.status_code,
-                "betterpayment: error body did not match the documented error shape",
-            ))?;
+        let response: betterpayment::BetterpaymentErrorResponse =
+            match res.response.parse_struct("BetterpaymentErrorResponse") {
+                Ok(response) => response,
+                Err(_) => {
+                    return domain_types::utils::handle_json_response_deserialization_failure(
+                        res,
+                        "betterpayment",
+                    );
+                }
+            };
 
         with_error_response_body!(event_builder, response);
 
@@ -365,6 +368,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         let status = AttemptStatus::from(body.status.clone());
+        let amount_captured = if status == AttemptStatus::Charged {
+            body.amount
+                .zip(body.currency)
+                .map(|(amount, currency)| {
+                    let amount = FloatMajorUnitForConnector
+                        .convert_back(amount, currency)
+                        .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+                    Ok::<_, error_stack::Report<errors::WebhookError>>(Money { amount, currency })
+                })
+                .transpose()?
+        } else {
+            None
+        };
 
         let (error_code, error_message) = if status == AttemptStatus::Failure {
             (body.reason_code.clone(), body.message.clone())
@@ -387,7 +403,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&raw).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            amount_captured,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -406,7 +422,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("BetterpaymentWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        let status = betterpayment::get_refund_webhook_status(body.refund_status_code)?;
+        let status = body
+            .refund_status_code
+            .ok_or(errors::WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Betterpayment refund webhook is missing refund_status_code")
+            .map(common_enums::RefundStatus::from)?;
 
         let (error_code, error_message) = if status == common_enums::RefundStatus::Failure {
             (body.refund_reason_code.clone(), body.message.clone())

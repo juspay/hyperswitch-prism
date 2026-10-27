@@ -6132,9 +6132,13 @@ message PayhereConfig {
 }
 
 message BetterpaymentConfig {
+  // Betterpayment API key, used as the HTTP Basic Authentication username.
   SecretString api_key = 1;
+  // Betterpayment API password, used as the HTTP Basic Authentication password.
   SecretString api_password = 2;
+  // Betterpayment outgoing key, used only for webhook HMAC verification, not API authentication.
   SecretString webhook_key = 3;
+  // Optional override for the Betterpayment API base URL.
   optional string base_url = 50;
 }
 

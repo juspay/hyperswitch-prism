@@ -128,7 +128,9 @@ fn refund_webhooks_map_documented_missing_and_future_codes() {
             serde_json::from_value(payload).expect("parse refund webhook");
         assert_eq!(get_webhook_event_type(&body), expected_event);
         assert_eq!(
-            get_refund_webhook_status(body.refund_status_code).expect("map refund status"),
+            body.refund_status_code
+                .map(RefundStatus::from)
+                .unwrap_or_default(),
             expected_status
         );
     }
@@ -185,4 +187,28 @@ fn webhook_signature_rejects_tampered_body_wrong_key_and_invalid_headers() {
     assert!(connector
         .verify_webhook_source(request, None, Some(config()))
         .is_err());
+}
+
+#[test]
+fn refund_webhook_rejects_missing_or_null_status_code() {
+    let connector = Betterpayment::<DefaultPCIHolder>::new();
+    for payload in [
+        json!({"transaction_id": "payment-123", "order_id": "order-123", "status": "refunded", "refund_id": "refund-123"}),
+        json!({"transaction_id": "payment-123", "order_id": "order-123", "status": "refunded", "refund_id": "refund-123", "refund_status_code": null}),
+    ] {
+        let request = RequestDetails {
+            method: domain_types::connector_types::HttpMethod::Post,
+            uri: None,
+            headers: std::collections::HashMap::new(),
+            body: serde_json::to_vec(&payload).expect("serialize webhook"),
+            query_params: None,
+        };
+        let error = connector
+            .process_refund_webhook(request, None, None)
+            .expect_err("missing refund status must fail");
+        assert!(matches!(
+            error.current_context(),
+            domain_types::errors::WebhookError::WebhookBodyDecodingFailed
+        ));
+    }
 }
