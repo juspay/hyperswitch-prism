@@ -11365,18 +11365,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceReverseRequest>
     fn foreign_try_from(
         value: grpc_api_types::payments::PaymentServiceReverseRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let amount = value
-            .amount
-            .filter(|a| a.currency() != grpc_api_types::payments::Currency::Unspecified)
-            .map(|a| {
-                Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(a.minor_amount),
-                    currency: common_enums::Currency::foreign_try_from(a.currency())?,
-                })
-            })
-            .transpose()?;
         Ok(Self {
-            amount,
             browser_info: value
                 .browser_info
                 .map(BrowserInformation::foreign_try_from)

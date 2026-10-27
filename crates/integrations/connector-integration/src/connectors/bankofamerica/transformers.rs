@@ -2717,11 +2717,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // VoidPC (post-capture void) request — used with PaymentsCancelPostCaptureData.
 // Uses the POST /pts/v2/captures/{capture_id}/voids endpoint which only requires
-// clientReferenceInformation. No lineItems or amountDetails needed.
+// clientReferenceInformation; it also accepts an optional orderInformation.amountDetails,
+// sent when the caller provides an amount.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankofamericaVoidPCRequest {
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    order_information: Option<OrderInformation>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -2750,7 +2753,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        let order_information = item
+            .router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| {
+                let total_amount = item
+                    .connector
+                    .amount_converter
+                    .convert(amount.amount, amount.currency)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?;
+                Ok::<_, Self::Error>(OrderInformation {
+                    amount_details: Amount {
+                        total_amount,
+                        currency: amount.currency,
+                    },
+                })
+            })
+            .transpose()?;
         Ok(Self {
+            order_information,
             client_reference_information: ClientReferenceInformation {
                 code: Some(
                     item.router_data
