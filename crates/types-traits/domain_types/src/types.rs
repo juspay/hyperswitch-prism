@@ -11973,7 +11973,7 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
             .unwrap_or_default();
         // `amount` and `currency` are required on DisputeWebhookDetailsResponse, so every
         // connector already supplies them; surface them instead of dropping the disputed
-        // value on the floor. A connector that supplies an unparseable amount is a real
+        // value on the floor. A connector that supplies an unparsable amount is a real
         // fault and is reported rather than silently nulled.
         let dispute_amount = grpc_payment_types::Money {
             minor_amount: value
