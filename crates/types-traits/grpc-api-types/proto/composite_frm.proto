@@ -147,12 +147,9 @@ message CompositeFrmPostRiskCheckRequest {
   // Browser/device information for risk scoring (same as CompositeFrmPreRiskCheckRequest).
   optional BrowserInformation browser_info = 18;
 
-  // Held for mandate_details / merchant_details
-  reserved 19, 20;
-
   // Domain-specific order context (travel, hotel, airline…) as a typed object
   // (same as CompositeFrmPreRiskCheckRequest).
-  optional DomainData domain_data = 21;
+  optional DomainData domain_data = 19;
 }
 
 // ============================================================================
