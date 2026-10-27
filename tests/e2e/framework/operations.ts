@@ -41,12 +41,12 @@ export class PaymentOperations {
     );
   }
 
-  async retrieveUntilStatus(
+  async waitForPaymentStatus(
     paymentId: string,
     request: { force_sync: boolean },
     expectedStatus: string,
   ): Promise<PaymentResponse> {
-    return test.step(`Retrieve payment until status is ${expectedStatus}`, async () =>
+    return test.step(`Wait for payment status: ${expectedStatus}`, async () =>
       paymentResponse(
         await this.checks.waitForStatus(
           `Payment status: ${expectedStatus}`,

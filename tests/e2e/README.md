@@ -35,7 +35,7 @@ const createdPayment = await payments.createPayment({
   payment_method_data: { card: connector.card },
 });
 
-const payment = await payments.retrieveUntilStatus(
+const payment = await payments.waitForPaymentStatus(
   createdPayment.payment_id,
   { force_sync: true },
   "succeeded",
@@ -50,7 +50,7 @@ await checks.fields("Payment result", payment, {
 
 Responses are ordinary objects. Any returned field can be passed to a later operation using normal TypeScript variables. Requests use HS API field names. Operations apply configured connector request differences before sending; they do not duplicate the full HS API schema or add payment defaults. The shared operations use the provisioned merchant's server API key.
 
-`checks.fields(name, actual, expected)` compares fields and attaches the same expected/actual values to the report. `checks.oneOf(name, actual, allowed)` checks membership. `retrieveUntilStatus` repeats only GET requests, for at most 90 seconds. Mutating requests are never retried automatically.
+`checks.fields(name, actual, expected)` compares fields and attaches the same expected/actual values to the report. `checks.oneOf(name, actual, allowed)` checks membership. `waitForPaymentStatus` polls the payment GET endpoint, for at most 90 seconds, and returns the response with the expected status. Mutating requests are never retried automatically.
 
 Only `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.spec.ts` is implemented. The four sibling files are empty placeholders. The current sequence is:
 

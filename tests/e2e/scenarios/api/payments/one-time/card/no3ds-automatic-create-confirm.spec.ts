@@ -65,7 +65,7 @@ for (const connector of connectors) {
 
       // 2. GET /payments/{id}?force_sync=true: poll until succeeded (at most 90s).
       // The whole response remains available; any field can be used by later calls.
-      const payment = await payments.retrieveUntilStatus(
+      const payment = await payments.waitForPaymentStatus(
         createdPayment.payment_id,
         { force_sync: true },
         "succeeded",

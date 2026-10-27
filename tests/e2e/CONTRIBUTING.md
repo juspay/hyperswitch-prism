@@ -8,7 +8,7 @@ Start with `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.
 2. Import `test` from `framework/fixtures.ts` and the connector registry from `connectors/index.ts`. Use the same `for`/`describe`/`test.use` registration pattern as the reference spec. The loop includes every registered connector.
 3. Write the calls in execution order using the `payments` fixture. Keep their request fields, use of returned values, and expected outcomes visible in the spec.
 4. Use `checks.fields` for exact field comparisons and `checks.oneOf` for an explicitly allowed set. Both produce the standard expected/actual report. Do not create a second assertion or attachment format in a scenario.
-5. For asynchronous completion, use the operation's bounded retrieval method. `retrievePayment` makes one GET; `retrieveUntilStatus` polls GET until the stated status. Do not add sleeps, custom polling loops, or retries around mutations.
+5. For asynchronous completion, use `waitForPaymentStatus`, which polls the payment GET endpoint until the expected status and returns that response. `retrievePayment` makes one GET to observe the current state. Do not add sleeps, custom polling loops, or retries around mutations.
 6. Run `npm run check`, `npm run list`, and the new spec against the sandbox. An empty placeholder does not count as coverage.
 
 Use a new variable for each response and pass fields directly to the next operation. Responses are not automatically stored in shared state. Each test receives an isolated merchant and connector account. Keep request amounts, addresses, and expected outcomes fixed; generated resource identifiers are created only for isolation.
