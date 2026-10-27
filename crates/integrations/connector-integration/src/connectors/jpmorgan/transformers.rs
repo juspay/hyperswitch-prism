@@ -833,6 +833,7 @@ fn map_partial_authorization_support(
         requests::JpmorganPartialAuthorizationSupport::NotSupported
     }
 }
+
 impl
     TryFrom<(
         &domain_types::router_request_types::AuthenticationData,
