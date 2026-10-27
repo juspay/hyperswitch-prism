@@ -2214,7 +2214,6 @@ pub enum PaymentsResponseData {
     PostCaptureVoidResponse {
         post_capture_void_status: common_enums::PostCaptureVoidStatus,
         connector_reference_id: Option<String>,
-        description: Option<String>,
         status_code: u16,
     },
 }
