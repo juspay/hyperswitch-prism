@@ -12,9 +12,6 @@ const scenario = {
   title: "One-time card payment — No3DS, automatic capture",
   description:
     "Create and confirm in one server API request, retrieve the successful payment, and verify UCS routing and a recorded processor reference.",
-  paymentMethod: "card",
-  authentication: "no_three_ds",
-  captureMethod: "automatic",
   steps: [
     {
       name: "POST /payments — create and confirm with automatic capture",

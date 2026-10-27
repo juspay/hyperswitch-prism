@@ -17,6 +17,8 @@ Open the HTML report with `npx playwright show-report`. Stop the isolated stack 
 
 `HS_IMAGE`, `UCS_IMAGE`, `HS_BASE_URL`, and `HS_SOURCE_DIR` are optional. The defaults run the latest published Hyperswitch and UCS images locally. The source checkout supplies configuration and database migrations matching the Hyperswitch image and is cached after the first run.
 
+HS configuration uses its supported `ROUTER__...` environment overrides. The upstream TOML remains unchanged. `stack/ucs.Dockerfile` adds the standard gRPC health probe to the published UCS image; Compose waits for UCS to report healthy before starting HS. PostgreSQL uses the loopback port `HS_DB_PORT` (default `15432`); Redis is available only inside the Compose network. `HS_PORT` sets the local HS port (default `8080`). `UCS_CONNECTORS` controls the local HS connector list (default `adyen`).
+
 ## Extend coverage
 
 Each scenario has its own file. `create-confirm` means a single create request with `confirm: true`; `create-then-confirm` means separate create and confirm requests. `automatic` and `manual` describe capture mode. Retrieval and verification steps are declared within each scenario.
@@ -46,13 +48,18 @@ All compatible registered connectors automatically receive a shared scenario. Ad
 | `framework/credentials.ts` | Load external connector credentials. |
 | `framework/configuration.ts` | Resolve runtime URLs and options from environment variables. |
 | `stack/compose.yml` | Define local service configuration and startup dependencies. |
+| `stack/ucs.Dockerfile` | Add the gRPC health-check executable to the published UCS image. |
 | `stack/stack.mjs` | Prepare matching runtime assets and start or stop the Compose project. |
 | `playwright.config.ts` | Configure test discovery, execution, and reporters. |
 | `package.json`, `package-lock.json`, `tsconfig.json` | Define commands, dependencies, and compiler settings. |
 
 The runner does not select a payment lifecycle or insert additional payment calls. `steps` are executed in declaration order. `saveAs: "payment"` saves the created payment identifier; `payment: "payment"` references it in subsequent steps. `$connector.card` explicitly selects the registered connector's sandbox card, while the framework supplies the provisioned profile and server API key.
 
-Each step's `expect` entries drive both assertions and report attachments. `waitForStatus` declares a retrieval polling target; only retrieval is repeated. An HTTP error stops the test. The currently implemented operations are `createPayment`, `retrievePayment`, and `verifyPaymentRoute`; additional operations belong in the shared framework when their first scenario is added.
+Within a step, `name` is the report label, `action` selects the reusable operation, `request` contains HS API request fields, and `expect` contains response comparisons. `saveAs` and `payment` link operations by payment identifier. The request type documents core card fields and permits additional JSON fields, which are forwarded unchanged. HS remains responsible for API validation; the framework does not duplicate the full HS request schema. Framework substitutions such as `$connector.card` and `{ from: "connector.id" }` are resolved before the HTTP call or comparison.
+
+Each step's `expect` entries drive both assertions and report attachments. `waitForStatus` declares a retrieval polling target; only retrieval is repeated. Mutating requests are never retried automatically. The currently implemented operations are `createPayment`, `retrievePayment`, and `verifyPaymentRoute`; additional operations belong in the shared framework when their first scenario is added.
+
+Connector compatibility is derived from the payment request in the scenario. Routing verification reads the dedicated test HS database through `HS_DATABASE_URL` or the local default. This explicitly checks HS storage fields for the recorded gateway and processor reference; it does not prove that a retrieval caused a fresh processor sync. Run against an HS version with the corresponding database schema.
 
 The current scenario is a server-side, one-time No3DS card payment with automatic capture:
 

@@ -33,7 +33,10 @@ export async function runScenario(
           case "createPayment": {
             actual = await hs.call("POST", "/payments", merchant.apiKey, {
               ...step.request,
-              payment_method_data: { card: connector.card },
+              payment_method_data: {
+                ...step.request.payment_method_data,
+                card: connector.card,
+              },
               profile_id: merchant.profileId,
             });
             if (typeof actual.payment_id !== "string" || !actual.payment_id) {

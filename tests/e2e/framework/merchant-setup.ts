@@ -17,6 +17,7 @@ export async function setupMerchant(
   connector: ConnectorDefinition,
 ): Promise<TestMerchant> {
   return test.step("Set up merchant, connector account, and routing", async () => {
+    const credentials = loadConnectorCredentials(connector.credentialKey);
     await enableUcs(hs);
     const merchantId = `e2e_${randomUUID().replaceAll("-", "")}`;
     const account = await hs.call(
@@ -56,7 +57,6 @@ export async function setupMerchant(
     expect(typeof profileId, "Business profile is available").toBe("string");
     if (!profileId) throw new Error("Business profile was not created");
 
-    const credentials = loadConnectorCredentials(connector.credentialKey);
     const merchantConnector = await hs.call(
       "POST",
       `/account/${merchantId}/connectors`,

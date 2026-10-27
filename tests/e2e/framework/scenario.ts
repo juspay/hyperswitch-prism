@@ -29,7 +29,17 @@ export type ExpectedValue =
   | { oneOf: readonly (string | number | boolean | null)[] }
   | { from: "connector.id" | "merchant.merchantConnectorId" };
 
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [field: string]: JsonValue };
+
+// HS owns request validation. Additional API fields pass through unchanged.
 export type PaymentRequest = {
+  [field: string]: JsonValue | undefined;
   amount: number;
   currency: string;
   confirm: boolean;
@@ -37,9 +47,9 @@ export type PaymentRequest = {
   capture_method: CaptureMethod;
   payment_method: "card";
   payment_method_type: "credit" | "debit";
-  payment_method_data: { card: "$connector.card" };
-  billing?: { address: Record<string, string> };
-  browser_info?: Record<string, string | number | boolean>;
+  payment_method_data: { [field: string]: JsonValue; card: "$connector.card" };
+  billing?: { [field: string]: JsonValue };
+  browser_info?: { [field: string]: JsonValue };
   email?: string;
   return_url?: string;
 };
@@ -66,19 +76,25 @@ export type PaymentScenario = {
   id: string;
   title: string;
   description: string;
-  paymentMethod: "card";
-  authentication: Authentication;
-  captureMethod: CaptureMethod;
-  steps: readonly ScenarioStep[];
+  steps: readonly [ScenarioStep, ...ScenarioStep[]];
 };
 
 export function supports(
   connector: ConnectorDefinition,
   scenario: PaymentScenario,
 ): boolean {
-  return (
-    connector.capabilities.paymentMethods.includes(scenario.paymentMethod) &&
-    connector.capabilities.authentications.includes(scenario.authentication) &&
-    connector.capabilities.captureMethods.includes(scenario.captureMethod)
-  );
+  return scenario.steps.every((step) => {
+    if (step.action !== "createPayment") return true;
+    return (
+      connector.capabilities.paymentMethods.includes(
+        step.request.payment_method,
+      ) &&
+      connector.capabilities.authentications.includes(
+        step.request.authentication_type,
+      ) &&
+      connector.capabilities.captureMethods.includes(
+        step.request.capture_method,
+      )
+    );
+  });
 }

@@ -2,10 +2,10 @@ import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   readdirSync,
   renameSync,
-  rmSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -29,12 +29,14 @@ if (!new Set(["up", "down"]).has(action)) {
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { stdio: "inherit", ...options });
   if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`${command} exited ${result.status}`);
+  if (result.status !== 0)
+    throw new Error(`${command} exited ${result.status}`);
 }
 
 function output(command, args) {
   const result = spawnSync(command, args, { encoding: "utf8" });
-  if (result.status !== 0) throw new Error(`${command} exited ${result.status}`);
+  if (result.status !== 0)
+    throw new Error(`${command} exited ${result.status}`);
   return result.stdout.trim();
 }
 
@@ -44,6 +46,8 @@ async function sourceCheckout() {
   if (action === "down" && existsSync(versionsFile)) {
     return JSON.parse(readFileSync(versionsFile, "utf8")).hsSourceDir;
   }
+  if (action === "down")
+    throw new Error("No local E2E stack has been prepared");
 
   run("docker", ["pull", hsImage]);
   const version = output("docker", [
@@ -86,8 +90,7 @@ async function sourceCheckout() {
 
   const checkout = resolve(runtime, `hyperswitch-${commit}`);
   if (!existsSync(checkout)) {
-    const pending = `${checkout}.partial`;
-    rmSync(pending, { recursive: true, force: true });
+    const pending = mkdtempSync(resolve(runtime, `hyperswitch-${commit}-`));
     run("git", ["init", "--quiet", pending]);
     run("git", [
       "-C",
@@ -120,6 +123,11 @@ async function sourceCheckout() {
     run("git", ["-C", pending, "checkout", "--detach", "FETCH_HEAD"]);
     renameSync(pending, checkout);
   }
+  if (output("git", ["-C", checkout, "rev-parse", "HEAD"]) !== commit) {
+    throw new Error(
+      "Cached Hyperswitch checkout does not match the image revision",
+    );
+  }
   return checkout;
 }
 
@@ -129,25 +137,9 @@ if (!checkout || !existsSync(resolve(checkout, "docker-compose.yml"))) {
   throw new Error("The matching Hyperswitch source checkout is unavailable");
 }
 
-const hsConfig = resolve(runtime, "hs.toml");
 const dieselConfig = resolve(runtime, "diesel.toml");
 if (action === "up") {
   run("docker", ["pull", ucsImage]);
-  let config = readFileSync(
-    resolve(checkout, "config/docker_compose.toml"),
-    "utf8",
-  );
-  config = config.replace(
-    /^\[grpc_client\.unified_connector_service\][\s\S]*?(?=^\[|$(?![\s\S]))/m,
-    "",
-  );
-  config +=
-    "\n[grpc_client.unified_connector_service]\n" +
-    'base_url = "http://ucs:8000"\n' +
-    "connection_timeout = 10\n" +
-    "request_timeout = 60\n" +
-    'ucs_only_connectors = "adyen"\n';
-  writeFileSync(hsConfig, config);
   writeFileSync(
     dieselConfig,
     '[migrations_directory]\ndir = "/app/migrations"\n',
@@ -173,9 +165,11 @@ const env = {
   ...process.env,
   HS_IMAGE: hsImage,
   UCS_IMAGE: ucsImage,
-  E2E_HS_CONFIG: hsConfig,
+  E2E_UCS_DOCKERFILE: resolve(e2eRoot, "stack/ucs.Dockerfile"),
   E2E_DIESEL_CONFIG: dieselConfig,
 };
+
+if (action === "up") run("docker", [...compose, "build", "ucs"], { env });
 
 run(
   "docker",
@@ -183,7 +177,7 @@ run(
     ...compose,
     ...(action === "up"
       ? ["up", "-d", "--wait", "--wait-timeout", "600", "hyperswitch-server"]
-      : ["down"]),
+      : ["down", "--remove-orphans"]),
   ],
   { env },
 );

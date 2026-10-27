@@ -1,5 +1,7 @@
 export const configuration = {
-  hyperswitchBaseUrl: process.env.HS_BASE_URL ?? "http://127.0.0.1:8080",
+  hyperswitchBaseUrl:
+    process.env.HS_BASE_URL ??
+    `http://127.0.0.1:${process.env.HS_PORT ?? "8080"}`,
   adminApiKey: process.env.HS_ADMIN_API_KEY ?? "test_admin",
   databaseUrl:
     process.env.HS_DATABASE_URL ??

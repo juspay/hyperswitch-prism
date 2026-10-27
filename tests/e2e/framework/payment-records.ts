@@ -28,6 +28,11 @@ export async function readPaymentRoute(
        WHERE p.merchant_id = $1 AND p.payment_id = $2`,
       [merchantId, paymentId, connector, attemptStatus],
     );
+    if (result.rows.length !== 1) {
+      throw new Error(
+        "Expected exactly one payment record for routing verification",
+      );
+    }
     return {
       gateway: result.rows[0]?.gateway,
       processorReferenceRecorded:

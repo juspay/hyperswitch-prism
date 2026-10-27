@@ -10,8 +10,11 @@ services:
     ports: !reset []
 
   ucs:
-    image: ${UCS_IMAGE:-juspaydotin/hyperswitch-prism:latest}
-    pull_policy: missing
+    build:
+      context: .
+      dockerfile: ${E2E_UCS_DOCKERFILE}
+      args:
+        UCS_IMAGE: ${UCS_IMAGE:-juspaydotin/hyperswitch-prism:latest}
     environment:
       CS__SERVER__HOST: 0.0.0.0
       CS__SERVER__PORT: 8000
@@ -22,18 +25,19 @@ services:
     networks:
       - router_net
 
-  ucs-ready:
-    image: ghcr.io/grpc-ecosystem/grpc-health-probe:v0.4.38
-    command:
-      - -addr=ucs:8000
-      - -connect-timeout=5s
-      - -rpc-timeout=5s
-    networks:
-      - router_net
-    depends_on:
-      ucs:
-        condition: service_started
-    restart: "no"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/bin/grpc_health_probe",
+          "-addr=localhost:8000",
+          "-connect-timeout=2s",
+          "-rpc-timeout=2s",
+        ]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
 
   migration_runner:
     command:
@@ -69,14 +73,17 @@ services:
     command:
       - /local/bin/router
       - -f
-      - /local/config/e2e.toml
+      - /local/config/docker_compose.toml
     ports: !override
       - "127.0.0.1:${HS_PORT:-8080}:8080"
-    volumes:
-      - ${E2E_HS_CONFIG}:/local/config/e2e.toml:ro
+    environment:
+      ROUTER__GRPC_CLIENT__UNIFIED_CONNECTOR_SERVICE__BASE_URL: http://ucs:8000
+      ROUTER__GRPC_CLIENT__UNIFIED_CONNECTOR_SERVICE__CONNECTION_TIMEOUT: "10"
+      ROUTER__GRPC_CLIENT__UNIFIED_CONNECTOR_SERVICE__REQUEST_TIMEOUT: "60"
+      ROUTER__GRPC_CLIENT__UNIFIED_CONNECTOR_SERVICE__UCS_ONLY_CONNECTORS: ${UCS_CONNECTORS:-adyen}
     depends_on:
-      ucs-ready:
-        condition: service_completed_successfully
+      ucs:
+        condition: service_healthy
     healthcheck:
       start_period: 60s
       retries: 30

@@ -13,7 +13,7 @@ export function loadConnectorCredentials(key: string): ConnectorCredentials {
     );
   }
 
-  let document: Record<string, unknown>;
+  let document: unknown;
   try {
     document = JSON.parse(readFileSync(path, "utf8"));
   } catch {
@@ -22,9 +22,20 @@ export function loadConnectorCredentials(key: string): ConnectorCredentials {
     );
   }
 
-  const entry = document[key] as ConnectorCredentials | undefined;
-  if (!entry?.connector_account_details) {
+  const entry = isObject(document) ? document[key] : undefined;
+  if (
+    !isObject(entry) ||
+    !isObject(entry.connector_account_details) ||
+    (entry.metadata !== undefined && !isObject(entry.metadata))
+  ) {
     throw new Error(`Missing sandbox credentials for ${key}`);
   }
-  return structuredClone(entry);
+  return structuredClone({
+    connector_account_details: entry.connector_account_details,
+    ...(isObject(entry.metadata) ? { metadata: entry.metadata } : {}),
+  });
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
