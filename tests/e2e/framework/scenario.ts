@@ -11,9 +11,8 @@ export type CardData = {
 };
 
 export type ScenarioOverrides = {
-  // Keys name calls/checks in a shared scenario. Overrides replace whole fields.
-  requests?: Record<string, JsonObject>;
-  expectations?: Record<string, JsonObject>;
+  // Request differences only; the shared scenario owns its expected behavior.
+  requests?: { createPayment?: JsonObject };
 };
 
 export type ConnectorDefinition = {

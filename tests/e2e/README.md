@@ -48,7 +48,7 @@ await checks.fields("Payment result", payment, {
 });
 ```
 
-Responses are ordinary objects. Any returned field can be passed to a later operation using normal TypeScript variables. Requests use HS API field names and pass through unchanged; the framework does not duplicate the full HS API schema or add payment fields implicitly. The shared operations use the provisioned merchant's server API key.
+Responses are ordinary objects. Any returned field can be passed to a later operation using normal TypeScript variables. Requests use HS API field names. Operations apply configured connector request differences before sending; they do not duplicate the full HS API schema or add payment defaults. The shared operations use the provisioned merchant's server API key.
 
 `checks.fields(name, actual, expected)` compares fields and attaches the same expected/actual values to the report. `checks.oneOf(name, actual, allowed)` checks membership. `retrieveUntilStatus` repeats only GET requests, for at most 90 seconds. Mutating requests are never retried automatically.
 
@@ -67,10 +67,12 @@ The database read does not trigger or prove a fresh processor PSync call. It req
 
 ## Add coverage
 
+Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, and `checks`.
+
 Scenarios belong to the shared superset under `scenarios/`. Connectors automatically inherit all registered scenarios. Keep connector differences in `connectors/`; do not copy scenarios into connector directories.
 
 - Add a connector definition and register it in `connectors/index.ts`.
-- Supply sandbox card data and any necessary scenario request or expectation overrides.
+- Supply sandbox card data and any necessary scenario request overrides.
 - Exclude an unsupported scenario explicitly with a nonempty reason. Exclusions appear as skipped tests.
 - Add a new shared scenario for a new payment journey. Its function owns the ordered calls and expected results.
 - Add reusable operations or setup helpers when the new journey needs them. Operation helpers perform individual calls; they do not decide the journey.
@@ -83,9 +85,6 @@ overrides: {
     requests: {
       createPayment: { metadata: { order_type: "standard" } },
     },
-    expectations: {
-      payment: { currency: "EUR" },
-    },
   },
 },
 exclude: {
@@ -93,7 +92,7 @@ exclude: {
 },
 ```
 
-The scenario explicitly applies relevant overrides with object spread. Overrides replace complete top-level fields; nested objects are not implicitly merged. Keep request changes and their expected results consistent. Cards, credentials, and connector metadata do not justify a separate connector-specific lifecycle. Features needing extra setup should use a shared setup helper and explicit scenario requirements when introduced.
+Operations apply their request overrides automatically. Overrides replace complete top-level fields; nested objects are not implicitly merged. Shared expected outcomes remain in the spec and cannot be replaced by connector configuration. Cards, credentials, and connector metadata do not justify a separate connector-specific lifecycle. Features needing extra setup should use a shared setup helper and explicit scenario requirements when introduced.
 
 `create-confirm` means a single create request with `confirm:true`; `create-then-confirm` means separate requests. `automatic` and `manual` describe capture mode. The filename identifies the scenario; its code states the full journey.
 
@@ -104,10 +103,10 @@ The scenario explicitly applies relevant overrides with object spread. Overrides
 | File | Responsibility |
 | --- | --- |
 | `scenarios/api/**/*.spec.ts` | Own the complete journey, request data, use of responses, and expected results. |
-| `connectors/adyen.ts` | Declare sandbox data, optional data overrides, and reasoned exclusions. |
+| `connectors/adyen.ts` | Declare sandbox data, optional request overrides, and reasoned exclusions. |
 | `connectors/index.ts` | Register connector definitions. |
 | `framework/scenario.ts` | Define scenario metadata and data-only connector configuration types. |
-| `framework/fixtures.ts` | Standard Playwright fixtures apply exclusions, provision context, and release resources. No payment sequence. |
+| `framework/fixtures.ts` | Standard Playwright fixtures apply exclusions, provision context, and release resources. Export a typed public API without internal HTTP/keys/polling. No payment sequence. |
 | `framework/operations.ts` | Execute individual payment operations and return responses; expose explicitly named retrieval polling and recorded-routing reads. |
 | `framework/merchant-setup.ts` | Configure UCS and provision the merchant, API key, profile, connector account, and routing rule. |
 | `framework/hyperswitch.ts` | Send authenticated HS HTTP requests and handle transport/HTTP errors. |

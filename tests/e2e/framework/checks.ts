@@ -8,7 +8,12 @@ export class Checks {
     const comparisons = Object.fromEntries(
       Object.entries(expected).map(([field, value]) => [
         field,
-        { expected: value, actual: actual[field] },
+        {
+          expected: value,
+          actual: Object.hasOwn(actual, field)
+            ? actual[field]
+            : "<missing field>",
+        },
       ]),
     );
     await this.attach(name, comparisons);

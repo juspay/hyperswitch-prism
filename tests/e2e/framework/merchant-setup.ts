@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import type { ConnectorDefinition } from "./scenario.js";
 import { loadConnectorCredentials } from "./credentials.js";
 import { configuration } from "./configuration.js";
-import { Hyperswitch } from "./hyperswitch.js";
+import { Hyperswitch, stringField } from "./hyperswitch.js";
 
 export type TestMerchant = {
   merchantId: string;
@@ -40,19 +40,20 @@ export async function setupMerchant(
         expiration: new Date(Date.now() + 86_400_000).toISOString(),
       },
     );
-    expect(typeof apiKeyResponse.api_key, "Merchant API key is created").toBe(
-      "string",
-    );
+    const apiKey = stringField(apiKeyResponse, "api_key");
 
-    let profileId = account.default_profile as string | undefined;
+    let profileId =
+      typeof account.default_profile === "string"
+        ? account.default_profile
+        : undefined;
     if (!profileId) {
       const profile = await hs.call(
         "POST",
         `/account/${merchantId}/business_profile`,
-        apiKeyResponse.api_key,
+        apiKey,
         { profile_name: "ucs-e2e" },
       );
-      profileId = profile.profile_id;
+      profileId = stringField(profile, "profile_id");
     }
     expect(typeof profileId, "Business profile is available").toBe("string");
     if (!profileId) throw new Error("Business profile was not created");
@@ -60,7 +61,7 @@ export async function setupMerchant(
     const merchantConnector = await hs.call(
       "POST",
       `/account/${merchantId}/connectors`,
-      apiKeyResponse.api_key,
+      apiKey,
       {
         connector_name: connector.id,
         connector_label: `${connector.id}_e2e`,
@@ -73,12 +74,12 @@ export async function setupMerchant(
         disabled: false,
       },
     );
-    expect(
-      typeof merchantConnector.merchant_connector_id,
-      "Merchant connector account is created",
-    ).toBe("string");
+    const merchantConnectorId = stringField(
+      merchantConnector,
+      "merchant_connector_id",
+    );
 
-    const routing = await hs.call("POST", "/routing", apiKeyResponse.api_key, {
+    const routing = await hs.call("POST", "/routing", apiKey, {
       name: "ucs-e2e",
       description: "Route to the connector under test",
       profile_id: profileId,
@@ -86,22 +87,22 @@ export async function setupMerchant(
         type: "single",
         data: {
           connector: connector.id,
-          merchant_connector_id: merchantConnector.merchant_connector_id,
+          merchant_connector_id: merchantConnectorId,
         },
       },
     });
     await hs.call(
       "POST",
-      `/routing/${routing.id}/activate`,
-      apiKeyResponse.api_key,
+      `/routing/${stringField(routing, "id")}/activate`,
+      apiKey,
       { profile_id: profileId },
     );
 
     return {
       merchantId,
       profileId,
-      apiKey: apiKeyResponse.api_key,
-      merchantConnectorId: merchantConnector.merchant_connector_id,
+      apiKey,
+      merchantConnectorId,
     };
   });
 }

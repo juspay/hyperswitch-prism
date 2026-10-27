@@ -1,20 +1,21 @@
 import { test } from "@playwright/test";
 import { Checks } from "./checks.js";
-import { Hyperswitch, type Json } from "./hyperswitch.js";
+import { Hyperswitch, stringField, type Json } from "./hyperswitch.js";
 import type { TestMerchant } from "./merchant-setup.js";
-import type { ConnectorDefinition } from "./scenario.js";
+import type { ConnectorDefinition, ScenarioOverrides } from "./scenario.js";
 import { readPaymentRoute } from "./payment-records.js";
 
 export type PaymentResponse = Json & { payment_id: string; status: string };
 
 // Each method performs one named operation; the scenario chooses their order.
-// Request fields are forwarded unchanged. HS owns their validation.
+// Apply connector request differences once, then forward to HS for validation.
 export class PaymentOperations {
   constructor(
     private readonly hs: Hyperswitch,
     private readonly merchant: TestMerchant,
     private readonly connector: ConnectorDefinition,
     private readonly checks: Checks,
+    private readonly overrides: ScenarioOverrides,
   ) {}
 
   async createPayment(request: Json): Promise<PaymentResponse> {
@@ -22,27 +23,22 @@ export class PaymentOperations {
       "POST",
       "/payments",
       this.merchant.apiKey,
-      request,
+      { ...request, ...this.overrides.requests?.createPayment },
     );
-    if (
-      typeof response.payment_id !== "string" ||
-      !response.payment_id ||
-      typeof response.status !== "string"
-    ) {
-      throw new Error("Create payment must return payment_id and status");
-    }
-    return response as PaymentResponse;
+    return paymentResponse(response);
   }
 
   async retrievePayment(
     paymentId: string,
     request: { force_sync: boolean },
   ): Promise<PaymentResponse> {
-    return (await this.hs.call(
-      "GET",
-      `/payments/${encodeURIComponent(paymentId)}?force_sync=${request.force_sync}`,
-      this.merchant.apiKey,
-    )) as PaymentResponse;
+    return paymentResponse(
+      await this.hs.call(
+        "GET",
+        `/payments/${encodeURIComponent(paymentId)}?force_sync=${request.force_sync}`,
+        this.merchant.apiKey,
+      ),
+    );
   }
 
   async retrieveUntilStatus(
@@ -51,11 +47,13 @@ export class PaymentOperations {
     expectedStatus: string,
   ): Promise<PaymentResponse> {
     return test.step(`Retrieve payment until status is ${expectedStatus}`, async () =>
-      (await this.checks.waitForStatus(
-        `Payment status: ${expectedStatus}`,
-        () => this.retrievePayment(paymentId, request),
-        expectedStatus,
-      )) as PaymentResponse);
+      paymentResponse(
+        await this.checks.waitForStatus(
+          `Payment status: ${expectedStatus}`,
+          () => this.retrievePayment(paymentId, request),
+          expectedStatus,
+        ),
+      ));
   }
 
   async readRecordedRouting(paymentId: string, attemptStatus: string) {
@@ -67,4 +65,12 @@ export class PaymentOperations {
         attemptStatus,
       ));
   }
+}
+
+function paymentResponse(response: Json): PaymentResponse {
+  return {
+    ...response,
+    payment_id: stringField(response, "payment_id"),
+    status: stringField(response, "status"),
+  };
 }

@@ -6,7 +6,15 @@ import {
 } from "@playwright/test";
 import { configuration } from "./configuration.js";
 
-export type Json = Record<string, any>;
+export type Json = Record<string, unknown>;
+
+export function stringField(response: Json, field: string): string {
+  const value = response[field];
+  if (typeof value !== "string" || !value) {
+    throw new Error(`Response must contain a nonempty ${field}`);
+  }
+  return value;
+}
 
 export class Hyperswitch {
   private constructor(private readonly api: APIRequestContext) {}
@@ -37,7 +45,16 @@ export class Hyperswitch {
           `${method} ${path}: HTTP ${response.status()}, request-id=${requestId}`,
         );
       }
-      return response.json();
+      let body: unknown;
+      try {
+        body = await response.json();
+      } catch {
+        throw new Error(`${method} ${path}: expected a JSON response`);
+      }
+      if (body === null || typeof body !== "object" || Array.isArray(body)) {
+        throw new Error(`${method} ${path}: expected a JSON object`);
+      }
+      return body as Json;
     });
   }
 
@@ -53,6 +70,8 @@ export class Hyperswitch {
         method,
         headers: { "api-key": apiKey },
         data,
+        maxRetries: 0,
+        maxRedirects: 0,
       });
     } catch {
       throw new Error(`${method} ${path}: Hyperswitch transport failed`);
