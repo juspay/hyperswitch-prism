@@ -11,6 +11,8 @@ tests/e2e/
     merchant-setup.ts          # Merchant, profile, API key, connector, and routing setup
     scenario.ts                # Typed scenario and connector contracts
     runner.ts                  # Shared lifecycle execution and assertions
+    checks.ts                  # Shared assertions, polling, and report comparisons
+    payment-records.ts         # Read-only payment routing evidence from the test DB
   connectors/
     adyen.ts                   # Connector capabilities and sandbox test data
     index.ts                   # Registered connectors
@@ -45,7 +47,7 @@ tests/e2e/
 
 ## Structure
 
-- `framework/` owns common setup, API calls, lifecycle execution, assertions, and reporting. Scenario and connector declarations contain data, not custom execution callbacks.
+- `framework/` supplies common setup, operation execution, HTTP access, database reads, and shared checks/reporting through dedicated helpers. Scenario and connector declarations contain data, not custom execution callbacks. Each spec declares its ordered operations, requests, expectations, and polling targets; the runner executes that declaration without choosing a lifecycle.
 - `connectors/` declares connector capabilities, credential keys, and sandbox test data. A connector does not duplicate scenario execution.
 - `scenarios/api/` describes journeys driven through direct HS API calls, using server or client credentials as appropriate. The path identifies the product area, lifecycle, and payment-method family. Future tests operating an actual Web SDK checkout belong under `scenarios/web-sdk/checkout/`.
 - `stack/` operates the isolated local services required by the tests and remains independent of payment behavior.
