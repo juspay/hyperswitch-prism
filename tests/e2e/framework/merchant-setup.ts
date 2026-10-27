@@ -17,7 +17,7 @@ export async function setupMerchant(
   connector: ConnectorDefinition,
 ): Promise<TestMerchant> {
   return test.step("Set up merchant, connector account, and routing", async () => {
-    await hs.enableUcs();
+    await enableUcs(hs);
     const merchantId = `e2e_${randomUUID().replaceAll("-", "")}`;
     const account = await hs.call(
       "POST",
@@ -103,5 +103,29 @@ export async function setupMerchant(
       apiKey: apiKeyResponse.api_key,
       merchantConnectorId: merchantConnector.merchant_connector_id,
     };
+  });
+}
+
+async function enableUcs(hs: Hyperswitch): Promise<void> {
+  const response = await hs.fetch(
+    "GET",
+    "/configs/ucs_enabled",
+    configuration.adminApiKey,
+  );
+  if (response.ok()) {
+    const config = await response.json();
+    if (config.value !== "true") {
+      throw new Error("The local Hyperswitch stack has UCS disabled");
+    }
+    return;
+  }
+  if (response.status() !== 404) {
+    throw new Error(
+      `Cannot read Hyperswitch UCS configuration: HTTP ${response.status()}`,
+    );
+  }
+  await hs.call("POST", "/configs/", configuration.adminApiKey, {
+    key: "ucs_enabled",
+    value: "true",
   });
 }
