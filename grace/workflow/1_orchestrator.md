@@ -115,7 +115,8 @@ Store the returned list as `CONNECTOR_LIST`. This is the authoritative list of c
 ```bash
 # From hyperswitch-prism root:
 pwd && ls Cargo.toml crates/ Makefile          # repo root, else abort: PRE-FLIGHT FAILED
-[ "$(uname -s)" = Linux ] || echo NOT_LINUX    # GRACE v2 is Linux only, else abort: PRE-FLIGHT FAILED
+case "$(uname -s)" in Linux) ;; Darwin) ss -Htln >/dev/null 2>&1 && stat -c %Y . >/dev/null 2>&1 \
+    || echo NOT_LINUX;; *) echo NOT_LINUX;; esac   # Linux, or Darwin with the shim PATH; else abort
 # Check which connectors have credentials (same resolution as 2.0_preflight.md "Phase 2: Credentials")
 [ -f .env.connector-tests ] && { set -a; . ./.env.connector-tests; set +a; }
 CREDS="${CONNECTOR_AUTH_FILE_PATH:-${UCS_CREDS_PATH:-creds.json}}"
