@@ -747,6 +747,14 @@ impl MandateIds {
     }
 }
 
+/// Integrity-check settings applied when comparing the connector response with the request.
+#[derive(Debug, Clone, Copy)]
+pub struct IntegritySpecifications {
+    /// When true, an amount mismatch between request and connector response is not treated
+    /// as an integrity failure, in either direction. A currency mismatch still is.
+    pub allow_amount_mismatch: Option<bool>,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct PaymentsSyncData {
     pub connector_transaction_id: ResponseId,
@@ -761,6 +769,15 @@ pub struct PaymentsSyncData {
     pub amount: Money,
     pub all_keys_required: Option<bool>,
     pub integrity_object: Option<PaymentSynIntegrityObject>,
+    /// When true, an amount mismatch between request and connector response is not an
+    /// integrity failure, in either direction.
+    pub integrity_specifications: Option<IntegritySpecifications>,
+    /// Whether overcapture is enabled. When true, a connector-reported amount higher than
+    /// the requested amount is not an integrity failure.
+    pub is_overcapture_enabled: Option<bool>,
+    /// Whether partial authorization is enabled. When true, a connector-reported amount lower
+    /// than the requested amount is not an integrity failure.
+    pub enable_partial_authorization: Option<bool>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub mandate_reference: Option<MandateReference>,
@@ -1612,6 +1629,8 @@ impl ConnectorResponseHeaders for PaymentFlowData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentVoidData {
+    pub payment_method_data:
+        Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
     pub integrity_object: Option<PaymentVoidIntegrityObject>,
@@ -1728,6 +1747,7 @@ pub struct EligibilityErrorInfo {
 #[derive(Debug, Clone)]
 pub struct PaymentsCancelPostCaptureData {
     pub connector_transaction_id: String,
+    pub amount: Option<Money>,
     pub cancellation_reason: Option<String>,
     pub integrity_object: Option<PaymentVoidPostCaptureIntegrityObject>,
     pub raw_connector_response: Option<String>,
@@ -1803,6 +1823,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub shipping_cost: Option<Money>,
     pub merchant_account_id: Option<String>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
+    /// When true, an amount mismatch between request and connector response is not an
+    /// integrity failure, in either direction.
+    pub integrity_specifications: Option<IntegritySpecifications>,
     pub merchant_config_currency: Option<Currency>,
     pub all_keys_required: Option<bool>,
     pub request_extended_authorization: Option<bool>,
@@ -2279,6 +2302,9 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
     pub setup_mandate_details: Option<MandateData>,
     pub mandate_id: Option<MandateIds>,
     pub integrity_object: Option<PaymentMethodTokenIntegrityObject>,
+    /// When true, an amount mismatch between request and connector response is not an
+    /// integrity failure, in either direction.
+    pub integrity_specifications: Option<IntegritySpecifications>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
     pub metadata: Option<Secret<String>>,
@@ -2569,6 +2595,8 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsIncrementalAuthorizationData {
+    pub payment_method_data:
+        Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
     /// New total authorized amount, including this increase.
     pub amount: Money,
     /// Increase over the current authorized total, in the same currency as amount.
@@ -3743,6 +3771,8 @@ pub struct RefundsData {
     pub connector_order_id: Option<String>,
     pub payment_method_data:
         Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
+    /// Merchant-supplied settlement quote for this operation.
+    pub currency_conversion_data: Option<CurrencyConversionData>,
 }
 
 impl RefundsData {
@@ -3798,12 +3828,20 @@ pub struct MultipleCaptureRequestData {
 
 #[derive(Debug, Default, Clone)]
 pub struct PaymentsCaptureData {
+    pub payment_method_data:
+        Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
     pub amount_to_capture: Money,
     pub currency: Currency,
     pub connector_transaction_id: ResponseId,
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub integrity_object: Option<CaptureIntegrityObject>,
+    /// When true, an amount mismatch between request and connector response is not an
+    /// integrity failure, in either direction.
+    pub integrity_specifications: Option<IntegritySpecifications>,
+    /// Whether overcapture is enabled. When true, a connector-reported amount higher than
+    /// the requested amount is not an integrity failure.
+    pub is_overcapture_enabled: Option<bool>,
     pub browser_info: Option<BrowserInformation>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<SecretSerdeValue>,
@@ -3813,6 +3851,8 @@ pub struct PaymentsCaptureData {
     /// Unified split settlement (supersedes split_payments). Boxed to keep the
     /// enclosing request (and its RouterDataV2 clones) small on the async stack.
     pub split_settlement: Option<Box<SplitSettlement>>,
+    /// Merchant-supplied settlement quote for this operation.
+    pub currency_conversion_data: Option<CurrencyConversionData>,
 }
 
 impl PaymentsCaptureData {
@@ -3972,6 +4012,9 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub metadata: Option<SecretSerdeValue>,
     pub webhook_url: Option<String>,
     pub integrity_object: Option<RepeatPaymentIntegrityObject>,
+    /// When true, an amount mismatch between request and connector response is not an
+    /// integrity failure, in either direction.
+    pub integrity_specifications: Option<IntegritySpecifications>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
@@ -4010,6 +4053,8 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
+    /// Merchant-supplied settlement quote for this operation.
+    pub currency_conversion_data: Option<CurrencyConversionData>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
@@ -4947,6 +4992,8 @@ pub struct CurrencyConversionQuote {
     pub currency_conversion_type: Option<CurrencyConversionType>,
     pub quoted_at: Option<i64>,
     pub expires_at: Option<i64>,
+    pub conversion_reason_code: Option<String>,
+    pub user_id: Option<String>,
 }
 
 /// A validated currency conversion decision and the quote presented to the cardholder.

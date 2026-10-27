@@ -28,7 +28,7 @@ strum = { version = "0.26", features = ["derive"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rust_decimal = { version = "1.0" }
-time = { version = "0.3.36", features = ["parsing", "macros"] }
+time = { version = "0.3.36", features = ["formatting", "parsing", "macros"] }
 url = "2.5.0"
 uuid = { version = "1", features = ["v4", "v7"] }
 http = "1.2.0"
