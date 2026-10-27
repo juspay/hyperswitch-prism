@@ -17,7 +17,9 @@ Open the HTML report with `npx playwright show-report`. Stop the isolated stack 
 
 `HS_IMAGE` and `UCS_IMAGE` select container images. Defaults use the latest published images. Configuration and migrations come from the matching Hyperswitch source revision, cached after the first run. `HS_SOURCE_DIR` can supply an existing matching checkout; `HS_REF` can explicitly select its revision.
 
-HS uses its supported `ROUTER__...` environment overrides; upstream TOML is unchanged. The UCS wrapper adds the standard gRPC health probe, and Compose starts HS after UCS is healthy. Redis is internal to the Compose network; PostgreSQL binds to loopback on `HS_DB_PORT` (default `15432`). `HS_PORT` sets the local HS port (default `8080`). `UCS_CONNECTORS` selects connectors routed to UCS in this local stack (default `adyen`); extend it when registering connectors.
+HS uses its supported `ROUTER__...` environment overrides; upstream TOML is unchanged. The UCS wrapper adds the standard gRPC health probe, and Compose starts HS after UCS is healthy. Redis is internal to the Compose network; PostgreSQL binds to loopback on `HS_DB_PORT` (default `15432`). `HS_PORT` sets the local HS port (default `8080`).
+
+Merchant setup enables UCS and creates and reads back a merchant-scoped rollout configuration: 100% primary execution, zero shadow traffic, and kill-switch fallback disabled. Every scenario receives this setup before payment calls. Connectors available in both HS and UCS use the normal rollout path; the stack does not reclassify them as UCS-only. Merchant, profile, API-key, connector-account, and routing administration remain HS operations. The scenario also verifies the payment's recorded UCS gateway; that stored value alone does not prove a fresh UCS call occurred during each retrieval.
 
 `UCS_ENVIRONMENT` selects the UCS service configuration: `development` (default) loads `development.toml`; `sandbox` loads `sandbox.toml`. Set it explicitly when starting a CI stack:
 

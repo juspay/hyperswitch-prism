@@ -35,6 +35,27 @@ export async function setupMerchant(
       },
     );
     expect(account.merchant_id, "Created merchant identifier").toBe(merchantId);
+    // Merchant-scoped rollout covers every flow, including future scenarios.
+    // Keep connectors that also exist in HS on the normal migration path.
+    const rolloutKey = `ucs_rollout_config_${stringField(account, "organization_id")}_${merchantId}`;
+    const rolloutValue = JSON.stringify({
+      rollout_percent: 1.0,
+      execution_mode: "primary",
+      shadow_rollout_percent: 0.0,
+      kill_switch_enabled: false,
+    });
+    await hs.call("POST", "/configs/", configuration.adminApiKey, {
+      key: rolloutKey,
+      value: rolloutValue,
+    });
+    const rollout = await hs.call(
+      "GET",
+      `/configs/${rolloutKey}`,
+      configuration.adminApiKey,
+    );
+    expect(rollout.value, "Test merchant uses 100% primary UCS rollout").toBe(
+      rolloutValue,
+    );
     const apiKeyResponse = await hs.call(
       "POST",
       `/api_keys/${merchantId}`,
