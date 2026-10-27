@@ -181,6 +181,19 @@ pub struct JpmorganRefundRequest {
     pub merchant: JpmorganMerchantRefund,
     pub amount: MinorUnit,
     pub currency: common_enums::Currency,
+    pub payment_method_type: JpmorganRefundPaymentMethodType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganRefundPaymentMethodType {
+    pub transaction_reference: JpmorganTransactionReference,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganTransactionReference {
+    pub transaction_reference_id: String,
 }
 
 #[derive(Debug, Serialize)]
