@@ -152,9 +152,6 @@ pub struct JpmorganLineItem {
 pub struct JpmorganLineItemTax {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line_item_tax_amount: Option<MinorUnit>,
-    /// A percentage scaled by 1000 and sent as a string: JPMorgan implies
-    /// three decimal places here, so `"1300"` is 1.3%. Note this differs from
-    /// the order-level VAT percents, which imply two.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_percent: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

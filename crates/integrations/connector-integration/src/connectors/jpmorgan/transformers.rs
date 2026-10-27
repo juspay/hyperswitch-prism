@@ -49,8 +49,8 @@ const JPMORGAN_PURCHASE_ORDER_NUMBER_MAX_LENGTH: usize = 17;
 const JPMORGAN_MAX_LINE_ITEMS: usize = 998;
 const JPMORGAN_MAX_VAT_PERCENT: i64 = 9999;
 
-// JPMorgan's line-item taxPercent implies three decimal places, so 1.3% is sent as "1300".
-const JPMORGAN_LINE_ITEM_TAX_PERCENT_MULTIPLIER: f64 = 1000.0;
+const MAX_ORDER_NUMBER_LENGTH: usize = 40;
+
 // JPMorgan's valueAddedTaxPercent implies two decimal places, so 2.5% is sent as "250".
 const JPMORGAN_VAT_PERCENT_MULTIPLIER: f64 = 100.0;
 // Four digits with two implied decimals allow at most 99.99%, encoded as "9999".
@@ -79,15 +79,8 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
             line_item_tax_amount: Some(tax),
             tax_percent: detail
                 .tax_rate
-                .filter(|rate| {
-                    *rate >= 0.0 && (rate * JPMORGAN_LINE_ITEM_TAX_PERCENT_MULTIPLIER).is_finite()
-                })
-                .map(|rate| {
-                    utils::scaled_percentage_to_string(
-                        rate,
-                        JPMORGAN_LINE_ITEM_TAX_PERCENT_MULTIPLIER,
-                    )
-                }),
+                .filter(|rate| *rate >= 0.0 && rate.is_finite())
+                .map(|rate| rate.to_string()),
             tax_type_code: detail.product_tax_code.clone(),
         })
         .map_or_else(Vec::new, |tax| vec![tax]);
@@ -441,15 +434,23 @@ impl responses::JpmorganVerificationResponse {
     }
 }
 
-fn merchant_order_number(merchant_order_id: Option<&str>, reference: &str) -> String {
-    merchant_order_id
-        .filter(|id| !id.trim().is_empty())
-        .unwrap_or(reference)
+fn sanitize_order_number(value: &str) -> Option<String> {
+    let order_number: String = value
         .chars()
-        .filter(|character| {
-            character.is_ascii_alphanumeric() || matches!(character, ' ' | '.' | '-')
-        })
-        .collect()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '.' | '-'))
+        .take(MAX_ORDER_NUMBER_LENGTH)
+        .collect();
+
+    (!order_number.trim().is_empty()).then_some(order_number)
+}
+
+fn merchant_order_number(
+    merchant_order_id: Option<&str>,
+    reference: &str,
+) -> Option<String> {
+    merchant_order_id
+        .and_then(sanitize_order_number)
+        .or_else(|| sanitize_order_number(reference))
 }
 
 impl TryFrom<Option<common_enums::BankType>> for requests::JpmorganAchAccountType {
@@ -1031,12 +1032,12 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
             },
             account_holder: None,
             statement_descriptor: None,
-            merchant_order_number: Some(merchant_order_number(
+            merchant_order_number: merchant_order_number(
                 router_data.request.merchant_order_id.as_deref(),
                 &router_data
                     .resource_common_data
                     .connector_request_reference_id,
-            )),
+            ),
             initiator_type: Some(requests::JpmorganInitiatorType::Cardholder),
             account_on_file: Some(account_on_file),
             is_amount_final: Some(true),
@@ -1171,12 +1172,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_method_type,
                     account_holder: None,
                     statement_descriptor: None,
-                    merchant_order_number: Some(merchant_order_number(
+                    merchant_order_number: merchant_order_number(
                         router_data.request.merchant_order_id.as_deref(),
                         &router_data
                             .resource_common_data
                             .connector_request_reference_id,
-                    )),
+                    ),
                     initiator_type: Some(requests::JpmorganInitiatorType::Cardholder),
                     account_on_file: Some(account_on_file),
                     is_amount_final: Some(true),
@@ -1278,12 +1279,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_method_type,
                     account_holder: None,
                     statement_descriptor: None,
-                    merchant_order_number: Some(merchant_order_number(
+                    merchant_order_number: merchant_order_number(
                         router_data.request.merchant_order_id.as_deref(),
                         &router_data
                             .resource_common_data
                             .connector_request_reference_id,
-                    )),
+                    ),
                     initiator_type: Some(requests::JpmorganInitiatorType::Cardholder),
                     account_on_file: Some(account_on_file),
                     is_amount_final: Some(true),
@@ -2322,12 +2323,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant: requests::JpmorganMerchant::try_from(&auth)?,
             payment_method_type: requests::JpmorganSetupMandatePaymentMethodType { card },
             recurring_sequence,
-            merchant_order_number: Some(merchant_order_number(
+            merchant_order_number: merchant_order_number(
                 request.merchant_order_id.as_deref(),
                 &router_data
                     .resource_common_data
                     .connector_request_reference_id,
-            )),
+            ),
             initiator_type: requests::JpmorganInitiatorType::Cardholder,
             account_on_file: requests::JpmorganAccountOnFile::ToBeStored,
         })
@@ -2606,12 +2607,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant,
             payment_method_type,
             recurring,
-            merchant_order_number: Some(merchant_order_number(
+            merchant_order_number: merchant_order_number(
                 request.merchant_order_id.as_deref(),
                 &router_data
                     .resource_common_data
                     .connector_request_reference_id,
-            )),
+            ),
             initiator_type: requests::JpmorganInitiatorType::Merchant,
             account_on_file: requests::JpmorganAccountOnFile::Stored,
             is_amount_final: true,
