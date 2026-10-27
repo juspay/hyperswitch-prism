@@ -2213,6 +2213,19 @@ pub enum NovalnetWebhookTransactionData {
     CancelTransactionData(NovalnetPaymentsResponseTransactionData),
     RefundsTransactionData(NovalnetRefundsTransactionData),
 }
+impl NovalnetWebhookTransactionData {
+    /// The unsigned `transaction.status`, whichever variant the body decoded as. It is outside
+    /// the checksum preimage, so it may only lower an outcome, never raise one.
+    pub fn transaction_status(&self) -> Option<NovalnetTransactionStatus> {
+        match self {
+            Self::SyncTransactionData(data) => Some(data.status),
+            Self::CaptureTransactionData(data) => data.status,
+            Self::CancelTransactionData(data) => data.status,
+            Self::RefundsTransactionData(_) => None,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NovalnetWebhookNotificationResponse {
     pub event: NovalnetWebhookEvent,
@@ -2791,12 +2804,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-/// TH-17: the event class comes from the signed checksum preimage only (`event.type` +
-/// `result.status`); `transaction.status` is outside it and never classifies the event.
+/// The event class comes from the signed checksum preimage (`event.type` + `result.status`).
+///
+/// `transaction_status` is unsigned, so it is used under the same lower-only rule as the
+/// attempt status: it may narrow a signed `PAYMENT`/`SUCCESS` to the authorization-success or
+/// processing variant (which is what an ON_HOLD or PENDING transaction actually is, and what
+/// this returned before the flow was reworked), never widen anything. Editing it on a validly
+/// signed body can therefore only under-report an event.
 pub fn get_incoming_webhook_event(
     event_type: WebhookEventType,
     result_status: NovalnetAPIStatus,
+    transaction_status: Option<NovalnetTransactionStatus>,
 ) -> EventType {
+    // Narrow PAYMENT/SUCCESS to match the status HandleEvent reports for the same body.
+    if let (WebhookEventType::Payment, NovalnetAPIStatus::Success) = (&event_type, &result_status) {
+        match transaction_status {
+            Some(NovalnetTransactionStatus::OnHold) => {
+                return EventType::PaymentIntentAuthorizationSuccess
+            }
+            Some(NovalnetTransactionStatus::Pending | NovalnetTransactionStatus::Progress) => {
+                return EventType::PaymentIntentProcessing
+            }
+            _ => {}
+        }
+    }
     match (event_type, result_status) {
         // spec: ### Webhook Authentication & Signature Verification (undocumented result.status
         // stays non-terminal)
@@ -2854,9 +2885,9 @@ pub fn get_novalnet_webhook_attempt_status(
     event_type: &WebhookEventType,
     transaction_status: NovalnetTransactionStatus,
     capture_method: Option<common_enums::CaptureMethod>,
-) -> Result<common_enums::AttemptStatus, error_stack::Report<WebhookError>> {
+) -> common_enums::AttemptStatus {
     use common_enums::{AttemptStatus, CaptureMethod};
-    Ok(match event_type {
+    match event_type {
         // spec: ## Webhook Events (TRANSACTION_CAPTURE + SUCCESS -> captured)
         WebhookEventType::TransactionCapture => AttemptStatus::Charged,
         // spec: ## Webhook Events (TRANSACTION_CANCEL + SUCCESS -> cancelled)
@@ -2874,17 +2905,15 @@ pub fn get_novalnet_webhook_attempt_status(
                             | CaptureMethod::ManualMultiple
                             | CaptureMethod::Scheduled,
                         ) => AttemptStatus::Authorized,
-                        None => return Err(error_stack::report!(
-                            WebhookError::WebhookMissingRequiredContext {
-                                field: "capture_method",
-                                origin: "payment authorize",
-                            }
-                        )
-                        .attach_printable(
-                            "Novalnet PAYMENT/SUCCESS is ambiguous without capture_method: the \
-                             webhook checksum does not cover transaction.status, so AUTOMATIC \
-                             (Charged) vs MANUAL (Authorized) must come from EventContext",
-                        )),
+                        // PAYMENT/SUCCESS is ambiguous without capture_method (the checksum
+                        // does not cover transaction.status, so AUTOMATIC -> Charged vs
+                        // MANUAL -> Authorized cannot be told apart here). Hyperswitch leaves
+                        // it unset whenever the webhook reference is not a payment id, the
+                        // attempt lookup fails, or the attempt carries no capture method, so
+                        // erroring would drop those webhooks entirely. The same lower-only
+                        // rule applies instead: report the lesser of the two and let PSync
+                        // raise it to Charged.
+                        None => AttemptStatus::Authorized,
                     }
                 }
                 // spec: ## Status Mappings (ON_HOLD -> Authorized; lower-only, never raised)
@@ -2907,7 +2936,7 @@ pub fn get_novalnet_webhook_attempt_status(
         | WebhookEventType::Reversal
         | WebhookEventType::Credit
         | WebhookEventType::Unknown => AttemptStatus::Pending,
-    })
+    }
 }
 
 /// Payment webhook details. The attempt status is derived from the signed `result.status`
@@ -2928,7 +2957,7 @@ pub fn webhook_payment_details(
                         &notif.event.event_type,
                         response.status,
                         capture_method,
-                    )?;
+                    );
 
                     Ok(WebhookDetailsResponse {
                         connector_returned_payment_method_details: None,
@@ -2970,9 +2999,23 @@ pub fn webhook_payment_details(
                     })
                 }
                 // spec: ## Webhook Events (result FAILURE -> payment failed)
+                //
+                // Which operation failed matters: a rejected capture or cancel leaves the
+                // authorization intact, so reporting a flat `Failure` would write off a
+                // payment that is still authorized -- and would disagree with the Capture and
+                // Void response mappers, which return CaptureFailed / VoidFailed. The event
+                // type is inside the signed checksum preimage, so it is safe to branch on.
                 NovalnetAPIStatus::Failure => Ok(WebhookDetailsResponse {
                     connector_returned_payment_method_details: None,
-                    status: common_enums::AttemptStatus::Failure,
+                    status: match notif.event.event_type {
+                        WebhookEventType::TransactionCapture => {
+                            common_enums::AttemptStatus::CaptureFailed
+                        }
+                        WebhookEventType::TransactionCancel => {
+                            common_enums::AttemptStatus::VoidFailed
+                        }
+                        _ => common_enums::AttemptStatus::Failure,
+                    },
                     resource_id: Some(
                         transaction_id
                             .clone()
@@ -3020,13 +3063,63 @@ pub fn webhook_payment_details(
                 }),
             }
         }
+        // `SyncTransactionData` requires `transaction.status`, but Novalnet omits it on a
+        // capture or cancel of anything other than card/wallet/PayPal (SEPA, for one). Those
+        // bodies fall through to the all-optional capture/cancel variants, and rejecting them
+        // dropped the webhook. They do not need `transaction.status`: the signed event type
+        // alone decides the outcome, exactly as `get_novalnet_webhook_attempt_status` does for
+        // TRANSACTION_CAPTURE and TRANSACTION_CANCEL.
         NovalnetWebhookTransactionData::CaptureTransactionData(_)
-        | NovalnetWebhookTransactionData::CancelTransactionData(_)
-        | NovalnetWebhookTransactionData::RefundsTransactionData(_) => Err(error_stack::report!(
+        | NovalnetWebhookTransactionData::CancelTransactionData(_) => {
+            // A capture / cancel event's own tid is the operation; the payment it belongs to
+            // is parent_tid. Both are inside the signed checksum preimage.
+            let payment_tid = notif
+                .event
+                .parent_tid
+                .unwrap_or(notif.event.tid)
+                .to_string();
+            let status = match (&notif.event.event_type, &notif.result.status) {
+                (WebhookEventType::TransactionCapture, NovalnetAPIStatus::Success) => {
+                    common_enums::AttemptStatus::Charged
+                }
+                (WebhookEventType::TransactionCapture, NovalnetAPIStatus::Failure) => {
+                    common_enums::AttemptStatus::CaptureFailed
+                }
+                (WebhookEventType::TransactionCancel, NovalnetAPIStatus::Success) => {
+                    common_enums::AttemptStatus::Voided
+                }
+                (WebhookEventType::TransactionCancel, NovalnetAPIStatus::Failure) => {
+                    common_enums::AttemptStatus::VoidFailed
+                }
+                // Any other pairing on these variants is not a capture/cancel outcome, and an
+                // undocumented result.status is never terminal.
+                _ => common_enums::AttemptStatus::Pending,
+            };
+            let error = matches!(notif.result.status, NovalnetAPIStatus::Failure);
+            Ok(WebhookDetailsResponse {
+                connector_returned_payment_method_details: None,
+                status,
+                resource_id: Some(ResponseId::ConnectorTransactionId(payment_tid.clone())),
+                status_code: 200,
+                mandate_reference: None,
+                connector_response_reference_id: Some(payment_tid.clone()),
+                connector_request_reference_id: Some(payment_tid),
+                error_code: error.then(|| notif.result.status.to_string()),
+                error_message: error.then_some(notif.result.status_text),
+                raw_connector_response: None,
+                response_headers: None,
+                amount_captured: None,
+                error_reason: None,
+                network_txn_id: None,
+                payment_method_update: None,
+                sender_payment_instrument_id: None,
+            })
+        }
+        NovalnetWebhookTransactionData::RefundsTransactionData(_) => Err(error_stack::report!(
             WebhookError::WebhookBodyDecodingFailed
         )
         .attach_printable(
-            "Novalnet payment webhook transaction did not decode as a payment transaction",
+            "Novalnet payment webhook carried a refund transaction, not a payment transaction",
         )),
     }
 }

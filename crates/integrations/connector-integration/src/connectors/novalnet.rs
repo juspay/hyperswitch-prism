@@ -825,11 +825,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let notif = get_webhook_object_from_body(&request.body)?;
 
-        // TH-17: classify only from the signed checksum preimage (event.type, result.status);
-        // transaction.status is outside it (spec: ### Webhook Authentication & Signature Verification).
+        // Classified from the signed checksum preimage (event.type, result.status).
+        // transaction.status is outside it, so it is passed under the lower-only rule: it can
+        // narrow PAYMENT/SUCCESS to authorization-success or processing, never widen an event.
+        let transaction_status = notif.transaction.transaction_status();
         Ok(novalnet::get_incoming_webhook_event(
             notif.event.event_type,
             notif.result.status,
+            transaction_status,
         ))
     }
 
