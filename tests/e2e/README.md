@@ -1,47 +1,52 @@
 # End-to-end tests
 
-This directory reserves the structure for end-to-end payment tests. The layout shows the planned files; this PR adds directories and documentation only.
+This directory reserves the structure for end-to-end payment tests. This PR adds directories and documentation only; executable tests, dependencies, credentials, and CI configuration are added separately.
 
 ```text
 tests/e2e/
-  otp/
-    superset/card-no3ds/
-      baseline.spec.ts
-      client-confirm.spec.ts
-      manual-capture.spec.ts
-      refund-full.spec.ts
-      ...
-      requests.ts
-    <connector>/card-no3ds/
-      config.ts
   framework/
-    scenario.ts                # Scenario types and connector registration
-    runner.ts                  # Shared payment lifecycle execution
-    config.ts                  # Credentials and external configuration
-    hyperswitch.ts             # HS API client and local database checks
-    audit.ts                   # Existing masked UCS event attachments
-    checks.ts                  # Shared expected/actual assertions and output
-    report.ts                  # Scenario descriptions and summaries
-    tests/                     # Offline tests for framework helpers
-  scripts/
-    stack.mjs                  # Docker stack startup and shutdown
-    credentials.sh             # Optional external credential retrieval
-  docker/
-    ucs.Dockerfile             # UCS image with a gRPC readiness probe
+    configuration.ts          # Runtime URLs and options
+    credentials.ts            # External sandbox credential loading
+    hyperswitch.ts             # Typed Hyperswitch API access
+    merchant-setup.ts          # Merchant, profile, API key, connector, and routing setup
+    scenario.ts                # Typed scenario and connector contracts
+    runner.ts                  # Shared lifecycle execution and assertions
+  connectors/
+    adyen.ts                   # Connector capabilities and sandbox test data
+    index.ts                   # Registered connectors
+  scenarios/
+    payments/
+      one-time/
+        server/
+          card.spec.ts         # Server-side one-time card scenarios
+      mandates/
+        customer-initiated/
+          card.spec.ts
+        zero-amount/
+          card.spec.ts
+      recurring/
+        connector-mandate/
+          card.spec.ts
+        network-transaction-id/
+          card.spec.ts
+  stack/
+    compose.yml                # Isolated local dependencies
+    stack.mjs                  # Stack startup and shutdown
   playwright.config.ts
   package.json
   package-lock.json
   tsconfig.json
-  overrides.example.json
 ```
 
-- `otp/superset/<variant>/` defines shared scenarios once, including the request sequence and expected behavior. Each explanation appears alongside its test declaration.
-- `otp/<connector>/<variant>/config.ts` supplies request differences and explicit scenario exclusions with reasons. Complete request definitions live in the shared superset `requests.ts`. Connector directories do not duplicate test execution.
-- `framework/` supplies typed scenarios, connector registration, one lifecycle runner, HS access, audit collection, and shared assertion/report helpers. `hyperswitch.ts` makes HS API calls and reads local HS database records for UCS routing and processor-reference checks.
-- `framework/tests/` checks shared helpers without starting the payment stack.
-- `scripts/` operates the Docker stack and retrieves external credentials when configured.
-- `docker/` contains the UCS image wrapper that adds the gRPC health probe used before HS starts.
+## Structure
 
-A manual-capture scenario belongs in `otp/superset/card-no3ds/`. All applicable connectors run it by default and supply only differences. Adding a connector reuses the superset; adding a scenario extends the superset once. Test discovery lists connector/scenario combinations; reports show explicit exclusions and unmet capabilities as skipped with reasons.
+- `framework/` owns common setup, API calls, lifecycle execution, assertions, and reporting. Scenario and connector declarations contain data, not custom execution callbacks.
+- `connectors/` declares connector capabilities, credential keys, and sandbox test data. A connector does not duplicate scenario execution.
+- `scenarios/` describes payment behavior. The path identifies the product area, lifecycle, integration channel, and payment-method family; typed fields describe variants such as No3DS or 3DS and automatic or manual capture.
+- `stack/` operates the isolated local services required by the tests and remains independent of payment behavior.
 
-Further payment flows can be added beside `otp/`. The `.gitkeep` files preserve empty directories. Test implementation, dependencies, credentials, and CI configuration are outside this scaffold PR.
+The first implementation targets `scenarios/payments/one-time/server/card.spec.ts`. A scenario declaration describes the intended behavior, while the shared runner owns its API sequence and assertions. Adding another compatible connector reuses that scenario.
+
+The mandate and recurring directories are reserved extension points and do not represent implemented coverage in this scaffold. New flows should be added to the matching lifecycle rather than copied into connector directories.
+
+The `.gitkeep` files preserve the empty directories until their implementations are added.
