@@ -13738,12 +13738,28 @@ impl<
         // caller sends it; customer acceptance stays sourced from the request itself.
         // Only mandate_type is converted here: the embedded customer_acceptance and
         // update_mandate_id are not parsed on this path, so they cannot fail SetupRecurring.
-        let mandate_type = foreign_mandate_data_type(
+        //
+        // This field was previously hardcoded `None` for every connector, so a malformed
+        // mandate_type was silently ignored. It is converted leniently here for that reason:
+        // a conversion failure falls back to `None` and is logged, so no SetupRecurring that
+        // succeeded before can start failing on this path. A connector that requires the
+        // mandate amount validates it itself and raises its own field-specific error.
+        let mandate_type = match foreign_mandate_data_type(
             value
                 .setup_mandate_details
                 .as_ref()
                 .and_then(|details| details.mandate_type.clone()),
-        )?;
+        ) {
+            Ok(mandate_type) => mandate_type,
+            Err(error) => {
+                tracing::warn!(
+                    ?error,
+                    "SetupRecurring: setup_mandate_details.mandate_type could not be converted; \
+                     treating it as absent"
+                );
+                None
+            }
+        };
         let setup_mandate_details = MandateData {
             update_mandate_id: None,
             customer_acceptance: Some(mandates::CustomerAcceptance::foreign_try_from(

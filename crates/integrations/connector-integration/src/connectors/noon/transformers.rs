@@ -815,8 +815,12 @@ pub(crate) fn get_payment_status(
 ) -> AttemptStatus {
     match item {
         NoonPaymentStatus::Authorized => AttemptStatus::Authorized,
+        // A partial capture is `PartialCharged`, not `Charged`, so neither PSync nor the
+        // webhook implies the full authorised amount was taken; PSync additionally reports the
+        // captured total. Refunds are tracked on the refund, not the attempt, so a refunded
+        // order stays `Charged`.
+        NoonPaymentStatus::PartiallyCaptured => AttemptStatus::PartialCharged,
         NoonPaymentStatus::Captured
-        | NoonPaymentStatus::PartiallyCaptured
         | NoonPaymentStatus::PartiallyRefunded
         | NoonPaymentStatus::Refunded => AttemptStatus::Charged,
         NoonPaymentStatus::Reversed | NoonPaymentStatus::PartiallyReversed => AttemptStatus::Voided,
@@ -1402,7 +1406,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let item = &data.router_data;
         let refund_amount = data.connector.amount_converter.convert(
             data.router_data.request.refund_amount.amount,
-            data.router_data.request.currency,
+            data.router_data.request.refund_amount.currency,
         );
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
@@ -1411,7 +1415,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: refund_amount.change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?,
-            currency: item.request.currency,
+            currency: item.request.refund_amount.currency,
             transaction_reference: Some(item.request.refund_id.clone()),
         };
         Ok(Self {
@@ -1562,9 +1566,14 @@ pub struct NoonConnectorMetadata {
 /// Path key for RSync's `GET payment/v1/order/getbyreference/{reference}`: the payment's
 /// merchant reference (`order.reference`). Hyperswitch sends it as `connector_order_id`;
 /// gRPC/SDK callers carry it back from Authorize via `connector_feature_data.order_reference`.
+///
+/// `request_reference_id` is the last fallback, and the reason refunds of payments created
+/// before `connector_order_id` existed can still be synced: Authorize sets `order.reference`
+/// from `connector_request_reference_id`, so it is the same value by construction.
 /// The refund's own id is never a valid key (Noon answers 19001 for it).
 pub fn get_refund_sync_order_reference(
     request: &RefundSyncData,
+    request_reference_id: &str,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
     request
         .connector_order_id
@@ -1578,6 +1587,11 @@ pub fn get_refund_sync_order_reference(
                     .map(|metadata| metadata.order_reference)
                     .filter(|reference| !reference.is_empty())
             })
+        })
+        .or_else(|| {
+            Some(request_reference_id)
+                .filter(|reference| !reference.is_empty())
+                .map(str::to_owned)
         })
         .ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {

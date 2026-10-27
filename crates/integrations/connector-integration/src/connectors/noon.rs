@@ -342,16 +342,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse payment webhook details from Noon webhook body")?;
 
-        // Same mapping as PSync: AUTHORIZED is Authorized whatever the capture method; LOCKED /
-        // unknown statuses are never terminal.
-        // The webhook carries no currency and no order total, so it cannot say how much was
-        // captured. PARTIALLY_CAPTURED is therefore reported as PartialCharged rather than the
-        // Charged PSync uses, so a partial capture made in Noon's dashboard is not recorded as
-        // the full authorized amount; PSync reports the captured total.
-        let status = match webhook_object.order_status {
-            noon::NoonPaymentStatus::PartiallyCaptured => AttemptStatus::PartialCharged,
-            order_status => noon::get_payment_status(order_status, AttemptStatus::Unspecified),
-        };
+        // Same mapping as PSync, which reports PARTIALLY_CAPTURED as PartialCharged: the
+        // webhook carries no currency and no order total, so it must not imply the full
+        // authorised amount was captured. AUTHORIZED is Authorized whatever the capture
+        // method; LOCKED / unknown statuses are never terminal.
+        let status =
+            noon::get_payment_status(webhook_object.order_status, AttemptStatus::Unspecified);
 
         let connector_order_id = webhook_object.order_id.to_string();
         Ok(WebhookDetailsResponse {
@@ -360,8 +356,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 connector_order_id.clone(),
             )),
             status,
-            connector_response_reference_id: Some(connector_order_id),
-            connector_request_reference_id: webhook_object.merchant_order_ref,
+            connector_response_reference_id: Some(connector_order_id.clone()),
+            // The signed v1 preimage is orderId, orderStatus, eventId, eventType, timeStamp.
+            // merchantOrderRef is NOT in it, so it can be edited on a validly signed body and
+            // must not be what a payment is correlated by -- the signed orderId is used for
+            // both references, as it was before this flow was reworked.
+            connector_request_reference_id: Some(connector_order_id),
             error_code: None,
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
@@ -854,7 +854,10 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             // getbyreference is keyed by the payment's merchant reference, never the refund id.
-            let order_reference = noon::get_refund_sync_order_reference(&req.request)?;
+            let order_reference = noon::get_refund_sync_order_reference(
+                &req.request,
+                &req.resource_common_data.connector_request_reference_id,
+            )?;
             Ok(format!(
                 "{}payment/v1/order/getbyreference/{}",
                 self.connector_base_url_refunds(req),
