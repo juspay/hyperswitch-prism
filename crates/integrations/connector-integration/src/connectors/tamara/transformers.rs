@@ -5,8 +5,9 @@ use crate::types::ResponseRouterData;
 use crate::utils;
 use common_enums::EligibilityStatus;
 use common_enums::{
-    AttemptStatus, Currency, ProductType, DepositPaymentType, EducationType, FutureUsage, OnlineStatus,
-    PremiumCustomerStatus, RefundStatus, RoomClass, TicketRefundability, TravelClass, TripType,
+    AttemptStatus, Currency, DepositPaymentType, EducationType, FutureUsage, OnlineStatus,
+    PremiumCustomerStatus, ProductType, RefundStatus, RoomClass, TicketRefundability, TravelClass,
+    TripType,
 };
 use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
