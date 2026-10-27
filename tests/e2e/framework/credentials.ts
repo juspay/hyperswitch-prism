@@ -5,7 +5,10 @@ export type ConnectorCredentials = {
   metadata?: Record<string, unknown>;
 };
 
-export function loadConnectorCredentials(key: string): ConnectorCredentials {
+export function loadConnectorCredentials(
+  key: string,
+  entryName?: string,
+): ConnectorCredentials {
   const path = process.env.CONNECTOR_AUTH_FILE_PATH;
   if (!path) {
     throw new Error(
@@ -22,11 +25,28 @@ export function loadConnectorCredentials(key: string): ConnectorCredentials {
     );
   }
 
-  const entry = isObject(document) ? document[key] : undefined;
+  const connector = isObject(document) ? document[key] : undefined;
+  let entry: unknown = connector;
+  if (isObject(connector)) {
+    if (entryName !== undefined) {
+      entry = connector[entryName];
+    } else if (!isObject(connector.connector_account_details)) {
+      const entries = Object.values(connector).filter(
+        (candidate) =>
+          isObject(candidate) && isObject(candidate.connector_account_details),
+      );
+      if (entries.length > 1) {
+        throw new Error(
+          `Multiple HS credential entries for ${key}; set credentialEntry in its connector definition`,
+        );
+      }
+      entry = entries[0];
+    }
+  }
   if (
     !isObject(entry) ||
     !isObject(entry.connector_account_details) ||
-    (entry.metadata !== undefined && !isObject(entry.metadata))
+    (entry.metadata != null && !isObject(entry.metadata))
   ) {
     throw new Error(`Missing sandbox credentials for ${key}`);
   }

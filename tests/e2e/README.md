@@ -21,6 +21,39 @@ HS uses its supported `ROUTER__...` environment overrides; upstream TOML is unch
 
 For an existing dedicated test stack, set `HS_BASE_URL`, `HS_ADMIN_API_KEY`, and `HS_DATABASE_URL` as appropriate.
 
+## Credentials
+
+`CONNECTOR_AUTH_FILE_PATH` always points to a local, decrypted HS connector credentials JSON file, not UCS regression TOML. Local runs can export that variable or set it on the `npm test` command.
+
+The loader accepts a direct entry such as `adyen.connector_account_details`, or a nested entry such as `adyen.connector_1.connector_account_details`. A single nested credential entry is selected automatically. If the connector has several entries, set `credentialEntry: "connector_1"` alongside `credentialKey: "adyen"` in its definition. Multiple entries are never selected by object ordering.
+
+The credential entry's optional `metadata` is forwarded to the merchant connector account during setup. This is distinct from payment `metadata` or `connector_metadata` in a payment request. Supply actual connector-required account metadata in the external credential file; use request overrides only for justified payment-request differences. An absent or null account metadata value means no account metadata.
+
+### CI preparation
+
+CI should fetch and decrypt credentials before starting the test process. It then supplies the same local file path used by local runs. This keeps AWS access and decryption outside payment tests; a Jenkins pipeline can use this preparation without changing the framework.
+
+For an encrypted JSON object in S3, provide an AWS identity with access to that object, `CONNECTOR_AUTH_S3_URI`, and a secret file path in `CONNECTOR_AUTH_PASSPHRASE_FILE`. The URI and secret file come from CI configuration, not this repository. With AWS CLI and GnuPG available:
+
+```sh
+set +x
+set -euo pipefail
+umask 077
+credentials_dir="$(mktemp -d)"
+trap 'rm -f "$credentials_dir/creds.json" "$credentials_dir/creds.json.gpg"; rmdir "$credentials_dir"' EXIT
+
+aws s3 cp "$CONNECTOR_AUTH_S3_URI" \
+  "$credentials_dir/creds.json.gpg" --only-show-errors
+gpg --batch --quiet --pinentry-mode loopback \
+  --passphrase-file "$CONNECTOR_AUTH_PASSPHRASE_FILE" \
+  --output "$credentials_dir/creds.json" \
+  --decrypt "$credentials_dir/creds.json.gpg"
+
+CONNECTOR_AUTH_FILE_PATH="$credentials_dir/creds.json" npm test
+```
+
+If CI already provides a decrypted JSON secret file, set `CONNECTOR_AUTH_FILE_PATH` to that file directly. Do not include downloaded or decrypted files in test artifacts.
+
 ## Scenarios
 
 Each file contains one complete shared scenario. Read it top to bottom to see the requests, response checks, polling, and database evidence. Calls run in the order written.

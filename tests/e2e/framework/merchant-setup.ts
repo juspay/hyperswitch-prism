@@ -17,7 +17,10 @@ export async function setupMerchant(
   connector: ConnectorDefinition,
 ): Promise<TestMerchant> {
   return test.step("Set up merchant, connector account, and routing", async () => {
-    const credentials = loadConnectorCredentials(connector.credentialKey);
+    const credentials = loadConnectorCredentials(
+      connector.credentialKey,
+      connector.credentialEntry,
+    );
     await enableUcs(hs);
     const merchantId = `e2e_${randomUUID().replaceAll("-", "")}`;
     const account = await hs.call(
