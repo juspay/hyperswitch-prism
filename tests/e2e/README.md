@@ -9,12 +9,13 @@ tests/e2e/
     credentials.ts            # External sandbox credential loading
     hyperswitch.ts             # Typed Hyperswitch API access
     merchant-setup.ts          # Merchant, profile, API key, connector, and routing setup
-    scenario.ts                # Typed scenario and connector contracts
-    runner.ts                  # Shared lifecycle execution and assertions
+    scenario.ts                # Scenario metadata and data-only connector configuration
+    fixtures.ts                # Playwright setup/cleanup and connector exclusions
+    operations.ts              # Individual reusable payment operations
     checks.ts                  # Shared assertions, polling, and report comparisons
     payment-records.ts         # Read-only payment routing evidence from the test DB
   connectors/
-    adyen.ts                   # Connector capabilities and sandbox test data
+    adyen.ts                   # Sandbox data, overrides, and reasoned exclusions
     index.ts                   # Registered connectors
   scenarios/
     api/
@@ -48,8 +49,8 @@ tests/e2e/
 
 ## Structure
 
-- `framework/` supplies common setup, operation execution, HTTP access, database reads, and shared checks/reporting through dedicated helpers. Scenario and connector declarations contain data, not custom execution callbacks. Each spec declares its ordered operations, requests, expectations, and polling targets; the runner executes that declaration without choosing a lifecycle.
-- `connectors/` declares connector capabilities, credential keys, and sandbox test data. A connector does not duplicate scenario execution.
+- `framework/` supplies standard Playwright setup/cleanup fixtures, individual payment operations, HTTP access, database reads, and shared checks/reporting through dedicated helpers. Each spec uses ordinary TypeScript to call operations in order, retain responses in variables, and verify results. Fixtures do not choose or execute a payment journey.
+- `connectors/` declares credential keys, sandbox test data, optional request/expectation overrides, and explicit exclusions with reasons. Registered connectors inherit shared scenarios by default. Connector definitions contain data only and do not duplicate scenario execution.
 - `scenarios/api/` describes journeys driven through direct HS API calls, using server or client credentials as appropriate. The path identifies the product area, lifecycle, and payment-method family. Future tests operating an actual Web SDK checkout belong under `scenarios/web-sdk/checkout/`.
 - `stack/` operates the isolated local services required by the tests and remains independent of payment behavior.
 
