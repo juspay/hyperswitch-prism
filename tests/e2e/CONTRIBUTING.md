@@ -18,7 +18,7 @@ Use a new variable for each response and pass fields directly to the next operat
 | Contribution | Expected change |
 | --- | --- |
 | Another journey using existing operations | One shared spec. No fixture or operation changes. |
-| Another connector | One data definition, one registry entry, and external credentials. Existing specs and merchant-scoped UCS rollout setup inherit it. |
+| Another connector | One data definition, one registry entry, and external credentials. Restart the stack to apply the registry's UCS-only routing. Existing specs inherit the connector. |
 | A processor-required request difference | Data in that connector's override for the shared scenario ID. |
 | Unsupported behavior | An exclusion on the connector with a reason; the shared test remains registered and reports skipped. |
 | A genuinely new HS endpoint | Add one small method to its resource's `*-operations.ts` module (`payment-operations.ts` for `/payments`). It forwards API fields, validates the response shape, and returns the full response. It does not call other mutating operations. |

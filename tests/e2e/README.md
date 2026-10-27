@@ -19,7 +19,9 @@ Open the HTML report with `npx playwright show-report`. Stop the isolated stack 
 
 HS uses its supported `ROUTER__...` environment overrides; upstream TOML is unchanged. The UCS wrapper adds the standard gRPC health probe, and Compose starts HS after UCS is healthy. Redis is internal to the Compose network; PostgreSQL binds to loopback on `HS_DB_PORT` (default `15432`). `HS_PORT` sets the local HS port (default `8080`).
 
-Merchant setup enables UCS and creates and reads back a merchant-scoped rollout configuration: 100% primary execution, zero shadow traffic, and kill-switch fallback disabled. Every scenario receives this setup before payment calls. Connectors available in both HS and UCS use the normal rollout path; the stack does not reclassify them as UCS-only. Merchant, profile, API-key, connector-account, and routing administration remain HS operations. The scenario also verifies the payment's recorded UCS gateway; that stored value alone does not prove a fresh UCS call occurred during each retrieval.
+Stack startup reads `connectors/index.ts` and configures HS's `ucs_only_connectors` from that registry. Registering a connector therefore also selects UCS-only execution in this test stack; there is no separate connector list or merchant rollout configuration. Restart the stack after changing the registry. `tsx` lets the startup script import the same TypeScript registry used by Playwright.
+
+Merchant setup enables UCS before payment calls. Merchant, profile, API-key, connector-account, and routing administration remain HS operations. The scenario verifies the payment's recorded UCS gateway. Response metadata and database state describe the payment, so neither alone proves a fresh UCS PSync call. Proving an individual flow requires its correlated UCS events; the current scenario does not assert a fresh PSync call.
 
 `UCS_ENVIRONMENT` selects the UCS service configuration: `development` (default) loads `development.toml`; `sandbox` loads `sandbox.toml`. Set it explicitly when starting a CI stack:
 

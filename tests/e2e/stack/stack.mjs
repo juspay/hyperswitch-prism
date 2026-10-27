@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { connectors } from "../connectors/index.js";
 
 const e2eRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const runtime = resolve(e2eRoot, ".runtime");
@@ -22,6 +23,9 @@ const hsImage =
 const ucsImage =
   process.env.UCS_IMAGE ?? "docker.io/juspaydotin/hyperswitch-prism:latest";
 const ucsEnvironment = process.env.UCS_ENVIRONMENT ?? "development";
+const ucsConnectors = [
+  ...new Set(connectors.map((connector) => connector.id)),
+].join(",");
 
 if (!new Set(["up", "down"]).has(action)) {
   throw new Error("Use stack.mjs up|down");
@@ -30,6 +34,9 @@ if (action === "up" && !["development", "sandbox"].includes(ucsEnvironment)) {
   throw new Error(
     "UCS_ENVIRONMENT must be development or sandbox for E2E tests",
   );
+}
+if (action === "up" && !ucsConnectors) {
+  throw new Error("Register at least one E2E connector before starting the stack");
 }
 
 function run(command, args, options = {}) {
@@ -153,7 +160,7 @@ if (action === "up") {
   writeFileSync(
     versionsFile,
     JSON.stringify(
-      { hsImage, ucsImage, ucsEnvironment, hsSourceDir: checkout },
+      { hsImage, ucsImage, ucsEnvironment, ucsConnectors, hsSourceDir: checkout },
       null,
       2,
     ),
@@ -176,6 +183,7 @@ const env = {
   HS_IMAGE: hsImage,
   UCS_IMAGE: ucsImage,
   UCS_ENVIRONMENT: ucsEnvironment,
+  E2E_UCS_CONNECTORS: ucsConnectors,
   E2E_STACK_DIR: resolve(e2eRoot, "stack"),
   E2E_DIESEL_CONFIG: dieselConfig,
 };
