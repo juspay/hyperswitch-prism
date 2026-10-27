@@ -376,7 +376,7 @@ impl StringMinorUnit {
     }
 
     /// converts to minor unit i64 from minor unit string value
-    fn to_minor_unit_as_i64(&self) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+    pub fn to_minor_unit_as_i64(&self) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
         let amount_string = &self.0;
         let amount_decimal = Decimal::from_str(amount_string).map_err(|e| {
             ParsingError::StringToDecimalConversionFailure {

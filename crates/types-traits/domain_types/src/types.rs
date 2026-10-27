@@ -11971,6 +11971,35 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
                     .collect()
             })
             .unwrap_or_default();
+        // `amount` and `currency` are required on DisputeWebhookDetailsResponse, so every
+        // connector already supplies them; surface them instead of dropping the disputed
+        // value on the floor. A connector that supplies an unparseable amount is a real
+        // fault and is reported rather than silently nulled.
+        let dispute_amount = grpc_payment_types::Money {
+            minor_amount: value
+                .amount
+                .to_minor_unit_as_i64()
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "dispute_amount",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Failed to parse dispute amount as a minor unit".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })?
+                .get_amount_as_i64(),
+            currency: grpc_api_types::payments::Currency::foreign_try_from(value.currency)
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "dispute_currency",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Failed to convert dispute currency to gRPC Currency type".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })? as i32,
+        };
         Ok(Self {
             connector_dispute_id: Some(value.dispute_id),
             connector_transaction_id: None,
@@ -11978,7 +12007,7 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
             dispute_stage: grpc_stage.into(),
             connector_status_code: None,
             error: None,
-            dispute_amount: None,
+            dispute_amount: Some(dispute_amount),
             dispute_date: None,
             service_date: None,
             shipping_date: None,
