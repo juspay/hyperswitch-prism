@@ -295,6 +295,7 @@ pub mod __status_mapping {
     pub enum CaptureNonTerminalStatus {
         CaptureInitiated,
         PartialChargedAndChargeable,
+        Voided,
         Pending,
     }
 
@@ -324,6 +325,7 @@ pub mod __status_mapping {
                 CaptureNonTerminalStatus::PartialChargedAndChargeable => {
                     Self::PartialChargedAndChargeable
                 }
+                CaptureNonTerminalStatus::Voided => Self::Voided,
                 CaptureNonTerminalStatus::Pending => Self::Pending,
             }
         }
