@@ -56,6 +56,8 @@ tests/e2e/
 
 The intended public fixture API exposes scenario operations, shared checks, connector data, and merchant identifiers. Raw HTTP, server keys, and generic retry callbacks remain internal. Shared checks produce the standard expected/actual report. Use the implemented scenario as the reference pattern when adding coverage, and review changes from a new contributor's perspective before and after each push.
 
+Scenario metadata declares the payment methods needed during connector-account setup. Common setup creates the merchant, API key, profile, sandbox connector account, and routing rule; optional customer, webhook, or mandate behavior belongs in the scenarios that need it.
+
 Each scenario has its own file. `create-confirm` means a single create request with `confirm: true`; `create-then-confirm` means separate create and confirm requests. `automatic` and `manual` describe capture mode. Retrieval and verification steps are declared within each scenario.
 
 The five card scenario files are empty placeholders. The first implementation targets `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.spec.ts`. Adding another compatible connector reuses that scenario.
