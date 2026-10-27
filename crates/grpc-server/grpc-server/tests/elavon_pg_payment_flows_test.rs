@@ -52,6 +52,9 @@ const ORDER_HREF: &str = "https://mock.elavon.test/orders/order_123";
 const SESSION_HREF: &str = "https://mock.elavon.test/payment-sessions/session_123";
 const HOSTED_PAGE_URL: &str = "https://mock.elavon.test/hosted/session_123";
 const COF_DATA: &str = "A7562943766729115153A:357115:";
+/// EPG's `schemeReference` -- the scheme network transaction id, deliberately a different
+/// value from [`COF_DATA`] so the two cannot be confused in the assertions below.
+const SCHEME_REF: &str = "019876543210987";
 
 #[derive(Clone, Debug)]
 struct RecordedRequest {
@@ -160,6 +163,7 @@ async fn elavon_mock(
                     } else {
                         Value::Null
                     },
+                    "schemeReference": json!(SCHEME_REF),
                     "failures": []
                 })),
             )
@@ -725,8 +729,10 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
         let mut payment_client = PaymentServiceClient::new(channel.clone());
         let mut recurring_client = RecurringPaymentServiceClient::new(channel);
 
-        // Cardholder-initiated sale that opens the recurring agreement: the stored
-        // credential comes back both as the mandate id and as the NTID.
+        // Cardholder-initiated sale that opens the recurring agreement. The stored
+        // credential comes back as the mandate id, and the NTID is the scheme's own
+        // reference -- EPG's credentialOnFileData is an EPG token and must not be
+        // published as a scheme NTID that another PSP might be asked to replay.
         let mut cit = Request::new(
             serde_json::from_value::<PaymentServiceAuthorizeRequest>(authorize_request(
                 card_json(),
@@ -740,24 +746,18 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             .expect("recurring CIT should succeed")
             .into_inner();
         assert_eq!(cit.status, i32::from(PaymentStatus::Charged));
-        assert_eq!(cit.network_transaction_id.as_deref(), Some(COF_DATA));
+        assert_eq!(cit.network_transaction_id.as_deref(), Some(SCHEME_REF));
         let mandate_id = cit
             .mandate_reference_details
             .and_then(|mandate| mandate.connector_mandate_id);
         assert_eq!(mandate_id.as_deref(), Some(COF_DATA));
 
-        // Merchant-initiated repeats: by connector mandate id and by card + NTID. Both
-        // must replay the same credentialOnFileData with the card and no CVC.
-        for (suffix, recurring_id) in [
-            (
-                "mandate_id",
-                json!({ "ConnectorMandateId": { "connector_mandate_id": COF_DATA } }),
-            ),
-            (
-                "ntid",
-                json!({ "NetworkMandateId": { "network_transaction_id": COF_DATA } }),
-            ),
-        ] {
+        // Merchant-initiated repeat by connector mandate id: replays the
+        // credentialOnFileData with the card and no CVC.
+        for (suffix, recurring_id) in [(
+            "mandate_id",
+            json!({ "ConnectorMandateId": { "connector_mandate_id": COF_DATA } }),
+        )] {
             let mut charge = Request::new(
                 serde_json::from_value::<RecurringPaymentServiceChargeRequest>(json!({
                     "merchant_charge_id": format!("charge_{suffix}"),
@@ -778,6 +778,32 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             assert_eq!(charge.status, i32::from(PaymentStatus::Charged), "{suffix}");
             assert_eq!(charge.connector_transaction_id.as_deref(), Some("txn_mit"));
         }
+
+        // A repeat addressed by network transaction id is refused rather than sent: EPG has
+        // no request field for a scheme NTID, only its own credentialOnFileData, so the
+        // value would be rejected by the acquirer.
+        let mut ntid_charge = Request::new(
+            serde_json::from_value::<RecurringPaymentServiceChargeRequest>(json!({
+                "merchant_charge_id": "charge_ntid",
+                "connector_recurring_payment_id": {
+                    "mandate_id_type": { "NetworkMandateId": { "network_transaction_id": SCHEME_REF } }
+                },
+                "amount": { "minor_amount": 3500, "currency": "USD" },
+                "payment_method": { "payment_method": card_json() },
+                "capture_method": "AUTOMATIC",
+                "off_session": true,
+                "test_mode": true
+            }))
+            .expect("charge request should deserialize"),
+        );
+        add_elavon_metadata(&mut ntid_charge, "recurring_ntid");
+        let ntid_rejection = Box::pin(recurring_client.charge(ntid_charge))
+            .await
+            .expect_err("a repeat by network transaction id must be refused");
+        assert!(
+            ntid_rejection.message().contains("network transaction id"),
+            "{ntid_rejection}"
+        );
 
         // Pre-decrypted wallets are one-time sales.
         for (suffix, wallet) in [
@@ -834,15 +860,15 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             .filter(|request| request.original_url.ends_with("/transactions"))
             .map(|request| &request.body)
             .collect();
-        // CIT, 2 repeats, 2 wallets; the refused request never reached EPG.
-        assert_eq!(sales.len(), 5, "{sales:?}");
+        // CIT, 1 repeat, 2 wallets; the two refused requests never reached EPG.
+        assert_eq!(sales.len(), 4, "{sales:?}");
 
         assert_eq!(sales[0]["credentialOnFileType"], json!("recurring"));
         assert_eq!(sales[0]["shopperInteraction"], json!("ecommerce"));
         assert_eq!(sales[0]["card"]["securityCode"], json!("123"));
         assert!(sales[0].get("credentialOnFileData").is_none());
 
-        for repeat in &sales[1..3] {
+        for repeat in &sales[1..2] {
             assert_eq!(repeat["shopperInteraction"], json!("merchantInitiated"));
             assert_eq!(repeat["credentialOnFileType"], json!("recurring"));
             assert_eq!(repeat["credentialOnFileData"], json!(COF_DATA));
@@ -850,7 +876,7 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             assert!(repeat["card"].get("securityCode").is_none());
         }
 
-        for (wallet, origin) in sales[3..5].iter().zip(["Google Pay", "Apple Pay"]) {
+        for (wallet, origin) in sales[2..4].iter().zip(["Google Pay", "Apple Pay"]) {
             assert_eq!(wallet["paymentMethodOrigin"], json!(origin));
             assert_eq!(
                 wallet["cryptogramSecurity"],
