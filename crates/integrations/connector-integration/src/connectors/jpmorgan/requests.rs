@@ -203,7 +203,7 @@ pub struct JpmorganCard<T: PaymentMethodDataTypes> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wallet_provider: Option<JpmorganWalletProvider>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub authentication: Option<JpmorganWalletAuthentication>,
+    pub authentication: Option<JpmorganAuthentication>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_sales_channel_name: Option<JpmorganMerchantSalesChannelName>,
 }
@@ -232,10 +232,26 @@ pub enum JpmorganWalletProvider {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct JpmorganWalletAuthentication {
-    pub token_authentication_value: Secret<String>,
+pub struct JpmorganAuthentication {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_authentication_value: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub electronic_commerce_indicator: Option<String>,
+    #[serde(rename = "threeDS", skip_serializing_if = "Option::is_none")]
+    pub three_ds: Option<JpmorganThreeDs>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganThreeDs {
+    pub authentication_value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_transaction_id: Option<String>,
+    #[serde(
+        rename = "threeDSProgramProtocol",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub three_ds_program_protocol: Option<String>,
 }
 
 /// ACH Bank Debit payment method structure for JPMorgan

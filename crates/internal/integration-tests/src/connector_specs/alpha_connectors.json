@@ -71,7 +71,9 @@
     "nexixpay": {},
     "nmi": {},
     "noon": {},
-    "novalnet": {},
+    "novalnet": {
+      "reason": "No Novalnet credentials are configured in the CI creds file, so certification cannot run. Card Authorize (automatic and manual capture, 3DS redirect), PayPal redirect, PSync, Capture, Void, Refund and RSync were verified manually against a Novalnet test account. Still uncovered: Google Pay and Apple Pay need real device tokens encrypted for the Novalnet merchant, and webhook source verification needs a configured webhook secret plus a harness signer for Novalnet's body checksum. Remove this entry once CI credentials are added."
+    },
     "nuvei": {},
     "paybox": {},
     "payconex": {},
