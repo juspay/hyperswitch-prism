@@ -1,3 +1,5 @@
+export type Json = Record<string, unknown>;
+
 export type JsonValue =
   string | number | boolean | null | JsonValue[] | JsonObject;
 export type JsonObject = { [field: string]: JsonValue };

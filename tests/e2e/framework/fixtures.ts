@@ -1,13 +1,13 @@
 import { test as base, type TestType } from "@playwright/test";
-import { Checks } from "./checks.js";
-import { Hyperswitch } from "./hyperswitch.js";
+import { Assertions } from "./assertions.js";
+import { HyperswitchClient } from "./hyperswitch-client.js";
 import { setupMerchant, type TestMerchant } from "./merchant-setup.js";
-import { PaymentOperations } from "./operations.js";
+import { PaymentOperations } from "./payment-operations.js";
 import type {
   ConnectorDefinition,
   Scenario,
   ScenarioOverrides,
-} from "./scenario.js";
+} from "./types.js";
 
 type ScenarioFixtures = {
   connector: ConnectorDefinition;
@@ -17,14 +17,14 @@ type ScenarioFixtures = {
     "merchantId" | "profileId" | "merchantConnectorId"
   >;
   payments: PaymentOperations;
-  checks: Pick<Checks, "fields" | "oneOf">;
+  checks: Pick<Assertions, "fields" | "oneOf">;
 };
 
 type InternalFixtures = {
-  _hs: Hyperswitch;
+  _hs: HyperswitchClient;
   _merchant: TestMerchant;
   _overrides: ScenarioOverrides;
-  _checks: Checks;
+  _checks: Assertions;
 };
 
 // Setup fixtures have no payment journey. Raw HTTP and API keys remain internal.
@@ -66,7 +66,7 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
     { auto: true },
   ],
   _hs: async ({}, use) => {
-    const hs = await Hyperswitch.create();
+    const hs = await HyperswitchClient.create();
     try {
       await use(hs);
     } finally {
@@ -84,7 +84,7 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
     });
   },
   _checks: async ({}, use, info) => {
-    await use(new Checks(info));
+    await use(new Assertions(info));
   },
   checks: async ({ _checks }, use) => {
     await use({

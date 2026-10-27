@@ -1,8 +1,8 @@
 import { test } from "@playwright/test";
-import { Checks } from "./checks.js";
-import { Hyperswitch, stringField, type Json } from "./hyperswitch.js";
+import { Assertions } from "./assertions.js";
+import { HyperswitchClient, stringField } from "./hyperswitch-client.js";
 import type { TestMerchant } from "./merchant-setup.js";
-import type { ScenarioOverrides } from "./scenario.js";
+import type { Json, ScenarioOverrides } from "./types.js";
 import { readRecordedPayment } from "./payment-records.js";
 
 export type PaymentResponse = Json & { payment_id: string; status: string };
@@ -11,9 +11,9 @@ export type PaymentResponse = Json & { payment_id: string; status: string };
 // Apply connector request differences once, then forward to HS for validation.
 export class PaymentOperations {
   constructor(
-    private readonly hs: Hyperswitch,
+    private readonly hs: HyperswitchClient,
     private readonly merchant: TestMerchant,
-    private readonly checks: Checks,
+    private readonly checks: Assertions,
     private readonly overrides: ScenarioOverrides,
   ) {}
 

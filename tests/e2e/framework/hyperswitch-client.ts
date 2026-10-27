@@ -5,8 +5,7 @@ import {
   type APIResponse,
 } from "@playwright/test";
 import { configuration } from "./configuration.js";
-
-export type Json = Record<string, unknown>;
+import type { Json } from "./types.js";
 
 export function stringField(response: Json, field: string): string {
   const value = response[field];
@@ -16,11 +15,11 @@ export function stringField(response: Json, field: string): string {
   return value;
 }
 
-export class Hyperswitch {
+export class HyperswitchClient {
   private constructor(private readonly api: APIRequestContext) {}
 
-  static async create(): Promise<Hyperswitch> {
-    return new Hyperswitch(
+  static async create(): Promise<HyperswitchClient> {
+    return new HyperswitchClient(
       await request.newContext({
         baseURL: configuration.hyperswitchBaseUrl,
         timeout: 60_000,

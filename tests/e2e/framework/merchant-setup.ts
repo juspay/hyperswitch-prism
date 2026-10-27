@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
-import type { ConnectorDefinition } from "./scenario.js";
-import { loadConnectorCredentials } from "./credentials.js";
+import type { ConnectorDefinition } from "./types.js";
+import { loadConnectorCredentials } from "./connector-credentials.js";
 import { configuration } from "./configuration.js";
-import { Hyperswitch, stringField } from "./hyperswitch.js";
+import { HyperswitchClient, stringField } from "./hyperswitch-client.js";
 
 export type TestMerchant = {
   merchantId: string;
@@ -13,7 +13,7 @@ export type TestMerchant = {
 };
 
 export async function setupMerchant(
-  hs: Hyperswitch,
+  hs: HyperswitchClient,
   connector: ConnectorDefinition,
 ): Promise<TestMerchant> {
   return test.step("Set up merchant, connector account, and routing", async () => {
@@ -110,7 +110,7 @@ export async function setupMerchant(
   });
 }
 
-async function enableUcs(hs: Hyperswitch): Promise<void> {
+async function enableUcs(hs: HyperswitchClient): Promise<void> {
   const response = await hs.fetch(
     "GET",
     "/configs/ucs_enabled",

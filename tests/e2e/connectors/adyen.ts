@@ -1,4 +1,4 @@
-import type { ConnectorDefinition } from "../framework/scenario.js";
+import type { ConnectorDefinition } from "../framework/types.js";
 
 export const adyen = {
   id: "adyen",

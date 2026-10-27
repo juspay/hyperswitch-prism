@@ -140,14 +140,14 @@ Operations apply their request overrides automatically. Overrides replace comple
 | `scenarios/api/**/*.spec.ts` | Own the complete journey, request data, use of responses, and expected results. |
 | `connectors/adyen.ts` | Declare sandbox data, optional request overrides, and reasoned exclusions. |
 | `connectors/index.ts` | Register connector definitions. |
-| `framework/scenario.ts` | Define scenario metadata and data-only connector configuration types. |
+| `framework/types.ts` | Define scenario metadata and data-only connector configuration types. |
 | `framework/fixtures.ts` | Standard Playwright fixtures apply exclusions, provision context, and release resources. Export a typed public API without internal HTTP/keys/polling. No payment sequence. |
-| `framework/operations.ts` | Execute individual payment operations and return responses; expose explicitly named status polling and recorded-payment reads. |
+| `framework/payment-operations.ts` | Execute individual payment operations and return responses; expose explicitly named status polling and recorded-payment reads. |
 | `framework/merchant-setup.ts` | Configure UCS and provision the merchant, API key, profile, connector account, and routing rule. |
-| `framework/hyperswitch.ts` | Send authenticated HS HTTP requests and handle transport/HTTP errors. |
+| `framework/hyperswitch-client.ts` | Send authenticated HS HTTP requests and handle transport/HTTP errors. |
 | `framework/payment-records.ts` | Read the payment gateway, active-attempt status, and connector transaction ID presence from the dedicated test database. |
-| `framework/checks.ts` | Shared comparisons, bounded polling, and expected/actual report attachments. |
-| `framework/credentials.ts` | Load external sandbox credentials. |
+| `framework/assertions.ts` | Shared comparisons, bounded polling, and expected/actual report attachments. |
+| `framework/connector-credentials.ts` | Load external sandbox credentials. |
 | `framework/configuration.ts` | Resolve runtime URLs and options. |
 | `stack/compose.yml` | Configure local services and readiness dependencies. |
 | `stack/ucs.Dockerfile` | Add the gRPC health-check executable to the published UCS image. |

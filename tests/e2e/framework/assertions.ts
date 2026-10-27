@@ -1,7 +1,7 @@
 import { expect, test, type TestInfo } from "@playwright/test";
-import type { Json } from "./hyperswitch.js";
+import type { Json } from "./types.js";
 
-export class Checks {
+export class Assertions {
   constructor(private readonly info: TestInfo) {}
 
   async fields(name: string, actual: Json, expected: Json): Promise<void> {

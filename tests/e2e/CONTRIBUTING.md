@@ -21,8 +21,8 @@ Use a new variable for each response and pass fields directly to the next operat
 | Another connector | One data definition, one registry entry, external credentials, and local stack connector configuration. Existing specs inherit it. |
 | A processor-required request difference | Data in that connector's override for the shared scenario ID. |
 | Unsupported behavior | An exclusion on the connector with a reason; the shared test remains registered and reports skipped. |
-| A genuinely new HS endpoint | One small reusable operation in `operations.ts`, then call it from the shared spec. It forwards API fields, handles protocol shape, and returns the full response. It does not call other mutating operations. |
-| A new resource family or browser flow | Add its shared operation/setup fixture, using the existing setup and checks. Keep its journey in the spec. SDK checkout tests belong under `scenarios/web-sdk/checkout/`. |
+| A genuinely new HS endpoint | Add one small method to its resource's `*-operations.ts` module (`payment-operations.ts` for `/payments`). It forwards API fields, validates the response shape, and returns the full response. It does not call other mutating operations. |
+| A new resource family or browser flow | Add its resource module and fixture, reusing the HTTP client and assertions: for example, `/refunds` uses `refund-operations.ts` and the `refunds` fixture. Keep its journey in the spec. SDK checkout tests belong under `scenarios/web-sdk/checkout/`. |
 
 New endpoints necessarily need an operation implementation; adding an ordinary scenario must not require editing a dispatcher, global scenario enumeration, or connector execution code. Do not add an unimplemented operation in anticipation of future coverage.
 
