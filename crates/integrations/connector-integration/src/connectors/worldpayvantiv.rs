@@ -898,10 +898,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // ===== FLOW STATUS MAPPINGS =====
-// Bodies mirror `get_attempt_status` / the per-flow TryFroms in transformers: the
-// approved codes (`Approved`, `PartiallyApproved`, `OfflineApproval`,
-// `TransactionReceived`) mean the operation reached the gateway (still settling),
-// everything else is a decline.
 
 domain_types::impl_flow_status_mapping! {
     generics: [T: std::fmt::Debug + Sync + Send + 'static + Serialize + PaymentMethodDataTypes],
