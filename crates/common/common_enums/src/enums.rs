@@ -14,6 +14,10 @@ pub const ASYNC_ACK_STATUS_MAPPING_CONNECTORS: &[&str] = &[
     "Trustly",
     // Refund reports whether the request was accepted; RSync provides the terminal outcome.
     "Easebuzz",
+    // Capture acknowledges an asynchronous transfer; PSync provides the terminal outcome.
+    "Finix",
+    // Capture and Refund return operation acknowledgements; sync flows provide final outcomes.
+    "Nexixpay",
 ];
 
 /// Currency related errors.
