@@ -50,9 +50,11 @@ tests/e2e/
 ## Structure
 
 - `framework/` supplies standard Playwright setup/cleanup fixtures, individual payment operations, HTTP access, database reads, and shared checks/reporting through dedicated helpers. Each spec uses ordinary TypeScript to call operations in order, retain responses in variables, and verify results. Fixtures do not choose or execute a payment journey.
-- `connectors/` declares credential keys, sandbox test data, optional request/expectation overrides, and explicit exclusions with reasons. Registered connectors inherit shared scenarios by default. Connector definitions contain data only and do not duplicate scenario execution.
+- `connectors/` declares credential keys, sandbox test data, optional request overrides, and explicit exclusions with reasons. Registered connectors inherit shared scenarios by default. Operations apply request overrides centrally; expected outcomes stay in shared specs. Connector definitions contain data only and do not duplicate scenario execution.
 - `scenarios/api/` describes journeys driven through direct HS API calls, using server or client credentials as appropriate. The path identifies the product area, lifecycle, and payment-method family. Future tests operating an actual Web SDK checkout belong under `scenarios/web-sdk/checkout/`.
 - `stack/` operates the isolated local services required by the tests and remains independent of payment behavior.
+
+The intended public fixture API exposes scenario operations, shared checks, connector data, and merchant identifiers. Raw HTTP, server keys, and generic retry callbacks remain internal. Shared checks produce the standard expected/actual report. Use the implemented scenario as the reference pattern when adding coverage, and review changes from a new contributor's perspective before and after each push.
 
 Each scenario has its own file. `create-confirm` means a single create request with `confirm: true`; `create-then-confirm` means separate create and confirm requests. `automatic` and `manual` describe capture mode. Retrieval and verification steps are declared within each scenario.
 
