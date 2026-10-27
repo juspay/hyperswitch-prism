@@ -1977,10 +1977,7 @@ fn get_partial_authorization_amounts(
         Some(CaptureMethod::Manual) | Some(CaptureMethod::ManualMultiple) => {
             (None, response.amount)
         }
-        _ => (
-            response.amount,
-            Some(MinorUnit::zero()),
-        ),
+        _ => (response.amount, Some(MinorUnit::zero())),
     };
 
     let amount_authorized = enable_partial_authorization
