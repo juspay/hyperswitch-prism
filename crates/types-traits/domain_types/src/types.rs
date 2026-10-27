@@ -14482,7 +14482,7 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
                 .ok()
                 .map(|offset_dt| time::PrimitiveDateTime::new(offset_dt.date(), offset_dt.time()))
         };
-        let amount =
+        let money =
             match amount_data.amount_money {
                 Some(amount_money) => common_utils::types::Money {
                     amount: common_utils::types::MinorUnit::new(amount_money.minor_amount),
@@ -14517,7 +14517,7 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
             };
 
         Ok(Self {
-            amount,
+            money,
             start_date: amount_data.start_date.and_then(to_primitive_date_time),
             end_date: amount_data.end_date.and_then(to_primitive_date_time),
             metadata: None,
