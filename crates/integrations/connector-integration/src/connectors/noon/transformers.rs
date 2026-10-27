@@ -951,6 +951,15 @@ fn build_noon_connector_response(
             card_network: None,
             domestic_network: None,
             auth_code,
+            // Noon's order response carries only the AVS result and the auth code; it
+            // returns no card metadata.
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         },
     ))
 }
