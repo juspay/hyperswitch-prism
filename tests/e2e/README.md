@@ -39,6 +39,7 @@ tests/e2e/
   stack/
     compose.yml                # Isolated local dependencies
     stack.mjs                  # Stack startup and shutdown
+    ucs.Dockerfile             # Published UCS image plus gRPC health probe
   playwright.config.ts
   package.json
   package-lock.json
