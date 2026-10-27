@@ -3,7 +3,7 @@ pub mod transformers;
 use common_enums::CurrencyUnit;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    crypto::GenerateDigest,
+    crypto::{constant_time_eq, GenerateDigest},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -42,6 +42,42 @@ use domain_types::router_data::ErrorResponse;
 pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
+}
+
+fn verify_webhook_signature(
+    payload: &PayhereWebhookPayload,
+    merchant_secret: &str,
+) -> Result<bool, error_stack::Report<errors::WebhookError>> {
+    let hash_secret = common_utils::crypto::Md5
+        .generate_digest(merchant_secret.as_bytes())
+        .map_err(|_| {
+            error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
+        })?;
+    let hash_secret_upper = hex::encode(hash_secret).to_uppercase();
+
+    let message = format!(
+        "{}{}{}{}{}{}",
+        payload.merchant_id,
+        payload.order_id,
+        payload.payhere_amount,
+        payload.payhere_currency,
+        payload.status_code,
+        hash_secret_upper
+    );
+
+    let final_hash = common_utils::crypto::Md5
+        .generate_digest(message.as_bytes())
+        .map_err(|_| {
+            error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
+        })?;
+
+    // PayHere specifies an uppercase MD5 checksum for this webhook. Keep the
+    // wire format, but compare the received value in constant time.
+    let expected_signature = hex::encode(final_hash).to_uppercase();
+    Ok(constant_time_eq(
+        expected_signature.as_bytes(),
+        payload.md5sig.as_bytes(),
+    ))
 }
 
 macros::create_all_prerequisites!(
@@ -180,38 +216,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
             })?;
 
-        let hash_secret = common_utils::crypto::Md5
-            .generate_digest(merchant_secret.as_bytes())
-            .map_err(|_| {
-                error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
-            })?;
-        let hash_secret_upper = hex::encode(hash_secret).to_uppercase();
-
-        let message = format!(
-            "{}{}{}{}{}{}",
-            payload.merchant_id,
-            payload.order_id,
-            payload.payhere_amount,
-            payload.payhere_currency,
-            payload.status_code,
-            hash_secret_upper
-        );
-
-        let final_hash = common_utils::crypto::Md5
-            .generate_digest(message.as_bytes())
-            .map_err(|_| {
-                error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
-            })?;
-
-        // PayHere specifies an uppercase MD5 checksum for this webhook. Keep
-        // the wire format, but compare the received value in constant time.
-        let expected_signature = hex::encode(final_hash).to_uppercase();
-        #[allow(deprecated)] // ring 0.17 renamed the module; comparison remains available
-        Ok(ring::constant_time::verify_slices_are_equal(
-            expected_signature.as_bytes(),
-            payload.md5sig.as_bytes(),
-        )
-        .is_ok())
+        verify_webhook_signature(&payload, merchant_secret.as_str())
     }
 
     fn get_event_type(
@@ -646,4 +651,39 @@ fn get_query_param(request: &RequestDetails, param_name: &str) -> Option<String>
                     .map(|(_, value)| value.into_owned())
             })
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{verify_webhook_signature, PayhereWebhookPayload};
+
+    fn webhook_payload(signature: &str) -> PayhereWebhookPayload {
+        PayhereWebhookPayload {
+            merchant_id: "synthetic_merchant".to_string(),
+            order_id: "synthetic_order".to_string(),
+            payment_id: None,
+            payhere_amount: "10.00".to_string(),
+            payhere_currency: "LKR".to_string(),
+            status_code: 2,
+            md5sig: signature.to_string(),
+        }
+    }
+
+    #[test]
+    fn verifies_protocol_checksum_and_rejects_invalid_forms() {
+        const EXPECTED: &str = "7210FE95F5650CE1187B49486565FD13";
+        const SECRET: &str = "synthetic_merchant_secret";
+
+        assert!(verify_webhook_signature(&webhook_payload(EXPECTED), SECRET)
+            .expect("valid PayHere webhook checksum"));
+        assert!(!verify_webhook_signature(
+            &webhook_payload("00000000000000000000000000000000"),
+            SECRET,
+        )
+        .expect("same-length invalid PayHere webhook checksum"));
+        assert!(!verify_webhook_signature(&webhook_payload(&EXPECTED.to_lowercase()), SECRET)
+            .expect("lowercase PayHere webhook checksum"));
+        assert!(!verify_webhook_signature(&webhook_payload("short"), SECRET)
+            .expect("wrong-length PayHere webhook checksum"));
+    }
 }

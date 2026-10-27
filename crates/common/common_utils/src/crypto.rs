@@ -137,6 +137,14 @@ pub trait VerifySignature {
     ) -> CustomResult<bool, errors::CryptoError>;
 }
 
+/// Compares two cryptographic values without leaking content through timing.
+///
+/// Length is intentionally checked first because OpenSSL's comparison API
+/// requires equal-length inputs. Cryptographic signature lengths are public.
+pub fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
+    left.len() == right.len() && openssl::memcmp::eq(left, right)
+}
+
 /// Trait for cryptographically encoding a message
 pub trait EncodeMessage {
     /// Takes in a secret and the message and encodes it, returning bytes
@@ -517,8 +525,7 @@ impl VerifySignature for Md5 {
         let hashed_digest = Self
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
-        #[allow(deprecated)] // ring 0.17 renamed the module; comparison remains available
-        Ok(ring::constant_time::verify_slices_are_equal(&hashed_digest, signature).is_ok())
+        Ok(constant_time_eq(&hashed_digest, signature))
     }
 }
 
