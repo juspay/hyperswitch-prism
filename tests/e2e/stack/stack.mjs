@@ -19,6 +19,8 @@ const action = process.argv[2];
 const hsImage =
   process.env.HS_IMAGE ??
   "docker.juspay.io/juspaydotin/hyperswitch-router:latest";
+const ucsImage =
+  process.env.UCS_IMAGE ?? "docker.io/juspaydotin/hyperswitch-prism:latest";
 
 if (!new Set(["up", "down"]).has(action)) {
   throw new Error("Use stack.mjs up|down");
@@ -130,6 +132,7 @@ if (!checkout || !existsSync(resolve(checkout, "docker-compose.yml"))) {
 const hsConfig = resolve(runtime, "hs.toml");
 const dieselConfig = resolve(runtime, "diesel.toml");
 if (action === "up") {
+  run("docker", ["pull", ucsImage]);
   let config = readFileSync(
     resolve(checkout, "config/docker_compose.toml"),
     "utf8",
@@ -169,6 +172,7 @@ const compose = [
 const env = {
   ...process.env,
   HS_IMAGE: hsImage,
+  UCS_IMAGE: ucsImage,
   E2E_HS_CONFIG: hsConfig,
   E2E_DIESEL_CONFIG: dieselConfig,
 };
