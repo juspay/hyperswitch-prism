@@ -8031,9 +8031,23 @@ impl ForeignFrom<connector_types::MandateReference> for grpc_payment_types::Mand
                         mandate_metadata: mandate_reference
                             .mandate_metadata
                             .map(|metadata| Secret::new(metadata.expose().to_string())),
+                        additional_mandate_details: None,
                     },
                 ),
             ),
+        }
+    }
+}
+
+impl ForeignFrom<grpc_payment_types::AdditionalMandateDetails>
+    for connector_types::AdditionalMandateDetails
+{
+    fn foreign_from(details: grpc_payment_types::AdditionalMandateDetails) -> Self {
+        Self {
+            card_exp_month: details.card_exp_month,
+            card_exp_year: details.card_exp_year,
+            network_transaction_id: details.network_transaction_id,
+            transaction_link_id: details.transaction_link_id,
         }
     }
 }
@@ -8063,6 +8077,10 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateReference> for MandateRefer
                     })
                     .transpose()?,
                 connector_mandate_id.connector_mandate_request_reference_id,
+                connector_mandate_id
+                    .additional_mandate_details
+                    .map(connector_types::AdditionalMandateDetails::foreign_from)
+                    .map(Box::new),
             ))),
             Some(grpc_api_types::payments::mandate_reference::MandateIdType::NetworkMandateId(
                 network_mandate_id,
@@ -8976,13 +8994,34 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             .map(|m| ForeignTryFrom::foreign_try_from((m, "connector metadata")))
             .transpose()?;
 
+        // The flat sync mandate reference below cannot hold card and network details.
+        // Keep those in the structured reference when the caller supplies them.
+        let mandate_id = value
+            .mandate_reference
+            .as_ref()
+            .filter(|reference| reference.additional_mandate_details.is_some())
+            .map(|reference| {
+                MandateReferenceId::foreign_try_from(grpc_payment_types::MandateReference {
+                    mandate_id_type: Some(
+                        grpc_payment_types::mandate_reference::MandateIdType::ConnectorMandateId(
+                            reference.clone(),
+                        ),
+                    ),
+                })
+                .map(|reference| connector_types::MandateIds {
+                    mandate_id: None,
+                    mandate_reference_id: Some(reference),
+                })
+            })
+            .transpose()?;
+
         Ok(Self {
             connector_transaction_id,
             encoded_data: value.encoded_data,
             capture_method,
             connector_feature_data,
             sync_type,
-            mandate_id: None,
+            mandate_id,
             payment_method_type,
             currency: amount.currency,
             payment_experience,

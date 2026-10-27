@@ -604,12 +604,21 @@ pub struct UpdateHistory {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct AdditionalMandateDetails {
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub network_transaction_id: Option<String>,
+    pub transaction_link_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct ConnectorMandateReferenceId {
     connector_mandate_id: Option<String>,
     payment_method_id: Option<String>,
     update_history: Option<Vec<UpdateHistory>>,
     mandate_metadata: Option<SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
+    additional_mandate_details: Option<Box<AdditionalMandateDetails>>,
 }
 
 impl ConnectorMandateReferenceId {
@@ -619,6 +628,7 @@ impl ConnectorMandateReferenceId {
         update_history: Option<Vec<UpdateHistory>>,
         mandate_metadata: Option<SecretSerdeValue>,
         connector_mandate_request_reference_id: Option<String>,
+        additional_mandate_details: Option<Box<AdditionalMandateDetails>>,
     ) -> Self {
         Self {
             connector_mandate_id,
@@ -626,6 +636,7 @@ impl ConnectorMandateReferenceId {
             update_history,
             mandate_metadata,
             connector_mandate_request_reference_id,
+            additional_mandate_details,
         }
     }
 
@@ -647,6 +658,10 @@ impl ConnectorMandateReferenceId {
 
     pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
         self.connector_mandate_request_reference_id.clone()
+    }
+
+    pub fn get_additional_mandate_details(&self) -> Option<&AdditionalMandateDetails> {
+        self.additional_mandate_details.as_deref()
     }
 }
 
