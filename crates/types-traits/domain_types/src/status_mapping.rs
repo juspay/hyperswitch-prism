@@ -90,6 +90,9 @@ macro_rules! __validate_flow_mapping_outcomes {
     ($connector:ty, Authorize, $($mapping:tt)*) => {
         $crate::__validate_flow_mapping_outcomes!(@allow_without_success $($mapping)*);
     };
+    ($connector:ty, SetupMandate, $($mapping:tt)*) => {
+        $crate::__validate_flow_mapping_outcomes!(@allow_without_success $($mapping)*);
+    };
     ($connector:ty, Capture, $($mapping:tt)*) => {
         $crate::__validate_flow_mapping_outcomes!(
             @require_success_or_async_ack $connector, $($mapping)*

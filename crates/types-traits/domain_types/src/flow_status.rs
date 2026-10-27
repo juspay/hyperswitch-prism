@@ -4,6 +4,7 @@
 //! through [`FlowSpec`]. Invalid cross-flow statuses are not representable.
 
 use common_enums::{AttemptStatus, DisputeStatus, PayoutStatus, RefundStatus};
+use common_utils::types::MinorUnit;
 
 use crate::connector_flow;
 
@@ -1596,6 +1597,9 @@ pub trait ConnectorRuntimeStatusMapping<Flow: FlowSpec, Request, Response> {
 pub trait FlowStatusReader<Status> {
     fn current_mapped_flow_status(&self) -> Status;
     fn connector_request_reference_id(&self) -> Option<&str> {
+        None
+    }
+    fn payment_amount(&self) -> Option<MinorUnit> {
         None
     }
 }
