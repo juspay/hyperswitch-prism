@@ -21,9 +21,9 @@ Open the HTML report with `npx playwright show-report`. Stop the isolated stack 
 
 Each scenario has its own file. `create-confirm` means a single create request with `confirm: true`; `create-then-confirm` means separate create and confirm requests. `automatic` and `manual` describe capture mode. Retrieval and verification steps are declared within each scenario.
 
-Only `scenarios/payments/one-time/server/card/no3ds-automatic-create-confirm.spec.ts` is implemented. Its four sibling files are empty placeholders for future scenarios.
+Only `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.spec.ts` is implemented. Its four sibling files are empty placeholders for future scenarios.
 
-- `scenarios/` declares payment behavior. Scenario files contain typed data and register tests through the shared runner.
+- `scenarios/api/` declares journeys driven through direct HS API calls, using server or client credentials as appropriate. Scenario files contain typed data and register tests through the shared runner. Future tests operating an actual Web SDK checkout belong under `scenarios/web-sdk/checkout/`.
 - `connectors/` declares supported capabilities and connector-required test data. It does not implement payment lifecycles.
 - `framework/` owns merchant setup, API sequences, assertions, and reporting.
 - `stack/` owns the isolated local services.
