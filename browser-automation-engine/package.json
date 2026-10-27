@@ -21,7 +21,7 @@
     "build:worker": "bash scripts/build-worker.sh"
   },
   "dependencies": {
-    "netlify": "^24.3.0",
+    "netlify": "^27.14.2",
     "playwright": "^1.53.0",
     "selenium-webdriver": "^4.41.0",
     "ipaddr.js": "^2.2.0"
@@ -31,5 +31,9 @@
     "@types/selenium-webdriver": "^4.35.5",
     "tsx": "^4.19.2",
     "typescript": "^5.8.2"
+  },
+  "overrides": {
+    "proxy-addr": "^2.0.8",
+    "tar": "^7.5.19"
   }
 }
