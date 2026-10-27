@@ -4485,6 +4485,12 @@ pub fn is_refund_operation(operation: &EcommpayOperation) -> bool {
     )
 }
 
+/// Whether the callback is about an individual COF debit rather than the payment that
+/// registered the series.
+pub fn is_recurring_operation(operation: &EcommpayOperation) -> bool {
+    matches!(operation.operation_type, EcommpayOperationType::Recurring)
+}
+
 /// Event of a payment/operation callback, by `operation.type` + `operation.status` (techspec
 /// "Webhook Events"). Exhaustive on purpose: no catch-all arm.
 fn operation_event_type(operation: &EcommpayOperation) -> EventType {
@@ -4655,7 +4661,27 @@ pub fn payment_webhook_details(
     response: &EcommpayStatusResponse,
 ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
     let payment_id = callback_payment_id(response)?;
-    let status = map_payment_status(response.payment.status);
+    // `payment.status` describes the payment as a whole, and a COF series sits at
+    // `scheduled recurring processing` while individual debits come and go -- so for a
+    // recurring-operation callback it cannot say whether *this* debit was taken. Ecommpay
+    // documents a declined `recurring` operation under that payment status, which the
+    // payment-level table would have reported as `Charged` while the event derived from the
+    // same operation is `PaymentIntentFailure`. The operation is this attempt, so it decides.
+    // The registration payment (sale / auth / account verification) keeps the payment status,
+    // which is also what PSync of that payment returns.
+    let recurring_operation = response
+        .operation
+        .as_ref()
+        .filter(|operation| is_recurring_operation(operation));
+    let status = match recurring_operation {
+        Some(operation) => match operation_outcome(operation.status) {
+            OperationOutcome::Succeeded => AttemptStatus::Charged,
+            OperationOutcome::Failed => AttemptStatus::Failure,
+            OperationOutcome::ActionRequired => AttemptStatus::AuthenticationPending,
+            OperationOutcome::Processing => AttemptStatus::Pending,
+        },
+        None => map_payment_status(response.payment.status),
+    };
     let error = response
         .operation
         .as_ref()
@@ -4701,7 +4727,10 @@ pub fn payment_webhook_details(
     // the full authorised amount. It is NOT the captured amount once money has been sent back:
     // a refund reduces `payment.sum` while `payment.status` stays `success`, so a refund
     // operation is excluded instead of under-reporting the capture.
+    // `payment.sum` is the parent payment's standing amount, so it is not an individual COF
+    // debit's captured amount either: a recurring-operation callback reports none.
     let settles_capture = status == AttemptStatus::Charged
+        && recurring_operation.is_none()
         && !response.operation.as_ref().is_some_and(is_refund_operation);
     let amount_captured = response
         .payment
