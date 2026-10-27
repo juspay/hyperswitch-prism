@@ -25,9 +25,11 @@ Merchant setup enables UCS before payment calls. Merchant, profile, API-key, con
 
 ## Report
 
-Each test shows **Scenario** and **Verifies** descriptions, ordered API steps, and expected/actual comparison attachments. After each payment or refund response, a separate audit collector reads UCS's existing masked `ucs_event` JSON log field and matches that response's `x-request-id`. Attachments are named by API call, flow, and stage (`GrpcRequest` or `ConnectorCall`), and contain the event unchanged, including its masked request/response data. All matching calls are retained, ordered by event timestamp; this is completion order, not a reconstructed call-start sequence.
+Each test shows **Scenario** and **Verifies** descriptions, ordered API steps, and expected/actual comparison attachments. Group one API call and its assertions inside `report.step(...)`. It displays the call, the checks, and then the correlated audit evidence, including when a check fails. The scenario still owns every call and assertion.
 
-The UCS image must expose the structured `ucs_event` field. `UCS_LOG_CONTAINER` can select the UCS container for a dedicated test stack; otherwise the collector selects the local Compose project's UCS service. Raw container logs, human-readable messages, credentials, and unmasked HS request/response bodies are never attached. Missing events or bounded Docker-log collection failures produce annotations, not empty event attachments. Collection is diagnostic and does not assert completeness or turn a stored-state retrieval into proof of PSync execution.
+After each payment or refund response, a separate collector matches its `x-request-id` against UCS's processed, masked event JSON. UCS logs this payload at INFO level regardless of Kafka being enabled. The collector accepts the dedicated `ucs_event` field when present, or the exact existing event-publisher message format from `ucs_common_utils::events`. It parses only the event JSON and never attaches the surrounding log record. Attachments are named by API call, flow, and stage (`GrpcRequest` or `ConnectorCall`) and contain the original masked event, including request/response data. Repeated calls are retained and ordered by event timestamp.
+
+Keep UCS console logging enabled at INFO level with JSON log format, as configured by the local stack. `UCS_LOG_CONTAINER` can select the UCS container for a dedicated test stack; otherwise the collector selects the local Compose project's UCS service. Missing events or bounded Docker-log collection failures produce annotations, not empty event attachments. Collection is diagnostic and does not assert completeness or turn a stored-state retrieval into proof of PSync execution. Credentials and unmasked HS request/response bodies are never attached.
 
 `UCS_ENVIRONMENT` selects the UCS service configuration: `development` (default) loads `development.toml`; `sandbox` loads `sandbox.toml`. Set it explicitly when starting a CI stack:
 
@@ -76,24 +78,30 @@ The implemented Adyen scenario requires `succeeded` in both the create/confirm r
 Each file contains one complete shared scenario. Read it top to bottom to see the requests, response checks, polling, and database evidence. Calls run in the order written.
 
 ```ts
-const createdPayment = await payments.createPayment({
-  profile_id: merchant.profileId,
-  amount: 6000,
-  currency: "USD",
-  confirm: true,
-  payment_method: "card",
-  payment_method_data: { card: connector.card },
+const createdPayment = await report.step("Create and confirm payment", async () => {
+  const response = await payments.createPayment({
+    profile_id: merchant.profileId,
+    amount: 6000,
+    currency: "USD",
+    confirm: true,
+    payment_method: "card",
+    payment_method_data: { card: connector.card },
+  });
+  await checks.fields("Confirmation", response, { status: "succeeded" });
+  return response;
 });
 
-const payment = await payments.retrievePayment(
-  createdPayment.payment_id,
-  { force_sync: true },
-);
-
-await checks.fields("Payment result", payment, {
-  status: "succeeded",
-  amount: 6000,
-  connector: connector.id,
+const payment = await report.step("Retrieve successful payment", async () => {
+  const response = await payments.retrievePayment(
+    createdPayment.payment_id,
+    { force_sync: true },
+  );
+  await checks.fields("Payment result", response, {
+    status: "succeeded",
+    amount: 6000,
+    connector: connector.id,
+  });
+  return response;
 });
 ```
 
@@ -162,6 +170,7 @@ Operations apply their request overrides automatically. Overrides replace comple
 | `framework/merchant-setup.ts` | Configure UCS and provision the merchant, API key, profile, connector account, and routing rule. |
 | `framework/hyperswitch-client.ts` | Send authenticated HS HTTP requests and handle transport/HTTP errors. |
 | `framework/ucs-audit.ts` | Correlate and attach UCS's existing masked structured events; never attach raw logs. |
+| `framework/report.ts` | Group a scenario's call and checks in a Playwright step, attaching audit evidence afterward, including on failure. |
 | `framework/payment-records.ts` | Read the payment gateway, active-attempt status, and connector transaction ID presence from the dedicated test database. |
 | `framework/assertions.ts` | Shared comparisons, bounded polling, and expected/actual report attachments. |
 | `framework/connector-credentials.ts` | Load external sandbox credentials. |

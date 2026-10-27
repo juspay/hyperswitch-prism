@@ -4,6 +4,7 @@ import { HyperswitchClient } from "./hyperswitch-client.js";
 import { setupMerchant, type TestMerchant } from "./merchant-setup.js";
 import { PaymentOperations } from "./payment-operations.js";
 import { UcsAudit } from "./ucs-audit.js";
+import { Report } from "./report.js";
 import type {
   ConnectorDefinition,
   Scenario,
@@ -19,6 +20,7 @@ type ScenarioFixtures = {
   >;
   payments: PaymentOperations;
   checks: Pick<Assertions, "fields" | "oneOf">;
+  report: Pick<Report, "step">;
 };
 
 type InternalFixtures = {
@@ -26,6 +28,7 @@ type InternalFixtures = {
   _merchant: TestMerchant;
   _overrides: ScenarioOverrides;
   _checks: Assertions;
+  _audit: UcsAudit;
 };
 
 // Setup fixtures have no payment journey. Raw HTTP and API keys remain internal.
@@ -67,9 +70,16 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
     },
     { auto: true },
   ],
-  _hs: async ({}, use, info) => {
+  _audit: async ({}, use, info) => {
     const audit = new UcsAudit(info);
-    const hs = await HyperswitchClient.create((call) => audit.record(call));
+    try {
+      await use(audit);
+    } finally {
+      await audit.attachPending();
+    }
+  },
+  _hs: async ({ _audit }, use) => {
+    const hs = await HyperswitchClient.create((call) => _audit.record(call));
     try {
       await use(hs);
     } finally {
@@ -96,6 +106,9 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
       fields: _checks.fields.bind(_checks),
       oneOf: _checks.oneOf.bind(_checks),
     });
+  },
+  report: async ({ _audit }, use) => {
+    await use(new Report(_audit));
   },
   payments: async ({ _hs, _merchant, _checks, _overrides }, use) => {
     await use(new PaymentOperations(_hs, _merchant, _checks, _overrides));
