@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use base64::Engine;
 use common_enums::{AttemptStatus, CaptureMethod};
 use common_utils::consts::NO_ERROR_MESSAGE;
-use common_utils::{fp_utils::when, pii::SecretSerdeValue};
+use common_utils::{fp_utils::when, pii::SecretSerdeValue, types::MinorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, Refund, RepeatPayment,
@@ -13,13 +13,14 @@ use domain_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         JpmorganClientAuthenticationResponse as JpmorganClientAuthenticationResponseDomain,
-        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        L2L3Data, MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
+    payment_address::OrderDetailsWithAmount,
     payment_method_data::{
         ApplePayDecryptedData, ApplePayPaymentData, BankDebitData, GooglePayDecryptedData,
         PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
@@ -42,6 +43,269 @@ type ResponseError = error_stack::Report<ConnectorError>;
 const JPMORGAN_GETTING_STARTED_DOC: &str =
     "https://developer.payments.jpmorgan.com/docs/commerce-solutions/online-payments/guides/getting-started";
 const JPMORGAN_THREE_DS_NOT_IMPLEMENTED: &str = "3DS payments";
+
+const JPMORGAN_PURCHASE_ORDER_NUMBER_MAX_LENGTH: usize = 17;
+
+const JPMORGAN_MAX_LINE_ITEMS: usize = 998;
+const JPMORGAN_MAX_VAT_PERCENT: i64 = 9999;
+
+const MAX_ORDER_NUMBER_LENGTH: usize = 40;
+
+// JPMorgan's valueAddedTaxPercent implies two decimal places, so 2.5% is sent as "250".
+const JPMORGAN_VAT_PERCENT_MULTIPLIER: f64 = 100.0;
+// Four digits with two implied decimals allow at most 99.99%, encoded as "9999".
+const JPMORGAN_MAX_VAT_PERCENTAGE: f64 = 99.99;
+
+fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineItem {
+    let line_item_description_text = detail
+        .description
+        .clone()
+        .filter(|description| !description.trim().is_empty())
+        .or_else(|| Some(detail.product_name.clone()).filter(|name| !name.trim().is_empty()));
+
+    let merchant_product_identifier = detail.product_id.clone().or_else(|| detail.sku.clone());
+
+    let quantity = i64::from(detail.quantity);
+    let transaction_discount_amount = detail
+        .unit_discount_amount
+        .and_then(|unit_discount| unit_discount.get_amount_as_i64().checked_mul(quantity))
+        .filter(|discount| *discount > 0)
+        .map(MinorUnit::new);
+
+    let line_item_taxes = detail
+        .total_tax_amount
+        .filter(|tax| tax.get_amount_as_i64() > 0)
+        .map(|tax| requests::JpmorganLineItemTax {
+            line_item_tax_amount: Some(tax),
+            tax_percent: detail
+                .tax_rate
+                .filter(|rate| *rate >= 0.0 && rate.is_finite())
+                .map(|rate| rate.to_string()),
+            tax_type_code: detail.product_tax_code.clone(),
+        })
+        .map_or_else(Vec::new, |tax| vec![tax]);
+
+    requests::JpmorganLineItem {
+        line_item_description_text,
+        merchant_product_identifier,
+        item_comodity_code: detail.commodity_code.clone(),
+        line_item_unit_quantity: (detail.quantity > 0).then(|| detail.quantity.to_string()),
+        line_item_unit_of_measure_code: detail.unit_of_measure.clone(),
+        unit_price_amount: Some(detail.amount),
+        tax_inclusive_line_item_total_amount: detail.total_amount,
+        transaction_discount_amount,
+        line_item_tax_indicator: Some(!line_item_taxes.is_empty()),
+        line_item_discount_indicator: Some(transaction_discount_amount.is_some()),
+        line_item_taxes,
+    }
+}
+
+fn build_level3(
+    l2_l3_data: &L2L3Data,
+    fallback_shipping_cost: Option<MinorUnit>,
+) -> Option<requests::JpmorganLevel3> {
+    let order_details = l2_l3_data.get_order_details()?;
+    if order_details.is_empty() {
+        return None;
+    }
+    if order_details.len() > JPMORGAN_MAX_LINE_ITEMS {
+        tracing::warn!(
+            line_items = order_details.len(),
+            max_line_items = JPMORGAN_MAX_LINE_ITEMS,
+            "Order carries more line items than JPMorgan accepts: Level 3 is omitted while \
+             Level 2 data is still sent"
+        );
+        return None;
+    }
+
+    let line_items = order_details.iter().map(build_line_item).collect();
+
+    let total_shipping_amount = l2_l3_data.get_shipping_cost().or(fallback_shipping_cost);
+    let duty_amount = l2_l3_data.get_duty_amount();
+    let value_added_tax_amount = l2_l3_data.get_value_added_tax_amount();
+    let total_transaction_discount_amount = l2_l3_data.get_discount_amount();
+    let shipping_value_added_tax_amount = l2_l3_data.get_shipping_amount_tax();
+    let value_added_tax_invoice_reference_number = l2_l3_data
+        .get_vat_invoice_reference_number()
+        .filter(|reference| !reference.trim().is_empty());
+
+    let value_added_tax_percent = l2_l3_data
+        .get_value_added_tax_percent()
+        .filter(|percent| {
+            percent.is_finite() && (0.0..=JPMORGAN_MAX_VAT_PERCENTAGE).contains(percent)
+        })
+        .map(|percent| {
+            utils::scaled_percentage_to_string(percent, JPMORGAN_VAT_PERCENT_MULTIPLIER)
+        });
+
+    let shipping_value_added_tax_percent = shipping_value_added_tax_amount
+        .zip(total_shipping_amount)
+        .map(|(tax, shipping)| (tax.get_amount_as_i64(), shipping.get_amount_as_i64()))
+        .filter(|(_, shipping)| *shipping > 0)
+        .and_then(|(tax, shipping)| tax.checked_mul(10_000).map(|scaled| scaled / shipping))
+        .filter(|scaled_percent| (0..=JPMORGAN_MAX_VAT_PERCENT).contains(scaled_percent))
+        .map(|scaled_percent| scaled_percent.to_string());
+
+    Some(requests::JpmorganLevel3 {
+        total_shipping_amount,
+        duty_amount,
+        ship_to_address_postal_code: l2_l3_data.get_shipping_zip(),
+        ship_to_address_country_code: l2_l3_data.get_shipping_country(),
+        ship_from_address_postal_code: l2_l3_data.get_shipping_origin_zip(),
+        total_transaction_discount_amount,
+        value_added_tax_amount,
+        value_added_tax_percent,
+        shipping_value_added_tax_amount,
+        shipping_value_added_tax_percent,
+        value_added_tax_invoice_reference_number,
+        party_tax_government_issued_identifier: l2_l3_data.get_merchant_tax_registration_id(),
+        line_items,
+    })
+}
+
+fn build_retail_addenda(
+    l2_l3_data: Option<&L2L3Data>,
+    fallback_order_tax_amount: Option<MinorUnit>,
+    fallback_shipping_cost: Option<MinorUnit>,
+) -> Option<requests::JpmorganRetailAddenda> {
+    let l2_l3_data = l2_l3_data?;
+
+    let purchase_order_number = l2_l3_data
+        .get_merchant_order_reference_id()
+        .filter(|purchase_order_number| !purchase_order_number.is_empty())
+        .and_then(|purchase_order_number| {
+            if purchase_order_number.len() > JPMORGAN_PURCHASE_ORDER_NUMBER_MAX_LENGTH {
+                tracing::warn!(
+                    length = purchase_order_number.len(),
+                    max_length = JPMORGAN_PURCHASE_ORDER_NUMBER_MAX_LENGTH,
+                    "merchant_order_reference_id is longer than JPMorgan's purchaseOrderNumber \
+                     limit: the field is omitted while the rest of retailAddenda is still sent"
+                );
+                None
+            } else {
+                Some(purchase_order_number)
+            }
+        });
+
+    let order_date = l2_l3_data.get_order_date().map(|date| {
+        format!(
+            "{:04}-{:02}-{:02}",
+            date.year(),
+            u8::from(date.month()),
+            date.day()
+        )
+    });
+
+    let tax_amount = l2_l3_data
+        .get_order_tax_amount()
+        .or(fallback_order_tax_amount)
+        .filter(|tax_amount| tax_amount.get_amount_as_i64() > 0);
+
+    let tax_status = l2_l3_data.get_tax_status();
+    let is_taxable =
+        tax_status.map(|tax_status| matches!(tax_status, common_enums::TaxStatus::Taxable));
+    let taxable_indicator = tax_status.map(|tax_status| match tax_status {
+        common_enums::TaxStatus::Taxable => requests::JpmorganTaxableIndicator::Taxable,
+        common_enums::TaxStatus::Exempt => requests::JpmorganTaxableIndicator::Exempt,
+    });
+
+    let summary_item_commodity_code = l2_l3_data
+        .get_order_commodity_code()
+        .filter(|code| !code.trim().is_empty());
+
+    let level3 = build_level3(l2_l3_data, fallback_shipping_cost);
+
+    let addenda = requests::JpmorganRetailAddenda {
+        purchase_order_number,
+        order_date,
+        tax_amount,
+        is_taxable,
+        taxable_indicator,
+        customer_vat_registration_number: l2_l3_data.get_customer_tax_registration_id(),
+        merchant_vat_registration_number: l2_l3_data.get_merchant_vat_registration_id(),
+        pst_tax_registration_number: l2_l3_data.get_merchant_tax_registration_id(),
+        summary_item_commodity_code,
+        level3,
+    };
+
+    // Destructured so that a field added later forces this emptiness check to
+    // be revisited by the compiler rather than silently excluded from it.
+    let requests::JpmorganRetailAddenda {
+        purchase_order_number,
+        order_date,
+        tax_amount,
+        is_taxable,
+        taxable_indicator,
+        customer_vat_registration_number,
+        merchant_vat_registration_number,
+        pst_tax_registration_number,
+        summary_item_commodity_code,
+        level3,
+    } = &addenda;
+    let all_none = purchase_order_number.is_none()
+        && order_date.is_none()
+        && tax_amount.is_none()
+        && is_taxable.is_none()
+        && taxable_indicator.is_none()
+        && customer_vat_registration_number.is_none()
+        && merchant_vat_registration_number.is_none()
+        && pst_tax_registration_number.is_none()
+        && summary_item_commodity_code.is_none()
+        && level3.is_none();
+
+    (!all_none).then_some(addenda)
+}
+
+/// `shipTo.shippingAddress.postalCode` — required by American Express for
+/// Level 2 and optional on the other networks, so it is sent whenever the
+/// merchant supplied a shipping address.
+fn build_ship_to(
+    l2_l3_data: Option<&L2L3Data>,
+    address: &domain_types::payment_address::PaymentAddress,
+) -> Option<requests::JpmorganShipTo> {
+    l2_l3_data
+        .and_then(|l2_l3_data| l2_l3_data.get_shipping_zip())
+        .or_else(|| {
+            address
+                .get_shipping()
+                .and_then(|shipping| shipping.address.as_ref())
+                .and_then(|details| details.zip.clone())
+        })
+        .map(|postal_code| requests::JpmorganShipTo {
+            shipping_address: requests::JpmorganShippingAddress { postal_code },
+        })
+}
+
+/// Level 2 data and the independently supplied shipping destination for an
+/// Authorize request.
+fn authorize_level2_data<T: PaymentMethodDataTypes>(
+    router_data: &RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+) -> (
+    Option<requests::JpmorganRetailAddenda>,
+    Option<requests::JpmorganShipTo>,
+) {
+    let l2_l3_data = router_data.resource_common_data.l2_l3_data.as_deref();
+    let retail_addenda = build_retail_addenda(
+        l2_l3_data,
+        router_data
+            .request
+            .order_tax_amount
+            .as_ref()
+            .map(|order_tax_amount| order_tax_amount.amount),
+        router_data
+            .request
+            .shipping_cost
+            .as_ref()
+            .map(|shipping_cost| shipping_cost.amount),
+    );
+    let ship_to = build_ship_to(l2_l3_data, &router_data.resource_common_data.address);
+    (retail_addenda, ship_to)
+}
 
 impl requests::JpmorganSyncResource {
     pub(super) fn from_request(request: &PaymentsSyncData) -> Result<Self, Error> {
@@ -168,6 +432,22 @@ impl responses::JpmorganVerificationResponse {
             payment_account_reference: None,
         }))
     }
+}
+
+fn sanitize_order_number(value: &str) -> Option<String> {
+    let order_number: String = value
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '.' | '-'))
+        .take(MAX_ORDER_NUMBER_LENGTH)
+        .collect();
+
+    (!order_number.trim().is_empty()).then_some(order_number)
+}
+
+fn merchant_order_number(merchant_order_id: Option<&str>, reference: &str) -> Option<String> {
+    merchant_order_id
+        .and_then(sanitize_order_number)
+        .or_else(|| sanitize_order_number(reference))
 }
 
 impl TryFrom<Option<common_enums::BankType>> for requests::JpmorganAchAccountType {
@@ -732,6 +1012,7 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
         }
         let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
         let (account_on_file, recurring) = Self::prepare_cit(&router_data.request)?;
+        let (retail_addenda, ship_to) = authorize_level2_data(router_data);
         let request = Self {
             capture_method: map_capture_method(router_data.request.capture_method)?,
             amount: JpmorganAmountConvertor::convert(
@@ -748,10 +1029,17 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
             },
             account_holder: None,
             statement_descriptor: None,
-            merchant_order_number: router_data.request.merchant_order_id.clone(),
+            merchant_order_number: merchant_order_number(
+                router_data.request.merchant_order_id.as_deref(),
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            ),
             initiator_type: Some(requests::JpmorganInitiatorType::Cardholder),
             account_on_file: Some(account_on_file),
             is_amount_final: Some(true),
+            retail_addenda,
+            ship_to,
             recurring,
         };
         Ok(request)
@@ -872,6 +1160,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     router_data.request.currency,
                 )?;
 
+                let (retail_addenda, ship_to) = authorize_level2_data(router_data);
                 let request = Self {
                     capture_method,
                     currency: router_data.request.currency,
@@ -880,11 +1169,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_method_type,
                     account_holder: None,
                     statement_descriptor: None,
-                    merchant_order_number: router_data.request.merchant_order_id.clone(),
+                    merchant_order_number: merchant_order_number(
+                        router_data.request.merchant_order_id.as_deref(),
+                        &router_data
+                            .resource_common_data
+                            .connector_request_reference_id,
+                    ),
                     initiator_type: Some(requests::JpmorganInitiatorType::Cardholder),
                     account_on_file: Some(account_on_file),
                     is_amount_final: Some(true),
                     recurring,
+                    retail_addenda,
+                    ship_to,
                 };
                 Ok(request)
             }
@@ -971,6 +1267,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     router_data.request.currency,
                 )?;
 
+                let (retail_addenda, ship_to) = authorize_level2_data(router_data);
                 let request = Self {
                     capture_method,
                     currency: router_data.request.currency,
@@ -979,11 +1276,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_method_type,
                     account_holder: None,
                     statement_descriptor: None,
-                    merchant_order_number: router_data.request.merchant_order_id.clone(),
+                    merchant_order_number: merchant_order_number(
+                        router_data.request.merchant_order_id.as_deref(),
+                        &router_data
+                            .resource_common_data
+                            .connector_request_reference_id,
+                    ),
                     initiator_type: Some(requests::JpmorganInitiatorType::Cardholder),
                     account_on_file: Some(account_on_file),
                     is_amount_final: Some(true),
                     recurring,
+                    retail_addenda,
+                    ship_to,
                 };
                 Ok(request)
             }
@@ -1050,6 +1354,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     initiator_type: None,
                     account_on_file: None,
                     is_amount_final: None,
+                    retail_addenda: None,
+                    ship_to: None,
                     recurring: None,
                 })
             }
@@ -1082,6 +1388,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
                 let statement_descriptor = Secret::new("Statement Descriptor".to_string());
 
+                let (retail_addenda, ship_to) = authorize_level2_data(router_data);
                 Ok(Self {
                     capture_method,
                     currency: router_data.request.currency,
@@ -1094,6 +1401,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     initiator_type: None,
                     account_on_file: None,
                     is_amount_final: None,
+                    retail_addenda,
+                    ship_to,
                     recurring: None,
                 })
             }
@@ -1214,6 +1523,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 token: None,
                             };
 
+                            let (retail_addenda, ship_to) = authorize_level2_data(router_data);
                             Ok(Self {
                                 capture_method,
                                 currency: router_data.request.currency,
@@ -1228,6 +1538,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 initiator_type: None,
                                 account_on_file: None,
                                 is_amount_final: None,
+                                retail_addenda,
+                                ship_to,
                                 recurring: None,
                             })
                         }
@@ -1390,7 +1702,6 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
             Ok(PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id: Some(item.response.transaction_id.clone()),
-                description: None,
                 status_code: item.http_code,
             })
         };
@@ -1907,7 +2218,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 field_name: "amount",
                 context: context.clone(),
             })?;
-        if amount != common_utils::types::MinorUnit::zero() {
+        if amount != MinorUnit::zero() {
             return Err(IntegrationError::NotSupported {
                 message: "Nonzero setup amount".to_owned(),
                 connector: "jpmorgan",
@@ -2008,7 +2319,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant: requests::JpmorganMerchant::try_from(&auth)?,
             payment_method_type: requests::JpmorganSetupMandatePaymentMethodType { card },
             recurring_sequence,
-            merchant_order_number: request.merchant_order_id.clone(),
+            merchant_order_number: merchant_order_number(
+                request.merchant_order_id.as_deref(),
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            ),
             initiator_type: requests::JpmorganInitiatorType::Cardholder,
             account_on_file: requests::JpmorganAccountOnFile::ToBeStored,
         })
@@ -2287,7 +2603,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant,
             payment_method_type,
             recurring,
-            merchant_order_number: request.merchant_order_id.clone(),
+            merchant_order_number: merchant_order_number(
+                request.merchant_order_id.as_deref(),
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            ),
             initiator_type: requests::JpmorganInitiatorType::Merchant,
             account_on_file: requests::JpmorganAccountOnFile::Stored,
             is_amount_final: true,

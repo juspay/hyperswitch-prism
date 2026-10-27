@@ -36,6 +36,138 @@ pub struct JpmorganPaymentsRequest<T: PaymentMethodDataTypes> {
     pub is_amount_final: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring: Option<JpmorganRecurring>,
+    /// Level 2 commercial-card data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retail_addenda: Option<JpmorganRetailAddenda>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_to: Option<JpmorganShipTo>,
+}
+
+/// Level 2 commercial-card data
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganRetailAddenda {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub purchase_order_number: Option<String>,
+    /// `YYYY-MM-DD`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_taxable: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub taxable_indicator: Option<JpmorganTaxableIndicator>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_vat_registration_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_vat_registration_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pst_tax_registration_number: Option<Secret<String>>,
+    /// Commodity code for the order as a whole.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary_item_commodity_code: Option<String>,
+    /// Level 3 line-item data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level3: Option<JpmorganLevel3>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganTaxableIndicator {
+    Taxable,
+    ZeroRated,
+    Exempt,
+}
+
+/// Level 3 commercial-card data (`retailAddenda.level3`).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganLevel3 {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_shipping_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duty_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_to_address_postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_to_address_country_code: Option<common_enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_from_address_postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_transaction_discount_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_added_tax_amount: Option<MinorUnit>,
+    /// A percentage scaled by 100 and sent as a string: JPMorgan implies two
+    /// decimal places and allows four digits, so `"250"` is 2.5%.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_added_tax_percent: Option<String>,
+    /// Visa only — not applicable to Mastercard.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_value_added_tax_amount: Option<MinorUnit>,
+    /// A percentage scaled by 100 and sent as a string, matching
+    /// JPMorgan's example where `"1000"` is 10.00%.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_value_added_tax_percent: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_added_tax_invoice_reference_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub party_tax_government_issued_identifier: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub line_items: Vec<JpmorganLineItem>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganLineItem {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_description_text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_product_identifier: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub item_comodity_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_unit_quantity: Option<String>,
+    #[serde(
+        rename = "lineItemUnitofMeasureCode",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub line_item_unit_of_measure_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit_price_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_inclusive_line_item_total_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_discount_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_tax_indicator: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_discount_indicator: Option<bool>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub line_item_taxes: Vec<JpmorganLineItemTax>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganLineItemTax {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_tax_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_percent: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_type_code: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganShipTo {
+    pub shipping_address: JpmorganShippingAddress,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganShippingAddress {
+    pub postal_code: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]

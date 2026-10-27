@@ -6393,7 +6393,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
             state: value.state,
             first_name: value.first_name,
             last_name: value.last_name,
-            origin_zip: None,
+            origin_zip: value.origin_zip,
         })
     }
 }
@@ -6443,7 +6443,7 @@ impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderD
             unit_discount_amount: item
                 .unit_discount_amount
                 .map(common_utils::types::MinorUnit::new),
-            total_amount: None,
+            total_amount: item.total_amount.map(common_utils::types::MinorUnit::new),
             discount_name: item.discount_name,
             discount_percentage: item.discount_percentage,
             discount_type: item.discount_type,
@@ -9047,6 +9047,7 @@ impl ForeignFrom<common_enums::AttemptStatus> for grpc_api_types::payments::Paym
             common_enums::AttemptStatus::VoidPostCaptureInitiated => Self::VoidInitiated,
             common_enums::AttemptStatus::VoidFailed => Self::VoidFailed,
             common_enums::AttemptStatus::Voided => Self::Voided,
+            #[allow(deprecated)] // Preserve the legacy payment status mapping for compatibility.
             common_enums::AttemptStatus::VoidedPostCapture => Self::VoidedPostCapture,
             common_enums::AttemptStatus::Unresolved => Self::Unresolved,
             common_enums::AttemptStatus::PaymentMethodAwaited => Self::PaymentMethodAwaited,
@@ -9112,6 +9113,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentStatus> for common_enums::A
             grpc_api_types::payments::PaymentStatus::VoidInitiated => Ok(Self::VoidInitiated),
             grpc_api_types::payments::PaymentStatus::VoidFailed => Ok(Self::VoidFailed),
             grpc_api_types::payments::PaymentStatus::Voided => Ok(Self::Voided),
+            #[allow(deprecated)] // Accept the legacy payment status for compatibility.
             grpc_api_types::payments::PaymentStatus::VoidedPostCapture => {
                 Ok(Self::VoidedPostCapture)
             }
@@ -9138,6 +9140,18 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentStatus> for common_enums::A
             }
             grpc_api_types::payments::PaymentStatus::Unspecified => Ok(Self::Unknown),
             grpc_api_types::payments::PaymentStatus::Conflicted => Ok(Self::IntegrityFailure),
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::PostCaptureVoidStatus>
+    for grpc_api_types::payments::PostCaptureVoidStatus
+{
+    fn foreign_from(status: common_enums::PostCaptureVoidStatus) -> Self {
+        match status {
+            common_enums::PostCaptureVoidStatus::Succeeded => Self::Succeeded,
+            common_enums::PostCaptureVoidStatus::Pending => Self::Pending,
+            common_enums::PostCaptureVoidStatus::Failed => Self::Failed,
         }
     }
 }
@@ -9511,66 +9525,25 @@ pub fn generate_payment_void_post_capture_response(
         .clone()
         .map(ForeignFrom::foreign_from);
 
+    // The id of the payment being voided, echoed back as connector_transaction_id.
+    let original_connector_transaction_id = router_data_v2.request.connector_transaction_id.clone();
+
     match transaction_response {
         Ok(response) => match response {
-            PaymentsResponseData::TransactionResponse {
-                resource_id,
-                redirection_data: _,
-                connector_metadata: _,
-                network_txn_id: _,
-                network_txn_link_id: _,
-                connector_response_reference_id,
-                incremental_authorization_allowed: _,
-                mandate_reference: _,
-                status_code,
-                splits: _,
-                payment_account_reference: _,
-            } => {
-                let status = router_data_v2.resource_common_data.status;
-                let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
-
-                let grpc_resource_id = Option::foreign_try_from(resource_id)?;
-
-                Ok(PaymentServiceReverseResponse {
-                    connector_transaction_id: extract_connector_request_reference_id(
-                        &grpc_resource_id,
-                    ),
-                    status: grpc_status.into(),
-                    connector_reference_id: connector_response_reference_id.clone(),
-                    // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
-                    merchant_reverse_id: connector_response_reference_id,
-                    error: None,
-                    status_code: u32::from(status_code),
-                    response_headers: router_data_v2
-                        .resource_common_data
-                        .get_connector_response_headers_as_map(),
-                    raw_connector_request,
-                    typed_connector_request,
-                    raw_connector_response,
-                    typed_connector_response,
-                    raw_connector_status,
-                })
-            }
             PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id,
-                description: _,
                 status_code,
             } => {
-                let grpc_status = match post_capture_void_status {
-                    common_enums::PostCaptureVoidStatus::Succeeded => {
-                        grpc_api_types::payments::PaymentStatus::VoidedPostCapture
-                    }
-                    common_enums::PostCaptureVoidStatus::Pending => {
-                        grpc_api_types::payments::PaymentStatus::Pending
-                    }
-                    common_enums::PostCaptureVoidStatus::Failed => {
-                        grpc_api_types::payments::PaymentStatus::Failure
-                    }
-                };
+                #[allow(deprecated)]
                 Ok(PaymentServiceReverseResponse {
-                    connector_transaction_id: connector_reference_id.clone().unwrap_or_default(),
-                    status: grpc_status.into(),
+                    connector_transaction_id: original_connector_transaction_id,
+                    status: grpc_api_types::payments::PaymentStatus::Unspecified.into(),
+                    post_capture_void_status:
+                        grpc_api_types::payments::PostCaptureVoidStatus::foreign_from(
+                            post_capture_void_status,
+                        )
+                        .into(),
                     // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                     merchant_reverse_id: connector_reference_id.clone(),
                     connector_reference_id,
@@ -9595,21 +9568,21 @@ pub fn generate_payment_void_post_capture_response(
                 },
             })),
         },
+        // Connectors report a declined void (2xx included) as an ErrorResponse, so it lands here.
+        // Server errors leave the void outcome uncertain; report them as pending.
+        // Report void errors through post_capture_void_status, never through the payment status.
         Err(e) => {
-            let status = match e.get_attempt_status_for_grpc(
-                e.status_code,
-                router_data_v2.resource_common_data.status,
-            ) {
-                Some(attempt_status) => {
-                    grpc_api_types::payments::PaymentStatus::foreign_from(attempt_status)
-                }
-                None => grpc_api_types::payments::PaymentStatus::Unspecified,
+            let post_capture_void_status = if (500..=599).contains(&e.status_code) {
+                grpc_api_types::payments::PostCaptureVoidStatus::Pending
+            } else {
+                grpc_api_types::payments::PostCaptureVoidStatus::Failed
             };
+
+            #[allow(deprecated)]
             Ok(PaymentServiceReverseResponse {
-                connector_transaction_id: extract_connector_request_reference_id(
-                    &e.connector_transaction_id,
-                ),
-                status: status.into(),
+                connector_transaction_id: original_connector_transaction_id.clone(),
+                status: grpc_api_types::payments::PaymentStatus::Unspecified.into(),
+                post_capture_void_status: post_capture_void_status.into(),
                 connector_reference_id: None,
                 merchant_reverse_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
@@ -14241,6 +14214,7 @@ impl ForeignTryFrom<(&grpc_api_types::payments::OrderInfo, common_enums::Currenc
                 amount: common_utils::types::MinorUnit::new(amount),
                 currency,
             }),
+            order_commodity_code: value.order_commodity_code.clone(),
         })
     }
 }
@@ -14261,6 +14235,7 @@ impl ForeignTryFrom<(&grpc_api_types::payments::TaxInfo, common_enums::Currency)
             tax_status,
             customer_tax_registration_id: value.customer_tax_registration_id.clone(),
             merchant_tax_registration_id: value.merchant_tax_registration_id.clone(),
+            merchant_vat_registration_id: value.merchant_vat_registration_id.clone(),
             shipping_amount_tax: value.shipping_amount_tax.map(|amount| {
                 common_utils::types::Money {
                     amount: common_utils::types::MinorUnit::new(amount),
@@ -14273,6 +14248,14 @@ impl ForeignTryFrom<(&grpc_api_types::payments::TaxInfo, common_enums::Currency)
                     amount: common_utils::types::MinorUnit::new(amount),
                     currency,
                 }),
+            value_added_tax_amount: value.value_added_tax_amount.map(|amount| {
+                common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(amount),
+                    currency,
+                }
+            }),
+            value_added_tax_percent: value.value_added_tax_percent,
+            vat_invoice_reference_number: value.vat_invoice_reference_number.clone(),
         })
     }
 }
