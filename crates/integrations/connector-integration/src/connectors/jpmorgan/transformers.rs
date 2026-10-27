@@ -444,10 +444,7 @@ fn sanitize_order_number(value: &str) -> Option<String> {
     (!order_number.trim().is_empty()).then_some(order_number)
 }
 
-fn merchant_order_number(
-    merchant_order_id: Option<&str>,
-    reference: &str,
-) -> Option<String> {
+fn merchant_order_number(merchant_order_id: Option<&str>, reference: &str) -> Option<String> {
     merchant_order_id
         .and_then(sanitize_order_number)
         .or_else(|| sanitize_order_number(reference))

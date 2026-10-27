@@ -965,7 +965,7 @@
             "request-id": "",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"originalNetworkTransactionId\":\"probe_network_txn_001\"}},\"merchantOrderNumber\":\"\",\"initiatorType\":\"MERCHANT\",\"accountOnFile\":\"STORED\",\"isAmountFinal\":true}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"originalNetworkTransactionId\":\"probe_network_txn_001\"}},\"initiatorType\":\"MERCHANT\",\"accountOnFile\":\"STORED\",\"isAmountFinal\":true}"
         }
       }
     },
