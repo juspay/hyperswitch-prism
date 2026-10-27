@@ -59,9 +59,11 @@ POST /payments with confirm:true
   -> check confirmation
 GET /payments/{id}?force_sync=true until succeeded
   -> check terminal payment fields
-Read recorded routing from the test HS database
-  -> check UCS gateway and charged attempt's processor reference
+Read the payment and its active attempt from the test HS database
+  -> check gateway, attempt status, and connector transaction ID presence
 ```
+
+`payments.readRecordedPayment(payment.payment_id)` returns the recorded `gateway`, `attemptStatus`, and `connectorTransactionIdPresent`. The boolean is computed from `connector_transaction_id IS NOT NULL AND connector_transaction_id <> ''`; the identifier itself is not returned. Status is asserted in the spec rather than used to filter the query. The connection uses a read-only session; an existing stack should also supply SELECT-only credentials through `HS_DATABASE_URL` for least privilege. The local default remains the stack's database account.
 
 The database read does not trigger or prove a fresh processor PSync call. It requires the corresponding HS database schema.
 
@@ -107,10 +109,10 @@ Operations apply their request overrides automatically. Overrides replace comple
 | `connectors/index.ts` | Register connector definitions. |
 | `framework/scenario.ts` | Define scenario metadata and data-only connector configuration types. |
 | `framework/fixtures.ts` | Standard Playwright fixtures apply exclusions, provision context, and release resources. Export a typed public API without internal HTTP/keys/polling. No payment sequence. |
-| `framework/operations.ts` | Execute individual payment operations and return responses; expose explicitly named retrieval polling and recorded-routing reads. |
+| `framework/operations.ts` | Execute individual payment operations and return responses; expose explicitly named status polling and recorded-payment reads. |
 | `framework/merchant-setup.ts` | Configure UCS and provision the merchant, API key, profile, connector account, and routing rule. |
 | `framework/hyperswitch.ts` | Send authenticated HS HTTP requests and handle transport/HTTP errors. |
-| `framework/payment-records.ts` | Read routing and processor-reference facts from the dedicated test database. |
+| `framework/payment-records.ts` | Read the payment gateway, active-attempt status, and connector transaction ID presence from the dedicated test database. |
 | `framework/checks.ts` | Shared comparisons, bounded polling, and expected/actual report attachments. |
 | `framework/credentials.ts` | Load external sandbox credentials. |
 | `framework/configuration.ts` | Resolve runtime URLs and options. |

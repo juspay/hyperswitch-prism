@@ -2,8 +2,8 @@ import { test } from "@playwright/test";
 import { Checks } from "./checks.js";
 import { Hyperswitch, stringField, type Json } from "./hyperswitch.js";
 import type { TestMerchant } from "./merchant-setup.js";
-import type { ConnectorDefinition, ScenarioOverrides } from "./scenario.js";
-import { readPaymentRoute } from "./payment-records.js";
+import type { ScenarioOverrides } from "./scenario.js";
+import { readRecordedPayment } from "./payment-records.js";
 
 export type PaymentResponse = Json & { payment_id: string; status: string };
 
@@ -13,7 +13,6 @@ export class PaymentOperations {
   constructor(
     private readonly hs: Hyperswitch,
     private readonly merchant: TestMerchant,
-    private readonly connector: ConnectorDefinition,
     private readonly checks: Checks,
     private readonly overrides: ScenarioOverrides,
   ) {}
@@ -56,14 +55,9 @@ export class PaymentOperations {
       ));
   }
 
-  async readRecordedRouting(paymentId: string, attemptStatus: string) {
-    return test.step("Read recorded gateway and processor reference from HS database", () =>
-      readPaymentRoute(
-        this.merchant.merchantId,
-        paymentId,
-        this.connector.id,
-        attemptStatus,
-      ));
+  async readRecordedPayment(paymentId: string) {
+    return test.step("Read recorded payment and active attempt from HS database", () =>
+      readRecordedPayment(this.merchant.merchantId, paymentId));
   }
 }
 

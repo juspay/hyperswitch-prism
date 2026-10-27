@@ -83,15 +83,13 @@ for (const connector of connectors) {
         mandate_id: null,
       });
 
-      // 3. Read-only database evidence: gateway and a charged attempt's reference.
+      // 3. Read recorded facts for this payment and its active attempt.
       // This does not trigger or prove a fresh processor PSync call.
-      const routing = await payments.readRecordedRouting(
-        payment.payment_id,
-        "charged",
-      );
-      await checks.fields("Recorded UCS routing", routing, {
+      const recorded = await payments.readRecordedPayment(payment.payment_id);
+      await checks.fields("Recorded payment outcome", recorded, {
         gateway: "unified_connector_service",
-        processorReferenceRecorded: true,
+        attemptStatus: "charged",
+        connectorTransactionIdPresent: true,
       });
     });
   });

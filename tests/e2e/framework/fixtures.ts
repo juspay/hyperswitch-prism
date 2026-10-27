@@ -92,10 +92,8 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
       oneOf: _checks.oneOf.bind(_checks),
     });
   },
-  payments: async ({ _hs, _merchant, connector, _checks, _overrides }, use) => {
-    await use(
-      new PaymentOperations(_hs, _merchant, connector, _checks, _overrides),
-    );
+  payments: async ({ _hs, _merchant, _checks, _overrides }, use) => {
+    await use(new PaymentOperations(_hs, _merchant, _checks, _overrides));
   },
 });
 
