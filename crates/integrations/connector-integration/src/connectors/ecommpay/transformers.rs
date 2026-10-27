@@ -3516,9 +3516,11 @@ pub struct EcommpayThreeDsRedirect {
     pub params: HashMap<String, Secret<String>>,
 }
 
+/// `threeds2` of a status response. Ecommpay also returns `threeds2.iframe` for an
+/// iframe-only 3DS state, which is not deserialised: UCS has no iframe to hand back, and the
+/// state is recognised by `redirect` being absent (see `status_redirect_form`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EcommpayThreeDs2 {
-    pub iframe: Option<Value>,
     pub redirect: Option<EcommpayThreeDsRedirect>,
 }
 
