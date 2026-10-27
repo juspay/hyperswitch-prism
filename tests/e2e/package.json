@@ -9,6 +9,7 @@
     "check": "tsc --noEmit",
     "list": "playwright test --list",
     "test": "playwright test",
+    "test:s3": "bash scripts/test-with-s3-credentials.sh",
     "stack:up": "tsx stack/stack.mjs up",
     "stack:down": "tsx stack/stack.mjs down"
   },

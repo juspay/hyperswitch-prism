@@ -4,7 +4,7 @@ Start with `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.
 
 ## One supported contribution pattern
 
-1. Add one shared spec in the matching product/lifecycle/payment-method directory. Give it a stable, unique scenario ID, a readable title, a description of the behavior being verified, and `paymentMethodsEnabled` describing the methods its merchant connector account needs.
+1. Add one shared spec in the matching product/lifecycle/payment-method directory. Give it a stable, unique scenario ID, a readable title, a journey `description`, a `verifies` description of the expected outcome, and `paymentMethodsEnabled` describing the methods its merchant connector account needs.
 2. Import `test` from `framework/fixtures.ts` and the connector registry from `connectors/index.ts`. Use the same `for`/`describe`/`test.use` registration pattern as the reference spec. The loop includes every registered connector.
 3. Write the calls in execution order using the `payments` fixture. Keep their request fields, use of returned values, and expected outcomes visible in the spec.
 4. Use `checks.fields` for exact field comparisons and `checks.oneOf` for an explicitly allowed set. Both produce the standard expected/actual report. Do not create a second assertion or attachment format in a scenario.
@@ -40,6 +40,7 @@ A scenario ID identifies the behavior independently of its display title. Use th
 - Fixtures own setup and cleanup only. The public fixture type excludes raw HTTP, server keys, override internals, and generic polling callbacks.
 - Operations own individual API calls and read-only polling. HTTP retries and redirects are disabled. The HTTP client validates that responses are JSON objects; endpoint helpers validate fields needed for their returned types.
 - Checks own assertions and report comparisons. Database helpers return facts; the spec asserts what those facts must be.
+- The audit collector owns masked event correlation and attachments. It receives HTTP response identifiers through the client's response hook. Scenarios do not read Docker logs or implement masking. Audit collection is diagnostic; gateway checks remain required, and missing events cannot prove flow execution.
 - Request bodies follow HS's API. The suite accepts additional fields instead of mirroring or inventing a complete request schema.
 
 Contributors can deliberately bypass a TypeScript API by importing unrelated modules. Types, the reference spec, and review define the supported approach; source-scanning scripts are not used to police arbitrary code.

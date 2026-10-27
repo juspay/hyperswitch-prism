@@ -6,6 +6,8 @@ const scenario = {
   title: "One-time card payment — No3DS, automatic capture",
   description:
     "Create and confirm in one server API request, retrieve the successful payment, and verify the recorded UCS gateway and processor reference.",
+  verifies:
+    "Payment succeeds with matching amount and currency, automatic capture, No3DS authentication, the selected connector account, and a recorded UCS gateway and connector transaction ID.",
   paymentMethodsEnabled: [
     {
       payment_method: "card",
@@ -58,23 +60,19 @@ for (const connector of connectors) {
         return_url: "https://example.com",
       });
 
-      await checks.oneOf("Confirmation status", createdPayment.status, [
-        "succeeded",
-        "processing",
-      ]);
       await checks.fields("Confirmation fields", createdPayment, {
+        status: "succeeded",
         connector: connector.id,
         merchant_connector_id: merchant.merchantConnectorId,
         next_action: null,
         mandate_id: null,
       });
 
-      // 2. GET /payments/{id}?force_sync=true: poll until succeeded (at most 90s).
+      // 2. GET /payments/{id}?force_sync=true: retrieve once and require success.
       // The whole response remains available; any field can be used by later calls.
-      const payment = await payments.waitForPaymentStatus(
+      const payment = await payments.retrievePayment(
         createdPayment.payment_id,
         { force_sync: true },
-        "succeeded",
       );
       await checks.fields("Payment result", payment, {
         payment_id: createdPayment.payment_id,

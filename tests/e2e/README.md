@@ -15,13 +15,19 @@ CONNECTOR_AUTH_FILE_PATH=/path/to/connector-auth.json npm test
 
 Open the HTML report with `npx playwright show-report`. Stop the isolated stack with `npm run stack:down`; database volumes are retained.
 
-`HS_IMAGE` and `UCS_IMAGE` select container images. Defaults use the latest published images. Configuration and migrations come from the matching Hyperswitch source revision, cached after the first run. `HS_SOURCE_DIR` can supply an existing matching checkout; `HS_REF` can explicitly select its revision.
+`HS_IMAGE` and `UCS_IMAGE` select container images. Defaults are pinned to tested immutable digests in `stack/stack.mjs`; supporting service images and the gRPC health probe are also pinned. Update pins deliberately and rerun the sandbox scenario. The versioned Diesel installer is checked against its recorded SHA-256 before execution; that installer also verifies the platform binary checksum. Configuration and migrations come from the matching Hyperswitch source revision, cached after the first run. `HS_SOURCE_DIR` can supply an existing matching checkout; `HS_REF` can explicitly select its revision. Use reviewed versions or digests for image overrides in Jenkins.
 
 HS uses its supported `ROUTER__...` environment overrides; upstream TOML is unchanged. The UCS wrapper adds the standard gRPC health probe, and Compose starts HS after UCS is healthy. Redis is internal to the Compose network; PostgreSQL binds to loopback on `HS_DB_PORT` (default `15432`). `HS_PORT` sets the local HS port (default `8080`).
 
 Stack startup reads `connectors/index.ts` and configures HS's `ucs_only_connectors` from that registry. Registering a connector therefore also selects UCS-only execution in this test stack; there is no separate connector list or merchant rollout configuration. Restart the stack after changing the registry. `tsx` lets the startup script import the same TypeScript registry used by Playwright.
 
 Merchant setup enables UCS before payment calls. Merchant, profile, API-key, connector-account, and routing administration remain HS operations. The scenario verifies the payment's recorded UCS gateway. Response metadata and database state describe the payment, so neither alone proves a fresh UCS PSync call. Proving an individual flow requires its correlated UCS events; the current scenario does not assert a fresh PSync call.
+
+## Report
+
+Each test shows **Scenario** and **Verifies** descriptions, ordered API steps, and expected/actual comparison attachments. After each payment or refund response, a separate audit collector reads UCS's existing masked `ucs_event` JSON log field and matches that response's `x-request-id`. Attachments are named by API call, flow, and stage (`GrpcRequest` or `ConnectorCall`), and contain the event unchanged, including its masked request/response data. All matching calls are retained, ordered by event timestamp; this is completion order, not a reconstructed call-start sequence.
+
+The UCS image must expose the structured `ucs_event` field. `UCS_LOG_CONTAINER` can select the UCS container for a dedicated test stack; otherwise the collector selects the local Compose project's UCS service. Raw container logs, human-readable messages, credentials, and unmasked HS request/response bodies are never attached. Missing events or bounded Docker-log collection failures produce annotations, not empty event attachments. Collection is diagnostic and does not assert completeness or turn a stored-state retrieval into proof of PSync execution.
 
 `UCS_ENVIRONMENT` selects the UCS service configuration: `development` (default) loads `development.toml`; `sandbox` loads `sandbox.toml`. Set it explicitly when starting a CI stack:
 
@@ -49,32 +55,23 @@ The credential entry's optional `metadata` is forwarded to the merchant connecto
 
 CI should fetch and decrypt credentials before starting the test process. It then supplies the same local file path used by local runs. This keeps AWS access and decryption outside payment tests; a Jenkins pipeline can use this preparation without changing the framework.
 
-For an encrypted JSON object in S3, provide an AWS identity with access to that object, `CONNECTOR_AUTH_S3_URI`, and a secret file path in `CONNECTOR_AUTH_PASSPHRASE_FILE`. The URI and secret file come from CI configuration, not this repository. With AWS CLI and GnuPG available:
+Use disposable Jenkins agents with sandbox-only secrets, minimal permissions, and restricted network access. Do not give untrusted fork code access to credentials or the Docker daemon.
+
+For Jenkins, provide an AWS identity with access to the encrypted object, `CONNECTOR_AUTH_S3_URI`, and either a secret file path in `CONNECTOR_AUTH_PASSPHRASE_FILE` or the `CONNECTOR_AUTH_PASSPHRASE` secret used by HS Cypress. If both are supplied, the file takes precedence. With AWS CLI and GnuPG available:
 
 ```sh
-set +x
-set -euo pipefail
-umask 077
-credentials_dir="$(mktemp -d)"
-trap 'rm -f "$credentials_dir/creds.json" "$credentials_dir/creds.json.gpg"; rmdir "$credentials_dir"' EXIT
-
-aws s3 cp "$CONNECTOR_AUTH_S3_URI" \
-  "$credentials_dir/creds.json.gpg" --only-show-errors
-gpg --batch --quiet --pinentry-mode loopback \
-  --passphrase-file "$CONNECTOR_AUTH_PASSPHRASE_FILE" \
-  --output "$credentials_dir/creds.json" \
-  --decrypt "$credentials_dir/creds.json.gpg"
-
-CONNECTOR_AUTH_FILE_PATH="$credentials_dir/creds.json" npm test
+npm run test:s3
 ```
 
-If CI already provides a decrypted JSON secret file, set `CONNECTOR_AUTH_FILE_PATH` to that file directly. Do not include downloaded or decrypted files in test artifacts.
+The command downloads and decrypts into a private temporary directory, runs `npm test` with `CONNECTOR_AUTH_FILE_PATH`, and removes the downloaded and decrypted files on exit, including test failures. It forwards test arguments, such as `npm run test:s3 -- --grep adyen`. The URI and passphrase come from Jenkins configuration, not this repository; no Jenkins pipeline is included. If Jenkins already provides a decrypted JSON secret file, set `CONNECTOR_AUTH_FILE_PATH` and run `npm test` directly. Do not include downloaded or decrypted files in test artifacts.
 
 ## Scenarios
 
 Before payment calls, fixtures create an isolated merchant, issue an API key expiring in one hour, use its default business profile (or create one if absent), create the sandbox connector account, and activate a single-connector routing rule. Setup validates the returned merchant association, profile, sandbox mode, and enabled payment methods.
 
 Each scenario declares `paymentMethodsEnabled`, which is sent as the connector account's `payment_methods_enabled`. The current scenario enables card credit only. Declare additional methods in scenarios that exercise them; the common setup does not assume every test uses cards. Optional merchant contact fields, webhook subscriptions, parent merchants, tokenization, and mandate settings are not prerequisites for this fresh-card scenario and are not enabled implicitly. Customer creation belongs in a journey that actually uses a customer.
+
+The implemented Adyen scenario requires `succeeded` in both the create/confirm response and a single subsequent retrieval. It does not accept `processing`, poll through intermediate states, or exercise failure scenarios.
 
 Each file contains one complete shared scenario. Read it top to bottom to see the requests, response checks, polling, and database evidence. Calls run in the order written.
 
@@ -88,10 +85,9 @@ const createdPayment = await payments.createPayment({
   payment_method_data: { card: connector.card },
 });
 
-const payment = await payments.waitForPaymentStatus(
+const payment = await payments.retrievePayment(
   createdPayment.payment_id,
   { force_sync: true },
-  "succeeded",
 );
 
 await checks.fields("Payment result", payment, {
@@ -110,7 +106,7 @@ Only `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.spec.t
 ```text
 POST /payments with confirm:true
   -> check confirmation
-GET /payments/{id}?force_sync=true until succeeded
+GET /payments/{id}?force_sync=true once
   -> check terminal payment fields
 Read the payment and its active attempt from the test HS database
   -> check gateway, attempt status, and connector transaction ID presence
@@ -165,6 +161,7 @@ Operations apply their request overrides automatically. Overrides replace comple
 | `framework/payment-operations.ts` | Execute individual payment operations and return responses; expose explicitly named status polling and recorded-payment reads. |
 | `framework/merchant-setup.ts` | Configure UCS and provision the merchant, API key, profile, connector account, and routing rule. |
 | `framework/hyperswitch-client.ts` | Send authenticated HS HTTP requests and handle transport/HTTP errors. |
+| `framework/ucs-audit.ts` | Correlate and attach UCS's existing masked structured events; never attach raw logs. |
 | `framework/payment-records.ts` | Read the payment gateway, active-attempt status, and connector transaction ID presence from the dedicated test database. |
 | `framework/assertions.ts` | Shared comparisons, bounded polling, and expected/actual report attachments. |
 | `framework/connector-credentials.ts` | Load external sandbox credentials. |
@@ -172,6 +169,7 @@ Operations apply their request overrides automatically. Overrides replace comple
 | `stack/compose.yml` | Configure local services and readiness dependencies. |
 | `stack/ucs.Dockerfile` | Add the gRPC health-check executable to the published UCS image. |
 | `stack/stack.mjs` | Prepare matching runtime assets and start or stop Compose. |
+| `scripts/test-with-s3-credentials.sh` | Download/decrypt Jenkins credentials, run tests, and remove temporary credentials. |
 | `playwright.config.ts` | Configure discovery, execution, and reporters. |
 | `package.json`, `package-lock.json`, `tsconfig.json` | Commands, dependencies, and compiler settings. |
 

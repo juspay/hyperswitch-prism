@@ -19,9 +19,9 @@ const versionsFile = resolve(runtime, "versions.json");
 const action = process.argv[2];
 const hsImage =
   process.env.HS_IMAGE ??
-  "docker.juspay.io/juspaydotin/hyperswitch-router:latest";
+  "docker.juspay.io/juspaydotin/hyperswitch-router@sha256:273e72877a1c94f843d8a87b591023bf44700d2454f0eba5edcb97fc0b876079";
 const ucsImage =
-  process.env.UCS_IMAGE ?? "docker.io/juspaydotin/hyperswitch-prism:latest";
+  process.env.UCS_IMAGE ?? "docker.io/juspaydotin/hyperswitch-prism@sha256:56bbd606a8c75d4014eba6e3bbc88a8ba0433aca29949361979037e61dccb367";
 const ucsEnvironment = process.env.UCS_ENVIRONMENT ?? "development";
 const ucsConnectors = [
   ...new Set(connectors.map((connector) => connector.id)),

@@ -3,6 +3,7 @@ import { Assertions } from "./assertions.js";
 import { HyperswitchClient } from "./hyperswitch-client.js";
 import { setupMerchant, type TestMerchant } from "./merchant-setup.js";
 import { PaymentOperations } from "./payment-operations.js";
+import { UcsAudit } from "./ucs-audit.js";
 import type {
   ConnectorDefinition,
   Scenario,
@@ -54,6 +55,7 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
         type: "Scenario",
         description: scenario.description,
       });
+      info.annotations.push({ type: "Verifies", description: scenario.verifies });
       const overrides = connector.overrides?.[scenario.id] ?? {};
       if (Object.keys(overrides.requests ?? {}).length) {
         info.annotations.push({
@@ -65,8 +67,9 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
     },
     { auto: true },
   ],
-  _hs: async ({}, use) => {
-    const hs = await HyperswitchClient.create();
+  _hs: async ({}, use, info) => {
+    const audit = new UcsAudit(info);
+    const hs = await HyperswitchClient.create((call) => audit.record(call));
     try {
       await use(hs);
     } finally {

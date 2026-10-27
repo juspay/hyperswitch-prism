@@ -1,12 +1,15 @@
 services:
   pg:
+    image: docker.io/postgres@sha256:4aabea78cf39b90e834caf3af7d602a18565f6fe2508705c8d01aa63245c2e20
     ports: !override
       - "127.0.0.1:${HS_DB_PORT:-15432}:5432"
 
   redis-standalone:
+    image: docker.io/redis@sha256:b2b95679e3b46fb51864949ed25ea976fc3a6bcc00a40a1bc00d568cb2822e50
     ports: !reset []
 
   superposition:
+    image: ghcr.io/juspay/superposition-demo:0.113.0@sha256:51f3a310016879b7419ab64e6b6dbc81c739cdf5985f8f4cc19ba6f9384b2c6d
     ports: !reset []
 
   ucs:
@@ -14,7 +17,7 @@ services:
       context: ${E2E_STACK_DIR}
       dockerfile: ucs.Dockerfile
       args:
-        UCS_IMAGE: ${UCS_IMAGE:-juspaydotin/hyperswitch-prism:latest}
+        UCS_IMAGE: ${UCS_IMAGE:?Start the stack with npm run stack:up}
     environment:
       CS__SERVER__HOST: 0.0.0.0
       CS__SERVER__PORT: 8000
@@ -40,6 +43,8 @@ services:
       start_period: 10s
 
   migration_runner:
+    image: docker.io/debian@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
+    pull_policy: missing
     command:
       - bash
       - -c
@@ -50,6 +55,8 @@ services:
         curl --proto '=https' --tlsv1.2 -LsSf
         https://github.com/diesel-rs/diesel/releases/download/v2.3.5/diesel_cli-installer.sh
         -o /tmp/install-diesel.sh &&
+        echo '91be388732c844c1cc2417d98102abded7866427965ebfa6b5b64f522a183914  /tmp/install-diesel.sh' |
+        sha256sum --check --strict - &&
         bash /tmp/install-diesel.sh &&
         /root/.cargo/bin/diesel migration run
         --database-url "$${DATABASE_URL}"
@@ -62,13 +69,14 @@ services:
         condition: service_healthy
 
   superposition-init:
+    image: docker.io/alpine@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
     command:
       - sh
       - -c
       - apk add --no-cache bash curl jq yq && bash /seed_superposition.sh
 
   hyperswitch-server:
-    image: ${HS_IMAGE:-docker.juspay.io/juspaydotin/hyperswitch-router:latest}
+    image: ${HS_IMAGE:?Start the stack with npm run stack:up}
     pull_policy: missing
     command:
       - /local/bin/router

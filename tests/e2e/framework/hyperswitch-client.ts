@@ -7,6 +7,13 @@ import {
 import { configuration } from "./configuration.js";
 import type { Json } from "./types.js";
 
+export type CompletedApiCall = {
+  method: string;
+  path: string;
+  since: string;
+  requestId: string | undefined;
+};
+
 export function stringField(response: Json, field: string): string {
   const value = response[field];
   if (typeof value !== "string" || !value) {
@@ -16,15 +23,21 @@ export function stringField(response: Json, field: string): string {
 }
 
 export class HyperswitchClient {
-  private constructor(private readonly api: APIRequestContext) {}
+  private constructor(
+    private readonly api: APIRequestContext,
+    private readonly onResponse?: (call: CompletedApiCall) => Promise<void>,
+  ) {}
 
-  static async create(): Promise<HyperswitchClient> {
+  static async create(
+    onResponse?: (call: CompletedApiCall) => Promise<void>,
+  ): Promise<HyperswitchClient> {
     return new HyperswitchClient(
       await request.newContext({
         baseURL: configuration.hyperswitchBaseUrl,
         timeout: 60_000,
         extraHTTPHeaders: { Accept: "application/json" },
       }),
+      onResponse,
     );
   }
 
@@ -35,7 +48,14 @@ export class HyperswitchClient {
     data?: Json,
   ): Promise<Json> {
     return test.step(`${method} ${path.split("?")[0]}`, async () => {
+      const since = new Date().toISOString();
       const response = await this.fetch(method, path, apiKey, data);
+      await this.onResponse?.({
+        method,
+        path,
+        since,
+        requestId: response.headers()["x-request-id"],
+      });
 
       if (!response.ok()) {
         const requestId = response.headers()["x-request-id"] ?? "unknown";
