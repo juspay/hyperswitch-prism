@@ -10,13 +10,14 @@ use common_utils::{
     errors::{ParsingError, ReportSwitchExt},
     ext_traits::ValueExt,
     request::MultipartData,
-    types::MinorUnit,
+    types::{AmountConvertor, MinorUnit, Money},
     CustomResult,
 };
 use domain_types::{
     connector_types::{
-        CaptureSyncResponse, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsSyncData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        CaptureSyncResponse, ConnectorEnum, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsSyncData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -216,6 +217,43 @@ pub fn response_handling_fail_for_connector(http_status: u16, connector: &str) -
     response_handling_fail(http_status, response_http_status_detail(connector))
 }
 
+/// Converts a connector response amount into domain money through the connector's amount converter.
+pub fn response_amount_to_money<AC>(
+    amount_converter: &AC,
+    amount: AC::Output,
+    currency: enums::Currency,
+    http_status: u16,
+    connector: ConnectorEnum,
+) -> Result<Money, Report<ConnectorError>>
+where
+    AC: AmountConvertor + ?Sized,
+{
+    let connector_name = connector.to_string();
+    let amount = amount_converter
+        .convert_back(amount, currency)
+        .change_context(response_handling_fail_for_connector(
+            http_status,
+            &connector_name,
+        ))?;
+
+    Ok(Money { amount, currency })
+}
+
+/// Converts a webhook amount conversion result into domain money while preserving parsing failures.
+pub fn webhook_amount_to_money(
+    amount: Result<MinorUnit, Report<ParsingError>>,
+    currency: enums::Currency,
+) -> Result<Money, Report<errors::WebhookError>> {
+    let amount = amount.change_context(errors::WebhookError::WebhookAmountConversionFailed {
+        reason: format!(
+            "Failed to convert amount to minor units: currency={}",
+            currency
+        ),
+    })?;
+
+    Ok(Money { amount, currency })
+}
+
 /// Response bytes could not be parsed into the expected response type (JSON/XML, schema drift).
 pub fn response_deserialization_fail(
     http_status: u16,
@@ -357,6 +395,30 @@ where
     use serde::de::Error;
     let output = <&str>::deserialize(v)?;
     output.to_uppercase().parse::<T>().map_err(D::Error::custom)
+}
+
+/// Parses an optional connector response value, logging and discarding one that isn't recognised
+/// so an unexpected value doesn't fail the whole response.
+pub fn parse_or_log_unrecognised<T: FromStr>(value: &str) -> Option<T> {
+    value
+        .parse::<T>()
+        .inspect_err(|_| {
+            tracing::debug!(
+                value,
+                target_type = std::any::type_name::<T>(),
+                "Unrecognised value received from connector"
+            );
+        })
+        .ok()
+}
+
+/// Converts an ISO 3166 country code from a connector response, alpha-2 or numeric, to alpha-2.
+/// A value outside either table is logged and discarded.
+pub fn parse_country_code(code: &str) -> Option<enums::CountryAlpha2> {
+    code.parse::<u16>()
+        .ok()
+        .and_then(enums::CountryAlpha2::from_numeric)
+        .or_else(|| parse_or_log_unrecognised::<enums::CountryAlpha2>(code))
 }
 
 pub trait SplitPaymentData {
@@ -527,6 +589,14 @@ where
 pub(crate) fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
     capture_method == Some(enums::CaptureMethod::Manual)
         || capture_method == Some(enums::CaptureMethod::ManualMultiple)
+}
+
+/// True for mail-order / telephone-order (MOTO) payment channels.
+pub fn is_moto_payment_channel(payment_channel: Option<&enums::PaymentChannel>) -> bool {
+    matches!(
+        payment_channel,
+        Some(enums::PaymentChannel::MailOrder | enums::PaymentChannel::TelephoneOrder)
+    )
 }
 
 pub fn get_token_expiry_month_year_2_digit_with_delimiter(

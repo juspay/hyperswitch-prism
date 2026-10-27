@@ -14,24 +14,25 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
+        Accept, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
         IncrementalAuthorization, PSync, PaymentMethodToken, RSync, Refund, RepeatPayment,
-        SetupMandate, Void,
+        SetupMandate, SubmitEvidence, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
-        ConnectorWebhookSecrets, DisputeWebhookDetailsResponse, EventContext, EventType,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails, SetupMandateRequestData,
-        WebhookDetailsResponse, WebhookResourceReference,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
+        ConnectorCustomerResponse, ConnectorWebhookSecrets, DisputeFlowData, DisputeResponseData,
+        DisputeWebhookDetailsResponse, EventContext, EventType, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, SetupMandateRequestData, SubmitEvidenceData, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -46,7 +47,8 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as stripe, CancelRequest, CaptureRequest, CreateConnectorCustomerRequest,
-    CreateConnectorCustomerResponse, PaymentIncrementalAuthRequest, PaymentIntentRequest,
+    CreateConnectorCustomerResponse, DisputeObj, DisputeObj as AcceptDisputeObj, Evidence,
+    PaymentIncrementalAuthRequest, PaymentIntentRequest,
     PaymentIntentRequest as RepeatPaymentRequest,
     PaymentIntentResponse as PaymentIncrementalAuthResponse, PaymentSyncResponse,
     PaymentsAuthorizeResponse, PaymentsAuthorizeResponse as RepeatPaymentResponse,
@@ -94,6 +96,7 @@ domain_types::impl_flow_status_mapping! {
         Chargeable             => Authorizing,
         Consumed               => Authorizing,
         Pending                => Pending,
+        Unknown                => Pending,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -122,6 +125,7 @@ domain_types::impl_flow_status_mapping! {
         Chargeable             => Authorizing,
         Consumed               => Authorizing,
         Pending                => Pending,
+        Unknown                => Pending,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -147,6 +151,7 @@ domain_types::impl_flow_status_mapping! {
         Chargeable            => Pending,
         Consumed              => Pending,
         Pending               => Pending,
+        Unknown               => Pending,
     }
 }
 
@@ -180,6 +185,7 @@ domain_types::impl_flow_status_mapping! {
         Chargeable             => Pending,
         Consumed               => Pending,
         Pending                => Pending,
+        Unknown                => Pending,
     }
 }
 
@@ -209,6 +215,7 @@ domain_types::impl_flow_status_mapping! {
         Chargeable             => Authorizing,
         Consumed               => Authorizing,
         Pending                => Pending,
+        Unknown                => Pending,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -235,6 +242,7 @@ domain_types::impl_flow_status_mapping! {
         Chargeable             => Authorizing,
         Consumed               => Authorizing,
         Pending                => Pending,
+        Unknown                => Pending,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -250,41 +258,59 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Stripe<T>
 {
+    /// The first `v1` signature of the header, hex-decoded. `verify_webhook_source` does not
+    /// stop at the first one: it checks every `v1` candidate.
     fn get_webhook_source_verification_signature(
         &self,
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, Report<WebhookError>> {
-        let mut security_header_kvs = stripe::get_signature_elements_from_header(&request.headers)?;
+        let header = stripe::get_signature_elements_from_header(&request.headers)?;
 
-        let signature = security_header_kvs
-            .remove("v1")
+        let signature = header
+            .v1_signatures
+            .first()
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
 
         hex::decode(signature).change_context(WebhookError::WebhookSignatureNotFound)
     }
 
+    /// Stripe's `signed_payload`: the header timestamp, a `.`, and the raw request body
+    /// (https://docs.stripe.com/webhooks, "Prepare the `signed_payload` string").
     fn get_webhook_source_verification_message(
         &self,
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, Report<WebhookError>> {
-        let mut security_header_kvs = stripe::get_signature_elements_from_header(&request.headers)?;
+        let header = stripe::get_signature_elements_from_header(&request.headers)?;
 
-        let timestamp = security_header_kvs
-            .remove("t")
-            .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
-
-        // Byte-exact reproduction of HS: "{timestamp}.{raw_body}". The raw request body is used
-        // verbatim (never re-serialized) so the HMAC matches Stripe's.
-        Ok(format!(
-            "{}.{}",
-            String::from_utf8_lossy(&timestamp),
-            String::from_utf8_lossy(&request.body)
-        )
-        .into_bytes())
+        // Concatenate bytes: the body is used exactly as received, never re-serialised and
+        // never passed through a lossy UTF-8 conversion, so the HMAC covers the bytes Stripe
+        // signed and nothing else.
+        let timestamp = header.timestamp.as_bytes();
+        let mut message = Vec::with_capacity(timestamp.len() + 1 + request.body.len());
+        message.extend_from_slice(timestamp);
+        message.push(b'.');
+        message.extend_from_slice(&request.body);
+        Ok(message)
     }
 
+    /// Verifies the `Stripe-Signature` header as https://docs.stripe.com/webhooks specifies:
+    /// HMAC-SHA256, keyed with the endpoint signing secret, over `"{t}.{raw body}"`, compared
+    /// against the header's `v1` signatures. Schemes other than `v1` are ignored.
+    ///
+    /// - The comparison is `crypto::HmacSha256::verify_signature` (constant-time); nothing here
+    ///   compares signature bytes by hand.
+    /// - During secret rolling Stripe sends one `v1` per active secret ("Stripe generates one
+    ///   signature for each secret"), so the event is verified when *any* `v1` matches. Every
+    ///   candidate is evaluated; a `v1` that is not valid hex can never match.
+    /// - No secret, or an empty one, is never verified: an empty HMAC key is public knowledge.
+    /// - Timestamp tolerance is NOT enforced here. The vendor leaves the window to the
+    ///   integrator ("decide if the difference is within your tolerance"; its libraries default
+    ///   to 5 minutes). This service is stateless and its caller may hand it a stored delivery
+    ///   long after receipt, so a fixed window would reject authentic events; the timestamp is
+    ///   still authenticated (it is part of the signed message), and replay protection stays
+    ///   with the caller's event-id de-duplication.
     fn verify_webhook_source(
         &self,
         request: RequestDetails,
@@ -292,20 +318,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, Report<WebhookError>> {
         let connector_webhook_secrets = match connector_webhook_secret {
-            Some(secrets) => secrets,
-            None => return Ok(false),
+            Some(secrets) if !secrets.secret.is_empty() => secrets,
+            Some(_) | None => return Ok(false),
         };
 
-        let algorithm = common_utils::crypto::HmacSha256;
-
-        let signature =
-            self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
+        let header = stripe::get_signature_elements_from_header(&request.headers)?;
         let message =
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
-        algorithm
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
-            .change_context(WebhookError::WebhookSourceVerificationFailed)
+        let algorithm = common_utils::crypto::HmacSha256;
+        let mut verified = false;
+        for candidate in &header.v1_signatures {
+            let Ok(signature) = hex::decode(candidate) else {
+                continue;
+            };
+            verified |= algorithm
+                .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+                .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+        }
+
+        Ok(verified)
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
@@ -381,6 +413,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::AcceptDispute for Stripe<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SubmitEvidenceV2 for Stripe<T>
+{
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for Stripe<T>
 {
@@ -420,35 +462,41 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: PaymentIntentRequest<T>,
             response_body: PaymentsAuthorizeResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
             flow: RepeatPayment,
             request_body: RepeatPaymentRequest<T>,
             response_body: RepeatPaymentResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
             response_body: PaymentSyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
             flow: Capture,
             request_body: CaptureRequest,
             response_body: PaymentsCaptureResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (
             flow: Void,
             request_body: CancelRequest,
             response_body: PaymentsVoidResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
             request_body: StripeRefundRequest,
             response_body: RefundResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ),
         (
@@ -479,6 +527,20 @@ macros::create_all_prerequisites!(
             request_body: PaymentIncrementalAuthRequest,
             response_body: PaymentIncrementalAuthResponse,
             router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ),
+        (
+            flow: SubmitEvidence,
+            request_body: Evidence,
+            response_body: DisputeObj,
+            router_data: RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+        ),
+        (
+            // `/close` takes no parameters, so this flow declares no request_body. The
+            // response is the same Dispute object SubmitEvidence gets; it is registered
+            // under an alias because the macro derives a type name per response body.
+            flow: Accept,
+            response_body: AcceptDisputeObj,
+            router_data: RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
         ),
         (
             flow: ClientAuthenticationToken,
@@ -519,6 +581,15 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.stripe.base_url
+        }
+
+        // Disputes live on the same host as payments; Stripe has no separate dispute
+        // endpoint the way Adyen's `dispute_base_url` does.
+        pub fn connector_base_url_disputes<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, DisputeFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.stripe.base_url
         }
@@ -577,6 +648,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+        let connector_transaction_id = response
+            .error
+            .payment_intent
+            .as_ref()
+            .or(response.error.setup_intent.as_ref())
+            .map(|intent| intent.id.clone());
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -598,8 +675,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     })
                     .unwrap_or(message)
             }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+            // INV-08: non-terminal unless Stripe itself reports the PaymentIntent / SetupIntent
+            // as needing a new payment method, which is how a declined confirm is reported
+            // (https://docs.stripe.com/api/payment_intents/object#payment_intent_object-status).
+            attempt_status: response
+                .error
+                .payment_intent
+                .as_ref()
+                .and_then(|intent| intent.status.as_ref())
+                .or_else(|| {
+                    response
+                        .error
+                        .setup_intent
+                        .as_ref()
+                        .and_then(|intent| intent.status.as_ref())
+                })
+                .and_then(|status| match status {
+                    stripe::StripePaymentStatus::RequiresPaymentMethod
+                    | stripe::StripePaymentStatus::Failed => {
+                        Some(common_enums::AttemptStatus::Failure)
+                    }
+                    stripe::StripePaymentStatus::Succeeded
+                    | stripe::StripePaymentStatus::Processing
+                    | stripe::StripePaymentStatus::RequiresCustomerAction
+                    | stripe::StripePaymentStatus::RequiresConfirmation
+                    | stripe::StripePaymentStatus::Canceled
+                    | stripe::StripePaymentStatus::RequiresCapture
+                    | stripe::StripePaymentStatus::Chargeable
+                    | stripe::StripePaymentStatus::Consumed
+                    | stripe::StripePaymentStatus::Pending
+                    | stripe::StripePaymentStatus::Unknown => None,
+                })
+                .map(FlowStatus::Payment),
+            connector_transaction_id,
             network_advice_code: response.error.network_advice_code,
             network_decline_code: response.error.network_decline_code,
             network_error_message: response.error.decline_code.or(response.error.advice_code),
@@ -1278,15 +1386,80 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Stripe,
+    curl_request: FormUrlEncoded(Evidence),
+    curl_response: DisputeObj,
+    flow_name: SubmitEvidence,
+    resource_common_data: DisputeFlowData,
+    flow_request: SubmitEvidenceData,
+    flow_response: DisputeResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + std::marker::Sync + std::marker::Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}v1/disputes/{}",
+                self.connector_base_url_disputes(req),
+                req.request.connector_dispute_id
+            ))
+        }
+    }
+);
+
+// `/close` takes no parameters at all (https://docs.stripe.com/api/disputes/close), so this
+// flow sends no body — hence no `curl_request`. Stripe documents the call as irreversible.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Stripe,
+    curl_response: AcceptDisputeObj,
+    flow_name: Accept,
+    resource_common_data: DisputeFlowData,
+    flow_request: AcceptDisputeData,
+    flow_response: DisputeResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + std::marker::Sync + std::marker::Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}v1/disputes/{}/close",
+                self.connector_base_url_disputes(req),
+                req.request.connector_dispute_id
+            ))
+        }
+    }
+);
+
+// 3DS leg count is 0: Stripe authenticates inside `POST /v1/payment_intents` (Authorize returns
+// `requires_action` + a redirect) and the outcome is read with `GET /v1/payment_intents/{id}`
+// (PSync). PreAuthenticate/Authenticate/PostAuthenticate stay unwired: a leg would re-confirm.
 macros::macro_connector_flow_status_impls!(
     connector: Stripe,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         GetConnectorCustomer,
-        Accept,
-        SubmitEvidence,
-        DefendDispute,
         ServerSessionAuthenticationToken,
         PreAuthenticate,
         Authenticate,
@@ -1298,5 +1471,12 @@ macros::macro_connector_flow_status_impls!(
         MandateRevoke,
         CreateOrder,
         ServerAuthenticationToken,
+        // Stripe's dispute API is exactly four endpoints
+        // (https://docs.stripe.com/api/disputes) and none of them defends a dispute: the
+        // only response mechanisms are `POST /v1/disputes/{id}` (evidence, wired as
+        // SubmitEvidence) and `POST /v1/disputes/{id}/close` (wired as Accept). A reason
+        // code is a read-only output on the dispute object, never an input, so
+        // `DisputeDefendData.defense_reason_code` has nowhere to go. Not a coverage gap.
+        DefendDispute,
     ],
 );

@@ -48,8 +48,8 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
         merchantTransactionId = "probe_merchant_txn_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
         amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
     }.build()
 }
@@ -60,8 +60,8 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         connectorTransactionId = connectorTransactionIdStr
         paymentAmount = 1000L  // Amount Information.
         refundAmountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         reason = "customer_request"  // Reason for the refund.
         connectorOrderId = "connector_order_id"  // Connector-side identifier for the original payment that this refund targets.
@@ -77,8 +77,8 @@ fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _default
     val authorizeResponse = paymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_txn_001"  // Identification.
         amountBuilder.apply {  // The amount for the payment.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         paymentMethodBuilder.apply {  // Payment method to be used.
             cardRedirectBuilder.apply {  // Card redirect flow.
@@ -87,15 +87,15 @@ fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _default
         }
         captureMethod = CaptureMethod.AUTOMATIC  // Method for capturing the payment.
         customerBuilder.apply {  // Customer Information.
-            emailBuilder.value = "test@example.com"  // Customer's email address.
-            customerDocumentDetailsBuilder.apply {  // Customer identification document.
-                documentType = DocumentKind.OTHER  // The customer's document type.
-                documentNumberBuilder.value = "12345678-5"  // The customer's document number.
+            emailBuilder.value = "test@example.com"
+            customerDocumentDetailsBuilder.apply {
+                documentType = DocumentKind.OTHER
+                documentNumberBuilder.value = "12345678-5"
             }
         }
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
-                firstNameBuilder.value = "John"  // Personal Information.
+                firstNameBuilder.value = "John"
                 lastNameBuilder.value = "Doe"
                 countryAlpha2Code = CountryAlpha2.CL
             }
@@ -121,8 +121,8 @@ fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<
     val authorizeResponse = paymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_txn_001"  // Identification.
         amountBuilder.apply {  // The amount for the payment.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         paymentMethodBuilder.apply {  // Payment method to be used.
             cardRedirectBuilder.apply {  // Card redirect flow.
@@ -131,15 +131,15 @@ fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<
         }
         captureMethod = CaptureMethod.AUTOMATIC  // Method for capturing the payment.
         customerBuilder.apply {  // Customer Information.
-            emailBuilder.value = "test@example.com"  // Customer's email address.
-            customerDocumentDetailsBuilder.apply {  // Customer identification document.
-                documentType = DocumentKind.OTHER  // The customer's document type.
-                documentNumberBuilder.value = "12345678-5"  // The customer's document number.
+            emailBuilder.value = "test@example.com"
+            customerDocumentDetailsBuilder.apply {
+                documentType = DocumentKind.OTHER
+                documentNumberBuilder.value = "12345678-5"
             }
         }
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
-                firstNameBuilder.value = "John"  // Personal Information.
+                firstNameBuilder.value = "John"
                 lastNameBuilder.value = "Doe"
                 countryAlpha2Code = CountryAlpha2.CL
             }
@@ -171,8 +171,8 @@ fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): 
     val authorizeResponse = paymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_txn_001"  // Identification.
         amountBuilder.apply {  // The amount for the payment.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         paymentMethodBuilder.apply {  // Payment method to be used.
             cardRedirectBuilder.apply {  // Card redirect flow.
@@ -181,15 +181,15 @@ fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): 
         }
         captureMethod = CaptureMethod.MANUAL  // Method for capturing the payment.
         customerBuilder.apply {  // Customer Information.
-            emailBuilder.value = "test@example.com"  // Customer's email address.
-            customerDocumentDetailsBuilder.apply {  // Customer identification document.
-                documentType = DocumentKind.OTHER  // The customer's document type.
-                documentNumberBuilder.value = "12345678-5"  // The customer's document number.
+            emailBuilder.value = "test@example.com"
+            customerDocumentDetailsBuilder.apply {
+                documentType = DocumentKind.OTHER
+                documentNumberBuilder.value = "12345678-5"
             }
         }
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
-                firstNameBuilder.value = "John"  // Personal Information.
+                firstNameBuilder.value = "John"
                 lastNameBuilder.value = "Doe"
                 countryAlpha2Code = CountryAlpha2.CL
             }

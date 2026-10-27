@@ -310,6 +310,7 @@ impl
             .or_else(|| item.connector_order_id.clone());
 
         Self {
+            integrity_specifications: item.integrity_specifications,
             split_settlement: item.split_settlement.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             amount: item.amount,
@@ -358,6 +359,7 @@ impl
             mit_category: item.mit_category,
             merchant_request_id: item.merchant_request_id.clone(),
             domain_data: item.domain_data.clone(),
+            risk_assessment_data: item.risk_assessment_data.clone(),
             split_payments: item.split_payments.clone(),
             partner_merchant_identifier_details: item.partner_merchant_identifier_details.clone(),
             currency_conversion_data: item.currency_conversion_data.clone(),
@@ -416,6 +418,9 @@ impl
         });
 
         Self {
+            integrity_specifications: item.integrity_specifications,
+            is_overcapture_enabled: item.is_overcapture_enabled,
+            enable_partial_authorization: item.enable_partial_authorization,
             connector_transaction_id: item.connector_transaction_id.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             encoded_data: item.encoded_data.clone(),
@@ -619,6 +624,7 @@ impl
 
         Self {
             merchant_void_id: item.merchant_void_id.clone(),
+            payment_method: item.payment_method.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
             cancellation_reason: item.cancellation_reason.clone(),
             all_keys_required: item.all_keys_required,
@@ -641,13 +647,15 @@ impl
     ForeignFrom<(
         &CompositeAuthorizeRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
         Option<&PaymentServiceCreateOrderResponse>,
     )> for PaymentMethodAuthenticationServicePreAuthenticateRequest
 {
     fn foreign_from(
-        (item, access_token_response, create_order_response): (
+        (item, access_token_response, session_token_response, create_order_response): (
             &CompositeAuthorizeRequest,
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+            Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
             Option<&PaymentServiceCreateOrderResponse>,
         ),
     ) -> Self {
@@ -694,6 +702,9 @@ impl
             connector_order_id: create_order_response
                 .and_then(|r| r.connector_order_id.clone())
                 .or_else(|| item.connector_order_id.clone()),
+            // Session-token connectors (e.g. Nuvei initPayment) bind the pre-authentication
+            // call to the session minted for this composite flow, same precedence as Authorize.
+            session_token: get_session_token(item.session_token.clone(), session_token_response),
         }
     }
 }
@@ -735,6 +746,13 @@ impl
             capture_method: item.capture_method,
             webhook_url: item.webhook_url.clone(),
             domain_data: item.domain_data.clone(),
+            // Used by connectors whose Authenticate leg charges the payment (frictionless 3DS)
+            setup_future_usage: item.setup_future_usage,
+            customer_acceptance: item.customer_acceptance.clone(),
+            enable_partial_authorization: item.enable_partial_authorization,
+            payment_channel: item.payment_channel,
+            billing_descriptor: item.billing_descriptor.clone(),
+            l2_l3_data: item.l2_l3_data.clone(),
         }
     }
 }
@@ -826,8 +844,11 @@ impl
         });
 
         Self {
+            integrity_specifications: item.integrity_specifications,
+            is_overcapture_enabled: item.is_overcapture_enabled,
             split_settlement: item.split_settlement.clone(),
             merchant_capture_id: item.merchant_capture_id.clone(),
+            payment_method: item.payment_method.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
             amount_to_capture: item.amount_to_capture,
             metadata: item.metadata.clone(),
@@ -1002,13 +1023,15 @@ impl
     ForeignFrom<(
         &CompositePaymentMethodEligibilityRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        Option<&PaymentMethodServiceTokenizeResponse>,
     )> for PaymentMethodServiceEligibilityRequest
 {
     #[allow(deprecated)] // mirrors the deprecated scalar payment_method_type for back-compat
     fn foreign_from(
-        (item, access_token_response): (
+        (item, access_token_response, payment_method_tokenize_response): (
             &CompositePaymentMethodEligibilityRequest,
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+            Option<&PaymentMethodServiceTokenizeResponse>,
         ),
     ) -> Self {
         let access_token_from_req = item
@@ -1025,6 +1048,13 @@ impl
             connector_customer_id,
         });
 
+        // Caller-held token wins; else fall back to the token minted by the
+        // Tokenize pre-call this composite invocation just ran.
+        let payment_method_token = get_payment_method_token(
+            item.payment_method_token.clone(),
+            payment_method_tokenize_response,
+        );
+
         Self {
             amount: item.amount,
             customer: item.customer.clone(),
@@ -1038,6 +1068,7 @@ impl
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
             connector_payment_method_id: item.connector_payment_method_id.clone(),
+            payment_method_token,
             state: resolved_state,
         }
     }
@@ -1047,6 +1078,33 @@ impl ForeignFrom<&CompositePaymentMethodGetRequest> for PaymentMethodServiceToke
     #[allow(deprecated)]
     fn foreign_from(item: &CompositePaymentMethodGetRequest) -> Self {
         Self {
+            integrity_specifications: item.integrity_specifications,
+            merchant_payment_method_id: item.merchant_payment_method_id.clone(),
+            amount: item.amount,
+            payment_method: item.payment_method.clone(),
+            customer: item.customer.clone(),
+            address: item.address.clone(),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            return_url: item.return_url.clone(),
+            test_mode: item.test_mode,
+            state: item.state.clone(),
+            split_payments: item.split_payments.clone(),
+            setup_future_usage: item.setup_future_usage,
+            customer_acceptance: item.customer_acceptance.clone(),
+            setup_mandate_details: item.setup_mandate_details.clone(),
+            browser_info: item.browser_info.clone(),
+        }
+    }
+}
+
+impl ForeignFrom<&CompositePaymentMethodEligibilityRequest>
+    for PaymentMethodServiceTokenizeRequest
+{
+    #[allow(deprecated)]
+    fn foreign_from(item: &CompositePaymentMethodEligibilityRequest) -> Self {
+        Self {
+            integrity_specifications: item.integrity_specifications,
             merchant_payment_method_id: item.merchant_payment_method_id.clone(),
             amount: item.amount,
             payment_method: item.payment_method.clone(),
@@ -1196,6 +1254,7 @@ impl
         });
 
         Self {
+            integrity_specifications: request.integrity_specifications,
             split_settlement: request.split_settlement.clone(),
             merchant_transaction_id: request.merchant_transaction_id.clone(),
             merchant_order_id: request.merchant_order_id.clone(),
@@ -1244,6 +1303,7 @@ impl
             connector_order_id: request.connector_order_id.clone(),
             merchant_request_id: request.merchant_request_id.clone(),
             domain_data: None,
+            risk_assessment_data: request.risk_assessment_data.clone(),
             split_payments: request.split_payments.clone(),
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details
@@ -1404,6 +1464,7 @@ impl
             connector_order_id: create_order_response
                 .and_then(|r| r.connector_order_id.clone())
                 .or_else(|| item.connector_order_id.clone()),
+            session_token: item.session_token.clone(),
         }
     }
 }

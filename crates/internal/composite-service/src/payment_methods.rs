@@ -46,6 +46,62 @@ fn is_wallet_payload_decrypted_network_token(
     }
 }
 
+/// Composite requests that can mint a payment-method token in a Tokenize
+/// pre-call before the primary connector call (Get, Eligibility).
+trait CompositeTokenizeRequest {
+    /// Token already held by the caller; the Tokenize pre-call is skipped.
+    fn payment_method_token(&self) -> Option<&str>;
+    fn payment_method(&self) -> Option<&grpc_api_types::payments::PaymentMethod>;
+    fn payment_method_type(&self) -> grpc_api_types::payments::PaymentMethodType;
+    fn build_tokenize_request(&self) -> PaymentMethodServiceTokenizeRequest;
+}
+
+impl CompositeTokenizeRequest for CompositePaymentMethodGetRequest {
+    fn payment_method_token(&self) -> Option<&str> {
+        self.payment_method_token.as_deref()
+    }
+
+    fn payment_method(&self) -> Option<&grpc_api_types::payments::PaymentMethod> {
+        self.payment_method.as_ref()
+    }
+
+    fn payment_method_type(&self) -> grpc_api_types::payments::PaymentMethodType {
+        grpc_api_types::payments::PaymentMethodType::try_from(self.payment_method_type)
+            .unwrap_or_default()
+    }
+
+    fn build_tokenize_request(&self) -> PaymentMethodServiceTokenizeRequest {
+        PaymentMethodServiceTokenizeRequest::foreign_from(self)
+    }
+}
+
+impl CompositeTokenizeRequest for CompositePaymentMethodEligibilityRequest {
+    fn payment_method_token(&self) -> Option<&str> {
+        self.payment_method_token.as_deref()
+    }
+
+    fn payment_method(&self) -> Option<&grpc_api_types::payments::PaymentMethod> {
+        self.payment_method.as_ref()
+    }
+
+    #[allow(deprecated)] // scalar fallback reads the deprecated payment_method_type field
+    fn payment_method_type(&self) -> grpc_api_types::payments::PaymentMethodType {
+        // `should_do_payment_method_token` takes a single payment method type;
+        // mirror the domain fallback: first non-default repeated entry, else
+        // the deprecated scalar (Unspecified when neither is set).
+        self.payment_method_types
+            .first()
+            .copied()
+            .or(self.payment_method_type)
+            .map(|i| grpc_api_types::payments::PaymentMethodType::try_from(i).unwrap_or_default())
+            .unwrap_or_default()
+    }
+
+    fn build_tokenize_request(&self) -> PaymentMethodServiceTokenizeRequest {
+        PaymentMethodServiceTokenizeRequest::foreign_from(self)
+    }
+}
+
 /// Implementation of CompositeAccessTokenRequest for payment method requests.
 /// These requests don't have a specific payment_method field since payment-method-management
 /// flows aren't gated on a specific payment method.
@@ -224,20 +280,19 @@ where
         Ok(access_token_response)
     }
 
-    async fn create_payment_method_token(
+    async fn create_payment_method_token<R: CompositeTokenizeRequest>(
         &self,
         connector: &ConnectorVariant,
-        payload: &CompositePaymentMethodGetRequest,
+        payload: &R,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<Option<grpc_api_types::payments::PaymentMethodServiceTokenizeResponse>, tonic::Status>
     {
         // Skip if the caller already has a token (e.g. a previously obtained access_token).
-        if payload.payment_method_token.is_none() {
+        if payload.payment_method_token().is_none() {
             let should_do_payment_method_token = {
                 let payment_method = payload
-                    .payment_method
-                    .as_ref()
+                    .payment_method()
                     .map(|pm| common_enums::PaymentMethod::foreign_try_from(pm.clone()))
                     .transpose()
                     .into_grpc_status()?
@@ -247,7 +302,7 @@ where
                 )
                 .ok();
                 let is_wallet_decrypted_network_token =
-                    is_wallet_payload_decrypted_network_token(payload.payment_method.as_ref());
+                    is_wallet_payload_decrypted_network_token(payload.payment_method());
                 match connector {
                     ConnectorVariant::Payment(c) => ConnectorData::<
                         domain_types::payment_method_data::DefaultPCIHolder,
@@ -273,7 +328,7 @@ where
 
             match should_do_payment_method_token {
                 true => {
-                    let tokenize_inner = PaymentMethodServiceTokenizeRequest::foreign_from(payload);
+                    let tokenize_inner = payload.build_tokenize_request();
                     let mut tokenize_request = tonic::Request::new(tokenize_inner);
                     *tokenize_request.metadata_mut() = metadata.clone();
                     *tokenize_request.extensions_mut() = extensions.clone();
@@ -401,10 +456,14 @@ where
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
+        let tokenize_response = self
+            .create_payment_method_token(&connector, &payload, &metadata, &extensions)
+            .await?;
 
         let inner = PaymentMethodServiceEligibilityRequest::foreign_from((
             &payload,
             access_token_response.as_ref(),
+            tokenize_response.as_ref(),
         ));
         let mut inner_request = tonic::Request::new(inner);
         *inner_request.metadata_mut() = metadata;
@@ -420,6 +479,7 @@ where
             CompositePaymentMethodEligibilityResponse {
                 access_token_response,
                 eligibility_response: Some(eligibility_response),
+                tokenize_response,
             },
         ))
     }

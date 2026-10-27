@@ -2,12 +2,16 @@ pub mod transformers;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    crypto::GenerateDigest, errors::CustomResult, events, ext_traits::ByteSliceExt,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    crypto::GenerateDigest,
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
 };
 use std::fmt::Debug;
 
 use domain_types::{
-    connector_flow::{PSync, ServerAuthenticationToken},
+    connector_flow::{PSync, RSync, Refund, ServerAuthenticationToken},
     connector_types::*,
     errors,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -18,7 +22,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, decode::BodyDecoding,
     verification::ConnectorSourceVerificationSecrets,
@@ -54,6 +58,17 @@ macros::create_all_prerequisites!(
             flow: PSync,
             response_body: PayhereSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: Refund,
+            request_body: PayhereRefundRequest,
+            response_body: PayhereRefundResponse,
+            router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ),
+        (
+            flow: RSync,
+            response_body: PayhereRsyncResponse,
+            router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         )
     ],
     amount_converters: [
@@ -105,11 +120,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
 
+        // Prefer the business-envelope pair; fall back to the OAuth pair.
+        let code = response
+            .status
+            .map(|status| status.to_string())
+            .or(response.error)
+            .unwrap_or_else(|| NO_ERROR_CODE.to_string());
+        let message = response
+            .msg
+            .or(response.error_description)
+            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.status.to_string(),
-            message: response.msg.clone(),
-            reason: Some(response.msg),
+            code,
+            reason: Some(message.clone()),
+            message,
             attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,
@@ -281,7 +307,7 @@ macros::macro_connector_implementation!(
                 ),
                 (
                     headers::AUTHORIZATION.to_string(),
-                    format!("Basic {}", encoded).into(),
+                    format!("Basic {}", encoded).into_masked(),
                 ),
             ])
         }
@@ -360,7 +386,128 @@ macros::macro_connector_implementation!(
                 ),
                 (
                     headers::AUTHORIZATION.to_string(),
-                    format!("Bearer {}", access_token).into(),
+                    format!("Bearer {}", access_token).into_masked(),
+                ),
+            ])
+        }
+    }
+);
+
+// PayHere Refund API — POST /merchant/v1/payment/refund. Header/URL idioms are
+// identical to PSync: the chained ServerAuthenticationToken leg has already
+// deposited a Bearer access token on the flow data by the time this runs.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Payhere,
+    curl_request: Json(PayhereRefundRequest),
+    curl_response: PayhereRefundResponse,
+    flow_name: Refund,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundsData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            Ok(format!(
+                "{}/merchant/v1/payment/refund",
+                self.base_url(&req.resource_common_data.connectors)
+            ))
+        }
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            let access_token = req.resource_common_data.get_access_token().map_err(|err| {
+                errors::IntegrationError::FailedToObtainAuthType {
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "payhere: Refund needs an access token from CreateServerAuthenticationToken ({err})"
+                        )),
+                        suggested_action: Some(
+                            "Verify the PayHere app_id/app_secret credentials are valid; the OAuth call to /merchant/v1/oauth/token must succeed before Refund"
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://support.payhere.lk/api-&-mobile-sdk/merchant-api"
+                                .to_string(),
+                        ),
+                    },
+                }
+            })?;
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/json".to_string().into(),
+                ),
+                (
+                    headers::AUTHORIZATION.to_string(),
+                    format!("Bearer {}", access_token).into_masked(),
+                ),
+            ])
+        }
+    }
+);
+
+// PayHere documents no dedicated refund-retrieval endpoint: RSync piggybacks
+// on the same Retrieval API as PSync — GET /merchant/v1/payment/search — whose
+// response adds the refund wire status (and optional `refund` block) on the
+// payment entry. URL/headers/access-token chaining are identical to PSync.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Payhere,
+    curl_response: PayhereRsyncResponse,
+    flow_name: RSync,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundSyncData,
+    flow_response: RefundsResponseData,
+    http_method: Get,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            Ok(format!(
+                "{}/merchant/v1/payment/search?order_id={}",
+                self.base_url(&req.resource_common_data.connectors),
+                req.resource_common_data.connector_request_reference_id.clone()
+            ))
+        }
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            let access_token = req.resource_common_data.get_access_token().map_err(|err| {
+                errors::IntegrationError::FailedToObtainAuthType {
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "payhere: RSync needs an access token from CreateServerAuthenticationToken ({err})"
+                        )),
+                        suggested_action: Some(
+                            "Verify the PayHere app_id/app_secret credentials are valid; the OAuth call to /merchant/v1/oauth/token must succeed before RSync"
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://support.payhere.lk/api-&-mobile-sdk/merchant-api"
+                                .to_string(),
+                        ),
+                    },
+                }
+            })?;
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/json".to_string().into(),
+                ),
+                (
+                    headers::AUTHORIZATION.to_string(),
+                    format!("Bearer {}", access_token).into_masked(),
                 ),
             ])
         }
@@ -388,8 +535,6 @@ macros::macro_connector_flow_status_impls!(
         PreAuthenticate,
         PaymentMethodToken,
         VoidPC,
-        Refund,
-        RSync,
         Void,
                 RepeatPayment,
         ServerSessionAuthenticationToken,
@@ -417,6 +562,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::PaymentSyncV2 for Payhere<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    interfaces::connector_types::RefundV2 for Payhere<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    interfaces::connector_types::RefundSyncV2 for Payhere<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

@@ -26,10 +26,6 @@
           "action": "waitFor",
           "urlContains": "{{redirect_uri}}",
           "timeoutMs": 60000
-        },
-        {
-          "action": "screenshot",
-          "as": "after3ds"
         }
       ]
     }

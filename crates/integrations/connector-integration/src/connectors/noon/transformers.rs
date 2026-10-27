@@ -12,6 +12,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     mandates::MandateDataType,
+    payment_address::AddressDetails,
     payment_method_data::{
         GooglePayWalletData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
@@ -245,6 +246,25 @@ pub struct NoonPaymentsRequest<
     billing: Option<NoonBilling>,
 }
 
+/// The billing address Noon should receive, or `None` when it carries no address
+/// fields at all.
+///
+/// Direct (hyperswitch) reaches `None` naturally: an Apple Pay token's billing
+/// contact holds only email/phone, so the unified address is
+/// `Address { address: None, .. }` and `.and_then(|b| b.address.as_ref())`
+/// short-circuits. Prism's grpc -> domain conversion always yields
+/// `Some(AddressDetails)`, so that chain can never short-circuit and Noon was
+/// sent an all-null `billing` object where Direct sends `null`.
+///
+/// Only an entirely-empty address is treated as absent; present-but-empty
+/// strings are preserved.
+fn get_optional_billing_address(flow_data: &PaymentFlowData) -> Option<&AddressDetails> {
+    flow_data
+        .get_optional_billing()
+        .and_then(|billing_address| billing_address.address.as_ref())
+        .filter(|address| **address != AddressDetails::default())
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         NoonRouterData<
@@ -415,11 +435,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let channel = NoonChannels::Web;
 
-        let billing = item
-            .resource_common_data
-            .get_optional_billing()
-            .and_then(|billing_address| billing_address.address.as_ref())
-            .map(|address| NoonBilling {
+        let billing =
+            get_optional_billing_address(&item.resource_common_data).map(|address| NoonBilling {
                 address: NoonBillingAddress {
                     street: address.line1.clone(),
                     street2: address.line2.clone(),
@@ -1351,11 +1368,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let channel = NoonChannels::Web;
 
-        let billing = item
-            .resource_common_data
-            .get_optional_billing()
-            .and_then(|billing_address| billing_address.address.as_ref())
-            .map(|address| NoonBilling {
+        let billing =
+            get_optional_billing_address(&item.resource_common_data).map(|address| NoonBilling {
                 address: NoonBillingAddress {
                     street: address.line1.clone(),
                     street2: address.line2.clone(),
@@ -1600,19 +1614,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let channel = NoonChannels::Web;
 
-        let billing = router_data
-            .resource_common_data
-            .get_optional_billing()
-            .and_then(|billing_address| billing_address.address.as_ref())
-            .map(|address| NoonBilling {
-                address: NoonBillingAddress {
-                    street: address.line1.clone(),
-                    street2: address.line2.clone(),
-                    city: address.city.clone(),
-                    state_province: address.state.clone(),
-                    country: address.country,
-                    postal_code: address.zip.clone(),
-                },
+        let billing =
+            get_optional_billing_address(&router_data.resource_common_data).map(|address| {
+                NoonBilling {
+                    address: NoonBillingAddress {
+                        street: address.line1.clone(),
+                        street2: address.line2.clone(),
+                        city: address.city.clone(),
+                        state_province: address.state.clone(),
+                        country: address.country,
+                        postal_code: address.zip.clone(),
+                    },
+                }
             });
 
         // Clean description

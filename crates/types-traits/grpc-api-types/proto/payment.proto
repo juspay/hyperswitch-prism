@@ -15,7 +15,8 @@
 // Key Concepts:
 //   - Money:         All monetary amounts are represented in minor currency
 //   units
-//                   (e.g., 1000 = $10.00 USD). See the Money message.
+//                   (e.g., 1000 = $10.00 USD). See the Money message in
+//                   common_types.proto.
 //   - SecretString:  A wrapper type (defined in payment_methods.proto) used for
 //                   fields that contain sensitive data such as card numbers,
 //                   CVVs, email addresses, and tokens. These values are masked
@@ -38,6 +39,8 @@
 //
 // Related Files:
 //   - services.proto      — gRPC service definitions
+//   - common_types.proto  — Shared base types (Money, Currency, Address, Customer)
+//   - domain.proto        — Domain-specific data (airline, education)
 //   - payment_methods.proto — Payment method data types and SecretString
 
 syntax = "proto3";
@@ -45,6 +48,8 @@ syntax = "proto3";
 package types;
 
 import "google/protobuf/empty.proto";
+import "common_types.proto";
+import "domain.proto";
 import "payment_methods.proto";
 
 option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
@@ -53,11 +58,11 @@ option go_package = "github.com/juspay/connector-service/crates/types-traits/grp
 // CORE DATA TYPES
 // ============================================================================
 
-// Money represents a monetary amount with currency
-// All amounts are in minor units (e.g., cents for USD)
-message Money {
-  int64 minor_amount = 1; // Amount in minor units (e.g., 1000 = $10.00)
-  Currency currency = 2; // ISO 4217 currency code (e.g., "USD", "EUR")
+// Integrity-check settings applied when comparing the connector response with the request.
+message IntegritySpecifications {
+  // When true, an amount mismatch between request and connector response is not
+  // treated as an integrity failure, in either direction. A currency mismatch still is.
+  optional bool allow_amount_mismatch = 1;
 }
 
 // Quote details associated with a currency conversion decision.
@@ -206,37 +211,6 @@ message Identifier {
     // Indicates that no specific ID is returned or applicable.
     google.protobuf.Empty no_response_id_marker = 3;
   }
-}
-
-message Customer {
-  optional string name = 1;        // Customer's full name
-  optional SecretString email = 2; // Customer's email address
-  optional string id = 3;          // Internal customer ID
-  optional string connector_customer_id =
-      4;                                  // Customer ID in the connector system
-  optional SecretString phone_number = 5; // Customer's phone number
-  optional string phone_country_code = 6; // Customer's phone country code
-  optional string first_name = 7;       // Customer's first name
-  optional string last_name = 8;        // Customer's last name
-  optional string salutation = 9;       // Customer's salutation (Mr., Ms., etc.)
-  optional CustomerDocumentDetails customer_document_details =
-      10; // Customer identification document
-  optional SecretString date_of_birth = 11; // Date of birth (ISO 8601: yyyy-MM-dd)
-}
-
-// Type of customer identification document.
-enum DocumentKind {
-  DOCUMENT_KIND_UNSPECIFIED = 0; // Default, unspecified document type.
-  CPF = 1; // Cadastro de Pessoas Físicas - Brazilian individual taxpayer ID.
-  CNPJ = 2; // Cadastro Nacional da Pessoa Jurídica - Brazilian business ID.
-  PSN = 3; // Philippine PhilSys Number (12-digit national ID), required by dLocal for GCash.
-  OTHER = 4; // Generic / other non-Brazilian national document; the connector validates it per country. Kept last as the catch-all.
-}
-
-// Customer's country-specific identification document.
-message CustomerDocumentDetails {
-  DocumentKind document_type = 1;   // The customer's document type
-  SecretString document_number = 2; // The customer's document number
 }
 
 // ============================================================================
@@ -607,172 +581,6 @@ enum NotifyEventType {
   FRM_CHARGEBACK_RECEIVED = 9;   // Chargeback opened — notify FRM of reversal
 }
 
-// Currency codes (ISO 4217)
-// Note: Using enum for type safety. Consider string for flexibility.
-enum Currency {
-  CURRENCY_UNSPECIFIED = 0;
-  AED = 1;
-  AFN = 2;
-  ALL = 3;
-  AMD = 4;
-  ANG = 5;
-  AOA = 6;
-  ARS = 7;
-  AUD = 8;
-  AWG = 9;
-  AZN = 10;
-  BAM = 11;
-  BBD = 12;
-  BDT = 13;
-  BGN = 14;
-  BHD = 15;
-  BIF = 16;
-  BMD = 17;
-  BND = 18;
-  BOB = 19;
-  BRL = 20;
-  BSD = 21;
-  BTN = 22;
-  BWP = 23;
-  BYN = 24;
-  BZD = 25;
-  CAD = 26;
-  CDF = 27;
-  CHF = 28;
-  CLF = 29;
-  CLP = 30;
-  CNY = 31;
-  COP = 32;
-  CRC = 33;
-  CUC = 34;
-  CUP = 35;
-  CVE = 36;
-  CZK = 37;
-  DJF = 38;
-  DKK = 39;
-  DOP = 40;
-  DZD = 41;
-  EGP = 42;
-  ERN = 43;
-  ETB = 44;
-  EUR = 45;
-  FJD = 46;
-  FKP = 47;
-  GBP = 48;
-  GEL = 49;
-  GHS = 50;
-  GIP = 51;
-  GMD = 52;
-  GNF = 53;
-  GTQ = 54;
-  GYD = 55;
-  HKD = 56;
-  HNL = 57;
-  HRK = 58;
-  HTG = 59;
-  HUF = 60;
-  IDR = 61;
-  ILS = 62;
-  INR = 63;
-  IQD = 64;
-  IRR = 65;
-  ISK = 66;
-  JMD = 67;
-  JOD = 68;
-  JPY = 69;
-  KES = 70;
-  KGS = 71;
-  KHR = 72;
-  KMF = 73;
-  KPW = 74;
-  KRW = 75;
-  KWD = 76;
-  KYD = 77;
-  KZT = 78;
-  LAK = 79;
-  LBP = 80;
-  LKR = 81;
-  LRD = 82;
-  LSL = 83;
-  LYD = 84;
-  MAD = 85;
-  MDL = 86;
-  MGA = 87;
-  MKD = 88;
-  MMK = 89;
-  MNT = 90;
-  MOP = 91;
-  MRU = 92;
-  MUR = 93;
-  MVR = 94;
-  MWK = 95;
-  MXN = 96;
-  MYR = 97;
-  MZN = 98;
-  NAD = 99;
-  NGN = 100;
-  NIO = 101;
-  NOK = 102;
-  NPR = 103;
-  NZD = 104;
-  OMR = 105;
-  PAB = 106;
-  PEN = 107;
-  PGK = 108;
-  PHP = 109;
-  PKR = 110;
-  PLN = 111;
-  PYG = 112;
-  QAR = 113;
-  RON = 114;
-  RSD = 115;
-  RUB = 116;
-  RWF = 117;
-  SAR = 118;
-  SBD = 119;
-  SCR = 120;
-  SDG = 121;
-  SEK = 122;
-  SGD = 123;
-  SHP = 124;
-  SLE = 125;
-  SLL = 126;
-  SOS = 127;
-  SRD = 128;
-  SSP = 129;
-  STD = 130;
-  STN = 131;
-  SVC = 132;
-  SYP = 133;
-  SZL = 134;
-  THB = 135;
-  TJS = 136;
-  TMT = 137;
-  TND = 138;
-  TOP = 139;
-  TRY = 140;
-  TTD = 141;
-  TWD = 142;
-  TZS = 143;
-  UAH = 144;
-  UGX = 145;
-  USD = 146;
-  UYU = 147;
-  UZS = 148;
-  VES = 149;
-  VND = 150;
-  VUV = 151;
-  WST = 152;
-  XAF = 153;
-  XCD = 154;
-  XOF = 155;
-  XPF = 156;
-  YER = 157;
-  ZAR = 158;
-  ZMW = 159;
-  ZWL = 160;
-}
-
 // Connector enumeration
 enum Connector {
   CONNECTOR_UNSPECIFIED = 0; // Default value
@@ -1050,8 +858,8 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
-  PAYMAYA = 115;
-  GRAB_PAY = 116;
+  PAYMAYA = 115 [deprecated = true]; // Use MAYA_WALLET.
+  GRAB_PAY = 116 [deprecated = true]; // Use GRABPAY_WALLET.
   // PAYMENT_METHOD_TYPE_KLARNA (not bare KLARNA): the value name KLARNA is already
   // taken by the Connector enum in this same proto package, and protobuf requires
   // enum value names to be unique per-package (C++ scoping). Klarna is legitimately
@@ -1080,9 +888,13 @@ enum PaymentMethodType {
   QRIS = 134;
   SEPA_GUARANTEED_DEBIT = 135;
   NETELLER = 136;
-  PAY_HERE = 137;
-  TAMARA_REDIRECT = 138;
+  PAY_HERE = 137 [deprecated = true]; // Use PAYHERE_WALLET.
+  TAMARA_REDIRECT = 138 [deprecated = true]; // Use TAMARA_BNPL.
   TED = 139;
+  MAYA_WALLET = 140;
+  GRABPAY_WALLET = 141;
+  PAYHERE_WALLET = 142;
+  TAMARA_BNPL = 143;
 }
 
 // Product type enumeration
@@ -1109,27 +921,6 @@ enum Tokenization {
   TOKENIZATION_UNSPECIFIED = 0;     // Default value
   TOKENIZATION_TOKENIZE_AT_PSP = 1; // Use default tokenization behavior
   TOKENIZATION_SKIP_PSP = 2;        // Skip PSP-side token creation
-}
-
-// Represents a physical address with contact information
-message Address {
-  // Personal Information
-  optional SecretString first_name = 1;
-  optional SecretString last_name = 2;
-
-  // Address Details
-  optional SecretString line1 = 3;
-  optional SecretString line2 = 4;
-  optional SecretString line3 = 5;
-  optional SecretString city = 6;
-  optional SecretString state = 7;
-  optional SecretString zip_code = 8;
-  optional CountryAlpha2 country_alpha2_code = 9;
-
-  // Contact Information
-  optional SecretString email = 10;
-  optional SecretString phone_number = 11;
-  optional string phone_country_code = 12;
 }
 
 // Details of a single product in an order
@@ -1508,143 +1299,6 @@ message L2L3Data {
   optional TaxInfo tax_info = 2;
 }
 
-// Domain-specific data supplied by the merchant.
-message DomainData {
-  optional AirlineData airline_data = 1; // Airline / travel itinerary data
-  optional EducationData education_data = 2; // Education / student data
-}
-
-// Connector-agnostic education data (e.g. Flywire tuition payments).
-message EducationData {
-  optional StudentDetails student_details = 1;
-}
-
-// Student details for education payments (e.g. Flywire recipient fields).
-message StudentDetails {
-  optional string student_id = 1;
-  optional string student_first_name = 2;
-  optional string student_last_name = 3;
-  optional SecretString student_email = 4; // PII — student's email address
-}
-
-// Whether the ticket can be refunded
-enum TicketRefundability {
-  TICKET_REFUNDABILITY_UNSPECIFIED = 0;
-  REFUNDABLE = 1;
-  NON_REFUNDABLE = 2;
-}
-
-// Ticket medium — electronic vs paper
-enum TicketDeliveryType {
-  TICKET_DELIVERY_TYPE_UNSPECIFIED = 0;
-  ELECTRONIC = 1;
-  PAPER = 2;
-}
-
-// Whether the cardholder is among the passengers a fraud signal.
-enum CardholderTravelStatus {
-  CARDHOLDER_TRAVEL_STATUS_UNSPECIFIED = 0;
-  CARDHOLDER_TRAVELING = 1;
-  CARDHOLDER_NOT_TRAVELING = 2;
-}
-
-// Connector-agnostic airline / travel itinerary data. The union of fields
-// across processors (2C2P PACO, CyberSource, Adyen, Worldpay, Checkout.com,
-// Nuvei); every field is optional so each connector enforces its own required
-// subset. Amounts use Money (minor units + currency); dates are strings since
-// processors disagree on format.
-message AirlineData {
-  // ---- Booking / ticket level ----
-  optional string pnr_code = 1;                 // PNR / reservation-system code
-  optional string booking_reference = 2;        // Merchant booking / customer reference
-  optional string ticket_number = 3;            // Airline ticket number
-  optional string ticket_issue_date = 4;        // Date the ticket was issued
-  optional string booking_date_time = 5;        // Booking timestamp (RFC 3339)
-  optional string flight_date = 6;              // Departure date of the first leg
-  optional string issuing_carrier_code = 7;     // IATA code of the ticket issuer
-  optional string airline_code = 8;             // IATA numeric accounting code
-  optional string passenger_name = 9;           // Primary passenger name
-  optional uint32 number_of_passengers = 10;    // Passenger count on the ticket
-  optional string document_type = 11;           // Travel document type code
-  TicketRefundability refundability = 12;       // Refundable / non-refundable
-  TicketDeliveryType ticket_delivery_type = 13; // Electronic vs paper ticket
-  CardholderTravelStatus cardholder_travel_status = 14; // Is the cardholder a passenger
-  optional Address ticket_issue_address = 15;   // Address of the issuing agency
-  optional string booking_system_unique_id = 16; // Booking-system unique identifier
-
-  // Travel agency
-  optional string agency_code = 20;             // IATA / ARC travel agency code
-  optional string agency_name = 21;             // Travel agency name
-  optional string agency_invoice_number = 22;   // Agency-issued invoice number
-  optional string agency_plan_name = 23;        // Agency plan identifier
-
-  // Ticket-level amounts (each carries its own currency)
-  optional Money total_fare = 30;               // Total ticket fare
-  optional Money total_taxes = 31;              // Total taxes on the ticket
-  optional Money total_fee = 32;                // Total fees on the ticket
-  optional Money boarding_fee = 33;             // Chargeable boarding fee
-
-  repeated AirlineSegment flight_segments = 40; // Flight legs, in itinerary order
-  repeated AirlinePassenger passengers = 41;    // Passengers on the ticket
-}
-
-// One flight leg. departure/arrival reuse the shared AirlineLocation, mirroring
-// how Address is reused for billing/shipping.
-message AirlineSegment {
-  optional uint32 sequence_no = 1;              // 1-based leg order
-  optional string marketing_carrier_code = 2;   // Marketing carrier IATA-2 (ticket-issuing airline)
-  optional string flight_number = 3;            // Marketing flight number
-  optional string flight_type = 4;              // "Domestic" / "International"
-  optional string class_of_service = 5;         // F / J / Y / W
-  optional string fare_basis_code = 6;          // Fare basis code
-  optional string stopover_code = 7;            // O = stopover allowed / X = not
-  AirlineLocation departure = 8;                // Departure endpoint
-  AirlineLocation arrival = 9;                  // Arrival endpoint
-
-  // Per-leg amounts (each carries its own currency)
-  optional Money fare_amount = 10;              // Fare for this leg
-  optional Money fee_amount = 11;               // Fee for this leg
-  optional Money tax_amount = 12;               // Departure tax for this leg
-
-  // Exchange / coupon details
-  optional string exchange_ticket_number = 13;  // New ticket number on exchange
-  optional string conjunction_ticket = 14;      // Conjunction ticket for >4 legs
-  optional string coupon_number = 15;           // Coupon number for this leg
-  optional string endorsements_restrictions = 16; // Endorsements / restrictions
-
-  optional string operating_carrier_code = 17;  // Operating carrier IATA-2
-  optional string operating_flight_number = 18; // Operating flight number
-}
-
-// A flight endpoint, reused for both departure and arrival.
-message AirlineLocation {
-  optional string airport_code = 1;             // IATA-3 airport code
-  optional string city_code = 2;                // IATA-3 city code
-  optional string city_name = 3;                // City name
-  optional string country_code = 4;             // ISO 3166-1 alpha-2 country code (connectors convert to numeric/alpha-3 as needed)
-  optional string country_name = 5;             // Country name
-  optional string date_time = 6;                // Local scheduled time (RFC 3339)
-}
-
-message AirlinePassenger {
-  optional uint32 sequence_no = 1;              // 1-based passenger order
-
-  // Identity fields shared with the cardholder/payer model — salutation,
-  // first_name, last_name, email (Secret) and phone_number (Secret).
-  optional Customer customer = 2;
-
-  // Passenger-specific fields not on Customer.
-  optional string middle_name = 3;              // Middle name
-  optional string gender = 4;                   // M / F / X
-  optional string date_of_birth = 5;            // Date of birth (yyyy-MM-dd)
-  optional string passenger_type = 6;           // IATA PTC, e.g. ADT
-  optional string frequent_flyer_number = 7;    // Loyalty / frequent-flyer number
-  optional string loyalty_tier = 8;             // Loyalty-program tier
-  optional SecretString passport_number = 9;    // Passport number
-  optional string nationality = 10;             // ISO 3166-1 alpha-2 nationality
-  optional SecretString ticket_number = 11;     // Per-passenger ticket number
-}
-
 // Redirection response data
 message RedirectionResponse {
   optional string params = 1;
@@ -2000,6 +1654,13 @@ message CardConnectorResponse {
   optional string domestic_network = 4; // Domestic (co-branded) card network
   optional string auth_code =
       5; // Unique authorisation code generated for the payment
+  optional CardNetwork processor_card_network = 6; // Normalized network returned by the processor
+  optional string card_subtype = 7; // The card's product/subtype
+  optional CardSegmentType card_segment_type = 8; // Consumer or commercial segment
+  optional FundingSource funding_source = 9; // The card's funding source
+  optional CardType card_type = 10; // Credit, debit, prepaid, or charge
+  optional string issuer_name = 11; // The name of the card issuer
+  optional CountryAlpha2 issuer_country = 12; // The issuer's ISO alpha-2 country
 }
 
 // Additional card information for payment processing.
@@ -2847,6 +2508,46 @@ message PaymentServiceAuthorizeRequest {
   // Opt in to address verification using billing details when supported by the
   // connector. Only true requests AVS; omitted or false leaves it disabled.
   optional bool enable_avs_check = 57;
+
+  // Merchant-supplied customer risk-assessment signals (account age, order
+  // history, premium status, etc.) for connectors that factor customer risk
+  // into authorization / onboarding decisions.
+  optional RiskAssessmentData risk_assessment_data = 58;
+
+ // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 59;
+}
+
+// Customer risk-assessment signals supplied by the merchant, used by
+// connectors that factor account history into risk decisions.
+message RiskAssessmentData {
+  // Whether the customer is a premium customer of the merchant.
+  optional PremiumCustomerStatus is_premium_customer = 1;
+  // Date the customer's account was created with the merchant (yyyy-MM-dd).
+  optional string customer_account_creation_date = 2;
+  // Number of successful orders the customer has placed with the merchant.
+  optional uint32 number_of_orders = 3;
+  // Aggregated transaction/customer risk score computed by the merchant, on a
+  // scale of 0 (lowest risk) to 100 (highest risk).
+  optional uint32 risk_score = 4;
+  // Date of the customer's first successful payment (yyyy-MM-dd); unset if this
+  // is the customer's first order.
+  optional string date_first_paid = 5;
+  // Date of the customer's most recent successful payment (yyyy-MM-dd); unset if
+  // this is the customer's first order.
+  optional string date_last_paid = 6;
+  // Number of successful orders the customer placed with the merchant in the
+  // last 24 hours.
+  optional uint32 number_of_orders_in_past_24h = 7;
+  // Merchant-assigned reference identifying the customer.
+  optional string customer_reference = 8;
+}
+
+// Whether the customer is a premium / non-premium customer of the merchant.
+enum PremiumCustomerStatus {
+  PREMIUM_CUSTOMER_STATUS_UNSPECIFIED = 0;
+  PREMIUM_CUSTOMER = 1;
+  NON_PREMIUM_CUSTOMER = 2;
 }
 
 // Partner / external-platform application details.
@@ -2985,6 +2686,17 @@ message PaymentServiceGetRequest {
   optional SplitPaymentsDetails split_payments = 17;
 
   optional ConnectorMandateReferenceId mandate_reference = 18;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 19;
+
+  // Whether overcapture is enabled for this payment. When true, a connector-reported
+  // amount higher than the requested amount is not treated as an integrity failure.
+  optional bool is_overcapture_enabled = 20;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 21;
 }
 
 // Settlement phase reported by the connector on PaymentServiceGetResponse.
@@ -3085,6 +2797,13 @@ message PaymentServiceGetResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
    optional string payment_account_reference = 42;
+
+  // Captured amount and currency, as reported by the connector.
+  optional Money captured_money = 43;
+  // Amount and currency still capturable, as reported by the connector.
+  optional Money capturable_money = 44;
+  // Amount and currency the connector reported for this payment, as used by the integrity check.
+  optional Money authorized_money = 45;
 }
 
 // Request message for voiding a payment
@@ -3122,6 +2841,9 @@ message PaymentServiceVoidRequest {
   // (platform fees, transfers, etc.), read only by connectors still on the old
   // split_payments contract (e.g. Stripe, Adyen).
   optional SplitPaymentsDetails split_payments = 13;
+
+  // Original payment method, for connectors that require it again on void (e.g. Worldpay RAFT).
+  optional PaymentMethod payment_method = 14;
 }
 
 // Response message for a payment void operation
@@ -3199,6 +2921,9 @@ message PaymentServiceReverseRequest {
   // endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
   // the real value; defaulting to None/test mode breaks live-URL substitution.
   optional bool test_mode = 9;
+
+  // Original payment amount and currency.
+  optional Money amount = 10;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
@@ -3411,6 +3136,16 @@ message PaymentServiceCaptureRequest {
   // Unified, connector-agnostic split settlement: a marketplace/platform cut plus
   // N per-vendor splits. Supersedes split_payments; new connectors read this field.
   optional SplitSettlement split_settlement = 15;
+
+  // Original payment method, for connectors that require it again on capture (e.g. Worldpay RAFT).
+  optional PaymentMethod payment_method = 16;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 17;
+
+  // Whether overcapture is enabled for this payment. When true, a connector-reported
+  // amount higher than the requested amount is not treated as an integrity failure.
+  optional bool is_overcapture_enabled = 18;
 }
 
 // Response message for a payment capture operation
@@ -3584,7 +3319,7 @@ message PaymentServiceRefundRequest {
   // Connector-side identifier for the original payment that this refund targets.
   optional string connector_order_id = 18;
 
-  // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
+  // Original payment method, for connectors that require it again on refund (e.g. Worldpay RAFT).
   optional PaymentMethod payment_method = 19;
 
   // Split refund data for platform fee reversals and transfers
@@ -4067,6 +3802,14 @@ message RecurringPaymentServiceChargeRequest {
 
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 42;
+
+  // Connector session token, set by the caller from the session_token returned by
+  // MerchantAuthenticationService.CreateServerSessionAuthenticationToken (e.g. Nuvei's
+  // /getSessionToken.do sessionToken). Leave unset for connectors that do not use one.
+  optional string session_token = 43;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 44;
 }
 
 // Response message for repeat payment operation
@@ -4127,6 +3870,13 @@ message RecurringPaymentServiceChargeResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
    optional string payment_account_reference = 24;
+
+  // Captured amount and currency, as reported by the connector.
+  optional Money captured_money = 25;
+  // Amount and currency still capturable, as reported by the connector.
+  optional Money capturable_money = 26;
+  // Amount and currency the connector reported for this payment, as used by the integrity check.
+  optional Money authorized_money = 27;
 }
 
 // Request message for a mandate revoke operation
@@ -4210,6 +3960,11 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Sandbox/test mode flag
   optional bool test_mode = 17;
+
+  // Connector session token, set by the caller from the session_token returned by
+  // MerchantAuthenticationService.CreateServerSessionAuthenticationToken (e.g. Nuvei's
+  // /getSessionToken.do sessionToken). Leave unset for connectors that do not use one.
+  optional string session_token = 18;
 }
 
 // Response message for pre-authentication step
@@ -4286,6 +4041,18 @@ message PaymentMethodAuthenticationServiceAuthenticateRequest {
 
   // Domain-specific data (e.g. student fields for tuition payments)
   optional DomainData domain_data = 16;
+
+  // Stored-credential intent, used when this leg is the charging call
+  optional FutureUsage setup_future_usage = 18; // Indicates future usage intention
+  optional CustomerAcceptance customer_acceptance = 19; // Details of customer acceptance for mandates
+
+  // Payment Options applied when this leg is the charging call
+  optional bool enable_partial_authorization = 20; // Allow partial authorization
+  optional PaymentChannel payment_channel = 21; // Describes the channel through which the payment was initiated
+  optional BillingDescriptor billing_descriptor = 22; // Billing descriptor information
+
+  // Level 2 / Level 3 data
+  optional L2L3Data l2_l3_data = 23;
 }
 
 // Response message for authentication step
@@ -4318,6 +4085,10 @@ message PaymentMethodAuthenticationServiceAuthenticateResponse {
 
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 13;
+
+  // Stored-credential results, set when this leg charged the payment
+  optional MandateReferenceDetails mandate_reference_details = 15; // Reference to the created mandate
+  optional string network_txn_link_id = 16; // Network transaction link identifier
 }
 
 // Request message for post-authentication step
@@ -4401,7 +4172,7 @@ message PaymentServiceIncrementalAuthorizationRequest {
   string connector_transaction_id = 2;
 
   // Amount Information
-  Money amount = 3; // new amount to be authorized (in minor currency units)
+  Money amount = 3; // New total authorized amount, including this increase.
 
   // Optional Fields
   optional string reason = 4;
@@ -4415,6 +4186,15 @@ message PaymentServiceIncrementalAuthorizationRequest {
   // endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
   // the real value; defaulting to None/test mode breaks live-URL substitution.
   optional bool test_mode = 7;
+
+  // Increase over the current authorized total. Must use the same currency as amount.
+  optional Money additional_amount = 8;
+
+  // Network transaction ID returned by the original authorization.
+  optional string network_transaction_id = 9;
+
+  // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
+  optional PaymentMethod payment_method = 10;
 }
 
 // Response message for incremental authorization
@@ -4682,6 +4462,9 @@ message PaymentMethodServiceTokenizeRequest {
   // Browser context forwarded to connectors that use it for fraud signals when
   // creating a reusable payment method (for example Stripe's ip/user_agent).
   optional BrowserInformation browser_info = 15;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 16;
 }
 
 // Response message for tokenizing a payment method
@@ -5295,7 +5078,12 @@ message HipayConfig {
 
 message JpmorganConfig {
   SecretString client_id = 1;
-  SecretString client_secret = 2;
+  optional SecretString client_secret = 2 [deprecated = true];
+  SecretString thumbprint = 3; // certificate thumbprint; hex SHA-1 format, colons allowed
+  SecretString private_key = 4; // base64 encoded PEM
+  SecretString resource_id = 5;
+  // JPMorgan merchant IDs keyed by currency, e.g. USD, CAD, EUR, GBP, JPY.
+  map<string, SecretString> merchant_id = 6;
   optional string base_url = 50;
   optional SecretString company_name = 51;
   optional SecretString product_name = 52;
@@ -5737,6 +5525,8 @@ message PproConfig {
   SecretString api_key = 1;
   SecretString merchant_id = 2;
   optional string base_url = 50;
+  // HMAC-SHA256 webhook signing secret used to verify the `ppro-signature` header.
+  optional SecretString webhook_secret = 51;
 }
 
 message PaypalConfig {
@@ -6540,6 +6330,13 @@ message PaymentServiceTokenAuthorizeRequest {
 
   // Opt in to address verification using the supplied billing details.
   optional bool enable_avs_check = 24;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 25;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 26;
 }
 
 message PaymentServiceTokenSetupRecurringRequest {
@@ -6602,6 +6399,13 @@ message PaymentServiceProxyAuthorizeRequest {
 
   // Opt in to address verification using the supplied billing details.
   optional bool enable_avs_check = 29;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 30;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 31;
 }
 
 message PaymentServiceProxySetupRecurringRequest {
@@ -6799,6 +6603,8 @@ message PaymentMethodServiceEligibilityRequest {
   // call, avoiding one round-trip per payment method. Preferred over the
   // deprecated scalar `payment_method_type`.
   repeated PaymentMethodType payment_method_types = 13;
+
+  optional string payment_method_token = 14; // PaymentMethod Token Information
 }
 
 // Per-payment-method eligibility verdict. One of these is returned for each

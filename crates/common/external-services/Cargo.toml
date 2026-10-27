@@ -41,7 +41,11 @@ tracing-attributes = "0.1.27"
 tonic = { workspace = true }
 prometheus = "0.13.4"
 tower = "0.5.2"
-hyper = "1.6.0"
+# Diagnostics below depend on these versions' fixed transport error messages.
+hyper = "=1.8.1"
+hyper-util = { version = "=0.1.20", features = ["client-legacy"] }
+native-tls = "=0.2.18"
+rustls = { version = "=0.23.37", default-features = false }
 http-body = "1.0.1"
 domain_types = { path = "../../types-traits/domain_types" }
 interfaces = { path = "../../types-traits/interfaces" }
@@ -85,6 +89,9 @@ otel = ["dep:opentelemetry"]
 log-transformations = ["common_utils/log-transformations"]
 # Déjà record/replay: the connector-egress boundary on call_connector_api.
 deja = ["dep:deja", "common_utils/deja", "domain_types/deja", "common_enums/deja"]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+openssl = "=0.10.76"
 
 [lints]
 workspace = true

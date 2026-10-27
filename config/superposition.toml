@@ -447,9 +447,8 @@ connector_base_url = "https://apis.sandbox.globalpay.com/ucp"
 # Fiuu (MOLPay)
 [[overrides]]
 _context_ = { connector = "fiuu" }
-connector_base_url = "https://sandbox.merchant.razer.com/"
-connector_secondary_base_url = "https://sandbox.merchant.razer.com/"
-connector_third_base_url = "https://api.merchant.razer.com/"
+connector_base_url = "https://sandbox-payment.fiuu.com/"
+connector_secondary_base_url = "https://sandbox-api.fiuu.com/"
 
 # Payload
 [[overrides]]
@@ -861,9 +860,8 @@ connector_base_url = "https://apis.globalpay.com/ucp"
 # Fiuu Production
 [[overrides]]
 _context_ = { connector = "fiuu", environment = "production" }
-connector_base_url = "https://pay.merchant.razer.com/"
-connector_secondary_base_url = "https://api.merchant.razer.com/"
-connector_third_base_url = "https://api.merchant.razer.com/"
+connector_base_url = "https://pay.fiuu.com/"
+connector_secondary_base_url = "https://api.fiuu.com/"
 
 # CashToCode Production
 [[overrides]]

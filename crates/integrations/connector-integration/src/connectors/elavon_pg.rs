@@ -8,7 +8,7 @@
 //! gateway 3DS, which it runs inside a Hosted Payment Page: CreateOrder
 //! (`POST /orders`) and PreAuthenticate (`POST /payment-sessions`) set the page up,
 //! the shopper enters the card there, and Authorize settles it with
-//! `POST /transactions {"paymentSession": …}`. One-time payments only, plus the
+//! `POST /transactions {"paymentSession": …, "total": …}`. One-time payments only, plus the
 //! companion PSync / Capture / Void / Refund / RSync flows so that a manual-capture
 //! authorization always has a settle and a release path.
 
@@ -286,7 +286,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     /// Card 3DS: PreAuthenticate opens the hosted payment session and returns the
     /// shopper URL; once the shopper comes back, the settle Authorize completes the sale
-    /// with `POST /transactions {"paymentSession": <href>}`.
+    /// with `POST /transactions {"paymentSession": <href>, "total": <amount>}`.
     ///
     /// There is no Authenticate or PostAuthenticate leg — EPG runs the challenge inside
     /// its own page and hands back a payment session, not an ACS handshake. Every other
@@ -539,18 +539,47 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
-        // EPG has no /capture endpoint. See `ElavonPgCaptureRequest` for why every
-        // capture goes through the partial-capture resource rather than the
-        // `POST /transactions/{id}` update (spec §8.2).
+        // EPG has no /capture endpoint; it has two resources that capture and only one
+        // of them works on any given account. See `ElavonPgCaptureRequest` and
+        // `ElavonPgCaptureRoute` (spec §8.2). The route is resolved from the same
+        // metadata the request body uses, so the URL and the body can never disagree.
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!(
-                "{}/{}",
-                self.connector_base_url_payments(req),
-                paths::PARTIAL_CAPTURES
-            ))
+            let requested_total = self
+                .amount_converter
+                .convert(
+                    req.request.amount_to_capture.amount,
+                    req.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Elavon Payment Gateway compares the requested capture against the \
+                             authorized total in the currency's major units"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
+
+            let base_url = self.connector_base_url_payments(req);
+
+            match elavon_pg::ElavonPgCaptureRoute::resolve(
+                req.request.connector_feature_data.as_ref(),
+                &requested_total,
+            )? {
+                elavon_pg::ElavonPgCaptureRoute::Partial => {
+                    Ok(format!("{}/{}", base_url, paths::PARTIAL_CAPTURES))
+                }
+                elavon_pg::ElavonPgCaptureRoute::Full => Ok(format!(
+                    "{}/{}/{}",
+                    base_url,
+                    paths::TRANSACTIONS,
+                    req.request.get_connector_transaction_id()?
+                )),
+            }
         }
     }
 );
