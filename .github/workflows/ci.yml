@@ -393,6 +393,19 @@ jobs:
           RUSTFLAGS: "-D warnings"
         run: cargo +stable clippy --all-features --all-targets --profile release-fast
 
+  l3-money:
+    name: No Money construction in L3
+    if: "!github.event.pull_request.draft"
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check connector integration Money construction
+        run: |
+          python3 scripts/validation/test_no_l3_money_construction.py
+          python3 scripts/validation/no_l3_money_construction.py
+
   # ── Auto-fix (formatting + docs) ─────────────────────────────────────────
   # On PRs: auto-format code and regenerate docs, commit if changes found.
   # If a commit is pushed, remaining jobs skip — the new push triggers fresh CI.
@@ -1195,7 +1208,7 @@ jobs:
   ci-gate:
     name: CI Result
     if: always()
-    needs: [typos, clippy, formatting, auto-fix, check, test, sdk-build, sdk-test]
+    needs: [typos, clippy, l3-money, formatting, auto-fix, check, test, sdk-build, sdk-test]
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
@@ -1206,6 +1219,7 @@ jobs:
           echo "Job results:"
           echo "  typos:         ${{ needs.typos.result }}"
           echo "  clippy:        ${{ needs.clippy.result }}"
+          echo "  l3-money:      ${{ needs.l3-money.result }}"
           echo "  formatting:    ${{ needs.formatting.result }}"
           echo "  auto-fix:      ${{ needs.auto-fix.result }}"
           echo "  check:         ${{ needs.check.result }}"
@@ -1225,6 +1239,7 @@ jobs:
           results=(
             "${{ needs.typos.result }}"
             "${{ needs.clippy.result }}"
+            "${{ needs.l3-money.result }}"
             "${{ needs.formatting.result }}"
             "${{ needs.auto-fix.result }}"
             "${{ needs.check.result }}"
