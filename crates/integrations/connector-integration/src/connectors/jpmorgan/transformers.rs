@@ -504,8 +504,9 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let transaction_id = match card_network {
-            common_enums::CardNetwork::Visa => data.transaction_id.clone(),
-            common_enums::CardNetwork::Mastercard => data.ds_trans_id.clone(),
+            common_enums::CardNetwork::Visa | common_enums::CardNetwork::Mastercard => {
+                data.ds_trans_id.clone()
+            }
             common_enums::CardNetwork::AmericanExpress | common_enums::CardNetwork::Discover => {
                 None
             }
