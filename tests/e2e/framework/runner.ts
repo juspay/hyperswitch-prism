@@ -38,7 +38,7 @@ function paymentRequest(
   return {
     amount: scenario.amount,
     currency: scenario.currency,
-    confirm: false,
+    confirm: true,
     capture_method: scenario.captureMethod,
     authentication_type: scenario.authentication,
     payment_method: scenario.paymentMethod,
@@ -71,7 +71,7 @@ export async function runOneTimeCardScenario(
     {
       type: "Verifies",
       description:
-        "Creation requires confirmation; confirmation and retrieval succeed with the configured connector through UCS.",
+        "Creation with confirm:true and retrieval succeed with the configured connector through UCS.",
     },
   );
 
@@ -80,32 +80,23 @@ export async function runOneTimeCardScenario(
     const merchant = await setupMerchant(hs, connector);
     const request = paymentRequest(connector, scenario);
 
-    const created = await hs.call("POST", "/payments", merchant.apiKey, {
+    const confirmed = await hs.call("POST", "/payments", merchant.apiKey, {
       ...request,
       profile_id: merchant.profileId,
     });
-    await test.step("Payment requires confirmation", async () => {
-      expect(created.status, "Created payment status").toBe(
-        "requires_confirmation",
-      );
-      expect(typeof created.payment_id, "Payment identifier is recorded").toBe(
+    await test.step("Payment is created and confirmed", async () => {
+      expect(typeof confirmed.payment_id, "Payment identifier is recorded").toBe(
         "string",
       );
       await attachChecks(info, "Payment creation checks", {
         status: {
-          expected: "requires_confirmation",
-          actual: created.status,
+          expected: [scenario.expectedStatus, "processing"],
+          actual: confirmed.status,
         },
       });
     });
 
-    const paymentId = created.payment_id as string;
-    const confirmed = await hs.call(
-      "POST",
-      `/payments/${paymentId}/confirm`,
-      merchant.apiKey,
-      { ...request, profile_id: merchant.profileId, confirm: true },
-    );
+    const paymentId = confirmed.payment_id as string;
     await test.step("Confirmation succeeds without customer action", async () => {
       expect(
         [scenario.expectedStatus, "processing"],

@@ -1,16 +1,16 @@
 import { test } from "@playwright/test";
-import { connectors } from "../../../../connectors/index.js";
-import { runOneTimeCardScenario } from "../../../../framework/runner.js";
+import { connectors } from "../../../../../connectors/index.js";
+import { runOneTimeCardScenario } from "../../../../../framework/runner.js";
 import {
   supports,
   type OneTimeCardScenario,
-} from "../../../../framework/scenario.js";
+} from "../../../../../framework/scenario.js";
 
 const scenario = {
-  id: "no3ds-automatic",
+  id: "no3ds-automatic-create-confirm",
   title: "One-time card payment — No3DS, automatic capture",
   description:
-    "Create a server-side card payment, confirm it separately, and verify successful automatic capture.",
+    "Create and confirm a server-side card payment in one request, then retrieve and verify successful automatic capture.",
   paymentMethod: "card",
   authentication: "no_three_ds",
   captureMethod: "automatic",

@@ -19,6 +19,10 @@ Open the HTML report with `npx playwright show-report`. Stop the isolated stack 
 
 ## Extend coverage
 
+Each scenario has its own file. `create-confirm` means a single create request with `confirm: true`; `create-then-confirm` means separate create and confirm requests. `automatic` and `manual` describe capture mode. Retrieval and verification steps are declared within each scenario.
+
+Only `scenarios/payments/one-time/server/card/no3ds-automatic-create-confirm.spec.ts` is implemented. Its four sibling files are empty placeholders for future scenarios.
+
 - `scenarios/` declares payment behavior. Scenario files contain typed data and register tests through the shared runner.
 - `connectors/` declares supported capabilities and connector-required test data. It does not implement payment lifecycles.
 - `framework/` owns merchant setup, API sequences, assertions, and reporting.
@@ -29,7 +33,7 @@ All compatible registered connectors automatically receive a shared scenario. Ad
 The current scenario is a server-side, one-time No3DS card payment with automatic capture:
 
 ```text
-create payment -> confirm payment -> retrieve payment -> verify success and UCS routing
+create payment with confirm:true -> retrieve payment -> verify success and UCS routing
 ```
 
 Connector credentials are read only at runtime. Do not commit credentials, reports, runtime files, or copied production data.
