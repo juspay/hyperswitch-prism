@@ -274,7 +274,7 @@ examples_python: examples/elavon/elavon.py
 connector_id: elavon_pg
 doc: docs/connectors/elavon_pg.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
+payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
 flows: authorize, capture, create_order, get, pre_authenticate, proxy_authorize, refund, refund_get, void
 examples_python: examples/elavon_pg/elavon_pg.py
 

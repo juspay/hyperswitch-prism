@@ -253,6 +253,49 @@ default = '{}'
 "authentication_data.eci" = "05"
 "authentication_data.cavv" = "cHJvYmVfY2F2dl92YWx1ZQ=="
 
+# JPMorgan emits retailAddenda (Level 2 and Level 3 commercial-card data) and
+# shipTo only when the caller supplies the L2/L3 block behind them. None of
+# those inputs is a *required* field, so the patcher - which only reacts to
+# missing-field errors - never adds them and the sample request would not show
+# them.
+#
+# 1 = CountryAlpha2::US, 1 = TaxStatus::TAX_STATUS_TAXABLE. The tax status is
+# taxable (not exempt) and order_tax_amount is positive because JPMorgan only
+# grants the lower interchange rate when taxAmount is greater than zero.
+# order_date is a unix timestamp: 1568073600 = 2019-09-10.
+#
+# The amounts below are chosen to satisfy Visa's Level 3 reconciliation rule,
+# which JPMorgan enforces by erroring the whole payment:
+#
+#   amount == SUM(taxInclusiveLineItemTotalAmount)
+#           + totalShippingAmount + dutyAmount + shippingValueAddedTaxAmount
+#           - totalTransactionDiscountAmount
+#
+# tax_rate is a percentage: 2.1 means 2.1%, which goes out as taxPercent
+# "2100" because JPMorgan implies three decimal places on that field.
+#
+# unit_of_measure is "EAC", Mastercard's code for "each" - note that the "EA"
+# in JPMorgan's own example is not a code Mastercard accepts.
+[connector_overrides.authorize.jpmorgan]
+"amount" = 2240
+"address.shipping_address.zip_code" = "33607"
+"address.shipping_address.origin_zip" = "34490"
+"address.shipping_address.country_alpha2_code" = 1
+"l2_l3_data.order_info.merchant_order_reference_id" = "probe_po_001"
+"l2_l3_data.order_info.order_date" = 1568073600
+"l2_l3_data.order_info.shipping_cost" = 200
+"l2_l3_data.order_info.duty_amount" = 50
+"l2_l3_data.order_info.discount_amount" = 30
+"l2_l3_data.order_info.order_details" = [
+  { product_name = "Off-road tires", description = "All-terrain, 17 inch", quantity = 2, amount = 1000, total_amount = 2000, total_tax_amount = 100, unit_discount_amount = 50, tax_rate = 2.1, product_id = "sku_041", commodity_code = "1234", product_tax_code = "01", unit_of_measure = "EAC" },
+]
+"l2_l3_data.tax_info.tax_status" = 1
+"l2_l3_data.tax_info.order_tax_amount" = 100
+"l2_l3_data.tax_info.shipping_amount_tax" = 20
+"l2_l3_data.tax_info.customer_tax_registration_id" = "GB123456789"
+"l2_l3_data.tax_info.merchant_tax_registration_id" = "GB987654321"
+"l2_l3_data.tax_info.merchant_vat_registration_id" = "GB112233445"
+
 # The default recurring_charge request charges a stored profile. The second MIT
 # shape - a card charged with the network transaction id of the original CIT -
 # has its own optional inputs (the card, a billing address, a statement

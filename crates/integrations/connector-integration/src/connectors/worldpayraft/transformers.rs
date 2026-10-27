@@ -3409,7 +3409,7 @@ pub struct WorldpayraftVoidPCTraceNumbers {
 }
 
 /// Completion reversals use schema 0601; purchase reversals use schema 0301.
-/// Only completion reversals include the prior authorization amount and trace.
+/// Only completion reversals include the prior authorization amount.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftVoidPCInner {
@@ -3597,7 +3597,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 creditpurchase: inner,
             });
         }
-
         let original_amount =
             metadata
                 .original_authorized_amount

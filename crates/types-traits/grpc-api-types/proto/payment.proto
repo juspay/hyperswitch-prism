@@ -986,6 +986,8 @@ message OrderDetailsWithAmount {
   optional string discount_type = 22;
   // The URL of the product
   optional string product_link = 23;
+  // Total amount for this line item
+  optional int64 total_amount = 24;
 }
 
 // Access token details
@@ -1285,6 +1287,10 @@ message OrderInfo {
 
   // Duty/customs amount for the order (in minor currency units)
   optional int64 duty_amount = 6;
+
+  // Commodity code classifying the order as a whole, as opposed to the
+  // per-item codes on each line item
+  optional string order_commodity_code = 7;
 }
 
 // Tax information for L2/L3 data.
@@ -1303,6 +1309,18 @@ message TaxInfo {
 
   // Total tax amount for the order (in minor currency units)
   optional int64 order_tax_amount = 5;
+
+  // Value added tax (VAT) amount for the order (in minor currency units)
+  optional int64 value_added_tax_amount = 6;
+
+  // Value added tax (VAT) rate for the order, as a percentage: 2.5 means 2.5%, not 0.025.
+  optional double value_added_tax_percent = 7;
+
+  // Reference number of the value added tax (VAT) invoice for the order
+  optional string vat_invoice_reference_number = 8;
+
+  // Merchant's VAT registration ID
+  optional SecretString merchant_vat_registration_id = 9;
 }
 
 // Level 2 / Level 3 data for enhanced payment processing.
