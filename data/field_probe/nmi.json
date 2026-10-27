@@ -834,7 +834,7 @@
     "pre_authenticate": {
       "default": {
         "status": "error",
-        "error": "Failed to obtain authentication type. public_key required for Gateway.js 3DS"
+        "error": "Stuck on field: continue_redirection_url — Missing required field: continue_redirection_url"
       }
     },
     "proxy_authorize": {
