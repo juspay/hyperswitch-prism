@@ -15,6 +15,7 @@ syntax = "proto3";
 
 package types;
 
+import "common_types.proto";
 import "payment.proto";
 import "payment_methods.proto";
 

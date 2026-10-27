@@ -1112,12 +1112,13 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
 // ===== VOIDPC REQUEST STRUCTURE =====
 // VoidPostCapture (Reverse) — cancels a captured (PostAuth) transaction before settlement
 // Uses requestType: VoidTransaction (distinct from Void which uses VoidPreAuthTransactions)
-// AUTHIPAY always voids the full original amount; partial void is not supported
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthipayVoidPCRequest {
     pub request_type: AuthipayRequestType,
+    /// Amount to void; optional on VoidTransaction.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_amount: Option<TransactionAmount>,
 }
 
 // ===== VOIDPC REQUEST TRANSFORMATION =====
@@ -1130,16 +1131,33 @@ impl
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        _item: &RouterDataV2<
+        item: &RouterDataV2<
             VoidPC,
             PaymentFlowData,
             PaymentsCancelPostCaptureData,
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        // VoidTransaction requires no amount — AUTHIPAY always voids the full original amount
+        // VoidTransaction voids the full original amount unless transactionAmount is sent.
+        let transaction_amount = item
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| {
+                FloatMajorUnitForConnector
+                    .convert(amount.amount, amount.currency)
+                    .change_context(IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    })
+                    .map(|total| TransactionAmount {
+                        total,
+                        currency: amount.currency,
+                    })
+            })
+            .transpose()?;
         Ok(Self {
             request_type: AuthipayRequestType::VoidTransaction,
+            transaction_amount,
         })
     }
 }
@@ -1213,25 +1231,42 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
             item.response.transaction_state.clone(),
         );
 
-        let description = post_capture_void_status
-            .is_post_capture_void_failure()
-            .then(|| {
-                item.response.error_message.clone().or_else(|| {
-                    item.response
-                        .processor
-                        .as_ref()
-                        .and_then(|p| p.response_message.clone())
-                })
-            })
-            .flatten();
+        let response = if post_capture_void_status.is_post_capture_void_failure() {
+            let message = item.response.error_message.clone();
+            let code = item
+                .response
+                .processor
+                .as_ref()
+                .and_then(|p| p.response_message.clone())
+                .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string());
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+            Err(ErrorResponse {
+                code,
+                message: message
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                reason: message,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.ipg_transaction_id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id: Some(item.response.ipg_transaction_id.clone()),
-                description,
                 status_code: item.http_code,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response,
             ..item.router_data
         })
     }

@@ -9,6 +9,7 @@
     "RefundService/Get"
   ],
   "supported_payment_methods": [
-    "card"
+    "card",
+    "apple_pay_sdk"
   ]
 }

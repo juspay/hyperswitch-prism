@@ -79,19 +79,6 @@ techspecFileNamePrompt: |
   
   Connector name:
 
-techspecMockServerPrompt: |
-  Create an express server which mocks all the api calls mentioned here. 
-  If encryption is required use crypto or some popular libraries to handle it. 
-  Print all endpoints created after server starts running.
-  IMPORTANT: Make the server run on port 5000 (not 3000) to avoid conflicts. Use const PORT = process.env.PORT || 5000;
-  Format your response exactly like the JSON given below and don't respond with any subscript like "of course" or "here you go":
-  \{
-    "server_js": "// Your server.js code here - MUST use port 5000",
-    "package_json": "// Your package.json content here", 
-    "info": "// Simple Markdown text providing all generated curls with port 5000"
-  \}
-  {tech_spec}
-
 searchQueryPrompt: |
   Generate a list of 2-5 specific research queries to gather detailed information about the API documentation for the connector with the following URLs: {urls}.
   The queries should focus on extracting comprehensive details about the API endpoints, authentication methods, request/response structures, error handling, and any other relevant technical specifications.

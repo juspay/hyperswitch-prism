@@ -5,6 +5,7 @@
 //! and producing JSON/Markdown reports.
 
 pub mod auto_gen;
+mod browser_worker;
 pub mod connector_override;
 pub mod cred_masking;
 pub mod credentials;

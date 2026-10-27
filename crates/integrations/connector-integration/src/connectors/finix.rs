@@ -257,7 +257,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let webhook_body = finix::parse_finix_webhook_body(&request.body)?;
-        finix::build_finix_payment_webhook_response(&webhook_body, &request.body)
+        finix::build_finix_payment_webhook_response(self, &webhook_body, &request.body)
     }
 
     fn process_refund_webhook(
@@ -357,6 +357,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::verification::SourceVerification for Finix<T>
 {
 }
+
+macros::create_amount_converter_wrapper!(connector_name: Finix, amount_type: MinorUnit);
 
 macros::create_all_prerequisites!(
     connector_name: Finix,

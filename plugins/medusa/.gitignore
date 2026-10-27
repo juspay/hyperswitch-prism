@@ -10,6 +10,7 @@ medusa-custom-payments-react/LICENSE
 
 # Dependencies
 node_modules/
+package-lock.json
 
 # Environment & credentials
 .env

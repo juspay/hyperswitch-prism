@@ -1,7 +1,7 @@
 # Build context exclusions for `docker build`. Keep this list tight — every
 # unignored file adds to the context tarball that ships to the daemon.
 
-# Dep + build artifacts (the image rebuilds these from pnpm-lock.yaml).
+# Dep + build artifacts (the image rebuilds these from the package manifests).
 node_modules
 packages/*/node_modules
 packages/*/dist

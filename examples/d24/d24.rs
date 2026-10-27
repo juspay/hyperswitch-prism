@@ -42,8 +42,8 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
         connector_transaction_id: connector_transaction_id.to_string(),
         amount: Some(Money {
             // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         ..Default::default()
     }
@@ -55,8 +55,8 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
         connector_transaction_id: connector_transaction_id.to_string(),
         payment_amount: 1000, // Amount Information.
         refund_amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         reason: Some("customer_request".to_string()), // Reason for the refund.
         connector_order_id: Some("connector_order_id".to_string()), // Connector-side identifier for the original payment that this refund targets.
@@ -78,8 +78,8 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         merchant_transaction_id: Some("probe_txn_001".to_string()), // Identification.
         amount: Some(Money {
             // The amount for the payment.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         payment_method: Some(PaymentMethod {
             // Payment method to be used.
@@ -95,18 +95,17 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         ), // Method for capturing the payment.
         customer: Some(Customer {
             // Customer Information.
-            email: Some(Secret::new("test@example.com".to_string())), // Customer's email address.
+            email: Some(Secret::new("test@example.com".to_string())),
             customer_document_details: Some(CustomerDocumentDetails {
-                // Customer identification document.
-                document_type: DocumentKind::Other.into(), // The customer's document type.
-                document_number: Some(Secret::new("12345678-5".to_string())), // The customer's document number.
+                document_type: DocumentKind::Other.into(),
+                document_number: Some(Secret::new("12345678-5".to_string())),
             }),
             ..Default::default()
         }),
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
-                first_name: Some(Secret::new("John".to_string())), // Personal Information.
+                first_name: Some(Secret::new("John".to_string())),
                 last_name: Some(Secret::new("Doe".to_string())),
                 country_alpha2_code: Some(CountryAlpha2::Cl.into()),
                 ..Default::default()

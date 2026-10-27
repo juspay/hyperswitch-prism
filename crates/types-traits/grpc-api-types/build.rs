@@ -1,10 +1,61 @@
-use std::{env, path::PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 #[path = "codegen/auto_populate.rs"]
 mod auto_populate;
 
+/// Reorders item-level `#[serde(...)]` helper attributes so they follow the
+/// `#[derive(...)]` attributes that introduce them.
+///
+/// prost-build emits registered type attributes in registration order and g2h
+/// registers the serde derives when compilation starts — i.e. *after* the
+/// `type_attribute` calls made above. rustc warns (future-incompat, and a hard
+/// error in a future release) about a derive helper attribute used before its
+/// derive, so the generated files are rewritten once compilation finished.
+fn reorder_serde_helper_attrs(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let source = fs::read_to_string(path)?;
+    let lines: Vec<&str> = source.lines().collect();
+
+    let mut out: Vec<&str> = Vec::with_capacity(lines.len());
+    let mut index = 0;
+    while index < lines.len() {
+        if !lines[index].trim_start().starts_with("#[serde(") {
+            out.push(lines[index]);
+            index += 1;
+            continue;
+        }
+
+        // A run of item-level `#[serde(...)]` lines ...
+        let run_start = index;
+        while index < lines.len() && lines[index].trim_start().starts_with("#[serde(") {
+            index += 1;
+        }
+        let run_end = index;
+
+        // ... directly followed by the `#[derive(...)]` lines of the same item.
+        while index < lines.len() && lines[index].trim_start().starts_with("#[derive(") {
+            index += 1;
+        }
+
+        out.extend_from_slice(&lines[run_end..index]);
+        out.extend_from_slice(&lines[run_start..run_end]);
+    }
+
+    let mut reordered = out.join("\n");
+    if source.ends_with('\n') {
+        reordered.push('\n');
+    }
+    if reordered != source {
+        fs::write(path, reordered)?;
+    }
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed=codegen/auto_populate.rs");
+    println!("cargo:rerun-if-changed=proto");
 
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
@@ -67,6 +118,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &[
             "proto/services.proto",
             "proto/health_check.proto",
+            "proto/common_types.proto",
+            "proto/domain.proto",
             "proto/payment.proto",
             "proto/events.proto",
             "proto/composite_services.proto",
@@ -80,6 +133,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ],
         &["proto"],
     )?;
+
+    // Rewrite pass: move item-level `#[serde(...)]` helper attributes behind the
+    // `#[derive(...)]` lines that introduce them (see the doc comment above).
+    for entry in fs::read_dir(&out_dir)? {
+        let path = entry?.path();
+        if path.extension().is_some_and(|ext| ext == "rs") {
+            reorder_serde_helper_attrs(&path)?;
+        }
+    }
 
     // Second codegen pass: read back the descriptor set just written above
     // and generate the `populate_<field>` trait impls (see

@@ -6,10 +6,12 @@ export interface SessionOptions {
   defaultTimeoutMs: number;
   navigationTimeoutMs: number;
   viewport: { width: number; height: number };
+  callbackUrl?: string;
 }
 
 export interface BrowserSession {
   goto(url: string, opts?: { timeoutMs?: number; waitUntil?: WaitUntil }): Promise<void>;
+  submitForm(url: string, fields: Record<string, string>, timeoutMs: number): Promise<void>;
   click(selector: string, opts?: { timeoutMs?: number }): Promise<void>;
   fill(selector: string, value: string, opts?: { timeoutMs?: number }): Promise<void>;
   press(selector: string, key: string, opts?: { timeoutMs?: number }): Promise<void>;
@@ -32,8 +34,8 @@ export interface BrowserSession {
     opts?: { timeoutMs?: number }
   ): Promise<(string | null)[]>;
   currentUrl(): string;
-  evaluate(expression: string): Promise<unknown>;
-  screenshot(path: string, opts?: { fullPage?: boolean }): Promise<void>;
+  assertNetworkPolicy(): void;
+  initializeCashfreeSandbox(): Promise<void>;
   close(): Promise<void>;
 }
 

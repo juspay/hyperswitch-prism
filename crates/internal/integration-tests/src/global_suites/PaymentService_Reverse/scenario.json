@@ -6,11 +6,10 @@
       "cancellation_reason": "Customer cancellation request"
     },
     "assert": {
-      "status": {
+      "post_capture_void_status": {
         "one_of": [
-          "VOIDED",
-          "CANCELED",
-          "REVERSED"
+          "POST_CAPTURE_VOID_STATUS_SUCCEEDED",
+          "POST_CAPTURE_VOID_STATUS_PENDING"
         ]
       },
       "connector_transaction_id": {
@@ -30,11 +29,10 @@
       "cancellation_reason": "Merchant error - incorrect amount captured"
     },
     "assert": {
-      "status": {
+      "post_capture_void_status": {
         "one_of": [
-          "VOIDED",
-          "CANCELED",
-          "REVERSED"
+          "POST_CAPTURE_VOID_STATUS_SUCCEEDED",
+          "POST_CAPTURE_VOID_STATUS_PENDING"
         ]
       },
       "error": {
@@ -50,10 +48,9 @@
       "cancellation_reason": "Test failure case"
     },
     "assert": {
-      "status": {
+      "post_capture_void_status": {
         "one_of": [
-          "FAILED",
-          "PROCESSING_ERROR"
+          "POST_CAPTURE_VOID_STATUS_FAILED"
         ]
       },
       "error": {

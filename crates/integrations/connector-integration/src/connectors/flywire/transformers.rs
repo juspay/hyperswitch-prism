@@ -421,6 +421,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 authentication_data: None,
                 connector_feature_data: None,
                 status_code: item.http_code,
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Pending,

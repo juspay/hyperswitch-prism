@@ -1,5 +1,5 @@
 use common_enums::{AttemptStatus, RechargeStatus, RefundStatus};
-use common_utils::types::FloatMajorUnit;
+use common_utils::types::{AmountConvertor, FloatMajorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, CreatePaymentMethod, GetPaymentMethod, PaymentMethodEligibility, Recharge,
@@ -668,15 +668,17 @@ pub struct QwikcilverRechargeResponse {
     pub error_description: Option<String>,
 }
 
-impl TryFrom<ResponseRouterData<QwikcilverRechargeResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<QwikcilverRechargeResponse, QwikcilverRouterData<Self, T>>>
     for RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<QwikcilverRechargeResponse, Self>,
+        item: ResponseRouterData<QwikcilverRechargeResponse, QwikcilverRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
-        let mut data = item.router_data;
+        let connector = item.router_data.connector;
+        let mut data = item.router_data.router_data;
         let body = item.response;
         data.resource_common_data.raw_connector_response =
             serde_json::to_string(&body).ok().map(Secret::new);
@@ -691,16 +693,11 @@ impl TryFrom<ResponseRouterData<QwikcilverRechargeResponse, Self>>
                     .or_else(|| data.request.connector_payment_method_id.clone());
                 let recharge_currency = data.request.currency;
                 let payment_method_details = body.wallet.as_ref().map(|w| {
-                    let balance =
-                        crate::connectors::qwikcilver::QwikcilverAmountConvertor::convert_back(
-                            w.balance,
-                            recharge_currency,
-                        )
-                        .ok();
+                    let balance = connector.convert_back(w.balance, recharge_currency).ok();
                     let items = w
                         .card
                         .as_ref()
-                        .and_then(|c| card_to_wallet_item(c, Some(recharge_currency)))
+                        .and_then(|c| card_to_wallet_item(&connector, c, Some(recharge_currency)))
                         .map(|item| vec![item])
                         .unwrap_or_default();
                     PaymentMethodDetails::Wallet(WalletDetails {
@@ -1003,6 +1000,7 @@ fn map_wallet_item_status(s: Option<&String>) -> common_enums::WalletItemStatus 
 const LAST_FOUR_DIGITS_LEN: usize = 4;
 
 fn card_to_wallet_item(
+    amount_converter: &impl AmountConvertor<Output = FloatMajorUnit>,
     card: &QwikcilverCard,
     currency: Option<common_enums::Currency>,
 ) -> Option<payment_method_data::WalletItem> {
@@ -1015,7 +1013,8 @@ fn card_to_wallet_item(
     last_four.reverse();
     let wallet_item_id: String = last_four.into_iter().collect();
     let available_balance = currency.and_then(|c| {
-        crate::connectors::qwikcilver::QwikcilverAmountConvertor::convert_back(card.amount, c)
+        amount_converter
+            .convert_back(card.amount, c)
             .ok()
             .map(|minor| common_utils::types::Money {
                 amount: minor,
@@ -1032,16 +1031,18 @@ fn card_to_wallet_item(
 }
 
 fn wallet_details_to_payment_method_details(
+    amount_converter: &impl AmountConvertor<Output = FloatMajorUnit>,
     wallet: &QwikcilverWalletDetails,
     currency: Option<common_enums::Currency>,
 ) -> PaymentMethodDetails {
-    let balance = wallet.balance.zip(currency).and_then(|(b, c)| {
-        crate::connectors::qwikcilver::QwikcilverAmountConvertor::convert_back(b, c).ok()
-    });
+    let balance = wallet
+        .balance
+        .zip(currency)
+        .and_then(|(b, c)| amount_converter.convert_back(b, c).ok());
     let items = wallet
         .card
         .as_ref()
-        .and_then(|c| card_to_wallet_item(c, currency))
+        .and_then(|c| card_to_wallet_item(amount_converter, c, currency))
         .map(|item| vec![item])
         .unwrap_or_default();
     PaymentMethodDetails::Wallet(WalletDetails {
@@ -1094,7 +1095,8 @@ fn customer_details_to_customer_info(
     }
 }
 
-impl TryFrom<ResponseRouterData<QwikcilverWalletEnvelope, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<QwikcilverWalletEnvelope, QwikcilverRouterData<Self, T>>>
     for RouterDataV2<
         CreatePaymentMethod,
         PaymentFlowData,
@@ -1105,9 +1107,10 @@ impl TryFrom<ResponseRouterData<QwikcilverWalletEnvelope, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<QwikcilverWalletEnvelope, Self>,
+        item: ResponseRouterData<QwikcilverWalletEnvelope, QwikcilverRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
-        let mut data = item.router_data;
+        let connector = item.router_data.connector;
+        let mut data = item.router_data.router_data;
         let body = item.response;
         data.resource_common_data.raw_connector_response =
             serde_json::to_string(&body).ok().map(Secret::new);
@@ -1120,7 +1123,7 @@ impl TryFrom<ResponseRouterData<QwikcilverWalletEnvelope, Self>>
                     merchant_payment_method_id: merchant_pm_id,
                     connector_payment_method_id: Some(wallet.wallet_number.clone().expose()),
                     payment_method_details: Some(wallet_details_to_payment_method_details(
-                        wallet, currency,
+                        &connector, wallet, currency,
                     )),
                     customer: wallet.customer.as_ref().map(|c| {
                         customer_details_to_customer_info(c, wallet.external_wallet_id.as_ref())
@@ -1160,7 +1163,8 @@ impl TryFrom<ResponseRouterData<QwikcilverWalletEnvelope, Self>>
     }
 }
 
-impl TryFrom<ResponseRouterData<QwikcilverGetWalletResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<QwikcilverGetWalletResponse, QwikcilverRouterData<Self, T>>>
     for RouterDataV2<
         GetPaymentMethod,
         PaymentFlowData,
@@ -1171,9 +1175,10 @@ impl TryFrom<ResponseRouterData<QwikcilverGetWalletResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<QwikcilverGetWalletResponse, Self>,
+        item: ResponseRouterData<QwikcilverGetWalletResponse, QwikcilverRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
-        let mut data = item.router_data;
+        let connector = item.router_data.connector;
+        let mut data = item.router_data.router_data;
         let body = item.response.0;
         data.resource_common_data.raw_connector_response =
             serde_json::to_string(&body).ok().map(Secret::new);
@@ -1187,7 +1192,9 @@ impl TryFrom<ResponseRouterData<QwikcilverGetWalletResponse, Self>>
                 {
                     (
                         Some(wallet.wallet_number.clone().expose()),
-                        Some(wallet_details_to_payment_method_details(wallet, currency)),
+                        Some(wallet_details_to_payment_method_details(
+                            &connector, wallet, currency,
+                        )),
                         wallet.customer.as_ref().map(|c| {
                             customer_details_to_customer_info(c, wallet.external_wallet_id.as_ref())
                         }),
@@ -1221,7 +1228,8 @@ impl TryFrom<ResponseRouterData<QwikcilverGetWalletResponse, Self>>
 /// the wallet's status: ACTIVE → Eligible, INACTIVE → Ineligible. The resolved wallet's
 /// payment method details (balance, items, etc.) are returned alongside the eligibility
 /// verdict in the same response.
-impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, QwikcilverRouterData<Self, T>>>
     for RouterDataV2<
         PaymentMethodEligibility,
         PaymentFlowData,
@@ -1232,9 +1240,10 @@ impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<QwikcilverEligibilityResponse, Self>,
+        item: ResponseRouterData<QwikcilverEligibilityResponse, QwikcilverRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
-        let mut data = item.router_data;
+        let connector = item.router_data.connector;
+        let mut data = item.router_data.router_data;
         let body = item.response.0;
         data.resource_common_data.raw_connector_response =
             serde_json::to_string(&body).ok().map(Secret::new);
@@ -1257,6 +1266,7 @@ impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
                         (
                             eligibility,
                             Some(wallet_details_to_payment_method_details(
+                                &connector,
                                 wallet,
                                 Some(currency),
                             )),

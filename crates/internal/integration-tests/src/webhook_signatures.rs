@@ -42,8 +42,59 @@ pub fn generate_signature(
         "checkout" => generate_checkout_signature(payload, secret),
         "paypal" => generate_paypal_signature(payload, secret),
         "phonepe" => generate_phonepe_signature(payload, secret, ctx),
+        "cybersource" => generate_cybersource_signature(payload, secret, ctx.timestamp),
         _ => Err(format!("Unsupported connector: {}", connector)),
     }
+}
+
+/// Key id placed in the `keyId` parameter of a generated Cybersource
+/// `v-c-signature` header. It is a fixture value: the connector verifies with
+/// the single configured webhook secret and does not look a key up by id.
+const CYBERSOURCE_FIXTURE_KEY_ID: &str = "00000000-0000-0000-0000-000000000000";
+
+/// Generate Cybersource webhook `v-c-signature` header value.
+///
+/// Cybersource uses: t=<timestamp>;keyId=<key id>;sig=<hmac_sha256_base64>
+/// Message format: {timestamp}.{payload}
+/// The HMAC key is the Base64-decoded digital-signature key (the webhook secret
+/// is stored in its Base64 form).
+fn generate_cybersource_signature(
+    payload: &[u8],
+    secret: &str,
+    timestamp: Option<i64>,
+) -> Result<String, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+
+    type HmacSha256 = Hmac<Sha256>;
+
+    // Cybersource timestamps are epoch milliseconds; use the current time if not provided.
+    let timestamp = match timestamp {
+        Some(timestamp) => timestamp,
+        None => {
+            let elapsed = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|e| format!("Failed to read system time: {e}"))?;
+            i64::try_from(elapsed.as_millis())
+                .map_err(|e| format!("Timestamp out of range: {e}"))?
+        }
+    };
+
+    let key = STANDARD
+        .decode(secret)
+        .map_err(|e| format!("Cybersource webhook secret must be Base64: {e}"))?;
+
+    let mut mac =
+        HmacSha256::new_from_slice(&key).map_err(|e| format!("Failed to create HMAC: {e}"))?;
+    mac.update(timestamp.to_string().as_bytes());
+    mac.update(b".");
+    mac.update(payload);
+    let signature_b64 = STANDARD.encode(mac.finalize().into_bytes());
+
+    Ok(format!(
+        "t={timestamp};keyId={CYBERSOURCE_FIXTURE_KEY_ID};sig={signature_b64}"
+    ))
 }
 
 /// Generate PhonePe webhook X-VERIFY signature.

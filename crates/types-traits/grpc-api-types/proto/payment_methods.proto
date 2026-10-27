@@ -29,6 +29,11 @@ enum CardNetwork {
   PROP = 16;
   PRIVATE_LABEL = 17;
   DINACARD = 18;
+  AIR_PLUS = 19;
+  AURORE = 20;
+  EFTPOS_AUSTRALIA = 21;
+  GE_CAPITAL = 22;
+  UATP = 23;
 }
 
 // Paysafecard - Prepaid payment method

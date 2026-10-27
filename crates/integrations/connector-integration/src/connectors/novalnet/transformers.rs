@@ -1111,10 +1111,14 @@ pub enum NovalnetResponsePaymentData {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseCard {
     pub card_brand: Option<Secret<String>>,
-    pub card_expiry_month: Secret<u8>,
-    pub card_expiry_year: Secret<u16>,
-    pub card_holder: Secret<String>,
-    pub card_number: Secret<String>,
+    // Wallet (apple_pay / google_pay) responses carry no full card number, so these required
+    // fields made the untagged `Card` variant fail to deserialize and silently fall through to
+    // `Paypal`, whose arm drops `scheme_tid` — losing `network_txn_id` on every wallet payment.
+    // Mirrors hyperswitch's novalnet deserialization resilience (#13214).
+    pub card_expiry_month: Option<Secret<u8>>,
+    pub card_expiry_year: Option<Secret<u16>>,
+    pub card_holder: Option<Secret<String>>,
+    pub card_number: Option<Secret<String>>,
     pub cc_3d: Option<Secret<u8>>,
     pub last_four: Option<Secret<String>>,
     pub token: Option<Secret<String>>,

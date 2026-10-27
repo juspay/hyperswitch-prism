@@ -4387,6 +4387,12 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_feature_data: None,
                     connector_response_reference_id: response.server_trans_id.clone(),
                     status_code: item.http_code,
+                    // This connector authenticates only; it charges on the later XML
+                    // auth call, so the authenticating leg carries no mandate or
+                    // network identifiers to hand back.
+                    mandate_reference: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
                 }),
                 ..item.router_data
             });
@@ -4409,6 +4415,9 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 connector_feature_data: None,
                 connector_response_reference_id: response.server_trans_id.clone(),
                 status_code: item.http_code,
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
             }),
             ..item.router_data
         })

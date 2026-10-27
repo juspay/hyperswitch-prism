@@ -67,6 +67,13 @@ pub fn setup(
         static_top_level_fields: static_top_level_fields.clone(),
         top_level_keys: HashSet::new(),
         persistent_keys: HashSet::new(),
+        // With log transformations enabled, API fields such as `category` and `api_details`
+        // are stored on spans before the golden log is emitted. The external JSON formatter
+        // serializes that span storage onto lifecycle records as well, which makes START/END
+        // look like duplicate INCOMING_API/OUTGOING_API records.
+        #[cfg(feature = "log-transformations")]
+        log_span_lifecycles: false,
+        #[cfg(not(feature = "log-transformations"))]
         log_span_lifecycles: true,
         additional_fields_placement: log_utils::AdditionalFieldsPlacement::TopLevel,
         file_config: None,

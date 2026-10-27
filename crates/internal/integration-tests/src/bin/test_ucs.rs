@@ -43,6 +43,7 @@ use integration_tests::harness::{
     scenario_loader::{
         configured_all_connectors, discover_all_connectors, is_suite_supported_for_connector,
         load_suite_scenarios, load_supported_suites_for_connector,
+        merge_connector_specific_scenarios,
     },
     scenario_types::ScenarioError,
 };
@@ -335,7 +336,8 @@ fn run_interactive(args: &[String]) -> Result<(), String> {
     let scenario_selection = match &suite_selection {
         SuiteSelection::Specific(suites) if suites.len() == 1 => {
             let suite_name = &suites[0];
-            let all_scenarios = scenario_names_for_suite(suite_name).map_err(|e| e.to_string())?;
+            let all_scenarios = scenario_names_for_suite(suite_name, &selected_connectors)
+                .map_err(|e| e.to_string())?;
 
             let scenario_scope = Select::new(
                 "3. Scenario scope:",
@@ -935,8 +937,18 @@ fn suites_for_connectors(connectors: &[String]) -> Result<Vec<String>, String> {
     Ok(suites.into_iter().collect())
 }
 
-fn scenario_names_for_suite(suite: &str) -> Result<Vec<String>, ScenarioError> {
-    Ok(load_suite_scenarios(suite)?.keys().cloned().collect())
+fn scenario_names_for_suite(
+    suite: &str,
+    connectors: &[String],
+) -> Result<Vec<String>, ScenarioError> {
+    let baseline = load_suite_scenarios(suite)?;
+    let mut names = baseline.keys().cloned().collect::<BTreeSet<_>>();
+    for connector in connectors {
+        let mut scenarios = baseline.clone();
+        merge_connector_specific_scenarios(connector, suite, &mut scenarios)?;
+        names.extend(scenarios.into_keys());
+    }
+    Ok(names.into_iter().collect())
 }
 
 // ── Persisted defaults ─────────────────────────────────────────────────────────

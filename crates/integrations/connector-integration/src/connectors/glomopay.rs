@@ -73,6 +73,7 @@ macros::create_all_prerequisites!(
         (
             flow: PSync,
             response_body: GlomopayPaymentSyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
@@ -569,6 +570,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     PaymentWebhookReference {
                         connector_transaction_id: Some(payload.data.id),
                         merchant_transaction_id: None,
+                        connector_preprocessing_id: None,
                     },
                 )))
             }

@@ -14,7 +14,7 @@ import types.Payment.PaymentServiceCaptureRequest
 import types.Payment.PaymentServiceGetRequest
 import types.Payment.PaymentServiceRefundRequest
 import types.Payment.CaptureMethod
-import types.Payment.Currency
+import types.CommonTypes.Currency
 import types.Payment.AuthenticationType
 
 // ANSI color helpers

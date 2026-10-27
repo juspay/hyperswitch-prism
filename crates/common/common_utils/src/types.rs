@@ -152,6 +152,33 @@ impl AmountConvertor for MinorUnitForConnector {
     }
 }
 
+/// Converts domain minor units to and from connector-side integer minor units.
+///
+/// Both representations use the currency's minor denomination, so this converter
+/// preserves the integer value without applying a currency scale.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct ConnectorMinorUnitForConnector;
+
+impl AmountConvertor for ConnectorMinorUnitForConnector {
+    type Output = ConnectorMinorUnit;
+
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        _currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        Ok(ConnectorMinorUnit(amount.get_amount_as_i64()))
+    }
+
+    fn convert_back(
+        &self,
+        amount: Self::Output,
+        _currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        Ok(MinorUnit::new(amount.get_amount_as_i64()))
+    }
+}
+
 /// This Unit struct represents MinorUnit in which core amount works
 #[derive(
     Default,
@@ -285,6 +312,44 @@ impl Mul<u16> for MinorUnit {
 impl Sum for MinorUnit {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(Self(0), |a, b| a + b)
+    }
+}
+
+/// An integer minor-unit amount carried by a connector request or response.
+///
+/// This is distinct from domain [`MinorUnit`]. Use
+/// [`ConnectorMinorUnitForConnector`] to cross the conversion boundary. Its wire
+/// representation remains a signed 64-bit integer.
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+)]
+pub struct ConnectorMinorUnit(i64);
+
+impl ConnectorMinorUnit {
+    /// Returns the integer minor-unit value for a connector payload.
+    pub fn get_amount_as_i64(self) -> i64 {
+        self.0
+    }
+
+    /// Creates a zero connector amount.
+    pub fn zero() -> Self {
+        Self(0)
+    }
+}
+
+impl Display for ConnectorMinorUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

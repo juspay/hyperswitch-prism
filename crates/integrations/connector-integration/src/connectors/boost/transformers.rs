@@ -892,6 +892,7 @@ impl BoostWebhookBody {
         WebhookResourceReference::Payment(PaymentWebhookReference {
             connector_transaction_id: Some(self.uuid.clone()),
             merchant_transaction_id: Some(self.reference_id.clone()),
+            connector_preprocessing_id: None,
         })
     }
 }

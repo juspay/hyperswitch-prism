@@ -21,6 +21,7 @@
   - [Services and Methods](architecture/concepts/services-and-methods.md)
   - [Environment Settings](architecture/concepts/environment-settings.md)
   - [Error Handling](architecture/concepts/error-handling.md)
+  - [Connector Data Diagnostics](architecture/concepts/connector-data-diagnostics.md)
   - [ID and Object Modelling](architecture/concepts/id-and-object-modelling.md)
   - [Modes of Usage](architecture/concepts/modes-of-usage.md)
   - [Domain specific language](architecture/concepts/specs-and-dsl.md)

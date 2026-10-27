@@ -444,6 +444,7 @@ pub fn get_webhook_reference(
                 PaymentWebhookReference {
                     connector_transaction_id: payment.connector_transaction_id,
                     merchant_transaction_id: Some(payment.payment_id),
+                    connector_preprocessing_id: None,
                 },
             )))
         }

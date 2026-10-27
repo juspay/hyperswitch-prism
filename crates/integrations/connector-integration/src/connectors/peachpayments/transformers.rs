@@ -753,6 +753,11 @@ impl TryFrom<common_enums::CardNetwork> for requests::CardNetworkLowercase {
             common_enums::CardNetwork::Prop => Ok(Self::Prop),
             common_enums::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
             common_enums::CardNetwork::Dinacard => Ok(Self::Dinacard),
+            common_enums::CardNetwork::AirPlus => Ok(Self::AirPlus),
+            common_enums::CardNetwork::Aurore => Ok(Self::Aurore),
+            common_enums::CardNetwork::EftposAustralia => Ok(Self::EftposAustralia),
+            common_enums::CardNetwork::GeCapital => Ok(Self::GeCapital),
+            common_enums::CardNetwork::Uatp => Ok(Self::Uatp),
         }
     }
 }

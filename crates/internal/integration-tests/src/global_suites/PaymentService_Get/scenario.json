@@ -97,7 +97,8 @@
         "must_not_exist": true
       }
     },
-    "display_name": "Get | Sync UPI Collect"
+    "display_name": "Get | Sync UPI Collect",
+    "required_payment_method": "upi_collect"
   },
   "sync_upi_intent": {
     "grpc_req": {
@@ -129,7 +130,8 @@
         "must_not_exist": true
       }
     },
-    "display_name": "Get | Sync UPI Intent"
+    "display_name": "Get | Sync UPI Intent",
+    "required_payment_method": "upi_intent"
   },
   "sync_upi_qr": {
     "grpc_req": {
@@ -161,6 +163,7 @@
         "must_not_exist": true
       }
     },
-    "display_name": "Get | Sync UPI QR"
+    "display_name": "Get | Sync UPI QR",
+    "required_payment_method": "upi_qr"
   }
 }

@@ -170,23 +170,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             Ok(response) => {
                 with_error_response_body!(event_builder, response);
 
-                let reason_codes = response.reason_codes();
+                let (code, message) = ilixium::error_code_and_message(
+                    &response.status.code,
+                    &response.reason_codes(),
+                    response.status.message.as_deref(),
+                    response
+                        .latest_attempt()
+                        .and_then(|attempt| attempt.message.as_deref()),
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
-                    code: reason_codes
-                        .first()
-                        .cloned()
-                        .unwrap_or_else(|| format!("{:?}", response.status.code).to_uppercase()),
-                    message: response
-                        .status
-                        .message
-                        .clone()
-                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: if reason_codes.is_empty() {
-                        response.status.message.clone()
-                    } else {
-                        Some(reason_codes.join(", "))
-                    },
+                    code,
+                    message: message.clone(),
+                    reason: Some(message),
                     attempt_status: None,
                     connector_transaction_id: response.gateway_ref(),
                     network_decline_code: None,

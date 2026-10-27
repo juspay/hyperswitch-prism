@@ -22,9 +22,11 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install cargo-chef and sccache for dependency caching
+# Install cargo-chef and sccache for dependency caching. sccache installs from
+# its own Cargo.lock: resolved fresh it needs `zip ^0.6`, every version of
+# which is yanked, and the install fails.
 RUN cargo install cargo-chef --version ^0.1 \
-    && cargo install sccache
+    && cargo install sccache --locked
 
 ########################################
 # 2. Planner stage (cargo-chef)

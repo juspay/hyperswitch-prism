@@ -3,9 +3,10 @@ use std::fmt::Debug;
 
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    crypto::{self, VerifySignature},
     errors::CustomResult,
     events,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     types::StringMajorUnit,
     Method,
 };
@@ -16,13 +17,17 @@ use domain_types::{
         SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, MandateRevokeRequestData, MandateRevokeResponseData,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets, EventContext, EventType,
+        MandateRevokeRequestData, MandateRevokeResponseData, PaymentFlowData, PaymentVoidData,
+        PaymentWebhookReference, PaymentsAuthenticateData, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, SetupMandateRequestData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ResponseId, SetupMandateRequestData, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
+    errors::WebhookError,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
@@ -169,6 +174,210 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Cybersource<T>
 {
+    /// The Base64-decoded `sig` parameter of the `v-c-signature` header.
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, Report<WebhookError>> {
+        let signature = get_cybersource_webhook_signature(request)?;
+
+        BASE64_ENGINE
+            .decode(signature.signature)
+            .change_context(WebhookError::WebhookSignatureNotFound)
+            .attach_printable("Cybersource webhook: `sig` is not valid Base64")
+    }
+
+    /// The signed payload is `<t>.<raw notification body>`; `t` is taken verbatim from the
+    /// header and the body is used byte for byte, never re-serialized.
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, Report<WebhookError>> {
+        let signature = get_cybersource_webhook_signature(request)?;
+
+        let mut message = signature.timestamp.into_bytes();
+        message.push(b'.');
+        message.extend_from_slice(&request.body);
+        Ok(message)
+    }
+
+    /// HMAC-SHA256 over `<t>.<raw body>` keyed with the Base64-decoded digital-signature key.
+    /// https://developer.cybersource.com/docs/cybs/en-us/webhooks/implementation/all/rest/webhooks/wh-fg-key-dig-sig-intro.html
+    /// A mismatch is `Ok(false)`; a missing secret or header is an error (the caller reports
+    /// both as an unverified source). Nothing here depends on the HTTP method.
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, Report<WebhookError>> {
+        let connector_webhook_secret = connector_webhook_secret
+            .ok_or_else(|| Report::new(WebhookError::WebhookVerificationSecretNotFound))?;
+
+        let key = BASE64_ENGINE
+            .decode(&connector_webhook_secret.secret)
+            .change_context(WebhookError::WebhookVerificationSecretInvalid)
+            .attach_printable("Cybersource webhook: the webhook secret is not valid Base64")?;
+        // An empty key would make the HMAC computable by anyone.
+        if key.is_empty() {
+            return Err(Report::new(WebhookError::WebhookVerificationSecretInvalid))
+                .attach_printable("Cybersource webhook: the webhook secret is empty");
+        }
+
+        let signature =
+            self.get_webhook_source_verification_signature(&request, &connector_webhook_secret)?;
+        let message =
+            self.get_webhook_source_verification_message(&request, &connector_webhook_secret)?;
+
+        crypto::HmacSha256
+            .verify_signature(&key, &signature, &message)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+    }
+
+    fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
+        let body = parse_cybersource_webhook_body(&request)?;
+
+        EventType::try_from(body.event_type)
+    }
+
+    /// Payment and refund events carry the PSP request id in `payload.data.id`. When the event
+    /// data also echoes `clientReferenceInformation.code`, prefer that caller-assigned id during
+    /// lookup; it is especially important for capture events, whose PSP id differs from the
+    /// authorization id. The merchant reference remains optional because the payments payload
+    /// schema is not published and live events are message-level encrypted.
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
+        let body = parse_cybersource_webhook_body(&request)?;
+        let merchant_reference_id = body.merchant_reference_id();
+
+        if body.event_type.is_payment_event() {
+            Ok(Some(WebhookResourceReference::Payment(
+                PaymentWebhookReference {
+                    connector_transaction_id: Some(body.object_reference_id()?),
+                    merchant_transaction_id: merchant_reference_id,
+                    connector_preprocessing_id: None,
+                },
+            )))
+        } else if body.event_type.refund_status().is_some() {
+            Ok(Some(WebhookResourceReference::Refund(
+                RefundWebhookReference {
+                    connector_refund_id: Some(body.object_reference_id()?),
+                    merchant_refund_id: merchant_reference_id,
+                    connector_transaction_id: None,
+                    merchant_transaction_id: None,
+                },
+            )))
+        } else {
+            Err(Report::new(WebhookError::WebhookEventTypeNotFound))
+                .attach_printable("Cybersource webhook: unsupported eventType")
+        }
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
+        let body = parse_cybersource_webhook_body(&request)?;
+
+        // An accepted authorization is `Charged` for a sale and `Authorized` otherwise. A
+        // payment context without a capture method is read as the Authorize request reads it
+        // (a sale); only an event with no payment context at all is refused.
+        let status = body
+            .event_type
+            .payment_status(event_context.as_ref())
+            .attach_printable(
+                "Cybersource webhook: an accepted authorization is ambiguous without the payment \
+                 context: AUTOMATIC (or omitted) capture means the payment was Charged, MANUAL \
+                 means Authorized. Pass EventContext.payment from the original authorize request.",
+            )?
+            .ok_or_else(|| Report::new(WebhookError::WebhookEventTypeNotFound))
+            .attach_printable("Cybersource webhook: eventType is not a payment event")?;
+        let connector_transaction_id = body.object_reference_id()?;
+
+        // The notification carries no documented decline code or message, so none is reported.
+        Ok(WebhookDetailsResponse {
+            resource_id: Some(ResponseId::ConnectorTransactionId(connector_transaction_id)),
+            status,
+            connector_response_reference_id: None,
+            connector_request_reference_id: None,
+            mandate_reference: None,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).into_owned()),
+            status_code: 200,
+            response_headers: None,
+            amount_captured: None,
+            network_txn_id: None,
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
+        let body = parse_cybersource_webhook_body(&request)?;
+
+        let status = body
+            .event_type
+            .refund_status()
+            .ok_or_else(|| Report::new(WebhookError::WebhookEventTypeNotFound))
+            .attach_printable("Cybersource webhook: eventType is not a refund event")?;
+        let connector_refund_id = body.object_reference_id()?;
+
+        Ok(RefundWebhookDetailsResponse {
+            connector_refund_id: Some(connector_refund_id),
+            merchant_transaction_id: None,
+            status,
+            connector_response_reference_id: None,
+            error_code: None,
+            error_message: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).into_owned()),
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+}
+
+/// Deserializes the notification envelope. A body that is not the plaintext JSON envelope
+/// (for example a message-level encrypted notification) is refused.
+fn parse_cybersource_webhook_body(
+    request: &RequestDetails,
+) -> Result<cybersource::CybersourceWebhookBody, Report<WebhookError>> {
+    request
+        .body
+        .parse_struct("CybersourceWebhookBody")
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
+}
+
+/// Reads and parses the `v-c-signature` header. Header names are matched case-insensitively:
+/// the caller forwards them as received and proxies may lowercase them.
+fn get_cybersource_webhook_signature(
+    request: &RequestDetails,
+) -> Result<cybersource::CybersourceWebhookSignature, Report<WebhookError>> {
+    let header = request
+        .headers
+        .iter()
+        .find(|(name, _)| {
+            name.eq_ignore_ascii_case(cybersource::CYBERSOURCE_WEBHOOK_SIGNATURE_HEADER)
+        })
+        .map(|(_, value)| value.as_str())
+        .ok_or_else(|| Report::new(WebhookError::WebhookSignatureNotFound))
+        .attach_printable("Cybersource webhook: v-c-signature header is missing")?;
+
+    cybersource::parse_cybersource_webhook_signature(header)
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Cybersource<T>

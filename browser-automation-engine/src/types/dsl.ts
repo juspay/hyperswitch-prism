@@ -11,8 +11,7 @@ export type RuleAction =
   | "assertVisible"
   | "extract"
   | "extractAll"
-  | "screenshot"
-  | "evaluate";
+  | "initializeCashfreeSandbox";
 
 interface BaseRule {
   action: RuleAction;
@@ -78,25 +77,8 @@ export interface ExtractAllRule extends BaseRule {
   trim?: boolean;
 }
 
-export interface ScreenshotRule extends BaseRule {
-  action: "screenshot";
-  path?: string;
-  fullPage?: boolean;
-  as?: string;
-}
-
-export interface EvaluateRule extends BaseRule {
-  action: "evaluate";
-  /**
-   * JavaScript expression to evaluate in page context. Must return a serializable value.
-   *
-   * **SECURITY WARNING**: This action executes arbitrary JavaScript in the browser page context.
-   * If the automation engine server is accessible to untrusted clients (e.g., listening on 0.0.0.0),
-   * implement authentication, authorization, or expression allowlisting to prevent malicious code execution.
-   */
-  expression: string;
-  /** Key to store the result under in the data bag. If omitted, result is discarded. */
-  as?: string;
+export interface InitializeCashfreeSandboxRule extends BaseRule {
+  action: "initializeCashfreeSandbox";
 }
 
 export type Rule =
@@ -109,5 +91,4 @@ export type Rule =
   | AssertVisibleRule
   | ExtractRule
   | ExtractAllRule
-  | ScreenshotRule
-  | EvaluateRule;
+  | InitializeCashfreeSandboxRule;

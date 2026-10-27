@@ -1,0 +1,437 @@
+// Copyright (c) Juspay Technologies. All rights reserved.
+//
+// Package: ucs.v2
+// File: domain.proto
+//
+// Overview:
+//   This file defines domain-specific (industry vertical) data supplied by
+//   the merchant: airline / travel itinerary data and education / student
+//   data, carried under DomainData on payment requests.
+//
+//   These messages were split out of payment.proto. DomainData is referenced
+//   by payment.proto (PaymentServiceAuthorizeRequest,
+//   PaymentMethodAuthenticationServiceAuthenticateRequest,
+//   PaymentServiceProxyAuthorizeRequest) and by composite_payment.proto, so
+//   this file sits between common_types.proto and payment.proto in the
+//   import graph.
+//
+// Related Files:
+//   - payment.proto       — Core payment request/response messages
+//   - common_types.proto  — Shared base types (Money, Address, Customer)
+
+syntax = "proto3";
+
+package types;
+
+import "common_types.proto";
+import "payment_methods.proto";
+
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
+
+// ============================================================================
+// DOMAIN-SPECIFIC DATA
+// ============================================================================
+
+// Domain-specific data supplied by the merchant.
+message DomainData {
+  optional AirlineData airline_data = 1; // Airline / travel itinerary data
+  optional EducationData education_data = 2; // Education / student data
+  optional HotelData hotel_data = 3; // Hotel / accommodation booking data
+  optional TravelData travel_data = 4; // Ground / sea travel data
+  optional SalesData sales_data = 5; // Vehicle sales data
+  optional RentalData rental_data = 6; // Vehicle rental data
+}
+
+// Connector-agnostic education data (e.g. Flywire tuition payments).
+message EducationData {
+  optional StudentDetails student_details = 1;
+
+  // Education risk-assessment details.
+  optional EducationType education_type = 2; // Course / workshop / tutoring
+  optional string start_date = 3; // Course start date (yyyy-MM-dd)
+  optional string end_date = 4; // Course end date (yyyy-MM-dd)
+  optional OnlineStatus is_online = 5; // Delivered online or in person
+  optional PurchaseType purchase_type = 6; // How the purchase was made
+}
+
+// Kind of education product purchased.
+enum EducationType {
+  EDUCATION_TYPE_UNSPECIFIED = 0;
+  EDUCATION_TYPE_COURSE = 1;
+  EDUCATION_TYPE_WORKSHOP = 2;
+  EDUCATION_TYPE_TUTORING = 3;
+}
+
+// Whether the education is delivered online or in person.
+enum OnlineStatus {
+  ONLINE_STATUS_UNSPECIFIED = 0;
+  ONLINE_STATUS_ONLINE = 1;
+  ONLINE_STATUS_OFFLINE = 2;
+}
+
+// How the education purchase was made.
+enum PurchaseType {
+  PURCHASE_TYPE_UNSPECIFIED = 0;
+  PURCHASE_TYPE_ONLINE = 1;  // Purchased online
+  PURCHASE_TYPE_OFFLINE = 2; // Purchased offline / in person
+}
+
+// Student details for education payments (e.g. Flywire recipient fields).
+message StudentDetails {
+  optional string student_id = 1;
+  optional string student_first_name = 2; // PII — student's first name
+  optional string student_last_name = 3; // PII — student's last name
+  optional SecretString student_email = 4; // PII — student's email address
+}
+
+// Whether the ticket can be refunded
+enum TicketRefundability {
+  TICKET_REFUNDABILITY_UNSPECIFIED = 0;
+  REFUNDABLE = 1;
+  NON_REFUNDABLE = 2;
+}
+
+// Ticket medium — electronic vs paper
+enum TicketDeliveryType {
+  TICKET_DELIVERY_TYPE_UNSPECIFIED = 0;
+  ELECTRONIC = 1;
+  PAPER = 2;
+}
+
+// Whether the cardholder is among the passengers a fraud signal.
+enum CardholderTravelStatus {
+  CARDHOLDER_TRAVEL_STATUS_UNSPECIFIED = 0;
+  CARDHOLDER_TRAVELING = 1;
+  CARDHOLDER_NOT_TRAVELING = 2;
+}
+
+// Trip itinerary shape for airline bookings.
+enum TripType {
+  TRIP_TYPE_UNSPECIFIED = 0;
+  TRIP_TYPE_ONE_WAY = 1;
+  TRIP_TYPE_RETURN = 2;
+  TRIP_TYPE_MULTIPLE_DESTINATION = 3;
+}
+
+// Contact used for delivering a ticket (email or phone).
+message TicketDeliveryContact {
+  optional SecretString email = 1;
+  optional SecretString phone_number = 2;
+}
+
+// Connector-agnostic airline / travel itinerary data. The union of fields
+// across processors (2C2P PACO, CyberSource, Adyen, Worldpay, Checkout.com,
+// Nuvei); every field is optional so each connector enforces its own required
+// subset. Amounts use Money (minor units + currency); dates are strings since
+// processors disagree on format.
+message AirlineData {
+  // ---- Booking / ticket level ----
+  optional string pnr_code = 1;                 // PNR / reservation-system code
+  optional string booking_reference = 2;        // Merchant booking / customer reference
+  optional string ticket_number = 3;      // Airline ticket number
+  optional string ticket_issue_date = 4;        // Date the ticket was issued
+  optional string booking_date_time = 5;        // Booking timestamp (RFC 3339)
+  optional string flight_date = 6;              // Departure date of the first leg
+  optional string issuing_carrier_code = 7;     // IATA code of the ticket issuer
+  optional string airline_code = 8;             // IATA numeric accounting code
+  optional string passenger_name = 9;     // Primary passenger name
+  optional uint32 number_of_passengers = 10;    // Passenger count on the ticket
+  optional string document_type = 11;           // Travel document type code
+  TicketRefundability refundability = 12;       // Refundable / non-refundable
+  TicketDeliveryType ticket_delivery_type = 13; // Electronic vs paper ticket
+  CardholderTravelStatus cardholder_travel_status = 14; // Is the cardholder a passenger
+  optional Address ticket_issue_address = 15;   // Address of the issuing agency
+  optional string booking_system_unique_id = 16; // Booking-system unique identifier
+  optional TripType trip_type = 17;             // One-way / return / multi-destination
+
+  // Travel agency
+  optional string agency_code = 20;             // IATA / ARC travel agency code
+  optional string agency_name = 21;             // Travel agency name
+  optional string agency_invoice_number = 22;   // Agency-issued invoice number
+  optional string agency_plan_name = 23;        // Agency plan identifier
+
+  // Ticket-level amounts (each carries its own currency)
+  optional Money total_fare = 30;               // Total ticket fare
+  optional Money total_taxes = 31;              // Total taxes on the ticket
+  optional Money total_fee = 32;                // Total fees on the ticket
+  optional Money boarding_fee = 33;             // Chargeable boarding fee
+
+  repeated AirlineSegment flight_segments = 40; // Flight legs, in itinerary order
+  repeated AirlinePassenger passengers = 41;    // Passengers on the ticket
+}
+
+// One flight leg. departure/arrival reuse the shared AirlineLocation, mirroring
+// how Address is reused for billing/shipping.
+message AirlineSegment {
+  optional uint32 sequence_no = 1;              // 1-based leg order
+  optional string marketing_carrier_code = 2;   // Marketing carrier IATA-2 (ticket-issuing airline)
+  optional string flight_number = 3;            // Marketing flight number
+  optional string flight_type = 4;              // "Domestic" / "International"
+  optional string class_of_service = 5;         // F / J / Y / W
+  optional string fare_basis_code = 6;          // Fare basis code
+  optional string stopover_code = 7;            // O = stopover allowed / X = not
+  AirlineLocation departure = 8;                // Departure endpoint
+  AirlineLocation arrival = 9;                  // Arrival endpoint
+
+  // Per-leg amounts (each carries its own currency)
+  optional Money fare_amount = 10;              // Fare for this leg
+  optional Money fee_amount = 11;               // Fee for this leg
+  optional Money tax_amount = 12;               // Departure tax for this leg
+
+  // Exchange / coupon details
+  optional string exchange_ticket_number = 13; // New ticket number on exchange
+  optional string conjunction_ticket = 14;      // Conjunction ticket for >4 legs
+  optional string coupon_number = 15;           // Coupon number for this leg
+  optional string endorsements_restrictions = 16; // Endorsements / restrictions
+
+  optional string operating_carrier_code = 17;  // Operating carrier IATA-2
+  optional string operating_flight_number = 18; // Operating flight number
+  optional string marketing_carrier_name = 19; // Marketing carrier name, e.g. "Emirates"
+  optional TicketDeliveryContact ticket_delivery_recipient = 20; // Ticket recipient, email or phone
+}
+
+// A flight endpoint, reused for both departure and arrival.
+message AirlineLocation {
+  optional string airport_code = 1;             // IATA-3 airport code
+  optional string city_code = 2;                // IATA-3 city code
+  optional string city_name = 3;                // City name
+  optional string country_code = 4;             // ISO 3166-1 alpha-2 country code (connectors convert to numeric/alpha-3 as needed)
+  optional string country_name = 5;             // Country name
+  optional string date_time = 6;                // Local scheduled time (RFC 3339)
+}
+
+message AirlinePassenger {
+  optional uint32 sequence_no = 1;              // 1-based passenger order
+
+  // Identity fields shared with the cardholder/payer model — salutation,
+  // first_name, last_name, email (Secret) and phone_number (Secret).
+  optional Customer customer = 2;
+
+  // Passenger-specific fields not on Customer.
+  optional string middle_name = 3;              // Middle name
+  optional string gender = 4;                   // M / F / X
+  optional string date_of_birth = 5;            // Date of birth (yyyy-MM-dd)
+  optional string passenger_type = 6;           // IATA PTC, e.g. ADT
+  optional string frequent_flyer_number = 7;    // Loyalty / frequent-flyer number
+  optional string loyalty_tier = 8;             // Loyalty-program tier
+  optional SecretString passport_number = 9;    // Passport number
+  optional string nationality = 10;             // ISO 3166-1 alpha-2 nationality
+  optional SecretString ticket_number = 11;     // Per-passenger ticket number
+}
+
+// Connector-agnostic hotel / accommodation booking data. Every field is
+// optional so each connector enforces its own required subset. Booking-level
+// fields stay here; per-property stay details live on HotelSegment.
+message HotelData {
+  optional string booking_id = 1;           // Merchant's booking reference
+  optional uint32 number_of_guests = 2;     // Guest count across the booking
+  TicketRefundability refundability = 3;    // Customer can request a refund
+  optional TicketDeliveryContact ticket_delivery_recipient = 4; // email or phone
+  repeated InsuranceDetails insurances = 5; // Insurance bought with the booking
+  optional Money booking_amount = 6;        // Booking total, excluding tax and fees
+  repeated TaxItem tax_items = 7;           // Itemised taxes
+  repeated ExtraCharge extra_charges = 8;   // Extra charges, e.g. restaurant, mini bar
+  optional bool no_show = 9;                // Guest did not arrive, no-show fee charged
+  optional Money prepaid_amount = 10;       // Amount paid in advance (deposit)
+  optional Money cash_advances = 11;        // Cash advanced to guest during the stay
+  optional string discount_code = 12;       // Corporate client / discount programme code
+  repeated HotelSegment hotel_segments = 13; // Property stays, in itinerary order
+}
+
+// One property stay. Property identity, stay dates, room, guest and host
+// details moved here from HotelData, mirroring how AirlineData carries
+// AirlineSegment legs and TravelData carries TravelSegment legs. One segment
+// with several `guests` covers one hotel for multiple people; several segments
+// cover a multi-hotel itinerary in the same payment.
+message HotelSegment {
+  optional uint32 sequence_no = 1;          // 1-based stay order
+  optional string hotel_name = 2;           // Hotel or property name
+  optional string hotel_city = 3;           // City IATA code, e.g. RUH
+  optional string hotel_country = 4;        // ISO 3166-1 alpha-2, e.g. SA
+  optional string checkin = 5;              // Check-in date/time (RFC 3339)
+  optional string checkout = 6;             // Check-out date/time (RFC 3339)
+  optional uint32 number_of_night_stay = 7; // Number of nights (derivable from check-in/out)
+  optional uint32 number_of_guests = 8;     // Guests at this property
+  repeated Customer guests = 9;             // Guest details for this property
+  optional uint32 number_of_rooms = 10;     // Rooms booked at this property
+  optional RoomClass room_class = 11;       // Standard / Suite / Deluxe
+  optional AccommodationType accommodation_type = 12; // room / apartment / villa / suite
+  optional HostDetails host = 13;           // Host of this property
+  optional Money daily_rate = 14;           // Room rate per night, excluding tax
+}
+
+// Room category booked.
+enum RoomClass {
+  ROOM_CLASS_UNSPECIFIED = 0;
+  ROOM_CLASS_STANDARD = 1;
+  ROOM_CLASS_SUITE = 2;
+  ROOM_CLASS_DELUXE = 3;
+}
+
+// Kind of accommodation unit booked.
+enum AccommodationType {
+  ACCOMMODATION_TYPE_UNSPECIFIED = 0;
+  ACCOMMODATION_TYPE_ROOM = 1;
+  ACCOMMODATION_TYPE_APARTMENT = 2;
+  ACCOMMODATION_TYPE_VILLA = 3;
+  ACCOMMODATION_TYPE_SUITE = 4;
+}
+
+// Host details for hosted accommodations (rental / homestay platforms).
+message HostDetails {
+  optional SecretString name = 1;               // Host name
+  optional string host_id = 2;                  // Unique host ID on the merchant platform
+  optional HostType host_type = 3;              // rental_agency / owner / hotel / hostel
+  optional string host_country_of_domicile = 4; // Host's country, ISO 3166-1 alpha-2
+  optional string registered_at = 5;            // Date host registered (yyyy-MM-dd)
+  optional uint32 number_of_reservations = 6;   // Reservations fulfilled by this host with the merchant
+}
+
+// Kind of accommodation host.
+enum HostType {
+  HOST_TYPE_UNSPECIFIED = 0;
+  HOST_TYPE_RENTAL_AGENCY = 1;
+  HOST_TYPE_OWNER = 2;
+  HOST_TYPE_HOTEL = 3;
+  HOST_TYPE_HOSTEL = 4;
+}
+
+// Connector-agnostic ground / sea travel data (train, bus, ferry).
+message TravelData {
+  optional TravelMode mode = 1;                 // Mode of transport (train, bus, ferry)
+  optional string carrier_name = 2;             // Carrier name, e.g. "Amtrak"
+  optional uint32 number_of_passengers = 3;     // Number of passengers on the booking
+  optional string travel_date = 4;              // Travel date (yyyy-MM-dd)
+  TicketRefundability refundability = 5;        // Refundable / non-refundable
+  repeated TravelSegment travel_segments = 6;   // Travel legs, in itinerary order
+}
+
+// One travel leg. origin/destination/travel_class and the leg's passengers moved
+// here from TravelData, mirroring how AirlineData carries AirlineSegment legs.
+message TravelSegment {
+  optional string origin = 1;                   // Origin station / port
+  optional string destination = 2;              // Destination station / port
+  optional TravelClass travel_class = 3;        // Cabin / service class
+  repeated Traveller passengers = 4;            // Passenger details for this leg
+}
+
+// Mode of ground / sea transport.
+enum TravelMode {
+  TRAVEL_MODE_UNSPECIFIED = 0;
+  TRAVEL_MODE_TRAIN = 1;
+  TRAVEL_MODE_BUS = 2;
+  TRAVEL_MODE_FERRY = 3;
+}
+
+// Travel cabin / service class.
+enum TravelClass {
+  TRAVEL_CLASS_UNSPECIFIED = 0;
+  TRAVEL_CLASS_ECONOMY = 1;
+  TRAVEL_CLASS_PREMIUM_ECONOMY = 2;
+  TRAVEL_CLASS_BUSINESS = 3;
+  TRAVEL_CLASS_FIRST = 4;
+}
+
+// A passenger on a ground / sea travel booking.
+message Traveller {
+  optional SecretString first_name = 1;    // Passenger's first name
+  optional SecretString last_name = 2;     // Passenger's last name
+  optional SecretString phone_number = 4;  // Passenger's phone number
+  optional SecretString date_of_birth = 5; // Passenger's date of birth
+}
+
+// Connector-agnostic vehicle sales data.
+message SalesData {
+  optional uint32 year = 1;  // Year of manufacture of the vehicle, e.g. 2019
+  optional string make = 2;  // Brand of the vehicle manufacturer, e.g. "Honda"
+  optional string model = 3; // Specific nameplate of the car, e.g. "Accord"
+  optional string trim = 4;  // Specific equipment and feature package of the model, e.g. "EX"
+  optional uint32 odometer_km = 5; // Current total distance driven, in km
+  optional uint32 number_of_previous_owners = 6; // Number of past registered owners of the vehicle
+  optional string market_spec = 7; // Regional build standard of the vehicle
+}
+
+// Connector-agnostic vehicle rental data.
+message RentalData {
+  optional string booking_id = 1;      // Merchant's booking reference
+  optional string rental_company = 2;  // Name of the rental car company, e.g. "Hertz"
+  optional Address pickup = 3;         // Where the car is picked up
+  optional Address dropoff = 4;        // Where the car is returned
+  optional uint32 days_rented = 5;     // Total number of days the car is rented for
+  optional SecretString renter_name = 6; // Name of the person who made the booking
+  repeated Driver drivers = 7;         // The drivers on the booking
+  optional uint32 number_of_drivers = 8; // Total count of drivers on the booking
+  optional Vehicle vehicle = 9;        // Details of the rented vehicle
+  repeated InsuranceDetails insurances = 11; // Insurance bought with the rental
+
+  optional DepositPaymentType deposit_payment_type = 14; // How the deposit is funded
+  optional Money rental_amount = 15;   // Total rental amount
+  optional Money rate_per_unit = 16;   // Price for one rate_unit, e.g. price per day
+  optional string rate_unit = 17;      // Unit the rate is charged in: days, weeks, miles, kilometers
+  repeated TaxItem tax_items = 18;     // Breakdown of the taxes charged on the rental
+  repeated ExtraCharge extra_charges = 19; // Charges on top of the rate, e.g. fuel, GPS, exchange fee
+
+  optional bool no_show = 21;          // Whether the renter did not turn up for pick-up
+  optional TotalDistance distance = 22; // Distance driven during the rental
+  optional string coupon = 24;         // Coupon or promo code applied to the booking
+}
+
+// A driver on a vehicle rental booking.
+message Driver {
+  optional Customer driver = 1; // Driver's name and contact details
+  optional SecretString identification_number = 3; // Driver's licence or ID
+  optional SecretString tax_number = 4; // Driver's tax number
+}
+
+// Details of a rented vehicle.
+message Vehicle {
+  optional string car_class = 1;   // Rental class, e.g. economy, luxury, SUV
+  optional string vehicle_type = 2; // Body type or category code, e.g. compact, midsize
+  optional string make = 3;        // Manufacturer, e.g. "Toyota"
+  optional string model = 4;       // Model name, e.g. "Corolla"
+  optional SecretString vin = 5;   // Vehicle identification number
+  optional uint32 odometer = 6;    // Odometer reading at rental
+}
+
+// Distance driven, with unit.
+message TotalDistance {
+  optional uint32 amount = 1; // Distance value
+  optional DistanceUnit unit = 2; // Unit of the distance: miles or kilometers
+}
+
+// Unit of distance.
+enum DistanceUnit {
+  DISTANCE_UNIT_UNSPECIFIED = 0;
+  DISTANCE_UNIT_MILES = 1;
+  DISTANCE_UNIT_KILOMETERS = 2;
+}
+
+// How a rental deposit is funded.
+enum DepositPaymentType {
+  DEPOSIT_PAYMENT_TYPE_UNSPECIFIED = 0;
+  DEPOSIT_PAYMENT_TYPE_CASH = 1;
+  DEPOSIT_PAYMENT_TYPE_CREDIT_CARD = 2;
+  DEPOSIT_PAYMENT_TYPE_DEBIT_CARD = 3;
+  DEPOSIT_PAYMENT_TYPE_PREPAID_CARD = 4;
+}
+
+// Insurance bought with a booking / rental.
+message InsuranceDetails {
+  optional string insurance_type = 1; // Cover, e.g. damage, cancellation, travel
+  optional string company = 2; // Insurance provider name
+  optional Money price = 3; // Price paid for the insurance
+}
+
+// An itemised tax on a booking.
+message TaxItem {
+  optional string tax_type = 1; // Kind of tax, e.g. VAT, sales tax
+  optional uint32 rate = 2; // Tax rate applied
+  optional Money amount = 3; // Tax amount charged
+  optional bool tax_exempt = 4; // Whether the booking is exempt from this tax
+}
+
+// An extra charge on top of the base price.
+message ExtraCharge {
+  optional string charge_type = 1; // Kind of extra charge, e.g. fuel, GPS, exchange fee
+  optional Money amount = 2; // Amount charged
+}

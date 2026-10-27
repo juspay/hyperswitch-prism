@@ -46,7 +46,11 @@ jobs:
   # ── Change Detection ──────────────────────────────────────────────────────
   changes:
     name: Detect Changes
-    runs-on: ubuntu-latest
+    # Preserve public-fork runner selection; internal jobs use GitHub-hosted x64.
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' || 'ubuntu-24.04' }}
     permissions:
       pull-requests: read
     outputs:
@@ -94,6 +98,7 @@ jobs:
               - 'crates/internal/integration-tests/src/connector_specs/**'
             any-rust:
               - 'crates/**'
+              - 'browser-automation-engine/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'config/**'
@@ -121,6 +126,7 @@ jobs:
             # Read at run time by certification; they match no connector path.
             # Separate from rust-core, which seven other jobs also gate on.
             certification-inputs:
+              - 'browser-automation-engine/**'
               - 'crates/internal/connector-creds/**'
               - 'crates/internal/integration-tests/src/bin/**'
               - 'crates/internal/integration-tests/src/webhook_signatures.rs'
@@ -342,7 +348,10 @@ jobs:
   typos:
     name: Spell check
     if: "!github.event.pull_request.draft"
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' || 'ubuntu-24.04' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -356,7 +365,10 @@ jobs:
     name: Clippy check
     needs: changes
     if: "!github.event.pull_request.draft && (needs.changes.outputs.any-rust == 'true' || needs.changes.outputs.proto == 'true')"
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' || 'ubuntu-24.04' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -396,7 +408,10 @@ jobs:
        needs.changes.outputs.docs-trigger == 'true' ||
        needs.changes.outputs.sdk == 'true' ||
        needs.changes.outputs.proto == 'true')
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' || 'ubuntu-24.04' }}
     permissions:
       contents: write
     outputs:
@@ -456,7 +471,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: sdk/javascript/package-lock.json
+          cache-dependency-path: sdk/javascript/package.json
 
       - name: Install Python dependencies
         run: |
@@ -467,7 +482,7 @@ jobs:
         run: |
           pip install -r sdk/python/requirements.txt grpcio-tools protobuf
           make -C sdk install-deps
-          cd sdk/javascript && npm ci && cd ../..
+          cd sdk/javascript && npm install && cd ../..
 
       - name: Format Rust code
         run: cargo +nightly fmt --all
@@ -571,7 +586,10 @@ jobs:
       github.event_name != 'pull_request' &&
       (needs.changes.outputs.any-rs == 'true' ||
        needs.changes.outputs.ci == 'true')
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' || 'ubuntu-24.04' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -600,7 +618,10 @@ jobs:
       (needs.changes.outputs.any-rust == 'true' ||
        needs.changes.outputs.proto == 'true' ||
        needs.changes.outputs.ci == 'true')
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' || 'ubuntu-24.04' }}
 
     env:
       RUSTFLAGS: "-D warnings"
@@ -656,7 +677,10 @@ jobs:
       (needs.changes.outputs.any-rust == 'true' ||
        needs.changes.outputs.proto == 'true' ||
        needs.changes.outputs.ci == 'true')
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' || 'ubuntu-24.04' }}
 
     env:
       RUSTFLAGS: "-D warnings"
@@ -809,6 +833,22 @@ jobs:
           cargo build --workspace --bins \
             --features grpc-server/connector-request-kafka,grpc-server/log-transformations
 
+      - name: Set up Node for browser worker checks
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build and verify isolated browser worker
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
+        working-directory: browser-automation-engine
+        run: |
+          npm install --ignore-scripts
+          npm run check
+          npm test
+          npm run build:worker
+          npm run test:container
+
       # The test harness shells out to grpcurl to make the actual call.
       - name: Install grpcurl
         if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
@@ -921,7 +961,10 @@ jobs:
        needs.changes.outputs.proto == 'true' ||
        needs.changes.outputs.ci == 'true' ||
        needs.changes.outputs.stripe == 'true')
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' || 'ubuntu-24.04' }}
 
     env:
       RUSTFLAGS: "-D warnings"
@@ -1018,7 +1061,10 @@ jobs:
     name: SDK Tests (${{ matrix.name }})
     needs: [sdk-build]
     if: needs.sdk-build.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' || 'ubuntu-24.04' }}
 
     strategy:
       fail-fast: false
@@ -1086,7 +1132,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: |
-            sdk/javascript/package-lock.json
+            sdk/javascript/package.json
             sdk/tests/package.json
 
       - name: Cache pip dependencies
@@ -1105,7 +1151,7 @@ jobs:
       - name: Install Node dependencies
         if: matrix.node
         run: |
-          cd sdk/javascript && npm ci && cd ../..
+          cd sdk/javascript && npm install && cd ../..
           cd sdk/tests && npm install && cd ../..
 
       - name: Generate flows.json
@@ -1150,7 +1196,10 @@ jobs:
     name: CI Result
     if: always()
     needs: [typos, clippy, formatting, auto-fix, check, test, sdk-build, sdk-test]
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' || 'ubuntu-24.04' }}
     steps:
       - name: Evaluate CI results
         run: |
