@@ -3153,6 +3153,9 @@ message PaymentServiceCaptureRequest {
   // Whether overcapture is enabled for this payment. When true, a connector-reported
   // amount higher than the requested amount is not treated as an integrity failure.
   optional bool is_overcapture_enabled = 18;
+
+  // Network reference returned by the authorization being completed.
+  optional string network_transaction_id = 19;
 }
 
 // Response message for a payment capture operation

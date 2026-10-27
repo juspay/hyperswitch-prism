@@ -846,6 +846,7 @@ impl
         Self {
             integrity_specifications: item.integrity_specifications,
             is_overcapture_enabled: item.is_overcapture_enabled,
+            network_transaction_id: item.network_transaction_id.clone(),
             split_settlement: item.split_settlement.clone(),
             merchant_capture_id: item.merchant_capture_id.clone(),
             payment_method: item.payment_method.clone(),

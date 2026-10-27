@@ -3831,6 +3831,8 @@ pub struct MultipleCaptureRequestData {
 pub struct PaymentsCaptureData {
     pub payment_method_data:
         Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
+    /// Network reference returned by the authorization being completed.
+    pub network_transaction_id: Option<String>,
     pub amount_to_capture: Money,
     pub currency: Currency,
     pub connector_transaction_id: ResponseId,

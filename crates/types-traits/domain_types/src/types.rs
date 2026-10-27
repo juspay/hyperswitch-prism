@@ -13143,6 +13143,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
             amount_to_capture: amount.clone(),
             currency: amount.currency,
             connector_transaction_id,
+            network_transaction_id: value.network_transaction_id,
             multiple_capture_data,
             metadata: value
                 .metadata
