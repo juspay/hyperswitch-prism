@@ -29,7 +29,7 @@ npm run stack:up
 UCS_ENVIRONMENT=sandbox npm run stack:up
 ```
 
-There is no automatic Jenkins detection. `stack:up` accepts only `development` and `sandbox`, rejecting `production`. In both modes, merchant connector accounts use `test_mode: true` and sandbox credentials. Changing the service configuration does not change that payment-test setting. The UCS build context is limited to `stack/`; its Dockerfile adds a health probe to the published image without compiling UCS.
+There is no automatic Jenkins detection. `stack:up` accepts only `development` and `sandbox`, rejecting `production`. In both modes, merchant connector accounts use `test_mode: true` and sandbox credentials. Changing the service configuration does not change that payment-test setting or select a credentials source; CI downloads credentials separately as described below. The UCS build context is limited to `stack/`; its Dockerfile adds a health probe to the published image without compiling UCS.
 
 For an existing dedicated test stack, set `HS_BASE_URL`, `HS_ADMIN_API_KEY`, and `HS_DATABASE_URL` as appropriate.
 
@@ -68,7 +68,7 @@ If CI already provides a decrypted JSON secret file, set `CONNECTOR_AUTH_FILE_PA
 
 ## Scenarios
 
-Before payment calls, fixtures create an isolated merchant, issue an API key expiring in one day, use its default business profile (or create one if absent), create the sandbox connector account, and activate a single-connector routing rule. Setup validates the returned merchant association, profile, sandbox mode, and enabled payment methods.
+Before payment calls, fixtures create an isolated merchant, issue an API key expiring in one hour, use its default business profile (or create one if absent), create the sandbox connector account, and activate a single-connector routing rule. Setup validates the returned merchant association, profile, sandbox mode, and enabled payment methods.
 
 Each scenario declares `paymentMethodsEnabled`, which is sent as the connector account's `payment_methods_enabled`. The current scenario enables card credit only. Declare additional methods in scenarios that exercise them; the common setup does not assume every test uses cards. Optional merchant contact fields, webhook subscriptions, parent merchants, tokenization, and mandate settings are not prerequisites for this fresh-card scenario and are not enabled implicitly. Customer creation belongs in a journey that actually uses a customer.
 

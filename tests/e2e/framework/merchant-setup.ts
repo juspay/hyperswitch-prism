@@ -42,7 +42,7 @@ export async function setupMerchant(
       {
         name: "UCS E2E",
         description: "Disposable sandbox test key",
-        expiration: new Date(Date.now() + 86_400_000).toISOString(),
+        expiration: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       },
     );
     const apiKey = stringField(apiKeyResponse, "api_key");
