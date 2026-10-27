@@ -4,7 +4,7 @@ These tests exercise payment flows through Hyperswitch and UCS against processor
 
 ## Run locally
 
-Requirements: Node.js 22+, Docker with Compose, and a Hyperswitch-compatible connector credentials JSON file.
+Requirements: Node.js 22+, Docker Compose 2.24.4+, and a Hyperswitch-compatible connector credentials JSON file. The Compose override uses the standard `!override` and `!reset` merge tags.
 
 ```sh
 cd tests/e2e
@@ -18,6 +18,18 @@ Open the HTML report with `npx playwright show-report`. Stop the isolated stack 
 `HS_IMAGE` and `UCS_IMAGE` select container images. Defaults use the latest published images. Configuration and migrations come from the matching Hyperswitch source revision, cached after the first run. `HS_SOURCE_DIR` can supply an existing matching checkout; `HS_REF` can explicitly select its revision.
 
 HS uses its supported `ROUTER__...` environment overrides; upstream TOML is unchanged. The UCS wrapper adds the standard gRPC health probe, and Compose starts HS after UCS is healthy. Redis is internal to the Compose network; PostgreSQL binds to loopback on `HS_DB_PORT` (default `15432`). `HS_PORT` sets the local HS port (default `8080`). `UCS_CONNECTORS` selects connectors routed to UCS in this local stack (default `adyen`); extend it when registering connectors.
+
+`UCS_ENVIRONMENT` selects the UCS service configuration: `development` (default) loads `development.toml`; `sandbox` loads `sandbox.toml`. Set it explicitly when starting a CI stack:
+
+```sh
+# Local default
+npm run stack:up
+
+# CI runtime configuration
+UCS_ENVIRONMENT=sandbox npm run stack:up
+```
+
+There is no automatic Jenkins detection. `stack:up` accepts only `development` and `sandbox`, rejecting `production`. In both modes, merchant connector accounts use `test_mode: true` and sandbox credentials. Changing the service configuration does not change that payment-test setting. The UCS build context is limited to `stack/`; its Dockerfile adds a health probe to the published image without compiling UCS.
 
 For an existing dedicated test stack, set `HS_BASE_URL`, `HS_ADMIN_API_KEY`, and `HS_DATABASE_URL` as appropriate.
 

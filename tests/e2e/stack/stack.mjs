@@ -21,9 +21,15 @@ const hsImage =
   "docker.juspay.io/juspaydotin/hyperswitch-router:latest";
 const ucsImage =
   process.env.UCS_IMAGE ?? "docker.io/juspaydotin/hyperswitch-prism:latest";
+const ucsEnvironment = process.env.UCS_ENVIRONMENT ?? "development";
 
 if (!new Set(["up", "down"]).has(action)) {
   throw new Error("Use stack.mjs up|down");
+}
+if (action === "up" && !["development", "sandbox"].includes(ucsEnvironment)) {
+  throw new Error(
+    "UCS_ENVIRONMENT must be development or sandbox for E2E tests",
+  );
 }
 
 function run(command, args, options = {}) {
@@ -146,7 +152,11 @@ if (action === "up") {
   );
   writeFileSync(
     versionsFile,
-    JSON.stringify({ hsImage, hsSourceDir: checkout }, null, 2),
+    JSON.stringify(
+      { hsImage, ucsImage, ucsEnvironment, hsSourceDir: checkout },
+      null,
+      2,
+    ),
   );
 }
 
@@ -165,7 +175,8 @@ const env = {
   ...process.env,
   HS_IMAGE: hsImage,
   UCS_IMAGE: ucsImage,
-  E2E_UCS_DOCKERFILE: resolve(e2eRoot, "stack/ucs.Dockerfile"),
+  UCS_ENVIRONMENT: ucsEnvironment,
+  E2E_STACK_DIR: resolve(e2eRoot, "stack"),
   E2E_DIESEL_CONFIG: dieselConfig,
 };
 

@@ -11,14 +11,14 @@ services:
 
   ucs:
     build:
-      context: .
-      dockerfile: ${E2E_UCS_DOCKERFILE}
+      context: ${E2E_STACK_DIR}
+      dockerfile: ucs.Dockerfile
       args:
         UCS_IMAGE: ${UCS_IMAGE:-juspaydotin/hyperswitch-prism:latest}
     environment:
       CS__SERVER__HOST: 0.0.0.0
       CS__SERVER__PORT: 8000
-      CS__COMMON__ENVIRONMENT: development
+      CS__COMMON__ENVIRONMENT: ${UCS_ENVIRONMENT:-development}
       CS__LOG__CONSOLE__ENABLED: "true"
       CS__LOG__CONSOLE__LEVEL: info
       CS__LOG__CONSOLE__LOG_FORMAT: json
