@@ -3380,7 +3380,7 @@ fn extract_error_details(
                 .as_ref()
                 .and_then(|e| e.first().map(|e| e.error_code.clone()))
         })
-        .or_else(|| Some(response.messages.result_code.to_string()))
+        .or_else(|| response.messages.message.first().map(|m| m.code.clone()))
         .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
 
     let error_message = trans_res
