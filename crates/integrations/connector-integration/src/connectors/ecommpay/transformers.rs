@@ -22,11 +22,10 @@ use common_enums::{
 use common_utils::{
     consts::{BASE64_ENGINE, NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::{HmacSha512, SignMessage, VerifySignature},
-    date_time,
     id_type::CustomerId,
     pii::{Email, IpAddress, SecretSerdeValue},
     request::Method,
-    types::MinorUnit,
+    types::{MinorUnit, Money},
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
@@ -69,6 +68,8 @@ const STATUS_DOC_URL: &str =
 const CAPTURE_DOC_URL: &str = "https://developers.ecommpay.com/en/en_gate_payment_capture.html";
 const CANCEL_DOC_URL: &str = "https://developers.ecommpay.com/en/en_platform_dms_model.html";
 const REFUND_DOC_URL: &str = "https://developers.ecommpay.com/en/en_Gate_Refund.html";
+/// `payment.description` sent when Hyperswitch supplies no refund `reason`.
+const REFUND_DESCRIPTION: &str = "Refund";
 const ACCOUNT_VERIFICATION_DOC_URL: &str =
     "https://developers.ecommpay.com/en/en_gate_account_verification.html";
 /// `errors[].code` of a status request for a payment the Gate has not registered (yet).
@@ -167,7 +168,7 @@ fn within_limit<S: PeekInterface<String>>(
 }
 
 // =============================================================================
-// Shared helpers (P-foundation-11)
+// Shared helpers
 // =============================================================================
 
 /// Trims an optional string and treats an empty or whitespace-only value as absent.
@@ -252,7 +253,7 @@ fn browser_language(browser_info: &BrowserInformation) -> Option<String> {
 }
 
 // =============================================================================
-// Authentication (P-foundation-07)
+// Authentication
 // =============================================================================
 
 #[derive(Debug, Clone)]
@@ -315,7 +316,7 @@ impl TryFrom<&ConnectorSpecificConfig> for EcommpayAuthType {
 }
 
 // =============================================================================
-// Signature (P-foundation-06)
+// Signature
 // =============================================================================
 //
 // Preimage rules (techspec "Creating the Authentication Header", worked examples there):
@@ -330,8 +331,9 @@ impl TryFrom<&ConnectorSpecificConfig> for EcommpayAuthType {
 //     `positions:2` precedes `positions:10`; otherwise plain byte order) and joined with `;`;
 //   * signature = Base64(HMAC-SHA512(secret_key, preimage)).
 //
-// The rules are pinned against the documentation's worked examples by the baseline probe, not
-// by a unit test (GRACE Rule 3); a reviewer should add a pinning test deliberately.
+// The integration harness re-implements these rules independently
+// (`integration-tests/src/webhook_signatures.rs`) and so acts as an oracle for them; the
+// baseline probe pins them against the documentation's worked examples.
 
 fn flatten_leaves(path: &str, value: &Value, out: &mut Vec<String>) {
     let child_path = |key: &str| {
@@ -456,7 +458,7 @@ pub fn verify_signature(
 }
 
 // =============================================================================
-// Payment route (P-foundation-15)
+// Payment route
 // =============================================================================
 
 /// Which Gate path family a payment was created on. Card and wallet payments are captured,
@@ -494,9 +496,28 @@ pub fn route_to_feature_data(route: EcommpayRoute) -> Option<Value> {
 }
 
 /// `connector_metadata` written by the Authorize acceptance: the route plus `payment_handle_token`
-/// (the Gate payment_id). Hyperswitch CompleteAuthorize has no card on the 3DS post-back (no temp
-/// locker for ecommpay), and falls back to a Token payment method built from this key
-/// (hs unified_connector_service/transformers.rs:968-986). The 3ds_result re-entry ignores it.
+/// (the Gate payment_id).
+///
+/// # Cross-repo contract
+///
+/// `payment_handle_token` is read by Hyperswitch, not by this connector, and the key name is the
+/// contract. On the post-3DS settle leg the card is not persisted through the redirect (ecommpay
+/// has no temp locker), so HS builds the gRPC `payment_method` from a named lookup in
+/// `connector_meta`:
+///
+/// ```text
+/// router_data.request.connector_meta["payment_handle_token"] -> PaymentMethod::Token
+/// // hyperswitch crates/router/src/core/unified_connector_service/transformers.rs
+/// ```
+///
+/// That lookup has no `connector_transaction_id` fallback, and the generic
+/// `reconstruct_payment_method_data_for_redirect_completion` ahead of it does not cover cards.
+/// So if this key stops being written, `payment_method` is `None` on the settle leg and UCS
+/// rejects the Authorize with `MissingRequiredField: payment_method` -- every 3DS card payment
+/// fails to settle. Renaming it here requires the matching change in Hyperswitch.
+///
+/// The value is the Gate `payment_id`, not a credential. Ecommpay itself ignores it on the
+/// `3ds_result` re-entry; only HS consumes it.
 pub fn authorize_feature_data(route: EcommpayRoute, payment_id: &str) -> Option<Value> {
     let mut value = route_to_feature_data(route)?;
     value.as_object_mut()?.insert(
@@ -515,7 +536,7 @@ pub fn route_from_feature_data(connector_feature_data: Option<&SecretSerdeValue>
 }
 
 // =============================================================================
-// Shared request structs (P-foundation-10)
+// Shared request structs
 // =============================================================================
 //
 // Every `Option` is skipped when `None`, so no `null` ever reaches the wire or the signature.
@@ -545,7 +566,7 @@ pub struct EcommpayAddress {
     pub postal: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct EcommpayCustomer {
     pub id: String,
     pub ip_address: Secret<String, IpAddress>,
@@ -740,9 +761,11 @@ pub struct EcommpayAppleDecryptedToken {
     /// ISO 4217 numeric code, e.g. `978`.
     #[serde(rename = "currencyCode")]
     pub currency_code: String,
-    /// Minor units.
+    /// Minor units. Apple defines this field inside the decrypted token, so it is always
+    /// minor units of `currency_code` and deliberately does not go through the connector's
+    /// `amount_converter` (which encodes Ecommpay's own request convention, not Apple's).
     #[serde(rename = "transactionAmount")]
-    pub transaction_amount: i64,
+    pub transaction_amount: MinorUnit,
     #[serde(rename = "paymentDataType")]
     pub payment_data_type: &'static str,
     #[serde(rename = "deviceManufacturerIdentifier")]
@@ -837,7 +860,7 @@ pub struct EcommpayRecurring {
 }
 
 // =============================================================================
-// Authorize request (P-ThreeDS-02 / P-ThreeDS-03)
+// Authorize request
 // =============================================================================
 
 /// `POST /v2/payment/card/sale` and `/v2/payment/card/auth` body.
@@ -898,7 +921,7 @@ pub fn is_three_ds_completion<T: PaymentMethodDataTypes>(
     request.redirect_response.is_some()
 }
 
-/// `G-ThreeDS-06`: `general.payment_id` is the UCS reference, 1–255 characters.
+/// `general.payment_id` is the UCS reference, 1–255 characters.
 fn payment_id(common: &PaymentFlowData) -> Result<String, error_stack::Report<IntegrationError>> {
     let reference = common.connector_request_reference_id.clone();
     let length = reference.chars().count();
@@ -908,13 +931,13 @@ fn payment_id(common: &PaymentFlowData) -> Result<String, error_stack::Report<In
     Ok(reference)
 }
 
-/// Guards shared by both Authorize legs (G-ThreeDS-01, -08), plus the payment-leg-only amount
-/// guard G-ThreeDS-02 (the 3ds_result completion carries no amount and also completes a
+/// Guards shared by both Authorize legs (capture method and merchant-initiated), plus the
+/// payment-leg-only amount guard (the 3ds_result completion carries no amount and also completes a
 /// zero-amount account verification).
 fn check_common_guards<T: PaymentMethodDataTypes>(
     request: &PaymentsAuthorizeData<T>,
 ) -> Result<(), error_stack::Report<IntegrationError>> {
-    // G-ThreeDS-01: multiple partial captures and scheduled capture are not offered.
+    // Multiple partial captures and scheduled capture are not offered.
     if let Some(method @ (CaptureMethod::ManualMultiple | CaptureMethod::Scheduled)) =
         request.capture_method
     {
@@ -931,7 +954,7 @@ fn check_common_guards<T: PaymentMethodDataTypes>(
             }
         ));
     }
-    // G-ThreeDS-02: payment.amount is 1..10^13 minor units; zero and negative are refused on
+    // payment.amount is 1..10^13 minor units; zero and negative are refused on
     // the payment leg only.
     let minor_amount = request.amount.amount.get_amount_as_i64();
     if !is_three_ds_completion(request) && minor_amount <= 0 {
@@ -940,7 +963,7 @@ fn check_common_guards<T: PaymentMethodDataTypes>(
             format!("payment.amount must be a positive integer in minor units, got {minor_amount}"),
         ));
     }
-    // G-ThreeDS-08: a merchant-initiated payment goes through RepeatPayment.
+    // A merchant-initiated payment goes through RepeatPayment.
     if request.mandate_id.is_some() {
         return Err(error_stack::report!(IntegrationError::NotSupported {
             message: "Merchant-initiated payments through Authorize (mandate_id)".to_string(),
@@ -995,11 +1018,10 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             return Ok(Self::ThreeDsResult(Box::new(body)));
         }
 
-        // P-Authorize__Wallet-07: the payment instrument, every arm matched explicitly.
+        // The payment instrument, every arm matched explicitly.
         let source = payment_source(request)?;
 
-        // G-ThreeDS-03 / -04, G-Authorize__Wallet-03 / -04 (customer id and IP are required on
-        // every Gate payment, card or wallet).
+        // Customer id and IP are required on every Gate payment, card or wallet.
         let customer_id = required_customer_id(
             common.customer_id.as_ref().or(request.customer_id.as_ref()),
             "Ecommpay requires customer.id on every payment (CustomerInfoCard)",
@@ -1015,7 +1037,8 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 )
             })?;
 
-        // G-ThreeDS-05 (card without an external 3DS result) and G-Authorize__Wallet-08
+        // A card without an external 3DS result, and a wallet token the issuer may still
+        // challenge,
         // (PSP-decrypted Google Pay): Ecommpay may interpose 3-D Secure. The Gate echoes
         // return_url.success as the hosted acs page's TermUrl, which receives the PaRes+MD
         // post-back, so it is the complete-authorize URL (the orchestrator then re-enters
@@ -1035,7 +1058,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                      decline are needed to bring the customer back",
                 ));
             }
-            // G-Authorize__Wallet-08 only: the card arm (G-ThreeDS-05) needs return_url alone.
+            // Wallet arm only: the card arm needs return_url alone.
             if matches!(source, EcommpayPaymentSource::GooglePayToken(_))
                 && non_empty(request.complete_authorize_url.clone()).is_none()
             {
@@ -1047,7 +1070,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             }
         }
 
-        // G-ThreeDS-09: external 3DS result, a card-payment input only. A decrypted wallet
+        // External 3DS result, a card-payment input only. A decrypted wallet
         // carries its own cryptogram and ECI in its etoken.
         let authentication_data = match &source {
             EcommpayPaymentSource::Card(_) => request
@@ -1059,15 +1082,15 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 None
             }
         };
-        // G-ThreeDS-10: dynamic descriptor.
+        // Dynamic descriptor.
         let merchant = build_merchant(request)?;
-        // G-ThreeDS-11 + L2/L3.
+        // Receipt data (L2/L3 line items).
         let receipt_data = build_receipt_data(request, common)?;
 
         let amount = item
             .connector
             .amount_converter
-            .convert(request.amount.amount, request.currency)
+            .convert(request.amount.amount, request.amount.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
@@ -1084,7 +1107,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             ip_address,
         )?;
 
-        // G-Authorize__Wallet-07: a PAYMENT_GATEWAY Google Pay token needs customer.email.
+        // A PAYMENT_GATEWAY Google Pay token needs customer.email.
         if matches!(source, EcommpayPaymentSource::GooglePayToken(_)) && customer.email.is_none() {
             return Err(missing_field(
                 "email",
@@ -1108,7 +1131,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             customer,
             payment: EcommpayPaymentInfo {
                 amount,
-                currency: request.currency,
+                currency: request.amount.currency,
                 description: description(common),
             },
             return_url: router_return_url.map(|decline| EcommpayReturnUrl {
@@ -1171,7 +1194,7 @@ fn build_card<T: PaymentMethodDataTypes>(
 }
 
 // =============================================================================
-// Wallets (P-Authorize__Wallet-03 / -04 / -05 / -07)
+// Wallets
 // =============================================================================
 
 const APPLE_PAY_DOC_URL: &str = "https://developers.ecommpay.com/en/pm_applepay.html";
@@ -1218,11 +1241,9 @@ fn payment_source<T: PaymentMethodDataTypes>(
 ) -> Result<EcommpayPaymentSource<T>, error_stack::Report<IntegrationError>> {
     match &request.payment_method_data {
         PaymentMethodData::Card(card) => Ok(EcommpayPaymentSource::Card(build_card(card)?)),
-        PaymentMethodData::Wallet(wallet) => wallet_source(
-            wallet,
-            request.currency,
-            request.amount.amount.get_amount_as_i64(),
-        ),
+        PaymentMethodData::Wallet(wallet) => {
+            wallet_source(wallet, request.amount.currency, request.amount.amount)
+        }
         PaymentMethodData::CardWithNoCvc(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
@@ -1251,7 +1272,7 @@ fn payment_source<T: PaymentMethodDataTypes>(
 fn wallet_source<T: PaymentMethodDataTypes>(
     wallet: &WalletData,
     currency: Currency,
-    minor_amount: i64,
+    minor_amount: MinorUnit,
 ) -> Result<EcommpayPaymentSource<T>, error_stack::Report<IntegrationError>> {
     match wallet {
         WalletData::ApplePay(apple_pay) => match &apple_pay.payment_data {
@@ -1323,7 +1344,7 @@ fn wallet_source<T: PaymentMethodDataTypes>(
 /// Apple Pay PSP decryption (spec "1. Apple Pay — gateway (PSP) decryption"). Hyperswitch
 /// carries `paymentData` Base64-encoded; Ecommpay wants the whole Apple Pay token
 /// (`paymentData`, `paymentMethod`, `transactionIdentifier`) as a JSON string, not Base64.
-/// G-Authorize__Wallet-05: anything that is not Base64 JSON is refused.
+/// anything that is not Base64 JSON is refused.
 fn apple_pay_etoken(
     apple_pay: &ApplePayWalletData,
     encrypted_payment_data: &str,
@@ -1366,7 +1387,7 @@ fn apple_pay_etoken(
 }
 
 /// Google Pay PSP decryption (spec "2. Google Pay — gateway (PSP) decryption").
-/// G-Authorize__Wallet-06: only a `PAYMENT_GATEWAY` token is accepted; `DIRECT` needs
+/// only a `PAYMENT_GATEWAY` token is accepted; `DIRECT` needs
 /// `etoken.google_merchant_id`, which the payment request does not carry.
 fn google_pay_etoken(
     encrypted: &GpayEncryptedTokenizationData,
@@ -1401,10 +1422,13 @@ fn google_pay_etoken(
     }))
 }
 
-/// How long a Hyperswitch-decrypted Google Pay token is presented as valid. Hyperswitch has
-/// already decrypted it and does not carry Google's own `messageExpiration`, which Ecommpay
-/// requires to be in the future.
-const GOOGLE_PAY_TOKEN_VALIDITY_MS: i64 = 24 * 60 * 60 * 1000;
+/// Placeholder epoch-millis expiry for a Hyperswitch-decrypted Google Pay token. Ecommpay
+/// requires `messageExpiration` to be in the future, but Hyperswitch parses Google's own value
+/// and drops it before forwarding to UCS (`GooglePayDecryptedData` has no such field), so it
+/// cannot be passed through -- tracked in juspay/hyperswitch#11684. A fixed far-future value is
+/// sent, as paypal and paysafe already do, rather than a clock-derived one: nothing here knows
+/// the token's real validity, and a constant keeps the transformer deterministic.
+const GOOGLE_PAY_MESSAGE_EXPIRATION_MS: i64 = 9_999_999_999_999;
 
 fn decrypted_wallet_field(
     field_name: &'static str,
@@ -1452,24 +1476,13 @@ fn google_pay_decrypted_etoken(
     } else {
         EcommpayGoogleAuthMethod::PanOnly
     };
-    let message_expiration = date_time::now()
-        .assume_utc()
-        .unix_timestamp()
-        .checked_mul(1000)
-        .and_then(|now_ms| now_ms.checked_add(GOOGLE_PAY_TOKEN_VALIDITY_MS))
-        .ok_or_else(|| {
-            invalid_format(
-                "messageExpiration",
-                "the Google Pay token expiry could not be computed".to_string(),
-            )
-        })?;
     Ok(EcommpayEtoken::GoogleDecrypted(
         EcommpayGoogleDecryptedEtoken {
             google_gateway_type: "gateway",
             google_gateway_id: "ecommpay",
             google_tokenization_type: EcommpayGoogleTokenizationType::PaymentGateway,
             decrypted_token: EcommpayGoogleDecryptedToken {
-                message_expiration,
+                message_expiration: GOOGLE_PAY_MESSAGE_EXPIRATION_MS,
                 payment_method_details: EcommpayGooglePaymentMethodDetails {
                     pan: decrypted.application_primary_account_number.clone(),
                     expiration_month: Secret::new(expiration_month),
@@ -1500,7 +1513,7 @@ fn last_day_of_month(year: u16, month: u8) -> u8 {
 fn apple_pay_decrypted_etoken(
     decrypted: &ApplePayDecryptedData,
     currency: Currency,
-    minor_amount: i64,
+    minor_amount: MinorUnit,
 ) -> Result<EcommpayEtoken, error_stack::Report<IntegrationError>> {
     if decrypted
         .application_primary_account_number
@@ -1715,7 +1728,7 @@ fn build_customer(
     })
 }
 
-/// `merchant.descriptor` (requirement row 28; G-ThreeDS-10).
+/// `merchant.descriptor` (requirement row 28).
 fn build_merchant<T: PaymentMethodDataTypes>(
     request: &PaymentsAuthorizeData<T>,
 ) -> Result<Option<EcommpayMerchant>, error_stack::Report<IntegrationError>> {
@@ -1746,7 +1759,7 @@ fn build_merchant<T: PaymentMethodDataTypes>(
     Ok(Some(EcommpayMerchant { descriptor }))
 }
 
-/// `receipt_data` (requirement row 27; G-ThreeDS-11). Each position's `amount` is the line
+/// `receipt_data` (requirement row 27). Each position's `amount` is the line
 /// total, unit amount × quantity, computed with checked arithmetic.
 fn build_receipt_data<T: PaymentMethodDataTypes>(
     request: &PaymentsAuthorizeData<T>,
@@ -1817,7 +1830,7 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
     }))
 }
 
-/// External 3DS result (requirement row 10; G-ThreeDS-09).
+/// External 3DS result (requirement row 10).
 fn build_authentication_data(
     data: &AuthenticationData,
 ) -> Result<EcommpayAuthenticationData, error_stack::Report<IntegrationError>> {
@@ -1910,7 +1923,7 @@ fn build_recurring<T: PaymentMethodDataTypes>(
     })
 }
 
-/// The 3DS completion body (P-ThreeDS-03; G-ThreeDS-07). `cres` (3DS 2) wins; otherwise
+/// The 3DS completion body. `cres` (3DS 2) wins; otherwise
 /// `PaRes` (+ `MD`) for 3DS 1. Keys are matched case-insensitively; values are never logged.
 fn build_three_ds_result<T: PaymentMethodDataTypes>(
     request: &PaymentsAuthorizeData<T>,
@@ -1965,7 +1978,7 @@ fn build_three_ds_result<T: PaymentMethodDataTypes>(
 }
 
 // =============================================================================
-// Acceptance response (P-ThreeDS-08)
+// Acceptance response
 // =============================================================================
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -2014,14 +2027,23 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<EcommpayAcceptanceRes
             )));
         }
         let status = acceptance_status(response.status);
-        // P-Authorize__Wallet-06: the path family the payment was created on, for
-        // Capture / Void / Refund. The same function picks the Authorize URL.
+        // The path family the payment was created on, for Capture / Void / Refund. The same
+        // function picks the Authorize URL.
+        //
+        // Only the initial sale/auth leg may write this. On the 3DS completion leg Hyperswitch
+        // re-enters Authorize with a Token payment method (the wallet is gone), so
+        // `authorize_route` would fall to its `Card` arm and overwrite the stored
+        // `applepay`/`googlepay` route -- sending a later capture/void/refund of a 3DS'd wallet
+        // payment to `/v2/payment/card/*`. Leaving it unset keeps what the first leg stored.
         let route = authorize_route(&item.router_data.request.payment_method_data);
+        let connector_metadata = (!is_three_ds_completion(&item.router_data.request))
+            .then(|| authorize_feature_data(route, &response.payment_id))
+            .flatten();
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.payment_id.clone()),
                 redirection_data: None,
-                connector_metadata: authorize_feature_data(route, &response.payment_id),
+                connector_metadata,
                 mandate_reference: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
@@ -2041,11 +2063,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<EcommpayAcceptanceRes
 }
 
 // =============================================================================
-// SetupMandate (P-SetupMandate-02 / -03)
+// SetupMandate
 // =============================================================================
 
 /// `POST /v2/payment/card/account_verification` body: a zero-amount card verification that
-/// registers the card for COF purchases on the platform (`recurring.register`, UD-04).
+/// registers the card for COF purchases on the platform (`recurring.register`).
 #[derive(Debug, Clone, Serialize)]
 pub struct EcommpayAccountVerificationRequest<T: PaymentMethodDataTypes> {
     pub general: EcommpayGeneral,
@@ -2128,14 +2150,14 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             }
         };
 
-        // G-SetupMandate-01: customer.id is required, and every later COF debit must reuse it.
+        // customer.id is required, and every later COF debit must reuse it.
         let customer_id = required_customer_id(
             common.customer_id.as_ref().or(request.customer_id.as_ref()),
             "Ecommpay requires customer.id on account verification; the same id must be \
                  sent on every later COF purchase",
         )?;
 
-        // G-SetupMandate-02: customer.ip_address is required.
+        // customer.ip_address is required.
         let ip_address = request
             .browser_info
             .as_ref()
@@ -2148,7 +2170,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 )
             })?;
 
-        // G-SetupMandate-03: 3-D Secure may interpose on the verification (the sandbox forces
+        // 3-D Secure may interpose on the verification (the sandbox forces
         // it). The hosted acs page posts PaRes+MD to term_url = return_url.success, which is
         // the complete-authorize URL (Authorize re-entry -> 3ds_result at amount 0) when given;
         // router_return_url is required for return_url.decline.
@@ -2161,24 +2183,35 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
-        // G-SetupMandate-04: general.payment_id is 1-255 characters.
+        // general.payment_id is 1-255 characters.
         let payment_id = payment_id(common)?;
         let auth = EcommpayAuthType::try_from(&router_data.connector_config)?;
 
         // payment.amount must be 0 on account verification (AccountVerificationPaymentInfo:
-        // min 0, max 0). A requested non-zero amount is not sent; say so instead of dropping it
-        // silently.
+        // min 0, max 0). A requested non-zero amount cannot be charged on this route, so it is
+        // refused rather than quietly replaced with 0 and reported as a success.
         if let Some(requested) = request
             .amount
             .as_ref()
             .map(|money| money.amount.get_amount_as_i64())
             .filter(|minor_amount| *minor_amount != 0)
         {
-            tracing::warn!(
-                requested_minor_amount = requested,
-                "Ecommpay: account verification is always zero-amount; the requested \
-                 SetupMandate amount is not sent"
-            );
+            return Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "A non-zero amount on SetupMandate".to_string(),
+                connector: CONNECTOR_NAME,
+                context: context(
+                    Some(
+                        "Use SetupMandate with a zero amount to verify the account, then charge \
+                         the mandate with RepeatPayment.",
+                    ),
+                    ACCOUNT_VERIFICATION_DOC_URL,
+                    format!(
+                        "Ecommpay account verification is always zero-amount \
+                         (AccountVerificationPaymentInfo.amount: min 0, max 0); the requested \
+                         {requested} minor units cannot be charged on this route"
+                    ),
+                ),
+            }));
         }
 
         let customer = build_customer(
@@ -2279,7 +2312,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<EcommpaySetupMandateR
 }
 
 // =============================================================================
-// RepeatPayment (P-RepeatPayment-01 / -02 / -03 / -04)
+// RepeatPayment
 // =============================================================================
 
 const COF_PURCHASE_DOC_URL: &str = "https://developers.ecommpay.com/en/en_Gate__cof_purchase.html";
@@ -2335,9 +2368,8 @@ fn network_token_mit_not_supported() -> error_stack::Report<IntegrationError> {
 }
 
 /// Selects the Gate call, refusing what Ecommpay cannot do before any request is built:
-/// `G-RepeatPayment-08` (multiple / scheduled capture), `G-RepeatPayment-09` (manual capture of a
-/// `recurring.id` debit — `/v2/payment/card/recurring` has no hold variant) and the
-/// network-token MIT arm.
+/// multiple / scheduled capture, manual capture of a `recurring.id` debit
+/// (`/v2/payment/card/recurring` has no hold variant) and the network-token MIT arm.
 pub fn repeat_payment_operation<T: PaymentMethodDataTypes>(
     request: &RepeatPaymentData<T>,
 ) -> Result<EcommpayRepeatPaymentOperation, error_stack::Report<IntegrationError>> {
@@ -2400,7 +2432,7 @@ pub enum EcommpayRepeatPaymentRequest<T: PaymentMethodDataTypes> {
 /// call; the alias gives the RepeatPayment flow its own name in the connector macros.
 pub type EcommpayRepeatPaymentResponse = EcommpayAcceptanceResponse;
 
-/// `G-RepeatPayment-04` / `-05`: `recurring.id` is the connector mandate id, an integer.
+/// `recurring.id` is the connector mandate id, an integer.
 fn recurring_id(
     connector_mandate_id: Option<String>,
 ) -> Result<u64, error_stack::Report<IntegrationError>> {
@@ -2425,13 +2457,13 @@ fn recurring_id(
     })
 }
 
-/// `card` of a merchant-stored COF debit (`G-RepeatPayment-06` / `-07`).
+/// `card` of a merchant-stored COF debit.
 fn stored_card<T: PaymentMethodDataTypes>(
     request: &RepeatPaymentData<T>,
     reference: &NetworkMandateIdRef,
     operation: EcommpayRepeatPaymentOperation,
 ) -> Result<EcommpayStoredCard<T>, error_stack::Report<IntegrationError>> {
-    // G-RepeatPayment-07: the merchant stores the card, so the debit carries it.
+    // The merchant stores the card, so the debit carries it.
     let (pan, exp_month, exp_year, card_holder) = match &request.payment_method_data {
         PaymentMethodData::CardDetailsForNetworkTransactionId(card) => (
             card.card_number.clone(),
@@ -2472,7 +2504,7 @@ fn stored_card<T: PaymentMethodDataTypes>(
         }
     };
 
-    // G-RepeatPayment-06: an absent NTID is refused, never dropped; values are never logged.
+    // An absent NTID is refused, never dropped; values are never logged.
     let scheme_id = reference.network_transaction_id.as_str();
     if scheme_id.trim().is_empty() {
         return Err(missing_field(
@@ -2569,10 +2601,11 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let request = &router_data.request;
         let common = &router_data.resource_common_data;
 
-        // G-RepeatPayment-08 / -09 and the refused network-token arm.
+        // Refuses what Ecommpay cannot do: multiple / scheduled capture, manual capture of
+        // a recurring.id debit, and the network-token MIT arm.
         let operation = repeat_payment_operation(request)?;
 
-        // G-RepeatPayment-01: PaymentInfoRecurring amount >= 1 minor unit.
+        // PaymentInfoRecurring amount >= 1 minor unit.
         let minor_amount = request.amount.amount.get_amount_as_i64();
         if minor_amount <= 0 {
             return Err(invalid_format(
@@ -2583,7 +2616,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             ));
         }
 
-        // G-RepeatPayment-02: customer.id must be the id the card was registered under.
+        // customer.id must be the id the card was registered under.
         let customer_id = required_customer_id(
             common.customer_id.as_ref().or(request
                 .customer
@@ -2593,7 +2626,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                  COF registration",
         )?;
 
-        // G-RepeatPayment-03: customer.ip_address is required.
+        // customer.ip_address is required.
         let ip_address = request
             .browser_info
             .as_ref()
@@ -2629,7 +2662,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request.amount.amount, request.currency)
+            .convert(request.amount.amount, request.amount.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
@@ -2644,27 +2677,15 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             signature: None,
             merchant_callback_url: non_empty(request.webhook_url.clone()),
         };
+        // RepeatPayment is merchant-initiated: no browser, address or contact data is sent.
         let customer = EcommpayCustomer {
             id: customer_id,
             ip_address,
-            email: None,
-            phone: None,
-            screen_res: None,
-            first_name: None,
-            last_name: None,
-            billing: None,
-            shipping: None,
-            accept_header: None,
-            browser: None,
-            language: None,
-            color_depth: None,
-            java_enabled: None,
-            js_enabled: None,
-            timezone_offset: None,
+            ..Default::default()
         };
         let payment = EcommpayPaymentInfo {
             amount,
-            currency: request.currency,
+            currency: request.amount.currency,
             description: description(common),
         };
 
@@ -2748,7 +2769,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<EcommpayRepeatPayment
 }
 
 // =============================================================================
-// Capture (P-Capture-02 / -03)
+// Capture
 // =============================================================================
 
 /// `payment` object of a capture: the amount to debit from the hold and its currency.
@@ -2764,7 +2785,7 @@ pub type EcommpayCaptureResponse = EcommpayAcceptanceResponse;
 
 /// `POST /v2/payment/{card|applepay|googlepay}/capture` body.
 ///
-/// `payment.amount` is always sent (UD-21): the Gate treats an amount equal to the hold as a
+/// `payment.amount` is always sent: the Gate treats an amount equal to the hold as a
 /// full capture and a smaller one as a partial capture, so one body shape covers both and no
 /// full-vs-partial routing decision is made here.
 #[derive(Debug, Clone, Serialize)]
@@ -2816,9 +2837,9 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        // G-Capture-01: the hold being captured.
+        // The hold being captured.
         let payment_id = capture_payment_id(&request.connector_transaction_id)?;
-        // G-Capture-02: the Gate accepts 1..=10^13 minor units; a zero or negative capture is
+        // The Gate accepts 1..=10^13 minor units; a zero or negative capture is
         // refused here instead of being sent.
         let amount_to_capture = request.amount_to_capture.amount;
         if amount_to_capture <= MinorUnit::zero() {
@@ -2835,7 +2856,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 ),
             }));
         }
-        let currency = request.currency;
+        let currency = request.amount_to_capture.currency;
         let amount = item
             .connector
             .amount_converter
@@ -2910,7 +2931,7 @@ impl TryFrom<ResponseRouterData<EcommpayCaptureResponse, Self>>
 }
 
 // =============================================================================
-// Void (P-Void-02 / -03)
+// Void
 // =============================================================================
 
 /// The cancel acceptance is the same `GateSuccessResponse` as every payment-processing call;
@@ -2920,7 +2941,7 @@ pub type EcommpayVoidResponse = EcommpayAcceptanceResponse;
 /// `POST /v2/payment/{card|applepay|googlepay}/cancel` body: `general` only, which releases
 /// the whole hold.
 ///
-/// `payment.amount` is never sent (UD-20): on a cancel it does not void the payment, it
+/// `payment.amount` is never sent: on a cancel it does not void the payment, it
 /// creates a decremental operation that only lowers the hold.
 #[derive(Debug, Clone, Serialize)]
 pub struct EcommpayVoidRequest {
@@ -2944,7 +2965,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        // G-Void-01: the hold being released, addressed by the original payment's
+        // The hold being released, addressed by the original payment's
         // general.payment_id (the connector transaction id Authorize returned).
         let payment_id =
             non_empty(Some(request.connector_transaction_id.clone())).ok_or_else(|| {
@@ -2961,7 +2982,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                     ),
                 })
             })?;
-        // UD-20: a supplied amount is not sent — the cancel always releases the full hold.
+        // A supplied amount is not sent — the cancel always releases the full hold.
         if request.amount.is_some() {
             tracing::warn!(
                 connector = CONNECTOR_NAME,
@@ -3026,7 +3047,7 @@ impl TryFrom<ResponseRouterData<EcommpayVoidResponse, Self>>
 }
 
 // =============================================================================
-// Refund (P-Refund-02 / -03)
+// Refund
 // =============================================================================
 
 /// The refund acceptance is the same `GateSuccessResponse` as every payment-processing call;
@@ -3072,7 +3093,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        // G-Refund-01: the purchase being refunded, addressed by its general.payment_id (the
+        // The purchase being refunded, addressed by its general.payment_id (the
         // connector transaction id Authorize returned).
         let payment_id =
             non_empty(Some(request.connector_transaction_id.clone())).ok_or_else(|| {
@@ -3089,7 +3110,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                     ),
                 })
             })?;
-        // G-Refund-02: a zero or negative refund is refused here instead of being sent.
+        // A zero or negative refund is refused here instead of being sent.
         let refund_amount = request.refund_amount.amount;
         if refund_amount <= MinorUnit::zero() {
             return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
@@ -3105,7 +3126,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 ),
             }));
         }
-        // G-Refund-03: payment.merchant_refund_id is 1-255 characters; never truncated.
+        // payment.merchant_refund_id is 1-255 characters; never truncated.
         let merchant_refund_id = non_empty(Some(request.refund_id.clone()));
         if let Some(refund_id) = &merchant_refund_id {
             let length = refund_id.chars().count();
@@ -3113,21 +3134,18 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 return Err(too_long("merchant_refund_id", MAX_ID_LENGTH, length));
             }
         }
-        // UD-16: payment.description is required by the Gate (RefundPaymentInfo). Without it the
-        // sandbox accepts the call but never registers the refund, so a missing reason is refused
-        // up front rather than filled with a made-up value. A reason over the 255-character
-        // limit is refused rather than truncated.
-        let description = non_empty(request.reason.clone()).ok_or_else(|| {
-            missing_field(
-                "reason",
-                "Ecommpay requires payment.description (the refund reason) on every refund",
-            )
-        })?;
+        // payment.description is required by the Gate (RefundPaymentInfo): without it the sandbox
+        // accepts the call but never registers the refund. Hyperswitch `reason` is optional, so
+        // omitting it must not fail the refund either -- fall back to a fixed label, which is a
+        // description of the operation rather than invented transaction data. A reason over the
+        // 255-character limit is still refused rather than truncated.
+        let description =
+            non_empty(request.reason.clone()).unwrap_or_else(|| REFUND_DESCRIPTION.to_string());
         let description_length = description.chars().count();
         if description_length > MAX_ID_LENGTH {
             return Err(too_long("reason", MAX_ID_LENGTH, description_length));
         }
-        let currency = request.currency;
+        let currency = request.refund_amount.currency;
         let amount = item
             .connector
             .amount_converter
@@ -3186,7 +3204,7 @@ impl TryFrom<ResponseRouterData<EcommpayRefundResponse, Self>>
         }
         // An acceptance only: the refund result (operation refund/reversal success or decline)
         // is read by RSync or delivered by callback. The refund is identified by this
-        // request_id, which RSync matches against operations[].request_id (UD-03).
+        // request_id, which RSync matches against operations[].request_id.
         let refund_status = refund_acceptance_status(response.status);
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -3205,7 +3223,7 @@ impl TryFrom<ResponseRouterData<EcommpayRefundResponse, Self>>
 }
 
 // =============================================================================
-// Error body (P-foundation-09)
+// Error body
 // =============================================================================
 
 /// "Clients must accept error codes as either strings or numbers."
@@ -3312,7 +3330,7 @@ impl EcommpayErrorResponse {
 }
 
 // =============================================================================
-// Status response, callbacks and status mapping (P-foundation-12 / -13 / -14)
+// Status response, callbacks and status mapping
 // =============================================================================
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -3480,7 +3498,8 @@ pub struct EcommpayAccount {
 pub struct EcommpayRecurringInfo {
     pub id: u64,
     pub currency: Option<Currency>,
-    pub valid_thru: Option<String>,
+    /// Expiry date of the stored credential's card.
+    pub valid_thru: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3543,28 +3562,68 @@ pub struct EcommpayStatusResponse {
 
 /// The raw status body, kept as JSON until its signature has been verified.
 /// `Serialize` (connector event log) and `Debug` (the shared macro's `response from connector` log
-/// line) both mask card/holder/token data (TH-01).
+/// line) both mask card/holder/token data.
 #[derive(Clone, Deserialize)]
 #[serde(transparent)]
 pub struct EcommpayRawStatusResponse(pub Value);
 
-const STATUS_LOG_MASKED_KEYS: &[&str] = &[
-    "token",
-    "card_holder",
-    "scheme_id",
-    "transaction_link_id",
-    "signature",
-    "email",
-    "phone",
+const STATUS_LOG_MASK: &str = "*** masked ***";
+
+/// Keys of the status/callback body that may be logged in clear; every other key is masked.
+///
+/// This is an allowlist on purpose. A denylist logs in clear whatever it fails to name, which
+/// over this body would mean `acs.pa_req`, `acs.md`, `threeds2.redirect.params`,
+/// `threeds2.iframe`, `redirect_data.body` and any field Ecommpay adds later. Defaulting to
+/// masked means a new sensitive field cannot leak by simply not being listed here.
+///
+/// The first group is containers, which are walked into rather than kept; the second is the
+/// non-sensitive leaves worth having in a log.
+const STATUS_LOG_CLEAR_KEYS: &[&str] = &[
+    "payment",
+    "operation",
+    "operations",
+    "provider",
+    "sum",
+    "sum_initial",
+    "account",
+    "recurring",
+    "acs",
+    "threeds2",
+    "redirect",
+    "redirect_data",
+    "avs_data",
+    "last_failed_request",
+    "errors",
+    "id",
+    "type",
+    "status",
+    "method",
+    "amount",
+    "currency",
+    "merchant_refund_id",
+    "request_id",
+    "code",
+    "message",
+    "eci",
+    "auth_code",
+    "result_code",
+    "result_message",
+    "payment_id",
+    "field",
+    "constraint",
+    "acs_url",
+    "term_url",
+    "url",
+    "avs_result",
 ];
 
 fn mask_status_log_value(value: &mut Value) {
     match value {
         Value::Object(map) => map.iter_mut().for_each(|(key, inner)| {
-            if STATUS_LOG_MASKED_KEYS.contains(&key.as_str()) && !inner.is_null() {
-                *inner = Value::String("*** masked ***".to_string());
-            } else {
+            if STATUS_LOG_CLEAR_KEYS.contains(&key.as_str()) {
                 mask_status_log_value(inner);
+            } else if !inner.is_null() {
+                *inner = Value::String(STATUS_LOG_MASK.to_string());
             }
         }),
         Value::Array(items) => items.iter_mut().for_each(mask_status_log_value),
@@ -3704,7 +3763,7 @@ pub fn error_from_operation(
 }
 
 // =============================================================================
-// PSync (P-PSync-02 / -03 / -04)
+// PSync
 // =============================================================================
 
 /// `POST /v2/payment/status` body.
@@ -3730,7 +3789,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        // G-PSync-01: the status is addressed by the general.payment_id Authorize sent, which
+        // The status is addressed by the general.payment_id Authorize sent, which
         // Authorize returned as the connector transaction id.
         let payment_id = match &router_data.request.connector_transaction_id {
             ResponseId::ConnectorTransactionId(id) => non_empty(Some(id.clone())),
@@ -3942,7 +4001,7 @@ impl TryFrom<ResponseRouterData<EcommpayRawStatusResponse, Self>>
         item: ResponseRouterData<EcommpayRawStatusResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let http_code = item.http_code;
-        // P-foundation-14: nothing from an unverified body is used.
+        // Nothing from an unverified body is used.
         let response = verified_status_response(
             &item.response,
             &item.router_data.connector_config,
@@ -3963,7 +4022,7 @@ impl TryFrom<ResponseRouterData<EcommpayRawStatusResponse, Self>>
             })?;
 
         match response.payment.status {
-            // P-PSync-04: a declined payment keeps the creating operation's code, message and
+            // A declined payment keeps the creating operation's code, message and
             // provider result.
             EcommpayPaymentStatus::Decline => {
                 let error = match (creating_operation(&response), status_errors(&response)) {
@@ -3992,9 +4051,9 @@ impl TryFrom<ResponseRouterData<EcommpayRawStatusResponse, Self>>
                     ..item.router_data
                 })
             }
-            // P-PSync-04: `error` fails the attempt, except 3061 "Transaction not found", which
+            // `error` fails the attempt, except 3061 "Transaction not found", which
             // the status request returns while an asynchronous payment is not yet registered —
-            // the attempt status is then left as it was (TH-07).
+            // the attempt status is then left as it was.
             EcommpayPaymentStatus::Error => {
                 let not_found = is_transaction_not_found(&response);
                 let attempt_status = (!not_found).then_some(AttemptStatus::Failure);
@@ -4041,7 +4100,7 @@ impl TryFrom<ResponseRouterData<EcommpayRawStatusResponse, Self>>
                 let redirection_data = if status == AttemptStatus::AuthenticationPending {
                     let form = status_redirect_form(&response);
                     if form.is_none() {
-                        // UD-02: an iframe-only 3DS state has no redirect UCS can hand back.
+                        // An iframe-only 3DS state has no redirect UCS can hand back.
                         tracing::warn!(
                             "Ecommpay: payment awaits 3DS/redirect but the status response \
                              carries no threeds2.redirect, acs or redirect_data; no redirect \
@@ -4052,7 +4111,7 @@ impl TryFrom<ResponseRouterData<EcommpayRawStatusResponse, Self>>
                 } else {
                     None
                 };
-                // P-PSync-03 / UD-04: the platform-stored credential of a verification or of
+                // The platform-stored credential of a verification or of
                 // a purchase that registered a COF series.
                 let registers_credential = response.payment.payment_type
                     == Some(EcommpayPaymentType::AccountVerification)
@@ -4112,7 +4171,7 @@ impl TryFrom<ResponseRouterData<EcommpayRawStatusResponse, Self>>
 }
 
 // =============================================================================
-// RSync (P-RSync-02 / -03)
+// RSync
 // =============================================================================
 
 /// RSync reads the refund from `POST /v2/payment/status` of the original purchase, so its body
@@ -4140,7 +4199,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        // G-RSync-01: the refund is found by the request_id its acceptance returned; without it
+        // The refund is found by the request_id its acceptance returned; without it
         // no operation of the payment can be identified as this refund.
         if non_empty(Some(request.connector_refund_id.clone())).is_none() {
             return Err(error_stack::report!(
@@ -4158,7 +4217,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 }
             ));
         }
-        // G-RSync-02: the status is addressed by the original purchase's general.payment_id.
+        // The status is addressed by the original purchase's general.payment_id.
         let payment_id =
             non_empty(Some(request.connector_transaction_id.clone())).ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingConnectorTransactionID {
@@ -4189,7 +4248,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
 }
 
 /// The refund operation of a status body: type `refund` or `reversal` **and** `request_id`
-/// equal to the connector refund id — never selected by array position (TH-20).
+/// equal to the connector refund id — never selected by array position.
 fn refund_operation<'a>(
     response: &'a EcommpayStatusResponse,
     connector_refund_id: &str,
@@ -4209,7 +4268,7 @@ fn refund_operation<'a>(
 
 /// RSync status table. Exhaustive on purpose: a new upstream status must be classified, never
 /// absorbed by a catch-all. Only `success` and `decline`/`error` are final. Shared with the
-/// refund callback (P-IncomingWebhook-05).
+/// refund callback.
 pub fn map_refund_operation_status(status: EcommpayOperationStatus) -> RefundStatus {
     match status {
         EcommpayOperationStatus::Success => RefundStatus::Success,
@@ -4228,7 +4287,7 @@ pub fn map_refund_operation_status(status: EcommpayOperationStatus) -> RefundSta
 }
 
 /// A refund error carries the refund status, never a payment attempt status: a failed refund
-/// must not move the payment (TH-06).
+/// must not move the payment.
 fn refund_failure(mut error: ErrorResponse) -> ErrorResponse {
     error.attempt_status = Some(FlowStatus::Refund(RefundStatus::Failure));
     error
@@ -4243,7 +4302,7 @@ impl TryFrom<ResponseRouterData<EcommpayRefundSyncResponse, Self>>
         item: ResponseRouterData<EcommpayRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let http_code = item.http_code;
-        // P-foundation-14: nothing from an unverified body is used.
+        // Nothing from an unverified body is used.
         let response = verified_status_response(
             &item.response,
             &item.router_data.connector_config,
@@ -4283,7 +4342,7 @@ impl TryFrom<ResponseRouterData<EcommpayRefundSyncResponse, Self>>
                     ))),
                 ),
                 // Requirement row 30: the refund operation is not listed yet (asynchronous
-                // registration) — a sync miss is never terminal (TH-07).
+                // registration) — a sync miss is never terminal.
                 None => {
                     tracing::warn!(
                         "Ecommpay: no refund/reversal operation with the connector refund id \
@@ -4315,7 +4374,7 @@ impl TryFrom<ResponseRouterData<EcommpayRefundSyncResponse, Self>>
 }
 
 // =============================================================================
-// Callbacks (P-IncomingWebhook-01 .. -06)
+// Callbacks
 // =============================================================================
 //
 // Ecommpay posts three unrelated body shapes to the merchant: payment/operation callbacks
@@ -4344,7 +4403,7 @@ pub enum EcommpayChargebackEvent {
 }
 
 /// Chargeback callback: only the event is read. Its `chargebacks[].operation_id` is an
-/// Ecommpay operation id, not a payment id, so it is never used as a reference (UD-10).
+/// Ecommpay operation id, not a payment id, so it is never used as a reference.
 #[derive(Debug, Clone, Deserialize)]
 pub struct EcommpayChargebackCallback {
     pub event: EcommpayChargebackEvent,
@@ -4407,7 +4466,7 @@ fn operation_outcome(status: EcommpayOperationStatus) -> OperationOutcome {
         | EcommpayOperationStatus::AwaitingClarification
         | EcommpayOperationStatus::AwaitingCustomer
         | EcommpayOperationStatus::AwaitingCapture => OperationOutcome::Processing,
-        // Undocumented: classified as in progress, never as a terminal state (review rule 7).
+        // Undocumented: classified as in progress, never as a terminal state.
         EcommpayOperationStatus::Unknown => {
             tracing::warn!(
                 "Ecommpay: callback carries an undocumented operation.status; treated as \
@@ -4591,7 +4650,7 @@ pub fn webhook_reference(
 
 /// Payment callback details (HandleEvent phase). The status comes from the shared
 /// `payment.status` table, exactly as PSync reads it; a declined or failed operation keeps
-/// its own code, message and provider result (review rule 2).
+/// its own code, message and provider result.
 pub fn payment_webhook_details(
     response: &EcommpayStatusResponse,
 ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
@@ -4637,6 +4696,22 @@ pub fn payment_webhook_details(
         Some(error) => (Some(error.code), Some(error.message), error.reason),
         None => (None, None, None),
     };
+    // `payment.sum` is the amount currently standing on the payment, so on a charged payment it
+    // is what was actually captured -- a partial capture reports the captured part rather than
+    // the full authorised amount. It is NOT the captured amount once money has been sent back:
+    // a refund reduces `payment.sum` while `payment.status` stays `success`, so a refund
+    // operation is excluded instead of under-reporting the capture.
+    let settles_capture = status == AttemptStatus::Charged
+        && !response.operation.as_ref().is_some_and(is_refund_operation);
+    let amount_captured = response
+        .payment
+        .sum
+        .as_ref()
+        .filter(|_| settles_capture)
+        .map(|sum| Money {
+            amount: sum.amount,
+            currency: sum.currency,
+        });
     Ok(WebhookDetailsResponse {
         resource_id: Some(ResponseId::ConnectorTransactionId(payment_id.clone())),
         status,
@@ -4650,7 +4725,7 @@ pub fn payment_webhook_details(
         raw_connector_response: None,
         status_code: CALLBACK_STATUS_CODE,
         response_headers: None,
-        amount_captured: None,
+        amount_captured,
         network_txn_id,
         payment_method_update: None,
         sender_payment_instrument_id: None,

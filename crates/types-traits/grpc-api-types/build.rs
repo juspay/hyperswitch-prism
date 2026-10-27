@@ -72,17 +72,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ".types.SecretString",
         "::hyperswitch_masking::Secret<String>",
     );
-    // WebhookSecrets carries the connector's signing key; keep it out of logs
-    // (masked_serialize) without changing the proto wire type.
-    config.field_attribute(
-        ".types.WebhookSecrets.secret",
-        "#[serde(serialize_with = \"crate::masked_fields::secret_string\")]",
-    );
-    config.field_attribute(
-        ".types.WebhookSecrets.additional_secret",
-        "#[serde(serialize_with = \"crate::masked_fields::optional_secret_string\")]",
-    );
-
     // Add serde rename_all = "snake_case" for oneof enum types to output proper proto JSON
     // This ensures variant names like "ApplePay" serialize as "apple_pay"
     config.type_attribute(

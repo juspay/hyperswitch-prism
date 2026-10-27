@@ -240,37 +240,47 @@ macros::create_all_prerequisites!(
 
         /// The configured base URL without its trailing `/`, so `{base}{/v2/...}` emits one
         /// slash. A per-merchant `base_url` in the Ecommpay config takes precedence.
+        ///
+        /// The two wrappers below exist only because the flow-data type differs between the
+        /// payment and refund flows and nothing both implement exposes `connectors`.
         pub fn connector_base_url_payments<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
         ) -> &'a str {
-            let configured = match &req.connector_config {
-                ConnectorSpecificConfig::Ecommpay {
-                    base_url: Some(base_url),
-                    ..
-                } => base_url.as_str(),
-                _ => req.resource_common_data.connectors.ecommpay.base_url.as_str(),
-            };
-            configured.trim_end_matches('/')
+            ecommpay_base_url(
+                &req.connector_config,
+                &req.resource_common_data.connectors,
+            )
         }
 
-        /// [`Self::connector_base_url_payments`] for the refund flows, with the same
-        /// per-merchant `base_url` precedence.
+        /// [`Self::connector_base_url_payments`] for the refund flows.
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
         ) -> &'a str {
-            let configured = match &req.connector_config {
-                ConnectorSpecificConfig::Ecommpay {
-                    base_url: Some(base_url),
-                    ..
-                } => base_url.as_str(),
-                _ => req.resource_common_data.connectors.ecommpay.base_url.as_str(),
-            };
-            configured.trim_end_matches('/')
+            ecommpay_base_url(
+                &req.connector_config,
+                &req.resource_common_data.connectors,
+            )
         }
     }
 );
+
+/// The Ecommpay base URL to call, with any trailing `/` removed: a per-merchant `base_url` in
+/// the connector config wins over the environment default.
+fn ecommpay_base_url<'a>(
+    connector_config: &'a ConnectorSpecificConfig,
+    connectors: &'a Connectors,
+) -> &'a str {
+    let configured = match connector_config {
+        ConnectorSpecificConfig::Ecommpay {
+            base_url: Some(base_url),
+            ..
+        } => base_url.as_str(),
+        _ => connectors.ecommpay.base_url.as_str(),
+    };
+    configured.trim_end_matches('/')
+}
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type],
@@ -312,7 +322,7 @@ macros::macro_connector_implementation!(
                 Some(CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic) | None => {
                     SALE_OR_AUTH_SALE
                 }
-                    // Refused by G-ThreeDS-01 while the body is built; never reaches the wire.
+                    // Refused while the body is built; never reaches the wire.
                     Some(CaptureMethod::ManualMultiple | CaptureMethod::Scheduled) => {
                         return Err(errors::IntegrationError::CaptureMethodNotSupported {
                             context: errors::IntegrationErrorContext {
@@ -362,7 +372,7 @@ macros::macro_connector_implementation!(
 );
 
 // PSync: `POST /v2/payment/status`. The response is kept as raw JSON until its `signature` is
-// verified (P-foundation-14); a 4xx/5xx leaves `attempt_status` unset, so the router keeps the
+// verified; a 4xx/5xx leaves `attempt_status` unset, so the router keeps the
 // status it already had.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -491,10 +501,11 @@ macros::macro_connector_implementation!(
             ))
         }
 
-        /// A 4xx means the Gate rejected the cancel and created no operation, so the void
-        /// failed and the hold is untouched. 5xx responses go through `get_5xx_error_response`,
-        /// which leaves `attempt_status` unset. An HTTP 200 is never a failure here: a cancel
-        /// declined after acceptance is reported by PSync, not by this response.
+        /// A 4xx other than 408/429 means the Gate rejected the cancel and created no
+        /// operation, so the void failed and the hold is untouched. 5xx responses go through
+        /// `get_5xx_error_response`, which leaves `attempt_status` unset. An HTTP 200 is never
+        /// a failure here: a cancel declined after acceptance is reported by PSync, not by this
+        /// response.
         fn get_error_response_v2(
             &self,
             res: Response,
@@ -504,6 +515,10 @@ macros::macro_connector_implementation!(
             let status_code = res.status_code;
             let mut error = self.build_error_response(res, event_builder, connector_config)?;
             error.attempt_status = match status_code {
+                // 408 and 429 are transient: a timeout may still have created the operation
+                // and a rate limit created nothing but is retryable, so neither is written off
+                // here -- the outcome stays open for PSync.
+                408 | 429 => None,
                 400..=499 => Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
                 _ => None,
             };
@@ -552,7 +567,7 @@ macros::macro_connector_implementation!(
 
         /// A refund rejected by the Gate (e.g. `3283`, `3285` two-minute rule, `3230` duplicate
         /// `merchant_refund_id`) keeps its code and message, and carries no payment
-        /// `attempt_status`: a failed refund must never move the payment's status (TH-06). The
+        /// `attempt_status`: a failed refund must never move the payment's status. The
         /// refund status is set by the router from the error itself.
         fn get_error_response_v2(
             &self,
@@ -570,7 +585,7 @@ macros::macro_connector_implementation!(
 // RSync: there is no refund-status endpoint. The refund is read from `POST /v2/payment/status`
 // of the original purchase (`general.payment_id`), as the `refund`/`reversal` operation whose
 // `request_id` is the connector refund id. The response is kept as raw JSON until its
-// `signature` is verified (P-foundation-14). A 4xx/5xx carries no status (default
+// `signature` is verified. A 4xx/5xx carries no status (default
 // `get_error_response_v2`), so a failed sync never terminally fails the refund.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -640,9 +655,9 @@ macros::macro_connector_implementation!(
             ))
         }
 
-        /// A 4xx means the Gate rejected the verification and created no operation, so the
-        /// setup failed. 5xx responses go through `get_5xx_error_response`, which leaves
-        /// `attempt_status` unset, so the outcome stays open.
+        /// A 4xx other than 408/429 means the Gate rejected the verification and created no
+        /// operation, so the setup failed. 5xx responses go through `get_5xx_error_response`,
+        /// which leaves `attempt_status` unset, so the outcome stays open.
         fn get_error_response_v2(
             &self,
             res: Response,
@@ -652,6 +667,10 @@ macros::macro_connector_implementation!(
             let status_code = res.status_code;
             let mut error = self.build_error_response(res, event_builder, connector_config)?;
             error.attempt_status = match status_code {
+                // 408 and 429 are transient: a timeout may still have created the operation
+                // and a rate limit created nothing but is retryable, so neither is written off
+                // here -- the outcome stays open for PSync.
+                408 | 429 => None,
                 400..=499 => Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 _ => None,
             };
@@ -697,10 +716,10 @@ macros::macro_connector_implementation!(
             ))
         }
 
-        /// A 4xx means the Gate rejected the debit and created no operation, so the attempt
-        /// failed; the code and message (e.g. `3363` missing trace id, `3184`/`3301`/`3183`
-        /// cancelled or expired COF) are kept verbatim. 5xx responses go through
-        /// `get_5xx_error_response`, which leaves `attempt_status` unset.
+        /// A 4xx other than 408/429 means the Gate rejected the debit and created no
+        /// operation, so the attempt failed; the code and message (e.g. `3363` missing trace
+        /// id, `3184`/`3301`/`3183` cancelled or expired COF) are kept verbatim. 5xx responses
+        /// go through `get_5xx_error_response`, which leaves `attempt_status` unset.
         fn get_error_response_v2(
             &self,
             res: Response,
@@ -710,6 +729,10 @@ macros::macro_connector_implementation!(
             let status_code = res.status_code;
             let mut error = self.build_error_response(res, event_builder, connector_config)?;
             error.attempt_status = match status_code {
+                // 408 and 429 are transient: a timeout may still have created the operation
+                // and a rate limit created nothing but is retryable, so neither is written off
+                // here -- the outcome stays open for PSync.
+                408 | 429 => None,
                 400..=499 => Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 _ => None,
             };
@@ -780,7 +803,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
-        // UD-22 / TH-17: only the configured webhook secret verifies a callback; the API
+        // Only the configured webhook secret verifies a callback; the API
         // secret_key from the connector config is never substituted for it.
         let secrets = connector_webhook_secret
             .filter(|secrets| !secrets.secret.is_empty())
@@ -789,7 +812,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .attach_printable("Ecommpay callback verification needs a webhook secret")
             })?;
         match ecommpay::parse_webhook_body(&request.body)? {
-            // UD-10: chargeback callbacks carry no signature and are never authoritative.
+            // Chargeback callbacks carry no signature and are never authoritative.
             ecommpay::EcommpayWebhookBody::Chargeback(_) => return Ok(false),
             ecommpay::EcommpayWebhookBody::Token(_) | ecommpay::EcommpayWebhookBody::Payment(_) => {
             }

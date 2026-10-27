@@ -819,9 +819,7 @@
       }
     },
     "refund_partial_amount": {
-      "grpc_req": {
-        "reason": "customer_requested"
-      }
+      "grpc_req": {}
     }
   },
   "EventService/HandleEvent": {

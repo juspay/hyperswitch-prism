@@ -5868,8 +5868,15 @@ message PayhereConfig {
   optional string base_url = 50;
 }
 
+// Ecommpay Gate API v2. There is no authentication header: every request is signed in the
+// body (`general.signature`), so both values below come from the Ecommpay dashboard
+// (Project settings) and are supplied by the merchant.
 message EcommpayConfig {
+  // Numeric Ecommpay project id -- sent in the body as `general.project_id`, and the only
+  // one of the two that reaches the wire.
   SecretString project_id = 1;
+  // Project secret key -- the HMAC-SHA512 key used to sign every request and to verify
+  // status responses and callbacks. Never sent to Ecommpay.
   SecretString secret_key = 2;
   optional string base_url = 50;
 }
