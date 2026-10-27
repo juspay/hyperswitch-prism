@@ -6711,11 +6711,34 @@ fn get_adyen_level_two_three_data<
     let Some(l2_l3_data) = item.resource_common_data.l2_l3_data.as_deref() else {
         return Ok(None);
     };
-    let convert_money = |money: &common_utils::types::Money| {
-        domain_utils::convert_amount(amount_converter, money.amount, money.currency)
-    };
     let order_info = l2_l3_data.order_info.as_ref();
     let currency = item.request.currency;
+
+    // `enhancedSchemeData.totalTaxAmount` / `freightAmount` / `dutyAmount` are minor-unit
+    // integers in the payment's own currency -- Adyen carries no per-field currency for them.
+    // These three arrive as `Money`, so a caller can hand over an amount denominated in
+    // something else; converting it with its own exponent and sending the bare number would
+    // silently change the value (100 JPY would reach Adyen as 100 minor units of a
+    // two-decimal payment currency, i.e. 1.00). A mismatch is refused rather than converted.
+    let convert_money = |field_name: &'static str, money: &common_utils::types::Money| {
+        if money.currency != currency {
+            return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name,
+                context: IntegrationErrorContext {
+                    suggested_action: Some(format!(
+                        "send this amount in the payment currency ({currency}); Adyen carries \
+                         enhancedSchemeData amounts in the payment's currency only"
+                    )),
+                    doc_url: Some(ADYEN_L2_L3_DOC_URL.to_string()),
+                    additional_context: Some(format!(
+                        "{field_name} is denominated in {} but the payment is in {currency}",
+                        money.currency
+                    )),
+                },
+            }));
+        }
+        domain_utils::convert_amount(amount_converter, money.amount, money.currency)
+    };
 
     // One itemDetailLine group per order line, numbered from 1 in order.
     let item_detail_lines: std::collections::BTreeMap<String, String> = order_info
@@ -6791,15 +6814,15 @@ fn get_adyen_level_two_three_data<
             .tax_info
             .as_ref()
             .and_then(|tax| tax.order_tax_amount.as_ref())
-            .map(convert_money)
+            .map(|money| convert_money("l2_l3_data.tax_info.order_tax_amount", money))
             .transpose()?,
         freight_amount: order_info
             .and_then(|info| info.shipping_cost.as_ref())
-            .map(convert_money)
+            .map(|money| convert_money("l2_l3_data.order_info.shipping_cost", money))
             .transpose()?,
         duty_amount: order_info
             .and_then(|info| info.duty_amount.as_ref())
-            .map(convert_money)
+            .map(|money| convert_money("l2_l3_data.order_info.duty_amount", money))
             .transpose()?,
         destination_postal_code: l2_l3_data.get_shipping_zip(),
         destination_country_code: l2_l3_data.get_shipping_country(),

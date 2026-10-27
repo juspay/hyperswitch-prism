@@ -73,21 +73,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "::hyperswitch_masking::Secret<String>",
     );
 
-    // WebhookSecrets / RedirectResponseSecrets carry secrets in plain proto strings (changing
-    // the proto type would break the wire contract). Route their serde serialization through
-    // hyperswitch_masking::Secret so masked_serialize (request_body logging) masks them, while
-    // every other serializer still emits the raw value.
-    for message in [".types.WebhookSecrets", ".types.RedirectResponseSecrets"] {
-        config.field_attribute(
-            format!("{message}.secret"),
-            "#[serde(serialize_with = \"crate::serialize_masked_string\")]",
-        );
-        config.field_attribute(
-            format!("{message}.additional_secret"),
-            "#[serde(serialize_with = \"crate::serialize_masked_opt_string\")]",
-        );
-    }
-
     // Add serde rename_all = "snake_case" for oneof enum types to output proper proto JSON
     // This ensures variant names like "ApplePay" serialize as "apple_pay"
     config.type_attribute(

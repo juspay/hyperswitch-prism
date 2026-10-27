@@ -13,35 +13,6 @@ pub mod payments {
     pub use super::types::*;
 }
 
-/// Serializes a plain-string proto secret through [`hyperswitch_masking::Secret`], so the
-/// masking serializer (`hyperswitch_masking::masked_serialize`) redacts it while any other
-/// serializer emits the raw value. Wired onto secret fields by `build.rs`.
-pub fn serialize_masked_string<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serde::Serialize::serialize(
-        &hyperswitch_masking::Secret::<String>::new(value.to_owned()),
-        serializer,
-    )
-}
-
-/// Optional variant of [`serialize_masked_string`].
-pub fn serialize_masked_opt_string<S>(
-    value: &Option<String>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serde::Serialize::serialize(
-        &value
-            .as_ref()
-            .map(|inner| hyperswitch_masking::Secret::<String>::new(inner.clone())),
-        serializer,
-    )
-}
-
 pub mod health_check {
     tonic::include_proto!("grpc.health.v1");
 }
