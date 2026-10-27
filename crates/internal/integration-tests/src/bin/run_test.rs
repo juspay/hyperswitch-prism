@@ -188,8 +188,10 @@ fn main() {
         args.tenant_id.as_deref(),
         args.plaintext,
         false,
-    ) {
-        Ok(request) => Some(request.to_command_string()),
+    )
+    .and_then(|request| request.to_report_command_string())
+    {
+        Ok(request) => Some(request),
         Err(error) => {
             write_report_entry(
                 args.report,

@@ -31,6 +31,7 @@ use crate::harness::{
     },
     credentials::{creds_file_path, load_connector_config},
     metadata::add_connector_metadata,
+    report_redaction::{redact_grpc_header, redact_request, REDACTED_COMMAND_MARKER},
     scenario_assert::do_assertion as do_assertion_impl,
     scenario_loader::{
         configured_all_connectors, get_the_assertion as get_the_assertion_impl,
@@ -157,7 +158,7 @@ type DependencyContext = (
 
 impl GrpcurlRequest {
     /// Renders a shell-friendly multi-line grpcurl command.
-    pub fn to_command_string(&self) -> String {
+    fn to_command_string(&self) -> String {
         let mut cmd = String::new();
         cmd.push_str("grpcurl");
         if self.plaintext {
@@ -176,6 +177,43 @@ impl GrpcurlRequest {
         cmd.push_str(&self.payload);
         cmd.push_str("\nJSON");
         cmd
+    }
+
+    /// Renders a reproducible report command without retaining raw credentials.
+    pub fn to_report_command_string(&self) -> Result<String, ScenarioError> {
+        let mut payload: Value = serde_json::from_str(&self.payload).map_err(|error| {
+            ScenarioError::GrpcurlExecution {
+                message: format!("refusing to report invalid grpcurl payload: {error}"),
+            }
+        })?;
+        redact_request(&self.method, &mut payload).map_err(|message| {
+            ScenarioError::GrpcurlExecution {
+                message: format!("refusing to report unredacted grpcurl payload: {message}"),
+            }
+        })?;
+
+        let headers = self
+            .headers
+            .iter()
+            .map(|header| {
+                redact_grpc_header(header).map_err(|message| ScenarioError::GrpcurlExecution {
+                    message: format!("refusing to report unredacted grpcurl header: {message}"),
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let report_request = Self {
+            endpoint: self.endpoint.clone(),
+            method: self.method.clone(),
+            payload: serde_json::to_string_pretty(&payload)
+                .map_err(|error| ScenarioError::JsonSerialize { source: error })?,
+            headers,
+            plaintext: self.plaintext,
+        };
+        Ok(format!(
+            "{REDACTED_COMMAND_MARKER}\n{}",
+            report_request.to_command_string()
+        ))
     }
 }
 
@@ -1750,7 +1788,7 @@ pub fn build_grpcurl_command(
         plaintext,
         false,
     )?;
-    Ok(request.to_command_string())
+    request.to_report_command_string()
 }
 
 /// Executes grpcurl by resolving payload from suite/scenario templates.
@@ -1866,7 +1904,9 @@ pub fn execute_grpcurl_request_from_payload_with_trace(
 fn execute_grpcurl_from_request(
     request: GrpcurlRequest,
 ) -> Result<GrpcExecutionResult, ScenarioError> {
-    let request_command = request.to_command_string();
+    // The raw request is used only for execution. The retained trace is built
+    // independently from protobuf type information and masked headers.
+    let request_command = request.to_report_command_string()?;
     let mut args = Vec::new();
     args.push("-v".to_string());
     // Render a non-OK status as JSON too, so its details arrive proto-decoded by
@@ -4823,7 +4863,10 @@ fn execute_single_scenario_with_context(
     })
 }
 
-fn grpc_method_for_suite(suite: &str, spec: Option<&SuiteSpec>) -> Result<String, ScenarioError> {
+pub(crate) fn grpc_method_for_suite(
+    suite: &str,
+    spec: Option<&SuiteSpec>,
+) -> Result<String, ScenarioError> {
     // If suite_spec declares an explicit gRPC method, use it so suite dispatch
     // remains data-driven.
     if let Some(method) = spec.and_then(|s| s.grpc_method.as_deref()) {
@@ -4987,6 +5030,7 @@ mod tests {
         DEFAULT_SUITE,
     };
     use crate::harness::auto_gen::resolve_auto_generate;
+    use crate::harness::report_redaction::masked_value;
     use crate::harness::scenario_loader::{
         connector_spec_dir, discover_all_connectors, load_suite_scenarios, load_suite_spec,
         load_supported_suites_for_connector, merge_connector_specific_scenarios,
@@ -5207,6 +5251,16 @@ mod tests {
         assert!(command.contains("types.PaymentService/Authorize"));
         assert!(command.contains("\"x-connector-config:"));
         assert!(command.contains("\"auth_type\": \"NO_THREE_DS\""));
+        assert!(command.contains(masked_value()));
+        assert!(!command.contains("x-merchant-id: test_merchant"));
+
+        let (_, payload_and_end) = command
+            .split_once("<<'JSON'\n")
+            .expect("command should contain a JSON heredoc");
+        let payload = payload_and_end
+            .strip_suffix("\nJSON")
+            .expect("command should end its JSON heredoc");
+        serde_json::from_str::<Value>(payload).expect("reported grpcurl payload must remain JSON");
     }
 
     #[test]

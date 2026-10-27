@@ -16,10 +16,13 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::harness::cred_masking::{mask_json_value, mask_sensitive_text};
 use crate::harness::scenario_display_name::generate_style_a_display_name;
 use crate::harness::scenario_loader::{
     discover_all_connectors, load_connector_spec, load_suite_scenarios, load_suite_spec,
+};
+use crate::harness::{
+    report_redaction::{redact_request, redact_response, REDACTED_COMMAND_MARKER},
+    scenario_api::grpc_method_for_suite,
 };
 
 // ---------------------------------------------------------------------------
@@ -57,14 +60,14 @@ pub struct ReportEntry {
     /// Dependency chain captured at execution time.
     #[serde(default)]
     pub dependency: Vec<String>,
-    /// Effective request payload used for execution.
+    /// Effective request payload, redacted from protobuf type information before persistence.
     pub req_body: Option<Value>,
-    /// Parsed response payload captured for reporting/debugging.
+    /// Parsed response payload, redacted from protobuf type information before persistence.
     pub res_body: Option<Value>,
-    /// Full grpc request trace (command + headers + payload), when available.
+    /// Reproducible grpcurl command with redacted headers and payload, when available.
     #[serde(default)]
     pub grpc_request: Option<String>,
-    /// Full grpc response trace (headers/trailers + body), when available.
+    /// Redacted structured gRPC response rendered as text, when available.
     #[serde(default)]
     pub grpc_response: Option<String>,
 }
@@ -154,12 +157,18 @@ pub fn append_report_batch(entries: Vec<ReportEntry>) -> Result<(), String> {
         ScenarioRunReport::default()
     };
 
-    // Existing entries are assumed to be already sanitized from previous writes.
-    // Only sanitize new entries being appended now.
-    let sanitized_entries = entries.into_iter().map(|mut entry| {
-        sanitize_report_entry_in_place(&mut entry);
-        entry
-    });
+    // Re-sanitize existing rows as well, so appending to a legacy report cannot
+    // carry an old raw trace into newly generated Markdown.
+    for entry in &mut report.runs {
+        sanitize_report_entry_in_place(entry)?;
+    }
+    let sanitized_entries = entries
+        .into_iter()
+        .map(|mut entry| {
+            sanitize_report_entry_in_place(&mut entry)?;
+            Ok(entry)
+        })
+        .collect::<Result<Vec<_>, String>>()?;
     report.runs.extend(sanitized_entries);
 
     let serialized = serde_json::to_string_pretty(&report)
@@ -183,7 +192,7 @@ pub fn regenerate_markdown_from_path(json_path: &Path) -> Result<PathBuf, String
         .map_err(|e| format!("failed to parse report '{}': {e}", json_path.display()))?;
 
     for run in &mut report.runs {
-        sanitize_report_entry_in_place(run);
+        sanitize_report_entry_in_place(run)?;
     }
 
     generate_md(json_path, &report)?;
@@ -472,26 +481,45 @@ struct MatrixEntry {
     grpc_response: Option<String>,
 }
 
-fn sanitize_report_entry_in_place(entry: &mut ReportEntry) {
-    if let Some(error) = entry.error.as_mut() {
-        *error = mask_sensitive_text(error);
-    }
-
-    if let Some(grpc_request) = entry.grpc_request.as_mut() {
-        *grpc_request = mask_sensitive_text(grpc_request);
-    }
-
-    if let Some(grpc_response) = entry.grpc_response.as_mut() {
-        *grpc_response = mask_sensitive_text(grpc_response);
-    }
+fn sanitize_report_entry_in_place(entry: &mut ReportEntry) -> Result<(), String> {
+    let suite_spec = load_suite_spec(&entry.suite).ok();
+    let rpc = grpc_method_for_suite(&entry.suite, suite_spec.as_ref())
+        .map_err(|error| format!("cannot resolve report RPC for '{}': {error}", entry.suite))?;
 
     if let Some(req_body) = entry.req_body.as_mut() {
-        mask_json_value(req_body);
+        redact_request(&rpc, req_body)?;
+    }
+    if let Some(res_body) = entry.res_body.as_mut() {
+        redact_response(&rpc, res_body)?;
     }
 
-    if let Some(res_body) = entry.res_body.as_mut() {
-        mask_json_value(res_body);
+    // Only retain commands produced by the type-aware renderer. This drops raw
+    // grpcurl commands from legacy reports when their Markdown is regenerated.
+    if entry
+        .grpc_request
+        .as_deref()
+        .is_some_and(|command| !command.starts_with(REDACTED_COMMAND_MARKER))
+    {
+        entry.grpc_request = None;
     }
+
+    // grpcurl's verbose stdout/stderr is untyped free text. Retain the same
+    // response information from the now-redacted structured protobuf body.
+    if entry.grpc_response.is_some() {
+        entry.grpc_response = entry
+            .res_body
+            .as_ref()
+            .map(serde_json::to_string_pretty)
+            .transpose()
+            .map_err(|error| format!("failed to serialize masked gRPC response: {error}"))?;
+    }
+
+    // Assertion/execution errors may interpolate raw values. The masked bodies
+    // remain available for diagnosis without retaining untyped error text.
+    if entry.error.is_some() {
+        entry.error = Some("scenario failed; inspect the masked request and response".to_string());
+    }
+    Ok(())
 }
 
 fn sanitize_anchor(value: &str) -> String {
@@ -1176,7 +1204,7 @@ mod tests {
     use std::fs;
 
     use super::*;
-    use crate::harness::cred_masking::MASKED_VALUE;
+    use crate::harness::report_redaction::masked_value;
 
     #[test]
     fn extract_pm_and_pmt_from_card_request() {
@@ -1394,7 +1422,8 @@ mod tests {
     }
 
     #[test]
-    fn sanitization_masks_sensitive_grpc_trace_and_json_fields() {
+    fn sanitization_uses_proto_types_and_discards_untyped_response_text() {
+        let masked = masked_value();
         let mut entry = ReportEntry {
             run_at_epoch_ms: now_epoch_ms(),
             suite: "PaymentService/Authorize".to_string(),
@@ -1407,19 +1436,25 @@ mod tests {
             is_dependency: false,
             assertion_result: "PASS".to_string(),
             response_status: None,
-            error: Some("Authorization: Bearer token123".to_string()),
+            error: Some("assertion included raw response material".to_string()),
             dependency: vec![],
             req_body: Some(serde_json::json!({
-                "api_key": "sk_test_123",
-                "payment_method": {
-                    "card": {
-                        "card_number": {"value": "4111111111111111"},
-                        "card_cvc": "123"
+                "state": {
+                    "accessToken": {
+                        "token": {"value": "request-secret"},
+                        "tokenType": {"value": "Bearer"},
+                        "expiresInSeconds": 60
                     }
-                }
+                },
+                "description": "visible"
             })),
             res_body: Some(serde_json::json!({
-                "access_token": "access_token_value"
+                "rawConnectorRequest": {"value": "raw connector request"},
+                "rawConnectorResponse": {"value": "raw connector response"},
+                "responseHeaders": {
+                    "content-type": "application/json",
+                    "request-id": "response-secret"
+                }
             })),
             grpc_request: Some(
                 "grpcurl -plaintext \\\n+  -H \"x-api-key: sk_test_123\" \\\n+  -H \"authorization: Bearer token123\" \\\n+  -d @ localhost:8000 types.PaymentService/Authorize <<'JSON'"
@@ -1431,54 +1466,42 @@ mod tests {
             ),
         };
 
-        sanitize_report_entry_in_place(&mut entry);
+        entry.grpc_request = Some(format!(
+            "{REDACTED_COMMAND_MARKER}\ngrpcurl -H 'authorization: {masked}'"
+        ));
+        entry.grpc_response = Some("untyped verbose response-secret".to_string());
+        sanitize_report_entry_in_place(&mut entry).unwrap();
 
         let grpc_request = entry.grpc_request.expect("grpc request should exist");
         let grpc_response = entry.grpc_response.expect("grpc response should exist");
         let error = entry.error.expect("error should exist");
 
-        assert!(!grpc_request.contains("sk_test_123"));
-        assert!(!grpc_request.contains("token123"));
-        assert!(!grpc_response.contains("sk_test_123"));
-        assert!(!grpc_response.contains("token123"));
-        assert!(!error.contains("token123"));
-        assert!(grpc_request.contains(MASKED_VALUE));
-        assert!(grpc_response.contains(MASKED_VALUE));
-        assert!(error.contains(MASKED_VALUE));
+        assert!(grpc_request.contains(masked));
+        assert!(!grpc_response.contains("response-secret"));
+        assert!(!error.contains("raw response material"));
 
         let req_body = entry.req_body.expect("request body should exist");
         let res_body = entry.res_body.expect("response body should exist");
 
         assert_eq!(
-            req_body.get("api_key").and_then(Value::as_str),
-            Some(MASKED_VALUE)
+            req_body.pointer("/state/accessToken/token/value"),
+            Some(&Value::String(masked.to_string()))
         );
         assert_eq!(
-            req_body
-                .pointer("/payment_method/card/card_number")
-                .and_then(Value::as_str),
-            Some(MASKED_VALUE)
+            req_body.get("description"),
+            Some(&Value::String("visible".to_string()))
         );
         assert_eq!(
-            req_body
-                .pointer("/payment_method/card/card_cvc")
-                .and_then(Value::as_str),
-            Some(MASKED_VALUE)
+            res_body.pointer("/rawConnectorRequest/value"),
+            Some(&Value::String(masked.to_string()))
         );
         assert_eq!(
-            res_body.get("access_token").and_then(Value::as_str),
-            Some(MASKED_VALUE)
+            res_body.pointer("/responseHeaders/content-type"),
+            Some(&Value::String("application/json".to_string()))
         );
-    }
-
-    #[test]
-    fn bearer_masking_is_idempotent_and_masks_multiple_tokens() {
-        let line = "authorization: Bearer abc123 Bearer ***MASKED*** Bearer def456";
-        let masked_once = mask_sensitive_text(line);
-        let masked_twice = mask_sensitive_text(&masked_once);
-
-        assert_eq!(masked_once, masked_twice);
-        assert!(!masked_once.contains("abc123"));
-        assert!(!masked_once.contains("def456"));
+        assert_eq!(
+            res_body.pointer("/responseHeaders/request-id"),
+            Some(&Value::String(masked.to_string()))
+        );
     }
 }

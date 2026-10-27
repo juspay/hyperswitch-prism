@@ -4472,6 +4472,7 @@ dependencies = [
  "inquire",
  "proptest",
  "prost 0.14.3",
+ "prost-reflect",
  "regex",
  "reqwest 0.12.28",
  "serde",
