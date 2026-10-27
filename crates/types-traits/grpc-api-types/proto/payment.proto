@@ -102,6 +102,12 @@ message CurrencyConversionQuote {
 
   // Time when the quote expires, in Unix epoch seconds.
   optional int64 expires_at = 11;
+
+  // Provider-defined code describing the reason or classification for this currency conversion.
+  optional string conversion_reason_code = 12;
+
+  // Identifier assigned to the user by the currency conversion provider.
+  optional string user_id = 13;
 }
 
 // Identifies the currency conversion model used for the payment.
@@ -1476,7 +1482,6 @@ message RedirectResponseSecrets {
   optional string additional_secret = 2;
 }
 
-
 // Request for notifying connectors about events
 message NotifyConnectorRequest {
   // Unique event identifier
@@ -1498,7 +1503,6 @@ message NotifyConnectorRequest {
   optional SecretString connector_feature_data = 6;
 }
 
-
 // Content of an event
 message NotifyConnectorContent {
   oneof content {
@@ -1509,7 +1513,6 @@ message NotifyConnectorContent {
     FrmNotificationContent frm_notification = 2;
   }
 }
-
 
 // Surcharge details object
 message SurchargeContent {
@@ -1591,7 +1594,6 @@ message NotifyConnectorResponse {
   // Optional error information if notification failed
   optional ErrorInfo error = 2;
 }
-
 
 // Data for a multiple capture request
 message MultipleCaptureRequestData {
@@ -2780,7 +2782,6 @@ message PaymentServiceGetResponse {
   // per-value semantics. Absent when the connector doesn't distinguish phases.
   optional SettlementStatus settlement_status = 34;
 
-
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 35;
   // The connector's reported status (code/message/reason).
@@ -3153,6 +3154,10 @@ message PaymentServiceCaptureRequest {
   // Whether overcapture is enabled for this payment. When true, a connector-reported
   // amount higher than the requested amount is not treated as an integrity failure.
   optional bool is_overcapture_enabled = 18;
+
+  // Currency conversion quote and decision data passed through the
+  // capture flow for future connector-specific processing.
+  optional CurrencyConversionData currency_conversion_data = 19;
 }
 
 // Response message for a payment capture operation
@@ -3333,6 +3338,9 @@ message PaymentServiceRefundRequest {
   optional SplitRefundsDetails split_refunds = 20;
   // Split settlement refund (supersedes split_refunds).
   optional SplitSettlementRefund split_settlement_refund = 21;
+
+  // Currency conversion details for the refund's settlement leg.
+  optional CurrencyConversionData currency_conversion_data = 22;
 }
 
 // Response message for a refund operation (unified for both Create and Get)
@@ -3810,6 +3818,7 @@ message RecurringPaymentServiceChargeRequest {
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 42;
 
+
   // Connector session token, set by the caller from the session_token returned by
   // MerchantAuthenticationService.CreateServerSessionAuthenticationToken (e.g. Nuvei's
   // /getSessionToken.do sessionToken). Leave unset for connectors that do not use one.
@@ -3817,6 +3826,10 @@ message RecurringPaymentServiceChargeRequest {
 
   // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 44;
+
+    // Currency conversion quote and decision data passed through the
+  // recurring flow for future connector-specific processing.
+  optional CurrencyConversionData currency_conversion_data = 45;
 }
 
 // Response message for repeat payment operation
