@@ -50,15 +50,15 @@ RUN mkdir -p /opt/corepack \
 # ── Workspace install + build ─────────────────────────────────────────────────
 WORKDIR /grace
 
-# Copy lockfile + package manifests first so `pnpm install` is cached separately
+# Copy package manifests first so `pnpm install` is cached separately
 # from the source tree — re-edits to source don't bust the dep layer.
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY pnpm-workspace.yaml package.json ./
 COPY packages/core/package.json        packages/core/
 COPY packages/cli/package.json         packages/cli/
 COPY packages/dashboard/package.json   packages/dashboard/
 COPY packages/parity-core/package.json packages/parity-core/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Now copy the rest of the source and build.
 COPY . .
