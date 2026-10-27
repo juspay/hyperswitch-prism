@@ -5200,6 +5200,9 @@ message AdyenConfig {
   optional string base_url = 50;
   optional string dispute_base_url = 51;
   optional string endpoint_prefix = 52;
+  // Opt in to Adyen's native 3D Secure 2 (device fingerprint, then an embedded challenge)
+  // instead of the redirect flow. Absent or false keeps the redirect flow, unchanged.
+  optional bool native_three_ds = 53;
 }
 
 message BankOfAmericaConfig {

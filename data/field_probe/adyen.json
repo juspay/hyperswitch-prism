@@ -3,8 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: authenticate flow for adyen"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.three_ds_data.paymentData. required by adyen native 3DS2 standalone authentication — Missing required field: connector_feature_data.three_ds_data.paymentData. required by adyen native 3DS2 standalone authentication (authenticationOnly)"
       }
     },
     "authorize": {
@@ -30,13 +30,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -69,13 +79,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -106,13 +126,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -138,13 +168,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -167,13 +207,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -210,13 +260,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -259,17 +319,27 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"brand\":\"Visa\"},\"mpiData\":{\"directoryResponse\":\"Y\",\"authenticationResponse\":\"Y\",\"cavv\":\"AAAAAA==\",\"eci\":\"05\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"}}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"brand\":\"applepay\"},\"mpiData\":{\"directoryResponse\":\"Y\",\"authenticationResponse\":\"Y\",\"cavv\":\"AAAAAA==\",\"eci\":\"05\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\",\"enhancedSchemeData.customerReference\":\"PO-PROBE-1\",\"enhancedSchemeData.totalTaxAmount\":\"100\",\"enhancedSchemeData.freightAmount\":\"50\"}}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -298,13 +368,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -349,6 +429,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -356,6 +445,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -381,13 +471,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -431,6 +531,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -438,6 +547,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -475,6 +585,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -482,6 +601,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -511,13 +631,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -540,17 +670,27 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"boletobancario\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{}}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"boletobancario\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"}}"
         }
       },
       "BriVaBankTransfer": {
@@ -572,13 +712,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -620,6 +770,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -627,10 +786,11 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"737\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{},\"shopperIP\":\"1.2.3.4\"}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"737\",\"holderName\":\"John Doe\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\",\"enhancedSchemeData.customerReference\":\"PO-PROBE-1\",\"enhancedSchemeData.totalTaxAmount\":\"100\",\"enhancedSchemeData.freightAmount\":\"50\"},\"shopperIP\":\"1.2.3.4\"}"
         }
       },
       "CashappQr": {
@@ -660,13 +820,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -697,13 +867,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -729,13 +909,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -793,6 +983,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -800,6 +999,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -827,13 +1027,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -856,13 +1066,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -906,6 +1126,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -913,6 +1142,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -961,6 +1191,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -968,6 +1207,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1019,6 +1259,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -1026,10 +1275,11 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"brand\":\"googlepay\"},\"mpiData\":{\"directoryResponse\":\"Y\",\"authenticationResponse\":\"Y\",\"cavv\":\"AAAAAA==\",\"eci\":\"05\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\"}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"brand\":\"googlepay\"},\"mpiData\":{\"directoryResponse\":\"Y\",\"authenticationResponse\":\"Y\",\"cavv\":\"AAAAAA==\",\"eci\":\"05\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\",\"enhancedSchemeData.customerReference\":\"PO-PROBE-1\",\"enhancedSchemeData.totalTaxAmount\":\"100\",\"enhancedSchemeData.freightAmount\":\"50\"},\"shopperIP\":\"1.2.3.4\"}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -1065,6 +1315,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -1072,6 +1331,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1097,13 +1357,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1146,13 +1416,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1181,17 +1461,27 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"klarna\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperReference\":\"cust_probe_123\",\"shopperName\":{},\"shopperEmail\":\"test@example.com\",\"countryCode\":\"US\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"klarna\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperReference\":\"cust_probe_123\",\"shopperEmail\":\"test@example.com\",\"countryCode\":\"US\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
         }
       },
       "Lawson": {
@@ -1215,13 +1505,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1259,13 +1559,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1301,13 +1611,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1334,13 +1654,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1386,6 +1716,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -1393,6 +1732,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1430,6 +1770,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -1437,6 +1786,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1474,6 +1824,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -1481,6 +1840,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1522,6 +1882,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -1529,6 +1898,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1566,6 +1936,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -1573,6 +1952,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1616,6 +1996,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -1623,6 +2012,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1645,17 +2035,27 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"oxxo\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{}}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"oxxo\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"}}"
         }
       },
       "PagoEfectivo": {
@@ -1683,13 +2083,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1712,13 +2122,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1747,13 +2167,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1791,13 +2221,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1824,13 +2264,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1886,13 +2336,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1920,13 +2380,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1962,13 +2432,23 @@
             }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -1999,13 +2479,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -2028,13 +2518,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -2070,6 +2570,15 @@
             "user_agent": "Mozilla/5.0 (probe-bot)",
             "accept_language": "en-US,en;q=0.9",
             "ip_address": "1.2.3.4"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
           }
         },
         "sample": {
@@ -2077,6 +2586,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -2099,13 +2609,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -2140,13 +2660,23 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "l2_l3_data": {
+            "order_info": {
+              "merchant_order_reference_id": "PO-PROBE-1",
+              "shipping_cost": 50
+            },
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -2182,6 +2712,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
@@ -2342,7 +2873,26 @@
     },
     "get": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "encoded_data": "redirectResult=probe_redirect_result",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments/details",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"details\":{\"redirectResult\":\"probe_redirect_result\",\"type\":null,\"resultCode\":null}}"
+        }
       }
     },
     "handle_event": {
@@ -2415,14 +2965,56 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: post_authenticate flow for adyen"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.three_ds_data.authorisationToken. required by adyen native 3DS2 standalone authentication — Missing required field: connector_feature_data.three_ds_data.authorisationToken. required by adyen native 3DS2 standalone authentication (authenticationOnly)"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for adyen"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v71/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"reference\":\"\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"737\",\"holderName\":\"John Doe\"},\"returnUrl\":\"https://example.com/3ds-return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"channel\":\"Web\",\"origin\":\"https://example.com\",\"authenticationData\":{\"authenticationOnly\":true},\"shopperIP\":\"1.2.3.4\"}"
+        }
       }
     },
     "proxy_authorize": {
@@ -2467,10 +3059,11 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"{{$card_number}}\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"{{$card_cvc}}\"},\"reference\":\"probe_proxy_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{},\"shopperIP\":\"1.2.3.4\"}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"{{$card_number}}\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"{{$card_cvc}}\",\"holderName\":\"John Doe\"},\"reference\":\"probe_proxy_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\"}"
         }
       }
     },
@@ -2523,10 +3116,11 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":0},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"{{$card_number}}\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"{{$card_cvc}}\"},\"reference\":\"probe_proxy_mandate_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"recurringProcessingModel\":\"UnscheduledCardOnFile\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperReference\":\"probe_customer_001\",\"storePaymentMethod\":true,\"shopperName\":{},\"shopperIP\":\"1.2.3.4\"}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":0},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"{{$card_number}}\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"{{$card_cvc}}\",\"holderName\":\"John Doe\"},\"reference\":\"probe_proxy_mandate_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"recurringProcessingModel\":\"UnscheduledCardOnFile\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperReference\":\"probe_customer_001\",\"storePaymentMethod\":true,\"shopperIP\":\"1.2.3.4\"}"
         }
       }
     },
@@ -2589,24 +3183,25 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "reason": "customer_request"
+          "reason": "customer_requested"
         },
         "sample": {
           "url": "https://checkout-test.adyen.com/v68/payments/probe_connector_txn_001/refunds",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"merchantAccount\":\"probe_merchant\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantRefundReason\":\"customer_request\",\"reference\":\"probe_refund_001\"}"
+          "body": "{\"merchantAccount\":\"probe_merchant\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantRefundReason\":\"CUSTOMER REQUEST\",\"reference\":\"probe_refund_001\"}"
         }
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: refund_sync flow for adyen"
+        "status": "not_supported",
+        "error": "refund_sync flow not supported by adyen connector"
       }
     },
     "reverse": {
@@ -2680,10 +3275,11 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":0},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"737\"},\"reference\":\"probe_mandate_001\",\"returnUrl\":\"https://example.com/mandate-return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"recurringProcessingModel\":\"UnscheduledCardOnFile\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperReference\":\"DefaultMerchantId_cust_probe_123\",\"storePaymentMethod\":true,\"shopperName\":{},\"shopperIP\":\"1.2.3.4\"}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":0},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"737\",\"holderName\":\"John Doe\"},\"reference\":\"probe_mandate_001\",\"returnUrl\":\"https://example.com/mandate-return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"recurringProcessingModel\":\"UnscheduledCardOnFile\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperReference\":\"DefaultMerchantId_cust_probe_123\",\"storePaymentMethod\":true,\"shopperIP\":\"1.2.3.4\"}"
         }
       }
     },
@@ -2708,10 +3304,11 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"storedPaymentMethodId\":\"pm_1AbcXyzStripeTestToken\"},\"reference\":\"probe_tokenized_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{}}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"storedPaymentMethodId\":\"pm_1AbcXyzStripeTestToken\"},\"reference\":\"probe_tokenized_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"}}"
         }
       }
     },
@@ -2738,6 +3335,7 @@
           "method": "Post",
           "headers": {
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },

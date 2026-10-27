@@ -209,10 +209,36 @@
           "time_zone_offset_minutes": -330,
           "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
           "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            },
+            "card_holder_name": {
+              "value": "DECLINED"
+            },
+            "card_type": "credit"
+          }
         }
       },
       "assert": {
-        "error.connector_details.message": null
+        "error.connector_details.message": null,
+        "status": {
+          "equals": "FAILURE"
+        },
+        "error.connector_details.code": {
+          "equals": "2"
+        }
       }
     },
     "no3ds_manual_capture_incremental_auth": {
@@ -286,13 +312,6 @@
         "customer": {
           "connector_customer_id": "auto_generate"
         }
-      }
-    }
-  },
-  "PaymentService/Refund": {
-    "refund_with_reason": {
-      "grpc_req": {
-        "reason": "CUSTOMER REQUEST"
       }
     }
   },
@@ -418,6 +437,82 @@
     "recurring_charge_low_amount": {
       "grpc_req": {
         "return_url": "https://google.com"
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_content.payments_response.connector_transaction_id": {
+          "equals": "8535296650153317"
+        },
+        "event_content.payments_response.status": {
+          "equals": "AUTHORIZED"
+        }
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "event_status": null,
+        "event_content.payments_response.status": {
+          "equals": "FAILURE"
+        }
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "event_status": null,
+        "event_content.refunds_response.connector_refund_id": {
+          "equals": "8535296650153318"
+        }
+      }
+    },
+    "invalid_signature": {
+      "assert": {
+        "event_status": null,
+        "event_type": {
+          "equals": "PAYMENT_INTENT_SUCCESS"
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
+    "threeds_card_pre_authenticate": {
+      "grpc_req": {
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": 0
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5454545454545454"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            },
+            "card_holder_name": {
+              "value": "John Smith"
+            },
+            "card_type": "credit"
+          }
+        }
       }
     }
   }

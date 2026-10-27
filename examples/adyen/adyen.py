@@ -11,10 +11,11 @@ from payments import PaymentClient
 from payments import MerchantAuthenticationClient
 from payments import DisputeClient
 from payments import EventClient
+from payments import PaymentMethodAuthenticationClient
 from payments import RecurringPaymentClient
 from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "incremental_authorization", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "reverse", "setup_recurring", "token_authorize", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "get", "incremental_authorization", "parse_event", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "reverse", "setup_recurring", "token_authorize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -26,6 +27,7 @@ _default_config = sdk_config_pb2.ConnectorConfig(
             base_url="YOUR_BASE_URL",
             dispute_base_url="YOUR_DISPUTE_BASE_URL",
             endpoint_prefix="YOUR_ENDPOINT_PREFIX",
+            native_three_ds=False,
         ),
     ),
 )
@@ -67,6 +69,15 @@ def _build_authorize_request(capture_method: str):
             user_agent="Mozilla/5.0 (probe-bot)",
             accept_language="en-US,en;q=0.9",
             ip_address="1.2.3.4",  # Device Information.
+        ),
+        l2_l3_data=payment_pb2.L2L3Data(  # Level 2 / Level 3 data for enhanced payment processing.
+            order_info=payment_pb2.OrderInfo(  # Order-level information.
+                merchant_order_reference_id="PO-PROBE-1",  # Merchant's internal reference ID for the order.
+                shipping_cost=50,  # Shipping cost for the order (in minor currency units).
+            ),
+            tax_info=payment_pb2.TaxInfo(  # Tax information.
+                order_tax_amount=100,  # Total tax amount for the order (in minor currency units).
+            ),
         ),
     )
 
@@ -123,6 +134,17 @@ def _build_dispute_submit_evidence_request():
         # evidence_documents: [{"evidence_type": "SERVICE_DOCUMENTATION", "file_content": "probe evidence content", "file_mime_type": "application/pdf"}]  # Collection of evidence documents.
     )
 
+def _build_get_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceGetRequest(
+        merchant_transaction_id="probe_merchant_txn_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        encoded_data="redirectResult=probe_redirect_result",
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+    )
+
 def _build_incremental_authorization_request():
     return payment_pb2.PaymentServiceIncrementalAuthorizationRequest(
         merchant_authorization_id="probe_auth_001",  # Identification.
@@ -141,6 +163,41 @@ def _build_parse_event_request():
             uri="https://example.com/webhook",  # URI of the request.
             headers={},  # Headers of the HTTP request.
             body="{\"notificationItems\":[{\"NotificationRequestItem\":{\"pspReference\":\"probe_ref_001\",\"merchantReference\":\"probe_order_001\",\"merchantAccountCode\":\"ProbeAccount\",\"eventCode\":\"AUTHORISATION\",\"success\":\"true\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"additionalData\":{}}}]}".encode(),  # Body of the HTTP request.
+        ),
+    )
+
+def _build_pre_authenticate_request():
+    return payment_pb2.PaymentMethodAuthenticationServicePreAuthenticateRequest(
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
+            card=payment_methods_pb2.CardDetails(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_cvc=payment_methods_pb2.SecretString(value="737"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            ),
+        ),
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            billing_address=common_types_pb2.Address(),
+        ),
+        enrolled_for_3ds=False,  # Authentication Details.
+        return_url="https://example.com/3ds-return",  # URLs for Redirection.
+        browser_info=payment_pb2.BrowserInformation(  # Contextual Information.
+            color_depth=24,  # Display Information.
+            screen_height=900,
+            screen_width=1440,
+            java_enabled=False,  # Browser Settings.
+            java_script_enabled=True,
+            language="en-US",
+            time_zone_offset_minutes=-480,
+            accept_header="application/json",  # Browser Headers.
+            user_agent="Mozilla/5.0 (probe-bot)",
+            accept_language="en-US,en;q=0.9",
+            ip_address="1.2.3.4",  # Device Information.
         ),
     )
 
@@ -254,7 +311,7 @@ def _build_refund_request(connector_transaction_id: str):
             minor_amount=1000,
             currency=common_types_pb2.Currency.Value("USD"),
         ),
-        reason="customer_request",  # Reason for the refund.
+        reason="customer_requested",  # Reason for the refund.
     )
 
 def _build_reverse_request(connector_transaction_id: str):
@@ -420,6 +477,28 @@ async def process_void_payment(merchant_transaction_id: str, config: sdk_config_
     return {"status": getattr(void_response, "status", ""), "transaction_id": getattr(authorize_response, "connector_transaction_id", ""), "error": getattr(void_response, "error", None)}
 
 
+async def process_get_payment(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Get Payment Status
+
+    Retrieve current payment status from the connector.
+    """
+    payment_client = PaymentClient(config)
+
+    # Step 1: Authorize — reserve funds on the payment method
+    authorize_response = await payment_client.authorize(_build_authorize_request("MANUAL"))
+
+    if authorize_response.status == "FAILED":
+        raise RuntimeError(f"Payment failed: {authorize_response.error}")
+    if authorize_response.status == "PENDING":
+        # Awaiting async confirmation — handle via webhook
+        return {"status": "pending", "transaction_id": authorize_response.connector_transaction_id}
+
+    # Step 2: Get — retrieve current payment status from the connector
+    get_response = await payment_client.get(_build_get_request(authorize_response.connector_transaction_id))
+
+    return {"status": getattr(get_response, "status", ""), "transaction_id": getattr(get_response, "connector_transaction_id", ""), "error": getattr(get_response, "error", None)}
+
+
 async def process_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Authorize (Card)"""
     payment_client = PaymentClient(config)
@@ -483,6 +562,15 @@ async def process_dispute_submit_evidence(merchant_transaction_id: str, config: 
     return {"status": dispute_response.status}
 
 
+async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.Get"""
+    payment_client = PaymentClient(config)
+
+    get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
+
+    return {"status": get_response.status}
+
+
 async def process_incremental_authorization(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.IncrementalAuthorization"""
     payment_client = PaymentClient(config)
@@ -499,6 +587,15 @@ async def process_parse_event(merchant_transaction_id: str, config: sdk_config_p
     parse_response = event_client.parse_event(_build_parse_event_request())
 
     return {"event_type": parse_response.event_type}
+
+
+async def process_pre_authenticate(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentMethodAuthenticationService.PreAuthenticate"""
+    paymentmethodauthentication_client = PaymentMethodAuthenticationClient(config)
+
+    pre_response = await paymentmethodauthentication_client.pre_authenticate(_build_pre_authenticate_request())
+
+    return {"status": pre_response.status}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

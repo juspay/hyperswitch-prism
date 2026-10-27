@@ -163,7 +163,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Absa Sanlam](connectors/absa_sanlam.md) | ⚠ | x | x | ⚠ | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Absasanlam](connectors/absasanlam.md) | ⚠ | x | x | ⚠ | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [ACI](connectors/aci.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | ✓ | ⚠ | x | ✓ | ✓ | ✓ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Adyen](connectors/adyen.md) | ⚠ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ✓ | ✓ | ✓ | x |
+| [Adyen](connectors/adyen.md) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | ✓ | ✓ | ? | ? | ✓ | ⚠ | ✓ | ✓ | ✓ | ✓ | x |
 | [Affirm](connectors/affirm.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Airwallex](connectors/airwallex.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | ⚠ | ⚠ | ? | ⚠ | x | ✓ | ? | ? | ⚠ | ✓ | x | ? | ⚠ | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Authipay](connectors/authipay.md) | ✓ | ✓ | ✓ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |

@@ -11,19 +11,24 @@
     "PaymentService/Refund",
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
-    "EventService/HandleEvent"
+    "EventService/HandleEvent",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentMethodAuthenticationService/PostAuthenticate"
   ],
   "supported_payment_methods": [
-    "card"
+    "card",
+    "apple_pay_sdk",
+    "google_pay_sdk"
   ],
   "sync_poll_until_terminal_seconds": 15,
   "unsupported_scenarios": {
     "PaymentService/Get": {
-      "sync_payment": "Adyen has no status-by-transaction-ID lookup for a non-redirect card payment; status is only available via webhook.",
-      "sync_payment_with_handle_response": "same reason as sync_payment.",
-      "sync_upi_collect": "UPI is not in supported_payment_methods for this connector.",
-      "sync_upi_intent": "UPI is not in supported_payment_methods for this connector.",
-      "sync_upi_qr": "UPI is not in supported_payment_methods for this connector."
+      "sync_payment": "CONNECTOR_API_LACKS: technical_specification.md 'PSync (Payment status)' \u2014 Adyen has no status-by-transaction-ID lookup for a non-redirect card payment; /payments/details only completes a pending redirect, so status is only available via webhook",
+      "sync_payment_with_handle_response": "CONNECTOR_API_LACKS: technical_specification.md 'PSync (Payment status)' \u2014 same reason as sync_payment: no status endpoint without a redirect payload",
+      "sync_upi_collect": "PM_NOT_OFFERED: specs.json supported_payment_methods \u2014 UPI is not offered by this connector",
+      "sync_upi_intent": "PM_NOT_OFFERED: specs.json supported_payment_methods \u2014 UPI is not offered by this connector",
+      "sync_upi_qr": "PM_NOT_OFFERED: specs.json supported_payment_methods \u2014 UPI is not offered by this connector"
     },
     "PaymentService/CreateOrder": {
       "create_order_with_payment_method_type": "Adyen's CreateOrder does not return a session_token; it never sets session_data (confirmed in adyen's own transformer)."
@@ -36,6 +41,20 @@
       "refund_succeeded": "same as payment_succeeded.",
       "payment_failed": "adyen has no test fixture for this scenario in webhook_payload.json, so it sends an empty body and fails to decode.",
       "invalid_signature": "adyen's webhook_payload.json fixture for this scenario omits required fields (amount, merchantAccountCode, merchantReference), so it fails to decode before signature verification is ever reached."
+    },
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "SANDBOX_NOT_PROVISIONED / OPERATOR_GAP: implemented, live verification blocked \u2014 there is no device-minted Apple Pay token and no Apple Pay payment-processing certificate in the creds file for this merchant account, and a fabricated token would make the row prove nothing. This variant additionally needs a connector_mandate_id, which the sandbox cannot return without a real token.",
+      "no3ds_auto_capture_google_pay_decrypted": "SANDBOX_NOT_PROVISIONED / OPERATOR_GAP: implemented, live verification blocked \u2014 the scenario token is a placeholder rather than a Google-minted token for a gateway merchant id registered with Adyen (GPAY_HOSTED_URL is not configured), so the sandbox cannot produce a CHARGED outcome.",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "SANDBOX_NOT_PROVISIONED / OPERATOR_GAP: implemented, live verification blocked \u2014 the scenario token is a placeholder rather than a Google-minted token for a gateway merchant id registered with Adyen (GPAY_HOSTED_URL is not configured), so the sandbox cannot produce a CHARGED outcome. This variant additionally needs a connector_mandate_id, which the sandbox cannot return without a real token."
+    },
+    "PaymentMethodAuthenticationService/PostAuthenticate": {
+      "threeds_card_post_authenticate": "CONNECTOR_API_LACKS: not runnable in this harness. Adyen's PostAuthenticate leg submits the challenge result (details.threeDSResult carrying transStatus plus the authorisationToken from the ChallengeShopper action), and both values exist only after the shopper completes the ACS challenge in a browser; the harness has no in-band ACS step. Verified out of band against the Adyen test ACS: PreAuthenticate -> fingerprint -> Authenticate -> challenge -> PostAuthenticate returned AUTHENTICATION_SUCCESSFUL with threeDS2Result, and the following Authorize charged with liabilityShift true."
+    },
+    "PaymentMethodAuthenticationService/PreAuthenticate": {
+      "threeds_card_pre_authenticate": "SANDBOX_NOT_PROVISIONED: native 3DS2 is a per-merchant opt-in, read from the connector config as `native_three_ds`. The harness builds connector config only from the credentials file (connector-creds `connector_config_header`), with no per-scenario override, and the shared sandbox credential is not provisioned with it. Without the flag the leg sends `authenticationData.authenticationOnly` with no `threeDSRequestData`, Adyen answers the redirect variant of standalone authentication, and these legs drive only the native one - so the scenario cannot pass here regardless of the implementation. Verified out of band against the Adyen sandbox with the flag on: PreAuthenticate `v71/payments` returned IdentifyShopper with a threeDS2/fingerprint action carrying threeDSMethodUrl, threeDSServerTransID and messageVersion 2.2.0, and the ladder settled - succeeded, amount_received 1000, one `v68/payments` with mpiData. Add `native_three_ds` to the sandbox credential to run this here."
+    },
+    "PaymentMethodAuthenticationService/Authenticate": {
+      "threeds_card_authenticate": "SANDBOX_NOT_PROVISIONED: same cause as the PreAuthenticate scenario - this leg resumes a native ladder that the shared sandbox credential cannot start, because `native_three_ds` is not provisioned on it. It also needs the `paymentData` the fingerprint action returns, which only exists once PreAuthenticate has run natively. Verified out of band with the flag on: Authenticate `v71/payments/details` with `details[\"threeds2.fingerprint\"]` beside `paymentData` returned ChallengeShopper with a threeDS2/challenge action. Add `native_three_ds` to the sandbox credential to run this here."
     }
   }
 }

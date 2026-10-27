@@ -119,6 +119,7 @@ mod tests {
             base_url: Some("https://override.adyen.example".to_string()),
             dispute_base_url: Some("https://override-dispute.adyen.example".to_string()),
             endpoint_prefix: None,
+            native_three_ds: None,
         };
 
         let connectors =

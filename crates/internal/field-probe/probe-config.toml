@@ -245,6 +245,45 @@ default = '{}'
 "authentication_data.eci" = "05"
 "authentication_data.cavv" = "cHJvYmVfY2F2dl92YWx1ZQ=="
 
+# Adyen sends Level 2/3 data (additionalData.enhancedSchemeData.*) only when the
+# caller supplies l2_l3_data, which no patcher step adds. Pre-set a minimal L2 set
+# so the probe Card body carries the conditional keys. `order_details` is required
+# by the proto's JSON shape (a repeated field with no serde default), so it is
+# pre-set empty; without it the whole pre-set is silently dropped.
+[connector_overrides.authorize.adyen]
+"l2_l3_data.tax_info.order_tax_amount" = 100
+"l2_l3_data.order_info.merchant_order_reference_id" = "PO-PROBE-1"
+"l2_l3_data.order_info.shipping_cost" = 50
+"l2_l3_data.order_info.order_details" = []
+
+# Adyen sends merchantRefundReason only when the caller supplies a refund reason,
+# which the patcher never adds (it is optional). Pre-set the free-text form the
+# connector normalises ("customer_requested" -> "CUSTOMER REQUEST") so the probe
+# refund body shows the mapped enum value.
+[connector_overrides.refund.adyen]
+"reason" = "customer_requested"
+
+# Adyen's PostAuthenticate posts details.redirectResult, read from the shopper's
+# return query (redirection_response.params). The patcher has no redirectResult
+# source, so pre-set one; the probe body then shows the field it carries.
+# `payload` is a proto map with no serde default, so it is pre-set empty;
+# without it the whole pre-set is silently dropped.
+[connector_overrides.post_authenticate.adyen]
+"redirection_response.params" = "redirectResult=probe_redirect_result"
+"redirection_response.payload" = {}
+
+# Adyen sends additionalData.manualCapture / authorisationType on the Authenticate
+# body only for manual capture; the base request leaves capture_method unset.
+# Pre-set MANUAL so the probe body shows the capture-intent keys.
+[connector_overrides.authenticate.adyen]
+"capture_method" = "MANUAL"
+
+# Adyen PSync posts /payments/details only to complete a redirect; without a redirect result
+# (encoded_data) build_request_v2 returns no request and the probe records not_implemented.
+# Pre-set one so the declared PaymentService/Get shows the request it sends.
+[connector_overrides.get.adyen]
+"encoded_data" = "redirectResult=probe_redirect_result"
+
 # The default recurring_charge request charges a stored profile. The second MIT
 # shape - a card charged with the network transaction id of the original CIT -
 # has its own optional inputs (the card, a billing address, a statement
