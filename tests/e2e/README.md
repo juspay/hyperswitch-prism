@@ -4,67 +4,121 @@ These tests exercise payment flows through Hyperswitch and UCS against processor
 
 ## Run locally
 
-Requirements: Node.js 22+, Docker, and a Hyperswitch-compatible connector credentials JSON file.
+Requirements: Node.js 22+, Docker with Compose, and a Hyperswitch-compatible connector credentials JSON file.
 
 ```sh
 cd tests/e2e
 npm ci
-CONNECTOR_AUTH_FILE_PATH=/path/to/connector-auth.json npm run stack:up
+npm run stack:up
 CONNECTOR_AUTH_FILE_PATH=/path/to/connector-auth.json npm test
 ```
 
-Open the HTML report with `npx playwright show-report`. Stop the isolated stack with `npm run stack:down`.
+Open the HTML report with `npx playwright show-report`. Stop the isolated stack with `npm run stack:down`; database volumes are retained.
 
-`HS_IMAGE`, `UCS_IMAGE`, `HS_BASE_URL`, and `HS_SOURCE_DIR` are optional. The defaults run the latest published Hyperswitch and UCS images locally. The source checkout supplies configuration and database migrations matching the Hyperswitch image and is cached after the first run.
+`HS_IMAGE` and `UCS_IMAGE` select container images. Defaults use the latest published images. Configuration and migrations come from the matching Hyperswitch source revision, cached after the first run. `HS_SOURCE_DIR` can supply an existing matching checkout; `HS_REF` can explicitly select its revision.
 
-HS configuration uses its supported `ROUTER__...` environment overrides. The upstream TOML remains unchanged. `stack/ucs.Dockerfile` adds the standard gRPC health probe to the published UCS image; Compose waits for UCS to report healthy before starting HS. PostgreSQL uses the loopback port `HS_DB_PORT` (default `15432`); Redis is available only inside the Compose network. `HS_PORT` sets the local HS port (default `8080`). `UCS_CONNECTORS` controls the local HS connector list (default `adyen`).
+HS uses its supported `ROUTER__...` environment overrides; upstream TOML is unchanged. The UCS wrapper adds the standard gRPC health probe, and Compose starts HS after UCS is healthy. Redis is internal to the Compose network; PostgreSQL binds to loopback on `HS_DB_PORT` (default `15432`). `HS_PORT` sets the local HS port (default `8080`). `UCS_CONNECTORS` selects connectors routed to UCS in this local stack (default `adyen`); extend it when registering connectors.
 
-## Extend coverage
+For an existing dedicated test stack, set `HS_BASE_URL`, `HS_ADMIN_API_KEY`, and `HS_DATABASE_URL` as appropriate.
 
-Each scenario has its own file. `create-confirm` means a single create request with `confirm: true`; `create-then-confirm` means separate create and confirm requests. `automatic` and `manual` describe capture mode. Retrieval and verification steps are declared within each scenario.
+## Scenarios
 
-Only `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.spec.ts` is implemented. Its four sibling files are empty placeholders for future scenarios.
+Each file contains one complete shared scenario. Read it top to bottom to see the requests, response checks, polling, and database evidence. Calls run in the order written.
 
-- `scenarios/api/` declares journeys driven through direct HS API calls, using server or client credentials as appropriate. Scenario files contain typed data and register tests through the shared runner. Future tests operating an actual Web SDK checkout belong under `scenarios/web-sdk/checkout/`.
-- `connectors/` declares supported capabilities and connector-required test data. It does not implement payment lifecycles.
-- `framework/` supplies reusable setup, step execution, API access, and checks.
-- `stack/` owns the isolated local services.
+```ts
+const createdPayment = await payments.createPayment({
+  profile_id: merchant.profileId,
+  amount: 6000,
+  currency: "USD",
+  confirm: true,
+  payment_method: "card",
+  payment_method_data: { card: connector.card },
+});
 
-All compatible registered connectors automatically receive a shared scenario. Add connector-specific data only when the processor requires it; do not copy the scenario or runner.
+const payment = await payments.retrieveUntilStatus(
+  createdPayment.payment_id,
+  { force_sync: true },
+  "succeeded",
+);
 
-### File responsibilities
+await checks.fields("Payment result", payment, {
+  status: "succeeded",
+  amount: 6000,
+  connector: connector.id,
+});
+```
+
+Responses are ordinary objects. Any returned field can be passed to a later operation using normal TypeScript variables. Requests use HS API field names and pass through unchanged; the framework does not duplicate the full HS API schema or add payment fields implicitly. The shared operations use the provisioned merchant's server API key.
+
+`checks.fields(name, actual, expected)` compares fields and attaches the same expected/actual values to the report. `checks.oneOf(name, actual, allowed)` checks membership. `retrieveUntilStatus` repeats only GET requests, for at most 90 seconds. Mutating requests are never retried automatically.
+
+Only `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.spec.ts` is implemented. The four sibling files are empty placeholders. The current sequence is:
+
+```text
+POST /payments with confirm:true
+  -> check confirmation
+GET /payments/{id}?force_sync=true until succeeded
+  -> check terminal payment fields
+Read recorded routing from the test HS database
+  -> check UCS gateway and charged attempt's processor reference
+```
+
+The database read does not trigger or prove a fresh processor PSync call. It requires the corresponding HS database schema.
+
+## Add coverage
+
+Scenarios belong to the shared superset under `scenarios/`. Connectors automatically inherit all registered scenarios. Keep connector differences in `connectors/`; do not copy scenarios into connector directories.
+
+- Add a connector definition and register it in `connectors/index.ts`.
+- Supply sandbox card data and any necessary scenario request or expectation overrides.
+- Exclude an unsupported scenario explicitly with a nonempty reason. Exclusions appear as skipped tests.
+- Add a new shared scenario for a new payment journey. Its function owns the ordered calls and expected results.
+- Add reusable operations or setup helpers when the new journey needs them. Operation helpers perform individual calls; they do not decide the journey.
+
+Connector overrides are ordinary data, keyed by shared scenario ID:
+
+```ts
+overrides: {
+  "scenario-id": {
+    requests: {
+      createPayment: { metadata: { order_type: "standard" } },
+    },
+    expectations: {
+      payment: { currency: "EUR" },
+    },
+  },
+},
+exclude: {
+  "another-scenario-id": { reason: "Explain the unsupported behavior" },
+},
+```
+
+The scenario explicitly applies relevant overrides with object spread. Overrides replace complete top-level fields; nested objects are not implicitly merged. Keep request changes and their expected results consistent. Cards, credentials, and connector metadata do not justify a separate connector-specific lifecycle. Features needing extra setup should use a shared setup helper and explicit scenario requirements when introduced.
+
+`create-confirm` means a single create request with `confirm:true`; `create-then-confirm` means separate requests. `automatic` and `manual` describe capture mode. The filename identifies the scenario; its code states the full journey.
+
+`scenarios/api/` covers direct HS API calls. Future tests loading and operating the actual Web SDK belong under `scenarios/web-sdk/checkout/`. Browser authentication within an API flow does not itself constitute SDK coverage.
+
+## File responsibilities
 
 | File | Responsibility |
 | --- | --- |
-| `scenarios/api/**/*.spec.ts` | Declare the complete ordered journey: each operation, request fields, expected response fields, polling target, and routing checks. Register it for compatible connectors. |
-| `connectors/adyen.ts` | Declare connector capabilities and sandbox card data. |
+| `scenarios/api/**/*.spec.ts` | Own the complete journey, request data, use of responses, and expected results. |
+| `connectors/adyen.ts` | Declare sandbox data, optional data overrides, and reasoned exclusions. |
 | `connectors/index.ts` | Register connector definitions. |
-| `framework/scenario.ts` | Define data types for scenarios, supported operations, requests, expectations, and connector compatibility. |
-| `framework/runner.ts` | Set up the test, execute exactly the declared steps in order, resolve saved payment IDs and connector data, and release the HTTP client. |
+| `framework/scenario.ts` | Define scenario metadata and data-only connector configuration types. |
+| `framework/fixtures.ts` | Standard Playwright fixtures apply exclusions, provision context, and release resources. No payment sequence. |
+| `framework/operations.ts` | Execute individual payment operations and return responses; expose explicitly named retrieval polling and recorded-routing reads. |
 | `framework/merchant-setup.ts` | Configure UCS and provision the merchant, API key, profile, connector account, and routing rule. |
 | `framework/hyperswitch.ts` | Send authenticated HS HTTP requests and handle transport/HTTP errors. |
-| `framework/payment-records.ts` | Read payment routing and processor-reference facts from the test database. |
-| `framework/checks.ts` | Compare declared expectations with observed results, perform bounded status polling, and produce expected/actual report attachments. |
-| `framework/credentials.ts` | Load external connector credentials. |
-| `framework/configuration.ts` | Resolve runtime URLs and options from environment variables. |
-| `stack/compose.yml` | Define local service configuration and startup dependencies. |
+| `framework/payment-records.ts` | Read routing and processor-reference facts from the dedicated test database. |
+| `framework/checks.ts` | Shared comparisons, bounded polling, and expected/actual report attachments. |
+| `framework/credentials.ts` | Load external sandbox credentials. |
+| `framework/configuration.ts` | Resolve runtime URLs and options. |
+| `stack/compose.yml` | Configure local services and readiness dependencies. |
 | `stack/ucs.Dockerfile` | Add the gRPC health-check executable to the published UCS image. |
-| `stack/stack.mjs` | Prepare matching runtime assets and start or stop the Compose project. |
-| `playwright.config.ts` | Configure test discovery, execution, and reporters. |
-| `package.json`, `package-lock.json`, `tsconfig.json` | Define commands, dependencies, and compiler settings. |
+| `stack/stack.mjs` | Prepare matching runtime assets and start or stop Compose. |
+| `playwright.config.ts` | Configure discovery, execution, and reporters. |
+| `package.json`, `package-lock.json`, `tsconfig.json` | Commands, dependencies, and compiler settings. |
 
-The runner does not select a payment lifecycle or insert additional payment calls. `steps` are executed in declaration order. `saveAs: "payment"` saves the created payment identifier; `payment: "payment"` references it in subsequent steps. `$connector.card` explicitly selects the registered connector's sandbox card, while the framework supplies the provisioned profile and server API key.
-
-Within a step, `name` is the report label, `action` selects the reusable operation, `request` contains HS API request fields, and `expect` contains response comparisons. `saveAs` and `payment` link operations by payment identifier. The request type documents core card fields and permits additional JSON fields, which are forwarded unchanged. HS remains responsible for API validation; the framework does not duplicate the full HS request schema. Framework substitutions such as `$connector.card` and `{ from: "connector.id" }` are resolved before the HTTP call or comparison.
-
-Each step's `expect` entries drive both assertions and report attachments. `waitForStatus` declares a retrieval polling target; only retrieval is repeated. Mutating requests are never retried automatically. The currently implemented operations are `createPayment`, `retrievePayment`, and `verifyPaymentRoute`; additional operations belong in the shared framework when their first scenario is added.
-
-Connector compatibility is derived from the payment request in the scenario. Routing verification reads the dedicated test HS database through `HS_DATABASE_URL` or the local default. This explicitly checks HS storage fields for the recorded gateway and processor reference; it does not prove that a retrieval caused a fresh processor sync. Run against an HS version with the corresponding database schema.
-
-The current scenario is a server-side, one-time No3DS card payment with automatic capture:
-
-```text
-create payment with confirm:true -> retrieve payment -> verify success and UCS routing
-```
-
-Connector credentials are read only at runtime. Do not commit credentials, reports, runtime files, or copied production data.
+Connector credentials are read only at runtime. Do not commit credentials, reports, runtime files, or copied production data. API tracing is disabled because it can capture credentials and payment-method data.
