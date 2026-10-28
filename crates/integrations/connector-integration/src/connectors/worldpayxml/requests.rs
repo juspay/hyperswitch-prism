@@ -856,7 +856,9 @@ pub struct WorldpayxmlVoidPCOrderModification {
 
 #[derive(Debug, Serialize)]
 pub struct WorldpayxmlCancelOrRefund {
-    // Empty struct - generates <cancelOrRefund/> element
+    // Optional per the paymentService DTD; omitted, it generates <cancelOrRefund/>.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<WorldpayxmlAmount>,
 }
 
 #[derive(Debug, Serialize)]

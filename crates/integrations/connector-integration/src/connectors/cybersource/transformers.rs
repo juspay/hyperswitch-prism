@@ -3524,6 +3524,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceVoidPCRequest {
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    order_information: Option<OrderInformation>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -3551,7 +3553,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        let order_information = value
+            .router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| {
+                let total_amount = value
+                    .connector
+                    .amount_converter
+                    .convert(amount.amount, amount.currency)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?;
+                Ok::<_, Self::Error>(OrderInformation {
+                    amount_details: Amount {
+                        total_amount,
+                        currency: amount.currency,
+                        discount_amount: None,
+                        duty_amount: None,
+                        freight_amount: None,
+                        tax_amount: None,
+                    },
+                })
+            })
+            .transpose()?;
         Ok(Self {
+            order_information,
             client_reference_information: ClientReferenceInformation {
                 code: Some(
                     value
@@ -3606,27 +3634,24 @@ impl<F> TryFrom<ResponseRouterData<CybersourcePaymentsResponse, Self>>
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
         );
-        let description = post_capture_void_status
-            .is_post_capture_void_failure()
-            .then(|| {
-                get_error_response(
-                    &item.response.error_information,
-                    &item.response.processor_information,
-                    &item.response.risk_information,
-                    None,
-                    item.http_code,
-                    item.response.id.clone(),
-                )
-                .reason
-            })
-            .flatten();
-        Ok(Self {
-            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+        let response = if post_capture_void_status.is_post_capture_void_failure() {
+            Err(get_error_response(
+                &item.response.error_information,
+                &item.response.processor_information,
+                &item.response.risk_information,
+                None,
+                item.http_code,
+                item.response.id.clone(),
+            ))
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id: Some(item.response.id.clone()),
-                description,
                 status_code: item.http_code,
-            }),
+            })
+        };
+        Ok(Self {
+            response,
             ..item.router_data
         })
     }

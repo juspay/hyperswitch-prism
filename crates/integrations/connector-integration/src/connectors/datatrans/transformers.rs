@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::types::ResponseRouterData;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::{AttemptStatus, Currency, PostCaptureVoidStatus, RefundStatus};
-use common_utils::{pii::Email, request::Method, MinorUnit};
+use common_utils::{pii::Email, request::Method, types::Money, MinorUnit};
 use domain_types::errors::{
     ConnectorError, IntegrationError, IntegrationErrorContext, ResponseTransformationErrorContext,
 };
@@ -14,7 +14,8 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse, CustomerInfo,
+        ConnectorSpecificClientAuthenticationResponse, CurrencyConversionData,
+        CurrencyConversionType, CustomerInfo,
         DatatransClientAuthenticationResponse as DatatransClientAuthenticationResponseDomain,
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData,
@@ -394,13 +395,11 @@ pub struct RedirectUrls {
 #[serde(rename_all = "camelCase")]
 pub struct DatatransPaymentsRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+    Mcp = DatatransMcp,
 > {
-    pub currency: Currency,
+    #[serde(flatten)]
+    pub money: DatatransMoney<Mcp>,
     pub refno: String,
-    /// Charge amount in minor units. Omitted (`None`) for zero-auth SetupMandate/CIT
-    /// alias creation, where no amount is captured; always present for Authorize.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<DatatransCard<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -419,6 +418,161 @@ pub struct DatatransPaymentsRequest<
     pub pay: Option<DatatransGooglePayRequest>,
     #[serde(rename = "APL", skip_serializing_if = "Option::is_none")]
     pub apl: Option<DatatransApplePayRequest>,
+}
+
+/// Keeps Datatrans's top-level settlement leg and customer-facing MCP leg together.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransMoney<Mcp> {
+    pub currency: Currency,
+    /// Omitted for zero-auth alias creation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mcp: Option<Mcp>,
+}
+
+/// Datatrans multi-currency processing (MCP) object.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransMcp {
+    pub currency: Currency,
+    pub amount: MinorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conversion_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retrieval_reference_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason_indicator: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransMcpAmount {
+    pub currency: Currency,
+    pub amount: MinorUnit,
+}
+
+/// Builds the flow-specific MCP payload after the common money mapping selects a quote.
+pub trait DatatransMcpPayload: Sized {
+    fn from_quote(
+        quote: &domain_types::connector_types::CurrencyConversionQuote,
+        hyperswitch_customer_money: &Money,
+    ) -> Result<Self, error_stack::Report<IntegrationError>>;
+}
+
+impl DatatransMcpPayload for DatatransMcpAmount {
+    fn from_quote(
+        _quote: &domain_types::connector_types::CurrencyConversionQuote,
+        hyperswitch_customer_money: &Money,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        Ok(Self {
+            currency: hyperswitch_customer_money.currency,
+            amount: hyperswitch_customer_money.amount,
+        })
+    }
+}
+
+/// Resolves both legs from one quote: merchant settlement fields at the top level,
+/// customer-facing fields in `mcp`. Without MCP, keeps the original payment fields.
+impl<Mcp: DatatransMcpPayload> DatatransMoney<Mcp> {
+    fn new(
+        hyperswitch_customer_money: &Money,
+        mcp_request: Option<&CurrencyConversionData>,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        match mcp_request
+            .and_then(|data| data.quote.as_ref())
+            .filter(|quote| quote.currency_conversion_type == Some(CurrencyConversionType::Mcp))
+        {
+            None => Ok(Self {
+                amount: Some(hyperswitch_customer_money.amount),
+                currency: hyperswitch_customer_money.currency,
+                mcp: None,
+            }),
+            Some(quote) => {
+                let settlement = quote.merchant_order_amount.as_ref().ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "currency_conversion_data.quote.merchant_order_amount",
+                        context: datatrans_context(
+                            "Datatrans MCP requires the merchant settlement currency and amount for the transaction",
+                        ),
+                    })
+                })?;
+                Ok(Self {
+                    amount: Some(settlement.amount),
+                    currency: settlement.currency,
+                    mcp: Some(Mcp::from_quote(quote, hyperswitch_customer_money)?),
+                })
+            }
+        }
+    }
+}
+
+/// Builds the full `mcp` object for an Authorize request.
+///
+/// The `mcp` object carries the customer-facing leg — the original payment
+/// `amount`/`currency` that the shopper saw at checkout and is charged. The quote only
+/// supplies the conversion echo fields (`conversionRate`, `transactionDate`,
+/// `retrievalReferenceNumber`) and the merchant's MCP configuration (`provider`,
+/// `userId`, `reasonIndicator`); the merchant settlement leg goes on the request's
+/// top-level `amount`/`currency` (see [`DatatransMoney::new`]).
+impl DatatransMcpPayload for DatatransMcp {
+    fn from_quote(
+        quote: &domain_types::connector_types::CurrencyConversionQuote,
+        hyperswitch_customer_money: &Money,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let conversion_rate = quote
+            .exchange_rate
+            .as_ref()
+            .map(|exchange_rate| {
+                exchange_rate
+                    .parse::<f64>()
+                    .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "currency_conversion_data.quote.exchange_rate",
+                        context: datatrans_context(
+                            "Datatrans MCP requires the conversion rate as a decimal number",
+                        ),
+                    })
+            })
+            .transpose()?;
+
+        let transaction_date = quote
+            .quoted_at
+            .map(|quoted_at| {
+                time::OffsetDateTime::from_unix_timestamp(quoted_at)
+                    .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "currency_conversion_data.quote.quoted_at",
+                        context: datatrans_context(
+                            "Datatrans MCP requires a valid Unix timestamp for the quote time",
+                        ),
+                    })?
+                    .format(&time::format_description::well_known::Rfc3339)
+                    .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "currency_conversion_data.quote.quoted_at",
+                        context: datatrans_context(
+                            "Datatrans MCP requires the quote time as an RFC 3339 timestamp",
+                        ),
+                    })
+            })
+            .transpose()?;
+
+        Ok(Self {
+            currency: hyperswitch_customer_money.currency,
+            amount: hyperswitch_customer_money.amount,
+            conversion_rate,
+            transaction_date,
+            retrieval_reference_number: quote.exchange_rate_id.clone(),
+            provider: quote.provider.clone(),
+            user_id: quote.user_id.clone(),
+            reason_indicator: quote.conversion_reason_code.clone(),
+        })
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -464,6 +618,9 @@ pub type DatatransSetupMandateResponse = DatatransPaymentsResponse;
 /// MIT / RepeatPayment reuses the Authorize request and response shapes: the stored alias
 /// is charged via the same `/v1/transactions/authorize` endpoint. These aliases give the
 /// Bridge macro distinct per-flow templating type names without duplicating the structs.
+/// Repeat payments use the full MCP object, exactly like Authorize: Datatrans validates
+/// `mcp.userId` on every `/v1/transactions/authorize` call, so the slim amount/currency-only
+/// shape used by capture and refund is rejected here.
 pub type DatatransRepeatPaymentRequest<T> = DatatransPaymentsRequest<T>;
 pub type DatatransRepeatPaymentResponse = DatatransPaymentsResponse;
 
@@ -663,13 +820,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // to None and let the connector default it — now correctly maps to true.)
         let auto_settle = Some(router_data.request.is_auto_capture());
 
+        let money = DatatransMoney::new(
+            &router_data.request.amount,
+            router_data.request.currency_conversion_data.as_ref(),
+        )?;
+
         Ok(Self {
-            currency: router_data.request.currency,
+            money,
             refno: router_data
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: Some(router_data.request.amount.amount),
             card,
             auto_settle,
             redirect,
@@ -1100,13 +1261,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         Ok(Self {
-            currency: router_data.request.currency,
+            money: DatatransMoney {
+                currency: router_data.request.currency,
+                amount: None,
+                mcp: None,
+            },
             refno: router_data
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            // Zero-auth: no amount is charged; the field is omitted from the request.
-            amount: None,
             card: Some(card),
             customer: DatatransCustomer::new(
                 resolve_customer_id(
@@ -1287,7 +1450,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for DatatransPaymentsRequest<T>
+    > for DatatransRepeatPaymentRequest<T>
 {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -1381,13 +1544,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             three_ds: None,
         });
 
+        let money = DatatransMoney::new(
+            &router_data.request.amount,
+            router_data.request.currency_conversion_data.as_ref(),
+        )?;
+
         Ok(Self {
-            currency: router_data.request.currency,
+            money,
             refno: router_data
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: Some(router_data.request.amount.amount),
             card: Some(card),
             customer: DatatransCustomer::new(
                 resolve_customer_id(None, router_data.request.customer.as_ref()),
@@ -1807,8 +1974,8 @@ impl TryFrom<ResponseRouterData<DatatransSyncResponse, Self>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatatransCaptureRequest {
-    pub amount: MinorUnit,
-    pub currency: Currency,
+    #[serde(flatten)]
+    pub money: DatatransMoney<DatatransMcpAmount>,
     pub refno: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refno2: Option<String>,
@@ -1831,12 +1998,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        // Get the amount to capture from minor_amount_to_capture
-        let amount = router_data.request.amount_to_capture.amount;
+        let money = DatatransMoney::new(
+            &router_data.request.amount_to_capture,
+            router_data.request.currency_conversion_data.as_ref(),
+        )?;
 
         Ok(Self {
-            amount,
-            currency: router_data.request.currency,
+            money,
             refno: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -1906,8 +2074,8 @@ impl TryFrom<ResponseRouterData<DatatransCaptureResponse, Self>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatatransRefundRequest {
-    pub amount: MinorUnit,
-    pub currency: Currency,
+    #[serde(flatten)]
+    pub money: DatatransMoney<DatatransMcpAmount>,
     pub refno: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refno2: Option<String>,
@@ -1930,12 +2098,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        // Get the refund amount from RefundsData
-        let amount = router_data.request.refund_amount.amount;
+        let money = DatatransMoney::new(
+            &router_data.request.refund_amount,
+            router_data.request.currency_conversion_data.as_ref(),
+        )?;
 
         Ok(Self {
-            amount,
-            currency: router_data.request.currency,
+            money,
             // Send the refund's own id as the Datatrans `refno` (mirrors HS Direct, which uses
             // `refund_id`), so the credit is reconciled against the refund rather than the payment.
             refno: router_data.request.refund_id.clone(),
@@ -2224,7 +2393,6 @@ impl TryFrom<ResponseRouterData<DatatransVoidPCResponse, Self>>
         let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
             post_capture_void_status: PostCaptureVoidStatus::Succeeded,
             connector_reference_id: Some(item.router_data.request.connector_transaction_id.clone()),
-            description: None,
             status_code: item.http_code,
         };
 

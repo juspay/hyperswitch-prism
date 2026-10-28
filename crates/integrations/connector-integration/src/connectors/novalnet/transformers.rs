@@ -18,12 +18,12 @@ use domain_types::{
         RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, SetupMandateRequestData, WebhookDetailsResponse,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::{
-        BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
-        WalletData as WalletDataPaymentMethod,
+        ApplePayPaymentData, BankDebitData, GpayTokenizationData, PaymentMethodData,
+        PaymentMethodDataTypes, RawCardNumber, WalletData as WalletDataPaymentMethod,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils::{self, ForeignTryFrom},
@@ -37,6 +37,10 @@ use crate::{connectors::novalnet::NovalnetRouterData, types::ResponseRouterData}
 
 /// Default locale
 const DEFAULT_LOCALE: &str = "en";
+
+/// Novalnet API parameter reference, cited in request-validation errors
+const NOVALNET_API_DOC_URL: &str =
+    "https://developer.novalnet.de/onlinepayments/apiparameterreference";
 
 const MINIMAL_CUSTOMER_DATA_PASSED: i64 = 1;
 const CREATE_TOKEN_REQUIRED: i8 = 1;
@@ -85,8 +89,138 @@ pub struct NovalnetPaymentsRequestCustomer {
     email: pii::Email,
     mobile: Option<Secret<String>>,
     billing: Option<NovalnetPaymentsRequestBilling>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shipping: Option<NovalnetPaymentsRequestShipping>,
     no_nc: i64,
     birth_date: Option<String>, // Mandatory for SEPA Guarantee Payment
+}
+
+#[derive(Default, Debug, Serialize, Clone)]
+pub struct NovalnetPaymentsRequestShipping {
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
+    email: Option<pii::Email>,
+    tel: Option<Secret<String>>,
+    street: Option<Secret<String>>,
+    city: Option<Secret<String>>,
+    zip: Option<Secret<String>>,
+    state: Option<Secret<String>>,
+    country_code: Option<common_enums::CountryAlpha2>,
+}
+
+/// Builds `customer.shipping` from the shipping address; `None` when no shipping address exists
+/// or when none of its fields is populated (an all-null object is never sent).
+fn get_novalnet_shipping(
+    resource_common_data: &PaymentFlowData,
+) -> Option<NovalnetPaymentsRequestShipping> {
+    resource_common_data
+        .get_optional_shipping()
+        .map(|_| NovalnetPaymentsRequestShipping {
+            first_name: resource_common_data.get_optional_shipping_first_name(),
+            last_name: resource_common_data.get_optional_shipping_last_name(),
+            email: resource_common_data.get_optional_shipping_email(),
+            tel: resource_common_data.get_optional_shipping_phone_number(),
+            street: resource_common_data.get_optional_shipping_line1(),
+            city: resource_common_data.get_optional_shipping_city(),
+            zip: resource_common_data.get_optional_shipping_zip(),
+            state: resource_common_data.get_optional_shipping_state(),
+            country_code: resource_common_data.get_optional_shipping_country(),
+        })
+        .filter(|shipping| {
+            shipping.first_name.is_some()
+                || shipping.last_name.is_some()
+                || shipping.email.is_some()
+                || shipping.tel.is_some()
+                || shipping.street.is_some()
+                || shipping.city.is_some()
+                || shipping.zip.is_some()
+                || shipping.state.is_some()
+                || shipping.country_code.is_some()
+        })
+}
+
+/// Novalnet offers automatic (/v2/payment) and a single manual (/v2/authorize) capture only, so
+/// multiple partial captures and scheduled captures are refused. `context_suffix` is appended to
+/// the error's additional context (e.g. `" for recurring payments"`).
+fn validate_novalnet_capture_method(
+    capture_method: Option<common_enums::CaptureMethod>,
+    context_suffix: &str,
+) -> Result<(), error_stack::Report<IntegrationError>> {
+    match capture_method {
+        Some(common_enums::CaptureMethod::ManualMultiple)
+        | Some(common_enums::CaptureMethod::Scheduled) => {
+            Err(IntegrationError::CaptureMethodNotSupported {
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use capture_method AUTOMATIC, SEQUENTIAL_AUTOMATIC or MANUAL; Novalnet \
+                         supports a single capture of an authorization only"
+                            .to_string(),
+                    ),
+                    doc_url: Some(NOVALNET_API_DOC_URL.to_string()),
+                    additional_context: Some(format!(
+                        "capture_method {capture_method:?} is not supported by Novalnet{context_suffix}"
+                    )),
+                },
+            }
+            .into())
+        }
+        Some(common_enums::CaptureMethod::Automatic)
+        | Some(common_enums::CaptureMethod::Manual)
+        | Some(common_enums::CaptureMethod::SequentialAutomatic)
+        | None => Ok(()),
+    }
+}
+
+/// Novalnet documents no transaction.payment_data field for a decrypted Google Pay
+/// DPAN/cryptogram, so decrypted data is refused before any call; returns the encrypted token.
+fn get_novalnet_gpay_encrypted_token(
+    tokenization_data: &GpayTokenizationData,
+    flow: &str,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    match tokenization_data {
+        GpayTokenizationData::Decrypted(_) => Err(IntegrationError::NotSupported {
+            message: "Decrypted Google Pay payment data".to_string(),
+            connector: "novalnet",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Send the encrypted Google Pay token (PSP decryption); \
+                     Novalnet does not accept decrypted Google Pay data"
+                        .to_string(),
+                ),
+                doc_url: Some(NOVALNET_API_DOC_URL.to_string()),
+                additional_context: Some(format!(
+                    "{flow}: Google Pay tokenization_data is Decrypted"
+                )),
+            },
+        }
+        .into()),
+        GpayTokenizationData::Encrypted(encrypted) => Ok(encrypted.token.clone()),
+    }
+}
+
+/// Novalnet documents no transaction.payment_data field for a decrypted Apple Pay
+/// DPAN/cryptogram, so decrypted data is refused before any call.
+fn reject_novalnet_decrypted_apple_pay(
+    payment_data: &ApplePayPaymentData,
+    flow: &str,
+) -> Result<(), error_stack::Report<IntegrationError>> {
+    match payment_data {
+        ApplePayPaymentData::Decrypted(_) => Err(IntegrationError::NotSupported {
+            message: "Decrypted Apple Pay payment data".to_string(),
+            connector: "novalnet",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Send the encrypted Apple Pay payment data (PSP decryption); \
+                     Novalnet does not accept decrypted Apple Pay data"
+                        .to_string(),
+                ),
+                doc_url: Some(NOVALNET_API_DOC_URL.to_string()),
+                additional_context: Some(format!("{flow}: Apple Pay payment_data is Decrypted")),
+            },
+        }
+        .into()),
+        ApplePayPaymentData::Encrypted(_) => Ok(()),
+    }
 }
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCard<
@@ -232,6 +366,31 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        // Novalnet runs 3DS itself (transaction.enforce_3d -> result.redirect_url) and documents
+        // no field for merchant-performed authentication results (CAVV/ECI/DS transaction id).
+        // Silently dropping them would re-run 3DS or charge without liability shift, so external
+        // 3DS data is refused for every payment-method arm before the request is built.
+        if item.router_data.request.authentication_data.is_some() {
+            return Err(IntegrationError::NotSupported {
+                message: "external 3DS authentication data".to_string(),
+                connector: "Novalnet",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Omit authentication_data; Novalnet authenticates the shopper itself \
+                         when auth_type is THREE_DS (transaction.enforce_3d)"
+                            .to_string(),
+                    ),
+                    doc_url: Some(NOVALNET_API_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "Novalnet has no request field for externally performed 3DS results \
+                         (cavv, eci, ds_trans_id)"
+                            .to_string(),
+                    ),
+                },
+            }
+            .into());
+        }
+
         let auth = NovalnetAuthType::try_from(&item.router_data.connector_config)?;
 
         let merchant = NovalnetPaymentsRequestMerchant {
@@ -287,6 +446,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .get_optional_billing_phone_number(),
             billing: Some(billing),
+            shipping: get_novalnet_shipping(&item.router_data.resource_common_data),
             // no_nc is used to indicate if minimal customer data is passed or not
             no_nc: MINIMAL_CUSTOMER_DATA_PASSED,
             // DOB should be populated in case of SepaGuaranteedBankDebit payments
@@ -317,6 +477,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
+
+        // Novalnet offers automatic (/v2/payment) and a single manual (/v2/authorize) capture
+        // only, so multiple partial captures and scheduled captures are refused for every arm.
+        validate_novalnet_capture_method(item.router_data.request.capture_method, "")?;
 
         match item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref req_card) => {
@@ -358,18 +522,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletDataPaymentMethod::GooglePay(ref req_wallet) => {
+                    // Novalnet documents no transaction.payment_data field for a decrypted
+                    // Google Pay DPAN/cryptogram, so decrypted data is refused before any call.
+                    let encrypted_token = get_novalnet_gpay_encrypted_token(
+                        &req_wallet.tokenization_data,
+                        "Authorize",
+                    )?;
                     let novalnet_google_pay: NovalNetPaymentData<T> =
                         NovalNetPaymentData::GooglePay(NovalnetGooglePay {
-                            wallet_data: Secret::new(
-                                req_wallet
-                                    .tokenization_data
-                                    .get_encrypted_google_pay_token()
-                                    .change_context(IntegrationError::MissingRequiredField {
-                                        field_name: "gpay wallet_token",
-                                        context: Default::default(),
-                                    })?
-                                    .clone(),
-                            ),
+                            wallet_data: Secret::new(encrypted_token),
                         });
 
                     let transaction = NovalnetPaymentsRequestTransaction {
@@ -398,6 +559,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })
                 }
                 WalletDataPaymentMethod::ApplePay(payment_method_data) => {
+                    // Novalnet documents no transaction.payment_data field for a decrypted
+                    // Apple Pay DPAN/cryptogram, so decrypted data is refused before any call.
+                    reject_novalnet_decrypted_apple_pay(
+                        &payment_method_data.payment_data,
+                        "Authorize",
+                    )?;
                     let transaction = NovalnetPaymentsRequestTransaction {
                         test_mode,
                         payment_type: NovalNetPaymentTypes::APPLEPAY,
@@ -646,6 +813,8 @@ pub enum NovalnetTransactionStatus {
     Deactivated,
     Progress,
     Error,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Copy, Display, Clone, Serialize, Deserialize, PartialEq)]
@@ -654,20 +823,59 @@ pub enum NovalnetTransactionStatus {
 pub enum NovalnetAPIStatus {
     Success,
     Failure,
+    #[serde(other)]
+    Unknown,
 }
 
-impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
-    fn from(item: NovalnetTransactionStatus) -> Self {
-        match item {
-            NovalnetTransactionStatus::Success | NovalnetTransactionStatus::Confirmed => {
-                Self::Charged
-            }
-            NovalnetTransactionStatus::OnHold => Self::Authorized,
-            NovalnetTransactionStatus::Pending => Self::Pending,
-            NovalnetTransactionStatus::Progress => Self::AuthenticationPending,
-            NovalnetTransactionStatus::Deactivated => Self::Voided,
-            NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error => Self::Failure,
+/// Maps a Novalnet `transaction.status` to the payment attempt status.
+/// An undocumented status retains `current` (non-terminal), as Hyperswitch does.
+pub fn get_novalnet_attempt_status(
+    status: NovalnetTransactionStatus,
+    current: common_enums::AttemptStatus,
+) -> common_enums::AttemptStatus {
+    match status {
+        // spec: ## Status Mappings (CONFIRMED / SUCCESS -> Charged)
+        NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
+            common_enums::AttemptStatus::Charged
         }
+        // spec: ## Status Mappings (ON_HOLD -> Authorized)
+        NovalnetTransactionStatus::OnHold => common_enums::AttemptStatus::Authorized,
+        // spec: ## Status Mappings (PENDING -> Pending)
+        NovalnetTransactionStatus::Pending => common_enums::AttemptStatus::Pending,
+        // spec: ## Status Mappings (PROGRESS -> AuthenticationPending)
+        NovalnetTransactionStatus::Progress => common_enums::AttemptStatus::AuthenticationPending,
+        // spec: ## Status Mappings (DEACTIVATED -> Voided)
+        NovalnetTransactionStatus::Deactivated => common_enums::AttemptStatus::Voided,
+        // spec: ## Status Mappings (FAILURE / ERROR -> Failure)
+        NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error => {
+            common_enums::AttemptStatus::Failure
+        }
+        // spec: ## Status Mappings ((unknown) -> previous status retained)
+        NovalnetTransactionStatus::Unknown => current,
+    }
+}
+
+/// Maps a Novalnet `transaction.status` to the refund status.
+/// An undocumented status retains `current` (non-terminal), as Hyperswitch does.
+pub fn get_novalnet_refund_status(
+    status: NovalnetTransactionStatus,
+    current: common_enums::RefundStatus,
+) -> common_enums::RefundStatus {
+    match status {
+        // spec: ## Status Mappings (CONFIRMED / SUCCESS -> Success)
+        NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
+            common_enums::RefundStatus::Success
+        }
+        // spec: ## Status Mappings (PENDING -> Pending)
+        NovalnetTransactionStatus::Pending => common_enums::RefundStatus::Pending,
+        // spec: ## Status Mappings (ON_HOLD / PROGRESS / DEACTIVATED / FAILURE / ERROR -> Failure)
+        NovalnetTransactionStatus::OnHold
+        | NovalnetTransactionStatus::Progress
+        | NovalnetTransactionStatus::Deactivated
+        | NovalnetTransactionStatus::Failure
+        | NovalnetTransactionStatus::Error => common_enums::RefundStatus::Failure,
+        // spec: ## Status Mappings ((unknown) -> previous status retained)
+        NovalnetTransactionStatus::Unknown => current,
     }
 }
 
@@ -675,7 +883,7 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
 pub struct ResultData {
     pub redirect_url: Option<Secret<url::Url>>,
     pub status: NovalnetAPIStatus,
-    pub status_code: u64,
+    pub status_code: Option<u64>,
     pub status_text: String,
     pub additional_message: Option<String>,
 }
@@ -706,24 +914,67 @@ pub fn get_error_response(
     result: ResultData,
     status_code: u16,
     transaction_id: Option<String>,
+    attempt_status: Option<FlowStatus>,
 ) -> ErrorResponse {
     let error_code = result.status;
     let error_reason = result.status_text.clone();
+    // Novalnet's only issuer signal is `result.additional_message`, e.g. "33 Expired Card":
+    // the leading token is the issuer decline code only when it is purely numeric.
+    let network_decline_code = result.additional_message.as_deref().and_then(|message| {
+        message
+            .split_whitespace()
+            .next()
+            .filter(|token| token.chars().all(|c| c.is_ascii_digit()))
+            .map(str::to_string)
+    });
 
     ErrorResponse {
         code: error_code.to_string(),
         message: error_reason.clone(),
         reason: Some(error_reason),
         status_code,
-        attempt_status: None,
+        attempt_status,
         connector_transaction_id: transaction_id,
         network_advice_code: None,
-        network_decline_code: None,
-        network_error_message: None,
+        network_decline_code,
+        network_error_message: result.additional_message,
         typed_connector_response: None,
         raw_connector_response: None,
         raw_connector_request: None,
         typed_connector_request: None,
+    }
+}
+
+/// Error response for a SUCCESS envelope whose transaction failed (an in-band decline). The code
+/// comes from the transaction (`transaction.status_code`, else its wire status), never from the
+/// envelope's `result.status`, which would read "SUCCESS".
+fn get_transaction_decline_error_response(
+    result: ResultData,
+    transaction_status_code: Option<u64>,
+    transaction_status: NovalnetTransactionStatus,
+    status_code: u16,
+    transaction_id: Option<String>,
+    attempt_status: Option<FlowStatus>,
+) -> ErrorResponse {
+    let code = transaction_status_code
+        .map(|code| code.to_string())
+        .unwrap_or_else(|| {
+            match transaction_status {
+                NovalnetTransactionStatus::Error => "ERROR",
+                NovalnetTransactionStatus::Failure
+                | NovalnetTransactionStatus::Success
+                | NovalnetTransactionStatus::Confirmed
+                | NovalnetTransactionStatus::OnHold
+                | NovalnetTransactionStatus::Pending
+                | NovalnetTransactionStatus::Deactivated
+                | NovalnetTransactionStatus::Progress
+                | NovalnetTransactionStatus::Unknown => "FAILURE",
+            }
+            .to_string()
+        });
+    ErrorResponse {
+        code,
+        ..get_error_response(result, status_code, transaction_id, attempt_status)
     }
 }
 
@@ -745,6 +996,138 @@ impl NovalnetPaymentsResponseTransactionData {
     }
 }
 
+/// Shared response mapping for the `/v2/payment` and `/v2/authorize` bodies returned to
+/// Authorize, SetupMandate and RepeatPayment. Returns the attempt status to store and the
+/// flow response.
+fn build_novalnet_payments_response(
+    response: NovalnetPaymentsResponse,
+    http_code: u16,
+    current_status: common_enums::AttemptStatus,
+) -> (
+    common_enums::AttemptStatus,
+    Result<PaymentsResponseData, ErrorResponse>,
+) {
+    let transaction_id = response
+        .transaction
+        .as_ref()
+        .and_then(|data| data.tid.map(|tid| tid.to_string()));
+
+    match response.result.status {
+        NovalnetAPIStatus::Success => {
+            let redirection_data: Option<RedirectForm> =
+                response
+                    .result
+                    .redirect_url
+                    .clone()
+                    .map(|url| RedirectForm::Form {
+                        endpoint: url.expose().to_string(),
+                        method: Method::Get,
+                        form_fields: HashMap::new(),
+                    });
+
+            let transaction_status = response
+                .transaction
+                .as_ref()
+                .and_then(|transaction_data| transaction_data.status)
+                .unwrap_or(if redirection_data.is_some() {
+                    // NOTE: Novalnet does not send the transaction.status for the redirection
+                    // flow, so the status is mapped to Progress if the flow has redirection data
+                    NovalnetTransactionStatus::Progress
+                } else {
+                    NovalnetTransactionStatus::Pending
+                });
+
+            match transaction_status {
+                // A SUCCESS envelope can still carry a failed transaction: that is a decline.
+                // Its error code comes from the transaction (status_code, else its wire status),
+                // never from the envelope's literal "SUCCESS".
+                NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error => {
+                    let transaction_status_code = response
+                        .transaction
+                        .as_ref()
+                        .and_then(|transaction_data| transaction_data.status_code);
+                    (
+                        common_enums::AttemptStatus::Failure,
+                        Err(get_transaction_decline_error_response(
+                            response.result,
+                            transaction_status_code,
+                            transaction_status,
+                            http_code,
+                            transaction_id,
+                            Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+                        )),
+                    )
+                }
+                NovalnetTransactionStatus::Success
+                | NovalnetTransactionStatus::Confirmed
+                | NovalnetTransactionStatus::OnHold
+                | NovalnetTransactionStatus::Pending
+                | NovalnetTransactionStatus::Deactivated
+                | NovalnetTransactionStatus::Progress
+                | NovalnetTransactionStatus::Unknown => {
+                    let mandate_reference_id = NovalnetPaymentsResponseTransactionData::get_token(
+                        response.transaction.as_ref(),
+                    );
+                    let network_txn_id = response.transaction.and_then(|data| {
+                        data.payment_data
+                            .and_then(|payment_data| match payment_data {
+                                NovalnetResponsePaymentData::Card(card) => {
+                                    card.scheme_tid.map(|tid| tid.expose())
+                                }
+                                NovalnetResponsePaymentData::Paypal(_) => None,
+                            })
+                    });
+                    (
+                        get_novalnet_attempt_status(transaction_status, current_status),
+                        Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: transaction_id
+                                .clone()
+                                .map(ResponseId::ConnectorTransactionId)
+                                .unwrap_or(ResponseId::NoResponseId),
+                            redirection_data: redirection_data.map(Box::new),
+                            mandate_reference: mandate_reference_id
+                                .map(|id| MandateReference {
+                                    connector_mandate_id: Some(id),
+                                    payment_method_id: None,
+                                    connector_mandate_request_reference_id: None,
+                                    mandate_metadata: None,
+                                })
+                                .map(Box::new),
+                            connector_metadata: None,
+                            network_txn_id,
+                            network_txn_link_id: None,
+                            connector_response_reference_id: transaction_id,
+                            incremental_authorization_allowed: None,
+                            status_code: http_code,
+                            splits: None,
+                            payment_account_reference: None,
+                        }),
+                    )
+                }
+            }
+        }
+        NovalnetAPIStatus::Failure => (
+            common_enums::AttemptStatus::Failure,
+            Err(get_error_response(
+                response.result,
+                http_code,
+                transaction_id,
+                Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+            )),
+        ),
+        // An undocumented API status is not a decline: surface the error, keep the status.
+        NovalnetAPIStatus::Unknown => (
+            current_status,
+            Err(get_error_response(
+                response.result,
+                http_code,
+                transaction_id,
+                None,
+            )),
+        ),
+    }
+}
+
 // Specific implementations for Authorize flow
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<NovalnetPaymentsResponse, Self>>
@@ -754,93 +1137,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ResponseRouterData<NovalnetPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let transaction_id = item
-            .response
-            .transaction
-            .clone()
-            .and_then(|data| data.tid.map(|tid| tid.to_string()));
-
-        match item.response.result.status {
-            NovalnetAPIStatus::Success => {
-                let redirection_data: Option<RedirectForm> =
-                    item.response
-                        .result
-                        .redirect_url
-                        .map(|url| RedirectForm::Form {
-                            endpoint: url.expose().to_string(),
-                            method: Method::Get,
-                            form_fields: HashMap::new(),
-                        });
-
-                let mandate_reference_id = NovalnetPaymentsResponseTransactionData::get_token(
-                    item.response.transaction.clone().as_ref(),
-                );
-
-                let transaction_status = item
-                    .response
-                    .transaction
-                    .as_ref()
-                    .and_then(|transaction_data| transaction_data.status)
-                    .unwrap_or(if redirection_data.is_some() {
-                        NovalnetTransactionStatus::Progress
-                        // NOTE: Novalnet does not send us the transaction.status for redirection flow
-                        // so status is mapped to Progress if flow has redirection data
-                    } else {
-                        NovalnetTransactionStatus::Pending
-                    });
-
-                Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::from(transaction_status),
-                        ..item.router_data.resource_common_data
-                    },
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: transaction_id
-                            .clone()
-                            .map(ResponseId::ConnectorTransactionId)
-                            .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data: redirection_data.map(Box::new),
-                        mandate_reference: mandate_reference_id
-                            .as_ref()
-                            .map(|id| MandateReference {
-                                connector_mandate_id: Some(id.clone()),
-                                payment_method_id: None,
-                                connector_mandate_request_reference_id: None,
-                                mandate_metadata: None,
-                            })
-                            .map(Box::new),
-                        connector_metadata: None,
-                        network_txn_id: item.response.transaction.and_then(|data| {
-                            data.payment_data
-                                .and_then(|payment_data| match payment_data {
-                                    NovalnetResponsePaymentData::Card(card) => {
-                                        card.scheme_tid.map(|tid| tid.expose())
-                                    }
-                                    NovalnetResponsePaymentData::Paypal(_) => None,
-                                })
-                        }),
-                        network_txn_link_id: None,
-                        connector_response_reference_id: transaction_id.clone(),
-                        incremental_authorization_allowed: None,
-                        status_code: item.http_code,
-                        splits: None,
-                        payment_account_reference: None,
-                    }),
-                    ..item.router_data
-                })
-            }
-            NovalnetAPIStatus::Failure => {
-                let response = Err(get_error_response(
-                    item.response.result,
-                    item.http_code,
-                    transaction_id,
-                ));
-                Ok(Self {
-                    response,
-                    ..item.router_data
-                })
-            }
-        }
+        let (status, response) = build_novalnet_payments_response(
+            item.response,
+            item.http_code,
+            item.router_data.resource_common_data.status,
+        );
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
+        })
     }
 }
 
@@ -858,93 +1167,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ResponseRouterData<NovalnetPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let transaction_id = item
-            .response
-            .transaction
-            .clone()
-            .and_then(|data| data.tid.map(|tid| tid.to_string()));
-
-        match item.response.result.status {
-            NovalnetAPIStatus::Success => {
-                let redirection_data: Option<RedirectForm> =
-                    item.response
-                        .result
-                        .redirect_url
-                        .map(|url| RedirectForm::Form {
-                            endpoint: url.expose().to_string(),
-                            method: Method::Get,
-                            form_fields: HashMap::new(),
-                        });
-
-                let mandate_reference_id = NovalnetPaymentsResponseTransactionData::get_token(
-                    item.response.transaction.clone().as_ref(),
-                );
-
-                let transaction_status = item
-                    .response
-                    .transaction
-                    .as_ref()
-                    .and_then(|transaction_data| transaction_data.status)
-                    .unwrap_or(if redirection_data.is_some() {
-                        NovalnetTransactionStatus::Progress
-                        // NOTE: Novalnet does not send us the transaction.status for redirection flow
-                        // so status is mapped to Progress if flow has redirection data
-                    } else {
-                        NovalnetTransactionStatus::Pending
-                    });
-
-                Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::from(transaction_status),
-                        ..item.router_data.resource_common_data
-                    },
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: transaction_id
-                            .clone()
-                            .map(ResponseId::ConnectorTransactionId)
-                            .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data: redirection_data.map(Box::new),
-                        mandate_reference: mandate_reference_id
-                            .as_ref()
-                            .map(|id| MandateReference {
-                                connector_mandate_id: Some(id.clone()),
-                                payment_method_id: None,
-                                connector_mandate_request_reference_id: None,
-                                mandate_metadata: None,
-                            })
-                            .map(Box::new),
-                        connector_metadata: None,
-                        network_txn_id: item.response.transaction.and_then(|data| {
-                            data.payment_data
-                                .and_then(|payment_data| match payment_data {
-                                    NovalnetResponsePaymentData::Card(card) => {
-                                        card.scheme_tid.map(|tid| tid.expose())
-                                    }
-                                    NovalnetResponsePaymentData::Paypal(_) => None,
-                                })
-                        }),
-                        network_txn_link_id: None,
-                        connector_response_reference_id: transaction_id.clone(),
-                        incremental_authorization_allowed: None,
-                        status_code: item.http_code,
-                        splits: None,
-                        payment_account_reference: None,
-                    }),
-                    ..item.router_data
-                })
-            }
-            NovalnetAPIStatus::Failure => {
-                let response = Err(get_error_response(
-                    item.response.result,
-                    item.http_code,
-                    transaction_id,
-                ));
-                Ok(Self {
-                    response,
-                    ..item.router_data
-                })
-            }
-        }
+        let (status, response) = build_novalnet_payments_response(
+            item.response,
+            item.http_code,
+            item.router_data.resource_common_data.status,
+        );
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
+        })
     }
 }
 
@@ -958,93 +1193,19 @@ impl<
     fn try_from(
         item: ResponseRouterData<NovalnetPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let transaction_id = item
-            .response
-            .transaction
-            .clone()
-            .and_then(|data| data.tid.map(|tid| tid.to_string()));
-
-        match item.response.result.status {
-            NovalnetAPIStatus::Success => {
-                let redirection_data: Option<RedirectForm> =
-                    item.response
-                        .result
-                        .redirect_url
-                        .map(|url| RedirectForm::Form {
-                            endpoint: url.expose().to_string(),
-                            method: Method::Get,
-                            form_fields: HashMap::new(),
-                        });
-
-                let mandate_reference_id = NovalnetPaymentsResponseTransactionData::get_token(
-                    item.response.transaction.clone().as_ref(),
-                );
-
-                let transaction_status = item
-                    .response
-                    .transaction
-                    .as_ref()
-                    .and_then(|transaction_data| transaction_data.status)
-                    .unwrap_or(if redirection_data.is_some() {
-                        NovalnetTransactionStatus::Progress
-                        // NOTE: Novalnet does not send us the transaction.status for redirection flow
-                        // so status is mapped to Progress if flow has redirection data
-                    } else {
-                        NovalnetTransactionStatus::Pending
-                    });
-
-                Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::from(transaction_status),
-                        ..item.router_data.resource_common_data
-                    },
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: transaction_id
-                            .clone()
-                            .map(ResponseId::ConnectorTransactionId)
-                            .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data: redirection_data.map(Box::new),
-                        mandate_reference: mandate_reference_id
-                            .as_ref()
-                            .map(|id| MandateReference {
-                                connector_mandate_id: Some(id.clone()),
-                                payment_method_id: None,
-                                connector_mandate_request_reference_id: None,
-                                mandate_metadata: None,
-                            })
-                            .map(Box::new),
-                        connector_metadata: None,
-                        network_txn_id: item.response.transaction.and_then(|data| {
-                            data.payment_data
-                                .and_then(|payment_data| match payment_data {
-                                    NovalnetResponsePaymentData::Card(card) => {
-                                        card.scheme_tid.map(|tid| tid.expose())
-                                    }
-                                    NovalnetResponsePaymentData::Paypal(_) => None,
-                                })
-                        }),
-                        network_txn_link_id: None,
-                        connector_response_reference_id: transaction_id.clone(),
-                        incremental_authorization_allowed: None,
-                        status_code: item.http_code,
-                        splits: None,
-                        payment_account_reference: None,
-                    }),
-                    ..item.router_data
-                })
-            }
-            NovalnetAPIStatus::Failure => {
-                let response = Err(get_error_response(
-                    item.response.result,
-                    item.http_code,
-                    transaction_id,
-                ));
-                Ok(Self {
-                    response,
-                    ..item.router_data
-                })
-            }
-        }
+        let (status, response) = build_novalnet_payments_response(
+            item.response,
+            item.http_code,
+            item.router_data.resource_common_data.status,
+        );
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
+        })
     }
 }
 
@@ -1092,10 +1253,10 @@ pub struct NovalnetSyncResponseTransactionData {
     pub date: Option<String>,
     pub order_no: Option<String>,
     pub payment_data: Option<NovalnetResponsePaymentData>,
-    pub payment_type: String,
+    pub payment_type: Option<String>,
     pub status: NovalnetTransactionStatus,
-    pub status_code: u64,
-    pub test_mode: u8,
+    pub status_code: Option<u64>,
+    pub test_mode: Option<u8>,
     pub tid: Option<i64>,
     pub txn_secret: Option<Secret<String>>,
     pub authorization: Option<NovalnetAuthorizationResponse>,
@@ -1296,22 +1457,6 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     }
 }
 
-impl From<NovalnetTransactionStatus> for common_enums::RefundStatus {
-    fn from(item: NovalnetTransactionStatus) -> Self {
-        match item {
-            NovalnetTransactionStatus::Success | NovalnetTransactionStatus::Confirmed => {
-                Self::Success
-            }
-            NovalnetTransactionStatus::Pending => Self::Pending,
-            NovalnetTransactionStatus::Failure
-            | NovalnetTransactionStatus::Error
-            | NovalnetTransactionStatus::OnHold
-            | NovalnetTransactionStatus::Deactivated
-            | NovalnetTransactionStatus::Progress => Self::Failure,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundSyncResponse {
     result: ResultData,
@@ -1325,7 +1470,8 @@ pub struct NovalnetRefundsTransactionData {
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
     pub payment_type: String,
-    pub refund: RefundData,
+    // Absent on a FAILURE body: keeping it optional lets a declined refund reach the error path.
+    pub refund: Option<RefundData>,
     pub refunded_amount: Option<u64>,
     pub status: NovalnetTransactionStatus,
     pub status_code: u64,
@@ -1335,8 +1481,8 @@ pub struct NovalnetRefundsTransactionData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundData {
-    amount: u64,
-    currency: common_enums::Currency,
+    amount: Option<u64>,
+    currency: Option<common_enums::Currency>,
     payment_type: Option<String>,
     tid: Option<i64>,
 }
@@ -1356,18 +1502,20 @@ impl<F> TryFrom<ResponseRouterData<NovalnetRefundResponse, Self>>
     fn try_from(
         item: ResponseRouterData<NovalnetRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let refund_id = item
-            .response
-            .transaction
-            .clone()
-            .and_then(|data| data.refund.tid.map(|tid| tid.to_string()))
-            .ok_or(crate::utils::response_handling_fail_for_connector(
-                item.http_code,
-                "novalnet",
-            ))?;
+        // Refund id is the child refund tid, falling back to the transaction tid (Hyperswitch parity).
+        let refund_id = item.response.transaction.as_ref().and_then(|data| {
+            data.refund
+                .as_ref()
+                .and_then(|refund| refund.tid)
+                .or(data.tid)
+                .map(|tid| tid.to_string())
+        });
 
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
+                let refund_id = refund_id.ok_or(
+                    crate::utils::response_handling_fail_for_connector(item.http_code, "novalnet"),
+                )?;
                 let transaction_status = item
                     .response
                     .transaction
@@ -1377,18 +1525,36 @@ impl<F> TryFrom<ResponseRouterData<NovalnetRefundResponse, Self>>
                 Ok(Self {
                     response: Ok(RefundsResponseData {
                         connector_refund_id: refund_id,
-                        refund_status: common_enums::RefundStatus::from(transaction_status),
+                        refund_status: get_novalnet_refund_status(
+                            transaction_status,
+                            common_enums::RefundStatus::Pending,
+                        ),
                         status_code: item.http_code,
                         acquirer_reference_number: None,
                     }),
                     ..item.router_data
                 })
             }
+            // spec: ## Status Mappings (result.status FAILURE -> refund failed)
             NovalnetAPIStatus::Failure => {
                 let response = Err(get_error_response(
                     item.response.result,
                     item.http_code,
-                    Some(refund_id),
+                    refund_id,
+                    Some(FlowStatus::Refund(common_enums::RefundStatus::Failure)),
+                ));
+                Ok(Self {
+                    response,
+                    ..item.router_data
+                })
+            }
+            // Undocumented result.status: error without a terminal refund status.
+            NovalnetAPIStatus::Unknown => {
+                let response = Err(get_error_response(
+                    item.response.result,
+                    item.http_code,
+                    refund_id,
+                    None,
                 ));
                 Ok(Self {
                     response,
@@ -1511,14 +1677,47 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
                     .transaction
                     .clone()
                     .map(|transaction_data| transaction_data.status)
+                    // spec: ## Status Mappings (transaction absent -> Pending)
                     .unwrap_or(NovalnetTransactionStatus::Pending);
+
+                // A SUCCESS envelope can still carry a failed transaction: report it as an
+                // error with a terminal Failure, as the payment-creating flows do.
+                if matches!(
+                    transaction_status,
+                    NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error
+                ) {
+                    let transaction_status_code = item
+                        .response
+                        .transaction
+                        .as_ref()
+                        .and_then(|transaction_data| transaction_data.status_code);
+                    return Ok(Self {
+                        resource_common_data: PaymentFlowData {
+                            status: common_enums::AttemptStatus::Failure,
+                            ..item.router_data.resource_common_data
+                        },
+                        response: Err(get_transaction_decline_error_response(
+                            item.response.result,
+                            transaction_status_code,
+                            transaction_status,
+                            item.http_code,
+                            transaction_id,
+                            Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+                        )),
+                        ..item.router_data
+                    });
+                }
+
                 let mandate_reference_id = NovalnetSyncResponseTransactionData::get_token(
                     item.response.transaction.as_ref(),
                 );
 
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::from(transaction_status),
+                        status: get_novalnet_attempt_status(
+                            transaction_status,
+                            item.router_data.resource_common_data.status,
+                        ),
                         ..item.router_data.resource_common_data
                     },
                     response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1556,11 +1755,12 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
                     ..item.router_data
                 })
             }
-            NovalnetAPIStatus::Failure => {
+            NovalnetAPIStatus::Failure | NovalnetAPIStatus::Unknown => {
                 let response = Err(get_error_response(
                     item.response.result,
                     item.http_code,
                     transaction_id,
+                    None,
                 ));
                 Ok(Self {
                     response,
@@ -1574,14 +1774,18 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCaptureTransactionData {
     pub amount: Option<MinorUnit>,
-    pub capture: CaptureData,
+    // spec: ## Complete Endpoint Inventory — `transaction.capture` is returned for card and
+    // PayPal only, so a capture of any other payment type omits it.
+    pub capture: Option<CaptureData>,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
-    pub payment_type: String,
-    pub status: NovalnetTransactionStatus,
+    pub payment_type: Option<String>,
+    // spec/HS: `status` is returned for CreditCard/ApplePay/GooglePay/PayPal captures only.
+    pub status: Option<NovalnetTransactionStatus>,
     pub status_code: Option<u64>,
     pub test_mode: Option<u8>,
-    pub tid: i64,
+    // HS: documented as mandatory but absent from the SEPA capture response.
+    pub tid: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1589,7 +1793,7 @@ pub struct CaptureData {
     amount: Option<u64>,
     payment_type: Option<String>,
     status: Option<String>,
-    status_code: u64,
+    status_code: Option<u64>,
     tid: Option<i64>,
 }
 
@@ -1609,20 +1813,65 @@ impl<F> TryFrom<ResponseRouterData<NovalnetCaptureResponse, Self>>
         let transaction_id = item
             .response
             .transaction
-            .clone()
-            .map(|data| data.tid.to_string());
+            .as_ref()
+            .and_then(|data| data.tid)
+            .map(|tid| tid.to_string());
 
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
+                let transaction_status_code = item
+                    .response
+                    .transaction
+                    .as_ref()
+                    .and_then(|transaction_data| transaction_data.status_code);
                 let transaction_status = item
                     .response
                     .transaction
-                    .map(|transaction_data| transaction_data.status)
+                    .and_then(|transaction_data| transaction_data.status)
+                    // spec: ## Status Mappings (transaction or its status absent -> Pending)
                     .unwrap_or(NovalnetTransactionStatus::Pending);
+
+                let status = match transaction_status {
+                    // spec: ## Status Mappings — a SUCCESS envelope can still carry a failed
+                    // capture. A rejected capture leaves the authorization intact, so it is
+                    // CaptureFailed, not a failed payment.
+                    NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error => {
+                        return Ok(Self {
+                            resource_common_data: PaymentFlowData {
+                                status: common_enums::AttemptStatus::CaptureFailed,
+                                ..item.router_data.resource_common_data
+                            },
+                            response: Err(get_transaction_decline_error_response(
+                                item.response.result,
+                                transaction_status_code,
+                                transaction_status,
+                                item.http_code,
+                                transaction_id,
+                                Some(FlowStatus::Payment(
+                                    common_enums::AttemptStatus::CaptureFailed,
+                                )),
+                            )),
+                            ..item.router_data
+                        });
+                    }
+                    // spec: ## Status Mappings (CONFIRMED / SUCCESS -> Charged, ON_HOLD ->
+                    // Authorized, PENDING -> Pending, PROGRESS -> AuthenticationPending,
+                    // DEACTIVATED -> Voided, unknown -> current status retained)
+                    NovalnetTransactionStatus::Confirmed
+                    | NovalnetTransactionStatus::Success
+                    | NovalnetTransactionStatus::OnHold
+                    | NovalnetTransactionStatus::Pending
+                    | NovalnetTransactionStatus::Progress
+                    | NovalnetTransactionStatus::Deactivated
+                    | NovalnetTransactionStatus::Unknown => get_novalnet_attempt_status(
+                        transaction_status,
+                        item.router_data.resource_common_data.status,
+                    ),
+                };
 
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::from(transaction_status),
+                        status,
                         ..item.router_data.resource_common_data
                     },
                     response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1644,21 +1893,33 @@ impl<F> TryFrom<ResponseRouterData<NovalnetCaptureResponse, Self>>
                     ..item.router_data
                 })
             }
-            NovalnetAPIStatus::Failure => {
-                let response = Err(get_error_response(
+            // spec: ## HTTP Codes and Errors — result.status FAILURE rejects the capture; the
+            // authorization survives, so the attempt is CaptureFailed.
+            NovalnetAPIStatus::Failure => Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::CaptureFailed,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(get_error_response(
                     item.response.result,
                     item.http_code,
                     transaction_id,
-                ));
-                Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
-                    response,
-                    ..item.router_data
-                })
-            }
+                    Some(FlowStatus::Payment(
+                        common_enums::AttemptStatus::CaptureFailed,
+                    )),
+                )),
+                ..item.router_data
+            }),
+            // An undocumented API status is not a decline: surface the error, keep the status.
+            NovalnetAPIStatus::Unknown => Ok(Self {
+                response: Err(get_error_response(
+                    item.response.result,
+                    item.http_code,
+                    transaction_id,
+                    None,
+                )),
+                ..item.router_data
+            }),
         }
     }
 }
@@ -1714,14 +1975,11 @@ impl<F> TryFrom<ResponseRouterData<NovalnetRefundSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<NovalnetRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let refund_id = item
-            .response
-            .transaction
-            .clone()
-            .and_then(|data| data.tid)
-            .map(|tid| tid.to_string())
-            .unwrap_or("".to_string());
-        //NOTE: Mapping refund_id with "" incase we dont get any tid
+        // The lookup is keyed by the parent payment tid, so `transaction.tid` in the response is
+        // the payment's tid, not the refund's: echo the refund id the caller already holds.
+        let refund_id = item.router_data.request.connector_refund_id.clone();
+        // An undocumented transaction status retains the refund's current status (HS parity).
+        let prev_refund_status = item.router_data.request.refund_status;
 
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
@@ -1734,18 +1992,24 @@ impl<F> TryFrom<ResponseRouterData<NovalnetRefundSyncResponse, Self>>
                 Ok(Self {
                     response: Ok(RefundsResponseData {
                         connector_refund_id: refund_id,
-                        refund_status: common_enums::RefundStatus::from(transaction_status),
+                        refund_status: get_novalnet_refund_status(
+                            transaction_status,
+                            prev_refund_status,
+                        ),
                         status_code: item.http_code,
                         acquirer_reference_number: None,
                     }),
                     ..item.router_data
                 })
             }
-            NovalnetAPIStatus::Failure => {
+            // spec: ## HTTP Codes and Errors - a failed lookup says nothing about the refund itself,
+            // so the error carries no attempt status.
+            NovalnetAPIStatus::Failure | NovalnetAPIStatus::Unknown => {
                 let response = Err(get_error_response(
                     item.response.result,
                     item.http_code,
                     Some(refund_id),
+                    None,
                 ));
                 Ok(Self {
                     response,
@@ -1822,18 +2086,37 @@ impl<F> TryFrom<ResponseRouterData<NovalnetCancelResponse, Self>>
 
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
-                let transaction_status = item
+                let status = match item
                     .response
                     .transaction
                     .and_then(|transaction_data| transaction_data.status)
-                    .unwrap_or(NovalnetTransactionStatus::Pending);
+                {
+                    // spec: ## Status Mappings (DEACTIVATED -> Voided: the hold was released)
+                    Some(NovalnetTransactionStatus::Deactivated) => {
+                        common_enums::AttemptStatus::Voided
+                    }
+                    // spec: ## Status Mappings (any other documented status after a cancel
+                    // call means the transaction was not deactivated -> VoidFailed)
+                    Some(
+                        NovalnetTransactionStatus::Confirmed
+                        | NovalnetTransactionStatus::Success
+                        | NovalnetTransactionStatus::OnHold
+                        | NovalnetTransactionStatus::Pending
+                        | NovalnetTransactionStatus::Progress
+                        | NovalnetTransactionStatus::Failure
+                        | NovalnetTransactionStatus::Error,
+                    ) => common_enums::AttemptStatus::VoidFailed,
+                    // spec: ## Status Mappings ((unknown) -> previous status retained)
+                    Some(NovalnetTransactionStatus::Unknown) => {
+                        item.router_data.resource_common_data.status
+                    }
+                    // No transaction status in a SUCCESS envelope: the cancel is unconfirmed,
+                    // so the void is not reported as done (Hyperswitch parity -> VoidFailed).
+                    None => common_enums::AttemptStatus::VoidFailed,
+                };
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
-                        status: if transaction_status == NovalnetTransactionStatus::Deactivated {
-                            common_enums::AttemptStatus::Voided
-                        } else {
-                            common_enums::AttemptStatus::VoidFailed
-                        },
+                        status,
                         ..item.router_data.resource_common_data
                     },
 
@@ -1856,21 +2139,31 @@ impl<F> TryFrom<ResponseRouterData<NovalnetCancelResponse, Self>>
                     ..item.router_data
                 })
             }
-            NovalnetAPIStatus::Failure => {
-                let response = Err(get_error_response(
+            // spec: ## HTTP Codes and Errors — result.status FAILURE rejects the cancel; the
+            // authorization survives, so the attempt is VoidFailed, not Failure.
+            NovalnetAPIStatus::Failure => Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::VoidFailed,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(get_error_response(
                     item.response.result,
                     item.http_code,
                     transaction_id,
-                ));
-                Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
-                    response,
-                    ..item.router_data
-                })
-            }
+                    Some(FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed)),
+                )),
+                ..item.router_data
+            }),
+            // An undocumented API status is not a decline: surface the error, keep the status.
+            NovalnetAPIStatus::Unknown => Ok(Self {
+                response: Err(get_error_response(
+                    item.response.result,
+                    item.http_code,
+                    transaction_id,
+                    None,
+                )),
+                ..item.router_data
+            }),
         }
     }
 }
@@ -1893,7 +2186,16 @@ pub enum WebhookEventType {
     TransactionCancel,
     TransactionRefund,
     Chargeback,
+    // spec: ## Webhook Events (RETURN_DEBIT: SEPA return debit, handled with chargebacks)
+    ReturnDebit,
+    // spec: ## Webhook Events (REVERSAL: chargeback-like)
+    Reversal,
     Credit,
+    // spec: ## Webhook Events (TRANSACTION_UPDATE, INSTALMENT, PAYMENT_REMINDER_*, ... ->
+    // not supported). Catch-all so an undocumented `event.type` still decodes; it is never
+    // part of a valid checksum preimage, so verification of such a body fails closed.
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1913,6 +2215,19 @@ pub enum NovalnetWebhookTransactionData {
     CancelTransactionData(NovalnetPaymentsResponseTransactionData),
     RefundsTransactionData(NovalnetRefundsTransactionData),
 }
+impl NovalnetWebhookTransactionData {
+    /// The unsigned `transaction.status`, whichever variant the body decoded as. It is outside
+    /// the checksum preimage, so it may only lower an outcome, never raise one.
+    pub fn transaction_status(&self) -> Option<NovalnetTransactionStatus> {
+        match self {
+            Self::SyncTransactionData(data) => Some(data.status),
+            Self::CaptureTransactionData(data) => data.status,
+            Self::CancelTransactionData(data) => data.status,
+            Self::RefundsTransactionData(_) => None,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NovalnetWebhookNotificationResponse {
     pub event: NovalnetWebhookEvent,
@@ -1944,9 +2259,18 @@ pub enum WebhookDisputeStatus {
 
 pub fn get_novalnet_dispute_status(status: WebhookEventType) -> WebhookDisputeStatus {
     match status {
-        WebhookEventType::Chargeback => WebhookDisputeStatus::DisputeOpened,
+        // spec: ## Webhook Events (CHARGEBACK / RETURN_DEBIT / REVERSAL -> dispute opened)
+        WebhookEventType::Chargeback
+        | WebhookEventType::ReturnDebit
+        | WebhookEventType::Reversal => WebhookDisputeStatus::DisputeOpened,
+        // spec: ## Webhook Events (CREDIT -> DisputeWon)
         WebhookEventType::Credit => WebhookDisputeStatus::DisputeWon,
-        _ => WebhookDisputeStatus::Unknown,
+        // spec: ## Webhook Events (non-dispute events carry no dispute status)
+        WebhookEventType::Payment
+        | WebhookEventType::TransactionCapture
+        | WebhookEventType::TransactionCancel
+        | WebhookEventType::TransactionRefund
+        | WebhookEventType::Unknown => WebhookDisputeStatus::Unknown,
     }
 }
 
@@ -2049,6 +2373,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .get_optional_billing_phone_number(),
             billing: Some(billing),
+            shipping: get_novalnet_shipping(&item.router_data.resource_common_data),
             // no_nc is used to indicate if minimal customer data is passed or not
             no_nc: MINIMAL_CUSTOMER_DATA_PASSED,
             // DOB should be populated in case of SepaGuaranteedBankDebit payments
@@ -2108,18 +2433,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletDataPaymentMethod::GooglePay(ref req_wallet) => {
+                    // Novalnet documents no transaction.payment_data field for a decrypted
+                    // Google Pay DPAN/cryptogram, so decrypted data is refused before any call.
+                    let encrypted_token = get_novalnet_gpay_encrypted_token(
+                        &req_wallet.tokenization_data,
+                        "SetupMandate",
+                    )?;
                     let novalnet_google_pay: NovalNetPaymentData<T> =
                         NovalNetPaymentData::GooglePay(NovalnetGooglePay {
-                            wallet_data: Secret::new(
-                                req_wallet
-                                    .tokenization_data
-                                    .get_encrypted_google_pay_token()
-                                    .change_context(IntegrationError::MissingRequiredField {
-                                        field_name: "gpay wallet_token",
-                                        context: Default::default(),
-                                    })?
-                                    .clone(),
-                            ),
+                            wallet_data: Secret::new(encrypted_token),
                         });
 
                     let transaction = NovalnetPaymentsRequestTransaction {
@@ -2148,6 +2470,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })
                 }
                 WalletDataPaymentMethod::ApplePay(payment_method_data) => {
+                    // Novalnet documents no transaction.payment_data field for a decrypted
+                    // Apple Pay DPAN/cryptogram, so decrypted data is refused before any call.
+                    reject_novalnet_decrypted_apple_pay(
+                        &payment_method_data.payment_data,
+                        "SetupMandate",
+                    )?;
                     let transaction = NovalnetPaymentsRequestTransaction {
                         test_mode,
                         payment_type: NovalNetPaymentTypes::APPLEPAY,
@@ -2341,6 +2669,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .get_optional_billing_phone_number(),
             billing: Some(billing),
+            shipping: get_novalnet_shipping(&item.router_data.resource_common_data),
             // no_nc is used to indicate if minimal customer data is passed or not
             no_nc: MINIMAL_CUSTOMER_DATA_PASSED,
             // DOB should be populated in case of SepaGuaranteedBankDebit payments
@@ -2354,7 +2683,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .unwrap_or(DEFAULT_LOCALE.to_string().to_string());
         let custom = NovalnetCustom { lang };
         let hook_url = item.router_data.request.get_webhook_url()?;
-        let return_url = item.router_data.request.get_router_return_url()?;
+        // A recurring token MIT never sends return_url (techspec Field Dependency Analysis,
+        // RepeatPayment), so it is optional here: only the NTI arm forwards it when present.
+        // A blank or whitespace-only router_return_url is treated as absent, never forwarded.
+        let return_url = item
+            .router_data
+            .request
+            .router_return_url
+            .clone()
+            .filter(|url| !url.trim().is_empty());
 
         let amount = item
             .connector
@@ -2366,6 +2703,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
+
+        // Novalnet offers automatic (/v2/payment) and a single manual (/v2/authorize) capture
+        // only, so multiple partial captures and scheduled captures are refused for every arm.
+        validate_novalnet_capture_method(
+            item.router_data.request.capture_method,
+            " for recurring payments",
+        )?;
 
         match item.router_data.request.mandate_reference {
             MandateReferenceId::ConnectorMandateId(mandate_data) => {
@@ -2434,8 +2778,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 .connector_request_reference_id
                                 .clone(),
                             hook_url: Some(hook_url),
-                            return_url: Some(return_url.clone()),
-                            error_return_url: Some(return_url.clone()),
+                            return_url: return_url.clone(),
+                            error_return_url: return_url,
                             payment_data: Some(novalnet_card),
                             enforce_3d,
                             create_token: Some(CREATE_TOKEN_REQUIRED),
@@ -2464,124 +2808,323 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// The event class comes from the signed checksum preimage (`event.type` + `result.status`).
+///
+/// `transaction_status` is unsigned, so it is used under the same lower-only rule as the
+/// attempt status: it may narrow a signed `PAYMENT`/`SUCCESS` to the authorization-success or
+/// processing variant (which is what an ON_HOLD or PENDING transaction actually is, and what
+/// this returned before the flow was reworked), never widen anything. Editing it on a validly
+/// signed body can therefore only under-report an event.
 pub fn get_incoming_webhook_event(
-    status: WebhookEventType,
-    transaction_status: NovalnetTransactionStatus,
+    event_type: WebhookEventType,
+    result_status: NovalnetAPIStatus,
+    transaction_status: Option<NovalnetTransactionStatus>,
 ) -> EventType {
-    match status {
-        WebhookEventType::Payment => match transaction_status {
-            NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
-                EventType::PaymentIntentSuccess
+    // Narrow PAYMENT/SUCCESS to match the status HandleEvent reports for the same body.
+    if let (WebhookEventType::Payment, NovalnetAPIStatus::Success) = (&event_type, &result_status) {
+        match transaction_status {
+            Some(NovalnetTransactionStatus::OnHold) => {
+                return EventType::PaymentIntentAuthorizationSuccess
             }
-            NovalnetTransactionStatus::OnHold => EventType::PaymentIntentAuthorizationSuccess,
-            NovalnetTransactionStatus::Pending => EventType::PaymentIntentProcessing,
-            NovalnetTransactionStatus::Progress => EventType::IncomingWebhookEventUnspecified,
-            _ => EventType::PaymentIntentFailure,
-        },
-        WebhookEventType::TransactionCapture => match transaction_status {
-            NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
-                EventType::PaymentIntentCaptureSuccess
+            Some(NovalnetTransactionStatus::Pending | NovalnetTransactionStatus::Progress) => {
+                return EventType::PaymentIntentProcessing
             }
-            _ => EventType::PaymentIntentCaptureFailure,
-        },
-        WebhookEventType::TransactionCancel => match transaction_status {
-            NovalnetTransactionStatus::Deactivated => EventType::PaymentIntentCancelled,
-            _ => EventType::PaymentIntentCancelFailure,
-        },
-        WebhookEventType::TransactionRefund => match transaction_status {
-            NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
-                EventType::RefundSuccess
-            }
-            _ => EventType::RefundFailure,
-        },
-        WebhookEventType::Chargeback => EventType::DisputeOpened,
-        WebhookEventType::Credit => EventType::DisputeWon,
+            _ => {}
+        }
+    }
+    match (event_type, result_status) {
+        // spec: ### Webhook Authentication & Signature Verification (undocumented result.status
+        // stays non-terminal)
+        (_, NovalnetAPIStatus::Unknown) => EventType::IncomingWebhookEventUnspecified,
+        // spec: ## Webhook Events (PAYMENT + SUCCESS)
+        (WebhookEventType::Payment, NovalnetAPIStatus::Success) => EventType::PaymentIntentSuccess,
+        // spec: ## Webhook Events (PAYMENT + FAILURE)
+        (WebhookEventType::Payment, NovalnetAPIStatus::Failure) => EventType::PaymentIntentFailure,
+        // spec: ## Webhook Events (TRANSACTION_CAPTURE + SUCCESS)
+        (WebhookEventType::TransactionCapture, NovalnetAPIStatus::Success) => {
+            EventType::PaymentIntentCaptureSuccess
+        }
+        // spec: ## Webhook Events (TRANSACTION_CAPTURE + FAILURE)
+        (WebhookEventType::TransactionCapture, NovalnetAPIStatus::Failure) => {
+            EventType::PaymentIntentCaptureFailure
+        }
+        // spec: ## Webhook Events (TRANSACTION_CANCEL + SUCCESS)
+        (WebhookEventType::TransactionCancel, NovalnetAPIStatus::Success) => {
+            EventType::PaymentIntentCancelled
+        }
+        // spec: ## Webhook Events (TRANSACTION_CANCEL + FAILURE)
+        (WebhookEventType::TransactionCancel, NovalnetAPIStatus::Failure) => {
+            EventType::PaymentIntentCancelFailure
+        }
+        // spec: ## Webhook Events (TRANSACTION_REFUND + SUCCESS)
+        (WebhookEventType::TransactionRefund, NovalnetAPIStatus::Success) => {
+            EventType::RefundSuccess
+        }
+        // spec: ## Webhook Events (TRANSACTION_REFUND + FAILURE)
+        (WebhookEventType::TransactionRefund, NovalnetAPIStatus::Failure) => {
+            EventType::RefundFailure
+        }
+        // spec: ## Webhook Events (CHARGEBACK / RETURN_DEBIT / REVERSAL -> dispute opened)
+        (
+            WebhookEventType::Chargeback
+            | WebhookEventType::ReturnDebit
+            | WebhookEventType::Reversal,
+            NovalnetAPIStatus::Success | NovalnetAPIStatus::Failure,
+        ) => EventType::DisputeOpened,
+        // spec: ## Webhook Events (CREDIT -> DisputeWon)
+        (WebhookEventType::Credit, NovalnetAPIStatus::Success | NovalnetAPIStatus::Failure) => {
+            EventType::DisputeWon
+        }
+        // spec: ## Webhook Events (TRANSACTION_UPDATE, INSTALMENT, ... -> EventNotSupported)
+        (WebhookEventType::Unknown, NovalnetAPIStatus::Success | NovalnetAPIStatus::Failure) => {
+            EventType::IncomingWebhookEventUnspecified
+        }
     }
 }
 
-impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
-    type Error = error_stack::Report<IntegrationError>;
-
-    fn try_from(notif: NovalnetWebhookNotificationResponse) -> Result<Self, Self::Error> {
-        match notif.transaction {
-            NovalnetWebhookTransactionData::SyncTransactionData(response) => {
-                let transaction_id = response.tid.map(|tid| tid.to_string());
-
-                match notif.result.status {
-                    NovalnetAPIStatus::Success => {
-                        let mandate_reference_id =
-                            NovalnetSyncResponseTransactionData::get_token(Some(&response));
-                        let transaction_status = response.status;
-
-                        Ok(Self {
-                            connector_returned_payment_method_details: None,
-                            status: common_enums::AttemptStatus::from(transaction_status),
-                            resource_id: Some(
-                                transaction_id
-                                    .clone()
-                                    .map(ResponseId::ConnectorTransactionId)
-                                    .unwrap_or(ResponseId::NoResponseId),
-                            ),
-                            mandate_reference: mandate_reference_id
-                                .as_ref()
-                                .map(|id| MandateReference {
-                                    connector_mandate_id: Some(id.clone()),
-                                    payment_method_id: None,
-                                    connector_mandate_request_reference_id: None,
-                                    mandate_metadata: None,
-                                })
-                                .map(Box::new),
-                            status_code: 200,
-                            connector_response_reference_id: transaction_id.clone(),
-                            connector_request_reference_id: transaction_id.clone(),
-                            error_code: None,
-                            error_message: None,
-                            raw_connector_response: None,
-                            response_headers: None,
-                            amount_captured: None,
-                            error_reason: None,
-                            network_txn_id: response.payment_data.and_then(|payment_data| {
-                                match payment_data {
-                                    NovalnetResponsePaymentData::Card(card) => {
-                                        card.scheme_tid.map(|tid| tid.expose())
-                                    }
-                                    NovalnetResponsePaymentData::Paypal(_) => None,
-                                }
-                            }),
-                            payment_method_update: None,
-                            sender_payment_instrument_id: None,
-                        })
+/// TH-17: reached only on a signed `result.status` = SUCCESS. `transaction.status` is unsigned:
+/// it may only lower the outcome to non-terminal, never raise it. Authorized vs Charged for a
+/// PAYMENT comes from the original authorize's `capture_method` (EventContext).
+pub fn get_novalnet_webhook_attempt_status(
+    event_type: &WebhookEventType,
+    transaction_status: NovalnetTransactionStatus,
+    capture_method: Option<common_enums::CaptureMethod>,
+) -> common_enums::AttemptStatus {
+    use common_enums::{AttemptStatus, CaptureMethod};
+    match event_type {
+        // spec: ## Webhook Events (TRANSACTION_CAPTURE + SUCCESS -> captured)
+        WebhookEventType::TransactionCapture => AttemptStatus::Charged,
+        // spec: ## Webhook Events (TRANSACTION_CANCEL + SUCCESS -> cancelled)
+        WebhookEventType::TransactionCancel => AttemptStatus::Voided,
+        // spec: ### Webhook Authentication & Signature Verification (PAYMENT + SUCCESS)
+        WebhookEventType::Payment => {
+            match transaction_status {
+                NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
+                    match capture_method {
+                        Some(CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic) => {
+                            AttemptStatus::Charged
+                        }
+                        Some(
+                            CaptureMethod::Manual
+                            | CaptureMethod::ManualMultiple
+                            | CaptureMethod::Scheduled,
+                        ) => AttemptStatus::Authorized,
+                        // PAYMENT/SUCCESS is ambiguous without capture_method (the checksum
+                        // does not cover transaction.status, so AUTOMATIC -> Charged vs
+                        // MANUAL -> Authorized cannot be told apart here). Hyperswitch leaves
+                        // it unset whenever the webhook reference is not a payment id, the
+                        // attempt lookup fails, or the attempt carries no capture method, so
+                        // erroring would drop those webhooks entirely. The same lower-only
+                        // rule applies instead: report the lesser of the two and let PSync
+                        // raise it to Charged.
+                        None => AttemptStatus::Authorized,
                     }
-                    NovalnetAPIStatus::Failure => Ok(Self {
+                }
+                // spec: ## Status Mappings (ON_HOLD -> Authorized; lower-only, never raised)
+                NovalnetTransactionStatus::OnHold => AttemptStatus::Authorized,
+                // spec: ## Status Mappings (PENDING -> Pending)
+                NovalnetTransactionStatus::Pending => AttemptStatus::Pending,
+                // spec: ## Status Mappings (PROGRESS -> AuthenticationPending)
+                NovalnetTransactionStatus::Progress => AttemptStatus::AuthenticationPending,
+                // Contradicts the signed SUCCESS (or undocumented): never terminal on an unsigned value.
+                NovalnetTransactionStatus::Failure
+                | NovalnetTransactionStatus::Error
+                | NovalnetTransactionStatus::Deactivated
+                | NovalnetTransactionStatus::Unknown => AttemptStatus::Pending,
+            }
+        }
+        // Not a payment-attempt event on this path: non-terminal.
+        WebhookEventType::TransactionRefund
+        | WebhookEventType::Chargeback
+        | WebhookEventType::ReturnDebit
+        | WebhookEventType::Reversal
+        | WebhookEventType::Credit
+        | WebhookEventType::Unknown => AttemptStatus::Pending,
+    }
+}
+
+/// Payment webhook details. The attempt status is derived from the signed `result.status`
+/// plus `capture_method` (TH-17); see `get_novalnet_webhook_attempt_status`.
+pub fn webhook_payment_details(
+    notif: NovalnetWebhookNotificationResponse,
+    capture_method: Option<common_enums::CaptureMethod>,
+) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+    match notif.transaction {
+        NovalnetWebhookTransactionData::SyncTransactionData(response) => {
+            let transaction_id = response.tid.map(|tid| tid.to_string());
+
+            match notif.result.status {
+                NovalnetAPIStatus::Success => {
+                    let mandate_reference_id =
+                        NovalnetSyncResponseTransactionData::get_token(Some(&response));
+                    let status = get_novalnet_webhook_attempt_status(
+                        &notif.event.event_type,
+                        response.status,
+                        capture_method,
+                    );
+
+                    Ok(WebhookDetailsResponse {
                         connector_returned_payment_method_details: None,
-                        status: common_enums::AttemptStatus::Failure,
+                        status,
                         resource_id: Some(
                             transaction_id
                                 .clone()
                                 .map(ResponseId::ConnectorTransactionId)
                                 .unwrap_or(ResponseId::NoResponseId),
                         ),
+                        mandate_reference: mandate_reference_id
+                            .as_ref()
+                            .map(|id| MandateReference {
+                                connector_mandate_id: Some(id.clone()),
+                                payment_method_id: None,
+                                connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
+                            })
+                            .map(Box::new),
                         status_code: 200,
-                        mandate_reference: None,
-                        connector_response_reference_id: None,
-                        connector_request_reference_id: None,
-                        error_code: Some(notif.result.status.to_string()),
-                        error_message: Some(notif.result.status_text),
+                        connector_response_reference_id: transaction_id.clone(),
+                        connector_request_reference_id: transaction_id.clone(),
+                        error_code: None,
+                        error_message: None,
                         raw_connector_response: None,
                         response_headers: None,
                         amount_captured: None,
                         error_reason: None,
-                        network_txn_id: None,
+                        network_txn_id: response.payment_data.and_then(|payment_data| {
+                            match payment_data {
+                                NovalnetResponsePaymentData::Card(card) => {
+                                    card.scheme_tid.map(|tid| tid.expose())
+                                }
+                                NovalnetResponsePaymentData::Paypal(_) => None,
+                            }
+                        }),
                         payment_method_update: None,
                         sender_payment_instrument_id: None,
-                    }),
+                    })
                 }
+                // spec: ## Webhook Events (result FAILURE -> payment failed)
+                //
+                // Which operation failed matters: a rejected capture or cancel leaves the
+                // authorization intact, so reporting a flat `Failure` would write off a
+                // payment that is still authorized -- and would disagree with the Capture and
+                // Void response mappers, which return CaptureFailed / VoidFailed. The event
+                // type is inside the signed checksum preimage, so it is safe to branch on.
+                NovalnetAPIStatus::Failure => Ok(WebhookDetailsResponse {
+                    connector_returned_payment_method_details: None,
+                    status: match notif.event.event_type {
+                        WebhookEventType::TransactionCapture => {
+                            common_enums::AttemptStatus::CaptureFailed
+                        }
+                        WebhookEventType::TransactionCancel => {
+                            common_enums::AttemptStatus::VoidFailed
+                        }
+                        _ => common_enums::AttemptStatus::Failure,
+                    },
+                    resource_id: Some(
+                        transaction_id
+                            .clone()
+                            .map(ResponseId::ConnectorTransactionId)
+                            .unwrap_or(ResponseId::NoResponseId),
+                    ),
+                    status_code: 200,
+                    mandate_reference: None,
+                    connector_response_reference_id: None,
+                    connector_request_reference_id: None,
+                    error_code: Some(notif.result.status.to_string()),
+                    error_message: Some(notif.result.status_text),
+                    raw_connector_response: None,
+                    response_headers: None,
+                    amount_captured: None,
+                    error_reason: None,
+                    network_txn_id: None,
+                    payment_method_update: None,
+                    sender_payment_instrument_id: None,
+                }),
+                // Undocumented result.status: never terminal (o-themes-r3); flow mappers keep
+                // the current status for an unknown value.
+                NovalnetAPIStatus::Unknown => Ok(WebhookDetailsResponse {
+                    connector_returned_payment_method_details: None,
+                    status: common_enums::AttemptStatus::Pending,
+                    resource_id: Some(
+                        transaction_id
+                            .clone()
+                            .map(ResponseId::ConnectorTransactionId)
+                            .unwrap_or(ResponseId::NoResponseId),
+                    ),
+                    status_code: 200,
+                    mandate_reference: None,
+                    connector_response_reference_id: transaction_id.clone(),
+                    connector_request_reference_id: transaction_id,
+                    error_code: None,
+                    error_message: None,
+                    raw_connector_response: None,
+                    response_headers: None,
+                    amount_captured: None,
+                    error_reason: None,
+                    network_txn_id: None,
+                    payment_method_update: None,
+                    sender_payment_instrument_id: None,
+                }),
             }
-            _ => Err(IntegrationError::NotImplemented(
-                "webhook body decoding failed".to_string(),
-                Default::default(),
-            ))?,
         }
+        // `SyncTransactionData` requires `transaction.status`, but Novalnet omits it on a
+        // capture or cancel of anything other than card/wallet/PayPal (SEPA, for one). Those
+        // bodies fall through to the all-optional capture/cancel variants, and rejecting them
+        // dropped the webhook. They do not need `transaction.status`: the signed event type
+        // alone decides the outcome, exactly as `get_novalnet_webhook_attempt_status` does for
+        // TRANSACTION_CAPTURE and TRANSACTION_CANCEL.
+        NovalnetWebhookTransactionData::CaptureTransactionData(_)
+        | NovalnetWebhookTransactionData::CancelTransactionData(_) => {
+            // A capture / cancel event's own tid is the operation; the payment it belongs to
+            // is parent_tid. Both are inside the signed checksum preimage.
+            let payment_tid = notif
+                .event
+                .parent_tid
+                .unwrap_or(notif.event.tid)
+                .to_string();
+            let status = match (&notif.event.event_type, &notif.result.status) {
+                (WebhookEventType::TransactionCapture, NovalnetAPIStatus::Success) => {
+                    common_enums::AttemptStatus::Charged
+                }
+                (WebhookEventType::TransactionCapture, NovalnetAPIStatus::Failure) => {
+                    common_enums::AttemptStatus::CaptureFailed
+                }
+                (WebhookEventType::TransactionCancel, NovalnetAPIStatus::Success) => {
+                    common_enums::AttemptStatus::Voided
+                }
+                (WebhookEventType::TransactionCancel, NovalnetAPIStatus::Failure) => {
+                    common_enums::AttemptStatus::VoidFailed
+                }
+                // Any other pairing on these variants is not a capture/cancel outcome, and an
+                // undocumented result.status is never terminal.
+                _ => common_enums::AttemptStatus::Pending,
+            };
+            let error = matches!(notif.result.status, NovalnetAPIStatus::Failure);
+            Ok(WebhookDetailsResponse {
+                connector_returned_payment_method_details: None,
+                status,
+                resource_id: Some(ResponseId::ConnectorTransactionId(payment_tid.clone())),
+                status_code: 200,
+                mandate_reference: None,
+                connector_response_reference_id: Some(payment_tid.clone()),
+                connector_request_reference_id: Some(payment_tid),
+                error_code: error.then(|| notif.result.status.to_string()),
+                error_message: error.then_some(notif.result.status_text),
+                raw_connector_response: None,
+                response_headers: None,
+                amount_captured: None,
+                error_reason: None,
+                network_txn_id: None,
+                payment_method_update: None,
+                sender_payment_instrument_id: None,
+            })
+        }
+        NovalnetWebhookTransactionData::RefundsTransactionData(_) => Err(error_stack::report!(
+            WebhookError::WebhookBodyDecodingFailed
+        )
+        .attach_printable(
+            "Novalnet payment webhook carried a refund transaction, not a payment transaction",
+        )),
     }
 }
 
@@ -2589,24 +3132,40 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(notif: NovalnetWebhookNotificationResponseRefunds) -> Result<Self, Self::Error> {
+        // spec: ### Webhook Payload Structure (TRANSACTION_REFUND -> refund id = event.tid).
+        // `transaction.refund` is absent on a FAILURE body, so fall back to the signed
+        // `event.tid`, which is part of the checksum preimage.
         let refund_id = notif
             .transaction
             .refund
-            .tid
-            .map(|tid| tid.to_string())
-            .ok_or(IntegrationError::NotImplemented(
-                "missing refund transaction id in webhook".to_string(),
-                Default::default(),
-            ))?;
+            .as_ref()
+            .and_then(|refund| refund.tid)
+            .unwrap_or(notif.event.tid)
+            .to_string();
 
         match notif.result.status {
             NovalnetAPIStatus::Success => {
-                let transaction_status = notif.transaction.status;
+                // TH-17: the signed TRANSACTION_REFUND + SUCCESS decides; the unsigned
+                // transaction.status may only lower the outcome to non-terminal.
+                let status = match notif.transaction.status {
+                    // spec: ## Status Mappings (CONFIRMED / SUCCESS -> Success)
+                    NovalnetTransactionStatus::Confirmed | NovalnetTransactionStatus::Success => {
+                        common_enums::RefundStatus::Success
+                    }
+                    // Lower-only: never terminal on an unsigned value.
+                    NovalnetTransactionStatus::Pending
+                    | NovalnetTransactionStatus::Progress
+                    | NovalnetTransactionStatus::OnHold
+                    | NovalnetTransactionStatus::Failure
+                    | NovalnetTransactionStatus::Error
+                    | NovalnetTransactionStatus::Deactivated
+                    | NovalnetTransactionStatus::Unknown => common_enums::RefundStatus::Pending,
+                };
 
                 Ok(Self {
                     connector_refund_id: Some(refund_id),
                     merchant_transaction_id: None,
-                    status: common_enums::RefundStatus::from(transaction_status),
+                    status,
                     status_code: 200,
                     connector_response_reference_id: None,
                     error_code: None,
@@ -2615,6 +3174,19 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
                     response_headers: None,
                 })
             }
+            // Undocumented result.status: never terminal (o-themes-r3).
+            NovalnetAPIStatus::Unknown => Ok(Self {
+                status: common_enums::RefundStatus::Pending,
+                connector_refund_id: Some(refund_id),
+                merchant_transaction_id: None,
+                status_code: 200,
+                connector_response_reference_id: None,
+                error_code: None,
+                error_message: None,
+                raw_connector_response: None,
+                response_headers: None,
+            }),
+            // spec: ## Webhook Events (result FAILURE -> refund failed)
             NovalnetAPIStatus::Failure => Ok(Self {
                 status: common_enums::RefundStatus::Failure,
                 connector_refund_id: Some(refund_id),
@@ -2772,6 +3344,7 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                     }
                     Some(NovalnetTransactionStatus::Pending)
                     | Some(NovalnetTransactionStatus::Progress)
+                    | Some(NovalnetTransactionStatus::Unknown)
                     | None => {
                         // Missing transaction / no definitive signal — let the
                         // caller re-sync rather than optimistically marking
@@ -2798,6 +3371,7 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                             item.response.result,
                             item.http_code,
                             transaction_id,
+                            None,
                         )),
                         ..item.router_data
                     });
@@ -2812,7 +3386,7 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                     ..item.router_data
                 })
             }
-            NovalnetAPIStatus::Failure => {
+            NovalnetAPIStatus::Failure | NovalnetAPIStatus::Unknown => {
                 // Incremental-auth failure does not invalidate the original
                 // authorization — surface the error but keep the attempt
                 // status so the initial auth remains valid.
@@ -2821,6 +3395,7 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                         item.response.result,
                         item.http_code,
                         transaction_id,
+                        None,
                     )),
                     ..item.router_data
                 })
