@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.28.0
+
+### Features
+
+- **connector:**
+  - Add JPMorgan card 3DS pass-through ([#2469](https://github.com/juspay/connector-service/pull/2469)) ([`6620ef5`](https://github.com/juspay/connector-service/commit/6620ef5e9406f97d38ca202183480bd46b557a9f))
+  - [Novalnet] add 11 flows (Authorize, PSync, Capture, Void, Refund, RSync) ([#2587](https://github.com/juspay/connector-service/pull/2587)) ([`3567034`](https://github.com/juspay/connector-service/commit/3567034b29d54a41ad9506dd9bd54cdda7b8c994))
+  - [Elavon PG] add recurring cards (CIT/MIT + NTID) and pre-decrypted Apple Pay / Google Pay ([#2571](https://github.com/juspay/connector-service/pull/2571)) ([`5bcf2f8`](https://github.com/juspay/connector-service/commit/5bcf2f89fb132e7416d2c94f0779213bebfd622f))
+  - Add void post capture support for worldpay raft ([#2596](https://github.com/juspay/connector-service/pull/2596)) ([`65f5094`](https://github.com/juspay/connector-service/commit/65f5094bbfb663add8ee8a5c09400ad89afb56e8))
+
+**Full Changelog:** [`2026.10.27.2...2026.10.28.0`](https://github.com/juspay/connector-service/compare/2026.10.27.2...2026.10.28.0)
+
+- - -
+
 ## 2026.10.27.2
 
 ### Features

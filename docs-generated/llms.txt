@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 128
+# Connectors: 129
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 128
+  total_connectors: 129
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -261,6 +261,14 @@ scenarios: none
 payment_methods: EaseBuzzRedirect, Netbanking, UpiCollect, UpiIntent, UpiQr
 flows: authorize, capture, create_order, get, refund, refund_get
 examples_python: none
+
+## Ecommpay
+connector_id: ecommpay
+doc: docs/connectors/ecommpay.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted
+flows: authorize, capture, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+examples_python: examples/ecommpay/ecommpay.py
 
 ## Elavon
 connector_id: elavon
