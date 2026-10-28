@@ -7,7 +7,8 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs,
+    fs::{self, OpenOptions},
+    io::Write,
     path::{Path, PathBuf},
     sync::OnceLock,
     time::{SystemTime, UNIX_EPOCH},
@@ -163,7 +164,7 @@ pub fn clear_report() {
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    let _ = fs::write(&path, "{\"runs\":[]}");
+    let _ = write_report_json(&path, "{\"runs\":[]}", report_mode());
 
     // Also clear markdown report outputs so they stay in sync.
     let report_dir = report_dir_path(&path);
@@ -220,13 +221,13 @@ pub fn append_report_batch(entries: Vec<ReportEntry>) -> Result<(), String> {
 
     let serialized = serde_json::to_string_pretty(&report)
         .map_err(|e| format!("failed to serialize report: {e}"))?;
-    fs::write(&path, &serialized)
-        .map_err(|e| format!("failed to write report '{}': {e}", path.display()))?;
+    write_report_json(&path, &serialized, mode)?;
 
     // Auto-generate markdown after every write
     if let Err(e) = generate_md(&path, &report) {
         tracing::warn!(%e, "failed to generate markdown report");
     }
+    harden_local_debug_artifacts(&path, mode)?;
 
     Ok(())
 }
@@ -244,7 +245,81 @@ pub fn regenerate_markdown_from_path(json_path: &Path) -> Result<PathBuf, String
     }
 
     generate_md(json_path, &report)?;
+    harden_local_debug_artifacts(json_path, mode)?;
     Ok(md_path(json_path))
+}
+
+fn write_report_json(path: &Path, content: &str, mode: ReportMode) -> Result<(), String> {
+    let mut options = OpenOptions::new();
+    options.create(true).truncate(true).write(true);
+    #[cfg(unix)]
+    if mode == ReportMode::LocalDebug {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options
+        .open(path)
+        .map_err(|error| format!("failed to write report '{}': {error}", path.display()))?;
+    file.write_all(content.as_bytes())
+        .map_err(|error| format!("failed to write report '{}': {error}", path.display()))?;
+
+    #[cfg(unix)]
+    if mode == ReportMode::LocalDebug {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(|error| {
+            format!(
+                "failed to make local debug report private '{}': {error}",
+                path.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+fn harden_local_debug_artifacts(path: &Path, mode: ReportMode) -> Result<(), String> {
+    if mode != ReportMode::LocalDebug {
+        return Ok(());
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let report_dir = report_dir_path(path);
+        if report_dir.exists() {
+            harden_directory_tree(&report_dir)?;
+        }
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(|error| {
+            format!(
+                "failed to make local debug report private '{}': {error}",
+                path.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn harden_directory_tree(path: &Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+
+    for entry in fs::read_dir(path)
+        .map_err(|error| format!("failed to inspect '{}': {error}", path.display()))?
+    {
+        let entry = entry.map_err(|error| format!("failed to inspect report entry: {error}"))?;
+        let child = entry.path();
+        if child.is_dir() {
+            harden_directory_tree(&child)?;
+            fs::set_permissions(&child, fs::Permissions::from_mode(0o700)).map_err(|error| {
+                format!("failed to make '{}' private: {error}", child.display())
+            })?;
+        } else {
+            fs::set_permissions(&child, fs::Permissions::from_mode(0o600)).map_err(|error| {
+                format!("failed to make '{}' private: {error}", child.display())
+            })?;
+        }
+    }
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700))
+        .map_err(|error| format!("failed to make '{}' private: {error}", path.display()))
 }
 
 /// Regenerates markdown artifacts from the default report path.
@@ -1534,7 +1609,7 @@ mod tests {
             pmt: Some("credit".to_string()),
             endpoint: "localhost:8000".to_string(),
             is_dependency: false,
-            assertion_result: "PASS".to_string(),
+            assertion_result: "FAIL".to_string(),
             response_status: None,
             error: Some("assertion included raw response material".to_string()),
             dependency: vec![],
@@ -1611,6 +1686,49 @@ mod tests {
         assert_eq!(
             request_id_from_grpcurl_command(command).as_deref(),
             Some("unique-request-id")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn local_debug_artifacts_are_private() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp = tempfile::tempdir().expect("temporary directory should be available");
+        let report = temp.path().join("local-debug-report.json");
+        write_report_json(&report, "{\"runs\":[]}", ReportMode::LocalDebug)
+            .expect("local report should be writable");
+        let markdown_dir = report_dir_path(&report);
+        fs::create_dir_all(markdown_dir.join("connectors"))
+            .expect("markdown directory should be creatable");
+        let markdown = markdown_dir.join("test_overview.md");
+        fs::write(&markdown, "local evidence").expect("markdown should be writable");
+        harden_local_debug_artifacts(&report, ReportMode::LocalDebug)
+            .expect("local artifacts should become private");
+
+        assert_eq!(
+            fs::metadata(&report)
+                .expect("report metadata should be readable")
+                .permissions()
+                .mode()
+                & 0o777,
+            0o600
+        );
+        assert_eq!(
+            fs::metadata(&markdown)
+                .expect("markdown metadata should be readable")
+                .permissions()
+                .mode()
+                & 0o777,
+            0o600
+        );
+        assert_eq!(
+            fs::metadata(&markdown_dir)
+                .expect("markdown directory metadata should be readable")
+                .permissions()
+                .mode()
+                & 0o777,
+            0o700
         );
     }
 }
