@@ -156,7 +156,6 @@ scenarios/
 │   │   │   ├── pay-later/
 │   │   │   └── upi/
 │   │   ├── retrieve/
-│   │   ├── sync/
 │   │   ├── capture/
 │   │   │   └── card/full-capture.spec.ts
 │   │   └── cancel/
@@ -178,6 +177,8 @@ scenarios/
 Recurring specs belong under their reference mechanism, for example `recurring/connector-mandate/zero-amount-setup-then-recurring.spec.ts` and `nonzero-amount-setup-then-recurring.spec.ts`. Each owns setup followed by a subsequent payment. Add network-transaction-ID variants where supported. Make authentication variations explicit in the relevant filename or subdirectory.
 
 Later operations have separate directories. Their specs declare required payment state and history, including authentication where relevant, rather than repeating every authorization dimension. Wallets use wallet-specific variations instead of universally inheriting card's authentication tree.
+
+Payment retrieval and forced synchronization share `payments/retrieve/`, following HS's GET payment endpoint and its `force_sync` option. This directory remains empty until those dedicated scenarios are implemented.
 
 Empty specs and `.gitkeep` directories are extension placeholders, not implemented coverage. Add one shared spec per journey; connectors inherit it through the registry.
 
