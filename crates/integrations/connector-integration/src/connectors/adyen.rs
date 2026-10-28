@@ -107,6 +107,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Adyen<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        if data.encoded_data.is_some() {
+            return Ok(());
+        }
+        Err(IntegrationError::MissingRequiredField {
+            field_name: "encoded_data",
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -638,20 +652,6 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Adyen<T>
 {
-    fn validate_psync_reference_id(
-        &self,
-        data: &PaymentsSyncData,
-        _payment_flow_data: &PaymentFlowData,
-    ) -> CustomResult<(), IntegrationError> {
-        if data.encoded_data.is_some() {
-            return Ok(());
-        }
-        Err(IntegrationError::MissingRequiredField {
-            field_name: "encoded_data",
-            context: Default::default(),
-        }
-        .into())
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
