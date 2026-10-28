@@ -98,8 +98,8 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Reddot(ReddotConfig {
                 mid: Some(hyperswitch_masking::Secret::new("YOUR_MID".to_string())),  // Authentication credential
                 secret: Some(hyperswitch_masking::Secret::new("YOUR_SECRET".to_string())),  // Authentication credential
-                acquirer_cybersource: "false".to_string(),
-                base_url: Some("https://sandbox.example.com".to_string()),
+                acquirer_cybersource: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),
         }),
@@ -131,13 +131,13 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/reddot/reddot.py#L113) · [JavaScript](../../examples/reddot/reddot.js) · [Kotlin](../../examples/reddot/reddot.kt#L89) · [Rust](../../examples/reddot/reddot.rs#L161)
+**Examples:** [Python](../../examples/reddot/reddot.py#L113) · [JavaScript](../../examples/reddot/reddot.js) · [Kotlin](../../examples/reddot/reddot.kt#L89) · [Rust](../../examples/reddot/reddot.rs#L169)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/reddot/reddot.py#L132) · [JavaScript](../../examples/reddot/reddot.js) · [Kotlin](../../examples/reddot/reddot.kt#L105) · [Rust](../../examples/reddot/reddot.rs#L177)
+**Examples:** [Python](../../examples/reddot/reddot.py#L132) · [JavaScript](../../examples/reddot/reddot.js) · [Kotlin](../../examples/reddot/reddot.kt#L105) · [Rust](../../examples/reddot/reddot.rs#L185)
 
 ## API Reference
 
@@ -149,6 +149,7 @@ Retrieve current payment status from the connector.
 | [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.VerifyRedirectResponse](#paymentserviceverifyredirectresponse) | Payments | `PaymentServiceVerifyRedirectResponseRequest` |
 
 ### Payments
 
@@ -283,7 +284,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/reddot/reddot.py) · [TypeScript](../../examples/reddot/reddot.ts#L174) · [Kotlin](../../examples/reddot/reddot.kt#L123) · [Rust](../../examples/reddot/reddot.rs)
+**Examples:** [Python](../../examples/reddot/reddot.py) · [TypeScript](../../examples/reddot/reddot.ts#L179) · [Kotlin](../../examples/reddot/reddot.kt#L123) · [Rust](../../examples/reddot/reddot.rs)
 
 #### PaymentService.Get
 
@@ -294,7 +295,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/reddot/reddot.py) · [TypeScript](../../examples/reddot/reddot.ts#L183) · [Kotlin](../../examples/reddot/reddot.kt#L135) · [Rust](../../examples/reddot/reddot.rs)
+**Examples:** [Python](../../examples/reddot/reddot.py) · [TypeScript](../../examples/reddot/reddot.ts#L188) · [Kotlin](../../examples/reddot/reddot.kt#L135) · [Rust](../../examples/reddot/reddot.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -305,7 +306,18 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/reddot/reddot.py) · [TypeScript](../../examples/reddot/reddot.ts#L210) · [Kotlin](../../examples/reddot/reddot.kt#L174) · [Rust](../../examples/reddot/reddot.rs)
+**Examples:** [Python](../../examples/reddot/reddot.py) · [TypeScript](../../examples/reddot/reddot.ts#L215) · [Kotlin](../../examples/reddot/reddot.kt#L174) · [Rust](../../examples/reddot/reddot.rs)
+
+#### PaymentService.VerifyRedirectResponse
+
+Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
+| **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
+
+**Examples:** [Python](../../examples/reddot/reddot.py) · [TypeScript](../../examples/reddot/reddot.ts#L233) · [Kotlin](../../examples/reddot/reddot.kt#L219) · [Rust](../../examples/reddot/reddot.rs)
 
 ### Refunds
 
@@ -318,4 +330,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/reddot/reddot.py) · [TypeScript](../../examples/reddot/reddot.ts#L219) · [Kotlin](../../examples/reddot/reddot.kt#L207) · [Rust](../../examples/reddot/reddot.rs)
+**Examples:** [Python](../../examples/reddot/reddot.py) · [TypeScript](../../examples/reddot/reddot.ts#L224) · [Kotlin](../../examples/reddot/reddot.kt#L207) · [Rust](../../examples/reddot/reddot.rs)

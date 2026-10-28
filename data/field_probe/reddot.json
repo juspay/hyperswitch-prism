@@ -704,7 +704,7 @@
     "refund": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_feature_data.reddot_order_id. Original payment order ID missing from connector_feature_data. \u2014 Missing required field: connector_feature_data.reddot_order_id. Original payment order ID missing from connector_feature_data."
+        "error": "Stuck on field: connector_feature_data.reddot_order_id. Original payment order ID missing from connector_feature_data. — Missing required field: connector_feature_data.reddot_order_id. Original payment order ID missing from connector_feature_data."
       }
     },
     "refund_get": {
@@ -719,9 +719,10 @@
           "url": "https://test.reddotpayment.com/instanpanel/api/enquiry",
           "method": "Post",
           "headers": {
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"request_mid\":\"probe_key\",\"transaction_id\":\"probe_connector_txn_001\",\"signature\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"request_mid\":\"probe_key\",\"transaction_id\":\"probe_refund_id_001\",\"signature\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       }
     },
@@ -751,7 +752,7 @@
     },
     "verify_redirect": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported"
       }
     },
     "void": {

@@ -47,8 +47,8 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
     return PaymentServiceAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_txn_001"  // Identification.
         amountBuilder.apply {  // The amount for the payment.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         paymentMethodBuilder.apply {  // Payment method to be used.
             cardBuilder.apply {  // Generic card payment.
@@ -61,7 +61,7 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
         customerBuilder.apply {  // Customer Information.
-            emailBuilder.value = "test@example.com"  // Customer's email address.
+            emailBuilder.value = "test@example.com"
         }
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
@@ -78,8 +78,8 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
         merchantTransactionId = "probe_merchant_txn_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
         amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
     }.build()
 }
@@ -176,8 +176,8 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = PaymentServiceProxyAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_proxy_txn_001"
         amountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         cardProxyBuilder.apply {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
             cardNumberBuilder.value = "4111111111111111"  // Card Identification.
@@ -188,7 +188,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
             cardNetwork = CardNetwork.VISA
         }
         customerBuilder.apply {
-            emailBuilder.value = "test@example.com"  // Customer's email address.
+            emailBuilder.value = "test@example.com"
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {
@@ -215,6 +215,16 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.VerifyRedirectResponse
+fun verifyRedirect(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceVerifyRedirectResponseRequest.newBuilder().apply {
+
+    }.build()
+    val response = client.verify_redirect_response(request)
+    println("Source verified: ${response.sourceVerified}")
+}
+
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
@@ -228,6 +238,7 @@ fun main(args: Array<String>) {
         "parseEvent" -> parseEvent(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "refundGet" -> refundGet(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processGetPayment, authorize, get, handleEvent, parseEvent, proxyAuthorize, refundGet")
+        "verifyRedirect" -> verifyRedirect(txnId)
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processGetPayment, authorize, get, handleEvent, parseEvent, proxyAuthorize, refundGet, verifyRedirect")
     }
 }

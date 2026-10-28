@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 129
+# Connectors: 130
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 129
+  total_connectors: 130
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -835,7 +835,7 @@ connector_id: reddot
 doc: docs/connectors/reddot.md
 scenarios: checkout_autocapture, get_payment
 payment_methods: Card
-flows: authorize, get, handle_event, parse_event, proxy_authorize, refund_get
+flows: authorize, get, handle_event, parse_event, proxy_authorize, refund_get, verify_redirect
 examples_python: examples/reddot/reddot.py
 
 ## Redsys
