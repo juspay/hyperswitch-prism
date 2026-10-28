@@ -19,7 +19,7 @@ export async function setupMerchant(
 ): Promise<TestMerchant> {
   return test.step("Set up merchant, connector account, and routing", async () => {
     const credentials = loadConnectorCredentials(
-      connector.credentialKey,
+      connector.credentialKey ?? connector.id,
       connector.credentialEntry,
     );
     await enableUcs(hs);

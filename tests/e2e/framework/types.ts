@@ -19,7 +19,7 @@ export type ScenarioOverrides = {
 
 export type ConnectorDefinition = {
   id: string;
-  credentialKey: string;
+  credentialKey?: string;
   credentialEntry?: string;
   card?: Partial<CardData>;
   overrides?: Record<string, ScenarioOverrides>;
