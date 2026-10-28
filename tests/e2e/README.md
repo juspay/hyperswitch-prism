@@ -15,51 +15,45 @@ tests/e2e/
 
 ## Scenarios
 
-Organize scenarios by integration, resource, operation under test, payment method, and relevant variation. Each spec owns the complete journey, including prerequisites; a capture spec creates its own authorized payment before capturing it.
+Organize scenarios by resource, operation under test, payment method, and relevant variation. Each spec owns the complete journey, including prerequisites; a capture spec creates its own authorized payment before capturing it.
 
 ```text
 scenarios/
-├── api/
-│   ├── payments/
-│   │   ├── create-confirm/
-│   │   │   ├── card/
-│   │   │   │   ├── one-time/
-│   │   │   │   │   ├── no3ds/
-│   │   │   │   │   │   ├── automatic-create-confirm.spec.ts
-│   │   │   │   │   │   ├── automatic-create-then-confirm.spec.ts
-│   │   │   │   │   │   ├── manual-create-confirm.spec.ts
-│   │   │   │   │   │   └── manual-create-then-confirm.spec.ts
-│   │   │   │   │   └── three-ds/
-│   │   │   │   └── recurring/
-│   │   │   │       ├── connector-mandate/
-│   │   │   │       │   ├── zero-amount-setup-then-recurring.spec.ts
-│   │   │   │       │   └── nonzero-amount-setup-then-recurring.spec.ts
-│   │   │   │       └── network-transaction-id/
-│   │   │   ├── wallet/
-│   │   │   │   ├── apple-pay/
-│   │   │   │   ├── google-pay/
-│   │   │   │   └── paypal/
-│   │   │   ├── bank-debit/
-│   │   │   ├── bank-redirect/
-│   │   │   ├── bank-transfer/
-│   │   │   ├── pay-later/
-│   │   │   └── upi/
-│   │   ├── retrieve/
-│   │   ├── capture/
-│   │   │   └── full-capture.spec.ts
-│   │   └── cancel/
-│   │       └── cancel-authorized-payment.spec.ts
-│   └── refunds/
-│       ├── create/
-│       │   └── full-refund-after-automatic-capture.spec.ts
-│       └── sync/
-└── web-sdk/
-    └── checkout/
-        ├── card/
-        └── wallet/
+├── payments/
+│   ├── create-confirm/
+│   │   ├── card/
+│   │   │   ├── one-time/
+│   │   │   │   ├── no3ds/
+│   │   │   │   │   ├── automatic-create-confirm.spec.ts
+│   │   │   │   │   ├── automatic-create-then-confirm.spec.ts
+│   │   │   │   │   ├── manual-create-confirm.spec.ts
+│   │   │   │   │   └── manual-create-then-confirm.spec.ts
+│   │   │   │   └── three-ds/
+│   │   │   └── recurring/
+│   │   │       ├── connector-mandate/
+│   │   │       │   ├── zero-amount-setup-then-recurring.spec.ts
+│   │   │       │   └── nonzero-amount-setup-then-recurring.spec.ts
+│   │   │       └── network-transaction-id/
+│   │   ├── wallet/
+│   │   │   ├── apple-pay/
+│   │   │   ├── google-pay/
+│   │   │   └── paypal/
+│   │   ├── bank-debit/
+│   │   ├── bank-redirect/
+│   │   ├── bank-transfer/
+│   │   ├── pay-later/
+│   │   └── upi/
+│   ├── retrieve/
+│   ├── capture/
+│   │   └── full-capture.spec.ts
+│   └── cancel/
+│       └── cancel-authorized-payment.spec.ts
+└── refunds/
+    ├── create/
+    │   └── full-refund-after-automatic-capture.spec.ts
+    └── sync/
 ```
 
-`api/` calls HS endpoints directly. `web-sdk/` loads and operates the actual HS Web SDK checkout in a browser. Supplying a prepared sandbox wallet token through HTTP is API coverage; obtaining it through checkout belongs to Web SDK coverage. Browser authentication within an API journey does not itself test the HS Web SDK.
 
 `create-confirm/` groups initial payment journeys. In filenames, `create-confirm` means creation with `confirm: true`; `create-then-confirm` means separate requests. Automatic and manual describe capture mode.
 
@@ -71,7 +65,7 @@ Payment retrieval and forced synchronization share `payments/retrieve/`, followi
 
 Empty specs and `.gitkeep` directories are extension placeholders, not implemented coverage. Add one shared spec per journey; connectors inherit it through the registry.
 
-The first implementation targets `scenarios/api/payments/create-confirm/card/one-time/no3ds/automatic-create-confirm.spec.ts`. Every spec in this scaffold remains empty.
+The first implementation targets `scenarios/payments/create-confirm/card/one-time/no3ds/automatic-create-confirm.spec.ts`. Every spec in this scaffold remains empty.
 
 ## Responsibilities
 
