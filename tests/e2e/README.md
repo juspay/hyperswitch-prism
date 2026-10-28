@@ -1,67 +1,84 @@
 # End-to-end tests
 
-This directory reserves the structure for end-to-end payment tests. This PR adds directories and documentation only; executable tests, dependencies, credentials, and CI configuration are added separately.
+This scaffold reserves directories for the E2E framework. It contains documentation and empty placeholders only. Executable tests, dependencies, credentials and runtime configuration are added separately.
+
+## Layout
 
 ```text
 tests/e2e/
-  framework/
-    configuration.ts          # Runtime URLs and options
-    connector-credentials.ts   # External sandbox connector credentials
-    hyperswitch-client.ts      # HS HTTP transport and response handling
-    merchant-setup.ts          # Merchant, profile, API key, connector, and routing setup
-    types.ts                   # Shared JSON, connector, and scenario data types
-    fixtures.ts                # Playwright setup/cleanup and connector exclusions
-    payment-operations.ts      # Payment calls, status polling, and recorded-state access
-    assertions.ts              # Shared assertions, polling, and report comparisons
-    payment-records.ts         # Read-only payment and active-attempt database queries
-  connectors/
-    adyen.ts                   # Sandbox data, overrides, and reasoned exclusions
-    index.ts                   # Registered connectors
-  scenarios/
-    api/
-      payments/
-        one-time/
-          card/
-            no3ds-automatic-create-confirm.spec.ts
-            no3ds-automatic-create-then-confirm.spec.ts
-            no3ds-manual-create-confirm-then-capture.spec.ts
-            no3ds-manual-create-confirm-then-cancel.spec.ts
-            no3ds-automatic-create-confirm-then-refund.spec.ts
-        mandates/
-          customer-initiated/
-            card.spec.ts
-          zero-amount/
-            card.spec.ts
-        recurring/
-          connector-mandate/
-            card.spec.ts
-          network-transaction-id/
-            card.spec.ts
-  stack/
-    compose.yml                # Isolated local dependencies
-    stack.mjs                  # Stack startup and shutdown
-    ucs.Dockerfile             # Published UCS image plus gRPC health probe
-  playwright.config.ts
-  package.json
-  package-lock.json
-  tsconfig.json
+├── framework/       # Fixtures, merchant setup, API operations, checks and reporting
+├── connectors/      # Data-only definitions and connector registry
+├── stack/           # Local services and readiness
+├── scripts/         # Runtime preparation
+└── scenarios/       # Shared journeys
 ```
 
-## Structure
+## Scenarios
 
-- `framework/` supplies standard Playwright setup/cleanup fixtures, individual payment operations, HTTP access, database reads, and shared checks/reporting through dedicated helpers. Each spec uses ordinary TypeScript to call operations in order, retain responses in variables, and verify results. Fixtures do not choose or execute a payment journey.
-- `connectors/` declares credential keys, sandbox test data, optional request overrides, and explicit exclusions with reasons. Registered connectors inherit shared scenarios by default. Operations apply request overrides centrally; expected outcomes stay in shared specs. Connector definitions contain data only and do not duplicate scenario execution.
-- `scenarios/api/` describes journeys driven through direct HS API calls, using server or client credentials as appropriate. The path identifies the product area, lifecycle, and payment-method family. Future tests operating an actual Web SDK checkout belong under `scenarios/web-sdk/checkout/`.
-- `stack/` operates the isolated local services required by the tests and remains independent of payment behavior.
+Organize scenarios by integration, resource, operation under test, payment method, and relevant variation. Each spec owns the complete journey, including prerequisites; a capture spec creates its own authorized payment before capturing it.
 
-The intended public fixture API exposes scenario operations, shared checks, connector data, and merchant identifiers. Raw HTTP, server keys, and generic retry callbacks remain internal. Shared checks produce the standard expected/actual report. Use the implemented scenario as the reference pattern when adding coverage, and review changes from a new contributor's perspective before and after each push.
+```text
+scenarios/
+├── api/
+│   ├── payments/
+│   │   ├── create-confirm/
+│   │   │   ├── card/
+│   │   │   │   ├── one-time/
+│   │   │   │   │   ├── no3ds/
+│   │   │   │   │   │   ├── automatic-create-confirm.spec.ts
+│   │   │   │   │   │   ├── automatic-create-then-confirm.spec.ts
+│   │   │   │   │   │   ├── manual-create-confirm.spec.ts
+│   │   │   │   │   │   └── manual-create-then-confirm.spec.ts
+│   │   │   │   │   └── three-ds/
+│   │   │   │   └── recurring/
+│   │   │   │       ├── connector-mandate/
+│   │   │   │       └── network-transaction-id/
+│   │   │   ├── wallet/
+│   │   │   │   ├── apple-pay/
+│   │   │   │   ├── google-pay/
+│   │   │   │   └── paypal/
+│   │   │   ├── bank-debit/
+│   │   │   ├── bank-redirect/
+│   │   │   ├── bank-transfer/
+│   │   │   ├── pay-later/
+│   │   │   └── upi/
+│   │   ├── retrieve/
+│   │   ├── sync/
+│   │   ├── capture/
+│   │   │   └── card/full-capture.spec.ts
+│   │   └── cancel/
+│   │       └── card/cancel-authorized-payment.spec.ts
+│   └── refunds/
+│       ├── create/
+│       │   └── card/full-refund-after-automatic-capture.spec.ts
+│       └── sync/
+└── web-sdk/
+    └── checkout/
+        ├── card/
+        └── wallet/
+```
 
-Scenario metadata declares the payment methods needed during connector-account setup. Common setup creates the merchant, API key, profile, sandbox connector account, and routing rule; optional customer, webhook, or mandate behavior belongs in the scenarios that need it.
+`api/` calls HS endpoints directly. `web-sdk/` loads and operates the actual HS Web SDK checkout in a browser. Supplying a prepared sandbox wallet token through HTTP is API coverage; obtaining it through checkout belongs to Web SDK coverage. Browser authentication within an API journey does not itself test the HS Web SDK.
 
-Each scenario has its own file. `create-confirm` means a single create request with `confirm: true`; `create-then-confirm` means separate create and confirm requests. `automatic` and `manual` describe capture mode. Retrieval and verification steps are declared within each scenario.
+`create-confirm/` groups initial payment journeys. In filenames, `create-confirm` means creation with `confirm: true`; `create-then-confirm` means separate requests. Automatic and manual describe capture mode.
 
-The five card scenario files are empty placeholders. The first implementation targets `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.spec.ts`. Adding another compatible connector reuses that scenario.
+Recurring specs belong under their reference mechanism, for example `recurring/connector-mandate/zero-amount-setup-then-recurring.spec.ts` and `nonzero-amount-setup-then-recurring.spec.ts`. Each owns setup followed by a subsequent payment. Add network-transaction-ID variants where supported. Make authentication variations explicit in the relevant filename or subdirectory.
 
-The mandate and recurring directories are reserved extension points and do not represent implemented coverage in this scaffold. New flows should be added to the matching lifecycle rather than copied into connector directories.
+Later operations have separate directories. Their specs declare required payment state and history, including authentication where relevant, rather than repeating every authorization dimension. Wallets use wallet-specific variations instead of universally inheriting card's authentication tree.
 
-The `.gitkeep` files preserve the empty directories until their implementations are added.
+Empty specs and `.gitkeep` directories are extension placeholders, not implemented coverage. Add one shared spec per journey; connectors inherit it through the registry.
+
+The first implementation targets `scenarios/api/payments/create-confirm/card/one-time/no3ds/automatic-create-confirm.spec.ts`. Every spec in this scaffold remains empty.
+
+## Responsibilities
+
+- Specs own the complete call sequence, request data, response dependencies and expected results.
+- `framework/fixtures.ts` owns setup and cleanup. `merchant-setup.ts` provisions an isolated merchant, profile, API key, sandbox connector account and routing.
+- `hyperswitch-client.ts` owns HTTP transport. Resource modules such as `payment-operations.ts` execute individual calls and return responses.
+- `assertions.ts` produces shared assertions and expected/actual comparisons. `report.ts` groups calls and checks; `ucs-audit.ts` attaches correlated masked evidence afterward.
+- `payment-records.ts` reads recorded payment facts; the spec asserts them.
+- `connector-credentials.ts` loads external sandbox credentials, `configuration.ts` resolves runtime options, and `types.ts` defines shared types.
+- Connector definitions supply data, justified request overrides and exclusions with reasons. The registry selects connectors; shared specs retain journeys and expected outcomes.
+- `stack/` owns service startup and readiness; `scripts/` owns preparation such as external credential download/decryption.
+
+Use ordinary TypeScript, standard Playwright fixtures and typed helpers. Ordinary journey additions require a shared spec; add endpoint helpers when needed. Do not add a custom scenario interpreter or source-scanning enforcement. Never commit credentials or production data.
