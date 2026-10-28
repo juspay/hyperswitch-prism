@@ -1,5 +1,4 @@
 import { test } from "@playwright/test";
-import { Assertions } from "./assertions.js";
 import { HyperswitchClient, stringField } from "./hyperswitch-client.js";
 import type { TestMerchant } from "./merchant-setup.js";
 import type { Json, ScenarioOverrides } from "./types.js";
@@ -13,7 +12,6 @@ export class PaymentOperations {
   constructor(
     private readonly hs: HyperswitchClient,
     private readonly merchant: TestMerchant,
-    private readonly checks: Assertions,
     private readonly overrides: ScenarioOverrides,
   ) {}
 
@@ -38,21 +36,6 @@ export class PaymentOperations {
         this.merchant.apiKey,
       ),
     );
-  }
-
-  async waitForPaymentStatus(
-    paymentId: string,
-    request: { force_sync: boolean },
-    expectedStatus: string,
-  ): Promise<PaymentResponse> {
-    return test.step(`Wait for payment status: ${expectedStatus}`, async () =>
-      paymentResponse(
-        await this.checks.waitForStatus(
-          `Payment status: ${expectedStatus}`,
-          () => this.retrievePayment(paymentId, request),
-          expectedStatus,
-        ),
-      ));
   }
 
   async readRecordedPayment(paymentId: string) {

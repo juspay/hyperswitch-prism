@@ -1,5 +1,4 @@
 import { test as base, type TestType } from "@playwright/test";
-import { Assertions } from "./assertions.js";
 import { HyperswitchClient } from "./hyperswitch-client.js";
 import { setupMerchant, type TestMerchant } from "./merchant-setup.js";
 import { PaymentOperations } from "./payment-operations.js";
@@ -19,15 +18,13 @@ type ScenarioFixtures = {
     "merchantId" | "profileId" | "merchantConnectorId"
   >;
   payments: PaymentOperations;
-  checks: Pick<Assertions, "fields" | "oneOf">;
-  report: Pick<Report, "step">;
+  report: Pick<Report, "step" | "check">;
 };
 
 type InternalFixtures = {
   _hs: HyperswitchClient;
   _merchant: TestMerchant;
   _overrides: ScenarioOverrides;
-  _checks: Assertions;
   _audit: UcsAudit;
 };
 
@@ -98,20 +95,11 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
       merchantConnectorId: _merchant.merchantConnectorId,
     });
   },
-  _checks: async ({}, use, info) => {
-    await use(new Assertions(info));
+  report: async ({ _audit }, use, info) => {
+    await use(new Report(_audit, info));
   },
-  checks: async ({ _checks }, use) => {
-    await use({
-      fields: _checks.fields.bind(_checks),
-      oneOf: _checks.oneOf.bind(_checks),
-    });
-  },
-  report: async ({ _audit }, use) => {
-    await use(new Report(_audit));
-  },
-  payments: async ({ _hs, _merchant, _checks, _overrides }, use) => {
-    await use(new PaymentOperations(_hs, _merchant, _checks, _overrides));
+  payments: async ({ _hs, _merchant, _overrides }, use) => {
+    await use(new PaymentOperations(_hs, _merchant, _overrides));
   },
 });
 

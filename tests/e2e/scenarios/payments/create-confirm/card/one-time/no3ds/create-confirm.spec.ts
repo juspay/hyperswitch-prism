@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { expect } from "@playwright/test";
 import { test } from "../../../../../../framework/fixtures.js";
 import { connectors } from "../../../../../../connectors/index.js";
 import {
@@ -27,7 +28,7 @@ const scenario = {
 for (const connector of connectors) {
   test.describe(connector.id, () => {
     test.use({ connector, scenario });
-    test(scenario.title, async ({ connector, merchant, payments, checks, report }) => {
+    test(scenario.title, async ({ connector, merchant, payments, report }) => {
       const billingAddress = createAddress();
       const shippingAddress = createAddress({ line1: "2" });
       const customer = createCustomer();
@@ -78,7 +79,7 @@ for (const connector of connectors) {
           return_url: returnUrl,
         });
 
-        await checks.fields("Confirmation fields", response, {
+        const expectedConfirmation = {
           status: "succeeded",
           error_code: null,
           error_message: null,
@@ -111,72 +112,79 @@ for (const connector of connectors) {
           description,
           metadata,
           merchant_order_reference_id: orderReference,
-        });
-        const billing = response.billing;
-        if (
-          billing === null ||
-          typeof billing !== "object" ||
-          !("address" in billing)
-        ) {
-          throw new Error("Payment response must contain a billing address");
-        }
-        await checks.fields("Billing address", billing.address, billingAddress);
-        await checks.fields("Billing contact", billing, { phone, email });
-        const shipping = response.shipping;
-        if (
-          shipping === null ||
-          typeof shipping !== "object" ||
-          !("address" in shipping)
-        ) {
-          throw new Error("Payment response must contain a shipping address");
-        }
-        await checks.fields("Shipping address", shipping.address, shippingAddress);
-        await checks.fields("Shipping contact", shipping, { phone, email });
-        await checks.fields("Customer", response.customer, customer);
-        await checks.fields("Browser information", response.browser_info, browserInfo);
-        if (!Array.isArray(response.order_details)) {
-          throw new Error("Payment response must contain order details");
-        }
-        await checks.fields("Order item count", { count: response.order_details.length }, {
-          count: orderDetails.length,
-        });
-        for (const [index, item] of orderDetails.entries()) {
-          await checks.fields(`Order item ${index + 1}`, response.order_details[index], item);
-        }
+        };
+        // Report only the selected fields, never the complete payment response.
+        await report.check(
+          "Confirmation fields",
+          {
+            actual: Object.fromEntries(
+              Object.keys(expectedConfirmation).map((field) => [field, response[field]]),
+            ),
+            expected: expectedConfirmation,
+          },
+          ({ actual, expected }) => expect(actual).toMatchObject(expected),
+        );
+        await report.check(
+          "Customer, addresses, browser and order details",
+          {
+            actual: {
+              billing: response.billing,
+              shipping: response.shipping,
+              customer: response.customer,
+              browser_info: response.browser_info,
+              order_details: response.order_details,
+            },
+            expected: {
+              billing: { address: billingAddress, phone, email },
+              shipping: { address: shippingAddress, phone, email },
+              customer,
+              browser_info: browserInfo,
+              order_details: orderDetails,
+            },
+          },
+          ({ actual, expected }) => expect(actual).toMatchObject(expected),
+        );
 
         // Compare URL values after standard URL normalization.
         const actualReturnUrl = response.return_url;
-        await checks.fields(
+        await report.check(
           "Return URL",
           {
-            return_url: typeof actualReturnUrl === "string"
+            actual: typeof actualReturnUrl === "string"
               ? new URL(actualReturnUrl).href
               : null,
+            expected: new URL(returnUrl).href,
           },
-          { return_url: new URL(returnUrl).href },
+          ({ actual, expected }) => expect(actual).toBe(expected),
         );
 
         // Report presence and validity rather than exposing generated references.
-        await checks.fields(
+        await report.check(
           "Generated payment references",
           {
-            paymentIdPresent: typeof response.payment_id === "string"
-              && response.payment_id.trim().length > 0,
-            connectorTransactionIdPresent:
-              typeof response.connector_transaction_id === "string"
-              && response.connector_transaction_id.trim().length > 0,
+            actual: {
+              paymentIdPresent: typeof response.payment_id === "string"
+                && response.payment_id.trim().length > 0,
+              connectorTransactionIdPresent:
+                typeof response.connector_transaction_id === "string"
+                && response.connector_transaction_id.trim().length > 0,
+            },
+            expected: { paymentIdPresent: true, connectorTransactionIdPresent: true },
           },
-          { paymentIdPresent: true, connectorTransactionIdPresent: true },
+          ({ actual, expected }) => expect(actual).toEqual(expected),
         );
-        await checks.fields(
+        await report.check(
           "Payment timestamps",
           {
-            createdValid: typeof response.created === "string"
-              && Number.isFinite(Date.parse(response.created)),
-            modifiedValid: typeof response.modified_at === "string"
-              && Number.isFinite(Date.parse(response.modified_at)),
+            actual: {
+              createdValid: typeof response.created === "string"
+                && Number.isFinite(Date.parse(response.created)),
+              modifiedValid: typeof response.modified_at === "string"
+                && Number.isFinite(Date.parse(response.modified_at)),
+            },
+            expected: { createdValid: true, modifiedValid: true },
           },
-          { createdValid: true, modifiedValid: true },
+          ({ actual, expected }) => expect(actual).toEqual(expected),
         );
         return response;
       });
@@ -185,12 +193,19 @@ for (const connector of connectors) {
       // This does not trigger or prove a fresh processor PSync call.
       await report.step("Verify recorded payment outcome", async () => {
         const recorded = await payments.readRecordedPayment(payment.payment_id);
-        await checks.fields("Recorded payment outcome", recorded, {
-          gateway: "unified_connector_service",
-          attemptStatus: "charged",
-          connectorTransactionIdPresent: true,
-          customerRecordExists: true,
-        });
+        await report.check(
+          "Recorded payment outcome",
+          {
+            actual: recorded,
+            expected: {
+              gateway: "unified_connector_service",
+              attemptStatus: "charged",
+              connectorTransactionIdPresent: true,
+              customerRecordExists: true,
+            },
+          },
+          ({ actual, expected }) => expect(actual).toEqual(expected),
+        );
       });
     });
   });

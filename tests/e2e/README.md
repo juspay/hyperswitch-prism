@@ -87,25 +87,32 @@ const payment = await report.step("Create and confirm payment", async () => {
     payment_method: "card",
     payment_method_data: { card: createCard(connector.card) },
   });
-  await checks.fields("Confirmation", response, { status: "succeeded" });
+  await report.check("Confirmation", {
+    actual: response.status,
+    expected: "succeeded",
+  }, ({ actual, expected }) => expect(actual).toBe(expected));
   return response;
 });
 
 await report.step("Verify recorded payment outcome", async () => {
   const recorded = await payments.readRecordedPayment(payment.payment_id);
-  await checks.fields("Recorded payment outcome", recorded, {
-    gateway: "unified_connector_service",
-    attemptStatus: "charged",
-    connectorTransactionIdPresent: true,
-  });
+  await report.check("Recorded payment outcome", {
+    actual: recorded,
+    expected: {
+      gateway: "unified_connector_service",
+      attemptStatus: "charged",
+      connectorTransactionIdPresent: true,
+      customerRecordExists: true,
+    },
+  }, ({ actual, expected }) => expect(actual).toEqual(expected));
 });
 ```
 
 Responses are ordinary objects. Any returned field can be passed to a later operation using normal TypeScript variables. Requests use HS API field names. Operations apply configured connector request differences before sending; they do not duplicate the full HS API schema or add payment defaults. The shared operations use the provisioned merchant's server API key.
 
-`checks.fields(name, actual, expected)` compares fields and attaches the same expected/actual values to the report. `checks.oneOf(name, actual, allowed)` checks membership. `waitForPaymentStatus` polls the payment GET endpoint, for at most 90 seconds, and returns the response with the expected status. Mutating requests are never retried automatically.
+Use native Playwright `expect` for equality, partial nested objects, arrays, ranges and other assertions. `report.check(name, { actual, expected }, assertion)` runs the supplied assertion and attaches those selected values even if it fails. It does not interpret matchers or define another assertion language. Mutating requests are never retried automatically.
 
-`checks.fields` validates that its target is an object and compares only the listed fields. Pass a nested response object to check selected nested fields; a nested object supplied as an expected value is compared in full. Keep sensitive values out of comparisons and report only their required presence.
+Choose `toMatchObject` for partial nested objects and `toEqual` for exact object/array equality. A range can use `report.check("Amount received > 0", { actual: response.amount_received, expected: 0 }, ({ actual, expected }) => expect(actual).toBeGreaterThan(expected))`. Expected/actual values are explicitly selected for the report: do not attach entire payment responses, credentials or card data. Use boolean presence checks for sensitive references. The scenario still owns all matching logic.
 
 Only `scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm.spec.ts` is implemented. Other specs and reserved directories are empty placeholders. The current sequence is:
 
@@ -178,7 +185,7 @@ SDK-driven journeys can share these same payment groupings. Make SDK execution e
 Empty specs and `.gitkeep` directories are extension placeholders, not implemented coverage. Add one shared spec per journey; connectors inherit it through the registry.
 
 
-Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, and `checks`.
+Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, and `report`.
 
 Scenarios belong to the shared superset under `scenarios/`. Connectors automatically inherit all registered scenarios. Keep connector differences in `connectors/`; do not copy scenarios into connector directories.
 
@@ -221,13 +228,12 @@ Operations apply their request overrides automatically. Overrides replace comple
 | `connectors/index.ts` | Register connector definitions. |
 | `framework/types.ts` | Define scenario metadata and data-only connector configuration types. |
 | `framework/fixtures.ts` | Standard Playwright fixtures apply exclusions, provision context, and release resources. Export a typed public API without internal HTTP/keys/polling. No payment sequence. |
-| `framework/payment-operations.ts` | Execute individual payment operations and return responses; expose explicitly named status polling and recorded-payment reads. |
+| `framework/payment-operations.ts` | Execute individual payment operations and return responses; expose recorded-payment reads. |
 | `framework/merchant-setup.ts` | Configure UCS and provision the merchant, API key, profile, connector account, and routing rule. |
 | `framework/hyperswitch-client.ts` | Send authenticated HS HTTP requests and handle transport/HTTP errors. |
 | `framework/ucs-audit.ts` | Correlate and attach UCS's existing masked structured events; never attach raw logs. |
-| `framework/report.ts` | Group a scenario's call and checks in a Playwright step, attaching audit evidence afterward, including on failure. |
+| `framework/report.ts` | Group API steps, attach selected expected/actual values around native assertions, then attach correlated audit evidence, including on failure. |
 | `framework/payment-records.ts` | Read the payment gateway, active-attempt status, connector transaction ID presence and associated customer record existence from the dedicated test database. |
-| `framework/assertions.ts` | Shared comparisons, bounded polling, and expected/actual report attachments. |
 | `framework/connector-credentials.ts` | Load external sandbox credentials. |
 | `framework/configuration.ts` | Resolve runtime URLs and options. |
 | `stack/compose.yml` | Configure local services and readiness dependencies. |
