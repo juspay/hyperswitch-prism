@@ -650,7 +650,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         },
         ConnectorEnum::Paytm => ConnectorSpecificConfig::Paytm {
             merchant_id: m(),
-            merchant_key: k(),
+            // Paytm checksum encryption requires an AES key of exactly
+            // 16, 24, or 32 bytes. Keep this synthetic probe key at 16 bytes
+            // so supported Paytm flows remain discoverable by field-probe.
+            merchant_key: Secret::new("probe_paytm_key1".to_string()),
             website: Secret::new("probe_website".to_string()),
             client_id: None,
             base_url: None,
@@ -908,6 +911,13 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             api_password: k(),
             webhook_key: Some(k()),
+            base_url: None,
+        },
+        // `project_id` must be numeric: the connector parses it into the integer
+        // `general.project_id`, so the generic `k()` dummy would fail every probed flow.
+        ConnectorEnum::Ecommpay => ConnectorSpecificConfig::Ecommpay {
+            project_id: Secret::new("12345".to_string()),
+            secret_key: k(),
             base_url: None,
         },
     }

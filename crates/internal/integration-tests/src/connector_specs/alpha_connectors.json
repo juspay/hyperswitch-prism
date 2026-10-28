@@ -22,6 +22,9 @@
     },
     "dlocal": {},
     "easebuzz": {},
+    "ecommpay": {
+      "reason": "Ecommpay staging credentials are not configured in CI, so certification cannot run. The sandbox forces a 3DS challenge on card payments that the harness cannot complete, so Capture, Void and Refund suites cannot reach a settled payment. Authorize, PSync, Capture, Void, Refund, RSync, SetupMandate, RepeatPayment and webhooks were exercised through Hyperswitch, UCS and the Ecommpay sandbox in the GRACE run; Apple Pay and Google Pay were not verified (no live wallet tokens). Remove this entry once credentials are added so CI starts certifying."
+    },
     "elavon_pg": {
       "reason": "No Elavon Payment Gateway sandbox credentials exist for this integration yet; sandbox access has not been provisioned. The request the connector emits is proven against a local mock EPG server, driven end to end from Hyperswitch through UCS: card no-3DS settles, and the hosted-payment-page 3DS chain (CreateOrder, PaymentSession, shopper redirect) is exercised from HS with the settle proven at the UCS boundary. Live certification will follow once credentials are available."
     },
@@ -74,7 +77,9 @@
     "nexixpay": {},
     "nmi": {},
     "noon": {},
-    "novalnet": {},
+    "novalnet": {
+      "reason": "No Novalnet credentials are configured in the CI creds file, so certification cannot run. Card Authorize (automatic and manual capture, 3DS redirect), PayPal redirect, PSync, Capture, Void, Refund and RSync were verified manually against a Novalnet test account. Still uncovered: Google Pay and Apple Pay need real device tokens encrypted for the Novalnet merchant, and webhook source verification needs a configured webhook secret plus a harness signer for Novalnet's body checksum. Remove this entry once CI credentials are added."
+    },
     "nuvei": {},
     "paybox": {},
     "payconex": {},
