@@ -1424,7 +1424,12 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::Interac
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
-        | common_enums::CardNetwork::Dinacard => None,
+        | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::AirPlus
+        | common_enums::CardNetwork::Aurore
+        | common_enums::CardNetwork::EftposAustralia
+        | common_enums::CardNetwork::GeCapital
+        | common_enums::CardNetwork::Uatp => None,
     }
 }
 
@@ -4737,20 +4742,39 @@ impl TryFrom<ResponseRouterData<AdyenReversalResponse, Self>>
             } else {
                 common_enums::PostCaptureVoidStatus::Pending
             };
-        let description = post_capture_void_status
-            .is_post_capture_void_failure()
-            .then(|| response.refusal_reason.clone())
-            .flatten();
+        let response = if post_capture_void_status.is_post_capture_void_failure() {
+            let message = response.refusal_reason.clone();
 
-        let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
-            post_capture_void_status,
-            connector_reference_id: Some(response.payment_psp_reference),
-            description,
-            status_code: http_code,
+            Err(ErrorResponse {
+                code: response
+                    .refusal_reason_code
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: message
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: message,
+                status_code: http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(response.payment_psp_reference),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(response.payment_psp_reference),
+                status_code: http_code,
+            })
         };
 
         Ok(Self {
-            response: Ok(payments_response_data),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..router_data.resource_common_data

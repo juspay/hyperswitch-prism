@@ -9,14 +9,14 @@
 use std::{
     collections::BTreeMap,
     path::PathBuf,
-    process::{Child, Command, Stdio},
+    process::{Command, Stdio},
     thread,
     time::Duration,
 };
 
 use base64::Engine;
 use prost::Message;
-use reqwest::{blocking::Client, Url};
+use reqwest::Url;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use tonic::transport::Channel;
@@ -112,7 +112,6 @@ pub const DEFAULT_ENDPOINT: &str = "localhost:8000";
 pub const DEFAULT_CONNECTOR: &str = "stripe";
 pub const DEFAULT_MERCHANT_ID: &str = "test_merchant";
 pub const DEFAULT_TENANT_ID: &str = "default";
-const DEFAULT_BROWSER_AUTOMATION_URL: &str = "http://localhost:3000/run";
 
 /// Materialized grpcurl command pieces used by CLI output and execution.
 #[derive(Debug, Clone)]
@@ -144,7 +143,7 @@ struct ExecutedDependency {
 struct BrowserRedirectTarget {
     url: String,
     redirect_uri: Option<String>,
-    cleanup_path: Option<PathBuf>,
+    post_fields: Option<BTreeMap<String, String>>,
     form_fields: BTreeMap<String, String>,
 }
 
@@ -443,8 +442,7 @@ fn maybe_execute_browser_automation_for_suite(
         });
     }
 
-    let managed_engine = env_bool("UCS_BROWSER_AUTOMATION_MANAGED", true);
-    let headed = env_bool("UCS_BROWSER_AUTOMATION_HEADED", true);
+    let headed = env_bool("UCS_BROWSER_AUTOMATION_HEADED", false);
     let slow_mo_ms = std::env::var("UCS_BROWSER_AUTOMATION_SLOW_MO_MS")
         .ok()
         .and_then(|value| value.trim().parse::<u64>().ok())
@@ -461,30 +459,25 @@ fn maybe_execute_browser_automation_for_suite(
         }
     });
 
-    let execution_result = if managed_engine {
-        let host = std::env::var("UCS_BROWSER_AUTOMATION_HOST")
-            .unwrap_or_else(|_| "127.0.0.1".to_string());
-        let port = std::env::var("UCS_BROWSER_AUTOMATION_PORT")
-            .ok()
-            .and_then(|value| value.trim().parse::<u16>().ok())
-            .unwrap_or(3000);
-        let run_url = format!("http://{host}:{port}/run");
-
-        let mut engine_process = start_browser_automation_engine(&host, port)?;
-        let execution_result = execute_browser_automation_run(&run_url, &payload, suite, scenario);
-        stop_browser_automation_engine(&mut engine_process);
-        execution_result
-    } else {
-        let run_url = std::env::var("UCS_BROWSER_AUTOMATION_URL")
-            .unwrap_or_else(|_| DEFAULT_BROWSER_AUTOMATION_URL.to_string());
-        execute_browser_automation_run(&run_url, &payload, suite, scenario)
-    };
-
-    if let Some(cleanup_path) = redirect_target.cleanup_path.as_ref() {
-        let _ = std::fs::remove_file(cleanup_path);
+    let mut payload = payload;
+    let payload_fields =
+        payload
+            .as_object_mut()
+            .ok_or_else(|| ScenarioError::GrpcurlExecution {
+                message: "Browser job must be an object".to_string(),
+            })?;
+    if let Some(fields) = &redirect_target.post_fields {
+        payload_fields.insert(
+            "formFields".to_string(),
+            serde_json::to_value(fields).map_err(|_| ScenarioError::GrpcurlExecution {
+                message: "Could not encode browser POST fields".to_string(),
+            })?,
+        );
     }
-
-    let browser_response = execution_result?;
+    if let Some(callback) = &redirect_target.redirect_uri {
+        payload_fields.insert("callbackUrl".to_string(), Value::String(callback.clone()));
+    }
+    let browser_response = crate::harness::browser_worker::execute(&payload)?;
     apply_browser_result_to_request(
         effective_req,
         browser_automation,
@@ -592,58 +585,6 @@ fn apply_browser_result_to_request(
     Ok(())
 }
 
-fn render_auto_submit_form_file(
-    endpoint: &str,
-    form_fields: &serde_json::Map<String, Value>,
-) -> Result<String, ScenarioError> {
-    let mut hidden_inputs = String::new();
-    for (key, value) in form_fields {
-        let field_value = value
-            .as_str()
-            .map(ToString::to_string)
-            .unwrap_or_else(|| value.to_string());
-        hidden_inputs.push_str(&format!(
-            "<input type=\"hidden\" name=\"{}\" value=\"{}\" />",
-            html_escape(key),
-            html_escape(&field_value)
-        ));
-    }
-
-    let html = format!(
-        "<!doctype html><html><head><meta charset=\"utf-8\"></head><body><form id=\"ucs-3ds-auto-form\" method=\"POST\" action=\"{}\">{}<noscript><button type=\"submit\">Continue</button></noscript></form><script>document.getElementById('ucs-3ds-auto-form').submit();</script></body></html>",
-        html_escape(endpoint),
-        hidden_inputs
-    );
-
-    let file_name = format!("ucs-connector-3ds-{}.html", Uuid::new_v4().simple());
-    let file_path = std::env::temp_dir().join(file_name);
-    std::fs::write(&file_path, html).map_err(|error| ScenarioError::GrpcurlExecution {
-        message: format!(
-            "failed to write browser automation POST form file '{}': {error}",
-            file_path.display()
-        ),
-    })?;
-
-    let file_url =
-        Url::from_file_path(&file_path).map_err(|_| ScenarioError::GrpcurlExecution {
-            message: format!(
-                "failed to convert browser automation form path '{}' to file URL",
-                file_path.display()
-            ),
-        })?;
-
-    Ok(file_url.to_string())
-}
-
-fn html_escape(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#39;")
-}
-
 fn is_post_redirect_method(method: Option<&str>) -> bool {
     method
         .map(|value| value.trim().to_ascii_uppercase().contains("POST"))
@@ -658,136 +599,6 @@ fn select_connector_browser_automation_hook<'a>(
     hooks.iter().find(|hook| {
         hook.suite == suite
             && (hook.scenarios.is_empty() || hook.scenarios.iter().any(|name| name == scenario))
-    })
-}
-
-fn execute_browser_automation_run(
-    run_url: &str,
-    payload: &Value,
-    suite: &str,
-    scenario: &str,
-) -> Result<Value, ScenarioError> {
-    let timeout_secs = std::env::var("UCS_BROWSER_AUTOMATION_TIMEOUT_SECS")
-        .ok()
-        .and_then(|value| value.trim().parse::<u64>().ok())
-        .unwrap_or(90);
-    let client = Client::builder()
-        .timeout(Duration::from_secs(timeout_secs))
-        .build()
-        .map_err(|error| ScenarioError::GrpcurlExecution {
-            message: format!(
-                "browser automation client initialization failed for '{suite}/{scenario}': {error}"
-            ),
-        })?;
-    let response = client.post(run_url).json(payload).send().map_err(|error| {
-        ScenarioError::GrpcurlExecution {
-            message: format!(
-                "browser automation request failed for '{suite}/{scenario}' via '{}': {error}",
-                run_url
-            ),
-        }
-    })?;
-
-    let status = response.status();
-    let response_text = response
-        .text()
-        .map_err(|error| ScenarioError::GrpcurlExecution {
-            message: format!(
-                "browser automation response read failed for '{suite}/{scenario}': {error}"
-            ),
-        })?;
-
-    if !status.is_success() {
-        return Err(ScenarioError::GrpcurlExecution {
-            message: format!(
-                "browser automation returned HTTP {} for '{suite}/{scenario}': {}",
-                status, response_text
-            ),
-        });
-    }
-
-    let response_json: Value =
-        serde_json::from_str(&response_text).map_err(|error| ScenarioError::GrpcurlExecution {
-            message: format!(
-                "browser automation returned non-JSON payload for '{suite}/{scenario}': {error}; body={response_text}"
-            ),
-        })?;
-
-    let success = response_json
-        .get("success")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    if !success {
-        let error_message = response_json
-            .get("error")
-            .and_then(Value::as_str)
-            .unwrap_or("browser automation marked run as failed");
-        return Err(ScenarioError::GrpcurlExecution {
-            message: format!("browser automation failed for '{suite}/{scenario}': {error_message}"),
-        });
-    }
-
-    Ok(response_json)
-}
-
-fn start_browser_automation_engine(host: &str, port: u16) -> Result<Child, ScenarioError> {
-    let engine_dir = browser_automation_engine_dir()?;
-    let mut child = Command::new("npm")
-        .arg("run")
-        .arg("dev")
-        .current_dir(&engine_dir)
-        .env("HOST", host)
-        .env("PORT", port.to_string())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|error| ScenarioError::GrpcurlExecution {
-            message: format!(
-                "failed to start browser automation engine from '{}': {error}",
-                engine_dir.display()
-            ),
-        })?;
-
-    wait_for_browser_automation_engine(host, port, &mut child)?;
-    Ok(child)
-}
-
-fn stop_browser_automation_engine(child: &mut Child) {
-    let _ = child.kill();
-    let _ = child.wait();
-}
-
-fn wait_for_browser_automation_engine(
-    host: &str,
-    port: u16,
-    child: &mut Child,
-) -> Result<(), ScenarioError> {
-    let endpoint = format!("{host}:{port}");
-    for _ in 0..60 {
-        if std::net::TcpStream::connect(&endpoint).is_ok() {
-            return Ok(());
-        }
-
-        if let Some(status) = child
-            .try_wait()
-            .map_err(|error| ScenarioError::GrpcurlExecution {
-                message: format!(
-                    "failed while waiting for browser automation engine startup: {error}"
-                ),
-            })?
-        {
-            return Err(ScenarioError::GrpcurlExecution {
-                message: format!(
-                    "browser automation engine exited before startup on {endpoint} with status: {status}"
-                ),
-            });
-        }
-
-        thread::sleep(Duration::from_millis(250));
-    }
-
-    Err(ScenarioError::GrpcurlExecution {
-        message: format!("timed out waiting for browser automation engine startup on {endpoint}"),
     })
 }
 
@@ -1207,18 +1018,14 @@ fn extract_redirect_target_from_dependencies(
         }
 
         if is_post_redirect_method(method) {
-            if let Some(fields) = form_fields.as_ref() {
-                let file_url = render_auto_submit_form_file(endpoint, fields)?;
-                let cleanup_path = Url::parse(&file_url)
-                    .ok()
-                    .and_then(|url| url.to_file_path().ok());
-                return Ok(Some(BrowserRedirectTarget {
-                    url: file_url,
-                    redirect_uri,
-                    cleanup_path,
-                    form_fields: form_field_values,
-                }));
-            }
+            // The isolated worker builds and submits this form in memory. There
+            // is no shared temporary HTML file or file:// navigation.
+            return Ok(Some(BrowserRedirectTarget {
+                url: endpoint.to_string(),
+                redirect_uri,
+                post_fields: Some(form_field_values.clone()),
+                form_fields: form_field_values,
+            }));
         }
 
         let mut redirect_url =
@@ -1242,7 +1049,7 @@ fn extract_redirect_target_from_dependencies(
         return Ok(Some(BrowserRedirectTarget {
             url: redirect_url.to_string(),
             redirect_uri,
-            cleanup_path: None,
+            post_fields: None,
             form_fields: form_field_values,
         }));
     }
@@ -3691,16 +3498,24 @@ pub fn run_scenario_test_with_options(
 ) -> Result<SuiteRunSummary, ScenarioError> {
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR);
     let target_suite_spec = load_suite_spec_for_connector(suite, connector)?;
-    // Fails with ScenarioNotFound when neither the global suite nor the
-    // connector's private file defines it.
-    load_scenario_for_connector(suite, scenario, connector)?;
+    let mut scenarios = load_suite_scenarios(suite)?;
+    merge_connector_specific_scenarios(connector, suite, &mut scenarios)?;
+
+    let definition = scenarios
+        .get(scenario)
+        .ok_or_else(|| ScenarioError::ScenarioNotFound {
+            suite: suite.to_string(),
+            scenario: scenario.to_string(),
+        })?;
+    let (dependencies, _) = definition.prerequisites(&target_suite_spec);
+    validate_scenario_prerequisites(definition, connector)?;
 
     let mut results = Vec::new();
     let mut passed = 0usize;
     let mut failed = 0usize;
 
     let dependency_chain = execute_dependency_chain(
-        &target_suite_spec.depends_on,
+        dependencies,
         connector,
         options,
         target_suite_spec.strict_dependencies,
@@ -3932,15 +3747,18 @@ pub fn run_suite_test_with_options(
     // pass; the only way through is an `assert` override that hides real
     // regressions. Declaring nothing keeps every scenario.
     let supported_methods = load_supported_payment_methods_for_connector(connector)?;
-    let mut scenarios: BTreeMap<_, _> = load_suite_scenarios(suite)?
-        .into_iter()
-        .filter(|(_, def)| scenario_matches_supported_payment_methods(def, &supported_methods))
-        .collect();
-
-    // Scenarios only this connector has. Merged after the payment-method filter
-    // so a private scenario is never dropped for naming a method the connector
-    // did not bother to declare — it declared the scenario itself.
+    let mut scenarios = load_suite_scenarios(suite)?;
+    let global_names = scenarios
+        .keys()
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>();
+    // Resolve variants against the full baseline even if their base payment
+    // method is filtered out. Explicit connector-local cases remain runnable.
     let connector_specific = merge_connector_specific_scenarios(connector, suite, &mut scenarios)?;
+    scenarios.retain(|name, def| {
+        !global_names.contains(name)
+            || scenario_matches_supported_payment_methods(def, &supported_methods)
+    });
 
     // A scenario the connector declares it cannot support at all. Skipped with
     // its stated reason rather than run and failed.
@@ -3962,145 +3780,16 @@ pub fn run_suite_test_with_options(
     let mut failed = 0usize;
     let mut skipped = 0usize;
 
-    match target_suite_spec.dependency_scope {
-        DependencyScope::Suite => {
-            let dependency_chain = execute_dependency_chain(
-                &target_suite_spec.depends_on,
-                connector,
-                options,
-                target_suite_spec.strict_dependencies,
-                &mut passed,
-                &mut failed,
-                &mut results,
-            )?;
-            let Some((
-                dependency_reqs,
-                dependency_res,
-                dependency_labels,
-                explicit_context_entries,
-                dependency_entries,
-            )) = dependency_chain
-            else {
-                return Ok(SuiteRunSummary {
-                    suite: suite.to_string(),
-                    connector: connector.to_string(),
-                    passed,
-                    failed,
-                    skipped,
-                    unsupported: unsupported_count,
-                    connector_specific,
-                    results,
-                });
-            };
-
-            for scenario in scenarios.keys() {
-                match execute_single_scenario_with_context(
-                    suite,
-                    scenario,
-                    connector,
-                    options,
-                    &dependency_reqs,
-                    &dependency_res,
-                    &explicit_context_entries,
-                    &dependency_entries,
-                ) {
-                    Ok(executed) => {
-                        if let Some(execution_error) = executed.execution_error.clone() {
-                            failed += 1;
-                            results.push(SuiteScenarioResult {
-                                suite: suite.to_string(),
-                                scenario: scenario.to_string(),
-                                is_dependency: false,
-                                passed: false,
-                                skipped: false,
-                                error: Some(execution_error),
-                                dependency: dependency_labels.clone(),
-                                req_body: Some(executed.effective_req),
-                                res_body: Some(executed.response_json),
-                                grpc_request: executed.grpc_request,
-                                grpc_response: executed.grpc_response,
-                            });
-                            continue;
-                        }
-
-                        match do_assertion(
-                            &executed.assertions,
-                            &executed.response_json,
-                            &executed.effective_req,
-                        ) {
-                            Ok(()) => {
-                                passed += 1;
-                                results.push(SuiteScenarioResult {
-                                    suite: suite.to_string(),
-                                    scenario: scenario.to_string(),
-                                    is_dependency: false,
-                                    passed: true,
-                                    skipped: false,
-                                    error: None,
-                                    dependency: dependency_labels.clone(),
-                                    req_body: Some(executed.effective_req),
-                                    res_body: Some(executed.response_json),
-                                    grpc_request: executed.grpc_request,
-                                    grpc_response: executed.grpc_response,
-                                });
-                            }
-                            Err(error) => {
-                                failed += 1;
-                                results.push(SuiteScenarioResult {
-                                    suite: suite.to_string(),
-                                    scenario: scenario.to_string(),
-                                    is_dependency: false,
-                                    passed: false,
-                                    skipped: false,
-                                    error: Some(error.to_string()),
-                                    dependency: dependency_labels.clone(),
-                                    req_body: Some(executed.effective_req),
-                                    res_body: Some(executed.response_json),
-                                    grpc_request: executed.grpc_request,
-                                    grpc_response: executed.grpc_response,
-                                });
-                            }
-                        }
-                    }
-                    Err(ScenarioError::Skipped { reason }) => {
-                        skipped += 1;
-                        results.push(SuiteScenarioResult {
-                            suite: suite.to_string(),
-                            scenario: scenario.to_string(),
-                            is_dependency: false,
-                            passed: false,
-                            skipped: true,
-                            error: Some(reason),
-                            dependency: dependency_labels.clone(),
-                            req_body: None,
-                            res_body: None,
-                            grpc_request: None,
-                            grpc_response: None,
-                        });
-                    }
-                    Err(error) => {
-                        failed += 1;
-                        results.push(SuiteScenarioResult {
-                            suite: suite.to_string(),
-                            scenario: scenario.to_string(),
-                            is_dependency: false,
-                            passed: false,
-                            skipped: false,
-                            error: Some(error.to_string()),
-                            dependency: dependency_labels.clone(),
-                            req_body: None,
-                            res_body: None,
-                            grpc_request: None,
-                            grpc_response: None,
-                        });
-                    }
-                }
-            }
-        }
-        DependencyScope::Scenario => {
-            for scenario in scenarios.keys() {
-                let dependency_chain = execute_dependency_chain(
-                    &target_suite_spec.depends_on,
+    let mut shared_context: Option<Option<DependencyContext>> = None;
+    for (scenario, definition) in &scenarios {
+        let (dependencies, scope) = definition.prerequisites(&target_suite_spec);
+        validate_scenario_prerequisites(definition, connector)?;
+        let dependency_chain =
+            if let (DependencyScope::Suite, Some(context)) = (scope, &shared_context) {
+                context.clone()
+            } else {
+                let context = execute_dependency_chain(
+                    dependencies,
                     connector,
                     options,
                     target_suite_spec.strict_dependencies,
@@ -4108,108 +3797,85 @@ pub fn run_suite_test_with_options(
                     &mut failed,
                     &mut results,
                 )?;
-                let Some((
-                    dependency_reqs,
-                    dependency_res,
-                    dependency_labels,
-                    explicit_context_entries,
-                    dependency_entries,
-                )) = dependency_chain
-                else {
-                    return Ok(SuiteRunSummary {
+                if scope == DependencyScope::Suite {
+                    shared_context = Some(context.clone());
+                }
+                context
+            };
+        let Some((
+            dependency_reqs,
+            dependency_res,
+            dependency_labels,
+            explicit_context_entries,
+            dependency_entries,
+        )) = dependency_chain
+        else {
+            // A failed independent chain must not suppress unrelated variants.
+            skipped += 1;
+            results.push(SuiteScenarioResult {
+                suite: suite.to_string(),
+                scenario: scenario.to_string(),
+                is_dependency: false,
+                passed: false,
+                skipped: true,
+                error: Some("Prerequisite chain failed".to_string()),
+                dependency: Vec::new(),
+                req_body: None,
+                res_body: None,
+                grpc_request: None,
+                grpc_response: None,
+            });
+            continue;
+        };
+
+        match execute_single_scenario_with_context(
+            suite,
+            scenario,
+            connector,
+            options,
+            &dependency_reqs,
+            &dependency_res,
+            &explicit_context_entries,
+            &dependency_entries,
+        ) {
+            Ok(executed) => {
+                if let Some(execution_error) = executed.execution_error.clone() {
+                    failed += 1;
+                    results.push(SuiteScenarioResult {
                         suite: suite.to_string(),
-                        connector: connector.to_string(),
-                        passed,
-                        failed,
-                        skipped,
-                        unsupported: unsupported_count,
-                        connector_specific,
-                        results,
+                        scenario: scenario.to_string(),
+                        is_dependency: false,
+                        passed: false,
+                        skipped: false,
+                        error: Some(execution_error),
+                        dependency: dependency_labels,
+                        req_body: Some(executed.effective_req),
+                        res_body: Some(executed.response_json),
+                        grpc_request: executed.grpc_request,
+                        grpc_response: executed.grpc_response,
                     });
-                };
+                    continue;
+                }
 
-                match execute_single_scenario_with_context(
-                    suite,
-                    scenario,
-                    connector,
-                    options,
-                    &dependency_reqs,
-                    &dependency_res,
-                    &explicit_context_entries,
-                    &dependency_entries,
+                match do_assertion(
+                    &executed.assertions,
+                    &executed.response_json,
+                    &executed.effective_req,
                 ) {
-                    Ok(executed) => {
-                        if let Some(execution_error) = executed.execution_error.clone() {
-                            failed += 1;
-                            results.push(SuiteScenarioResult {
-                                suite: suite.to_string(),
-                                scenario: scenario.to_string(),
-                                is_dependency: false,
-                                passed: false,
-                                skipped: false,
-                                error: Some(execution_error),
-                                dependency: dependency_labels,
-                                req_body: Some(executed.effective_req),
-                                res_body: Some(executed.response_json),
-                                grpc_request: executed.grpc_request,
-                                grpc_response: executed.grpc_response,
-                            });
-                            continue;
-                        }
-
-                        match do_assertion(
-                            &executed.assertions,
-                            &executed.response_json,
-                            &executed.effective_req,
-                        ) {
-                            Ok(()) => {
-                                passed += 1;
-                                results.push(SuiteScenarioResult {
-                                    suite: suite.to_string(),
-                                    scenario: scenario.to_string(),
-                                    is_dependency: false,
-                                    passed: true,
-                                    skipped: false,
-                                    error: None,
-                                    dependency: dependency_labels,
-                                    req_body: Some(executed.effective_req),
-                                    res_body: Some(executed.response_json),
-                                    grpc_request: executed.grpc_request,
-                                    grpc_response: executed.grpc_response,
-                                });
-                            }
-                            Err(error) => {
-                                failed += 1;
-                                results.push(SuiteScenarioResult {
-                                    suite: suite.to_string(),
-                                    scenario: scenario.to_string(),
-                                    is_dependency: false,
-                                    passed: false,
-                                    skipped: false,
-                                    error: Some(error.to_string()),
-                                    dependency: dependency_labels,
-                                    req_body: Some(executed.effective_req),
-                                    res_body: Some(executed.response_json),
-                                    grpc_request: executed.grpc_request,
-                                    grpc_response: executed.grpc_response,
-                                });
-                            }
-                        }
-                    }
-                    Err(ScenarioError::Skipped { reason }) => {
-                        skipped += 1;
+                    Ok(()) => {
+                        passed += 1;
                         results.push(SuiteScenarioResult {
                             suite: suite.to_string(),
                             scenario: scenario.to_string(),
                             is_dependency: false,
-                            passed: false,
-                            skipped: true,
-                            error: Some(reason),
+                            passed: true,
+                            skipped: false,
+                            error: None,
                             dependency: dependency_labels,
-                            req_body: None,
-                            res_body: None,
-                            grpc_request: None,
-                            grpc_response: None,
+                            req_body: Some(executed.effective_req),
+                            res_body: Some(executed.response_json),
+                            grpc_request: executed.grpc_request,
+                            grpc_response: executed.grpc_response,
                         });
                     }
                     Err(error) => {
@@ -4222,13 +3888,45 @@ pub fn run_suite_test_with_options(
                             skipped: false,
                             error: Some(error.to_string()),
                             dependency: dependency_labels,
-                            req_body: None,
-                            res_body: None,
-                            grpc_request: None,
-                            grpc_response: None,
+                            req_body: Some(executed.effective_req),
+                            res_body: Some(executed.response_json),
+                            grpc_request: executed.grpc_request,
+                            grpc_response: executed.grpc_response,
                         });
                     }
                 }
+            }
+            Err(ScenarioError::Skipped { reason }) => {
+                skipped += 1;
+                results.push(SuiteScenarioResult {
+                    suite: suite.to_string(),
+                    scenario: scenario.to_string(),
+                    is_dependency: false,
+                    passed: false,
+                    skipped: true,
+                    error: Some(reason),
+                    dependency: dependency_labels,
+                    req_body: None,
+                    res_body: None,
+                    grpc_request: None,
+                    grpc_response: None,
+                });
+            }
+            Err(error) => {
+                failed += 1;
+                results.push(SuiteScenarioResult {
+                    suite: suite.to_string(),
+                    scenario: scenario.to_string(),
+                    is_dependency: false,
+                    passed: false,
+                    skipped: false,
+                    error: Some(error.to_string()),
+                    dependency: dependency_labels,
+                    req_body: None,
+                    res_body: None,
+                    grpc_request: None,
+                    grpc_response: None,
+                });
             }
         }
     }
@@ -4243,6 +3941,19 @@ pub fn run_suite_test_with_options(
         connector_specific,
         results,
     })
+}
+
+fn validate_scenario_prerequisites(
+    definition: &crate::harness::scenario_types::ScenarioDef,
+    connector: &str,
+) -> Result<(), ScenarioError> {
+    for dependency in definition.depends_on.iter().flatten() {
+        load_suite_spec(dependency.suite())?;
+        if let Some(scenario) = dependency.scenario() {
+            load_scenario_for_connector(dependency.suite(), scenario, connector)?;
+        }
+    }
+    Ok(())
 }
 
 fn execute_dependency_chain(
@@ -5219,6 +4930,45 @@ pub fn all_known_suites() -> &'static [&'static str] {
 #[cfg(test)]
 #[allow(clippy::indexing_slicing)]
 mod tests {
+    #[test]
+    fn browser_post_redirect_keeps_fields_in_memory() {
+        let hook: crate::harness::scenario_types::BrowserAutomationHook =
+            serde_json::from_value(serde_json::json!({ "suite": "complete_authorize" }))
+                .expect("valid browser hook fixture");
+        let dependency = super::ExecutedDependency {
+            suite: "authorize".to_string(),
+            scenario: "fixture".to_string(),
+            res: serde_json::json!({
+                "redirection_data": { "form": {
+                    "endpoint": "https://example.com/3ds",
+                    "method": "POST",
+                    "form_fields": {
+                        "PaReq": "HARMLESS_3DS_FIXTURE",
+                        "submit": "field-not-a-method",
+                        "redirect_uri": "https://example.com/complete"
+                    }
+                }}
+            }),
+        };
+        let target = super::extract_redirect_target_from_dependencies(
+            &[dependency],
+            &serde_json::json!({}),
+            &hook,
+        )
+        .expect("valid redirect")
+        .expect("redirect present");
+        assert_eq!(target.url, "https://example.com/3ds");
+        assert_eq!(
+            target.redirect_uri.as_deref(),
+            Some("https://example.com/complete")
+        );
+        assert_eq!(target.post_fields.as_ref(), Some(&target.form_fields));
+        assert_eq!(
+            target.form_fields.get("PaReq").map(String::as_str),
+            Some("HARMLESS_3DS_FIXTURE")
+        );
+    }
+
     use std::{collections::BTreeSet, fs};
 
     use grpc_api_types::payments;
@@ -6477,6 +6227,372 @@ grpc-status: 0
         assert!(error_body_from_grpc_output("Resolved method descriptor:", "").is_none());
     }
 
+    #[tokio::test]
+    async fn expanded_connector_webhooks_verify_and_process_without_sandbox_credentials() {
+        use crate::harness::{credentials::ConnectorConfig, metadata::add_connector_metadata};
+        use base64::Engine;
+        use grpc_api_types::payments::event_service_server::EventService;
+        let config = std::sync::Arc::new(ucs_env::configs::Config::new().unwrap());
+        let suite = "EventService/HandleEvent";
+        for connector in ["cryptopay", "fiuu"] {
+            let mut scenarios = load_suite_scenarios(suite).unwrap();
+            merge_connector_specific_scenarios(connector, suite, &mut scenarios).unwrap();
+            let header = if connector == "cryptopay" {
+                serde_json::json!({"config": {"Cryptopay": {"api_key": "fixture", "api_secret": "fixture"}}})
+            } else {
+                serde_json::json!({"config": {"Fiuu": {"merchant_id": "fixture", "verify_key": "fixture", "secret_key": "fixture"}}})
+            };
+            let auth = ConnectorConfig::from_header_json(header.to_string());
+            for scenario in scenarios.keys() {
+                if super::scenario_unsupported_reason(connector, suite, scenario)
+                    .unwrap()
+                    .is_some()
+                {
+                    continue;
+                }
+                let mut req = get_the_grpc_req_for_connector(suite, scenario, connector).unwrap();
+                resolve_auto_generate(&mut req, connector).unwrap();
+                let body = base64::engine::general_purpose::STANDARD
+                    .decode(req["request_details"]["body"].as_str().unwrap())
+                    .unwrap();
+                req["request_details"]["body"] = serde_json::to_value(body).unwrap();
+                let mut native_req = req.clone();
+                native_req.as_object_mut().unwrap().remove("event_context");
+                let mut payload: payments::EventServiceHandleRequest =
+                    serde_json::from_value(native_req).unwrap();
+                if let Some(method) = req
+                    .pointer("/event_context/payment/capture_method")
+                    .and_then(Value::as_str)
+                {
+                    payload.event_context = Some(payments::EventContext {
+                        event_context: Some(payments::event_context::EventContext::Payment(
+                            payments::PaymentEventContext {
+                                capture_method: Some(if method == "MANUAL" {
+                                    i32::from(payments::CaptureMethod::Manual)
+                                } else {
+                                    i32::from(payments::CaptureMethod::Automatic)
+                                }),
+                            },
+                        )),
+                    });
+                }
+                let mut request = tonic::Request::new(payload);
+                request.extensions_mut().insert(config.clone());
+                add_connector_metadata(
+                    &mut request,
+                    &auth,
+                    "test_merchant",
+                    "default",
+                    scenario,
+                    scenario,
+                );
+                let response = grpc_server::server::events::EventServiceImpl
+                    .handle_event(request)
+                    .await
+                    .unwrap_or_else(|e| panic!("{connector}/{scenario}: {e}"))
+                    .into_inner();
+                assert_eq!(
+                    response.source_verified,
+                    scenario != "invalid_signature",
+                    "{connector}/{scenario}"
+                );
+                let mut json = serde_json::to_value(response).unwrap();
+                // Flatten the prost/serde oneof wrapper into protobuf JSON form.
+                if let Some(content) = json.pointer("/event_content/content").cloned() {
+                    let mut wire_content = serde_json::Map::new();
+                    for (variant, value) in content.as_object().unwrap() {
+                        let key = if variant == "PaymentsResponse" {
+                            "payments_response"
+                        } else {
+                            "refunds_response"
+                        };
+                        wire_content.insert(key.to_string(), value.clone());
+                    }
+                    json["event_content"] = Value::Object(wire_content);
+                }
+                // grpcurl omits scalar defaults; preserve the runner's assertion representation.
+                if scenario == "invalid_signature" {
+                    json.as_object_mut().unwrap().remove("source_verified");
+                }
+                let assertions =
+                    get_the_assertion_for_connector(suite, scenario, connector).unwrap();
+                crate::harness::scenario_assert::do_assertion(&assertions, &json, &req)
+                    .unwrap_or_else(|e| panic!("{connector}/{scenario}: {e}; response={json}"));
+            }
+        }
+    }
+
+    #[test]
+    fn expanded_shared_scenarios_load_and_preserve_payment_method_filtering() {
+        use crate::harness::scenario_loader::{
+            load_connector_specific_scenarios, load_supported_payment_methods_for_connector,
+            scenario_matches_supported_payment_methods,
+        };
+
+        let card_cases = [
+            "no3ds_auto_capture_credit_card_without_optional_address",
+            "no3ds_auto_capture_credit_card_four_digit_expiry",
+            "no3ds_auto_capture_credit_card_two_digit_expiry",
+            "no3ds_manual_capture_credit_card_without_optional_address",
+            "no3ds_auto_capture_credit_card_with_setup_future_usage",
+        ];
+        let crypto_cases = [
+            "no3ds_auto_capture_crypto",
+            "no3ds_auto_capture_crypto_with_metadata",
+            "no3ds_auto_capture_crypto_with_return_url",
+            "no3ds_auto_capture_crypto_small_amount",
+        ];
+        let local_methods = [
+            "no3ds_auto_capture_duitnow_qr",
+            "no3ds_auto_capture_fpx_maybank",
+            "no3ds_auto_capture_fpx_cimb",
+        ];
+        for connector in ["cryptopay", "datatrans", "elavon", "fiserv", "fiuu"] {
+            assert!(
+                load_connector_specific_scenarios(connector, "PaymentService/Authorize")
+                    .unwrap()
+                    .is_empty()
+            );
+            let methods = load_supported_payment_methods_for_connector(connector).unwrap();
+            let mut authorize = load_suite_scenarios("PaymentService/Authorize").unwrap();
+            merge_connector_specific_scenarios(
+                connector,
+                "PaymentService/Authorize",
+                &mut authorize,
+            )
+            .unwrap();
+            for name in card_cases.iter().chain(&crypto_cases).chain(&local_methods) {
+                let applicable = if crypto_cases.contains(name) {
+                    connector == "cryptopay"
+                } else if local_methods.contains(name) {
+                    connector == "fiuu"
+                } else {
+                    connector != "cryptopay"
+                };
+                assert_eq!(
+                    authorize.get(*name).is_some_and(|definition| {
+                        scenario_matches_supported_payment_methods(definition, &methods)
+                    }),
+                    applicable,
+                    "{connector}/{name}"
+                );
+                if applicable {
+                    run_test(
+                        Some("PaymentService/Authorize"),
+                        Some(name),
+                        Some(connector),
+                    )
+                    .unwrap();
+                }
+            }
+        }
+        let tokenize = load_suite_scenarios("PaymentMethodService/Tokenize").unwrap();
+        let google_pay = &tokenize["tokenize_google_pay_encrypted"];
+        assert!(scenario_matches_supported_payment_methods(
+            google_pay,
+            &["google_pay_sdk".to_string()]
+        ));
+        assert!(!scenario_matches_supported_payment_methods(
+            google_pay,
+            &["card".to_string()]
+        ));
+        run_test(
+            Some("PaymentMethodService/Tokenize"),
+            Some("tokenize_google_pay_encrypted"),
+            Some("datatrans"),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn named_card_variants_preserve_existing_connector_fixtures() {
+        let suite = "PaymentService/Authorize";
+        for connector in discover_all_connectors().unwrap() {
+            for (scenario, base) in [
+                (
+                    "no3ds_auto_capture_credit_card_without_optional_address",
+                    "no3ds_auto_capture_credit_card",
+                ),
+                (
+                    "no3ds_manual_capture_credit_card_without_optional_address",
+                    "no3ds_manual_capture_credit_card",
+                ),
+                (
+                    "no3ds_auto_capture_credit_card_four_digit_expiry",
+                    "no3ds_auto_capture_credit_card",
+                ),
+                (
+                    "no3ds_auto_capture_credit_card_two_digit_expiry",
+                    "no3ds_auto_capture_credit_card",
+                ),
+                (
+                    "no3ds_auto_capture_credit_card_with_setup_future_usage",
+                    "no3ds_auto_capture_credit_card",
+                ),
+            ] {
+                let mut scenarios = load_suite_scenarios(suite).unwrap();
+                merge_connector_specific_scenarios(&connector, suite, &mut scenarios).unwrap();
+                if !scenarios.contains_key(scenario) {
+                    continue;
+                }
+                let mut expected = get_the_grpc_req_for_connector(suite, base, &connector).unwrap();
+                if scenario.ends_with("without_optional_address") {
+                    expected["address"] = serde_json::json!({});
+                }
+                let year = &mut expected["payment_method"]["card"]["card_exp_year"]["value"];
+                if scenario.ends_with("four_digit_expiry") {
+                    let value = year.as_str().unwrap();
+                    *year = Value::String(if value.len() == 2 {
+                        format!("20{value}")
+                    } else {
+                        value.to_string()
+                    });
+                } else if scenario.ends_with("two_digit_expiry") {
+                    let value = year.as_str().unwrap();
+                    *year = Value::String(value[value.len() - 2..].to_string());
+                }
+                if scenario.ends_with("with_setup_future_usage") {
+                    expected["setup_future_usage"] = Value::String("OFF_SESSION".to_string());
+                    // Adyen uses a merchant-supplied shopperReference and does
+                    // not run CustomerService/Create as a prerequisite.
+                    if connector == "adyen" {
+                        expected["customer"]["connector_customer_id"] =
+                            Value::String("auto_generate".to_string());
+                    }
+                }
+                let actual = get_the_grpc_req_for_connector(suite, scenario, &connector).unwrap();
+                assert_eq!(actual, expected, "{connector}/{scenario}");
+            }
+        }
+
+        let assertions = get_the_assertion_for_connector(
+            suite,
+            "no3ds_auto_capture_credit_card_with_setup_future_usage",
+            "elavon",
+        )
+        .unwrap();
+        assert!(matches!(
+            assertions.get("mandate_reference.connector_mandate_id.connector_mandate_id"),
+            Some(FieldAssert::MustExist { must_exist: true })
+        ));
+    }
+
+    #[test]
+    fn expanded_connector_private_scenarios_load_and_match_proto_schema() {
+        for connector in ["cryptopay", "datatrans", "elavon", "fiserv", "fiuu"] {
+            for suite in load_supported_suites_for_connector(connector).unwrap() {
+                let globals = load_suite_scenarios(&suite).unwrap();
+                let mut scenarios = globals.clone();
+                merge_connector_specific_scenarios(connector, &suite, &mut scenarios).unwrap();
+                for scenario in scenarios.keys().filter(|name| !globals.contains_key(*name)) {
+                    // Exercise the same load path used by single runs and dependencies.
+                    run_test(Some(&suite), Some(scenario), Some(connector)).unwrap();
+                    let mut req =
+                        get_the_grpc_req_for_connector(&suite, scenario, connector).unwrap();
+                    resolve_auto_generate(&mut req, connector).unwrap();
+                    validate_suite_scenario_schema(connector, &suite, scenario, &req).unwrap();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn expanded_connector_prerequisites_use_the_correct_payment_method() {
+        use crate::harness::scenario_loader::load_suite_spec_for_connector;
+        let crypto = load_suite_spec_for_connector("PaymentService/Get", "cryptopay").unwrap();
+        let dependency = crypto.depends_on.last().unwrap();
+        assert_eq!(dependency.scenario(), Some("no3ds_auto_capture_crypto"));
+        let req = get_the_grpc_req_for_connector(
+            dependency.suite(),
+            dependency.scenario().unwrap(),
+            "cryptopay",
+        )
+        .unwrap();
+        assert!(req.pointer("/payment_method/crypto").is_some());
+        assert_eq!(
+            dependency
+                .context_map()
+                .unwrap()
+                .get("merchant_transaction_id")
+                .unwrap(),
+            "req.merchant_transaction_id"
+        );
+
+        let elavon =
+            load_suite_spec_for_connector("RecurringPaymentService/Charge", "elavon").unwrap();
+        let dependency = elavon.depends_on.last().unwrap();
+        assert_eq!(
+            dependency.scenario(),
+            Some("no3ds_auto_capture_credit_card_with_setup_future_usage")
+        );
+        let req = get_the_grpc_req_for_connector(
+            dependency.suite(),
+            dependency.scenario().unwrap(),
+            "elavon",
+        )
+        .unwrap();
+        assert_eq!(req["setup_future_usage"], "OFF_SESSION");
+
+        let datatrans =
+            load_suite_spec_for_connector("PaymentService/Capture", "datatrans").unwrap();
+        assert!(!datatrans
+            .depends_on
+            .iter()
+            .any(|d| d.suite() == "PaymentMethodService/Tokenize"));
+        for connector in ["datatrans", "elavon", "fiserv", "fiuu"] {
+            let spec = load_suite_spec_for_connector("PaymentService/Capture", connector).unwrap();
+            let mapping = spec.depends_on.last().unwrap().context_map().unwrap();
+            let mut partial = get_the_grpc_req_for_connector(
+                "PaymentService/Capture",
+                "capture_partial_amount",
+                connector,
+            )
+            .unwrap();
+            apply_context_map(
+                &[(
+                    mapping.clone(),
+                    serde_json::json!({"amount": {"minor_amount": 6000, "currency": "USD"}}),
+                    serde_json::json!({}),
+                )],
+                &mut partial,
+            );
+            assert_eq!(partial["amount_to_capture"]["minor_amount"], 3000);
+        }
+        // A suite with no connector override retains its global prerequisite chain.
+        let resolved = load_suite_spec_for_connector("PaymentService/Authorize", "fiserv").unwrap();
+        let global = load_suite_spec("PaymentService/Authorize").unwrap();
+        assert_eq!(resolved.depends_on.len(), global.depends_on.len());
+        for (actual, expected) in resolved.depends_on.iter().zip(&global.depends_on) {
+            assert_eq!(actual.suite(), expected.suite());
+            assert_eq!(actual.scenario(), expected.scenario());
+            assert_eq!(actual.context_map(), expected.context_map());
+        }
+
+        // Keep the additive dependency contract already used on main.
+        let suite = "RecurringPaymentService/Charge";
+        let global = load_suite_spec(suite).unwrap();
+        let jpmorgan = load_suite_spec_for_connector(suite, "jpmorgan").unwrap();
+        assert_eq!(jpmorgan.depends_on.len(), global.depends_on.len() + 1);
+        assert_eq!(
+            jpmorgan.depends_on.last().unwrap().suite(),
+            "PaymentService/Authorize"
+        );
+        let nuvei = load_suite_spec_for_connector(suite, "nuvei").unwrap();
+        assert_eq!(nuvei.depends_on.len(), global.depends_on.len() + 2);
+        assert_eq!(
+            nuvei.dependency_scope,
+            crate::harness::scenario_types::DependencyScope::Scenario
+        );
+        assert_eq!(
+            nuvei.depends_on.first().unwrap().scenario(),
+            Some("nuvei_session_token_dependency")
+        );
+        assert_eq!(
+            nuvei.depends_on.last().unwrap().scenario(),
+            Some("nuvei_session_token_dependency")
+        );
+    }
+
     #[test]
     fn all_supported_scenarios_match_proto_schema_for_all_connectors() {
         let connectors =
@@ -6500,6 +6616,14 @@ grpc-status: 0
             };
 
             for suite in suites {
+                if let Err(error) = crate::harness::scenario_loader::load_suite_spec_for_connector(
+                    &suite, connector,
+                ) {
+                    failures.push(format!(
+                        "{connector}/{suite}: invalid prerequisite configuration: {error}"
+                    ));
+                    continue;
+                }
                 let mut suite_scenarios = match load_suite_scenarios(&suite) {
                     Ok(file) => file,
                     Err(error) => {
@@ -6531,6 +6655,12 @@ grpc-status: 0
                     // to trigger connector errors.  These will always fail schema
                     // validation, which is expected.
                     if let Some(def) = suite_scenarios.get(&scenario) {
+                        if let Err(error) = super::validate_scenario_prerequisites(def, connector) {
+                            failures.push(format!(
+                                "{connector}/{suite}/{scenario}: invalid prerequisites: {error}"
+                            ));
+                            continue;
+                        }
                         if let Some(FieldAssert::MustExist { must_exist: true }) =
                             def.assert_rules.get("error")
                         {
@@ -6625,7 +6755,7 @@ grpc-status: 0
             };
 
             for (suite, suite_value) in suites_obj {
-                let suite_scenarios = match load_suite_scenarios(suite) {
+                let mut suite_scenarios = match load_suite_scenarios(suite) {
                     Ok(file) => file,
                     Err(error) => {
                         failures.push(format!(
@@ -6634,6 +6764,15 @@ grpc-status: 0
                         continue;
                     }
                 };
+
+                if let Err(error) =
+                    merge_connector_specific_scenarios(connector, suite, &mut suite_scenarios)
+                {
+                    failures.push(format!(
+                        "{connector}/{suite}: invalid scenario definitions: {error}"
+                    ));
+                    continue;
+                }
 
                 let Some(scenario_obj) = suite_value.as_object() else {
                     failures.push(format!(

@@ -114,6 +114,7 @@ mod tests {
                     shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -168,6 +169,7 @@ mod tests {
                     request_extended_authorization: None,
                     setup_mandate_details: None,
                     enable_overcapture: None,
+                    integrity_specifications: None,
                     connector_feature_data: None,
                     billing_descriptor: None,
                     enable_partial_authorization: None,
@@ -313,6 +315,7 @@ mod tests {
                     shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -367,6 +370,7 @@ mod tests {
                     request_extended_authorization: None,
                     setup_mandate_details: None,
                     enable_overcapture: None,
+                    integrity_specifications: None,
                     connector_feature_data: None,
                     billing_descriptor: None,
                     enable_partial_authorization: None,
@@ -498,6 +502,7 @@ mod tests {
                     shop_name: None,
                 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -544,6 +549,7 @@ mod tests {
                     request_extended_authorization: None,
                     setup_mandate_details: None,
                     enable_overcapture: None,
+                    integrity_specifications: None,
                     connector_feature_data: None,
                     billing_descriptor: None,
                     enable_partial_authorization: None,

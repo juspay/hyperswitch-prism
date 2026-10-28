@@ -36,6 +36,138 @@ pub struct JpmorganPaymentsRequest<T: PaymentMethodDataTypes> {
     pub is_amount_final: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring: Option<JpmorganRecurring>,
+    /// Level 2 commercial-card data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retail_addenda: Option<JpmorganRetailAddenda>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_to: Option<JpmorganShipTo>,
+}
+
+/// Level 2 commercial-card data
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganRetailAddenda {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub purchase_order_number: Option<String>,
+    /// `YYYY-MM-DD`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_taxable: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub taxable_indicator: Option<JpmorganTaxableIndicator>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_vat_registration_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_vat_registration_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pst_tax_registration_number: Option<Secret<String>>,
+    /// Commodity code for the order as a whole.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary_item_commodity_code: Option<String>,
+    /// Level 3 line-item data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level3: Option<JpmorganLevel3>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganTaxableIndicator {
+    Taxable,
+    ZeroRated,
+    Exempt,
+}
+
+/// Level 3 commercial-card data (`retailAddenda.level3`).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganLevel3 {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_shipping_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duty_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_to_address_postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_to_address_country_code: Option<common_enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_from_address_postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_transaction_discount_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_added_tax_amount: Option<MinorUnit>,
+    /// A percentage scaled by 100 and sent as a string: JPMorgan implies two
+    /// decimal places and allows four digits, so `"250"` is 2.5%.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_added_tax_percent: Option<String>,
+    /// Visa only — not applicable to Mastercard.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_value_added_tax_amount: Option<MinorUnit>,
+    /// A percentage scaled by 100 and sent as a string, matching
+    /// JPMorgan's example where `"1000"` is 10.00%.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_value_added_tax_percent: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_added_tax_invoice_reference_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub party_tax_government_issued_identifier: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub line_items: Vec<JpmorganLineItem>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganLineItem {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_description_text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_product_identifier: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub item_comodity_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_unit_quantity: Option<String>,
+    #[serde(
+        rename = "lineItemUnitofMeasureCode",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub line_item_unit_of_measure_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit_price_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_inclusive_line_item_total_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_discount_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_tax_indicator: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_discount_indicator: Option<bool>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub line_item_taxes: Vec<JpmorganLineItemTax>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganLineItemTax {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_item_tax_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_percent: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_type_code: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganShipTo {
+    pub shipping_address: JpmorganShippingAddress,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganShippingAddress {
+    pub postal_code: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -62,7 +194,7 @@ pub struct JpmorganCard<T: PaymentMethodDataTypes> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wallet_provider: Option<JpmorganWalletProvider>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub authentication: Option<JpmorganWalletAuthentication>,
+    pub authentication: Option<JpmorganAuthentication>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -82,10 +214,26 @@ pub enum JpmorganWalletProvider {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct JpmorganWalletAuthentication {
-    pub token_authentication_value: Secret<String>,
+pub struct JpmorganAuthentication {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_authentication_value: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub electronic_commerce_indicator: Option<String>,
+    #[serde(rename = "threeDS", skip_serializing_if = "Option::is_none")]
+    pub three_ds: Option<JpmorganThreeDs>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganThreeDs {
+    pub authentication_value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_transaction_id: Option<String>,
+    #[serde(
+        rename = "threeDSProgramProtocol",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub three_ds_program_protocol: Option<String>,
 }
 
 /// ACH Bank Debit payment method structure for JPMorgan
@@ -181,6 +329,19 @@ pub struct JpmorganRefundRequest {
     pub merchant: JpmorganMerchantRefund,
     pub amount: MinorUnit,
     pub currency: common_enums::Currency,
+    pub payment_method_type: JpmorganRefundPaymentMethodType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganRefundPaymentMethodType {
+    pub transaction_reference: JpmorganTransactionReference,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganTransactionReference {
+    pub transaction_reference_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -225,26 +386,27 @@ pub struct JpmorganRecurring {
     pub is_variable_amount: Option<bool>,
 }
 
-/// JPMorgan card body used by SetupMandate (initial CIT) — carries the PAN and
-/// expiry the cardholder just entered.
+/// Card or decrypted wallet data for verification without a funds hold.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganSetupMandateCard<T: PaymentMethodDataTypes> {
-    pub account_number: RawCardNumber<T>,
-    pub expiry: Expiry,
+    #[serde(flatten)]
+    pub card: JpmorganCard<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvv: Option<Secret<String>>,
 }
 
-/// JPMorgan card body used by RepeatPayment when the upstream mandate is an
-/// NTI. JPMorgan's API requires `accountNumber` + `expiry` even on a SUBSEQUENT
-/// MIT — the `originalNetworkTransactionId` is what reclassifies the txn as
-/// MIT (paired with `initiatorType: MERCHANT`, `accountOnFile: STORED`,
-/// `recurringSequence: SUBSEQUENT`), not a substitute for the card data.
+/// Credential and original network references for a merchant-initiated payment.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganMitCardByNti<T: PaymentMethodDataTypes> {
     pub account_number: RawCardNumber<T>,
     pub expiry: Expiry,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wallet_provider: Option<JpmorganWalletProvider>,
     pub original_network_transaction_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_transaction_link_id: Option<String>,
 }
 
 /// SetupMandate's payment method type — always carries `card`.
@@ -254,28 +416,26 @@ pub struct JpmorganSetupMandatePaymentMethodType<T: PaymentMethodDataTypes> {
     pub card: JpmorganSetupMandateCard<T>,
 }
 
-/// RepeatPayment carries card credentials and the original network transaction ID.
+/// Direct credential used for a merchant-initiated payment.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganRepeatPaymentMethodType<T: PaymentMethodDataTypes> {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub card: Option<JpmorganMitCardByNti<T>>,
+    pub card: JpmorganMitCardByNti<T>,
 }
 
-/// SetupMandate request (initial CIT with credential storage)
+/// Verification request for initial credential storage without a funds hold.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganSetupMandateRequest<T: PaymentMethodDataTypes> {
-    pub capture_method: CapMethod,
-    pub amount: MinorUnit,
     pub currency: common_enums::Currency,
     pub merchant: JpmorganMerchant,
     pub payment_method_type: JpmorganSetupMandatePaymentMethodType<T>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub recurring: Option<JpmorganRecurring>,
+    pub recurring_sequence: Option<JpmorganRecurringSequence>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_order_number: Option<String>,
     pub initiator_type: JpmorganInitiatorType,
     pub account_on_file: JpmorganAccountOnFile,
-    pub is_amount_final: bool,
 }
 
 /// RepeatPayment request (subsequent MIT).
@@ -287,7 +447,10 @@ pub struct JpmorganRepeatPaymentRequest<T: PaymentMethodDataTypes> {
     pub currency: common_enums::Currency,
     pub merchant: JpmorganMerchant,
     pub payment_method_type: JpmorganRepeatPaymentMethodType<T>,
-    pub recurring: JpmorganRecurring,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring: Option<JpmorganRecurring>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_order_number: Option<String>,
     pub initiator_type: JpmorganInitiatorType,
     pub account_on_file: JpmorganAccountOnFile,
     pub is_amount_final: bool,
@@ -343,4 +506,27 @@ pub struct GooglePayIntermediateSigningKey {
 #[serde(rename_all = "camelCase")]
 pub struct GooglePaySignedMessage {
     pub ephemeral_public_key: Secret<String>,
+}
+
+#[derive(Serialize)]
+pub struct JpmorganVerificationMetadata {
+    pub resource: JpmorganResourceContext,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct JpmorganResourceContext {
+    #[serde(rename = "type")]
+    pub resource_type: JpmorganResourceType,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum JpmorganResourceType {
+    Verification,
+}
+
+pub enum JpmorganSyncResource {
+    Payment(String),
+    Verification(String),
 }

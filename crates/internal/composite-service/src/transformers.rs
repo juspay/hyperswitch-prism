@@ -310,6 +310,7 @@ impl
             .or_else(|| item.connector_order_id.clone());
 
         Self {
+            integrity_specifications: item.integrity_specifications,
             split_settlement: item.split_settlement.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             amount: item.amount,
@@ -358,6 +359,7 @@ impl
             mit_category: item.mit_category,
             merchant_request_id: item.merchant_request_id.clone(),
             domain_data: item.domain_data.clone(),
+            risk_assessment_data: item.risk_assessment_data.clone(),
             split_payments: item.split_payments.clone(),
             partner_merchant_identifier_details: item.partner_merchant_identifier_details.clone(),
             currency_conversion_data: item.currency_conversion_data.clone(),
@@ -416,6 +418,9 @@ impl
         });
 
         Self {
+            integrity_specifications: item.integrity_specifications,
+            is_overcapture_enabled: item.is_overcapture_enabled,
+            enable_partial_authorization: item.enable_partial_authorization,
             connector_transaction_id: item.connector_transaction_id.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             encoded_data: item.encoded_data.clone(),
@@ -504,6 +509,7 @@ impl
             connector_order_id: item.connector_order_id.clone(),
             payment_method: item.payment_method.clone(),
             split_refunds: item.split_refunds.clone(),
+            currency_conversion_data: item.currency_conversion_data.clone(),
         }
     }
 }
@@ -619,6 +625,7 @@ impl
 
         Self {
             merchant_void_id: item.merchant_void_id.clone(),
+            payment_method: item.payment_method.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
             cancellation_reason: item.cancellation_reason.clone(),
             all_keys_required: item.all_keys_required,
@@ -838,8 +845,11 @@ impl
         });
 
         Self {
+            integrity_specifications: item.integrity_specifications,
+            is_overcapture_enabled: item.is_overcapture_enabled,
             split_settlement: item.split_settlement.clone(),
             merchant_capture_id: item.merchant_capture_id.clone(),
+            payment_method: item.payment_method.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
             amount_to_capture: item.amount_to_capture,
             metadata: item.metadata.clone(),
@@ -853,6 +863,7 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             order_tax_amount: item.order_tax_amount,
             split_payments: item.split_payments.clone(),
+            currency_conversion_data: item.currency_conversion_data.clone(),
         }
     }
 }
@@ -1069,6 +1080,7 @@ impl ForeignFrom<&CompositePaymentMethodGetRequest> for PaymentMethodServiceToke
     #[allow(deprecated)]
     fn foreign_from(item: &CompositePaymentMethodGetRequest) -> Self {
         Self {
+            integrity_specifications: item.integrity_specifications,
             merchant_payment_method_id: item.merchant_payment_method_id.clone(),
             amount: item.amount,
             payment_method: item.payment_method.clone(),
@@ -1094,6 +1106,7 @@ impl ForeignFrom<&CompositePaymentMethodEligibilityRequest>
     #[allow(deprecated)]
     fn foreign_from(item: &CompositePaymentMethodEligibilityRequest) -> Self {
         Self {
+            integrity_specifications: item.integrity_specifications,
             merchant_payment_method_id: item.merchant_payment_method_id.clone(),
             amount: item.amount,
             payment_method: item.payment_method.clone(),
@@ -1243,6 +1256,7 @@ impl
         });
 
         Self {
+            integrity_specifications: request.integrity_specifications,
             split_settlement: request.split_settlement.clone(),
             merchant_transaction_id: request.merchant_transaction_id.clone(),
             merchant_order_id: request.merchant_order_id.clone(),
@@ -1291,6 +1305,7 @@ impl
             connector_order_id: request.connector_order_id.clone(),
             merchant_request_id: request.merchant_request_id.clone(),
             domain_data: None,
+            risk_assessment_data: request.risk_assessment_data.clone(),
             split_payments: request.split_payments.clone(),
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details

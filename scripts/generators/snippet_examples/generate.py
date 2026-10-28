@@ -203,6 +203,12 @@ def _generate_connector_config_rust(connector_name: str) -> str:
                 field_lines.append(f'                {field_name}: vec!["value".to_string()],  // Array field')
         elif field_type == 'SecretString':
             field_lines.append(f'                {field_name}: Some(hyperswitch_masking::Secret::new("YOUR_{field_name.upper()}".to_string())),  // Authentication credential')
+        elif field_type.replace(" ", "") == "map<string,SecretString>":
+            # Match the USD currency used by the generated payment examples.
+            field_lines.append(
+                f'                {field_name}: std::collections::HashMap::from([("USD".to_string(), '
+                f'hyperswitch_masking::Secret::new("YOUR_USD_{field_name.upper()}".to_string()))]),'
+            )
         elif field_type == 'string':
             field_lines.append(f'                {field_name}: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls')
         elif field_type == 'bool':
@@ -242,6 +248,10 @@ def _generate_connector_config_python(connector_name: str) -> str:
         elif field_type == "SecretString":
             field_lines.append(
                 f'            {field_name}=payment_methods_pb2.SecretString(value="YOUR_{field_name.upper()}"),'
+            )
+        elif field_type.replace(" ", "") == "map<string,SecretString>":
+            field_lines.append(
+                f'            {field_name}={{"USD": payment_methods_pb2.SecretString(value="YOUR_USD_{field_name.upper()}")}},'
             )
         elif field_type == "string":
             field_lines.append(f'            {field_name}="YOUR_{field_name.upper()}",')
@@ -289,6 +299,10 @@ def _generate_connector_config_typescript(
             field_lines.append(f"            {camel}: ['YOUR_{field_name.upper()}'],")
         elif field_type == "SecretString":
             field_lines.append(f"            {camel}: {{ value: 'YOUR_{field_name.upper()}' }},")
+        elif field_type.replace(" ", "") == "map<string,SecretString>":
+            field_lines.append(
+                f"            {camel}: {{ USD: {{ value: 'YOUR_USD_{field_name.upper()}' }} }},"
+            )
         elif field_type == "string":
             field_lines.append(f"            {camel}: 'YOUR_{field_name.upper()}',")
         elif field_type == "bool":
@@ -333,6 +347,10 @@ def _generate_connector_config_kotlin(connector_name: str, indent: str = "    ")
         elif field_type == "SecretString":
             field_lines.append(
                 f"{i}            .{setter}(SecretString.newBuilder().setValue(\"YOUR_{field_name.upper()}\").build())"
+            )
+        elif field_type.replace(" ", "") == "map<string,SecretString>":
+            field_lines.append(
+                f'{i}            .put{pascal}("USD", SecretString.newBuilder().setValue("YOUR_USD_{field_name.upper()}").build())'
             )
         elif field_type == "string":
             field_lines.append(f"{i}            .{setter}(\"YOUR_{field_name.upper()}\")")
@@ -2175,6 +2193,14 @@ def render_consolidated_python(
     # Add type annotation for empty list to satisfy mypy
     supported_flows_line = f"SUPPORTED_FLOWS: list[str] = {supported_flows_list}" if supported_flows_list == "[]" else f"SUPPORTED_FLOWS = {supported_flows_list}"
 
+    # Import every pb2 module the generated body actually references. Proto types can
+    # live in any file (e.g. Money/Currency/Address/Customer in common_types.proto), so
+    # derive the import list from the rendered code instead of hardcoding it.
+    config_py = _generate_connector_config_python(connector_name)
+    pb2_modules = {"sdk_config_pb2"}
+    pb2_modules.update(re.findall(r"\b(\w+_pb2)\.", builders_section + functions_text + config_py))
+    pb2_import_line = "from payments.generated import " + ", ".join(sorted(pb2_modules))
+
     return f"""\
 # This file is auto-generated. Do not edit manually.
 # Replace YOUR_API_KEY and placeholder values with real data.
@@ -2186,13 +2212,13 @@ def render_consolidated_python(
 import asyncio
 import sys
 {client_imports}
-from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
+{pb2_import_line}
 
 {supported_flows_line}
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-{_generate_connector_config_python(connector_name)}
+{config_py}
 )
 
 

@@ -7,9 +7,9 @@ This harness supports connector-specific scenario overrides through a trait-base
 - Keep `src/global_suites/*` as the single global baseline.
 - Let connectors override only what differs.
 - Allow connector-side extra keys in request/assert payloads.
-- Restrict `override.json` to existing **global** scenarios. A scenario that exists only for one
-  connector goes in `connector_specific_scenarios.json` instead (see below) — it is additive, and
-  shadowing a global scenario name is a hard loader error.
+- Patch existing scenarios or add named variants in `override.json` using `extends`.
+- Use `connector_specific_scenarios.json` only for standalone cases without a suitable base.
+  New variants and standalone cases cannot shadow existing scenario names.
 - Keep capability statements out of this file; they live in `specs.json`.
 
 ## Which file to use
@@ -21,7 +21,8 @@ Four files can carry connector-specific test data. Pick the first one that fits:
 | A global scenario already matches, and its assertions are true for this connector | nothing — just list the suite in `specs.json` `supported_suites` | the common case; prefer it |
 | The global scenario needs a connector-specific **input** (test card, metadata blob, 3DS lever) | `override.json` `grpc_req` | RFC 7396 merge patch. **Do not** patch a path that the suite's `suite_spec.json` lists as a `context_map` target — the override is applied *after* the context map (`scenario_api.rs`: `apply_context_map` then `apply_connector_overrides`), so it silently decouples the case from its dependency |
 | The global scenario's **expected outcome** differs for documented reasons | `override.json` `assert` | narrow or re-target a rule. A bare `null` deletion removes the rule entirely — replace it, do not just delete it |
-| The dimension exists **only** for this connector | `connector_specific_scenarios.json` | additive only; a name that collides with a global scenario is a hard error. `assert` is mandatory — `ScenarioDef` has no default for it, so a scenario with no assertions cannot be constructed. It inherits the suite's global `depends_on`; there is no per-scenario dependency override |
+| An additional case differs from an existing scenario | `override.json` with `extends` | inherits the base request, assertions, and connector overrides; supply only differences. Optional `depends_on` and `dependency_scope` control prerequisites |
+| A standalone case has no suitable base | `connector_specific_scenarios.json` | additive only; a name that collides with a global scenario is a hard error. Both `grpc_req` and `assert` are required |
 | The scenario genuinely does not apply | `specs.json` `unsupported_scenarios` | skips, does not fail. The reason string is mandatory and is the only record of why |
 
 A waived scenario produces **no row in `report.json`** — it is removed before the run — so a waiver is
@@ -37,6 +38,21 @@ Use overrides only when connector behavior differs from global baseline, for exa
 - connector cannot support one assertion field from baseline
 
 Do not duplicate full scenario payload unless necessary.
+
+An entry in `override.json` does not make the scenario connector-specific. For
+example, `no3ds_auto_capture_credit_card` remains a shared Authorize scenario;
+Elavon's override supplies its sandbox card number, expiry, and CVC. Keep those
+values out of the global baseline.
+
+Use named variants for address omission, expiry formats, saving a card for future
+payments, and different amounts or metadata. They inherit the connector's card
+fixtures instead of copying those fixtures into every case. New payment methods
+such as crypto, FPX/DuitNow, and Google Pay tokenization can still have shared
+baselines selected through `supported_payment_methods`.
+
+Fiuu's signed authorization, pending-payment, and failed-refund callbacks are named
+variants of its payment/refund webhook cases. They inherit the normal fixture
+setup and change only the callback body, capture context, and expected outcome.
 
 ## Directory layout
 
@@ -79,6 +95,62 @@ Each connector `override.json` is a map from `suite_name -> scenario_name -> pat
   }
 }
 ```
+
+## Named variants and prerequisites
+
+A new scenario name with `extends` inherits an existing scenario in the **same
+suite**, including that connector's base overrides. Bases may be global scenarios,
+standalone connector scenarios, or other named variants. Forward references work;
+unknown bases, cycles, and names that shadow existing definitions are errors.
+An unknown scenario name without `extends` is also rejected, catching typos.
+
+```json
+{
+  "PaymentService/Capture": {
+    "capture_partial_fresh_authorization": {
+      "extends": "capture_partial_amount",
+      "dependency_scope": "scenario",
+      "grpc_req": {
+        "amount_to_capture": { "minor_amount": 1500 }
+      }
+    },
+    "capture_custom_authorization": {
+      "extends": "capture_partial_fresh_authorization",
+      "depends_on": [
+        {
+          "suite": "PaymentService/Authorize",
+          "scenario": "no3ds_manual_capture_credit_card",
+          "context_map": {
+            "connector_transaction_id": "res.connector_transaction_id",
+            "amount_to_capture.currency": "req.amount.currency"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+- With neither dependency field, a variant inherits its base's settings and then
+  the effective connector suite prerequisites. Suite-scoped prerequisites are shared.
+- `dependency_scope: "scenario"` reruns the inherited chain for that variant.
+- `depends_on` replaces the entire inherited chain and always runs independently.
+  Entries use the existing suite dependency format, including named scenarios and
+  `context_map`. Include any authentication/tokenization steps the case needs.
+- `depends_on: []` explicitly runs without prerequisites.
+- `required_payment_method` and `pre_request_http` can be customized.
+  Hooks inherit from the nearest ancestor that defines one. A variant is never
+  implicitly made the suite default.
+
+The CLI, single-scenario runner, suite runner, and schema checks all discover named
+variants. Explicit connector-local variants run in addition to filtered global
+scenarios; `unsupported_scenarios` still skips them by their own name.
+
+For changes shared by a whole connector suite, `specs.json` supports
+`suite_dependencies: { "Suite/Method": { "before": [], "after": [],
+"replace": [], "dependency_scope": "scenario" } }`. All four fields are optional.
+The effective chain is `before + (replace or global chain) + after`.
+Omit `replace` to retain the global chain; an empty `replace` removes it.
 
 ## Add override: step by step
 
@@ -152,14 +224,17 @@ Core trait: `src/harness/connector_override/mod.rs`
 When loading a scenario for a connector:
 
 1. Load base from `global_suites/<suite>_suite/scenario.json`.
-2. Load connector patch from `connector_specs/<connector>/override.json`.
-3. Apply request patch + assertion patch for that scenario.
-4. Execute with normal dependency/context pipeline.
+2. Resolve any `extends` chain and execution metadata from `override.json`.
+3. Execute the selected prerequisites and apply dependency context.
+4. Apply ancestor request/assertion patches before the variant's own patches.
+   For webhook scenarios, each ancestor's `webhook_payload.json` fixture is also
+   applied before the next variant layer.
+5. Execute and assert using the variant's name.
 
 ## Common mistakes
 
 - Suite key typo (example: `authorise` instead of `authorize`).
-- Scenario key typo that does not exist in global suite file.
+- A new scenario name without `extends`, or a misspelled base scenario.
 - Wrong enum string value (case mismatch) in patched request.
 - Adding field paths that no longer exist in proto request shape.
 - Replacing entire nested objects when only a leaf override was intended.

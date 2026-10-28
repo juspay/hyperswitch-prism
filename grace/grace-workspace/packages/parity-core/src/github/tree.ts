@@ -136,10 +136,21 @@ function parseConnectorAndFlow(title: string): { connector: string; flow: string
   //   "stripe: capture flow returns wrong currency"
   const titleLower = title.toLowerCase();
 
-  const parens = titleLower.match(/parity\(([^/]+)\/([^)]+)\)/);
-  if (parens) return { connector: parens[1].trim(), flow: parens[2].trim() };
+  const parensStart = titleLower.indexOf("parity(");
+  if (parensStart >= 0) {
+    const connectorStart = parensStart + "parity(".length;
+    const slash = titleLower.indexOf("/", connectorStart);
+    const close = titleLower.indexOf(")", connectorStart);
+    if (slash > connectorStart && close > slash) {
+      return {
+        connector: titleLower.slice(connectorStart, slash).trim(),
+        flow: titleLower.slice(slash + 1, close).trim(),
+      };
+    }
+  }
 
-  const bracket = titleLower.match(/\[parity\]\s*([^/\s]+)\s*\/\s*([^/\s]+)/);
+  const bracketStart = titleLower.indexOf("[parity]");
+  const bracket = bracketStart < 0 ? null : titleLower.slice(bracketStart + 8).match(/^\s*([^/\s]+)\s*\/\s*([^/\s]+)/);
   if (bracket) return { connector: bracket[1].trim(), flow: bracket[2].trim() };
 
   // Validation-service shape: "[Shadow-Validation-Diff][integ] <connector> / <flow> (router|request)"

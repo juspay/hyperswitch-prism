@@ -168,41 +168,88 @@ impl MultipartData {
         });
     }
 
+    /// Render the parts as a `multipart/form-data` body.
+    ///
+    /// Returns `(body, boundary)`; the caller sets
+    /// `Content-Type: multipart/form-data; boundary=<boundary>` itself.
+    ///
+    /// The encoding is the plain RFC 7578 layout. It used to be delegated to the
+    /// unmaintained `multipart` crate, which transitively pulled `iron`,
+    /// `typemap` and `buf_redux` into every build.
     pub fn render_as_bytes(&self) -> Result<(Vec<u8>, String), RequestError> {
-        use std::io::Read;
-        let mut builder = multipart::client::lazy::Multipart::new();
+        let boundary = format!("------------------------{}", uuid::Uuid::new_v4().simple());
+        let mut body = Vec::new();
 
         for part in &self.parts {
+            body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
             match part {
-                FormDataPart::Text { name, value } => builder.add_text(name, value),
+                FormDataPart::Text { name, value } => {
+                    body.extend_from_slice(
+                        format!(
+                            "Content-Disposition: form-data; name=\"{}\"\r\n\r\n",
+                            sanitize_quoted_value(name)
+                        )
+                        .as_bytes(),
+                    );
+                    body.extend_from_slice(value.as_bytes());
+                    body.extend_from_slice(b"\r\n");
+                }
                 FormDataPart::File {
                     name,
                     filename,
                     bytes,
                     mime_type,
                 } => {
-                    let mime = if !mime_type.is_empty() {
-                        mime_type.parse().ok()
+                    body.extend_from_slice(
+                        format!(
+                            "Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\n",
+                            sanitize_quoted_value(name),
+                            sanitize_quoted_value(filename)
+                        )
+                        .as_bytes(),
+                    );
+                    let mime_type = if is_mime_type(mime_type) {
+                        mime_type.as_str()
                     } else {
-                        None
+                        "application/octet-stream"
                     };
-                    builder.add_stream(name, std::io::Cursor::new(bytes), Some(filename), mime)
+                    body.extend_from_slice(format!("Content-Type: {mime_type}\r\n\r\n").as_bytes());
+                    body.extend_from_slice(bytes);
+                    body.extend_from_slice(b"\r\n");
                 }
-            };
+            }
         }
+        body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
 
-        let mut prepared = builder
-            .prepare()
-            .map_err(|e| RequestError::MultipartRenderingFailed(e.to_string()))?;
-        let boundary = prepared.boundary().to_string();
-
-        let mut finished_bytes = Vec::new();
-        prepared
-            .read_to_end(&mut finished_bytes)
-            .map_err(|e| RequestError::MultipartReadFailed(e.to_string()))?;
-
-        Ok((finished_bytes, boundary))
+        Ok((body, boundary))
     }
+}
+
+/// Strip characters that would corrupt a quoted `Content-Disposition` parameter.
+fn sanitize_quoted_value(value: &str) -> String {
+    value
+        .chars()
+        .map(|c| match c {
+            '\r' | '\n' => ' ',
+            '"' => '\'',
+            other => other,
+        })
+        .collect()
+}
+
+/// Whether `mime_type` is a usable `type/subtype` (optionally followed by
+/// parameters). Anything else falls back to `application/octet-stream`.
+fn is_mime_type(mime_type: &str) -> bool {
+    let essence = mime_type.split(';').next().unwrap_or_default();
+    let Some((media_type, subtype)) = essence.split_once('/') else {
+        return false;
+    };
+    !media_type.is_empty()
+        && !subtype.is_empty()
+        && essence.chars().filter(|&c| c == '/').count() == 1
+        && essence
+            .chars()
+            .all(|c| !c.is_whitespace() && !c.is_control())
 }
 
 impl Default for MultipartData {
@@ -485,5 +532,50 @@ impl KafkaRecordBuilder {
 impl Default for KafkaRecordBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use super::*;
+
+    #[test]
+    fn render_as_bytes_emits_rfc7578_body() {
+        let mut data = MultipartData::new();
+        data.add_text("mandate_id", "mandat_123");
+        data.add_file(
+            "invoice",
+            "invoice.pdf",
+            b"%PDF-1.7".to_vec(),
+            "application/pdf",
+        );
+
+        let (body, boundary) = data.render_as_bytes().unwrap();
+        let body = String::from_utf8(body).unwrap();
+
+        assert!(body.starts_with(&format!("--{boundary}\r\n")));
+        assert!(body.ends_with(&format!("--{boundary}--\r\n")));
+        assert!(body
+            .contains("Content-Disposition: form-data; name=\"mandate_id\"\r\n\r\nmandat_123\r\n"));
+        assert!(body.contains(
+            "Content-Disposition: form-data; name=\"invoice\"; filename=\"invoice.pdf\"\r\n\
+             Content-Type: application/pdf\r\n\r\n%PDF-1.7\r\n"
+        ));
+        // Boundary must not collide with the payload.
+        assert_eq!(body.matches(&boundary).count(), 3);
+    }
+
+    #[test]
+    fn render_as_bytes_falls_back_to_octet_stream() {
+        let mut data = MultipartData::new();
+        data.add_file("blob", "blob.bin", vec![0x00, 0xff], "not a mime type");
+
+        let (body, boundary) = data.render_as_bytes().unwrap();
+        let body = String::from_utf8_lossy(&body);
+
+        assert!(body.contains("Content-Type: application/octet-stream\r\n"));
+        assert!(body.ends_with(&format!("--{boundary}--\r\n")));
     }
 }

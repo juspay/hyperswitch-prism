@@ -47,8 +47,8 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
         merchantCaptureId = "probe_capture_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
         amountToCaptureBuilder.apply {  // Capture Details.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
     }.build()
 }
@@ -58,8 +58,8 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
         merchantTransactionId = "probe_merchant_txn_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
         amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
     }.build()
 }
@@ -70,8 +70,8 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         connectorTransactionId = connectorTransactionIdStr
         paymentAmount = 1000L  // Amount Information.
         refundAmountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         reason = "customer_request"  // Reason for the refund.
     }.build()
@@ -127,8 +127,8 @@ fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
             }
         }
         amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows).
             tokenBuilder.apply {  // Payment tokens.
@@ -174,8 +174,8 @@ fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = PaymentServiceTokenAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_tokenized_txn_001"
         amountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
         addressBuilder.apply {
@@ -195,8 +195,8 @@ fun tokenSetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
     val request = PaymentServiceTokenSetupRecurringRequest.newBuilder().apply {
         merchantRecurringPaymentId = "probe_tokenized_mandate_001"
         amountBuilder.apply {
-            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 0L
+            currency = Currency.USD
         }
         connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"
         addressBuilder.apply {
@@ -217,8 +217,8 @@ fun tokenSetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
                     amount = 0L  // Use amount_money instead (will be removed in a future release).
                     currency = Currency.USD  // Use amount_money.currency instead (will be removed in a future release).
                     amountMoneyBuilder.apply {  // Amount in Money type.
-                        minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
-                        currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                        minorAmount = 0L
+                        currency = Currency.USD
                     }
                 }
             }

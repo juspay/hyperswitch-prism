@@ -14,6 +14,8 @@ mod loader;
 mod nuvei;
 mod redsys;
 
+pub(crate) use loader::merge_scenario_variants;
+
 /// Connector-specific behavior extension points.
 ///
 /// The default implementation is file-driven via JSON patches, but this trait
@@ -29,9 +31,10 @@ pub trait ConnectorOverride: Send + Sync {
         grpc_req: &mut Value,
         assertions: &mut BTreeMap<String, FieldAssert>,
     ) -> Result<(), ScenarioError> {
-        // 1. Apply regular override.json patches (works for all suites).
-        if let Some(scenario_patch) =
-            loader::load_scenario_override_patch(self.connector_name(), suite, scenario)?
+        // Apply each ancestor before its variant, preserving merge-patch deletions
+        // and connector webhook fixtures along the inheritance chain.
+        for (name, scenario_patch) in
+            loader::load_scenario_override_chain(self.connector_name(), suite, scenario)?
         {
             if let Some(req_patch) = scenario_patch.grpc_req.as_ref() {
                 json_merge::json_merge_patch(grpc_req, req_patch);
@@ -39,13 +42,9 @@ pub trait ConnectorOverride: Send + Sync {
             if let Some(assertion_patch) = scenario_patch.assert_rules.as_ref() {
                 apply_assertion_patch(assertions, assertion_patch)?;
             }
-        }
-
-        // 2. For handle_event suite: load webhook_payload.json as an
-        //    additional merge-patch layer, then run post-merge transforms
-        //    (base64-encode body, compute HMAC signatures, inject webhook_secrets).
-        if suite == "EventService/HandleEvent" {
-            apply_webhook_payload_overrides(self.connector_name(), scenario, grpc_req)?;
+            if suite == "EventService/HandleEvent" {
+                apply_webhook_payload_overrides(self.connector_name(), &name, grpc_req)?;
+            }
         }
 
         Ok(())

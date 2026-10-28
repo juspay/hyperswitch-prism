@@ -1350,14 +1350,29 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: accept_dispute flow for stripe"
+        "status": "supported",
+        "proto_request": {
+          "merchant_dispute_id": "probe_dispute_001",
+          "connector_transaction_id": "probe_txn_001",
+          "dispute_id": "probe_dispute_id_001"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/disputes/probe_dispute_id_001/close",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: defend_dispute flow for stripe"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by stripe connector"
       }
     },
     "dispute_get": {
@@ -1367,8 +1382,30 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: submit_evidence flow for stripe"
+        "status": "supported",
+        "proto_request": {
+          "merchant_dispute_id": "probe_dispute_001",
+          "connector_transaction_id": "probe_txn_001",
+          "dispute_id": "probe_dispute_id_001",
+          "evidence_documents": [
+            {
+              "evidence_type": "SERVICE_DOCUMENTATION",
+              "file_content": "probe evidence content",
+              "file_mime_type": "application/pdf"
+            }
+          ]
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/disputes/probe_dispute_id_001",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "submit=true"
+        }
       }
     },
     "eligibility": {

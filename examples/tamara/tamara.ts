@@ -27,8 +27,8 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
         "merchantCaptureId": "probe_capture_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amountToCapture": {  // Capture Details.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }
@@ -38,8 +38,8 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }
@@ -75,8 +75,8 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
         "connectorTransactionId": connectorTransactionId,
         "paymentAmount": 1000,  // Amount Information.
         "refundAmount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "reason": "customer_request"  // Reason for the refund.
     };
@@ -100,8 +100,8 @@ function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServic
         "merchantVoidId": "probe_void_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }
