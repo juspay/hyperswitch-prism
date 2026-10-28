@@ -1090,7 +1090,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request.amount.amount, request.amount.currency)
+            .convert(&request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
@@ -2662,7 +2662,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request.amount.amount, request.amount.currency)
+            .convert(&request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
@@ -2860,7 +2860,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(amount_to_capture, currency)
+            .convert(&request.amount_to_capture)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
@@ -3149,7 +3149,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(refund_amount, currency)
+            .convert(&request.refund_amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
