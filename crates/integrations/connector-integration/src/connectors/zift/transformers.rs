@@ -503,7 +503,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request_data.amount.amount, request_data.currency)
+            .convert(&request_data.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -728,7 +728,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request_data.amount.amount, request_data.currency)
+            .convert(&request_data.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -987,10 +987,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount_to_capture.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount_to_capture)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1320,10 +1317,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.refund_amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.refund_amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

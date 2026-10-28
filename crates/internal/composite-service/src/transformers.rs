@@ -1410,6 +1410,9 @@ impl
             }),
             merchant_details: item.merchant_details.clone(),
             mandate_details: item.mandate_details.clone(),
+            billing_document_data: item.billing_document_data.clone(),
+            shipping_document_data: item.shipping_document_data.clone(),
+            domain_data: item.domain_data.clone(),
         }
     }
 }
@@ -1498,6 +1501,7 @@ impl
             amount: item.amount,
             customer_info: item.customer_info.clone(),
             payment_method: item.payment_method.clone(),
+            browser_info: item.browser_info.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             order_details: item.order_details.clone(),
             metadata: item.metadata.clone(),
@@ -1507,6 +1511,9 @@ impl
             connector_transaction_id: item.connector_transaction_id.clone(),
             payment_connector: item.payment_connector,
             address: item.address.clone(),
+            billing_document_data: item.billing_document_data.clone(),
+            shipping_document_data: item.shipping_document_data.clone(),
+            domain_data: item.domain_data.clone(),
             state: Some(ConnectorState {
                 access_token,
                 connector_customer_id,

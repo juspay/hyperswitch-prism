@@ -3625,6 +3625,34 @@ pub enum TravelClass {
     First,
 }
 
+/// Passenger / customer gender.
+///
+/// Incoming JSON accepts both the canonical `snake_case` names and the
+/// single-letter wire codes `M` / `F` / `X`; serialization stays `snake_case`.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum Gender {
+    #[serde(alias = "M")]
+    Male,
+    #[serde(alias = "F")]
+    Female,
+    #[serde(alias = "X")]
+    Other,
+}
+
 /// How a rental deposit is funded.
 #[derive(
     Clone,
@@ -3646,6 +3674,27 @@ pub enum DepositPaymentType {
     CreditCard,
     DebitCard,
     PrepaidCard,
+}
+
+/// Whether the customer is an individual or a business.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum CustomerType {
+    Individual,
+    Business,
 }
 
 /// Whether the customer is a premium / non-premium customer of the merchant.

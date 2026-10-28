@@ -754,6 +754,8 @@ enum Connector {
   MERCHANTE = 150;
   ELAVON_PG = 151;
   GLOBALPAYMENTS_REALEX = 152;
+  ECOMMPAY = 153;
+  CLEARSALE_BR = 154;
 }
 
 // Payment method types
@@ -5794,6 +5796,22 @@ message NsureConfig {
   optional string base_url = 50;
 }
 
+message ClearsaleBrConfig {
+  // ClearSale account username, sent as `name` on POST /v1/authenticate.
+  // This is the RiskManagementAccount accountDetailsJson field name.
+  SecretString username = 1;
+  // ClearSale account password, sent as `password` on POST /v1/authenticate.
+  SecretString password = 2;
+  // Customer type sent as the order `b2bB2c` field: "b2b" or "b2c".
+  // Gateway/merchant-specific, so it lives in the RiskManagementAccount
+  // account details rather than per-transaction data.
+  optional string b2b_b2c = 3;
+  // ClearSale product id for the order `product` field, when the merchant runs
+  // a product other than the connector's default (Total Garantido).
+  optional int32 product = 4;
+  optional string base_url = 50;
+}
+
 message HyperswitchConfig {
   SecretString api_key = 1;
   optional string base_url = 50;
@@ -5975,6 +5993,19 @@ message PayhereConfig {
   // PayHere Merchant Secret -- hash secret only (checkout MD5 hash + webhook
   // md5sig verification), never transmitted.
   SecretString merchant_secret = 4;
+  optional string base_url = 50;
+}
+
+// Ecommpay Gate API v2. There is no authentication header: every request is signed in the
+// body (`general.signature`), so both values below come from the Ecommpay dashboard
+// (Project settings) and are supplied by the merchant.
+message EcommpayConfig {
+  // Numeric Ecommpay project id -- sent in the body as `general.project_id`, and the only
+  // one of the two that reaches the wire.
+  SecretString project_id = 1;
+  // Project secret key -- the HMAC-SHA512 key used to sign every request and to verify
+  // status responses and callbacks. Never sent to Ecommpay.
+  SecretString secret_key = 2;
   optional string base_url = 50;
 }
 
@@ -6330,6 +6361,10 @@ message ConnectorSpecificConfig {
     ElavonPgConfig elavon_pg = 162;
     // GLOBALPAYMENTS_REALEX = 152
     GlobalpaymentsRealexConfig globalpayments_realex = 163;
+    // ECOMMPAY = 153
+    EcommpayConfig ecommpay = 164;
+    // CLEARSALE_BR = 154
+    ClearsaleBrConfig clearsale_br = 165;
   }
 }
 

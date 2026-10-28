@@ -272,10 +272,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = FloatMajorUnitForConnector;
         let total = converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -506,10 +503,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = FloatMajorUnitForConnector;
         let total = converter
-            .convert(
-                item.router_data.request.amount_to_capture.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount_to_capture)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -618,10 +612,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = FloatMajorUnitForConnector;
         let total = converter
-            .convert(
-                item.router_data.request.refund_amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.refund_amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -646,10 +637,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
         // Convert refund amount to FloatMajorUnit for filtering (like HS does)
         let converter = FloatMajorUnitForConnector;
         let refund_amount = converter
-            .convert(
-                item.router_data.request.refund_amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.refund_amount)
             .change_context(crate::utils::response_handling_fail_for_connector(
                 item.http_code,
                 "stax",
@@ -1248,8 +1236,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
         let total = domain_types::utils::convert_amount(
             item.connector.amount_converter,
-            minor_amount,
-            item.router_data.request.currency,
+            &common_utils::types::Money {
+                amount: minor_amount,
+                currency: item.router_data.request.currency,
+            },
         )?;
 
         let mandate_reference_id = item
@@ -1425,8 +1415,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let total = domain_types::utils::convert_amount(
             item.connector.amount_converter,
-            item.router_data.request.amount.amount,
-            item.router_data.request.currency,
+            &item.router_data.request.amount,
         )?;
 
         let payment_method_id = extract_stax_mandate_token(

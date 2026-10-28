@@ -196,8 +196,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde
             },
         );
 
-        let converted_amount =
-            WorldpayxmlAmountConvertor::convert(request.amount, request.destination_currency)?;
+        let converted_amount = WorldpayxmlAmountConvertor::convert(&common_utils::types::Money {
+            amount: request.amount,
+            currency: request.destination_currency,
+        })?;
 
         Ok(Self {
             version: API_VERSION.to_string(),

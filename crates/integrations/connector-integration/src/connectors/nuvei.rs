@@ -335,15 +335,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse::<common_enums::Currency>()
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Nuvei chargeback ReportedCurrency is not an ISO currency")?;
-        let minor_amount = domain_types::utils::convert_back_amount_to_minor_units_for_webhook(
+        let money = domain_types::utils::convert_back_amount_to_money_for_webhook(
             self.amount_converter_float_major,
             chargeback.reported_amount,
             currency,
         )?;
         let amount = domain_types::utils::convert_amount_for_webhook(
             self.amount_converter_string_minor,
-            minor_amount,
-            currency,
+            &money,
         )?;
         let status = transformers::get_dispute_status(&chargeback)?;
         let stage = transformers::get_dispute_stage(&chargeback)?;

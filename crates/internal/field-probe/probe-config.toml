@@ -264,6 +264,51 @@ default = '{}'
 "authentication_data.eci" = "05"
 "authentication_data.cavv" = "cHJvYmVfY2F2dl92YWx1ZQ=="
 
+# Ecommpay sends customer.shipping, merchant.descriptor, receipt_data, recurring and
+# acs_return_url only when the caller supplies the optional input behind them, so the
+# patcher never adds them. They are pre-set here so the probe output carries every
+# conditional wire field. 1 = CountryAlpha2::US, 1 = FutureUsage::OFF_SESSION.
+# authentication_data.* is a synthetic external 3DS result so the authentication_data
+# block reaches the probed body; 1 = TransactionStatus::TRANSACTION_STATUS_SUCCESS (Y).
+[connector_overrides.authorize.ecommpay]
+"address.shipping_address.first_name" = "Jane"
+"address.shipping_address.line1" = "12 Main Street"
+"address.shipping_address.city" = "Seattle"
+"address.shipping_address.state" = "WA"
+"address.shipping_address.zip_code" = "98101"
+"address.shipping_address.country_alpha2_code" = 1
+"billing_descriptor.statement_descriptor" = "PROBE DESCRIPTOR"
+"l2_l3_data.tax_info.order_tax_amount" = 100
+"setup_future_usage" = 1
+"browser_info.ip_address" = "203.0.113.10"
+"browser_info.screen_width" = 1920
+"browser_info.screen_height" = 1080
+"complete_authorize_url" = "https://example.com/payment/complete"
+"return_url" = "https://example.com/payment/return"
+"authentication_data.eci" = "05"
+"authentication_data.cavv" = "cHJvYmVfY2F2dl92YWx1ZQ=="
+"authentication_data.trans_status" = 1
+"authentication_data.threeds_server_transaction_id" = "probe_3ds_server_txn_001"
+"authentication_data.ds_transaction_id" = "probe_ds_trans_001"
+"authentication_data.message_version" = "2.2.0"
+
+# Ecommpay account verification refuses a missing return_url *or*
+# complete_authorize_url with the same field name (`return_url`), so the
+# patcher cannot discover the second one; both are pre-set, with the IP.
+[connector_overrides.setup_recurring.ecommpay]
+"browser_info.ip_address" = "203.0.113.10"
+"complete_authorize_url" = "https://example.com/payment/complete"
+"return_url" = "https://example.com/payment/return"
+
+# Ecommpay debits a platform-stored COF by recurring.id, an integer, so the
+# default string mandate id is refused before the request is built; customer.id
+# and the IP are required on every COF debit. The merchant-stored (NTID) arm
+# needs a card and is not pre-set here: one shape per flow.
+[connector_overrides.recurring_charge.ecommpay]
+"connector_recurring_payment_id" = { mandate_id_type = { ConnectorMandateId = { connector_mandate_id = "1821234041" } } }
+"browser_info.ip_address" = "203.0.113.10"
+"customer.id" = "cust_probe_123"
+
 # JPMorgan emits retailAddenda (Level 2 and Level 3 commercial-card data) and
 # shipTo only when the caller supplies the L2/L3 block behind them. None of
 # those inputs is a *required* field, so the patcher - which only reacts to
