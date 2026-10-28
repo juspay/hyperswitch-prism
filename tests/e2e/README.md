@@ -107,7 +107,7 @@ Responses are ordinary objects. Any returned field can be passed to a later oper
 
 `checks.fields` validates that its target is an object and compares only the listed fields. Pass a nested response object to check selected nested fields; a nested object supplied as an expected value is compared in full. Keep sensitive values out of comparisons and report only their required presence.
 
-Only `scenarios/payments/create-confirm/card/one-time/no3ds/automatic-create-confirm.spec.ts` is implemented. Other specs and reserved directories are empty placeholders. The current sequence is:
+Only `scenarios/payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm.spec.ts` is implemented. Other specs and reserved directories are empty placeholders. The current sequence is:
 
 ```text
 POST /payments with confirm:true
@@ -131,25 +131,24 @@ scenarios/
 │   │   ├── card/
 │   │   │   ├── one-time/
 │   │   │   │   ├── no3ds/
-│   │   │   │   │   ├── automatic-create-confirm.spec.ts
-│   │   │   │   │   ├── automatic-create-then-confirm.spec.ts
-│   │   │   │   │   ├── manual-create-confirm.spec.ts
-│   │   │   │   │   └── manual-create-then-confirm.spec.ts
+│   │   │   │   │   ├── automatic-capture-create-confirm.spec.ts
+│   │   │   │   │   ├── automatic-capture-create-then-confirm.spec.ts
+│   │   │   │   │   ├── manual-capture-create-confirm.spec.ts
+│   │   │   │   │   └── manual-capture-create-then-confirm.spec.ts
 │   │   │   │   └── three-ds/
 │   │   │   └── recurring/
 │   │   │       ├── connector-mandate/
-│   │   │       │   ├── zero-amount-setup-then-recurring.spec.ts
-│   │   │       │   └── nonzero-amount-setup-then-recurring.spec.ts
+│   │   │       │   ├── no3ds/
+│   │   │       │   │   ├── zero-amount-mandate-setup-then-recurring.spec.ts
+│   │   │       │   │   └── nonzero-amount-mandate-setup-then-recurring.spec.ts
+│   │   │       │   └── three-ds/
 │   │   │       └── network-transaction-id/
-│   │   ├── wallet/
-│   │   │   ├── apple-pay/
-│   │   │   ├── google-pay/
-│   │   │   └── paypal/
-│   │   ├── bank-debit/
-│   │   ├── bank-redirect/
-│   │   ├── bank-transfer/
-│   │   ├── pay-later/
-│   │   └── upi/
+│   │   │           ├── no3ds/
+│   │   │           └── three-ds/
+│   │   └── wallet/
+│   │       ├── apple-pay/
+│   │       ├── google-pay/
+│   │       └── paypal/
 │   ├── retrieve/
 │   ├── capture/
 │   │   └── full-capture.spec.ts
@@ -162,13 +161,15 @@ scenarios/
 ```
 
 
-`create-confirm/` groups initial payment journeys. In filenames, `create-confirm` means creation with `confirm: true`; `create-then-confirm` means separate requests. Automatic and manual describe capture mode.
+`create-confirm/` groups initial payment journeys. In filenames, `create-confirm` means creation with `confirm: true`; `create-then-confirm` means separate requests. Use the explicit filename prefixes `automatic-capture` and `manual-capture`.
 
-Recurring specs belong under their reference mechanism, for example `recurring/connector-mandate/zero-amount-setup-then-recurring.spec.ts` and `nonzero-amount-setup-then-recurring.spec.ts`. Each owns setup followed by a subsequent payment. Add network-transaction-ID variants where supported. Make authentication variations explicit in the relevant filename or subdirectory.
+Recurring specs belong under their reference mechanism and mandate-setup authentication, for example `recurring/connector-mandate/no3ds/zero-amount-mandate-setup-then-recurring.spec.ts`. Each owns mandate setup followed by a subsequent payment. The `no3ds` and `three-ds` branches describe setup authentication, not authentication repeated on the subsequent recurring payment. Add network-transaction-ID variants only where supported.
 
 Later operations have separate directories. Their specs declare required payment state and history, including authentication where relevant, rather than repeating every authorization dimension. Keep capture, cancel, retrieve and refund scenarios flat until implemented method-specific behavior warrants grouping. Wallets use wallet-specific variations instead of universally inheriting card's authentication tree.
 
 Payment retrieval and forced synchronization share `payments/retrieve/`, following HS's GET payment endpoint and its `force_sync` option. This directory remains empty until those dedicated scenarios are implemented.
+
+SDK-driven journeys can share these same payment groupings. Make SDK execution explicit in the filename, for example `automatic-capture-create-then-confirm-with-sdk.spec.ts`, and exercise the actual browser checkout. Reuse shared setup, API operations and checks; keep browser interactions and the journey visible in the spec. SDK setup and implementation will be introduced with the first such scenario.
 
 Empty specs and `.gitkeep` directories are extension placeholders, not implemented coverage. Add one shared spec per journey; connectors inherit it through the registry.
 
