@@ -74,10 +74,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let cryptopay_request = match item.router_data.request.payment_method_data {
             PaymentMethodData::Crypto(ref cryptodata) => {
                 let pay_currency = cryptodata.get_pay_currency()?;
-                let amount = CryptopayAmountConvertor::convert(
-                    item.router_data.request.amount.amount,
-                    item.router_data.request.currency,
-                )?;
+                let amount = CryptopayAmountConvertor::convert(&item.router_data.request.amount)?;
 
                 Ok(Self {
                     price_amount: amount,
@@ -253,11 +250,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     ))?,
             ),
             None => None,
-        }
-        .map(|amount| common_utils::types::Money {
-            amount,
-            currency: router_data.request.currency,
-        });
+        };
         match (amount_captured.is_some(), status) {
             (true, common_enums::AttemptStatus::Charged) => Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -405,11 +398,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     ))?,
             ),
             None => None,
-        }
-        .map(|amount| common_utils::types::Money {
-            amount,
-            currency: router_data.request.currency,
-        });
+        };
         match (amount_captured.is_some(), status) {
             (true, common_enums::AttemptStatus::Charged) => Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -470,13 +459,13 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
             })
         } else {
             let amount_captured = match (notif.data.price_amount, notif.data.price_currency) {
-                (Some(amount), Some(currency)) => Some(common_utils::types::Money {
-                    amount: CryptopayAmountConvertor::convert_back(amount, currency)
-                        .change_context(IntegrationError::AmountConversionFailed {
+                (Some(amount), Some(currency)) => Some(
+                    CryptopayAmountConvertor::convert_back(amount, currency).change_context(
+                        IntegrationError::AmountConversionFailed {
                             context: Default::default(),
-                        })?,
-                    currency,
-                }),
+                        },
+                    )?,
+                ),
                 _ => None,
             };
             match (amount_captured.is_some(), status) {

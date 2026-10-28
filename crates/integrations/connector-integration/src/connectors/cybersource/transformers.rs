@@ -1581,10 +1581,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount.to_owned(),
-                item.router_data.request.currency,
-            )
+            .convert(&common_utils::types::Money {
+                amount: item.router_data.request.amount.amount.to_owned(),
+                currency: item.router_data.request.currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1645,7 +1645,7 @@ fn build_l2_l3_order_data<
     let convert = |amount: MinorUnit, field: &str| {
         item.connector
             .amount_converter
-            .convert(amount, currency)
+            .convert(&common_utils::types::Money { amount, currency })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
@@ -3357,10 +3357,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount_to_capture.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount_to_capture)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -3470,7 +3467,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = value
             .connector
             .amount_converter
-            .convert(amount.amount, currency)
+            .convert(&common_utils::types::Money {
+                amount: amount.amount,
+                currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -3558,7 +3558,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let total_amount = value
                     .connector
                     .amount_converter
-                    .convert(amount.amount, amount.currency)
+                    .convert(amount)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?;
@@ -3871,7 +3871,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let additional_amount = item
             .connector
             .amount_converter
-            .convert(request.amount.amount, request.currency)
+            .convert(&request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -4455,15 +4455,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency.ok_or(
+            .convert(&common_utils::types::Money {
+                amount: item.router_data.request.amount.amount,
+                currency: item.router_data.request.currency.ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "currency",
                         context: Default::default(),
                     },
                 )?,
-            )
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -4745,15 +4745,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency.ok_or(
+            .convert(&common_utils::types::Money {
+                amount: item.router_data.request.amount.amount,
+                currency: item.router_data.request.currency.ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "currency",
                         context: Default::default(),
                     },
                 )?,
-            )
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -5460,10 +5460,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let total_amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.refund_amount.amount.to_owned(),
-                item.router_data.request.currency,
-            )
+            .convert(&common_utils::types::Money {
+                amount: item.router_data.request.refund_amount.amount.to_owned(),
+                currency: item.router_data.request.currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -6336,10 +6336,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount.to_owned(),
-                item.router_data.request.currency,
-            )
+            .convert(&common_utils::types::Money {
+                amount: item.router_data.request.amount.amount.to_owned(),
+                currency: item.router_data.request.currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

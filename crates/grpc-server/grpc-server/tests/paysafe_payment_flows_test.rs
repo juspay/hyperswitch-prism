@@ -234,6 +234,7 @@ fn create_payment_authorize_request(
                 email: None,
                 phone_number: None,
                 phone_country_code: None,
+                origin_zip: None,
             }),
             shipping_address: None,
         }),

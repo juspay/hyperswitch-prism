@@ -370,10 +370,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -487,10 +484,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let amount = item
                     .connector
                     .amount_converter
-                    .convert(
-                        item.router_data.request.amount.amount,
-                        item.router_data.request.currency,
-                    )
+                    .convert(&item.router_data.request.amount)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?;
@@ -1253,10 +1247,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.refund_amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.refund_amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1792,10 +1783,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount_to_capture.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount_to_capture)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2576,10 +2564,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2899,8 +2884,10 @@ pub(super) fn build_webhook_dispute_response(
         Some(dispute_data) => Ok(connector_types::DisputeWebhookDetailsResponse {
             amount: domain_types::utils::convert_amount_for_webhook(
                 &common_utils::types::StringMinorUnitForConnector,
-                dispute_data.amount_disputed,
-                dispute_data.currency_iso_code,
+                &common_utils::types::Money {
+                    amount: dispute_data.amount_disputed,
+                    currency: dispute_data.currency_iso_code,
+                },
             )?,
             currency: dispute_data.currency_iso_code,
             dispute_id: dispute_data.id.clone(),

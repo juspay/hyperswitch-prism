@@ -11,7 +11,7 @@ Powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism), an 
 | Requirement | Version |
 |-------------|---------|
 | Medusa | `>= 2.15.0` |
-| Node.js | `>= 20` |
+| Node.js | `^22.23.4 || ^24.22.1 || ^26.12.1` ([Brotli security fix](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)) |
 | Framework | Medusa v2 |
 
 ## Installation

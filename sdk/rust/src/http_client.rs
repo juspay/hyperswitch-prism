@@ -187,6 +187,18 @@ impl HttpClient {
                 .as_ref()
                 .or(proxy_config.http_url.as_ref())
             {
+                let parsed = reqwest::Url::parse(url).map_err(|e| NetworkError {
+                    code: NetworkErrorCode::InvalidProxyConfiguration,
+                    message: format!("Invalid proxy URL: {e}"),
+                    status_code: Some(500),
+                })?;
+                if !matches!(parsed.scheme(), "http" | "https") {
+                    return Err(NetworkError {
+                        code: NetworkErrorCode::InvalidProxyConfiguration,
+                        message: format!("Unsupported proxy URL scheme: {}", parsed.scheme()),
+                        status_code: Some(500),
+                    });
+                }
                 match reqwest::Proxy::all(url) {
                     Ok(mut proxy) => {
                         for bypass in &proxy_config.bypass_urls {
@@ -354,5 +366,27 @@ pub fn generate_proxy_cache_key(proxy: &Option<ProxyConfig>) -> String {
             bypass.sort();
             format!("{}|{}|{}", http, https, bypass.join(","))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{HttpClient, HttpOptions, ProxyConfig};
+
+    #[test]
+    fn rejects_unsupported_proxy_scheme_before_sending_a_request() {
+        let options = HttpOptions {
+            proxy: Some(ProxyConfig {
+                http_url: Some("invalid://bad".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let error = match HttpClient::new(options) {
+            Ok(_) => panic!("unsupported proxy scheme should be rejected"),
+            Err(error) => error,
+        };
+        assert_eq!(error.error_code(), "INVALID_PROXY_CONFIGURATION");
     }
 }
