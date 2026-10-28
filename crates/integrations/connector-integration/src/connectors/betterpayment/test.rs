@@ -124,15 +124,14 @@ fn refund_webhooks_map_documented_missing_and_future_codes() {
         ),
         (None, RefundStatus::Pending, EventType::RefundProcessing),
     ] {
-        let mut payload = json!({
-            "transaction_id": "payment-123", "order_id": "order-123",
-            "status": "refunded", "refund_id": "refund-123"
-        });
+        let mut payload =
+            "transaction_id=payment-123&order_id=order-123&status=refunded&refund_id=refund-123"
+                .to_owned();
         if let Some(code) = code {
-            payload["refund_status_code"] = json!(code);
+            payload.push_str(&format!("&refund_status_code={code}"));
         }
         let body: BetterpaymentWebhookBody =
-            serde_json::from_value(payload).expect("parse refund webhook");
+            serde_urlencoded::from_bytes(payload.as_bytes()).expect("parse refund form webhook");
         assert_eq!(get_webhook_event_type(&body), expected_event);
         assert_eq!(
             body.refund_status_code
@@ -197,19 +196,12 @@ fn webhook_signature_rejects_tampered_body_wrong_key_and_invalid_headers() {
 }
 
 #[test]
-fn refund_webhook_rejects_missing_or_null_status_code() {
+fn refund_webhook_rejects_missing_or_empty_status_code() {
     let connector = Betterpayment::<DefaultPCIHolder>::new();
-    for payload in [
-        json!({"transaction_id": "payment-123", "order_id": "order-123", "status": "refunded", "refund_id": "refund-123"}),
-        json!({"transaction_id": "payment-123", "order_id": "order-123", "status": "refunded", "refund_id": "refund-123", "refund_status_code": null}),
-    ] {
-        let request = RequestDetails {
-            method: domain_types::connector_types::HttpMethod::Post,
-            uri: None,
-            headers: std::collections::HashMap::new(),
-            body: serde_json::to_vec(&payload).expect("serialize webhook"),
-            query_params: None,
-        };
+    for suffix in ["", "&refund_status_code="] {
+        let request = form_webhook(&format!(
+            "transaction_id=payment-123&order_id=order-123&status=refunded&refund_id=refund-123{suffix}"
+        ));
         let error = connector
             .process_refund_webhook(request, None, None)
             .expect_err("missing refund status must fail");
@@ -238,7 +230,8 @@ fn captured_wero_form_postback_decodes_and_routes() {
     let connector = Betterpayment::<DefaultPCIHolder>::new();
     let raw = "transaction_id=f585d8d3-93c0-4e1a-9021-30611639674e&payment_type=wero&status_code=5&status=canceled&order_id=34533343&message=CONSENT%20DENIED&additional_transaction_data=customer_id%3D123ABC%2C%20billing_info%3D12345678&amount=15.9&recurring=0&included_fees=0.00&checksum=bc2423a3f1c94d1f49c3af563a3f16726f483a63";
     let request = form_webhook(raw);
-    let parsed = parse_webhook_body(&request.body).expect("decode captured form");
+    let parsed: BetterpaymentWebhookBody =
+        serde_urlencoded::from_bytes(&request.body).expect("decode captured form");
     assert_eq!(parsed.message.as_deref(), Some("CONSENT DENIED"));
     assert_eq!(
         parsed.additional_transaction_data.as_deref(),
@@ -337,16 +330,14 @@ fn form_signature_is_verified_on_original_encoded_bytes() {
 }
 
 #[test]
-fn documented_json_postback_remains_supported_and_malformed_bodies_fail() {
+fn malformed_and_json_webhook_bodies_fail() {
     let connector = Betterpayment::<DefaultPCIHolder>::new();
-    let mut request = form_webhook("");
-    request.body =
-        br#"{"transaction_id":"p","order_id":"o","status":"completed","amount":15.9}"#.to_vec();
-    let response = connector
-        .process_payment_webhook(request, None, None, None)
-        .expect("documented JSON example");
-    assert_eq!(response.status, common_enums::AttemptStatus::Charged);
-    for raw in ["", "status=completed", "{invalid-json"] {
+    for raw in [
+        "",
+        "status=completed",
+        "{invalid-json",
+        r#"{"transaction_id":"p","order_id":"o","status":"completed"}"#,
+    ] {
         let request = form_webhook(raw);
         assert!(connector.get_event_type(request.clone()).is_err());
         assert!(connector

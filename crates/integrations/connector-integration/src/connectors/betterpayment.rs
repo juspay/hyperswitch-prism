@@ -43,7 +43,7 @@ use serde::Serialize;
 use transformers::{
     self as betterpayment, BetterpaymentAuthorizeRequest, BetterpaymentAuthorizeResponse,
     BetterpaymentPSyncResponse, BetterpaymentRSyncResponse, BetterpaymentRefundRequest,
-    BetterpaymentRefundResponse,
+    BetterpaymentRefundResponse, BetterpaymentWebhookBody,
 };
 
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
@@ -268,7 +268,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let body = betterpayment::parse_webhook_body(&request.body)?;
+        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(&request.body)
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
         Ok(betterpayment::get_webhook_event_type(&body))
     }
 
@@ -276,7 +277,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
-        let body = betterpayment::parse_webhook_body(&request.body)?;
+        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(&request.body)
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         if let Some(refund_id) = body.refund_id {
             return Ok(Some(WebhookResourceReference::Refund(
@@ -361,7 +363,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
         let raw = request.body.clone();
-        let body = betterpayment::parse_webhook_body(&request.body)?;
+        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(&request.body)
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         let status = AttemptStatus::from(body.status.clone());
 
@@ -400,7 +403,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
         let raw = request.body.clone();
-        let body = betterpayment::parse_webhook_body(&request.body)?;
+        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(&request.body)
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         let status = body
             .refund_status_code

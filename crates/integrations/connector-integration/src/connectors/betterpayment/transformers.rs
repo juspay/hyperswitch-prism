@@ -760,18 +760,6 @@ impl<F, Req> TryFrom<ResponseRouterData<BetterpaymentRefundResponse, Self>>
     }
 }
 
-/// Wero postbacks use form encoding
-pub fn parse_webhook_body(
-    body: &[u8],
-) -> Result<BetterpaymentWebhookBody, error_stack::Report<errors::WebhookError>> {
-    if body.iter().find(|byte| !byte.is_ascii_whitespace()) == Some(&b'{') {
-        serde_json::from_slice(body).change_context(errors::WebhookError::WebhookBodyDecodingFailed)
-    } else {
-        serde_urlencoded::from_bytes(body)
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
-    }
-}
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct BetterpaymentWebhookBody {
     pub transaction_id: String,
