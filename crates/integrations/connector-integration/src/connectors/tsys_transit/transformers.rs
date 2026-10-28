@@ -3630,7 +3630,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .amount
             .as_ref()
-            .map(|amount| super::TsysTransitAmountConvertor::convert(amount))
+            .map(super::TsysTransitAmountConvertor::convert)
             .transpose()?;
 
         Ok(Self {
