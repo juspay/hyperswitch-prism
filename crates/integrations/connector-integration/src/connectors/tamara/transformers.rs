@@ -5,9 +5,8 @@ use crate::types::ResponseRouterData;
 use crate::utils;
 use common_enums::EligibilityStatus;
 use common_enums::{
-    AttemptStatus, Currency, DepositPaymentType, EducationType, FutureUsage, OnlineStatus,
-    PremiumCustomerStatus, ProductType, RefundStatus, RoomClass, TicketRefundability, TravelClass,
-    TripType,
+    AttemptStatus, Currency, DepositPaymentType, FutureUsage, PremiumCustomerStatus, ProductType,
+    RefundStatus, TicketRefundability, TravelClass, TripType,
 };
 use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
@@ -16,7 +15,7 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
-        AirlineData, DomainData, EducationData, EventType, HotelData, PMEligibility,
+        AirlineData, CustomerInfo, DomainData, EducationData, EventType, HotelData, PMEligibility,
         PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
         PaymentsSyncData, RawConnectorStatus, RefundFlowData, RefundSyncData, RefundsData,
@@ -192,27 +191,21 @@ fn to_tamara_date(value: &str) -> String {
     }
 }
 
-fn full_name(
-    first_name: Option<&Secret<String>>,
-    last_name: Option<&Secret<String>>,
-) -> Option<String> {
-    match (first_name, last_name) {
-        (Some(first), Some(last)) => Some(format!("{} {}", first.peek(), last.peek())),
-        (Some(name), None) | (None, Some(name)) => Some(name.peek().clone()),
-        (None, None) => None,
-    }
-}
-
 /// Tamara collects passenger / guest names as dynamic keys, e.g. `passenger1_name`.
 fn tamara_name_map<I>(names: I, key_prefix: &str) -> Option<BTreeMap<String, String>>
 where
-    I: IntoIterator<Item = Option<String>>,
+    I: IntoIterator<Item = Option<Secret<String>>>,
 {
     let map: BTreeMap<String, String> = names
         .into_iter()
         .flatten()
         .enumerate()
-        .map(|(index, name)| (format!("{key_prefix}{}_name", index + 1), name))
+        .map(|(index, name)| {
+            (
+                format!("{key_prefix}{}_name", index + 1),
+                name.peek().clone(),
+            )
+        })
         .collect();
     (!map.is_empty()).then_some(map)
 }
@@ -408,9 +401,10 @@ impl From<&AirlineData> for FlightsItinerary {
             }),
             name_of_passengers: tamara_name_map(
                 airline_data.passengers.iter().map(|passenger| {
-                    passenger.customer.as_ref().and_then(|customer| {
-                        full_name(customer.first_name.as_ref(), customer.last_name.as_ref())
-                    })
+                    passenger
+                        .customer
+                        .as_ref()
+                        .and_then(CustomerInfo::get_full_name)
                 }),
                 "passenger",
             ),
@@ -480,7 +474,12 @@ impl From<&TravelData> for TrainsItinerary {
                     .iter()
                     .flat_map(|segment| segment.passengers.iter())
                     .map(|traveller| {
-                        full_name(traveller.first_name.as_ref(), traveller.last_name.as_ref())
+                        CustomerInfo {
+                            first_name: traveller.first_name.clone(),
+                            last_name: traveller.last_name.clone(),
+                            ..Default::default()
+                        }
+                        .get_full_name()
                     }),
                 "passenger",
             ),
@@ -557,7 +556,7 @@ impl From<&HotelData> for HotelItinerary {
                     .map(|segment| segment.guests.iter())
                     .into_iter()
                     .flatten()
-                    .map(|guest| full_name(guest.first_name.as_ref(), guest.last_name.as_ref())),
+                    .map(|guest| guest.get_full_name()),
                 "guest",
             ),
             ticket_delivery_recipient: hotel_data
@@ -570,14 +569,7 @@ impl From<&HotelData> for HotelItinerary {
             hotel_country: segment.and_then(|segment| segment.hotel_country.clone()),
             hotel_room_class: segment
                 .and_then(|segment| segment.room_class)
-                .map(|room_class| {
-                    match room_class {
-                        RoomClass::Standard => "Standard",
-                        RoomClass::Suite => "Suite",
-                        RoomClass::Deluxe => "Deluxe",
-                    }
-                    .to_string()
-                }),
+                .map(|room_class| room_class.to_string()),
             is_refundable_booking: hotel_data.refundability.map(is_refundable_booking),
             host,
         }
@@ -600,23 +592,14 @@ pub struct Education {
 impl Education {
     fn from_education_data(education_data: &EducationData, purchase_type: &str) -> Self {
         Self {
-            education_type: education_data.education_type.map(|education_type| {
-                match education_type {
-                    EducationType::Course => "Course",
-                    EducationType::Workshop => "Workshop",
-                    EducationType::Tutoring => "Tutoring",
-                }
-                .to_string()
-            }),
+            education_type: education_data
+                .education_type
+                .map(|education_type| education_type.to_string()),
             start_date: education_data.start_date.as_deref().map(to_tamara_date),
             end_date: education_data.end_date.as_deref().map(to_tamara_date),
-            event_location: education_data.is_online.map(|is_online| {
-                match is_online {
-                    OnlineStatus::Online => "Online",
-                    OnlineStatus::Offline => "Offline",
-                }
-                .to_string()
-            }),
+            event_location: education_data
+                .is_online
+                .map(|is_online| is_online.to_string()),
             purchase_type: purchase_type.to_string(),
         }
     }
@@ -705,11 +688,10 @@ impl From<&RentalData> for CarRentals {
                     .filter(|count| *count > 0)
             }),
             name_of_drivers: tamara_name_map(
-                rental_data.drivers.iter().map(|driver| {
-                    driver.driver.as_ref().and_then(|customer| {
-                        full_name(customer.first_name.as_ref(), customer.last_name.as_ref())
-                    })
-                }),
+                rental_data
+                    .drivers
+                    .iter()
+                    .map(|driver| driver.driver.as_ref().and_then(CustomerInfo::get_full_name)),
                 "driver",
             ),
             insurance_purchased: Some(!rental_data.insurances.is_empty()),
