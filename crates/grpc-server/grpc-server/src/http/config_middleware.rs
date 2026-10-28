@@ -105,7 +105,7 @@ pub async fn track_composite_outgoing_latency(mut request: Request, next: Next) 
     request.extensions_mut().insert(tracker.clone());
 
     let mut response = next.run(request).await;
-    if let Ok(value) = tracker.outgoing_latency_millis().to_string().parse() {
+    if let Ok(value) = tracker.connector_time().as_millis().to_string().parse() {
         response
             .headers_mut()
             .insert(X_OUTGOING_API_OVERHEAD, value);

@@ -1407,9 +1407,6 @@ where
     // Additive numeric latency alongside the existing string `latency`.
     let elapsed_millis = u64::try_from(elapsed).unwrap_or(u64::MAX);
     tracing::Span::current().record("latency_ms", elapsed_millis);
-    event_params
-        .connector_latency
-        .add_outgoing_latency_millis(elapsed_millis);
     #[cfg(feature = "log-transformations")]
     if event_params.log_fields_enabled || event_params.masking_keys.enabled {
         apply_log_fields(
