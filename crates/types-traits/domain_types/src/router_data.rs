@@ -1145,7 +1145,7 @@ pub enum ConnectorSpecificConfig {
     Betterpayment {
         api_key: Secret<String>,
         api_password: Secret<String>,
-        webhook_key: Secret<String>,
+        webhook_key: Option<Secret<String>>,
         base_url: Option<String>,
     },
 }
@@ -2884,7 +2884,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Betterpayment(betterpayment) => Ok(Self::Betterpayment {
                 api_key: betterpayment.api_key.ok_or_else(err)?,
                 api_password: betterpayment.api_password.ok_or_else(err)?,
-                webhook_key: betterpayment.webhook_key.ok_or_else(err)?,
+                webhook_key: betterpayment.webhook_key,
                 base_url: betterpayment.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
@@ -4312,7 +4312,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     } => Ok(Self::Betterpayment {
                         api_key: api_key.clone(),
                         api_password: key1.clone(),
-                        webhook_key: api_secret.clone(),
+                        webhook_key: Some(api_secret.clone()),
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Betterpayment {
+                        api_key: api_key.clone(),
+                        api_password: key1.clone(),
+                        webhook_key: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),

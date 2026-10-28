@@ -73,7 +73,7 @@ pub struct BetterpaymentAuthType {
     /// API password — used as the HTTP Basic Auth password.
     pub api_password: Secret<String>,
     /// Outgoing key — used only for webhook signature verification.
-    pub webhook_key: Secret<String>,
+    pub webhook_key: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for BetterpaymentAuthType {
@@ -95,7 +95,7 @@ impl TryFrom<&ConnectorSpecificConfig> for BetterpaymentAuthType {
                 errors::IntegrationError::FailedToObtainAuthType {
                     context: integration_error_context(
                         PAYMENT_DOC_URL,
-                        "Configure Betterpayment api_key, api_password (API password), and webhook_key (webhook key).",
+                        "Configure Betterpayment api_key and api_password (API password).",
                         "Betterpayment requires its connector-specific credentials and uses HTTP Basic authentication.",
                     )
                 }
@@ -380,7 +380,7 @@ pub struct BetterpaymentAuthorizeResponse {
     #[serde(default)]
     pub status: BetterpaymentPaymentStatus,
     pub order_id: Option<String>,
-    pub error_code: Option<i64>,
+    pub error_code: Option<u64>,
     pub message: Option<String>,
     pub error_message: Option<String>,
     pub client_action: Option<BetterpaymentClientAction>,
@@ -433,12 +433,16 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BetterpaymentAuthoriz
                     .action_data
                     .and_then(|ad| ad.url)
                     .map(|url| {
-                        Box::new(RedirectForm::Form {
-                            endpoint: url,
-                            method: Method::Get,
-                            form_fields: Default::default(),
-                        })
-                    }),
+                        url::Url::parse(&url)
+                            .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
+                            .change_context(
+                                errors::ConnectorError::response_deserialization_failed_with_context(
+                                    http_code,
+                                    Some("Betterpayment returned an invalid redirect URL in the authorize response".to_owned()),
+                                ),
+                            )
+                    })
+                    .transpose()?,
                 None | Some(BetterpaymentClientAction::Unknown) => None,
             };
             Ok(PaymentsResponseData::TransactionResponse {
@@ -482,10 +486,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BetterpaymentAuthoriz
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BetterpaymentPSyncResponse {
     pub transaction_id: Option<String>,
+    #[serde(default)]
     pub status: BetterpaymentPaymentStatus,
     pub order_id: Option<String>,
     pub error_code: Option<u64>,
     pub message: Option<String>,
+    pub error_message: Option<String>,
 }
 
 impl TryFrom<ResponseRouterData<BetterpaymentPSyncResponse, Self>>
@@ -501,7 +507,11 @@ impl TryFrom<ResponseRouterData<BetterpaymentPSyncResponse, Self>>
             router_data,
             http_code,
         } = item;
-        let status = AttemptStatus::from(connector_response.status);
+        let status = if connector_response.error_code.is_some_and(|code| code != 0) {
+            AttemptStatus::Failure
+        } else {
+            AttemptStatus::from(connector_response.status)
+        };
 
         let response = if utils::is_payment_failure(status) {
             Err(ErrorResponse {
@@ -512,8 +522,11 @@ impl TryFrom<ResponseRouterData<BetterpaymentPSyncResponse, Self>>
                 message: connector_response
                     .message
                     .clone()
+                    .or_else(|| connector_response.error_message.clone())
                     .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                reason: connector_response.message,
+                reason: connector_response
+                    .message
+                    .or(connector_response.error_message),
                 status_code: http_code,
                 attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: connector_response.transaction_id,
@@ -747,6 +760,18 @@ impl<F, Req> TryFrom<ResponseRouterData<BetterpaymentRefundResponse, Self>>
     }
 }
 
+/// Wero postbacks use form encoding
+pub fn parse_webhook_body(
+    body: &[u8],
+) -> Result<BetterpaymentWebhookBody, error_stack::Report<errors::WebhookError>> {
+    if body.iter().find(|byte| !byte.is_ascii_whitespace()) == Some(&b'{') {
+        serde_json::from_slice(body).change_context(errors::WebhookError::WebhookBodyDecodingFailed)
+    } else {
+        serde_urlencoded::from_bytes(body)
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct BetterpaymentWebhookBody {
     pub transaction_id: String,
@@ -754,8 +779,6 @@ pub struct BetterpaymentWebhookBody {
     pub status_code: Option<i64>,
     pub status: BetterpaymentWebhookStatus,
     pub order_id: String,
-    pub amount: Option<common_utils::types::FloatMajorUnit>,
-    pub currency: Option<common_enums::Currency>,
     pub message: Option<String>,
     pub reason_code: Option<String>,
     pub additional_transaction_data: Option<String>,
@@ -796,7 +819,7 @@ impl From<BetterpaymentWebhookStatus> for EventType {
             BetterpaymentWebhookStatus::Started | BetterpaymentWebhookStatus::Pending => {
                 Self::PaymentIntentProcessing
             }
-            BetterpaymentWebhookStatus::Canceled => Self::PaymentIntentCancelled,
+            BetterpaymentWebhookStatus::Canceled => Self::PaymentIntentFailure,
             BetterpaymentWebhookStatus::Unknown => Self::IncomingWebhookEventUnspecified,
         }
     }

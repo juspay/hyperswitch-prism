@@ -12,7 +12,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::{AmountConvertor, FloatMajorUnitForConnector, Money, StringMajorUnit},
+    types::StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
@@ -43,7 +43,7 @@ use serde::Serialize;
 use transformers::{
     self as betterpayment, BetterpaymentAuthorizeRequest, BetterpaymentAuthorizeResponse,
     BetterpaymentPSyncResponse, BetterpaymentRSyncResponse, BetterpaymentRefundRequest,
-    BetterpaymentRefundResponse, BetterpaymentWebhookBody,
+    BetterpaymentRefundResponse,
 };
 
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
@@ -171,15 +171,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-        let auth = betterpayment::BetterpaymentAuthType::try_from(auth_type).change_context(
-            errors::IntegrationError::FailedToObtainAuthType {
+        let auth =
+            betterpayment::BetterpaymentAuthType::try_from(auth_type)
+                .change_context(errors::IntegrationError::FailedToObtainAuthType {
                 context: betterpayment::integration_error_context(
                     betterpayment::PAYMENT_DOC_URL,
-                    "Configure Betterpayment api_key, api_password (API password), and webhook_key (webhook key).",
+                    "Configure Betterpayment api_key and api_password (API password).",
                     "Betterpayment uses HTTP Basic authentication with api_key and api_password.",
                 ),
-            },
-        )?;
+            })?;
         // Betterpayment uses HTTP Basic Auth: `Authorization: Basic base64(api_key:api_password)`.
         // `.into_masked()` (the `Mask` trait), NOT `.into()`: `impl From<T> for
         // Maskable<T>` builds `Maskable::Normal`, which logs the credentials in clear.
@@ -268,10 +268,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let body: BetterpaymentWebhookBody = request
-            .body
-            .parse_struct("BetterpaymentWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+        let body = betterpayment::parse_webhook_body(&request.body)?;
         Ok(betterpayment::get_webhook_event_type(&body))
     }
 
@@ -279,10 +276,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
-        let body: BetterpaymentWebhookBody = request
-            .body
-            .parse_struct("BetterpaymentWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+        let body = betterpayment::parse_webhook_body(&request.body)?;
 
         if let Some(refund_id) = body.refund_id {
             return Ok(Some(WebhookResourceReference::Refund(
@@ -290,15 +284,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_refund_id: Some(refund_id),
                     merchant_refund_id: None,
                     connector_transaction_id: Some(body.transaction_id),
-                    merchant_transaction_id: Some(body.order_id),
+                    merchant_transaction_id: None,
                 },
             )));
         }
 
         Ok(Some(WebhookResourceReference::Payment(
             PaymentWebhookReference {
+                connector_preprocessing_id: None,
                 connector_transaction_id: Some(body.transaction_id),
-                merchant_transaction_id: Some(body.order_id),
+                merchant_transaction_id: None,
             },
         )))
     }
@@ -341,7 +336,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(errors::WebhookError::WebhookSourceVerificationFailed)?;
 
         let webhook_secret = ConnectorWebhookSecrets {
-            secret: auth.webhook_key.expose().into_bytes(),
+            secret: auth
+                .webhook_key
+                .ok_or(errors::WebhookError::WebhookVerificationSecretNotFound)?
+                .expose()
+                .into_bytes(),
             additional_secret: None,
         };
 
@@ -362,25 +361,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
         let raw = request.body.clone();
-        let body: BetterpaymentWebhookBody = request
-            .body
-            .parse_struct("BetterpaymentWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+        let body = betterpayment::parse_webhook_body(&request.body)?;
 
         let status = AttemptStatus::from(body.status.clone());
-        let amount_captured = if status == AttemptStatus::Charged {
-            body.amount
-                .zip(body.currency)
-                .map(|(amount, currency)| {
-                    let amount = FloatMajorUnitForConnector
-                        .convert_back(amount, currency)
-                        .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-                    Ok::<_, error_stack::Report<errors::WebhookError>>(Money { amount, currency })
-                })
-                .transpose()?
-        } else {
-            None
-        };
 
         let (error_code, error_message) = if status == AttemptStatus::Failure {
             (body.reason_code.clone(), body.message.clone())
@@ -403,7 +386,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&raw).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured,
+            amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -417,10 +400,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
         let raw = request.body.clone();
-        let body: BetterpaymentWebhookBody = request
-            .body
-            .parse_struct("BetterpaymentWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+        let body = betterpayment::parse_webhook_body(&request.body)?;
 
         let status = body
             .refund_status_code
@@ -436,7 +416,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(RefundWebhookDetailsResponse {
             connector_refund_id: body.refund_id.clone(),
-            merchant_transaction_id: Some(body.order_id),
+            merchant_transaction_id: None,
             status,
             connector_response_reference_id: body.refund_id,
             error_code,
