@@ -1212,8 +1212,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpayAuthorizeResp
         };
 
         match (google_pay.payment_flow, google_pay.operation) {
-            // PAN_ONLY: no money moved yet; the cardholder must load the GDI iframe.
-            (NexixpayGooglePayFlow::PanOnly, _) => {
+            // PAN_ONLY: no money moved yet; the cardholder must load the GDI iframe. Nexi
+            // may still return an operation on this response; it is kept so PSync has an
+            // operationId to address (see `pending_google_pay_response`).
+            (NexixpayGooglePayFlow::PanOnly, operation) => {
                 let gdi_src = google_pay
                     .iframe
                     .as_ref()
@@ -1239,6 +1241,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpayAuthorizeResp
                             form_fields: HashMap::new(),
                         },
                     )),
+                    operation.as_ref(),
                 )
             }
             // CRYPTOGRAM: the operation is a payment operation exactly like a card
@@ -1253,14 +1256,26 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpayAuthorizeResp
             }),
             // No operation yet: the outcome arrives at notificationUrl / PSync.
             (NexixpayGooglePayFlow::Cryptogram | NexixpayGooglePayFlow::Unknown, None) => {
-                pending_google_pay_response(router_data, http_code, AttemptStatus::Pending, None)
+                pending_google_pay_response(
+                    router_data,
+                    http_code,
+                    AttemptStatus::Pending,
+                    None,
+                    None,
+                )
             }
         }
     }
 }
 
-/// A Google Pay response with no Nexi operation yet: the attempt is anchored to the
-/// orderId the request sent.
+/// A Google Pay response that is not yet an outcome: the attempt is anchored to the orderId
+/// the request sent.
+///
+/// `operation` is written into `connector_metadata` when Nexi returned one, because PSync
+/// addresses `GET /operations/{operationId}` and has no order-level endpoint to fall back on
+/// -- without it such a payment could not be synced at all and would depend entirely on the
+/// notification arriving. When Nexi returns no operation there is nothing to record, and the
+/// outcome genuinely only reaches us at `notificationUrl`.
 fn pending_google_pay_response<T: PaymentMethodDataTypes>(
     router_data: RouterDataV2<
         Authorize,
@@ -1271,6 +1286,7 @@ fn pending_google_pay_response<T: PaymentMethodDataTypes>(
     http_code: u16,
     status: AttemptStatus,
     redirection_data: Option<Box<domain_types::router_response_types::RedirectForm>>,
+    operation: Option<&NexixpayOperation>,
 ) -> Result<
     RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
     error_stack::Report<ConnectorError>,
@@ -1284,12 +1300,31 @@ fn pending_google_pay_response<T: PaymentMethodDataTypes>(
         http_code,
         "nexixpay: the Google Pay orderId cannot be derived from connector_request_reference_id.",
     ))?;
+    let connector_metadata = operation
+        .map(|operation| {
+            update_nexi_meta_data(
+                router_data
+                    .resource_common_data
+                    .connector_feature_data
+                    .as_ref()
+                    .map(|meta| meta.peek().clone()),
+                UpdateNexixpayConnectorMetaData {
+                    three_d_s_auth_result: None,
+                    authorization_operation_id: Some(operation.operation_id.clone()),
+                    capture_operation_id: None,
+                    cancel_operation_id: None,
+                    psync_flow: Some(NexixpayPaymentIntent::Authorize),
+                    is_auto_capture: operation.operation_result == NexixpayPaymentStatus::Executed,
+                },
+            )
+        })
+        .transpose()?;
     Ok(RouterDataV2 {
         response: Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(order_id.clone()),
             redirection_data,
             mandate_reference: None,
-            connector_metadata: None,
+            connector_metadata,
             network_txn_id: None,
             network_txn_link_id: None,
             connector_response_reference_id: Some(order_id),
@@ -1347,8 +1382,11 @@ impl TryFrom<ResponseRouterData<NexixpaySyncResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<NexixpaySyncResponse, Self>) -> Result<Self, Self::Error> {
-        // An unknown operationResult retains the previous status (never terminal).
-        let status = get_payment_attempt_status(
+        // An unknown operationResult retains the previous status (never terminal). PENDING is
+        // read against the operation type, so a capture or cancel still in flight is not
+        // reported as needing authentication (`get_sync_attempt_status`).
+        let status = get_sync_attempt_status(
+            item.response.operation_type.as_ref(),
             item.response.operation_result.clone(),
             item.router_data.resource_common_data.status,
         );
@@ -3356,6 +3394,33 @@ pub fn parse_nexixpay_webhook(
 /// Maps a notification onto its UCS event. Nexi has no event-type field: the event is
 /// `operationType` x `operationResult` (spec: ## Webhook Events, Event Types). `None` means
 /// the pair is not a supported event.
+/// Attempt status of a PSync (`GET /operations/{operationId}`).
+///
+/// `PENDING` means different things per operation. On an authorization the cardholder still
+/// has to authenticate, and PSync *can* hand back the ACS redirect, so `AuthenticationPending`
+/// is right. On a capture, void, cancel or refund operation the payment is already authorized
+/// and the operation is merely in flight -- reporting `AuthenticationPending` there would move
+/// an accepted capture back to authentication. `operation_type` decides, as it does for
+/// notifications in [`get_webhook_attempt_status`].
+pub fn get_sync_attempt_status(
+    operation_type: Option<&NexixpayOperationType>,
+    status: NexixpayPaymentStatus,
+    prev_status: AttemptStatus,
+) -> AttemptStatus {
+    match (operation_type, &status) {
+        (
+            Some(
+                NexixpayOperationType::Capture
+                | NexixpayOperationType::Void
+                | NexixpayOperationType::Cancel
+                | NexixpayOperationType::Refund,
+            ),
+            NexixpayPaymentStatus::Pending,
+        ) => AttemptStatus::Pending,
+        _ => get_payment_attempt_status(status, prev_status),
+    }
+}
+
 /// Attempt status of a notification.
 ///
 /// Identical to [`get_payment_attempt_status`] except for `PENDING`. PSync may be answering an
