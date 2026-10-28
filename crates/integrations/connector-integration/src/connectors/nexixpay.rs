@@ -316,11 +316,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Some(_) | None => return Err(WebhookError::WebhookEventTypeNotFound.into()),
         }
         // The notification's operation has the shape of GET /operations, so it maps onto the
-        // attempt status exactly as PSync does.
-        let status = nexixpay::get_payment_attempt_status(
-            operation.operation_result.clone(),
-            AttemptStatus::Pending,
-        );
+        // attempt status as PSync does -- except for PENDING, which a notification must not
+        // report as AuthenticationPending: see `get_webhook_attempt_status`.
+        let status = nexixpay::get_webhook_attempt_status(&operation, AttemptStatus::Pending);
         let (error_code, error_message, error_reason) = if status == AttemptStatus::Failure {
             let result = operation.operation_result.to_string();
             (

@@ -192,15 +192,6 @@
         }
       }
     },
-    "PaymentService/SetupRecurring": {
-      "grpc_req": {
-        "auth_type": "THREE_DS",
-        "complete_authorize_url": "https://example.com/payment/complete",
-        "amount": {
-          "currency": "EUR"
-        }
-      }
-    },
     "setup_recurring_with_webhook": {
       "grpc_req": {
         "auth_type": "THREE_DS",
