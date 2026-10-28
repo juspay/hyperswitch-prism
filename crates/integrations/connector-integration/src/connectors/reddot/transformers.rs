@@ -1839,7 +1839,7 @@ mod tests {
                 expected
             );
         }
-        for value in ["", "tru", "yes", "1"] {
+        for value in ["", "true!", "yes", "1"] {
             let mut config = config();
             if let ConnectorSpecificConfig::Reddot {
                 acquirer_cybersource,
