@@ -2568,9 +2568,6 @@ message PaymentServiceAuthorizeRequest {
   // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 54;
 
-  // Details about the sender of funds for account funding transactions.
-  optional SenderDetails sender_details = 59;
-
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 55;
 
@@ -2588,6 +2585,9 @@ message PaymentServiceAuthorizeRequest {
 
  // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 59;
+
+  // Details about the sender of funds for account funding transactions.
+  optional SenderDetails sender_details = 60;
 }
 
 // Customer risk-assessment signals supplied by the merchant, used by
@@ -3700,9 +3700,6 @@ message PaymentServiceSetupRecurringRequest {
   // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 39;
 
-  // Details about the sender of funds for account funding transactions.
-  optional SenderDetails sender_details = 44;
-
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 40;
 
@@ -3723,6 +3720,9 @@ message PaymentServiceSetupRecurringRequest {
   // for on_behalf_of on a destination charge, and to echo the charge details back
   // as mandate_reference.mandate_metadata.
   optional SplitPaymentsDetails split_payments = 43;
+
+  // Details about the sender of funds for account funding transactions.
+  optional SenderDetails sender_details = 44;
 }
 
 // Response message for a mandate setup operation
@@ -3898,8 +3898,6 @@ message RecurringPaymentServiceChargeRequest {
   // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 41;
 
-  // Details about the sender of funds for account funding transactions.
-  optional SenderDetails sender_details = 44;
 
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 42;
@@ -3916,6 +3914,9 @@ message RecurringPaymentServiceChargeRequest {
     // Currency conversion quote and decision data passed through the
   // recurring flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 45;
+
+  // Details about the sender of funds for account funding transactions.
+  optional SenderDetails sender_details = 46;
 }
 
 // Response message for repeat payment operation
