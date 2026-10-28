@@ -1148,7 +1148,7 @@ impl
             .as_ref()
             .map(|amount| {
                 FloatMajorUnitForConnector
-                    .convert(amount.amount, amount.currency)
+                    .convert(amount)
                     .change_context(IntegrationError::RequestEncodingFailed {
                         context: Default::default(),
                     })

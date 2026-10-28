@@ -3558,7 +3558,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let total_amount = value
                     .connector
                     .amount_converter
-                    .convert(amount.amount, amount.currency)
+                    .convert(amount)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?;

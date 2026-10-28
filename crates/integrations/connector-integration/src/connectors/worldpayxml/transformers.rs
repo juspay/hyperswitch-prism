@@ -3499,10 +3499,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .as_ref()
             .map(|amount| {
                 Ok::<_, Self::Error>(requests::WorldpayxmlAmount {
-                    value: super::WorldpayxmlAmountConvertor::convert(
-                        amount.amount,
-                        amount.currency,
-                    )?,
+                    value: super::WorldpayxmlAmountConvertor::convert(amount)?,
                     currency_code: amount.currency,
                     exponent: get_worldpayxml_exponent(amount.currency)?,
                 })
