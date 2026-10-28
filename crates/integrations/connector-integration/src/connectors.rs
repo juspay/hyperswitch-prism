@@ -343,3 +343,6 @@ pub use self::merchante::Merchante;
 
 pub mod reddot;
 pub use self::reddot::Reddot;
+
+pub mod ecommpay;
+pub use self::ecommpay::Ecommpay;

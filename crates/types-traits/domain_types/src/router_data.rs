@@ -1148,6 +1148,16 @@ pub enum ConnectorSpecificConfig {
         acquirer_cybersource: String,
         base_url: Option<String>,
     },
+    /// Ecommpay Gate API v2.
+    /// `project_id` = `general.project_id`, the project identifier; sent on the wire as an
+    ///                integer (1–4294967295), so it must be numeric.
+    /// `secret_key` = the HMAC-SHA512 signing key for `general.signature` and for verifying
+    ///                response/callback signatures. Never transmitted.
+    Ecommpay {
+        project_id: Secret<String>,
+        secret_key: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 /// Config-patch key for a `ConnectorSpecificConfig` variant.
@@ -1596,6 +1606,10 @@ impl ConnectorSpecificConfig {
                 secret,
                 acquirer_cybersource,
                 base_url
+            },
+            Ecommpay {
+                project_id,
+                secret_key
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -2141,6 +2155,10 @@ impl ConnectorSpecificConfig {
                     secret,
                     acquirer_cybersource,
                     base_url
+                },
+                Ecommpay {
+                    project_id,
+                    secret_key
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -2888,6 +2906,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 secret: reddot.secret.ok_or_else(err)?,
                 acquirer_cybersource: reddot.acquirer_cybersource,
                 base_url: reddot.base_url,
+            }),
+            AuthType::Ecommpay(ecommpay) => Ok(Self::Ecommpay {
+                project_id: ecommpay.project_id.ok_or_else(err)?,
+                secret_key: ecommpay.secret_key.ok_or_else(err)?,
+                base_url: ecommpay.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -4319,6 +4342,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     },
                 }
                 .into()),
+                ConnectorEnum::Ecommpay => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
+                        secret_key: api_key.clone(),
+                        project_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
