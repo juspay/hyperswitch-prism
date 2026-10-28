@@ -2525,3 +2525,242 @@ mod tests {
         assert_eq!(actual_json, expected_json);
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+mod sync_and_webhook_tests {
+    use std::collections::HashMap;
+
+    use common_enums::{AttemptStatus, AuthenticationType, Currency, PaymentMethod};
+    use common_utils::{
+        crypto::{HmacSha256, SignMessage},
+        id_type::MerchantId,
+        types::{MinorUnit, Money},
+    };
+    use domain_types::{
+        connector_types::{
+            ConnectorWebhookSecrets, HttpMethod, PaymentFlowData, PaymentsSyncData, RequestDetails,
+            ResponseId,
+        },
+        payment_address::PaymentAddress,
+        payment_method_data::DefaultPCIHolder,
+        router_request_types::SyncRequestType,
+        types::Connectors,
+    };
+    use interfaces::connector_types::{IncomingWebhook, ValidationTrait};
+
+    use crate::connectors::Razorpay;
+
+    const WEBHOOK_SECRET: &[u8] = b"razorpay_webhook_secret";
+
+    fn upi_collect_flow_data(connector_order_id: Option<&str>) -> PaymentFlowData {
+        PaymentFlowData {
+            merchant_id: MerchantId::default(),
+            customer_id: None,
+            connector_customer: None,
+            payment_id: "pay_upi_collect".to_string(),
+            attempt_id: "attempt_upi_collect".to_string(),
+            status: AttemptStatus::AuthenticationPending,
+            payment_method: PaymentMethod::Upi,
+            payment_method_type: None,
+            description: None,
+            return_url: None,
+            address: PaymentAddress::default(),
+            auth_type: AuthenticationType::NoThreeDs,
+            connector_feature_data: None,
+            amount_captured: None,
+            amount_capturable: None,
+            amount: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            connector_order_id: connector_order_id.map(str::to_string),
+            preprocessing_id: None,
+            connector_api_version: None,
+            connector_request_reference_id: "ref_upi_collect".to_string(),
+            test_mode: None,
+            connector_http_status_code: None,
+            connector_response_headers: None,
+            external_latency: None,
+            connectors: Connectors::default().into(),
+            raw_connector_response: None,
+            typed_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+            vault_headers: None,
+            connector_response: None,
+            recurring_mandate_payment_data: None,
+            order_details: None,
+            amount_authorized: None,
+            l2_l3_data: None,
+            merchant_request_id: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+            settlement_status: None,
+            raw_connector_status: None,
+        }
+    }
+
+    /// A sync with no `encoded_data`, as sent for UPI Collect or after a webhook.
+    fn sync_data(connector_transaction_id: ResponseId) -> PaymentsSyncData {
+        PaymentsSyncData {
+            connector_transaction_id,
+            encoded_data: None,
+            capture_method: None,
+            connector_feature_data: None,
+            sync_type: SyncRequestType::SinglePaymentSync,
+            mandate_id: None,
+            payment_method_type: None,
+            currency: Currency::INR,
+            payment_experience: None,
+            amount: Money {
+                amount: MinorUnit::new(50000),
+                currency: Currency::INR,
+            },
+            all_keys_required: None,
+            integrity_object: None,
+            split_payments: None,
+            setup_future_usage: None,
+            mandate_reference: None,
+        }
+    }
+
+    #[test]
+    fn psync_without_encoded_data_is_allowed_with_connector_order_id() {
+        let connector = Razorpay::<DefaultPCIHolder>::new();
+        let result = connector.validate_psync_reference_id(
+            &sync_data(ResponseId::NoResponseId),
+            &upi_collect_flow_data(Some("order_upi_collect")),
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn psync_without_encoded_data_is_allowed_with_connector_transaction_id() {
+        let connector = Razorpay::<DefaultPCIHolder>::new();
+        let result = connector.validate_psync_reference_id(
+            &sync_data(ResponseId::ConnectorTransactionId(
+                "pay_upi_collect".to_string(),
+            )),
+            &upi_collect_flow_data(None),
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn psync_without_any_reference_id_is_rejected() {
+        let connector = Razorpay::<DefaultPCIHolder>::new();
+        let result = connector.validate_psync_reference_id(
+            &sync_data(ResponseId::NoResponseId),
+            &upi_collect_flow_data(None),
+        );
+        assert!(result.is_err());
+    }
+
+    fn webhook_body() -> Vec<u8> {
+        br#"{"entity":"event","account_id":"acc_test","event":"payment.captured","contains":["payment"],"payload":{"payment":{"entity":{"id":"pay_upi_collect","entity":"payment","amount":50000,"currency":"INR","status":"captured","order_id":"order_upi_collect","method":"upi"}}},"created_at":1700000000}"#.to_vec()
+    }
+
+    fn sign(secret: &[u8], body: &[u8]) -> String {
+        hex::encode(HmacSha256.sign_message(secret, body).unwrap())
+    }
+
+    fn webhook_request(body: Vec<u8>, header: Option<(&str, String)>) -> RequestDetails {
+        let mut headers = HashMap::new();
+        if let Some((name, value)) = header {
+            headers.insert(name.to_string(), value);
+        }
+        RequestDetails {
+            method: HttpMethod::Post,
+            uri: None,
+            headers,
+            body,
+            query_params: None,
+        }
+    }
+
+    fn webhook_secret() -> Option<ConnectorWebhookSecrets> {
+        Some(ConnectorWebhookSecrets {
+            secret: WEBHOOK_SECRET.to_vec(),
+            additional_secret: None,
+        })
+    }
+
+    #[test]
+    fn webhook_with_valid_signature_is_verified() {
+        let connector = Razorpay::<DefaultPCIHolder>::new();
+        let body = webhook_body();
+        let signature = sign(WEBHOOK_SECRET, &body);
+        let request = webhook_request(body, Some(("X-Razorpay-Signature", signature)));
+
+        let verified = connector
+            .verify_webhook_source(request, webhook_secret(), None)
+            .unwrap();
+        assert!(verified);
+    }
+
+    #[test]
+    fn webhook_signature_header_lookup_is_case_insensitive() {
+        let connector = Razorpay::<DefaultPCIHolder>::new();
+        let body = webhook_body();
+        let signature = sign(WEBHOOK_SECRET, &body);
+        let request = webhook_request(body, Some(("x-razorpay-signature", signature)));
+
+        let verified = connector
+            .verify_webhook_source(request, webhook_secret(), None)
+            .unwrap();
+        assert!(verified);
+    }
+
+    #[test]
+    fn webhook_signed_with_another_secret_is_not_verified() {
+        let connector = Razorpay::<DefaultPCIHolder>::new();
+        let body = webhook_body();
+        let signature = sign(b"some_other_secret", &body);
+        let request = webhook_request(body, Some(("X-Razorpay-Signature", signature)));
+
+        let verified = connector
+            .verify_webhook_source(request, webhook_secret(), None)
+            .unwrap();
+        assert!(!verified);
+    }
+
+    #[test]
+    fn webhook_with_tampered_body_is_not_verified() {
+        let connector = Razorpay::<DefaultPCIHolder>::new();
+        let signature = sign(WEBHOOK_SECRET, &webhook_body());
+        let tampered = String::from_utf8(webhook_body())
+            .unwrap()
+            .replace("\"captured\"", "\"failed\"")
+            .into_bytes();
+        let request = webhook_request(tampered, Some(("X-Razorpay-Signature", signature)));
+
+        let verified = connector
+            .verify_webhook_source(request, webhook_secret(), None)
+            .unwrap();
+        assert!(!verified);
+    }
+
+    #[test]
+    fn webhook_without_signature_header_is_an_error() {
+        let connector = Razorpay::<DefaultPCIHolder>::new();
+        let request = webhook_request(webhook_body(), None);
+
+        assert!(connector
+            .verify_webhook_source(request, webhook_secret(), None)
+            .is_err());
+    }
+
+    #[test]
+    fn webhook_without_configured_secret_is_an_error() {
+        let connector = Razorpay::<DefaultPCIHolder>::new();
+        let body = webhook_body();
+        let signature = sign(WEBHOOK_SECRET, &body);
+        let request = webhook_request(body, Some(("X-Razorpay-Signature", signature)));
+
+        assert!(connector
+            .verify_webhook_source(request, None, None)
+            .is_err());
+    }
+}

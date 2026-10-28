@@ -7,6 +7,7 @@ use common_enums::{
     AttemptStatus, CaptureMethod, CardNetwork, EventClass, PaymentMethod, PaymentMethodType,
 };
 use common_utils::{
+    crypto::{self, VerifySignature},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -76,13 +77,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn validate_psync_reference_id(
         &self,
         data: &PaymentsSyncData,
-        _payment_flow_data: &PaymentFlowData,
+        payment_flow_data: &PaymentFlowData,
     ) -> CustomResult<(), IntegrationError> {
-        if data.encoded_data.is_some() {
+        // PSync is built from `connector_order_id` (`v1/orders/{id}/payments`) or the
+        // connector transaction id (`v1/payments/{id}`); `encoded_data` is never read.
+        // Requiring it refused every sync that does not come back from a redirect,
+        // such as UPI Collect and webhook-triggered syncs.
+        if payment_flow_data.connector_order_id.is_some()
+            || data
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .is_ok()
+        {
             return Ok(());
         }
-        Err(IntegrationError::MissingRequiredField {
-            field_name: "encoded_data",
+        Err(IntegrationError::MissingConnectorTransactionID {
             context: Default::default(),
         }
         .into())
@@ -935,6 +944,55 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Razorpay<T>
 {
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
+        let algorithm = crypto::HmacSha256;
+
+        let connector_webhook_secrets = connector_webhook_secret
+            .ok_or_else(|| report!(WebhookError::WebhookVerificationSecretNotFound))?;
+
+        let signature =
+            self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
+        let message =
+            self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
+
+        algorithm
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable("Razorpay webhook signature verification failed")
+    }
+
+    /// Razorpay sends the hex-encoded HMAC-SHA256 of the raw body in `X-Razorpay-Signature`.
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        let signature = request
+            .headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("x-razorpay-signature"))
+            .map(|(_, value)| value)
+            .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))
+            .attach_printable("Missing X-Razorpay-Signature header")?;
+
+        hex::decode(signature.trim())
+            .change_context(WebhookError::WebhookSignatureNotFound)
+            .attach_printable("X-Razorpay-Signature is not valid hex")
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        Ok(request.body.clone())
+    }
+
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"account_id":"probe_acct","contains":["payment"],"entity":"event","event":"payment.captured","payload":{"payment":{"entity":{"id":"pay_probe001","entity":"payment","amount":1000,"currency":"USD","status":"captured","order_id":"order_probe001"}}}}"#
     }
