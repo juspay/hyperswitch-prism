@@ -3776,4 +3776,3 @@ pub enum AdyenSplitType {
     /// The value-added tax charged on the payment, booked to your platforms liable balance account.
     Vat,
 }
-

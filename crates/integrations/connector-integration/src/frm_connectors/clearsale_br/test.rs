@@ -216,7 +216,6 @@ mod tests {
         }
     }
 
-
     #[test]
     fn unknown_status_deserializes() {
         let parsed =

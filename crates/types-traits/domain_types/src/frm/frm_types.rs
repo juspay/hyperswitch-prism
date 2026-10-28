@@ -210,4 +210,3 @@ pub struct FrmRefundProcessedResponse {
 pub struct FrmChargebackReceivedResponse {
     pub status_code: u16,
 }
-
