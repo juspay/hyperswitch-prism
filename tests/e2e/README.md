@@ -24,7 +24,7 @@ scenarios/
 │   │   ├── card/
 │   │   │   ├── one-time/
 │   │   │   │   ├── no3ds/
-│   │   │   │   │   ├── automatic-capture-create-confirm.spec.ts
+│   │   │   │   │   ├── create-confirm.spec.ts
 │   │   │   │   │   ├── automatic-capture-create-then-confirm.spec.ts
 │   │   │   │   │   ├── manual-capture-create-confirm.spec.ts
 │   │   │   │   │   └── manual-capture-create-then-confirm.spec.ts
@@ -54,6 +54,10 @@ scenarios/
 ```
 
 
+`create-confirm.spec.ts` exercises a fully populated one-time inline-confirmation request. It uses automatic capture for immediate success; it is not a dedicated capture-mode test. Mutually exclusive journeys such as mandate setup, manual capture and SDK checkout have separate specs.
+
+Order item `amount` is per unit: the sum of `amount * quantity` must equal the payment amount. The scenario sends two units at 3000 minor units each and checks the returned item fields. Inline customer creation supplies a fresh customer ID; processor-side customer creation is connector-dependent and is not universally required.
+
 `create-confirm/` groups initial payment journeys. In filenames, `create-confirm` means creation with `confirm: true`; `create-then-confirm` means separate requests. Use the explicit filename prefixes `automatic-capture` and `manual-capture`.
 
 Recurring specs belong under their reference mechanism and mandate-setup authentication, for example `recurring/connector-mandate/no3ds/zero-amount-setup-mandate-then-recurring.spec.ts`. Each owns mandate setup followed by a subsequent payment. The `no3ds` and `three-ds` branches describe setup authentication, not authentication repeated on the subsequent recurring payment. Add network-transaction-ID variants only where supported.
@@ -66,7 +70,7 @@ SDK-driven journeys can share these same payment groupings. Make SDK execution e
 
 Empty specs and `.gitkeep` directories are extension placeholders, not implemented coverage. Add one shared spec per journey; connectors inherit it through the registry.
 
-The first implementation targets `scenarios/payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm.spec.ts`. Every spec in this scaffold remains empty.
+The first implementation targets `scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm.spec.ts`. Every spec in this scaffold remains empty.
 
 ## Responsibilities
 
