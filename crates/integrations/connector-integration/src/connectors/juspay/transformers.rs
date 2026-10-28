@@ -269,10 +269,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount = JuspayAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = JuspayAmountConvertor::convert(&router_data.request.amount)?;
 
         let customer_id = router_data
             .resource_common_data
@@ -1056,8 +1053,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = match original_amount {
             Some(total) if total == amount_to_capture => None,
             _ => Some(JuspayAmountConvertor::convert(
-                amount_to_capture,
-                router_data.request.currency,
+                &common_utils::types::Money {
+                    amount: amount_to_capture,
+                    currency: router_data.request.currency,
+                },
             )?),
         };
 
@@ -1164,10 +1163,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount = JuspayAmountConvertor::convert(
-            router_data.request.refund_amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = JuspayAmountConvertor::convert(&router_data.request.refund_amount)?;
 
         Ok(Self {
             unique_request_id: router_data.request.refund_id.clone(),

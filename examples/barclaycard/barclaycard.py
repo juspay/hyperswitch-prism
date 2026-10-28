@@ -11,7 +11,7 @@ from payments import PaymentClient
 from payments import PaymentMethodAuthenticationClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
-from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
+from payments.generated import common_types_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
 SUPPORTED_FLOWS = ["authenticate", "authorize", "capture", "get", "post_authenticate", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"]
 
@@ -32,9 +32,9 @@ _default_config = sdk_config_pb2.ConnectorConfig(
 
 def _build_authenticate_request():
     return payment_pb2.PaymentMethodAuthenticationServiceAuthenticateRequest(
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
             card=payment_methods_pb2.CardDetails(
@@ -45,14 +45,14 @@ def _build_authenticate_request():
                 card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
             ),
         ),
-        customer=payment_pb2.Customer(  # Customer Information.
-            email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer's email address.
+        customer=common_types_pb2.Customer(  # Customer Information.
+            email=payment_methods_pb2.SecretString(value="test@example.com"),
         ),
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(
-                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
+            billing_address=common_types_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="John"),
                 last_name=payment_methods_pb2.SecretString(value="Doe"),
-                line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
+                line1=payment_methods_pb2.SecretString(value="123 Main St"),
                 city=payment_methods_pb2.SecretString(value="Seattle"),
                 state=payment_methods_pb2.SecretString(value="WA"),
                 zip_code=payment_methods_pb2.SecretString(value="98101"),
@@ -70,9 +70,9 @@ def _build_authenticate_request():
 def _build_authorize_request(capture_method: str):
     return payment_pb2.PaymentServiceAuthorizeRequest(
         merchant_transaction_id="probe_txn_001",  # Identification.
-        amount=payment_pb2.Money(  # The amount for the payment.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # The amount for the payment.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         payment_method=payment_methods_pb2.PaymentMethod(  # Payment method to be used.
             card=payment_methods_pb2.CardDetails(
@@ -84,14 +84,14 @@ def _build_authorize_request(capture_method: str):
             ),
         ),
         capture_method=payment_pb2.CaptureMethod.Value(capture_method),  # Method for capturing the payment.
-        customer=payment_pb2.Customer(  # Customer Information.
-            email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer's email address.
+        customer=common_types_pb2.Customer(  # Customer Information.
+            email=payment_methods_pb2.SecretString(value="test@example.com"),
         ),
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(
-                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
+            billing_address=common_types_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="John"),
                 last_name=payment_methods_pb2.SecretString(value="Doe"),
-                line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
+                line1=payment_methods_pb2.SecretString(value="123 Main St"),
                 city=payment_methods_pb2.SecretString(value="Seattle"),
                 state=payment_methods_pb2.SecretString(value="WA"),
                 zip_code=payment_methods_pb2.SecretString(value="98101"),
@@ -106,9 +106,9 @@ def _build_capture_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceCaptureRequest(
         merchant_capture_id="probe_capture_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
-        amount_to_capture=payment_pb2.Money(  # Capture Details.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount_to_capture=common_types_pb2.Money(  # Capture Details.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
     )
 
@@ -116,17 +116,17 @@ def _build_get_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceGetRequest(
         merchant_transaction_id="probe_merchant_txn_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
     )
 
 def _build_post_authenticate_request():
     return payment_pb2.PaymentMethodAuthenticationServicePostAuthenticateRequest(
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
             card=payment_methods_pb2.CardDetails(
@@ -138,7 +138,7 @@ def _build_post_authenticate_request():
             ),
         ),
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(),
+            billing_address=common_types_pb2.Address(),
         ),
         redirection_response=payment_pb2.RedirectionResponse(  # Redirection Information after DDC step.
             params="probe_redirect_params",
@@ -148,9 +148,9 @@ def _build_post_authenticate_request():
 
 def _build_pre_authenticate_request():
     return payment_pb2.PaymentMethodAuthenticationServicePreAuthenticateRequest(
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
             card=payment_methods_pb2.CardDetails(
@@ -162,7 +162,7 @@ def _build_pre_authenticate_request():
             ),
         ),
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(),
+            billing_address=common_types_pb2.Address(),
         ),
         enrolled_for_3ds=False,  # Authentication Details.
         return_url="https://example.com/3ds-return",  # URLs for Redirection.
@@ -171,9 +171,9 @@ def _build_pre_authenticate_request():
 def _build_proxy_authorize_request():
     return payment_pb2.PaymentServiceProxyAuthorizeRequest(
         merchant_transaction_id="probe_proxy_txn_001",
-        amount=payment_pb2.Money(
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
             card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
@@ -183,14 +183,14 @@ def _build_proxy_authorize_request():
             card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
             card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
         ),
-        customer=payment_pb2.Customer(
-            email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer's email address.
+        customer=common_types_pb2.Customer(
+            email=payment_methods_pb2.SecretString(value="test@example.com"),
         ),
         address=payment_pb2.PaymentAddress(
-            billing_address=payment_pb2.Address(
-                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
+            billing_address=common_types_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="John"),
                 last_name=payment_methods_pb2.SecretString(value="Doe"),
-                line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
+                line1=payment_methods_pb2.SecretString(value="123 Main St"),
                 city=payment_methods_pb2.SecretString(value="Seattle"),
                 state=payment_methods_pb2.SecretString(value="WA"),
                 zip_code=payment_methods_pb2.SecretString(value="98101"),
@@ -205,9 +205,9 @@ def _build_proxy_authorize_request():
 def _build_proxy_setup_recurring_request():
     return payment_pb2.PaymentServiceProxySetupRecurringRequest(
         merchant_recurring_payment_id="probe_proxy_mandate_001",
-        amount=payment_pb2.Money(
-            minor_amount=0,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(
+            minor_amount=0,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments.
             card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
@@ -217,14 +217,14 @@ def _build_proxy_setup_recurring_request():
             card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
             card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
         ),
-        customer=payment_pb2.Customer(
-            email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer's email address.
+        customer=common_types_pb2.Customer(
+            email=payment_methods_pb2.SecretString(value="test@example.com"),
         ),
         address=payment_pb2.PaymentAddress(
-            billing_address=payment_pb2.Address(
-                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
+            billing_address=common_types_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="John"),
                 last_name=payment_methods_pb2.SecretString(value="Doe"),
-                line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
+                line1=payment_methods_pb2.SecretString(value="123 Main St"),
                 city=payment_methods_pb2.SecretString(value="Seattle"),
                 state=payment_methods_pb2.SecretString(value="WA"),
                 zip_code=payment_methods_pb2.SecretString(value="98101"),
@@ -246,9 +246,9 @@ def _build_recurring_charge_request():
                 connector_mandate_id="probe-mandate-123",
             ),
         ),
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         payment_method=payment_methods_pb2.PaymentMethod(  # Optional payment Method Information (for network transaction flows).
             token=payment_methods_pb2.TokenPaymentMethodType(
@@ -266,9 +266,9 @@ def _build_refund_request(connector_transaction_id: str):
         merchant_refund_id="probe_refund_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
         payment_amount=1000,  # Amount Information.
-        refund_amount=payment_pb2.Money(
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        refund_amount=common_types_pb2.Money(
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         reason="customer_request",  # Reason for the refund.
     )
@@ -283,9 +283,9 @@ def _build_refund_get_request():
 def _build_setup_recurring_request():
     return payment_pb2.PaymentServiceSetupRecurringRequest(
         merchant_recurring_payment_id="probe_mandate_001",  # Identification.
-        amount=payment_pb2.Money(  # Mandate Details.
-            minor_amount=0,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Mandate Details.
+            minor_amount=0,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         payment_method=payment_methods_pb2.PaymentMethod(
             card=payment_methods_pb2.CardDetails(
@@ -296,14 +296,14 @@ def _build_setup_recurring_request():
                 card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
             ),
         ),
-        customer=payment_pb2.Customer(
-            email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer's email address.
+        customer=common_types_pb2.Customer(
+            email=payment_methods_pb2.SecretString(value="test@example.com"),
         ),
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(
-                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
+            billing_address=common_types_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="John"),
                 last_name=payment_methods_pb2.SecretString(value="Doe"),
-                line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
+                line1=payment_methods_pb2.SecretString(value="123 Main St"),
                 city=payment_methods_pb2.SecretString(value="Seattle"),
                 state=payment_methods_pb2.SecretString(value="WA"),
                 zip_code=payment_methods_pb2.SecretString(value="98101"),
@@ -326,9 +326,9 @@ def _build_void_request(connector_transaction_id: str):
         merchant_void_id="probe_void_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
         cancellation_reason="requested_by_customer",  # Void Details.
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
     )
 async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

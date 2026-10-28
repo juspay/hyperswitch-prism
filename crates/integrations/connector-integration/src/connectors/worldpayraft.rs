@@ -7,10 +7,14 @@ use common_utils::{
     consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate, Void},
+    connector_flow::{
+        Authorize, Capture, IncrementalAuthorization, Refund, RepeatPayment, SetupMandate, Void,
+        VoidPC,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
+        RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
         SetupMandateRequestData,
     },
     errors,
@@ -30,10 +34,12 @@ use serde::Serialize;
 use transformers as worldpayraft;
 use transformers::{
     WorldpayraftAuthorizeRequest, WorldpayraftAuthorizeResponse, WorldpayraftCaptureRequest,
-    WorldpayraftCaptureResponse, WorldpayraftRefundRequest, WorldpayraftRefundResponse,
-    WorldpayraftRepeatPaymentRequest, WorldpayraftRepeatPaymentResponse,
-    WorldpayraftSetupMandateRequest, WorldpayraftSetupMandateResponse, WorldpayraftVoidRequest,
-    WorldpayraftVoidResponse,
+    WorldpayraftCaptureResponse, WorldpayraftIncrementalAuthorizationRequest,
+    WorldpayraftIncrementalAuthorizationResponse, WorldpayraftRefundRequest,
+    WorldpayraftRefundResponse, WorldpayraftRepeatPaymentRequest,
+    WorldpayraftRepeatPaymentResponse, WorldpayraftSetupMandateRequest,
+    WorldpayraftSetupMandateResponse, WorldpayraftVoidPCRequest, WorldpayraftVoidPCResponse,
+    WorldpayraftVoidRequest, WorldpayraftVoidResponse,
 };
 
 use crate::{connectors::macros, types::ResponseRouterData, utils, with_error_response_body};
@@ -50,6 +56,12 @@ macros::create_all_prerequisites!(
     connector_name: Worldpayraft,
     generic_type: T,
     api: [
+        (
+            flow: IncrementalAuthorization,
+            request_body: WorldpayraftIncrementalAuthorizationRequest,
+            response_body: WorldpayraftIncrementalAuthorizationResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ),
         (
             flow: Authorize,
             request_body: WorldpayraftAuthorizeRequest<T>,
@@ -76,7 +88,7 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: RepeatPayment,
-            request_body: WorldpayraftRepeatPaymentRequest,
+            request_body: WorldpayraftRepeatPaymentRequest<T>,
             response_body: WorldpayraftRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
@@ -85,6 +97,12 @@ macros::create_all_prerequisites!(
             request_body: WorldpayraftVoidRequest,
             response_body: WorldpayraftVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: WorldpayraftVoidPCRequest,
+            response_body: WorldpayraftVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         )
     ],
     amount_converters: [amount_converter: StringMajorUnit],
@@ -288,6 +306,40 @@ macros::macro_connector_implementation!(
     }
 );
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentIncrementalAuthorization for Worldpayraft<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpayraft,
+    curl_request: Json(WorldpayraftIncrementalAuthorizationRequest),
+    curl_response: WorldpayraftIncrementalAuthorizationResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
+            Ok(format!("{base_url}/credit/authorization"))
+        }
+    }
+);
+
 // ===== CAPTURE TRAIT MARKER =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Worldpayraft<T>
@@ -331,8 +383,8 @@ macros::macro_connector_implementation!(
                         ..Default::default()
                     },
                 })?;
-            let (is_debit, _, _, _) = worldpayraft::parse_connector_transaction_id(&connector_txn_id);
-            let path = if is_debit { "debit/completion" } else { "credit/completion" };
+            let (transaction_type, _, _, _) = worldpayraft::parse_connector_transaction_id(&connector_txn_id)?;
+            let path = if transaction_type.is_debit() { "debit/completion" } else { "credit/completion" };
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -371,8 +423,8 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
-            let (is_debit, _, _, _) = worldpayraft::parse_connector_transaction_id(&req.request.connector_transaction_id);
-            let path = if is_debit { "debit/refund" } else { "credit/refund" };
+            let (transaction_type, _, _, _) = worldpayraft::parse_connector_transaction_id(&req.request.connector_transaction_id)?;
+            let path = if transaction_type.is_debit() { "debit/refund" } else { "credit/refund" };
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -454,6 +506,56 @@ macros::macro_connector_implementation!(
     }
 );
 
+// =============================================================================
+// POST-CAPTURE REVERSAL
+// =============================================================================
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidPostCaptureV2 for Worldpayraft<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpayraft,
+    curl_request: Json(WorldpayraftVoidPCRequest),
+    curl_response: WorldpayraftVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            let path = match req.request.capture_method {
+                Some(common_enums::CaptureMethod::Manual) => "credit/completion",
+                Some(common_enums::CaptureMethod::Automatic | common_enums::CaptureMethod::SequentialAutomatic) => "credit/purchase",
+                None => return Err(utils::missing_field_err("capture_method")()),
+                Some(capture_method) => return Err(errors::IntegrationError::CaptureMethodNotSupported {
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Worldpay RAFT cannot route a post-capture reversal for capture method {capture_method:?}; MANUAL uses credit/completion and AUTOMATIC or SEQUENTIAL_AUTOMATIC uses credit/purchase"
+                        )),
+                        ..Default::default()
+                    },
+                }.into()),
+            };
+            Ok(format!("{}/{path}", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 // ===== REPEAT PAYMENT TRAIT MARKER =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Worldpayraft<T>
@@ -466,7 +568,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Worldpayraft,
-    curl_request: Json(WorldpayraftRepeatPaymentRequest),
+    curl_request: Json(WorldpayraftRepeatPaymentRequest<T>),
     curl_response: WorldpayraftRepeatPaymentResponse,
     flow_name: RepeatPayment,
     resource_common_data: PaymentFlowData,
@@ -487,7 +589,8 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
-            Ok(format!("{base_url}/credit/authorization"))
+            let path = if req.request.is_auto_capture() { "credit/purchase" } else { "credit/authorization" };
+            Ok(format!("{base_url}/{path}"))
         }
     }
 );
@@ -517,9 +620,7 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     not_supported: [
         Accept,
         DefendDispute,
-        IncrementalAuthorization,
         SubmitEvidence,
-        VoidPC,
         VoidPostRefund,
     ],
 );

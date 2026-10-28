@@ -123,10 +123,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -444,6 +441,7 @@ pub fn get_webhook_reference(
                 PaymentWebhookReference {
                     connector_transaction_id: payment.connector_transaction_id,
                     merchant_transaction_id: Some(payment.payment_id),
+                    connector_preprocessing_id: None,
                 },
             )))
         }

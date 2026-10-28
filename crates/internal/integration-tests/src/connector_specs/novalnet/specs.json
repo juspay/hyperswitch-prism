@@ -9,6 +9,21 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "PaymentService/SetupRecurring",
-    "PaymentService/Void"
-  ]
+    "PaymentService/Void",
+    "EventService/HandleEvent"
+  ],
+  "supported_payment_methods": [
+    "card",
+    "google_pay_sdk",
+    "apple_pay_sdk"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_google_pay_encrypted": "SANDBOX_NOT_PROVISIONED: Google Pay encrypted token for the Novalnet gateway merchant — the shared scenario carries a placeholder ECv2 token that Novalnet rejects with 'Referenced Payment data not found'; a real device token encrypted for Novalnet is required.",
+      "no3ds_auto_capture_google_pay_decrypted": "CONNECTOR_API_LACKS: Novalnet transaction.payment_data — no documented field accepts a decrypted Google Pay DPAN/cryptogram; the connector refuses decrypted wallet data with NotSupported.",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "CONNECTOR_API_LACKS: Novalnet transaction.payment_data — no documented field accepts a decrypted Google Pay DPAN/cryptogram; the connector refuses decrypted wallet data with NotSupported.",
+      "no3ds_auto_capture_apple_pay_decrypted": "CONNECTOR_API_LACKS: Novalnet transaction.payment_data — no documented field accepts a decrypted Apple Pay DPAN/cryptogram; the connector refuses decrypted wallet data with NotSupported.",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "CONNECTOR_API_LACKS: Novalnet transaction.payment_data — no documented field accepts a decrypted Apple Pay DPAN/cryptogram; the connector refuses decrypted wallet data with NotSupported."
+    }
+  }
 }

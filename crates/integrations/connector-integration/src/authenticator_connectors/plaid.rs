@@ -13,11 +13,13 @@ use common_utils::{
     ext_traits::ByteSliceExt,
 };
 use domain_types::{
-    connector_flow::{ClientAuthenticationToken, GetPaymentMethod, PaymentMethodToken},
+    connector_flow::{
+        ClientAuthenticationToken, GetPaymentMethod, PaymentMethodEligibility, PaymentMethodToken,
+    },
     connector_types::{
         ClientAuthenticationTokenRequestData, GetPaymentMethodData, GetPaymentMethodResponseData,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentsResponseData,
+        PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentsResponseData,
     },
     errors::{ConnectorError, IntegrationError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -35,8 +37,9 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as plaid, PlaidAuthGetRequest, PlaidAuthGetResponse, PlaidLinkTokenRequest,
-    PlaidLinkTokenResponse, PlaidPublicTokenExchangeRequest, PlaidPublicTokenExchangeResponse,
+    self as plaid, PlaidAuthGetRequest, PlaidAuthGetResponse, PlaidBalanceGetRequest,
+    PlaidBalanceGetResponse, PlaidLinkTokenRequest, PlaidLinkTokenResponse,
+    PlaidPublicTokenExchangeRequest, PlaidPublicTokenExchangeResponse,
 };
 
 use super::super::connectors::macros;
@@ -69,6 +72,12 @@ macros::create_all_prerequisites!(
             request_body: PlaidAuthGetRequest,
             response_body: PlaidAuthGetResponse,
             router_data: RouterDataV2<GetPaymentMethod, PaymentFlowData, GetPaymentMethodData, GetPaymentMethodResponseData>,
+        ),
+        (
+            flow: PaymentMethodEligibility,
+            request_body: PlaidBalanceGetRequest,
+            response_body: PlaidBalanceGetResponse,
+            router_data: RouterDataV2<PaymentMethodEligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
         )
     ],
     amount_converters: [],
@@ -211,6 +220,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::GetPaymentMethodV2 for Plaid<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentMethodEligibilityV2 for Plaid<T>
 {
 }
 
@@ -366,6 +380,55 @@ macros::macro_connector_implementation!(
     }
 );
 
+// =============================================================================
+// FLOW 4: PaymentMethodEligibility → POST /accounts/balance/get
+// =============================================================================
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Plaid,
+    curl_request: Json(plaid::PlaidBalanceGetRequest),
+    curl_response: plaid::PlaidBalanceGetResponse,
+    flow_name: PaymentMethodEligibility,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentMethodEligibilityData,
+    flow_response: PaymentMethodEligibilityResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<
+                PaymentMethodEligibility,
+                PaymentFlowData,
+                PaymentMethodEligibilityData,
+                PaymentMethodEligibilityResponse,
+            >,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/accounts/balance/get",
+                req.resource_common_data.connectors.plaid.base_url
+            ))
+        }
+
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<
+                PaymentMethodEligibility,
+                PaymentFlowData,
+                PaymentMethodEligibilityData,
+                PaymentMethodEligibilityResponse,
+            >,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![(
+                headers::CONTENT_TYPE.to_string(),
+                self.common_get_content_type().to_string().into(),
+            )])
+        }
+    }
+);
+
 macros::macro_connector_flow_status_impls!(
     connector: Plaid,
     generic_type: T,
@@ -381,7 +444,6 @@ macros::macro_connector_flow_status_impls!(
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,
-        PaymentMethodEligibility,
     ],
     not_supported: [
         Capture,

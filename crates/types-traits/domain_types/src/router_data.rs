@@ -391,6 +391,8 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         merchant_id: Secret<String>,
         base_url: Option<String>,
+        /// HMAC-SHA256 webhook signing secret used to verify the `ppro-signature` header.
+        webhook_secret: Option<Secret<String>>,
     },
     Easebuzz {
         api_key: Secret<String>,
@@ -470,7 +472,10 @@ pub enum ConnectorSpecificConfig {
     },
     Jpmorgan {
         client_id: Secret<String>,
-        client_secret: Secret<String>,
+        thumbprint: Secret<String>,
+        private_key: Secret<String>,
+        resource_id: Secret<String>,
+        merchant_id: HashMap<common_enums::Currency, Secret<String>>,
         base_url: Option<String>,
         secondary_base_url: Option<String>,
         company_name: Option<Secret<String>>,
@@ -1005,6 +1010,19 @@ pub enum ConnectorSpecificConfig {
         api_version: Option<String>,
         base_url: Option<String>,
     },
+    ClearSaleBr {
+        /// ClearSale account username, sent as `name` on `POST /v1/authenticate`.
+        /// Carried under this name in the RiskManagementAccount `accountDetailsJson`.
+        username: Secret<String>,
+        /// ClearSale account password, sent as `password` on `POST /v1/authenticate`.
+        password: Secret<String>,
+        /// Customer type for the order `b2bB2c` field ("b2b"/"b2c");
+        /// merchant-specific, stored on the RiskManagementAccount.
+        b2b_b2c: Option<String>,
+        /// ClearSale product id for the order `product` field, when the
+        product: Option<i32>,
+        base_url: Option<String>,
+    },
     Grabpay {
         partner_id: Secret<String>,
         partner_secret: Secret<String>,
@@ -1137,6 +1155,16 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    /// Ecommpay Gate API v2.
+    /// `project_id` = `general.project_id`, the project identifier; sent on the wire as an
+    ///                integer (1–4294967295), so it must be numeric.
+    /// `secret_key` = the HMAC-SHA512 signing key for `general.signature` and for verifying
+    ///                response/callback signatures. Never transmitted.
+    Ecommpay {
+        project_id: Secret<String>,
+        secret_key: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 /// Config-patch key for a `ConnectorSpecificConfig` variant.
@@ -1162,6 +1190,7 @@ fn connector_patch_key(variant: &str) -> String {
         "GlobalpaymentsHeartland" => "globalpayments_heartland",
         "ElavonPg" => "elavon_pg",
         "GlobalpaymentsRealex" => "globalpayments_realex",
+        "ClearSaleBr" => "clearsale_br",
         other => return other.to_ascii_lowercase(),
     }
     .to_string()
@@ -1227,7 +1256,9 @@ impl ConnectorSpecificConfig {
             },
             Jpmorgan {
                 client_id,
-                client_secret
+                thumbprint,
+                private_key,
+                resource_id
             },
             Loonio {
                 merchant_id,
@@ -1517,6 +1548,7 @@ impl ConnectorSpecificConfig {
             Tamara { api_key },
             Kount { api_key },
             Nsure { api_key },
+            ClearSaleBr { username, password },
             Hyperswitch { api_key },
             Grabpay {
                 partner_id,
@@ -1577,6 +1609,10 @@ impl ConnectorSpecificConfig {
                 app_secret,
                 merchant_secret,
                 base_url
+            },
+            Ecommpay {
+                project_id,
+                secret_key
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -1763,7 +1799,9 @@ impl ConnectorSpecificConfig {
                 },
                 Jpmorgan {
                     client_id,
-                    client_secret
+                    thumbprint,
+                    private_key,
+                    resource_id
                 },
                 Loonio {
                     merchant_id,
@@ -2054,6 +2092,7 @@ impl ConnectorSpecificConfig {
                 Tamara { api_key },
                 Kount { api_key },
                 Nsure { api_key },
+                ClearSaleBr { username, password },
                 Hyperswitch { api_key },
                 Grabpay {
                     partner_id,
@@ -2114,6 +2153,10 @@ impl ConnectorSpecificConfig {
                     app_secret,
                     merchant_secret,
                     base_url
+                },
+                Ecommpay {
+                    project_id,
+                    secret_key
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -2326,7 +2369,15 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             }),
             AuthType::Jpmorgan(jpmorgan) => Ok(Self::Jpmorgan {
                 client_id: jpmorgan.client_id.ok_or_else(err)?,
-                client_secret: jpmorgan.client_secret.ok_or_else(err)?,
+                thumbprint: jpmorgan.thumbprint.ok_or_else(err)?,
+                private_key: jpmorgan.private_key.ok_or_else(err)?,
+                resource_id: jpmorgan.resource_id.ok_or_else(err)?,
+                merchant_id: serde_json::to_value(jpmorgan.merchant_id)
+                    .and_then(serde_json::from_value)
+                    .change_context(errors::IntegrationError::InvalidConnectorConfig {
+                        config: "merchant_id",
+                        context: Default::default(),
+                    })?,
                 base_url: jpmorgan.base_url,
                 secondary_base_url: jpmorgan.secondary_base_url,
                 company_name: jpmorgan.company_name,
@@ -2702,6 +2753,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: ppro.api_key.ok_or_else(err)?,
                 merchant_id: ppro.merchant_id.ok_or_else(err)?,
                 base_url: ppro.base_url,
+                webhook_secret: ppro.webhook_secret,
             }),
             AuthType::PinelabsOnline(pinelabs_online) => Ok(Self::PinelabsOnline {
                 client_id: pinelabs_online.client_id.ok_or_else(err)?,
@@ -2753,6 +2805,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 app_id: nsure.app_id,
                 api_version: nsure.api_version,
                 base_url: nsure.base_url,
+            }),
+            AuthType::ClearsaleBr(clearsale_br) => Ok(Self::ClearSaleBr {
+                username: clearsale_br.username.ok_or_else(err)?,
+                password: clearsale_br.password.ok_or_else(err)?,
+                b2b_b2c: clearsale_br.b2b_b2c,
+                product: clearsale_br.product,
+                base_url: clearsale_br.base_url,
             }),
             AuthType::Hyperswitch(hyperswitch) => Ok(Self::Hyperswitch {
                 api_key: hyperswitch.api_key.ok_or_else(err)?,
@@ -2846,6 +2905,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 app_secret: payhere.app_secret.ok_or_else(err)?,
                 merchant_secret: payhere.merchant_secret.ok_or_else(err)?,
                 base_url: payhere.base_url,
+            }),
+            AuthType::Ecommpay(ecommpay) => Ok(Self::Ecommpay {
+                project_id: ecommpay.project_id.ok_or_else(err)?,
+                secret_key: ecommpay.secret_key.ok_or_else(err)?,
+                base_url: ecommpay.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3212,9 +3276,17 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::Jpmorgan => match auth {
-                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Jpmorgan {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Jpmorgan {
                         client_id: api_key.clone(),
-                        client_secret: key1.clone(),
+                        thumbprint: key1.clone(),
+                        private_key: api_secret.clone(),
+                        resource_id: key2.clone(),
+                        merchant_id: HashMap::new(),
                         base_url: None,
                         secondary_base_url: None,
                         company_name: None,
@@ -4042,6 +4114,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                             api_key: api_key.clone(),
                             merchant_id: key1.clone(),
                             base_url: None,
+                            webhook_secret: None,
                         })
                     }
                     _ => Err(err().into()),
@@ -4255,6 +4328,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Ecommpay => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
+                        secret_key: api_key.clone(),
+                        project_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
@@ -4382,6 +4463,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         app_id: None,
                         api_version: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                connector_types::FrmConnectorEnum::ClearsaleBr => match auth {
+                    // ClearSale logs in with a name + password pair. The legacy
+                    // BodyKey creds.json shape carries it as api_key/key1; map
+                    // those onto the connector's own username/password fields.
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::ClearSaleBr {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        b2b_b2c: None,
+                        product: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -4821,6 +4915,13 @@ impl ConnectorResponseData {
                 card_network: None,
                 domestic_network: None,
                 auth_code: Some(auth_code),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             },
         };
         Self {
@@ -4874,6 +4975,21 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         domestic_network: Option<String>,
         /// auth code returned by the processor
         auth_code: Option<String>,
+        /// Normalized card network returned by the processor. `card_network` retains the
+        /// connector-specific spelling used by later calls to the same connector.
+        processor_card_network: Option<common_enums::CardNetwork>,
+        /// The card's product/subtype, as returned by the connector
+        card_subtype: Option<String>,
+        /// The card's segment type (consumer vs commercial)
+        card_segment_type: Option<common_enums::CardSegmentType>,
+        /// The card's funding source type
+        funding_source: Option<common_enums::FundingSource>,
+        /// The card type (credit, debit, prepaid, charge)
+        card_type: Option<common_enums::CardType>,
+        /// The name of the card issuer
+        issuer_name: Option<String>,
+        /// The country of the card issuer
+        issuer_country: Option<common_enums::CountryAlpha2>,
     },
     Upi {
         /// UPI source detected from the connector response

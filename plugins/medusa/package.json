@@ -23,5 +23,9 @@
   "devDependencies": {
     "@playwright/test": "^1.49.0",
     "tsx": "^4.19.2"
+  },
+  "overrides": {
+    "handlebars": "^4.7.10",
+    "proxy-addr": "^2.0.8"
   }
 }

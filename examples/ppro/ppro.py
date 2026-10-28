@@ -11,7 +11,7 @@ from payments import PaymentClient
 from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
-from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
+from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
 SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "recurring_charge", "refund", "refund_get"]
 
@@ -22,6 +22,7 @@ _default_config = sdk_config_pb2.ConnectorConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
             base_url="YOUR_BASE_URL",
+            webhook_secret=payment_methods_pb2.SecretString(value="YOUR_WEBHOOK_SECRET"),
         ),
     ),
 )
@@ -32,16 +33,16 @@ _default_config = sdk_config_pb2.ConnectorConfig(
 def _build_authorize_request(capture_method: str):
     return payment_pb2.PaymentServiceAuthorizeRequest(
         merchant_transaction_id="probe_txn_001",  # Identification.
-        amount=payment_pb2.Money(  # The amount for the payment.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # The amount for the payment.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         payment_method=payment_methods_pb2.PaymentMethod(  # Payment method to be used.
             ideal=payment_methods_pb2.Ideal(),
         ),
         capture_method=payment_pb2.CaptureMethod.Value(capture_method),  # Method for capturing the payment.
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(),
+            billing_address=common_types_pb2.Address(),
         ),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
         return_url="https://example.com/return",  # URLs for Redirection and Webhooks.
@@ -52,9 +53,9 @@ def _build_capture_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceCaptureRequest(
         merchant_capture_id="probe_capture_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
-        amount_to_capture=payment_pb2.Money(  # Capture Details.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount_to_capture=common_types_pb2.Money(  # Capture Details.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
     )
 
@@ -62,9 +63,9 @@ def _build_get_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceGetRequest(
         merchant_transaction_id="probe_merchant_txn_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
     )
 
@@ -85,9 +86,9 @@ def _build_recurring_charge_request():
                 connector_mandate_id="probe-mandate-123",
             ),
         ),
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         payment_method=payment_methods_pb2.PaymentMethod(  # Optional payment Method Information (for network transaction flows).
             token=payment_methods_pb2.TokenPaymentMethodType(
@@ -105,9 +106,9 @@ def _build_refund_request(connector_transaction_id: str):
         merchant_refund_id="probe_refund_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
         payment_amount=1000,  # Amount Information.
-        refund_amount=payment_pb2.Money(
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        refund_amount=common_types_pb2.Money(
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         reason="customer_request",  # Reason for the refund.
     )

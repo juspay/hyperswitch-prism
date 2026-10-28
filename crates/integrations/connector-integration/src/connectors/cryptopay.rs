@@ -175,11 +175,13 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: CryptopayPaymentsRequest,
             response_body: CryptopayPaymentsResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
             response_body: CryptopayPaymentsSyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         )
     ],

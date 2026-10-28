@@ -72,7 +72,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_txn_001\",\"amount\":1000,\"autoSettle\":true,\"option\":null,\"APL\":{\"data\":\"probe\",\"header\":{\"publicKeyHash\":\"probe\",\"ephemeralPublicKey\":\"probe\",\"transactionId\":\"probe_txn_id\"},\"signature\":\"probe\",\"version\":\"EC_v1\"}}"
+          "body": "{\"currency\":\"USD\",\"amount\":1000,\"refno\":\"probe_txn_001\",\"autoSettle\":true,\"option\":null,\"APL\":{\"data\":\"probe\",\"header\":{\"publicKeyHash\":\"probe\",\"ephemeralPublicKey\":\"probe\",\"transactionId\":\"probe_txn_id\"},\"signature\":\"probe\",\"version\":\"EC_v1\"}}"
         }
       },
       "ApplePayDecrypted": {
@@ -163,7 +163,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_txn_001\",\"amount\":1000,\"card\":{\"type\":\"PLAIN\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"cvv\":\"737\"},\"autoSettle\":true,\"option\":null}"
+          "body": "{\"currency\":\"USD\",\"amount\":1000,\"refno\":\"probe_txn_001\",\"card\":{\"type\":\"PLAIN\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"cvv\":\"737\"},\"autoSettle\":true,\"option\":null}"
         }
       },
       "CashappQr": {
@@ -538,7 +538,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"refno\":\"probe_capture_001\"}"
+          "body": "{\"currency\":\"USD\",\"amount\":1000,\"refno\":\"probe_capture_001\"}"
         }
       }
     },
@@ -714,7 +714,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_txn_001\",\"amount\":1000,\"card\":{\"type\":\"PLAIN\",\"number\":\"{{$card_number}}\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"cvv\":\"{{$card_cvc}}\"},\"autoSettle\":true,\"option\":null}"
+          "body": "{\"currency\":\"USD\",\"amount\":1000,\"refno\":\"probe_proxy_txn_001\",\"card\":{\"type\":\"PLAIN\",\"number\":\"{{$card_number}}\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"cvv\":\"{{$card_cvc}}\"},\"autoSettle\":true,\"option\":null}"
         }
       }
     },
@@ -798,7 +798,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"refno\":\"probe_refund_001\"}"
+          "body": "{\"currency\":\"USD\",\"amount\":1000,\"refno\":\"probe_refund_001\"}"
         }
       }
     },
@@ -910,7 +910,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_txn_001\",\"amount\":1000,\"card\":{\"type\":\"ALIAS\",\"alias\":\"pm_1AbcXyzStripeTestToken\",\"cardOnFile\":{\"enroll\":true}},\"autoSettle\":true,\"option\":null}"
+          "body": "{\"currency\":\"USD\",\"amount\":1000,\"refno\":\"probe_tokenized_txn_001\",\"card\":{\"type\":\"ALIAS\",\"alias\":\"pm_1AbcXyzStripeTestToken\",\"cardOnFile\":{\"enroll\":true}},\"autoSettle\":true,\"option\":null}"
         }
       }
     },

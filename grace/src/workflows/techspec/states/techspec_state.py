@@ -22,7 +22,6 @@ class WorkflowMetadata(TypedDict, total=False):
     failed_crawls: int
     spec_generated: bool
     estimated_tokens: Dict[str, int]
-    mock_server_generated: bool
     workflow_started: bool
     timestamp: str
     scraping_failed: bool
@@ -38,7 +37,6 @@ class TechspecWorkflowState(TypedDict, total=False):
 
     # Workflow control
     connector_name: Optional[str]
-    mock_server: bool
     test_only: bool
     verbose: bool
 
@@ -54,11 +52,6 @@ class TechspecWorkflowState(TypedDict, total=False):
     tech_spec: str
     spec_filepath: Path
 
-
-    # Mock server results
-    mock_server_dir: Path
-    mock_server_process: Any
-    mock_server_data: Dict[str, Any]
 
     # Error tracking
     errors: List[str]

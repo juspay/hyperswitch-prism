@@ -1,5 +1,6 @@
 import React from "react";
 import { T } from "../theme";
+import { safeHttpUrl } from "../urlSafety";
 
 // Type definitions matching the core types
 interface WebSearchResult {
@@ -203,7 +204,7 @@ function SearchQueryItem({ query }: { query: WebSearchQuery }) {
               }}
             >
               <a
-                href={result.url}
+                href={safeHttpUrl(result.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{

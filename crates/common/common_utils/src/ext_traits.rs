@@ -326,6 +326,8 @@ where
 
 /// Extending functionalities of Wrapper types for idiomatic async operations
 #[cfg(feature = "async_ext")]
+// Rust 1.99 flags async-trait's generated futures as double-must-use.
+#[allow(clippy::double_must_use)]
 #[cfg_attr(feature = "async_ext", async_trait::async_trait)]
 pub trait AsyncExt<A> {
     /// Output type of the map function

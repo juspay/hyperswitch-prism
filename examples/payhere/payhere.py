@@ -10,7 +10,7 @@ import sys
 from payments import MerchantAuthenticationClient
 from payments import EventClient
 from payments import PaymentClient
-from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
+from payments.generated import events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
 SUPPORTED_FLOWS = ["create_server_authentication_token", "parse_event"]
 

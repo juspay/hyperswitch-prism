@@ -30,7 +30,7 @@ use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{Maskable, PeekInterface};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::connector_types::{AuthenticationStep, RedirectState};
 use interfaces::{
     api::ConnectorCommon,
@@ -320,7 +320,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         )?;
         Ok(vec![(
             headers::X_AUTHENTICATION_KEY.to_string(),
-            auth.api_key.peek().to_string().into(),
+            auth.api_key.peek().to_string().into_masked(),
         )])
     }
 

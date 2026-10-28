@@ -189,6 +189,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // `order_id` is used for payment objects; `external_id` is used
                 // for enrollment objects.
                 merchant_transaction_id: body.order_id.or(body.external_id),
+                connector_preprocessing_id: None,
             },
         )))
     }

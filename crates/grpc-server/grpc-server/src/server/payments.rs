@@ -2558,7 +2558,7 @@ impl PaymentMethod {
         request_data_constructor: PaymentMethodEligibilityData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_method_eligibility_response,
-        connector_data_types: [ConnectorData<DefaultPCIHolder>],
+        connector_data_types: [ConnectorData<DefaultPCIHolder>, AuthenticatorConnectorData],
         all_keys_required: None
     );
 
@@ -2780,6 +2780,9 @@ impl PaymentMethod {
             setup_mandate_details: None,
             mandate_id: None,
             integrity_object: None,
+            integrity_specifications: request
+                .integrity_specifications
+                .map(domain_types::connector_types::IntegritySpecifications::from),
             split_payments: None,
         };
 
