@@ -158,7 +158,8 @@ pub struct TamaraPaymentsRequest {
     pub order_reference_id: String,
     pub country_code: String,
     pub description: String,
-    pub items: Vec<TamaraLineItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub items: Option<Vec<TamaraLineItem>>,
     pub consumer: TamaraConsumer,
     pub merchant_url: TamaraMerchantUrl,
     pub shipping_address: TamaraAddress,
@@ -347,46 +348,44 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             value.map(|v| to_tamara_amount(v, context)).transpose()
         };
 
-        let items: Vec<TamaraLineItem> = router_data
+        let items = router_data
             .resource_common_data
             .order_details
             .clone()
-            .filter(|od| !od.is_empty())
-            .ok_or(error_stack::report!(
-                errors::IntegrationError::MissingRequiredField {
-                    field_name: "order_details",
-                    context: errors::IntegrationErrorContext::default(),
-                }
-            ))?
-            .iter()
-            .map(|data| {
-                Ok(TamaraLineItem {
-                    name: data.get_product_name(),
-                    quantity: data.get_quantity(),
-                    reference_id: data.get_product_id()?,
-                    sku: data.get_sku()?,
-                    total_amount: to_tamara_amount(
-                        data.get_total_amount(),
-                        "Failed to convert line item total amount from minor to major units",
-                    )?,
-                    item_type: data.get_product_type()?,
-                    item_url: data.get_optional_product_link(),
-                    image_url: data.get_optional_product_img_link(),
-                    unit_price: to_tamara_amount(
-                        data.get_unit_amount(),
-                        "Failed to convert line item unit price from minor to major units",
-                    )?,
-                    discount_amount: optional_amount(
-                        data.get_optional_unit_discount_amount(),
-                        "Failed to convert line item discount amount from minor to major units",
-                    )?,
-                    tax_amount: optional_amount(
-                        data.get_optional_total_tax_amount(),
-                        "Failed to convert line item tax amount from minor to major units",
-                    )?,
-                })
+            .filter(|order_details| !order_details.is_empty())
+            .map(|order_details| {
+                order_details
+                    .iter()
+                    .map(|data| {
+                        Ok(TamaraLineItem {
+                            name: data.get_product_name(),
+                            quantity: data.get_quantity(),
+                            reference_id: data.get_product_id()?,
+                            sku: data.get_sku()?,
+                            total_amount: to_tamara_amount(
+                                data.get_total_amount(),
+                                "Failed to convert line item total amount from minor to major units",
+                            )?,
+                            item_type: data.get_product_type()?,
+                            item_url: data.get_optional_product_link(),
+                            image_url: data.get_optional_product_img_link(),
+                            unit_price: to_tamara_amount(
+                                data.get_unit_amount(),
+                                "Failed to convert line item unit price from minor to major units",
+                            )?,
+                            discount_amount: optional_amount(
+                                data.get_optional_unit_discount_amount(),
+                                "Failed to convert line item discount amount from minor to major units",
+                            )?,
+                            tax_amount: optional_amount(
+                                data.get_optional_total_tax_amount(),
+                                "Failed to convert line item tax amount from minor to major units",
+                            )?,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, error_stack::Report<errors::IntegrationError>>>()
             })
-            .collect::<Result<Vec<_>, error_stack::Report<errors::IntegrationError>>>()?;
+            .transpose()?;
 
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },

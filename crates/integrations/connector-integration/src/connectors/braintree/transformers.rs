@@ -3283,7 +3283,6 @@ impl TryFrom<ResponseRouterData<BraintreeVoidPCResponse, Self>>
                     Ok(PaymentsResponseData::PostCaptureVoidResponse {
                         post_capture_void_status,
                         connector_reference_id: Some(reversal_data.id),
-                        description: None,
                         status_code: item.http_code,
                     })
                 };

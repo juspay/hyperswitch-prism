@@ -34,6 +34,11 @@ type Error = Report<IntegrationError>;
 use common_enums::enums;
 use serde::{Deserialize, Serialize};
 
+/// For example, 2.5 with a multiplier of 100.0 becomes "250".
+pub fn scaled_percentage_to_string(percentage: f64, multiplier: f64) -> String {
+    format!("{:.0}", percentage * multiplier)
+}
+
 pub fn build_form_from_struct<T: Serialize>(
     data: T,
 ) -> Result<MultipartData, errors::ParsingError> {

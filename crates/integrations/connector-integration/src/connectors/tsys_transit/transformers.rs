@@ -3625,13 +3625,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
+        // Amount to void; TSYS voids the full transaction amount when it is omitted.
+        let transaction_amount = router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| {
+                super::TsysTransitAmountConvertor::convert(amount.amount, amount.currency)
+            })
+            .transpose()?;
 
         Ok(Self {
             device_id: auth.device_id,
             transaction_key: auth.transaction_key,
             developer_id: auth.developer_id,
             transaction_id: router_data.request.connector_transaction_id.clone(),
-            transaction_amount: None,
+            transaction_amount,
             void_reason: "PARTIAL_REVERSAL".to_string(),
         })
     }
@@ -3759,18 +3768,38 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
             .transaction_id
             .clone()
             .or_else(|| Some(router_data.request.connector_transaction_id.clone()));
-        let description = post_capture_void_status
-            .is_post_capture_void_failure()
-            .then(|| response.response_message.clone())
-            .flatten();
-
-        Ok(Self {
-            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+        let void_response = if post_capture_void_status.is_post_capture_void_failure() {
+            let message = response.response_message.clone();
+            Err(ErrorResponse {
+                code: response
+                    .response_code
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                message: message
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                reason: message,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: connector_reference_id.clone(),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id: connector_reference_id.clone(),
-                description,
                 status_code: item.http_code,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response: void_response,
             // connector_reference_id is TSYS's own <transactionID> when
             // present, falling back to the request's id otherwise.
             request: PaymentsCancelPostCaptureData {
