@@ -1,0 +1,57 @@
+{
+  "PaymentService/Authorize": {
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": { "value": "4445222299990007" },
+            "card_exp_month": { "value": "01" },
+            "card_exp_year": { "value": "27" },
+            "card_cvc": { "value": "382" }
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": { "value": "4445222299990007" },
+            "card_exp_month": { "value": "01" },
+            "card_exp_year": { "value": "27" },
+            "card_cvc": { "value": "382" }
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/Reverse": {
+    "reverse_full_payment": {
+      "assert": {
+        "status": {
+          "one_of": ["VOIDED_POST_CAPTURE"]
+        }
+      }
+    },
+    "reverse_with_reason": {
+      "depends_on": [
+        {
+          "suite": "PaymentService/Authorize",
+          "scenario": "no3ds_auto_capture_credit_card",
+          "context_map": {
+            "connector_transaction_id": "res.connector_transaction_id",
+            "connector_feature_data": "res.connector_feature_data",
+            "amount": "req.amount",
+            "payment_method": "req.payment_method",
+            "capture_method": "req.capture_method"
+          }
+        }
+      ],
+      "assert": {
+        "status": {
+          "one_of": ["VOIDED_POST_CAPTURE"]
+        }
+      }
+    }
+  }
+}

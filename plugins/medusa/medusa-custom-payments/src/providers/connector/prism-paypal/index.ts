@@ -25,6 +25,7 @@ import {
 } from "../../utils"
 import { logger } from "../../utils/logger"
 import { InitiateConnectorContext } from "../types"
+import { assertPatchedNodeRuntime } from "../runtime"
 import {
   WebhookDeps,
   callHandleEvent,
@@ -95,6 +96,7 @@ async function createPaypalOrderDirect(
   minorAmount: number
 ): Promise<string> {
   const testMode = options.environment !== "PRODUCTION"
+  assertPatchedNodeRuntime()
   const accessToken = await fetchPaypalAccessToken(authClient, testMode)
 
   // Only collect a shipping address in the PayPal popup when the integration
@@ -152,6 +154,7 @@ async function fetchCaptureIdForOrder(
   authClient: MerchantAuthenticationClient,
   orderId: string
 ): Promise<string | null> {
+  assertPatchedNodeRuntime()
   try {
     const testMode = options.environment !== "PRODUCTION"
     const accessToken = await fetchPaypalAccessToken(authClient, testMode)

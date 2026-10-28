@@ -5,7 +5,7 @@
 //! response transformers without requiring sandbox credentials or an interactive
 //! hosted page.
 
-#![allow(clippy::expect_used)]
+#![allow(clippy::expect_used, clippy::indexing_slicing)]
 
 use std::{
     str::FromStr,
@@ -27,12 +27,15 @@ use cards::CardNumber;
 use grpc_api_types::payments::{
     payment_method,
     payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient,
-    payment_service_client::PaymentServiceClient, refund_service_client::RefundServiceClient,
-    Address, AuthenticationType, CaptureMethod, CardDetails, Currency, Money, PaymentAddress,
-    PaymentMethod, PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
-    PaymentServiceGetRequest, PaymentServiceRefundRequest, PaymentServiceVoidRequest,
-    PaymentStatus, RefundServiceGetRequest, RefundStatus, TokenPaymentMethodType,
+    payment_service_client::PaymentServiceClient,
+    recurring_payment_service_client::RecurringPaymentServiceClient,
+    refund_service_client::RefundServiceClient, Address, AuthenticationType, CaptureMethod,
+    CardDetails, Currency, Money, PaymentAddress, PaymentMethod,
+    PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentServiceAuthorizeRequest,
+    PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest, PaymentServiceGetRequest,
+    PaymentServiceRefundRequest, PaymentServiceVoidRequest, PaymentStatus,
+    RecurringPaymentServiceChargeRequest, RefundServiceGetRequest, RefundStatus,
+    TokenPaymentMethodType,
 };
 use grpc_server::app;
 use hyperswitch_masking::{ExposeInterface, Secret};
@@ -48,6 +51,10 @@ const AMOUNT: i64 = 1000;
 const ORDER_HREF: &str = "https://mock.elavon.test/orders/order_123";
 const SESSION_HREF: &str = "https://mock.elavon.test/payment-sessions/session_123";
 const HOSTED_PAGE_URL: &str = "https://mock.elavon.test/hosted/session_123";
+const COF_DATA: &str = "A7562943766729115153A:357115:";
+/// EPG's `schemeReference` -- the scheme network transaction id, deliberately a different
+/// value from [`COF_DATA`] so the two cannot be confused in the assertions below.
+const SCHEME_REF: &str = "019876543210987";
 
 #[derive(Clone, Debug)]
 struct RecordedRequest {
@@ -128,6 +135,35 @@ async fn elavon_mock(
                     "doCapture": false,
                     "total": { "amount": "10.00", "currencyCode": "USD" },
                     "partialCapture": { "isPartiallyCapturable": false },
+                    "failures": []
+                })),
+            )
+                .into_response();
+        }
+
+        // Direct sale bodies: a card or pre-decrypted wallet sale, cardholder- or
+        // merchant-initiated. The reply mirrors EPG, which mints `credentialOnFileData`
+        // on the cardholder-initiated sale that opens a recurring agreement only.
+        if body.get("card").is_some() {
+            let is_merchant_initiated =
+                body.get("shopperInteraction") == Some(&json!("merchantInitiated"));
+            let opens_agreement =
+                body.get("credentialOnFileType").is_some() && !is_merchant_initiated;
+            return (
+                StatusCode::CREATED,
+                Json(json!({
+                    "id": if is_merchant_initiated { "txn_mit" } else { "txn_sale" },
+                    "type": "sale",
+                    "state": "captured",
+                    "isAuthorized": true,
+                    "doCapture": true,
+                    "total": body.get("total").cloned().unwrap_or(Value::Null),
+                    "credentialOnFileData": if opens_agreement {
+                        json!(COF_DATA)
+                    } else {
+                        Value::Null
+                    },
+                    "schemeReference": json!(SCHEME_REF),
                     "failures": []
                 })),
             )
@@ -598,4 +634,300 @@ async fn hosted_page_and_lifecycle_flows_cross_the_grpc_boundary() {
         refund.body.get("total"),
         Some(&json!({ "amount": "10.00", "currencyCode": "USD" }))
     );
+}
+
+fn authorize_request(payment_method: Value, setup_future_usage: Option<&str>) -> Value {
+    let mut request = json!({
+        "merchant_transaction_id": "merchant_txn_recurring",
+        "amount": { "minor_amount": AMOUNT, "currency": "USD" },
+        "payment_method": { "payment_method": payment_method },
+        "capture_method": "AUTOMATIC",
+        "auth_type": "NO_THREE_DS",
+        "order_details": [],
+        "address": {},
+        "test_mode": true
+    });
+    if let Some(setup_future_usage) = setup_future_usage {
+        request["setup_future_usage"] = json!(setup_future_usage);
+    }
+    request
+}
+
+fn card_json() -> Value {
+    json!({ "card": {
+        "card_number": "4111111111111111",
+        "card_exp_month": "12",
+        "card_exp_year": "30",
+        "card_cvc": "123",
+        "card_holder_name": "Elavon PG Test",
+        "card_type": "credit"
+    }})
+}
+
+fn google_pay_json() -> Value {
+    json!({ "google_pay_sdk": {
+        "type": "CARD",
+        "description": "Visa 1111",
+        "info": { "card_network": "VISA", "card_details": "1111" },
+        "tokenization_data": { "tokenization_data": { "decrypted_data": {
+            "card_exp_month": "12",
+            "card_exp_year": "2030",
+            "application_primary_account_number": "4111111111111111",
+            "cryptogram": "AgAAAAAAAIR8CQrXcIhbQAAAAAA=",
+            "eci_indicator": "07"
+        }}}
+    }})
+}
+
+/// Google Pay Mastercard `CRYPTOGRAM_3DS`: Google documents `eciIndicator` as empty for
+/// these, and the gRPC layer also turns an omitted proto string into `Some("")`, so the
+/// connector must read it as "no indicator" and send the default rather than refuse the sale.
+fn mastercard_google_pay_json() -> Value {
+    json!({ "google_pay_sdk": {
+        "type": "CARD",
+        "description": "Mastercard 4444",
+        "info": { "card_network": "MASTERCARD", "card_details": "4444" },
+        "tokenization_data": { "tokenization_data": { "decrypted_data": {
+            "card_exp_month": "12",
+            "card_exp_year": "2030",
+            "application_primary_account_number": "5555555555554444",
+            "cryptogram": "AgAAAAAAAIR8CQrXcIhbQAAAAAA=",
+            "eci_indicator": ""
+        }}}
+    }})
+}
+
+fn apple_pay_json() -> Value {
+    json!({ "apple_pay_sdk": {
+        "payment_data": { "payment_data": { "decrypted_data": {
+            "application_primary_account_number": "4111111111111111",
+            "application_expiration_month": "12",
+            "application_expiration_year": "2030",
+            "payment_data": {
+                "online_payment_cryptogram": "AgAAAAAAAIR8CQrXcIhbQAAAAAA=",
+                "eci_indicator": "07"
+            }
+        }}},
+        "payment_method": { "display_name": "Visa 1111", "network": "Visa", "type": "debit" },
+        "transaction_identifier": "3130323334353637383930313233343536"
+    }})
+}
+
+#[tokio::test]
+async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
+    let mock_listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("mock listener should bind");
+    let mock_address = mock_listener
+        .local_addr()
+        .expect("mock listener should have an address");
+    let mock_state = MockState::default();
+    let request_log = Arc::clone(&mock_state.requests);
+    let mock_server = tokio::spawn(async move {
+        axum::serve(
+            mock_listener,
+            Router::new()
+                .fallback(any(elavon_mock))
+                .with_state(mock_state),
+        )
+        .await
+        .expect("mock server should run");
+    });
+
+    let mut config = configs::Config::new().expect("test config should load");
+    config.test.enabled = true;
+    config.test.mock_server_url = Some(format!("http://{mock_address}/mock-elavon"));
+    let config = Arc::new(config);
+    let service = app::Service::new(Arc::clone(&config)).await;
+    let (server, channel) = common::server_and_channel_stub(service, config)
+        .await
+        .expect("gRPC test server should start");
+
+    let test = async move {
+        let mut payment_client = PaymentServiceClient::new(channel.clone());
+        let mut recurring_client = RecurringPaymentServiceClient::new(channel);
+
+        // Cardholder-initiated sale that opens the recurring agreement. The stored
+        // credential comes back as the mandate id, and the NTID is the scheme's own
+        // reference -- EPG's credentialOnFileData is an EPG token and must not be
+        // published as a scheme NTID that another PSP might be asked to replay.
+        let mut cit = Request::new(
+            serde_json::from_value::<PaymentServiceAuthorizeRequest>(authorize_request(
+                card_json(),
+                Some("OFF_SESSION"),
+            ))
+            .expect("authorize request should deserialize"),
+        );
+        add_elavon_metadata(&mut cit, "recurring_cit");
+        let cit = Box::pin(payment_client.authorize(cit))
+            .await
+            .expect("recurring CIT should succeed")
+            .into_inner();
+        assert_eq!(cit.status, i32::from(PaymentStatus::Charged));
+        assert_eq!(cit.network_transaction_id.as_deref(), Some(SCHEME_REF));
+        let mandate_id = cit
+            .mandate_reference_details
+            .and_then(|mandate| mandate.connector_mandate_id);
+        assert_eq!(mandate_id.as_deref(), Some(COF_DATA));
+
+        // Merchant-initiated repeat by connector mandate id: replays the
+        // credentialOnFileData with the card and no CVC.
+        for (suffix, recurring_id) in [(
+            "mandate_id",
+            json!({ "ConnectorMandateId": { "connector_mandate_id": COF_DATA } }),
+        )] {
+            let mut charge = Request::new(
+                serde_json::from_value::<RecurringPaymentServiceChargeRequest>(json!({
+                    "merchant_charge_id": format!("charge_{suffix}"),
+                    "connector_recurring_payment_id": { "mandate_id_type": recurring_id },
+                    "amount": { "minor_amount": 3500, "currency": "USD" },
+                    "payment_method": { "payment_method": card_json() },
+                    "capture_method": "AUTOMATIC",
+                    "off_session": true,
+                    "test_mode": true
+                }))
+                .expect("charge request should deserialize"),
+            );
+            add_elavon_metadata(&mut charge, &format!("recurring_{suffix}"));
+            let charge = Box::pin(recurring_client.charge(charge))
+                .await
+                .expect("recurring charge should succeed")
+                .into_inner();
+            assert_eq!(charge.status, i32::from(PaymentStatus::Charged), "{suffix}");
+            assert_eq!(charge.connector_transaction_id.as_deref(), Some("txn_mit"));
+        }
+
+        // A repeat addressed by network transaction id is refused rather than sent: EPG has
+        // no request field for a scheme NTID, only its own credentialOnFileData, so the
+        // value would be rejected by the acquirer.
+        let mut ntid_charge = Request::new(
+            serde_json::from_value::<RecurringPaymentServiceChargeRequest>(json!({
+                "merchant_charge_id": "charge_ntid",
+                "connector_recurring_payment_id": {
+                    "mandate_id_type": { "NetworkMandateId": { "network_transaction_id": SCHEME_REF } }
+                },
+                "amount": { "minor_amount": 3500, "currency": "USD" },
+                "payment_method": { "payment_method": card_json() },
+                "capture_method": "AUTOMATIC",
+                "off_session": true,
+                "test_mode": true
+            }))
+            .expect("charge request should deserialize"),
+        );
+        add_elavon_metadata(&mut ntid_charge, "recurring_ntid");
+        let ntid_rejection = Box::pin(recurring_client.charge(ntid_charge))
+            .await
+            .expect_err("a repeat by network transaction id must be refused");
+        assert!(
+            ntid_rejection.message().contains("network transaction id"),
+            "{ntid_rejection}"
+        );
+
+        // Pre-decrypted wallets are one-time sales.
+        for (suffix, wallet) in [
+            ("google_pay", google_pay_json()),
+            ("apple_pay", apple_pay_json()),
+            ("mastercard_google_pay", mastercard_google_pay_json()),
+        ] {
+            let mut wallet_request = Request::new(
+                serde_json::from_value::<PaymentServiceAuthorizeRequest>(authorize_request(
+                    wallet, None,
+                ))
+                .expect("wallet request should deserialize"),
+            );
+            add_elavon_metadata(&mut wallet_request, suffix);
+            let wallet_response = Box::pin(payment_client.authorize(wallet_request))
+                .await
+                .expect("wallet authorize should succeed")
+                .into_inner();
+            assert_eq!(
+                wallet_response.status,
+                i32::from(PaymentStatus::Charged),
+                "{suffix}"
+            );
+            assert!(
+                wallet_response.mandate_reference_details.is_none(),
+                "{suffix}"
+            );
+        }
+
+        // EPG has no recurring on wallets: the request is refused, not silently downgraded.
+        let mut wallet_agreement = Request::new(
+            serde_json::from_value::<PaymentServiceAuthorizeRequest>(authorize_request(
+                google_pay_json(),
+                Some("OFF_SESSION"),
+            ))
+            .expect("wallet request should deserialize"),
+        );
+        add_elavon_metadata(&mut wallet_agreement, "wallet_recurring");
+        let rejection = Box::pin(payment_client.authorize(wallet_agreement))
+            .await
+            .expect_err("recurring on a wallet must be refused");
+        assert!(
+            rejection
+                .message()
+                .contains("Recurring payments on wallets"),
+            "{rejection}"
+        );
+
+        let requests = request_log
+            .lock()
+            .expect("mock request log lock must not be poisoned")
+            .clone();
+        let sales: Vec<&Value> = requests
+            .iter()
+            .filter(|request| request.original_url.ends_with("/transactions"))
+            .map(|request| &request.body)
+            .collect();
+        // CIT, 1 repeat, 3 wallets; the two refused requests never reached EPG.
+        assert_eq!(sales.len(), 5, "{sales:?}");
+
+        assert_eq!(sales[0]["credentialOnFileType"], json!("recurring"));
+        assert_eq!(sales[0]["shopperInteraction"], json!("ecommerce"));
+        assert_eq!(sales[0]["card"]["securityCode"], json!("123"));
+        assert!(sales[0].get("credentialOnFileData").is_none());
+
+        for repeat in &sales[1..2] {
+            assert_eq!(repeat["shopperInteraction"], json!("merchantInitiated"));
+            assert_eq!(repeat["credentialOnFileType"], json!("recurring"));
+            assert_eq!(repeat["credentialOnFileData"], json!(COF_DATA));
+            assert_eq!(repeat["card"]["number"], json!("4111111111111111"));
+            assert!(repeat["card"].get("securityCode").is_none());
+        }
+
+        for (wallet, origin) in sales[2..4].iter().zip(["Google Pay", "Apple Pay"]) {
+            assert_eq!(wallet["paymentMethodOrigin"], json!(origin));
+            assert_eq!(
+                wallet["cryptogramSecurity"],
+                json!({
+                    "cryptogram": "AgAAAAAAAIR8CQrXcIhbQAAAAAA=",
+                    "electronicCommerceIndicator": "7"
+                })
+            );
+            assert_eq!(wallet["card"]["number"], json!("4111111111111111"));
+            assert_eq!(wallet["card"]["expirationYear"], json!(2030));
+            assert!(wallet["card"].get("securityCode").is_none());
+            assert!(wallet.get("credentialOnFileType").is_none());
+        }
+
+        // The Mastercard token carried an empty eciIndicator: it reaches EPG as the
+        // unauthenticated default rather than failing the sale or being sent through blank.
+        let mastercard = sales[4];
+        assert_eq!(mastercard["paymentMethodOrigin"], json!("Google Pay"));
+        assert_eq!(mastercard["card"]["number"], json!("5555555555554444"));
+        assert_eq!(
+            mastercard["cryptogramSecurity"],
+            json!({
+                "cryptogram": "AgAAAAAAAIR8CQrXcIhbQAAAAAA=",
+                "electronicCommerceIndicator": "7"
+            })
+        );
+    };
+
+    tokio::select! {
+        _ = server => panic!("gRPC server stopped before the assertions completed"),
+        _ = test => {}
+    }
+
+    mock_server.abort();
 }

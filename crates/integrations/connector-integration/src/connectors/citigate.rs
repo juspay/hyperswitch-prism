@@ -431,6 +431,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Citigate<T>
 {
+    /// The Transaction Status Check (`TransTypeID = 8`) is keyed on `MerchantRef`, and the
+    /// interface has no field for a Citigate `TransactionID` at all. The default gate demands
+    /// a connector transaction id, so it would permanently skip the sync for exactly the
+    /// attempts that need it: an Authorize that timed out has no transaction id, and polling
+    /// the status check by `MerchantRef` is the only way to learn whether Citigate booked it
+    /// (Citigate's callbacks are not consumed here). Gate on what the request actually needs.
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        citigate::required_merchant_ref(&payment_flow_data.connector_request_reference_id)
+            .map(|_| ())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

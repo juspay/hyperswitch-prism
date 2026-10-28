@@ -5,6 +5,7 @@
     "PaymentService/Capture",
     "PaymentService/IncrementalAuthorization",
     "PaymentService/Void",
+    "PaymentService/Reverse",
     "PaymentService/Refund",
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge"
@@ -21,6 +22,39 @@
       "incremental_auth_with_tip": "Deferred shared follow-up card contract: incremental requests cannot supply the original card required by Worldpay RAFT",
       "incremental_auth_multiple_increase": "Deferred shared follow-up card contract: incremental requests cannot supply the original card required by Worldpay RAFT",
       "incremental_auth_fail_invalid_transaction_id": "Deferred shared follow-up card contract: the request is unavailable before transaction ID validation can run"
+    },
+    "PaymentService/Reverse": {
+      "reverse_fail_invalid_transaction_id": "Worldpay RAFT validates the composite connector transaction ID before sending the request; this scenario expects a connector response for a malformed ID"
+    }
+  },
+  "suite_dependencies": {
+    "PaymentService/Capture": {
+      "replace": [
+        {
+          "suite": "PaymentService/Authorize",
+          "scenario": "no3ds_manual_capture_credit_card",
+          "context_map": {
+            "amount_to_capture": "req.amount",
+            "payment_method": "req.payment_method",
+            "capture_method": "req.capture_method"
+          }
+        }
+      ]
+    },
+    "PaymentService/Reverse": {
+      "replace": [
+        {
+          "suite": "PaymentService/Capture",
+          "scenario": "capture_full_amount",
+          "context_map": {
+            "connector_transaction_id": "res.connector_transaction_id",
+            "connector_feature_data": "res.connector_feature_data",
+            "amount": "req.amount_to_capture",
+            "payment_method": "req.payment_method",
+            "capture_method": "req.capture_method"
+          }
+        }
+      ]
     }
   }
 }

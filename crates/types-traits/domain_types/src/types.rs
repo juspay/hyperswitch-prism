@@ -475,6 +475,7 @@ pub struct Connectors {
     pub elavon_pg: ConnectorParams,
     pub globalpayments_realex: ConnectorParams,
     pub payhere: ConnectorParams,
+    pub ecommpay: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -874,6 +875,9 @@ impl Connectors {
             ConnectorEnum::Payhere => {
                 patched.payhere.apply(params_patch);
             }
+            ConnectorEnum::Ecommpay => {
+                patched.ecommpay.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -881,7 +885,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, ecommpay",
                             connector
                         )),
                         ..Default::default()
@@ -6390,7 +6394,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
             state: value.state,
             first_name: value.first_name,
             last_name: value.last_name,
-            origin_zip: None,
+            origin_zip: value.origin_zip,
         })
     }
 }
@@ -6440,7 +6444,7 @@ impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderD
             unit_discount_amount: item
                 .unit_discount_amount
                 .map(common_utils::types::MinorUnit::new),
-            total_amount: None,
+            total_amount: item.total_amount.map(common_utils::types::MinorUnit::new),
             discount_name: item.discount_name,
             discount_percentage: item.discount_percentage,
             discount_type: item.discount_type,
@@ -11366,7 +11370,13 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceReverseRequest>
     fn foreign_try_from(
         value: grpc_api_types::payments::PaymentServiceReverseRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let capture_method = Some(CaptureMethod::foreign_try_from(value.capture_method())?);
         Ok(Self {
+            payment_method_data: value
+                .payment_method
+                .map(PaymentMethodData::<DefaultPCIHolder>::foreign_try_from)
+                .transpose()?,
+            capture_method,
             browser_info: value
                 .browser_info
                 .map(BrowserInformation::foreign_try_from)
@@ -14211,6 +14221,7 @@ impl ForeignTryFrom<(&grpc_api_types::payments::OrderInfo, common_enums::Currenc
                 amount: common_utils::types::MinorUnit::new(amount),
                 currency,
             }),
+            order_commodity_code: value.order_commodity_code.clone(),
         })
     }
 }
@@ -14231,6 +14242,7 @@ impl ForeignTryFrom<(&grpc_api_types::payments::TaxInfo, common_enums::Currency)
             tax_status,
             customer_tax_registration_id: value.customer_tax_registration_id.clone(),
             merchant_tax_registration_id: value.merchant_tax_registration_id.clone(),
+            merchant_vat_registration_id: value.merchant_vat_registration_id.clone(),
             shipping_amount_tax: value.shipping_amount_tax.map(|amount| {
                 common_utils::types::Money {
                     amount: common_utils::types::MinorUnit::new(amount),
@@ -14243,6 +14255,14 @@ impl ForeignTryFrom<(&grpc_api_types::payments::TaxInfo, common_enums::Currency)
                     amount: common_utils::types::MinorUnit::new(amount),
                     currency,
                 }),
+            value_added_tax_amount: value.value_added_tax_amount.map(|amount| {
+                common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(amount),
+                    currency,
+                }
+            }),
+            value_added_tax_percent: value.value_added_tax_percent,
+            vat_invoice_reference_number: value.vat_invoice_reference_number.clone(),
         })
     }
 }

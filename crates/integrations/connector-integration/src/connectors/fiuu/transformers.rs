@@ -294,7 +294,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .get_billing_full_name()?;
 
-        let email = item.router_data.resource_common_data.get_billing_email()?;
+        // Mirror the Direct path (hyperswitch `fiuu/transformers.rs:268-269`), which falls back to
+        // the request email when the billing address carries none. Without this a recurring payment
+        // with no billing email hard-fails on UCS while succeeding on Direct.
+        let email = item
+            .router_data
+            .resource_common_data
+            .get_billing_email()
+            .or_else(|err| item.router_data.request.email.clone().ok_or(err))?;
         let token = Secret::new(item.router_data.request.connector_mandate_id().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "connector_mandate_id",

@@ -58,3 +58,4 @@ FPR = "FPR" # Fraud Prevention Rules
 Eto = "Eto" # Gigadat transaction type
 Cpi = "Cpi" # Gigadat transaction type
 retryAttempCount = "retryAttempCount" # JPMorgan Orbital's own misspelling of its response field name — must match the wire format
+itemComodityCode = "itemComodityCode" # JPMorgan's own misspelling of "commodity" in its Level 3 schema — must match the wire format

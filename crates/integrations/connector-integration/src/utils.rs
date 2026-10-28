@@ -24,7 +24,7 @@ use domain_types::{
     router_data::ErrorResponse,
     router_response_types::Response,
 };
-use error_stack::{Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde_json::Value;
 use std::{collections::HashMap, str::FromStr};
@@ -33,6 +33,11 @@ pub use xml_utils::preprocess_xml_response_bytes;
 type Error = Report<IntegrationError>;
 use common_enums::enums;
 use serde::{Deserialize, Serialize};
+
+/// For example, 2.5 with a multiplier of 100.0 becomes "250".
+pub fn scaled_percentage_to_string(percentage: f64, multiplier: f64) -> String {
+    format!("{:.0}", percentage * multiplier)
+}
 
 pub fn build_form_from_struct<T: Serialize>(
     data: T,
@@ -170,6 +175,41 @@ pub fn missing_field_err(
         }
         .into()
     })
+}
+
+/// A card expiry month given as `"1"`..`"12"` (a leading zero is allowed), as a number.
+pub fn parse_expiry_month(month: &str, field_name: &'static str) -> Result<u8, Error> {
+    month
+        .trim()
+        .parse::<u8>()
+        .ok()
+        .filter(|month| (1..=12).contains(month))
+        .ok_or_else(|| {
+            report!(IntegrationError::InvalidDataFormat {
+                field_name,
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some("Expected a month between 1 and 12".to_owned()),
+                    ..Default::default()
+                },
+            })
+        })
+}
+
+/// A card expiry year given as four digits, as a number.
+pub fn parse_expiry_year_four_digit(year: &str, field_name: &'static str) -> Result<u16, Error> {
+    let year = year.trim();
+    year.parse::<u16>()
+        .ok()
+        .filter(|_| year.len() == 4)
+        .ok_or_else(|| {
+            report!(IntegrationError::InvalidDataFormat {
+                field_name,
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some("Expected a four-digit year".to_owned()),
+                    ..Default::default()
+                },
+            })
+        })
 }
 
 /// Build [`errors::IntegrationErrorContext`] with explicit `additional_context` and `suggested_action`

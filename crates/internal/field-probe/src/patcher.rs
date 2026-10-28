@@ -30,6 +30,7 @@ fn full_address() -> grpc_api_types::payments::Address {
         city: Some(Secret::new("Seattle".to_string())),
         state: Some(Secret::new("WA".to_string())),
         zip_code: Some(Secret::new("98101".to_string())),
+        origin_zip: None,
         country_alpha2_code: Some(proto::CountryAlpha2::Us as i32),
         email: Some(Secret::new("test@example.com".to_string())),
         phone_number: Some(Secret::new("4155552671".to_string())),

@@ -26,7 +26,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.WorldpayraftConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "reverse", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -100,6 +100,26 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
                 cardNetwork = CardNetwork.VISA
             }
         }
+    }.build()
+}
+
+private fun buildReverseRequest(connectorTransactionIdStr: String): PaymentServiceReverseRequest {
+    return PaymentServiceReverseRequest.newBuilder().apply {
+        merchantReverseId = "probe_reverse_001"  // Identification.
+        connectorTransactionId = connectorTransactionIdStr
+        amountBuilder.apply {  // Original payment amount and currency.
+            minorAmount = 1000L
+            currency = Currency.USD
+        }
+        paymentMethodBuilder.apply {  // Original payment method for connectors that require PAN and expiry again.
+            cardWithNoCvcBuilder.apply {  // Card payment where CVC is not required.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardNetwork = CardNetwork.VISA
+            }
+        }
+        captureMethod = CaptureMethod.MANUAL  // Original payment's capture method, not the reversal's disposition. Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at different endpoints.
     }.build()
 }
 
@@ -348,6 +368,14 @@ fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Done: ${response.status.name}")
 }
 
+// Flow: PaymentService.Reverse
+fun reverse(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildReverseRequest("C|123456|123456789012|000001")
+    val response = client.reverse(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.SetupRecurring
 fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -413,8 +441,9 @@ fun main(args: Array<String>) {
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
+        "reverse" -> reverse(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, incrementalAuthorization, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, incrementalAuthorization, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, reverse, setupRecurring, void")
     }
 }
