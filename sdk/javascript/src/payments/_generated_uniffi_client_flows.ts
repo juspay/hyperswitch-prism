@@ -650,6 +650,40 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('surcharge_calculate', responseBytes, requestBytes, optionsBytes);
   }
 
+  /** Build connector HTTP request for surcharge_refund_complete flow. */
+  surchargeRefundCompleteReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('surcharge_refund_complete', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for surcharge_refund_complete flow. */
+  surchargeRefundCompleteRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('surcharge_refund_complete', responseBytes, requestBytes, optionsBytes);
+  }
+
+  /** Build connector HTTP request for surcharge_refund_init flow. */
+  surchargeRefundInitReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('surcharge_refund_init', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for surcharge_refund_init flow. */
+  surchargeRefundInitRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('surcharge_refund_init', responseBytes, requestBytes, optionsBytes);
+  }
+
   /** Build connector HTTP request for token_authorize flow. */
   tokenAuthorizeReq(
     requestBytes: Buffer | Uint8Array,

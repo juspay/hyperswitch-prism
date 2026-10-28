@@ -95,6 +95,44 @@ pub struct SurchargeCalculateRequest {
     pub country: Option<common_enums::CountryAlpha2>,
 }
 
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundInitRequest {
+    pub connector_surcharge_id: String,
+    pub amount: MinorUnit,
+    pub currency: Currency,
+}
+
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundInitResponse {
+    pub connector_surcharge_refund_id: String,
+    pub refund_amount: MinorUnit,
+    pub original_transaction_fee: Option<MinorUnit>,
+    pub previously_refunded_transaction_fees: Option<MinorUnit>,
+    pub currency: Option<Currency>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundCompleteRequest {
+    pub connector_surcharge_refund_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundCompleteResponse {
+    pub connector_surcharge_refund_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SurchargeRefundInitIntegrityObject {
+    pub connector_surcharge_id: String,
+    pub amount: MinorUnit,
+    pub currency: Currency,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SurchargeRefundCompleteIntegrityObject {
+    pub connector_surcharge_refund_id: String,
+}
+
 /// Request data for surcharge payment succeeded notification
 #[derive(Debug, Clone)]
 pub struct SurchargePaymentSucceededRequest {

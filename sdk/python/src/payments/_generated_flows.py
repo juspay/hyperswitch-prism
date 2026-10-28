@@ -106,6 +106,10 @@ SERVICE_FLOWS = {
     "SurchargeClient": {
         # surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
         "surcharge_calculate": "SurchargeServiceCalculateResponse",
+        # surcharge_refund_complete: SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund.
+        "surcharge_refund_complete": "SurchargeServiceSurchargeRefundCompleteResponse",
+        # surcharge_refund_init: SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund.
+        "surcharge_refund_init": "SurchargeServiceSurchargeRefundInitResponse",
     },
 }
 

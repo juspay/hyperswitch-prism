@@ -87,6 +87,10 @@ use grpc_api_types::frm::{
 use grpc_api_types::surcharge::{
     SurchargeServiceCalculateRequest,
     SurchargeServiceCalculateResponse,
+    SurchargeServiceSurchargeRefundCompleteRequest,
+    SurchargeServiceSurchargeRefundCompleteResponse,
+    SurchargeServiceSurchargeRefundInitRequest,
+    SurchargeServiceSurchargeRefundInitResponse,
 };
 
 use crate::services::payments::{
@@ -138,6 +142,8 @@ use crate::services::frm::{
 };
 use crate::services::surcharge::{
     surcharge_calculate_req_transformer, surcharge_calculate_res_transformer,
+    surcharge_refund_complete_req_transformer, surcharge_refund_complete_res_transformer,
+    surcharge_refund_init_req_transformer, surcharge_refund_init_res_transformer,
 };
 
 // accept: DisputeService.Accept — Concede dispute and accepts chargeback loss. Acknowledges liability and stops dispute defense process when evidence is insufficient.
@@ -216,6 +222,10 @@ impl_flow_handlers!(setup_recurring, PaymentServiceSetupRecurringRequest, Paymen
 impl_flow_handlers!(submit_evidence, DisputeServiceSubmitEvidenceRequest, DisputeServiceSubmitEvidenceResponse, submit_evidence_req_transformer, submit_evidence_res_transformer, domain_types::connector_types::ConnectorEnum);
 // surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
 impl_flow_handlers!(surcharge_calculate, SurchargeServiceCalculateRequest, SurchargeServiceCalculateResponse, surcharge_calculate_req_transformer, surcharge_calculate_res_transformer, domain_types::connector_types::SurchargeConnectorEnum);
+// surcharge_refund_complete: SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund.
+impl_flow_handlers!(surcharge_refund_complete, SurchargeServiceSurchargeRefundCompleteRequest, SurchargeServiceSurchargeRefundCompleteResponse, surcharge_refund_complete_req_transformer, surcharge_refund_complete_res_transformer, domain_types::connector_types::SurchargeConnectorEnum);
+// surcharge_refund_init: SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund.
+impl_flow_handlers!(surcharge_refund_init, SurchargeServiceSurchargeRefundInitRequest, SurchargeServiceSurchargeRefundInitResponse, surcharge_refund_init_req_transformer, surcharge_refund_init_res_transformer, domain_types::connector_types::SurchargeConnectorEnum);
 // token_authorize: PaymentService.TokenAuthorize — Authorize using a connector-issued payment method token.
 impl_flow_handlers!(token_authorize, PaymentServiceTokenAuthorizeRequest, PaymentServiceAuthorizeResponse, token_authorize_req_transformer, token_authorize_res_transformer, domain_types::connector_types::ConnectorEnum);
 // token_setup_recurring: PaymentService.TokenSetupRecurring — Setup a recurring mandate using a connector token.

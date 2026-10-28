@@ -76,3 +76,34 @@ message SurchargeServiceCalculateResponse {
   uint32 status_code = 5; // HTTP status code from the connector
   optional ErrorInfo error = 6;         // Detailed error information (if status = FAILURE)
 }
+
+// Start a full or partial surcharge refund. The amount is the payment amount
+// being refunded, expressed in minor currency units.
+message SurchargeServiceSurchargeRefundInitRequest {
+  optional string merchant_surcharge_refund_id = 1;
+  string connector_surcharge_id = 2; // Original surcharge sTxId
+  Money amount = 3;
+}
+
+message SurchargeServiceSurchargeRefundInitResponse {
+  optional string merchant_surcharge_refund_id = 1;
+  optional string connector_surcharge_refund_id = 2; // New refund sTxId
+  optional Money refund_amount = 3;
+  optional Money original_transaction_fee = 4;
+  optional Money previously_refunded_transaction_fees = 5;
+  uint32 status_code = 6;
+  optional ErrorInfo error = 7;
+}
+
+// Complete the refund initiated above using the returned refund sTxId.
+message SurchargeServiceSurchargeRefundCompleteRequest {
+  optional string merchant_surcharge_refund_id = 1;
+  string connector_surcharge_refund_id = 2;
+}
+
+message SurchargeServiceSurchargeRefundCompleteResponse {
+  optional string merchant_surcharge_refund_id = 1;
+  optional string connector_surcharge_refund_id = 2;
+  uint32 status_code = 3;
+  optional ErrorInfo error = 4;
+}

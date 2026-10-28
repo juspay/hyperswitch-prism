@@ -86,6 +86,10 @@ import uniffi.connector_service_ffi.submitEvidenceReqTransformer
 import uniffi.connector_service_ffi.submitEvidenceResTransformer
 import uniffi.connector_service_ffi.surchargeCalculateReqTransformer
 import uniffi.connector_service_ffi.surchargeCalculateResTransformer
+import uniffi.connector_service_ffi.surchargeRefundCompleteReqTransformer
+import uniffi.connector_service_ffi.surchargeRefundCompleteResTransformer
+import uniffi.connector_service_ffi.surchargeRefundInitReqTransformer
+import uniffi.connector_service_ffi.surchargeRefundInitResTransformer
 import uniffi.connector_service_ffi.tokenAuthorizeReqTransformer
 import uniffi.connector_service_ffi.tokenAuthorizeResTransformer
 import uniffi.connector_service_ffi.tokenSetupRecurringReqTransformer
@@ -138,6 +142,8 @@ object FlowRegistry {
         "setup_recurring" to ::setupRecurringReqTransformer,
         "submit_evidence" to ::submitEvidenceReqTransformer,
         "surcharge_calculate" to ::surchargeCalculateReqTransformer,
+        "surcharge_refund_complete" to ::surchargeRefundCompleteReqTransformer,
+        "surcharge_refund_init" to ::surchargeRefundInitReqTransformer,
         "token_authorize" to ::tokenAuthorizeReqTransformer,
         "token_setup_recurring" to ::tokenSetupRecurringReqTransformer,
         "tokenize" to ::tokenizeReqTransformer,
@@ -183,6 +189,8 @@ object FlowRegistry {
         "setup_recurring" to ::setupRecurringResTransformer,
         "submit_evidence" to ::submitEvidenceResTransformer,
         "surcharge_calculate" to ::surchargeCalculateResTransformer,
+        "surcharge_refund_complete" to ::surchargeRefundCompleteResTransformer,
+        "surcharge_refund_init" to ::surchargeRefundInitResTransformer,
         "token_authorize" to ::tokenAuthorizeResTransformer,
         "token_setup_recurring" to ::tokenSetupRecurringResTransformer,
         "tokenize" to ::tokenizeResTransformer,
@@ -459,5 +467,13 @@ class SurchargeClient(
     // surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
     fun surcharge_calculate(request: SurchargeServiceCalculateRequest, options: RequestConfig? = null): SurchargeServiceCalculateResponse =
         executeFlow("surcharge_calculate", request.toByteArray(), SurchargeServiceCalculateResponse.parser(), options)
+
+    // surcharge_refund_complete: SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund.
+    fun surcharge_refund_complete(request: SurchargeServiceSurchargeRefundCompleteRequest, options: RequestConfig? = null): SurchargeServiceSurchargeRefundCompleteResponse =
+        executeFlow("surcharge_refund_complete", request.toByteArray(), SurchargeServiceSurchargeRefundCompleteResponse.parser(), options)
+
+    // surcharge_refund_init: SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund.
+    fun surcharge_refund_init(request: SurchargeServiceSurchargeRefundInitRequest, options: RequestConfig? = null): SurchargeServiceSurchargeRefundInitResponse =
+        executeFlow("surcharge_refund_init", request.toByteArray(), SurchargeServiceSurchargeRefundInitResponse.parser(), options)
 
 }

@@ -98,6 +98,10 @@ from payments.generated.payouts_pb2 import (
 from payments.generated.surcharge_pb2 import (
     SurchargeServiceCalculateRequest,
     SurchargeServiceCalculateResponse,
+    SurchargeServiceSurchargeRefundCompleteRequest,
+    SurchargeServiceSurchargeRefundCompleteResponse,
+    SurchargeServiceSurchargeRefundInitRequest,
+    SurchargeServiceSurchargeRefundInitResponse,
 )
 
 class _ConnectorClientBase:
@@ -304,4 +308,12 @@ class RefundClient(_ConnectorClientBase):
 class SurchargeClient(_ConnectorClientBase):
     def surcharge_calculate(self, request: SurchargeServiceCalculateRequest, options: RequestConfig | None = ...) -> SurchargeServiceCalculateResponse:
         """SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing."""
+        ...
+
+    def surcharge_refund_complete(self, request: SurchargeServiceSurchargeRefundCompleteRequest, options: RequestConfig | None = ...) -> SurchargeServiceSurchargeRefundCompleteResponse:
+        """SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund."""
+        ...
+
+    def surcharge_refund_init(self, request: SurchargeServiceSurchargeRefundInitRequest, options: RequestConfig | None = ...) -> SurchargeServiceSurchargeRefundInitResponse:
+        """SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund."""
         ...

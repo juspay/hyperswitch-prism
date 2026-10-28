@@ -32,6 +32,8 @@ use domain_types::router_request_types::VerifyWebhookSourceRequestData;
 use domain_types::surcharge::surcharge_types::{
     SurchargeCalculateIntegrityObject, SurchargeCalculateRequest,
     SurchargePaymentSucceededIntegrityObject, SurchargePaymentSucceededRequest,
+    SurchargeRefundCompleteIntegrityObject, SurchargeRefundCompleteRequest,
+    SurchargeRefundInitIntegrityObject, SurchargeRefundInitRequest,
     SurchargeRefundSucceededIntegrityObject, SurchargeRefundSucceededRequest,
 };
 use domain_types::{
@@ -287,6 +289,8 @@ impl_check_integrity!(PayoutGetRequest);
 impl_check_integrity!(PayoutVoidRequest);
 impl_check_integrity!(PayoutEligibilityRequest<S>);
 impl_check_integrity!(SurchargeCalculateRequest);
+impl_check_integrity!(SurchargeRefundInitRequest);
+impl_check_integrity!(SurchargeRefundCompleteRequest);
 impl_check_integrity!(SurchargePaymentSucceededRequest);
 impl_check_integrity!(SurchargeRefundSucceededRequest);
 impl_check_integrity!(RechargeRequestData);
@@ -1626,6 +1630,30 @@ impl GetIntegrityObject<SurchargeCalculateIntegrityObject> for SurchargeCalculat
     }
 }
 
+impl GetIntegrityObject<SurchargeRefundInitIntegrityObject> for SurchargeRefundInitRequest {
+    fn get_response_integrity_object(&self) -> Option<SurchargeRefundInitIntegrityObject> {
+        None
+    }
+    fn get_request_integrity_object(&self) -> SurchargeRefundInitIntegrityObject {
+        SurchargeRefundInitIntegrityObject {
+            connector_surcharge_id: self.connector_surcharge_id.clone(),
+            amount: self.amount,
+            currency: self.currency,
+        }
+    }
+}
+
+impl GetIntegrityObject<SurchargeRefundCompleteIntegrityObject> for SurchargeRefundCompleteRequest {
+    fn get_response_integrity_object(&self) -> Option<SurchargeRefundCompleteIntegrityObject> {
+        None
+    }
+    fn get_request_integrity_object(&self) -> SurchargeRefundCompleteIntegrityObject {
+        SurchargeRefundCompleteIntegrityObject {
+            connector_surcharge_refund_id: self.connector_surcharge_refund_id.clone(),
+        }
+    }
+}
+
 impl GetIntegrityObject<SurchargePaymentSucceededIntegrityObject>
     for SurchargePaymentSucceededRequest
 {
@@ -1997,6 +2025,56 @@ impl FlowIntegrity for SurchargeCalculateIntegrityObject {
             ));
         }
 
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for SurchargeRefundInitIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req: Self,
+        res: Self,
+        connector_transaction_id: Option<String>,
+        tolerance: AmountTolerance,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+        tolerance.check_amount("amount", req.amount, res.amount, &mut mismatched_fields);
+        if req.currency != res.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req.currency.to_string(),
+                &res.currency.to_string(),
+            ));
+        }
+        if req.connector_surcharge_id != res.connector_surcharge_id {
+            mismatched_fields.push(format_mismatch(
+                "connector_surcharge_id",
+                &req.connector_surcharge_id,
+                &res.connector_surcharge_id,
+            ));
+        }
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for SurchargeRefundCompleteIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req: Self,
+        res: Self,
+        connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+        if req.connector_surcharge_refund_id != res.connector_surcharge_refund_id {
+            mismatched_fields.push(format_mismatch(
+                "connector_surcharge_refund_id",
+                &req.connector_surcharge_refund_id,
+                &res.connector_surcharge_refund_id,
+            ));
+        }
         check_integrity_result(mismatched_fields, connector_transaction_id)
     }
 }

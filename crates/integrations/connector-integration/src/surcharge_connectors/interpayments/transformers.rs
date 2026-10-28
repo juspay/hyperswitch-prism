@@ -2,19 +2,25 @@ use crate::{types::ResponseRouterData, utils};
 use common_enums::{CountryAlpha2, CountryAlpha3};
 use common_utils::types::FloatMajorUnit;
 use domain_types::{
-    connector_flow::{SurchargeCalculate, SurchargePaymentSucceeded, SurchargeRefundSucceeded},
+    connector_flow::{
+        SurchargeCalculate, SurchargePaymentSucceeded, SurchargeRefundComplete,
+        SurchargeRefundInit, SurchargeRefundSucceeded,
+    },
     errors::{ConnectorError, IntegrationError},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     surcharge::surcharge_types::{
         SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
         SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
-        SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse, SurchargeStrategy,
+        SurchargeRefundCompleteRequest, SurchargeRefundCompleteResponse,
+        SurchargeRefundInitRequest, SurchargeRefundInitResponse, SurchargeRefundSucceededRequest,
+        SurchargeRefundSucceededResponse, SurchargeStrategy,
     },
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 const INTERPAYMENTS_OK_MESSAGE: &str = "ok";
 pub struct InterpaymentsAuthType {
@@ -43,11 +49,27 @@ impl TryFrom<&ConnectorSpecificConfig> for InterpaymentsAuthType {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum InterpaymentsErrorResponse {
+    Api(InterpaymentsApiErrorResponse),
+    Validation(InterpaymentsValidationErrorResponse),
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct InterpaymentsErrorResponse {
+pub struct InterpaymentsApiErrorResponse {
     pub reason_code: String,
+    pub reason_codes: Option<Vec<String>>,
+    pub reason_code_ids: Option<Vec<i64>>,
+    pub code: Option<String>,
     pub message: Option<String>,
     pub reason: Option<String>,
+    pub see_also: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct InterpaymentsValidationErrorResponse {
+    pub error: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -271,4 +293,167 @@ impl
 #[serde(rename_all = "camelCase")]
 pub struct InterPaymentsRefundSucceededResponse {
     pub s_tx_id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InterPaymentsSurchargeRefundInitRequest {
+    pub s_tx_id: String,
+    pub amount: FloatMajorUnit,
+}
+
+impl
+    TryFrom<
+        &RouterDataV2<
+            SurchargeRefundInit,
+            SurchargeFlowData,
+            SurchargeRefundInitRequest,
+            SurchargeRefundInitResponse,
+        >,
+    > for InterPaymentsSurchargeRefundInitRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        data: &RouterDataV2<
+            SurchargeRefundInit,
+            SurchargeFlowData,
+            SurchargeRefundInitRequest,
+            SurchargeRefundInitResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            s_tx_id: data.request.connector_surcharge_id.clone(),
+            amount: super::InterPaymentsAmountConvertor::convert(
+                data.request.amount,
+                data.request.currency,
+            )?,
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct InterPaymentsSurchargeRefundInitResponse {
+    pub refund: FloatMajorUnit,
+    pub original_transaction_fee: FloatMajorUnit,
+    pub previously_refunded_transaction_fees: FloatMajorUnit,
+    pub s_tx_id: String,
+}
+
+impl TryFrom<ResponseRouterData<InterPaymentsSurchargeRefundInitResponse, Self>>
+    for RouterDataV2<
+        SurchargeRefundInit,
+        SurchargeFlowData,
+        SurchargeRefundInitRequest,
+        SurchargeRefundInitResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<InterPaymentsSurchargeRefundInitResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        if response.s_tx_id.trim().is_empty() {
+            return Err(error_stack::report!(
+                ConnectorError::UnexpectedResponseError {
+                    context: domain_types::errors::ResponseTransformationErrorContext {
+                        http_status_code: Some(item.http_code),
+                        additional_context: Some(
+                            "InterPayments refund init returned an empty sTxId".to_string()
+                        ),
+                    },
+                }
+            ));
+        }
+        let currency = item.router_data.request.currency;
+        let convert = |amount| {
+            super::InterPaymentsAmountConvertor::convert_back(amount, currency).change_context(
+                utils::response_handling_fail_for_connector(item.http_code, "interpayments"),
+            )
+        };
+        let refund_amount = convert(response.refund)?;
+        let original_transaction_fee = convert(response.original_transaction_fee)?;
+        let previously_refunded_transaction_fees =
+            convert(response.previously_refunded_transaction_fees)?;
+        Ok(Self {
+            response: Ok(SurchargeRefundInitResponse {
+                connector_surcharge_refund_id: response.s_tx_id,
+                refund_amount,
+                original_transaction_fee: Some(original_transaction_fee),
+                previously_refunded_transaction_fees: Some(previously_refunded_transaction_fees),
+                currency: Some(currency),
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InterPaymentsSurchargeRefundCompleteRequest {
+    pub s_tx_id: String,
+}
+
+impl
+    TryFrom<
+        &RouterDataV2<
+            SurchargeRefundComplete,
+            SurchargeFlowData,
+            SurchargeRefundCompleteRequest,
+            SurchargeRefundCompleteResponse,
+        >,
+    > for InterPaymentsSurchargeRefundCompleteRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        data: &RouterDataV2<
+            SurchargeRefundComplete,
+            SurchargeFlowData,
+            SurchargeRefundCompleteRequest,
+            SurchargeRefundCompleteResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            s_tx_id: data.request.connector_surcharge_refund_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct InterPaymentsSurchargeRefundCompleteResponse {
+    pub s_tx_id: String,
+}
+
+impl TryFrom<ResponseRouterData<InterPaymentsSurchargeRefundCompleteResponse, Self>>
+    for RouterDataV2<
+        SurchargeRefundComplete,
+        SurchargeFlowData,
+        SurchargeRefundCompleteRequest,
+        SurchargeRefundCompleteResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<InterPaymentsSurchargeRefundCompleteResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        if item.response.s_tx_id != item.router_data.request.connector_surcharge_refund_id {
+            return Err(error_stack::report!(ConnectorError::IntegrityCheckFailed {
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "InterPayments refund completion returned a different sTxId".to_string()
+                    ),
+                },
+                field_names: "sTxId".to_string(),
+                connector_transaction_id: Some(item.response.s_tx_id),
+            }));
+        }
+        Ok(Self {
+            response: Ok(SurchargeRefundCompleteResponse {
+                connector_surcharge_refund_id: item.response.s_tx_id,
+            }),
+            ..item.router_data
+        })
+    }
 }

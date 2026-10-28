@@ -51,7 +51,9 @@ use domain_types::{
     surcharge::surcharge_types::{
         SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
         SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
-        SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse,
+        SurchargeRefundCompleteRequest, SurchargeRefundCompleteResponse,
+        SurchargeRefundInitRequest, SurchargeRefundInitResponse, SurchargeRefundSucceededRequest,
+        SurchargeRefundSucceededResponse,
     },
     types::{PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
 };
@@ -147,6 +149,8 @@ pub trait SurchargeServiceTrait:
     ConnectorCommon
     + ValidationTrait
     + SurchargeCalculateV2
+    + SurchargeRefundInitV2
+    + SurchargeRefundCompleteV2
     + SurchargePaymentSucceededV2
     + SurchargeRefundSucceededV2
 {
@@ -1016,6 +1020,26 @@ pub trait SurchargeCalculateV2:
     SurchargeFlowData,
     SurchargeCalculateRequest,
     SurchargeCalculateResponse,
+>
+{
+}
+
+pub trait SurchargeRefundInitV2:
+    ConnectorIntegrationV2<
+    connector_flow::SurchargeRefundInit,
+    SurchargeFlowData,
+    SurchargeRefundInitRequest,
+    SurchargeRefundInitResponse,
+>
+{
+}
+
+pub trait SurchargeRefundCompleteV2:
+    ConnectorIntegrationV2<
+    connector_flow::SurchargeRefundComplete,
+    SurchargeFlowData,
+    SurchargeRefundCompleteRequest,
+    SurchargeRefundCompleteResponse,
 >
 {
 }
