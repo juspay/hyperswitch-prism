@@ -105,6 +105,9 @@
     "rapyd": {},
     "razorpay": {},
     "razorpayv2": {},
+    "reddot": {
+      "reason": "RedDot sandbox credentials are not configured in the CI credentials registry, so automated live sandbox certification cannot run. Remove this entry once credentials are provisioned in CI so the declared connector scenarios are verified."
+    },
     "redsys": {},
     "revolut": {},
     "revolv3": {},
