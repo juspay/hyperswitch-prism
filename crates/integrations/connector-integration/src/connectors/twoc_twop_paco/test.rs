@@ -99,6 +99,8 @@ mod void_pc {
                 raw_connector_response: None,
                 browser_info: None,
                 amount: None,
+                payment_method_data: None,
+                capture_method: None,
             },
             response: Err(ErrorResponse::default()),
         }
