@@ -2535,8 +2535,8 @@ impl TryFrom<ResponseRouterData<TrustpayCaptureResponse, Self>>
                 typed_connector_request: None,
             })
         } else {
-            // Refund / PSync act on the Preauthorization instance, so it stays the resource id;
-            // the capture instance is kept in connector_metadata (UD-07).
+            // PSync acts on the Preauthorization instance, so it stays the resource id; the capture
+            // instance is kept in connector_metadata for PSync (UD-09) and Refund (UD-07).
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: item.router_data.request.connector_transaction_id.clone(),
                 redirection_data: None,
@@ -2819,12 +2819,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 )))
             }
-            _ => Ok(Self::CardsRefund(Box::new(TrustpayRefundRequestCards {
-                instance_id: item.router_data.request.connector_transaction_id.clone(),
-                amount,
-                currency: item.router_data.request.currency.to_string(),
-                reference: item.router_data.request.refund_id.clone(),
-            }))),
+            _ => {
+                // A captured preauthorization is refunded via its Capture instance (UD-07);
+                // the preauth instance answers code 73 "not refundable".
+                let instance_id = item
+                    .router_data
+                    .request
+                    .connector_feature_data
+                    .as_ref()
+                    .and_then(|m| {
+                        m.peek()
+                            .get("capture_instance_id")?
+                            .as_str()
+                            .map(str::to_owned)
+                    })
+                    .unwrap_or_else(|| item.router_data.request.connector_transaction_id.clone());
+                Ok(Self::CardsRefund(Box::new(TrustpayRefundRequestCards {
+                    instance_id,
+                    amount,
+                    currency: item.router_data.request.currency.to_string(),
+                    reference: item.router_data.request.refund_id.clone(),
+                })))
+            }
         }
     }
 }
