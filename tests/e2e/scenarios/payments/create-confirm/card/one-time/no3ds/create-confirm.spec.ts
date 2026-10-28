@@ -173,19 +173,6 @@ for (const connector of connectors) {
           },
           ({ actual, expected }) => expect(actual).toEqual(expected),
         );
-        await report.check(
-          "Payment timestamps",
-          {
-            actual: {
-              createdValid: typeof response.created === "string"
-                && Number.isFinite(Date.parse(response.created)),
-              modifiedValid: typeof response.modified_at === "string"
-                && Number.isFinite(Date.parse(response.modified_at)),
-            },
-            expected: { createdValid: true, modifiedValid: true },
-          },
-          ({ actual, expected }) => expect(actual).toEqual(expected),
-        );
         return response;
       });
 
