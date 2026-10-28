@@ -700,6 +700,19 @@ pub struct NovalnetPaymentsResponse {
     pub transaction: Option<NovalnetPaymentsResponseTransactionData>,
 }
 
+impl NovalnetPaymentsResponse {
+    pub fn transaction_status(&self) -> NovalnetTransactionStatus {
+        self.transaction
+            .as_ref()
+            .and_then(|transaction| transaction.status)
+            .unwrap_or(if self.result.redirect_url.is_some() {
+                NovalnetTransactionStatus::Progress
+            } else {
+                NovalnetTransactionStatus::Pending
+            })
+    }
+}
+
 pub fn get_error_response(
     result: ResultData,
     status_code: u16,
@@ -2822,5 +2835,62 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                 })
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod status_mapping_tests {
+    use super::{NovalnetPaymentsResponse, NovalnetTransactionStatus};
+
+    #[test]
+    fn redirect_without_transaction_status_requires_authentication() -> Result<(), serde_json::Error>
+    {
+        for transaction in [serde_json::Value::Null, serde_json::json!({})] {
+            let response: NovalnetPaymentsResponse = serde_json::from_value(serde_json::json!({
+                "result": {
+                    "status": "SUCCESS",
+                    "status_code": 100,
+                    "status_text": "Successful",
+                    "redirect_url": "https://example.com/authenticate"
+                },
+                "transaction": transaction
+            }))?;
+            assert_eq!(
+                response.transaction_status(),
+                NovalnetTransactionStatus::Progress
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn missing_status_without_redirect_remains_pending() -> Result<(), serde_json::Error> {
+        let response: NovalnetPaymentsResponse = serde_json::from_value(serde_json::json!({
+            "result": { "status": "SUCCESS", "status_code": 100, "status_text": "Successful" }
+        }))?;
+        assert_eq!(
+            response.transaction_status(),
+            NovalnetTransactionStatus::Pending
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn explicit_transaction_status_takes_precedence_over_redirect() -> Result<(), serde_json::Error>
+    {
+        let response: NovalnetPaymentsResponse = serde_json::from_value(serde_json::json!({
+            "result": {
+                "status": "SUCCESS",
+                "status_code": 100,
+                "status_text": "Successful",
+                "redirect_url": "https://example.com/authenticate"
+            },
+            "transaction": { "status": "CONFIRMED" }
+        }))?;
+        assert_eq!(
+            response.transaction_status(),
+            NovalnetTransactionStatus::Confirmed
+        );
+        Ok(())
     }
 }

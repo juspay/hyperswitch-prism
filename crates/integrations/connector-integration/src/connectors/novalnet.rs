@@ -873,11 +873,6 @@ fn get_webhook_object_from_body(
 // the TryFrom's absence default (`Progress` when a redirect form exists — "Novalnet does
 // not send us the transaction.status for redirection flow" — else `Pending`). All targets
 // are in `Authorize::ALLOWED`.
-// NOTE: no extractors — the TryFrom's status is
-// `transaction.status.unwrap_or(Progress if redirect_url present else Pending)`, so the
-// runtime source would be `(Option<NovalnetTransactionStatus>, bool)`; a tuple source
-// ties the generated `map_attempt_status` to a tuple pattern the variant-table body
-// cannot express, so this mapping stays compile-time only.
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Novalnet<T>,
@@ -898,11 +893,7 @@ domain_types::impl_flow_status_mapping! {
     runtime: {
         request: PaymentsAuthorizeData<T>,
         response: NovalnetPaymentsResponse,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response
-            .transaction
-            .as_ref()
-            .and_then(|data| data.status)
-            .unwrap_or(novalnet::NovalnetTransactionStatus::Pending)) },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.transaction_status()) },
     },
 }
 
@@ -998,10 +989,6 @@ domain_types::impl_flow_status_mapping! {
     },
 }
 
-// NOTE: no extractors — the SetupMandate TryFrom (transformers.rs:848) defaults a
-// missing transaction status to `Progress` only when the response carries a redirect
-// URL, else `Pending`; the tuple-source shape needed for runtime extraction cannot be
-// dispatched by the variant-table map (see the Authorize note above).
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Novalnet<T>,
@@ -1022,18 +1009,10 @@ domain_types::impl_flow_status_mapping! {
     runtime: {
         request: SetupMandateRequestData<T>,
         response: NovalnetPaymentsResponseMandate,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response
-            .transaction
-            .as_ref()
-            .and_then(|data| data.status)
-            .unwrap_or(novalnet::NovalnetTransactionStatus::Pending)) },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.transaction_status()) },
     },
 }
 
-// NOTE: no extractors — the RepeatPayment TryFrom (transformers.rs:953) shares the
-// Authorize response shape and its redirect-dependent missing-status default
-// (`Progress` with redirection data, else `Pending`); the tuple-source shape does not
-// compile (see Authorize's note above).
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Novalnet<T>,
@@ -1054,11 +1033,7 @@ domain_types::impl_flow_status_mapping! {
     runtime: {
         request: RepeatPaymentData<T>,
         response: NovalnetRepeatPaymentsResponse,
-        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response
-            .transaction
-            .as_ref()
-            .and_then(|data| data.status)
-            .unwrap_or(novalnet::NovalnetTransactionStatus::Pending)) },
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.transaction_status()) },
     },
 }
 
