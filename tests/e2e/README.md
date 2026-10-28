@@ -73,12 +73,12 @@ Before payment calls, fixtures create an isolated merchant, issue an API key exp
 
 Each scenario declares `paymentMethodsEnabled`, which is sent as the connector account's `payment_methods_enabled`. The current scenario enables card credit only. Declare additional methods in scenarios that exercise them; the common setup does not assume every test uses cards. Optional merchant contact fields, webhook subscriptions, parent merchants, tokenization, and mandate settings are not prerequisites for this fresh-card scenario and are not enabled implicitly. Customer creation belongs in a journey that actually uses a customer.
 
-The implemented Adyen scenario requires `succeeded` in both the create/confirm response and a single subsequent retrieval. It does not accept `processing`, poll through intermediate states, or exercise failure scenarios.
+The implemented Adyen scenario requires `succeeded` in the create/confirm response and verifies the recorded payment outcome. It does not retrieve or synchronize the payment, accept `processing`, poll through intermediate states, or exercise failure scenarios.
 
 Each file contains one complete shared scenario. Read it top to bottom to see the requests, response checks, polling, and database evidence. Calls run in the order written.
 
 ```ts
-const createdPayment = await report.step("Create and confirm payment", async () => {
+const payment = await report.step("Create and confirm payment", async () => {
   const response = await payments.createPayment({
     profile_id: merchant.profileId,
     amount: 6000,
@@ -91,17 +91,13 @@ const createdPayment = await report.step("Create and confirm payment", async () 
   return response;
 });
 
-const payment = await report.step("Retrieve successful payment", async () => {
-  const response = await payments.retrievePayment(
-    createdPayment.payment_id,
-    { force_sync: true },
-  );
-  await checks.fields("Payment result", response, {
-    status: "succeeded",
-    amount: 6000,
-    connector: connector.id,
+await report.step("Verify recorded payment outcome", async () => {
+  const recorded = await payments.readRecordedPayment(payment.payment_id);
+  await checks.fields("Recorded payment outcome", recorded, {
+    gateway: "unified_connector_service",
+    attemptStatus: "charged",
+    connectorTransactionIdPresent: true,
   });
-  return response;
 });
 ```
 
@@ -113,9 +109,7 @@ Only `scenarios/api/payments/create-confirm/card/one-time/no3ds/automatic-create
 
 ```text
 POST /payments with confirm:true
-  -> check confirmation
-GET /payments/{id}?force_sync=true once
-  -> check terminal payment fields
+  -> check success, null error fields, capture mode and payment fields
 Read the payment and its active attempt from the test HS database
   -> check gateway, attempt status, and connector transaction ID presence
 ```

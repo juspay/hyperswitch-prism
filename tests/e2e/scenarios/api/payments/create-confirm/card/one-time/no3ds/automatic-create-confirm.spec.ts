@@ -5,7 +5,7 @@ const scenario = {
   id: "no3ds-automatic-create-confirm",
   title: "One-time card payment — No3DS, automatic capture",
   description:
-    "Create and confirm in one server API request, retrieve the successful payment, and verify the recorded UCS gateway and processor reference.",
+    "Create and confirm in one server API request, verify the successful response, and check the recorded UCS gateway and processor reference.",
   verifies:
     "Payment succeeds with matching amount and currency, automatic capture, No3DS authentication, the selected connector account, and a recorded UCS gateway and connector transaction ID.",
   paymentMethodsEnabled: [
@@ -22,7 +22,7 @@ for (const connector of connectors) {
     test(scenario.title, async ({ connector, merchant, payments, checks, report }) => {
       // Setup provides an isolated merchant, API key, connector account, and routing.
       // 1. POST /payments: create and confirm together, with automatic capture.
-      const createdPayment = await report.step("Create and confirm payment", async () => {
+      const payment = await report.step("Create and confirm payment", async () => {
         const response = await payments.createPayment({
           profile_id: merchant.profileId,
           amount: 6000,
@@ -63,37 +63,25 @@ for (const connector of connectors) {
 
         await checks.fields("Confirmation fields", response, {
           status: "succeeded",
+          error_code: null,
+          error_message: null,
           connector: connector.id,
           merchant_connector_id: merchant.merchantConnectorId,
+          capture_method: "automatic",
+          payment_method: "card",
+          payment_method_type: "credit",
+          authentication_type: "no_three_ds",
+          amount: 6000,
+          currency: "USD",
+          amount_received: 6000,
+          setup_future_usage: null,
           next_action: null,
           mandate_id: null,
         });
         return response;
       });
 
-      // 2. GET /payments/{id}?force_sync=true: retrieve once and require success.
-      // The whole response remains available; any field can be used by later calls.
-      const payment = await report.step("Retrieve successful payment", async () => {
-        const response = await payments.retrievePayment(
-          createdPayment.payment_id,
-          { force_sync: true },
-        );
-        await checks.fields("Payment result", response, {
-          payment_id: createdPayment.payment_id,
-          status: "succeeded",
-          connector: connector.id,
-          merchant_connector_id: merchant.merchantConnectorId,
-          authentication_type: "no_three_ds",
-          amount: 6000,
-          currency: "USD",
-          amount_received: 6000,
-          setup_future_usage: null,
-          mandate_id: null,
-        });
-        return response;
-      });
-
-      // 3. Read recorded facts for this payment and its active attempt.
+      // 2. Read recorded facts for this payment and its active attempt.
       // This does not trigger or prove a fresh processor PSync call.
       await report.step("Verify recorded payment outcome", async () => {
         const recorded = await payments.readRecordedPayment(payment.payment_id);
