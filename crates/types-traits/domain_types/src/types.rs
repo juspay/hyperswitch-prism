@@ -12713,45 +12713,47 @@ impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceSubmitEvidenceReques
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         // Initialize all fields to None
         let mut result = Self {
-            dispute_id: Some(value.dispute_id.clone()),
+            dispute_id: value.merchant_dispute_id.or(Some(value.dispute_id.clone())),
             connector_dispute_id: value.dispute_id,
             integrity_object: None,
-            access_activity_log: None,
-            billing_address: None,
+            access_activity_log: value.access_activity_log,
+            billing_address: value.billing_address,
             cancellation_policy: None,
             cancellation_policy_file_type: None,
             cancellation_policy_provider_file_id: None,
-            cancellation_policy_disclosure: None,
-            cancellation_rebuttal: None,
+            cancellation_policy_disclosure: value.cancellation_policy_disclosure,
+            cancellation_rebuttal: value.cancellation_rebuttal,
             customer_communication: None,
             customer_communication_file_type: None,
             customer_communication_provider_file_id: None,
-            customer_email_address: None,
-            customer_name: None,
-            customer_purchase_ip: None,
+            customer_email_address: value
+                .customer_email_address
+                .map(|email| Secret::new(email.expose())),
+            customer_name: value.customer_name,
+            customer_purchase_ip: value.customer_purchase_ip,
             customer_signature: None,
             customer_signature_file_type: None,
             customer_signature_provider_file_id: None,
-            product_description: None,
+            product_description: value.product_description,
             receipt: None,
             receipt_file_type: None,
             receipt_provider_file_id: None,
             refund_policy: None,
             refund_policy_file_type: None,
             refund_policy_provider_file_id: None,
-            refund_policy_disclosure: None,
-            refund_refusal_explanation: None,
+            refund_policy_disclosure: value.refund_policy_disclosure,
+            refund_refusal_explanation: value.refund_refusal_explanation,
             service_date: value.service_date.map(|date| date.to_string()),
             service_documentation: None,
             service_documentation_file_type: None,
             service_documentation_provider_file_id: None,
-            shipping_address: None,
-            shipping_carrier: None,
+            shipping_address: value.shipping_address,
+            shipping_carrier: value.shipping_carrier,
             shipping_date: value.shipping_date.map(|date| date.to_string()),
             shipping_documentation: None,
             shipping_documentation_file_type: None,
             shipping_documentation_provider_file_id: None,
-            shipping_tracking_number: None,
+            shipping_tracking_number: value.shipping_tracking_number,
             invoice_showing_distinct_transactions: None,
             invoice_showing_distinct_transactions_file_type: None,
             invoice_showing_distinct_transactions_provider_file_id: None,
@@ -23093,5 +23095,47 @@ impl From<grpc_payment_types::IntegritySpecifications> for IntegritySpecificatio
         Self {
             allow_amount_mismatch: value.allow_amount_mismatch,
         }
+    }
+}
+
+#[cfg(test)]
+mod dispute_tunnel_tests {
+    use super::*;
+
+    #[test]
+    fn submit_evidence_preserves_dispute_ids_and_text_evidence() {
+        let request = grpc_api_types::payments::DisputeServiceSubmitEvidenceRequest {
+            merchant_dispute_id: Some("dp_merchant".to_owned()),
+            dispute_id: "dp_connector".to_owned(),
+            access_activity_log: Some("customer signed in".to_owned()),
+            cancellation_policy_disclosure: Some("shown at checkout".to_owned()),
+            customer_email_address: Some(Secret::new("customer@example.com".to_owned())),
+            shipping_tracking_number: Some("track_123".to_owned()),
+            ..Default::default()
+        };
+
+        let evidence =
+            SubmitEvidenceData::foreign_try_from(request).expect("valid dispute evidence");
+        assert_eq!(evidence.dispute_id.as_deref(), Some("dp_merchant"));
+        assert_eq!(evidence.connector_dispute_id, "dp_connector");
+        assert_eq!(
+            evidence.access_activity_log.as_deref(),
+            Some("customer signed in")
+        );
+        assert_eq!(
+            evidence.cancellation_policy_disclosure.as_deref(),
+            Some("shown at checkout")
+        );
+        assert_eq!(
+            evidence
+                .customer_email_address
+                .as_ref()
+                .map(|email| email.peek().as_str()),
+            Some("customer@example.com")
+        );
+        assert_eq!(
+            evidence.shipping_tracking_number.as_deref(),
+            Some("track_123")
+        );
     }
 }

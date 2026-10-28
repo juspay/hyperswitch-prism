@@ -4382,6 +4382,22 @@ message DisputeServiceSubmitEvidenceRequest {
   // Evidence
   repeated EvidenceDocument evidence_documents =
       6; // Collection of evidence documents
+
+  // Text evidence accompanying the documents. Keep these separate from
+  // EvidenceDocument because they have distinct connector meanings.
+  optional string access_activity_log = 7;
+  optional string billing_address = 8;
+  optional string cancellation_policy_disclosure = 9;
+  optional string cancellation_rebuttal = 10;
+  optional SecretString customer_email_address = 11;
+  optional string customer_name = 12;
+  optional string customer_purchase_ip = 13;
+  optional string product_description = 14;
+  optional string refund_policy_disclosure = 15;
+  optional string refund_refusal_explanation = 16;
+  optional string shipping_address = 17;
+  optional string shipping_carrier = 18;
+  optional string shipping_tracking_number = 19;
 }
 
 // Response message for a submit evidence operation
