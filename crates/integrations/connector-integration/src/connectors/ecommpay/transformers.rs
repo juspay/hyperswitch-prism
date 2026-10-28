@@ -1787,6 +1787,7 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
         .map(|line| {
             let line_total = line
                 .amount
+                .amount
                 .get_amount_as_i64()
                 .checked_mul(i64::from(line.quantity))
                 .ok_or_else(|| {
@@ -1810,7 +1811,7 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
                 amount: MinorUnit::new(line_total),
                 quantity: line.quantity,
                 description,
-                tax_amount: line.total_tax_amount,
+                tax_amount: line.total_tax_amount.as_ref().map(|money| money.amount),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;

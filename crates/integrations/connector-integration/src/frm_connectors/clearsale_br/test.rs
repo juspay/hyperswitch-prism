@@ -112,7 +112,10 @@ mod tests {
         vec![OrderDetailsWithAmount {
             product_name: "Passagem São Paulo → Rio".to_owned(),
             quantity: 2,
-            amount: MinorUnit(15000),
+            amount: Money {
+                amount: MinorUnit(15000),
+                currency: Currency::BRL,
+            },
             tax_rate: None,
             total_tax_amount: None,
             requires_shipping: None,
@@ -1222,11 +1225,10 @@ mod tests {
     /// and not the line total). The unused `total_value` guard param is gone.
     #[test]
     fn build_clear_sale_items_uses_integer_quantity() {
-        let items =
-            build_clear_sale_items(Some(&order_details()), Currency::BRL, Some(false)).unwrap();
+        let items = build_clear_sale_items(Some(&order_details()), Some(false)).unwrap();
         assert_eq!(items[0].amount, Some(2));
         assert_eq!(items[0].value, Some(FloatMajorUnit(150.0)));
-        assert!(build_clear_sale_items(None, Currency::BRL, None).is_err());
+        assert!(build_clear_sale_items(None, None).is_err());
     }
 
     /// Card PAN data is credit-only on the wire. A debit card still maps to
