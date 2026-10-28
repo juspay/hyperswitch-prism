@@ -21,7 +21,7 @@ export type ConnectorDefinition = {
   id: string;
   credentialKey: string;
   credentialEntry?: string;
-  card: CardData;
+  card?: Partial<CardData>;
   overrides?: Record<string, ScenarioOverrides>;
   exclude?: Record<string, { reason: string }>;
 };

@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { test } from "../../../../../../framework/fixtures.js";
 import { connectors } from "../../../../../../connectors/index.js";
+import {
+  createAddress,
+  createBrowserInfo,
+  createCard,
+  createCustomer,
+  testReturnUrl,
+} from "../../../../../../test-data.js";
 
 const scenario = {
   id: "no3ds-create-confirm",
@@ -21,26 +28,11 @@ for (const connector of connectors) {
   test.describe(connector.id, () => {
     test.use({ connector, scenario });
     test(scenario.title, async ({ connector, merchant, payments, checks, report }) => {
-      const billingAddress = {
-        first_name: "Test",
-        last_name: "Customer",
-        line1: "1",
-        line2: "Test Street",
-        city: "San Francisco",
-        state: "CA",
-        zip: "94107",
-        country: "US",
-      };
-      const email = "test@example.com";
-      const returnUrl = "https://example.com";
-      const customer = {
-        id: `cus_${randomUUID().replaceAll("-", "")}`,
-        name: "Test Customer",
-        email,
-        phone: "2025550100",
-        phone_country_code: "+1",
-      };
-      const shippingAddress = { ...billingAddress, line1: "2" };
+      const billingAddress = createAddress();
+      const shippingAddress = createAddress({ line1: "2" });
+      const customer = createCustomer();
+      const email = customer.email;
+      const returnUrl = testReturnUrl;
       const phone = {
         number: customer.phone,
         country_code: customer.phone_country_code,
@@ -57,17 +49,7 @@ for (const connector of connectors) {
           requires_shipping: true,
         },
       ];
-      const browserInfo = {
-        accept_header: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        language: "en-US",
-        screen_height: 1080,
-        screen_width: 1920,
-        color_depth: 24,
-        user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36",
-        time_zone: 0,
-        java_enabled: false,
-        ip_address: "192.0.2.1",
-      };
+      const browserInfo = createBrowserInfo();
       // Setup provides an isolated merchant, API key, connector account, and routing.
       // 1. POST /payments: create and confirm together, with automatic capture.
       const payment = await report.step("Create and confirm payment", async () => {
@@ -80,7 +62,7 @@ for (const connector of connectors) {
           capture_method: "automatic",
           payment_method: "card",
           payment_method_type: "credit",
-          payment_method_data: { card: connector.card },
+          payment_method_data: { card: createCard(connector.card) },
           billing: {
             address: billingAddress,
             phone,

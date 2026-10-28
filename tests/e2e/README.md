@@ -85,7 +85,7 @@ const payment = await report.step("Create and confirm payment", async () => {
     currency: "USD",
     confirm: true,
     payment_method: "card",
-    payment_method_data: { card: connector.card },
+    payment_method_data: { card: createCard(connector.card) },
   });
   await checks.fields("Confirmation", response, { status: "succeeded" });
   return response;
@@ -183,7 +183,7 @@ Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file bounda
 Scenarios belong to the shared superset under `scenarios/`. Connectors automatically inherit all registered scenarios. Keep connector differences in `connectors/`; do not copy scenarios into connector directories.
 
 - Add a connector definition and register it in `connectors/index.ts`.
-- Supply sandbox card data and any necessary scenario request overrides.
+- Use the shared sandbox card by default; supply optional `card` field overrides only when required by the connector's sandbox.
 - Exclude an unsupported scenario explicitly with a nonempty reason. Exclusions appear as skipped tests.
 - Add a new shared scenario for a new payment journey. Its function owns the ordered calls and expected results.
 - Add reusable operations or setup helpers when the new journey needs them. Operation helpers perform individual calls; they do not decide the journey.
@@ -211,8 +211,11 @@ Operations apply their request overrides automatically. Overrides replace comple
 
 ## File responsibilities
 
+`test-data.ts` supplies fresh address, contact, customer, browser and sandbox-card data. Specs select factories explicitly and assemble requests themselves. Customer IDs are generated per call. Keep amounts, capture mode, order items, scenario-specific metadata and expected outcomes in each spec; data factories do not submit requests or choose journeys.
+
 | File | Responsibility |
 | --- | --- |
+| `test-data.ts` | Reusable test-data factories and a default sandbox card; no API calls or shared mutable response state. |
 | `scenarios/**/*.spec.ts` | Own the complete journey, request data, use of responses, and expected results. |
 | `connectors/adyen.ts` | Declare sandbox data, optional request overrides, and reasoned exclusions. |
 | `connectors/index.ts` | Register connector definitions. |
