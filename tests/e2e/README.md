@@ -143,6 +143,8 @@ scenarios/
 │   │   │   │   │   └── three-ds/
 │   │   │   │   └── recurring/
 │   │   │   │       ├── connector-mandate/
+│   │   │   │       │   ├── zero-amount-setup-then-recurring.spec.ts
+│   │   │   │       │   └── nonzero-amount-setup-then-recurring.spec.ts
 │   │   │   │       └── network-transaction-id/
 │   │   │   ├── wallet/
 │   │   │   │   ├── apple-pay/
