@@ -73,7 +73,7 @@ Before payment calls, fixtures create an isolated merchant, issue an API key exp
 
 Each scenario declares `paymentMethodsEnabled`, which is sent as the connector account's `payment_methods_enabled`. The current scenario enables card credit only. Declare additional methods in scenarios that exercise them; the common setup does not assume every test uses cards. Optional merchant contact fields, webhook subscriptions, parent merchants, tokenization, and mandate settings are not prerequisites for this fresh-card scenario and are not enabled implicitly. Customer creation belongs in a journey that actually uses a customer.
 
-The implemented Adyen scenario requires `succeeded` in the create/confirm response, the full amount received, and zero amount left capturable. It checks merchant/profile ownership, one attempt, billing and email, a normalized return URL, null error/mandate fields, generated reference presence and timestamp validity, then verifies the recorded charged attempt through UCS. Generated processor references are reported only as presence checks. It does not retrieve or synchronize the payment, accept `processing`, poll through intermediate states, or exercise failure scenarios.
+The implemented Adyen scenario requires `succeeded` in the create/confirm response, the full amount received, and zero amount left capturable. It includes inline customer creation, full billing and shipping, browser information, description, metadata, a merchant order reference and order items. It checks their returned values, merchant/profile ownership, one attempt, a normalized return URL, null error/mandate fields, generated reference presence and timestamp validity, then verifies the recorded charged attempt through UCS and existence of the associated customer record. Generated processor references are reported only as presence checks. It does not retrieve or synchronize the payment, accept `processing`, poll through intermediate states, or exercise failure scenarios.
 
 Each file contains one complete shared scenario. Read it top to bottom to see the requests, response checks, polling, and database evidence. Calls run in the order written.
 
@@ -107,16 +107,16 @@ Responses are ordinary objects. Any returned field can be passed to a later oper
 
 `checks.fields` validates that its target is an object and compares only the listed fields. Pass a nested response object to check selected nested fields; a nested object supplied as an expected value is compared in full. Keep sensitive values out of comparisons and report only their required presence.
 
-Only `scenarios/payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm.spec.ts` is implemented. Other specs and reserved directories are empty placeholders. The current sequence is:
+Only `scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm.spec.ts` is implemented. Other specs and reserved directories are empty placeholders. The current sequence is:
 
 ```text
 POST /payments with confirm:true
-  -> check success, null error fields, capture mode and payment fields
+  -> check success, customer, addresses, browser information, order details and payment fields
 Read the payment and its active attempt from the test HS database
-  -> check gateway, attempt status, and connector transaction ID presence
+  -> check gateway, attempt status, connector transaction ID presence and customer record existence
 ```
 
-`payments.readRecordedPayment(payment.payment_id)` returns the recorded `gateway`, `attemptStatus`, and `connectorTransactionIdPresent`. The boolean is computed from `connector_transaction_id IS NOT NULL AND connector_transaction_id <> ''`; the identifier itself is not returned. Status is asserted in the spec rather than used to filter the query. The connection uses a read-only session; an existing stack should also supply SELECT-only credentials through `HS_DATABASE_URL` for least privilege. The local default remains the stack's database account.
+`payments.readRecordedPayment(payment.payment_id)` returns the recorded `gateway`, `attemptStatus`, `connectorTransactionIdPresent`, and `customerRecordExists`. Customer existence is checked against the payment's merchant and customer ID; customer contact data is not read. The boolean is computed from `connector_transaction_id IS NOT NULL AND connector_transaction_id <> ''`; the identifier itself is not returned. Status is asserted in the spec rather than used to filter the query. The connection uses a read-only session; an existing stack should also supply SELECT-only credentials through `HS_DATABASE_URL` for least privilege. The local default remains the stack's database account.
 
 The database read does not trigger or prove a fresh processor PSync call. It requires the corresponding HS database schema.
 
@@ -131,7 +131,7 @@ scenarios/
 │   │   ├── card/
 │   │   │   ├── one-time/
 │   │   │   │   ├── no3ds/
-│   │   │   │   │   ├── automatic-capture-create-confirm.spec.ts
+│   │   │   │   │   ├── create-confirm.spec.ts
 │   │   │   │   │   ├── automatic-capture-create-then-confirm.spec.ts
 │   │   │   │   │   ├── manual-capture-create-confirm.spec.ts
 │   │   │   │   │   └── manual-capture-create-then-confirm.spec.ts
@@ -160,6 +160,10 @@ scenarios/
     └── sync/
 ```
 
+
+`create-confirm.spec.ts` exercises a fully populated one-time inline-confirmation request. It uses automatic capture for immediate success; it is not a dedicated capture-mode test. Mutually exclusive journeys such as mandate setup, manual capture and SDK checkout have separate specs.
+
+Order item `amount` is per unit: the sum of `amount * quantity` must equal the payment amount. The scenario sends two units at 3000 minor units each and checks the returned item fields. Inline customer creation supplies a fresh customer ID; processor-side customer creation is connector-dependent and is not universally required.
 
 `create-confirm/` groups initial payment journeys. In filenames, `create-confirm` means creation with `confirm: true`; `create-then-confirm` means separate requests. Use the explicit filename prefixes `automatic-capture` and `manual-capture`.
 
@@ -219,7 +223,7 @@ Operations apply their request overrides automatically. Overrides replace comple
 | `framework/hyperswitch-client.ts` | Send authenticated HS HTTP requests and handle transport/HTTP errors. |
 | `framework/ucs-audit.ts` | Correlate and attach UCS's existing masked structured events; never attach raw logs. |
 | `framework/report.ts` | Group a scenario's call and checks in a Playwright step, attaching audit evidence afterward, including on failure. |
-| `framework/payment-records.ts` | Read the payment gateway, active-attempt status, and connector transaction ID presence from the dedicated test database. |
+| `framework/payment-records.ts` | Read the payment gateway, active-attempt status, connector transaction ID presence and associated customer record existence from the dedicated test database. |
 | `framework/assertions.ts` | Shared comparisons, bounded polling, and expected/actual report attachments. |
 | `framework/connector-credentials.ts` | Load external sandbox credentials. |
 | `framework/configuration.ts` | Resolve runtime URLs and options. |

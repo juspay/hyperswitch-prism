@@ -1,13 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { test } from "../../../../../../framework/fixtures.js";
 import { connectors } from "../../../../../../connectors/index.js";
 
 const scenario = {
-  id: "no3ds-automatic-create-confirm",
-  title: "One-time card payment — No3DS, automatic capture",
+  id: "no3ds-create-confirm",
+  title: "One-time No3DS card payment — create and confirm with customer and order details",
   description:
-    "Create and confirm a one-time No3DS card payment with automatic capture in one API request. Verify succeeded status, the full amount received, and a recorded charged attempt through UCS with a connector transaction ID.",
+    "Create and confirm a one-time No3DS card payment with a new customer, billing, shipping and order details in one API request. Verify succeeded status, the full amount received and the recorded charged attempt through UCS.",
   verifies:
-    "Verify full automatic capture with no amount left capturable, merchant and profile ownership, billing and contact details, one attempt, no errors or mandate setup, and the recorded UCS gateway and connector transaction ID.",
+    "Verify customer creation and association, request details preserved in the response, full amount received with nothing left capturable, merchant and profile ownership, one attempt, no errors or mandate setup, and a recorded UCS gateway and connector transaction ID.",
   paymentMethodsEnabled: [
     {
       payment_method: "card",
@@ -23,7 +24,8 @@ for (const connector of connectors) {
       const billingAddress = {
         first_name: "Test",
         last_name: "Customer",
-        line1: "1 Test Street",
+        line1: "1",
+        line2: "Test Street",
         city: "San Francisco",
         state: "CA",
         zip: "94107",
@@ -31,6 +33,41 @@ for (const connector of connectors) {
       };
       const email = "test@example.com";
       const returnUrl = "https://example.com";
+      const customer = {
+        id: `cus_${randomUUID().replaceAll("-", "")}`,
+        name: "Test Customer",
+        email,
+        phone: "2025550100",
+        phone_country_code: "+1",
+      };
+      const shippingAddress = { ...billingAddress, line1: "2" };
+      const phone = {
+        number: customer.phone,
+        country_code: customer.phone_country_code,
+      };
+      const metadata = { order_type: "one_time", fulfillment: "delivery" };
+      const description = "Test order";
+      const orderReference = `order_${randomUUID().replaceAll("-", "")}`;
+      const orderDetails = [
+        {
+          product_name: "Test product",
+          product_id: "test-product",
+          quantity: 2,
+          amount: 3000,
+          requires_shipping: true,
+        },
+      ];
+      const browserInfo = {
+        accept_header: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        language: "en-US",
+        screen_height: 1080,
+        screen_width: 1920,
+        color_depth: 24,
+        user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36",
+        time_zone: 0,
+        java_enabled: false,
+        ip_address: "192.0.2.1",
+      };
       // Setup provides an isolated merchant, API key, connector account, and routing.
       // 1. POST /payments: create and confirm together, with automatic capture.
       const payment = await report.step("Create and confirm payment", async () => {
@@ -46,21 +83,16 @@ for (const connector of connectors) {
           payment_method_data: { card: connector.card },
           billing: {
             address: billingAddress,
+            phone,
+            email,
           },
-          browser_info: {
-            accept_header:
-              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            language: "en-US",
-            screen_height: 1080,
-            screen_width: 1920,
-            color_depth: 24,
-            user_agent:
-              "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36",
-            time_zone: 0,
-            java_enabled: false,
-            ip_address: "192.0.2.1",
-          },
-          email,
+          shipping: { address: shippingAddress, phone, email },
+          browser_info: browserInfo,
+          customer,
+          description,
+          metadata,
+          merchant_order_reference_id: orderReference,
+          order_details: orderDetails,
           return_url: returnUrl,
         });
 
@@ -91,6 +123,12 @@ for (const connector of connectors) {
           connector_mandate_id: null,
           attempt_count: 1,
           email,
+          customer_id: customer.id,
+          name: customer.name,
+          phone: customer.phone,
+          description,
+          metadata,
+          merchant_order_reference_id: orderReference,
         });
         const billing = response.billing;
         if (
@@ -101,6 +139,28 @@ for (const connector of connectors) {
           throw new Error("Payment response must contain a billing address");
         }
         await checks.fields("Billing address", billing.address, billingAddress);
+        await checks.fields("Billing contact", billing, { phone, email });
+        const shipping = response.shipping;
+        if (
+          shipping === null ||
+          typeof shipping !== "object" ||
+          !("address" in shipping)
+        ) {
+          throw new Error("Payment response must contain a shipping address");
+        }
+        await checks.fields("Shipping address", shipping.address, shippingAddress);
+        await checks.fields("Shipping contact", shipping, { phone, email });
+        await checks.fields("Customer", response.customer, customer);
+        await checks.fields("Browser information", response.browser_info, browserInfo);
+        if (!Array.isArray(response.order_details)) {
+          throw new Error("Payment response must contain order details");
+        }
+        await checks.fields("Order item count", { count: response.order_details.length }, {
+          count: orderDetails.length,
+        });
+        for (const [index, item] of orderDetails.entries()) {
+          await checks.fields(`Order item ${index + 1}`, response.order_details[index], item);
+        }
 
         // Compare URL values after standard URL normalization.
         const actualReturnUrl = response.return_url;
@@ -147,6 +207,7 @@ for (const connector of connectors) {
           gateway: "unified_connector_service",
           attemptStatus: "charged",
           connectorTransactionIdPresent: true,
+          customerRecordExists: true,
         });
       });
     });

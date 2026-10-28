@@ -5,6 +5,7 @@ export type RecordedPayment = {
   gateway: string | null;
   attemptStatus: string;
   connectorTransactionIdPresent: boolean;
+  customerRecordExists: boolean;
 };
 
 export async function readRecordedPayment(
@@ -23,7 +24,11 @@ export async function readRecordedPayment(
          p.feature_metadata->>'gateway_system' AS gateway,
          a.status::text AS "attemptStatus",
          (a.connector_transaction_id IS NOT NULL
-           AND a.connector_transaction_id <> '') AS "connectorTransactionIdPresent"
+           AND a.connector_transaction_id <> '') AS "connectorTransactionIdPresent",
+         EXISTS (
+           SELECT 1 FROM customers c
+           WHERE c.merchant_id = p.merchant_id AND c.customer_id = p.customer_id
+         ) AS "customerRecordExists"
        FROM payment_intent p
        JOIN payment_attempt a
          ON a.merchant_id = p.merchant_id
