@@ -10,6 +10,7 @@ tests/e2e/
 ├── connectors/      # Data-only definitions and connector registry
 ├── stack/           # Local services and readiness
 ├── scripts/         # Runtime preparation
+├── test-data.ts     # Reusable test-data factories and default sandbox card
 └── scenarios/       # Shared journeys
 ```
 
@@ -73,6 +74,8 @@ Empty specs and `.gitkeep` directories are extension placeholders, not implement
 The first implementation targets `scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm.spec.ts`. Every spec in this scaffold remains empty.
 
 ## Responsibilities
+
+`test-data.ts` will provide fresh address, contact, customer, browser and card values. Specs explicitly select them and assemble requests. Keep amounts, capture modes, order items, scenario-specific metadata and expectations in the spec. Generate customer IDs per call. Connector card fields override shared defaults only when required. This scaffold's `test-data.ts` remains empty.
 
 - Specs own the complete call sequence, request data, response dependencies and expected results.
 - `framework/fixtures.ts` owns setup and cleanup. `merchant-setup.ts` provisions an isolated merchant, profile, API key, sandbox connector account and routing.
