@@ -20,10 +20,15 @@ use crate::harness::scenario_display_name::generate_style_a_display_name;
 use crate::harness::scenario_loader::{
     discover_all_connectors, load_connector_spec, load_suite_scenarios, load_suite_spec,
 };
-use crate::harness::{
-    report_redaction::{redact_request, redact_response, REDACTED_COMMAND_MARKER},
-    scenario_api::grpc_method_for_suite,
-};
+
+const REPORT_MODE_ENV: &str = "UCS_RUN_TEST_REPORT_MODE";
+const AUDIT_LOG_ENV: &str = "UCS_AUDIT_LOG_PATH";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReportMode {
+    Summary,
+    LocalDebug,
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,16 +65,22 @@ pub struct ReportEntry {
     /// Dependency chain captured at execution time.
     #[serde(default)]
     pub dependency: Vec<String>,
-    /// Effective request payload, redacted from protobuf type information before persistence.
+    /// Transient effective request payload; always discarded before persistence.
     pub req_body: Option<Value>,
-    /// Parsed response payload, redacted from protobuf type information before persistence.
+    /// Transient parsed response payload; always discarded before persistence.
     pub res_body: Option<Value>,
-    /// Reproducible grpcurl command with redacted headers and payload, when available.
+    /// Transient grpcurl command used only to obtain the invocation request ID.
     #[serde(default)]
     pub grpc_request: Option<String>,
-    /// Redacted structured gRPC response rendered as text, when available.
+    /// Transient verbose gRPC response; always discarded before persistence.
     #[serde(default)]
     pub grpc_response: Option<String>,
+    /// Typed-and-masked UCS events captured for this exact invocation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub audit_events: Vec<Value>,
+    /// Safe explanation when local audit evidence could not be collected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audit_error: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -82,7 +93,46 @@ pub struct ScenarioRunReport {
 // Paths
 // ---------------------------------------------------------------------------
 
+fn report_mode() -> ReportMode {
+    match std::env::var(REPORT_MODE_ENV).as_deref() {
+        Ok("local-debug") => ReportMode::LocalDebug,
+        _ => ReportMode::Summary,
+    }
+}
+
+/// Selects the local-only audit report. Call during CLI initialization, before
+/// execution starts or any worker threads are created.
+pub fn enable_local_debug_report() {
+    std::env::set_var(REPORT_MODE_ENV, "local-debug");
+}
+
+fn report_mode_for_path(path: &Path) -> ReportMode {
+    if path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.contains("local-debug-report"))
+    {
+        ReportMode::LocalDebug
+    } else {
+        report_mode()
+    }
+}
+
+fn report_directory_name(path: &Path) -> &'static str {
+    if report_mode_for_path(path) == ReportMode::LocalDebug {
+        "local_debug_report"
+    } else {
+        "test_report"
+    }
+}
+
 pub fn report_path() -> PathBuf {
+    if report_mode() == ReportMode::LocalDebug {
+        if let Ok(path) = std::env::var("UCS_LOCAL_DEBUG_REPORT_PATH") {
+            return PathBuf::from(path);
+        }
+        return PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("local-debug-report.json");
+    }
     if let Ok(path) = std::env::var("UCS_RUN_TEST_REPORT_PATH") {
         return PathBuf::from(path);
     }
@@ -91,12 +141,12 @@ pub fn report_path() -> PathBuf {
 
 fn md_path(json_path: &Path) -> PathBuf {
     json_path
-        .with_file_name("test_report")
+        .with_file_name(report_directory_name(json_path))
         .join("test_overview.md")
 }
 
 fn report_dir_path(json_path: &Path) -> PathBuf {
-    json_path.with_file_name("test_report")
+    json_path.with_file_name(report_directory_name(json_path))
 }
 
 fn legacy_md_path(json_path: &Path) -> PathBuf {
@@ -157,19 +207,16 @@ pub fn append_report_batch(entries: Vec<ReportEntry>) -> Result<(), String> {
         ScenarioRunReport::default()
     };
 
-    // Re-sanitize existing rows as well, so appending to a legacy report cannot
-    // carry an old raw trace into newly generated Markdown.
+    let mode = report_mode();
+    // Strip legacy raw payloads every time a report is touched. Existing audit
+    // evidence is preserved only in the explicitly local report.
     for entry in &mut report.runs {
-        sanitize_report_entry_in_place(entry)?;
+        prepare_report_entry(entry, mode, false);
     }
-    let sanitized_entries = entries
-        .into_iter()
-        .map(|mut entry| {
-            sanitize_report_entry_in_place(&mut entry)?;
-            Ok(entry)
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    report.runs.extend(sanitized_entries);
+    report.runs.extend(entries.into_iter().map(|mut entry| {
+        prepare_report_entry(&mut entry, mode, true);
+        entry
+    }));
 
     let serialized = serde_json::to_string_pretty(&report)
         .map_err(|e| format!("failed to serialize report: {e}"))?;
@@ -191,8 +238,9 @@ pub fn regenerate_markdown_from_path(json_path: &Path) -> Result<PathBuf, String
     let mut report = serde_json::from_str::<ScenarioRunReport>(&content)
         .map_err(|e| format!("failed to parse report '{}': {e}", json_path.display()))?;
 
+    let mode = report_mode_for_path(json_path);
     for run in &mut report.runs {
-        sanitize_report_entry_in_place(run)?;
+        prepare_report_entry(run, mode, false);
     }
 
     generate_md(json_path, &report)?;
@@ -475,51 +523,147 @@ struct MatrixEntry {
     run_at: u128,
     run_index: usize,
     dependency: Vec<String>,
-    req_body: Option<Value>,
-    res_body: Option<Value>,
-    grpc_request: Option<String>,
-    grpc_response: Option<String>,
+    audit_events: Vec<Value>,
+    audit_error: Option<String>,
 }
 
-fn sanitize_report_entry_in_place(entry: &mut ReportEntry) -> Result<(), String> {
-    let suite_spec = load_suite_spec(&entry.suite).ok();
-    let rpc = grpc_method_for_suite(&entry.suite, suite_spec.as_ref())
-        .map_err(|error| format!("cannot resolve report RPC for '{}': {error}", entry.suite))?;
-
-    if let Some(req_body) = entry.req_body.as_mut() {
-        redact_request(&rpc, req_body)?;
-    }
-    if let Some(res_body) = entry.res_body.as_mut() {
-        redact_response(&rpc, res_body)?;
-    }
-
-    // Only retain commands produced by the type-aware renderer. This drops raw
-    // grpcurl commands from legacy reports when their Markdown is regenerated.
-    if entry
+fn prepare_report_entry(entry: &mut ReportEntry, mode: ReportMode, collect_audit: bool) {
+    let audit_request_id = entry
         .grpc_request
         .as_deref()
-        .is_some_and(|command| !command.starts_with(REDACTED_COMMAND_MARKER))
-    {
-        entry.grpc_request = None;
-    }
+        .and_then(request_id_from_grpcurl_command);
+    // Raw grpcurl material has no persistence path. It remains in memory only
+    // long enough for assertions and console-safe error extraction.
+    entry.req_body = None;
+    entry.res_body = None;
+    entry.grpc_request = None;
+    entry.grpc_response = None;
+    entry.error = safe_error_category(entry);
 
-    // grpcurl's verbose stdout/stderr is untyped free text. Retain the same
-    // response information from the now-redacted structured protobuf body.
-    if entry.grpc_response.is_some() {
-        entry.grpc_response = entry
-            .res_body
-            .as_ref()
-            .map(serde_json::to_string_pretty)
-            .transpose()
-            .map_err(|error| format!("failed to serialize masked gRPC response: {error}"))?;
+    match mode {
+        ReportMode::Summary => {
+            entry.audit_events.clear();
+            entry.audit_error = None;
+        }
+        ReportMode::LocalDebug if collect_audit => match audit_request_id {
+            Some(request_id) => match collect_audit_events(entry, &request_id) {
+                Ok(events) => {
+                    entry.audit_events = events;
+                    entry.audit_error = None;
+                }
+                Err(reason) => {
+                    entry.audit_events.clear();
+                    entry.audit_error = Some(reason);
+                }
+            },
+            None => {
+                entry.audit_events.clear();
+                entry.audit_error = Some(
+                    "masked UCS audit events unavailable: invocation request ID was not captured"
+                        .to_string(),
+                );
+            }
+        },
+        ReportMode::LocalDebug => {}
     }
+}
 
-    // Assertion/execution errors may interpolate raw values. The masked bodies
-    // remain available for diagnosis without retaining untyped error text.
-    if entry.error.is_some() {
-        entry.error = Some("scenario failed; inspect the masked request and response".to_string());
+fn safe_error_category(entry: &ReportEntry) -> Option<String> {
+    match entry.assertion_result.as_str() {
+        "PASS" => None,
+        "SKIP" => Some("scenario_skipped".to_string()),
+        _ => Some("scenario_failed".to_string()),
     }
-    Ok(())
+}
+
+fn request_id_from_grpcurl_command(command: &str) -> Option<String> {
+    command.lines().find_map(|line| {
+        let (_, value) = line.split_once("x-request-id:")?;
+        let value = value.trim().trim_end_matches('\\').trim().trim_matches('"');
+        (!value.is_empty()).then(|| value.to_string())
+    })
+}
+
+fn collect_audit_events(entry: &ReportEntry, request_id: &str) -> Result<Vec<Value>, String> {
+    let path = std::env::var(AUDIT_LOG_ENV)
+        .map_err(|_| format!("masked UCS audit events unavailable: {AUDIT_LOG_ENV} is not set"))?;
+    let mut last_error = "masked UCS audit events unavailable for this invocation".to_string();
+    for _ in 0..10 {
+        match collect_audit_events_once(entry, request_id, Path::new(&path)) {
+            Ok(events) => return Ok(events),
+            Err(reason) => last_error = reason,
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    Err(last_error)
+}
+
+fn collect_audit_events_once(
+    entry: &ReportEntry,
+    request_id: &str,
+    path: &Path,
+) -> Result<Vec<Value>, String> {
+    let lines = fs::read_to_string(path)
+        .map_err(|_| "masked UCS audit events unavailable: audit log cannot be read".to_string())?;
+    let mut events = lines
+        .lines()
+        .filter_map(extract_processed_event)
+        .filter(|event| {
+            event.get("request_id").and_then(Value::as_str) == Some(request_id)
+                && event.get("connector").and_then(Value::as_str) == Some(entry.connector.as_str())
+                && matches!(
+                    event.get("stage").and_then(Value::as_str),
+                    Some("GrpcRequest" | "ConnectorCall")
+                )
+        })
+        .collect::<Vec<_>>();
+    events.sort_by_key(event_timestamp);
+
+    let grpc_event_indexes = events
+        .iter()
+        .enumerate()
+        .filter_map(|(index, event)| {
+            (event.get("stage").and_then(Value::as_str) == Some("GrpcRequest")).then_some(index)
+        })
+        .collect::<Vec<_>>();
+    let Some(&last_grpc_index) = grpc_event_indexes.last() else {
+        return Err("masked UCS audit events unavailable for this invocation".to_string());
+    };
+    let invocation_start = grpc_event_indexes
+        .iter()
+        .rev()
+        .nth(1)
+        .map_or(0, |index| index + 1);
+    let invocation = events
+        .into_iter()
+        .skip(invocation_start)
+        .take(last_grpc_index.saturating_sub(invocation_start) + 1)
+        .collect::<Vec<_>>();
+
+    if invocation.is_empty() {
+        Err("masked UCS audit events unavailable for this invocation".to_string())
+    } else {
+        Ok(invocation)
+    }
+}
+
+fn event_timestamp(event: &Value) -> i64 {
+    event.get("timestamp").and_then(Value::as_i64).unwrap_or(0)
+}
+
+fn extract_processed_event(line: &str) -> Option<Value> {
+    let record: Value = serde_json::from_str(line).ok()?;
+    let payload = if let Some(payload) = record.get("ucs_event").and_then(Value::as_str) {
+        payload
+    } else {
+        if record.get("target").and_then(Value::as_str) != Some("ucs_common_utils::events") {
+            return None;
+        }
+        let message = record.get("message").and_then(Value::as_str)?;
+        let marker = " - Event JSON: ";
+        message.split_once(marker)?.1
+    };
+    serde_json::from_str(payload).ok()
 }
 
 fn sanitize_anchor(value: &str) -> String {
@@ -683,10 +827,8 @@ fn generate_md(json_path: &Path, report: &ScenarioRunReport) -> Result<(), Strin
             run_at: entry.run_at_epoch_ms,
             run_index,
             dependency: entry.dependency.clone(),
-            req_body: entry.req_body.clone(),
-            res_body: entry.res_body.clone(),
-            grpc_request: entry.grpc_request.clone(),
-            grpc_response: entry.grpc_response.clone(),
+            audit_events: entry.audit_events.clone(),
+            audit_error: entry.audit_error.clone(),
         };
 
         let should_insert = deduped.get(&key).is_none_or(|existing| {
@@ -1100,42 +1242,17 @@ fn render_connector_scenario_markdown(
                     md.push_str("\n```\n\n");
                 }
 
-                let dep_entry_req_body = dep_entry
-                    .req_body
-                    .as_ref()
-                    .and_then(|value| serde_json::to_string_pretty(value).ok());
-                let dep_entry_res_body = dep_entry
-                    .res_body
-                    .as_ref()
-                    .and_then(|value| serde_json::to_string_pretty(value).ok());
-
+                let dependency_audit = serde_json::to_string_pretty(&dep_entry.audit_events).ok();
                 push_collapsible_code_block(
                     &mut md,
-                    "Show Dependency Request (masked)",
-                    if dep_entry.grpc_request.is_some() {
-                        "bash"
-                    } else {
-                        "json"
-                    },
-                    dep_entry
-                        .grpc_request
+                    "Show Dependency UCS Audit Events (typed and masked)",
+                    "json",
+                    dependency_audit
                         .as_deref()
-                        .or(dep_entry_req_body.as_deref()),
-                    "_Request trace not available._",
-                );
-                push_collapsible_code_block(
-                    &mut md,
-                    "Show Dependency Response (masked)",
-                    if dep_entry.grpc_response.is_some() {
-                        "text"
-                    } else {
-                        "json"
-                    },
-                    dep_entry
-                        .grpc_response
-                        .as_deref()
-                        .or(dep_entry_res_body.as_deref()),
-                    "_Response trace not available._",
+                        .filter(|_| !dep_entry.audit_events.is_empty()),
+                    dep_entry.audit_error.as_deref().unwrap_or(
+                        "_Masked audit evidence was not requested for this summary report._",
+                    ),
                 );
                 md.push_str("</details>\n");
             } else {
@@ -1148,36 +1265,18 @@ fn render_connector_scenario_markdown(
         }
     }
 
-    let entry_req_body = entry
-        .req_body
-        .as_ref()
-        .and_then(|value| serde_json::to_string_pretty(value).ok());
-    let entry_res_body = entry
-        .res_body
-        .as_ref()
-        .and_then(|value| serde_json::to_string_pretty(value).ok());
-
+    let audit_events = serde_json::to_string_pretty(&entry.audit_events).ok();
     push_collapsible_code_block(
         &mut md,
-        "Show Request (masked)",
-        if entry.grpc_request.is_some() {
-            "bash"
-        } else {
-            "json"
-        },
-        entry.grpc_request.as_deref().or(entry_req_body.as_deref()),
-        "_Request trace not available._",
-    );
-    push_collapsible_code_block(
-        &mut md,
-        "Show Response (masked)",
-        if entry.grpc_response.is_some() {
-            "text"
-        } else {
-            "json"
-        },
-        entry.grpc_response.as_deref().or(entry_res_body.as_deref()),
-        "_Response trace not available._",
+        "Show UCS Audit Events (typed and masked)",
+        "json",
+        audit_events
+            .as_deref()
+            .filter(|_| !entry.audit_events.is_empty()),
+        entry
+            .audit_error
+            .as_deref()
+            .unwrap_or("_Masked audit evidence was not requested for this summary report._"),
     );
 
     md.push_str(&format!(
@@ -1204,7 +1303,6 @@ mod tests {
     use std::fs;
 
     use super::*;
-    use crate::harness::report_redaction::masked_value;
 
     #[test]
     fn extract_pm_and_pmt_from_card_request() {
@@ -1275,7 +1373,7 @@ mod tests {
         fs::create_dir_all(&temp_root).expect("temp dir should be creatable");
         let json_path = temp_root.join("report.json");
 
-        let report = ScenarioRunReport {
+        let mut report = ScenarioRunReport {
             runs: vec![
                 ReportEntry {
                     run_at_epoch_ms: now_epoch_ms(),
@@ -1295,6 +1393,8 @@ mod tests {
                     res_body: Some(serde_json::json!({"status": "CHARGED"})),
                     grpc_request: None,
                     grpc_response: None,
+                    audit_events: Vec::new(),
+                    audit_error: None,
                 },
                 ReportEntry {
                     run_at_epoch_ms: now_epoch_ms(),
@@ -1314,6 +1414,8 @@ mod tests {
                     res_body: Some(serde_json::json!({"dep_res": "ok"})),
                     grpc_request: None,
                     grpc_response: None,
+                    audit_events: Vec::new(),
+                    audit_error: None,
                 },
                 ReportEntry {
                     run_at_epoch_ms: now_epoch_ms(),
@@ -1333,10 +1435,15 @@ mod tests {
                     res_body: Some(serde_json::json!({"error": "forced failure"})),
                     grpc_request: None,
                     grpc_response: None,
+                    audit_events: Vec::new(),
+                    audit_error: None,
                 },
             ],
         };
 
+        for entry in &mut report.runs {
+            prepare_report_entry(entry, ReportMode::Summary, false);
+        }
         generate_md(&json_path, &report).expect("markdown generation should succeed");
 
         let overview_path = md_path(&json_path);
@@ -1382,12 +1489,10 @@ mod tests {
             "# Connector `stripe` / Suite `PaymentService/Authorize` / Scenario `Credit Card | No 3DS | Automatic Capture`"
         ));
         assert!(stripe_detail_content.contains("- Scenario Key: `no3ds_auto_capture_credit_card`"));
-        assert!(stripe_detail_content.contains("<summary>Show Request (masked)</summary>"));
-        assert!(stripe_detail_content.contains("<summary>Show Response (masked)</summary>"));
-        assert!(!stripe_detail_content.contains("Show gRPC Request (masked)"));
-        assert!(!stripe_detail_content.contains("Show gRPC Response (masked)"));
-        assert!(stripe_detail_content.contains("\"field\": \"value\""));
-        assert!(stripe_detail_content.contains("\"status\": \"CHARGED\""));
+        assert!(stripe_detail_content
+            .contains("<summary>Show UCS Audit Events (typed and masked)</summary>"));
+        assert!(!stripe_detail_content.contains("\"field\": \"value\""));
+        assert!(!stripe_detail_content.contains("\"status\": \"CHARGED\""));
         assert!(stripe_detail_content.contains(
             "[Back to Connector Suite](../paymentservice-authorize.md) | [Back to Overview](../../../test_overview.md)"
         ));
@@ -1400,14 +1505,10 @@ mod tests {
             .join("no3ds-auto-capture-credit-card.md");
         let paypal_detail_content =
             fs::read_to_string(&paypal_detail).expect("paypal detail markdown should be readable");
-        assert!(
-            paypal_detail_content.contains("<summary>Show Dependency Request (masked)</summary>")
-        );
-        assert!(
-            paypal_detail_content.contains("<summary>Show Dependency Response (masked)</summary>")
-        );
-        assert!(paypal_detail_content.contains("\"dep_req\": \"value\""));
-        assert!(paypal_detail_content.contains("\"dep_res\": \"ok\""));
+        assert!(paypal_detail_content
+            .contains("<summary>Show Dependency UCS Audit Events (typed and masked)</summary>"));
+        assert!(!paypal_detail_content.contains("\"dep_req\": \"value\""));
+        assert!(!paypal_detail_content.contains("\"dep_res\": \"ok\""));
 
         let paypal_suite_detail = temp_root
             .join("test_report")
@@ -1422,8 +1523,7 @@ mod tests {
     }
 
     #[test]
-    fn sanitization_uses_proto_types_and_discards_untyped_response_text() {
-        let masked = masked_value();
+    fn summary_discards_all_raw_diagnostics() {
         let mut entry = ReportEntry {
             run_at_epoch_ms: now_epoch_ms(),
             suite: "PaymentService/Authorize".to_string(),
@@ -1464,44 +1564,53 @@ mod tests {
                 "Response headers received:\nauthorization: Bearer token123\nx-api-key: sk_test_123"
                     .to_string(),
             ),
+            audit_events: Vec::new(),
+            audit_error: None,
         };
 
-        entry.grpc_request = Some(format!(
-            "{REDACTED_COMMAND_MARKER}\ngrpcurl -H 'authorization: {masked}'"
-        ));
-        entry.grpc_response = Some("untyped verbose response-secret".to_string());
-        sanitize_report_entry_in_place(&mut entry).unwrap();
+        prepare_report_entry(&mut entry, ReportMode::Summary, false);
 
-        let grpc_request = entry.grpc_request.expect("grpc request should exist");
-        let grpc_response = entry.grpc_response.expect("grpc response should exist");
         let error = entry.error.expect("error should exist");
+        assert_eq!(error, "scenario_failed");
+        assert!(entry.req_body.is_none());
+        assert!(entry.res_body.is_none());
+        assert!(entry.grpc_request.is_none());
+        assert!(entry.grpc_response.is_none());
+        assert!(entry.audit_events.is_empty());
+    }
 
-        assert!(grpc_request.contains(masked));
-        assert!(!grpc_response.contains("response-secret"));
-        assert!(!error.contains("raw response material"));
+    #[test]
+    fn extracts_only_the_processed_event_payload() {
+        let event = serde_json::json!({
+            "request_id": "PaymentService/Authorize_case_req",
+            "connector": "stripe",
+            "stage": "GrpcRequest",
+            "timestamp": 42,
+            "request_data": {"secret": "***MASKED***"}
+        });
+        let line = serde_json::json!({
+            "target": "ucs_common_utils::events",
+            "message": format!(
+                "Event processed (Kafka publishing: disabled) - Event JSON: {}",
+                event
+            )
+        })
+        .to_string();
+        assert_eq!(extract_processed_event(&line), Some(event));
+        assert!(extract_processed_event("not json").is_none());
+    }
 
-        let req_body = entry.req_body.expect("request body should exist");
-        let res_body = entry.res_body.expect("response body should exist");
-
-        assert_eq!(
-            req_body.pointer("/state/accessToken/token/value"),
-            Some(&Value::String(masked.to_string()))
+    #[test]
+    fn extracts_invocation_id_without_retaining_the_command() {
+        let command = concat!(
+            "grpcurl -plaintext \\\n",
+            "  -H \"x-connector-config: raw-secret\" \\\n",
+            "  -H \"x-request-id: unique-request-id\" \\\n",
+            "  -d @ localhost:8000 types.PaymentService/Authorize"
         );
         assert_eq!(
-            req_body.get("description"),
-            Some(&Value::String("visible".to_string()))
-        );
-        assert_eq!(
-            res_body.pointer("/rawConnectorRequest/value"),
-            Some(&Value::String(masked.to_string()))
-        );
-        assert_eq!(
-            res_body.pointer("/responseHeaders/content-type"),
-            Some(&Value::String("application/json".to_string()))
-        );
-        assert_eq!(
-            res_body.pointer("/responseHeaders/request-id"),
-            Some(&Value::String(masked.to_string()))
+            request_id_from_grpcurl_command(command).as_deref(),
+            Some("unique-request-id")
         );
     }
 }

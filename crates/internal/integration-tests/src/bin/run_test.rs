@@ -188,10 +188,8 @@ fn main() {
         args.tenant_id.as_deref(),
         args.plaintext,
         false,
-    )
-    .and_then(|request| request.to_report_command_string())
-    {
-        Ok(request) => Some(request),
+    ) {
+        Ok(request) => Some(request.to_command_string()),
         Err(error) => {
             write_report_entry(
                 args.report,
@@ -470,6 +468,8 @@ fn write_report_entry(
         res_body,
         grpc_request,
         grpc_response,
+        audit_events: Vec::new(),
+        audit_error: None,
     });
 }
 

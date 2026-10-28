@@ -11,7 +11,6 @@ pub mod credentials;
 pub mod executor;
 pub mod metadata;
 pub mod report;
-pub mod report_redaction;
 pub mod scenario_api;
 pub mod scenario_assert;
 pub mod scenario_display_name;
