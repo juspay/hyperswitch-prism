@@ -139,8 +139,8 @@ scenarios/
 │   │   │   └── recurring/
 │   │   │       ├── connector-mandate/
 │   │   │       │   ├── no3ds/
-│   │   │       │   │   ├── zero-amount-mandate-setup-then-recurring.spec.ts
-│   │   │       │   │   └── nonzero-amount-mandate-setup-then-recurring.spec.ts
+│   │   │       │   │   ├── zero-amount-setup-mandate-then-recurring.spec.ts
+│   │   │       │   │   └── nonzero-amount-setup-mandate-then-recurring.spec.ts
 │   │   │       │   └── three-ds/
 │   │   │       └── network-transaction-id/
 │   │   │           ├── no3ds/
@@ -163,7 +163,7 @@ scenarios/
 
 `create-confirm/` groups initial payment journeys. In filenames, `create-confirm` means creation with `confirm: true`; `create-then-confirm` means separate requests. Use the explicit filename prefixes `automatic-capture` and `manual-capture`.
 
-Recurring specs belong under their reference mechanism and mandate-setup authentication, for example `recurring/connector-mandate/no3ds/zero-amount-mandate-setup-then-recurring.spec.ts`. Each owns mandate setup followed by a subsequent payment. The `no3ds` and `three-ds` branches describe setup authentication, not authentication repeated on the subsequent recurring payment. Add network-transaction-ID variants only where supported.
+Recurring specs belong under their reference mechanism and mandate-setup authentication, for example `recurring/connector-mandate/no3ds/zero-amount-setup-mandate-then-recurring.spec.ts`. Each owns mandate setup followed by a subsequent payment. The `no3ds` and `three-ds` branches describe setup authentication, not authentication repeated on the subsequent recurring payment. Add network-transaction-ID variants only where supported.
 
 Later operations have separate directories. Their specs declare required payment state and history, including authentication where relevant, rather than repeating every authorization dimension. Keep capture, cancel, retrieve and refund scenarios flat until implemented method-specific behavior warrants grouping. Wallets use wallet-specific variations instead of universally inheriting card's authentication tree.
 
