@@ -1,11 +1,11 @@
 use crate::{
     connector_types::{
-        ConnectorResponseHeaders, CustomerInfo, RawConnectorRequestResponse,
+        ConnectorResponseHeaders, CustomerInfo, DomainData, RawConnectorRequestResponse,
         ServerAuthenticationTokenResponseData,
     },
     mandates::MandateAmountData,
     payment_address::{OrderDetailsWithAmount, PaymentAddress},
-    payment_method_data::{DefaultPCIHolder, PaymentMethodData},
+    payment_method_data::{CustomerDocumentDetails, DefaultPCIHolder, PaymentMethodData},
     router_request_types::BrowserInformation,
     types::Connectors,
 };
@@ -97,6 +97,14 @@ pub struct PreRiskCheckRequest {
     pub merchant_details: Option<MerchantDetails>,
     /// Payment method sub-type (e.g. `Card`, `GooglePay`, `UpiCollect`) for risk scoring.
     pub payment_method_type: Option<PaymentMethodType>,
+    /// Billing-side identity document (CPF/CNPJ).
+    pub billing_document_data: Option<CustomerDocumentDetails>,
+    /// Shipping/buyer identity document.
+    /// Falls back to the billing document when absent.
+    pub shipping_document_data: Option<CustomerDocumentDetails>,
+    /// Domain-specific order context (travel, hotel, airline…) as a typed
+    /// object.
+    pub domain_data: Option<DomainData>,
 }
 
 /// Response data for pre-risk check
@@ -115,6 +123,7 @@ pub struct PostRiskCheckRequest {
     pub amount: Money,
     pub customer_info: Option<CustomerInfo>,
     pub payment_method: Option<PaymentMethodData<DefaultPCIHolder>>,
+    pub browser_info: Option<BrowserInformation>,
     pub merchant_transaction_id: Option<String>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub metadata: Option<Secret<String>>,
@@ -124,6 +133,11 @@ pub struct PostRiskCheckRequest {
     pub connector_transaction_id: Option<String>,
     pub payment_connector: Option<grpc_api_types::payments::Connector>,
     pub address: Option<PaymentAddress>,
+    /// Billing-side identity document (CPF/CNPJ).
+    pub billing_document_data: Option<CustomerDocumentDetails>,
+    /// Shipping/buyer identity document.
+    pub shipping_document_data: Option<CustomerDocumentDetails>,
+    pub domain_data: Option<DomainData>,
 }
 
 /// Response data for post-risk check
