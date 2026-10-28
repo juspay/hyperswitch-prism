@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use common_enums::{AttemptStatus, Currency};
 use common_utils::{
+    consts::NO_ERROR_CODE,
     crypto::{self, GenerateDigest},
     pii::Email,
     types::StringMajorUnit,
@@ -42,31 +43,16 @@ const RDP_ORDER_ID_GENERATED_LEN: usize = 20;
 /// persisted order_id lives between authorize and refund.
 pub(crate) const RDP_ORDER_ID_BLOB_KEY: &str = "reddot_order_id";
 
-/// Preserve a previously sent order ID, including legacy random IDs. Otherwise
-/// derive a stable 80-bit hexadecimal ID within RDP's 20-character limit.
-fn resolve_reddot_order_id(
+/// Derive a stable 80-bit hexadecimal order ID within RDP's 20-character limit.
+///
+/// Authorize-only: the ID is deterministic over `(mid, reference)`, so retries
+/// of one payment attempt reuse the same order ID without consulting
+/// `connector_feature_data`.
+fn generate_reddot_order_id(
     mid: &str,
     reference: &str,
-    connector_feature_data: &Option<common_utils::pii::SecretSerdeValue>,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
     use sha2::{Digest, Sha256};
-
-    if let Some(stored) = connector_feature_data
-        .as_ref()
-        .and_then(|data| data.peek().get(RDP_ORDER_ID_BLOB_KEY))
-    {
-        return stored
-            .as_str()
-            .filter(|id| !id.is_empty() && id.len() <= RDP_ORDER_ID_GENERATED_LEN)
-            .map(str::to_owned)
-            .ok_or_else(|| {
-                IntegrationError::InvalidDataFormat {
-                    field_name: "connector_feature_data.reddot_order_id",
-                    context: errors::IntegrationErrorContext::default(),
-                }
-                .into()
-            });
-    }
 
     if reference.is_empty() {
         return Err(IntegrationError::MissingRequiredField {
@@ -79,40 +65,61 @@ fn resolve_reddot_order_id(
     // Domain separation and a length-prefixed MID avoid ambiguous inputs.
     let mut hasher = Sha256::new();
     hasher.update(b"reddot-order-v1\0");
-    hasher.update((mid.len() as u64).to_be_bytes());
+    let mid_len =
+        u64::try_from(mid.len()).change_context(IntegrationError::RequestEncodingFailed {
+            context: errors::IntegrationErrorContext::default(),
+        })?;
+    hasher.update(mid_len.to_be_bytes());
     hasher.update(mid.as_bytes());
     hasher.update(reference.as_bytes());
-    Ok(hex::encode(
-        &hasher.finalize()[..RDP_ORDER_ID_GENERATED_LEN / 2],
-    ))
+    let digest = hasher.finalize();
+    let truncated = digest
+        .get(..RDP_ORDER_ID_GENERATED_LEN / 2)
+        .ok_or_else(|| IntegrationError::RequestEncodingFailed {
+            context: errors::IntegrationErrorContext::default(),
+        })?;
+    Ok(hex::encode(truncated))
 }
 
-/// Read the original payment order ID returned by the caller for refunds.
-fn reddot_order_id_from_blob(
+/// Read the order ID sent at authorize from `connector_feature_data` for
+/// subsequent flows (e.g. refund).
+///
+/// Subsequent flows must reuse the exact ID RDP recorded at authorize — a
+/// missing or malformed entry is an error, never a freshly generated ID.
+fn resolve_reddot_order_id(
     connector_feature_data: &Option<common_utils::pii::SecretSerdeValue>,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
-    connector_feature_data
+    let Some(stored) = connector_feature_data
         .as_ref()
         .and_then(|cfd| cfd.peek().get(RDP_ORDER_ID_BLOB_KEY))
-        .and_then(|v| v.as_str())
+    else {
+        return Err(IntegrationError::MissingRequiredField {
+            field_name: "connector_feature_data.reddot_order_id",
+            context: errors::IntegrationErrorContext {
+                additional_context: Some(
+                    "Original payment order ID missing from connector_feature_data.".to_string(),
+                ),
+                suggested_action: Some(
+                    "Pass the original connector_metadata as connector_feature_data, or use the RDP console"
+                        .to_string(),
+                ),
+                doc_url: Some(
+                    "https://developers.reddotpayment.com/merchant/#capture-refund-void"
+                        .to_string(),
+                ),
+            },
+        }
+        .into());
+    };
+
+    stored
+        .as_str()
+        .filter(|id| !id.is_empty() && id.len() <= RDP_ORDER_ID_GENERATED_LEN)
         .map(str::to_owned)
         .ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
+            IntegrationError::InvalidDataFormat {
                 field_name: "connector_feature_data.reddot_order_id",
-                context: errors::IntegrationErrorContext {
-                    additional_context: Some(
-                        "Original payment order ID missing from connector_feature_data."
-                            .to_string(),
-                    ),
-                    suggested_action: Some(
-                        "Pass the original connector_metadata as connector_feature_data, or use the RDP console"
-                            .to_string(),
-                    ),
-                    doc_url: Some(
-                        "https://developers.reddotpayment.com/merchant/#capture-refund-void"
-                            .to_string(),
-                    ),
-                },
+                context: errors::IntegrationErrorContext::default(),
             }
             .into()
         })
@@ -197,14 +204,14 @@ impl ReddotErrorResponse {
     /// Synthesize an error from a non-JSON body — RDP's edge WAF (Imperva
     /// / Incapsula) answers IP-blocked traffic with `403 + full HTML page`,
     /// so a strict JSON parse must not blow up. Mirrors the datatrans
-    /// fallback: status code becomes the `code`, body text (truncated,
+    /// fallback: no gateway error code is available; body text (truncated,
     /// decoded lossily) becomes the `message`.
-    pub fn from_non_json_body(status_code: u16, body: &[u8]) -> Self {
+    pub fn from_non_json_body(_status_code: u16, body: &[u8]) -> Self {
         let text = String::from_utf8_lossy(body);
         Self {
             response_status: "ERROR".to_string(),
-            response_code: status_code.to_string(),
-            response_msg: text.trim().chars().take(200).collect(),
+            response_code: NO_ERROR_CODE.to_string(),
+            response_msg: text.chars().take(200).collect(),
         }
     }
 }
@@ -430,7 +437,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let auth = ReddotAuthType::try_from(&router_data.connector_config)?;
         let amount = ReddotAmountConvertor::convert(
-            router_data.request.minor_amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
         let redirect_url = router_data.request.get_router_return_url()?;
@@ -439,12 +446,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let ccy = router_data.request.currency.to_string();
         // Retries of one payment attempt reuse the same order ID. Keep the
         // full caller reference separately in merchant_reference.
-        let order_id = resolve_reddot_order_id(
+        let order_id = generate_reddot_order_id(
             auth.mid.peek(),
             &router_data
                 .resource_common_data
                 .connector_request_reference_id,
-            &router_data.resource_common_data.connector_feature_data,
         )?;
         let merchant_reference = router_data
             .resource_common_data
@@ -453,8 +459,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                // Preserve the verified gateway-compatible name fallback:
-                // cardholder name, customer name, then the literal "name".
+                // Prefer the cardholder name, then the supplied customer name.
                 let payer_name = card_data
                     .card_holder_name
                     .clone()
@@ -469,7 +474,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .filter(|customer_name| !customer_name.is_empty())
                     })
                     .map(Secret::new)
-                    .unwrap_or_else(|| Secret::new("name".to_string()));
+                    .ok_or_else(|| IntegrationError::MissingRequiredField {
+                        field_name: "card_holder_name or customer_name",
+                        context: errors::IntegrationErrorContext::default(),
+                    })?;
                 let exp_month = card_data.get_card_expiry_month_2_digit()?;
                 let exp_year = card_data.get_expiry_year_4_digit();
                 let exp_date = Secret::new(format!("{}{}", exp_month.peek(), exp_year.peek()));
@@ -618,12 +626,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Some("reddot: could not resolve request order_id".to_string()),
                     ),
                 )?;
-                let order_id = resolve_reddot_order_id(
+                let order_id = generate_reddot_order_id(
                     auth.mid.peek(),
                     &router_data
                         .resource_common_data
                         .connector_request_reference_id,
-                    &router_data.resource_common_data.connector_feature_data,
                 )
                 .change_context(
                     ConnectorError::response_handling_failed_with_context(
@@ -774,6 +781,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             transaction_id,
             signature: Secret::new(signature),
         })
+    }
+}
+
+/// RDP confirmed that only -01 is pending; all other nonzero payment codes
+/// indicate an unsuccessful payment.
+pub(crate) fn reddot_payment_status(code: &str) -> AttemptStatus {
+    match code {
+        "0" => AttemptStatus::Charged,
+        "-01" => AttemptStatus::Pending,
+        _ => AttemptStatus::AuthenticationFailed,
     }
 }
 
@@ -967,10 +984,9 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
                     }),
                 )
             }
-            // All codes other than 0 and -01 are authentication failures;
-            // response_msg carries the reason.
+            // RDP confirms every nonzero code except -01 is an unsuccessful payment.
             error_code => {
-                let attempt_status = AttemptStatus::AuthenticationFailed;
+                let attempt_status = reddot_payment_status(error_code);
                 let response_msg = response.response_msg;
                 (
                     attempt_status,
@@ -996,7 +1012,10 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
             }
         };
 
-        let amount_captured = minor_amount_captured.map(|amount| amount.get_amount_as_i64());
+        let amount_captured = minor_amount_captured.map(|amount| common_utils::types::Money {
+            amount,
+            currency: router_data.request.currency,
+        });
         Ok(Self {
             response: payment_response,
             request: PaymentsSyncData {
@@ -1006,7 +1025,6 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
             resource_common_data: PaymentFlowData {
                 status,
                 amount_captured,
-                minor_amount_captured,
                 raw_connector_status,
                 raw_connector_response,
                 ..router_data.resource_common_data
@@ -1151,7 +1169,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                router_data.request.minor_refund_amount,
+                router_data.request.refund_amount.amount,
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1176,7 +1194,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // RDP `order_number` must equal the exact order_id RDP recorded at
         // authorize. It is persisted in connector_metadata["reddot_order_id"]
         // and handed back here through connector_feature_data.
-        let order_number = reddot_order_id_from_blob(&router_data.request.connector_feature_data)?;
+        let order_number = resolve_reddot_order_id(&router_data.request.connector_feature_data)?;
         let transaction_id = router_data.request.connector_transaction_id.clone();
 
         let refund_id = required_refund_reference(&router_data.request.refund_id)?.to_string();
@@ -1215,7 +1233,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 /// accepted | failed | pending | capture pending | pending third party.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReddotRefundResponse {
-    /// Refund creation returns transaction_id; enquiry entries use refund_transaction_id.
+    /// Some gateway versions additionally return a transaction identifier.
     pub transaction_id: Option<String>,
     pub result_status: Option<String>,
     pub reason_code: Option<String>,
@@ -1247,8 +1265,9 @@ impl TryFrom<ResponseRouterData<ReddotRefundResponse, Self>>
             _ => common_enums::RefundStatus::Pending,
         };
 
-        // Callers store this gateway ID on the refund and return it for sync.
-        let connector_refund_id = item.response.transaction_id.clone().unwrap_or_default();
+        // Merchant API enquiry explicitly accepts the refund_id echoed by RDP.
+        // Do not substitute the caller reference when the gateway omits it.
+        let connector_refund_id = item.response.refund_id.clone().unwrap_or_default();
 
         // Echo the refund amount/currency into the refund integrity object
         // when RDP returns both (mirrors maya's refund transform).
@@ -1310,8 +1329,8 @@ const RDP_ENQUIRY_STATUS_REFUNDED: &str = "refunded";
 /// struct while still letting the flow's bridge types stay distinct.
 pub type ReddotRefundSyncRequest = ReddotPSyncRequest;
 
-/// Enquire using the original payment transaction ID. The response contains
-/// refund history, which is matched against the stored connector refund ID.
+/// Enquire using the refund_id echoed by RDP, in the transaction_id field
+/// (Merchant API, Enquiry request, page 6). This scopes partial refunds separately.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         ReddotRouterData<
@@ -1330,9 +1349,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let auth = ReddotAuthType::try_from(&router_data.connector_config)?;
-        let transaction_id = router_data.request.connector_transaction_id.clone();
+        let transaction_id = router_data.request.connector_refund_id.clone();
         if transaction_id.is_empty() {
-            return Err(IntegrationError::MissingConnectorTransactionID {
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "connector_refund_id",
                 context: errors::IntegrationErrorContext::default(),
             }
             .into());
@@ -1416,15 +1436,6 @@ fn required_refund_reference(id: &str) -> Result<&str, error_stack::Report<Integ
     }
 }
 
-fn matching_refund<'a>(
-    history: &'a [ReddotRefundHistoryEntry],
-    connector_id: &str,
-) -> Option<&'a ReddotRefundHistoryEntry> {
-    history.iter().find(|entry| {
-        !connector_id.is_empty() && entry.refund_transaction_id.as_deref() == Some(connector_id)
-    })
-}
-
 fn reddot_refund_sync_status(status: Option<&str>) -> common_enums::RefundStatus {
     // Payment response_code semantics do not establish the meaning of
     // refund_response_code. Refund enquiry has its own lifecycle status.
@@ -1465,7 +1476,7 @@ impl TryFrom<ResponseRouterData<ReddotRefundSyncResponse, Self>>
             return Ok(Self {
                 response: Err(ErrorResponse {
                     status_code: item.http_code,
-                    code: code.clone().unwrap_or_else(|| "NO_ERROR_CODE".to_string()),
+                    code: code.clone().unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                     message: message
                         .clone()
                         .unwrap_or_else(|| "Refund enquiry failed".to_string()),
@@ -1503,25 +1514,12 @@ impl TryFrom<ResponseRouterData<ReddotRefundSyncResponse, Self>>
             ).into());
         }
 
-        // Prefer the individual refund record. RDP also confirms full refunds
-        // using the payment-level voided status when no matching status exists.
+        // The request is scoped to the echoed refund_id, so the top-level
+        // transaction_status describes this refund, including partial refunds.
         let connector_refund_id = item.router_data.request.connector_refund_id.clone();
-        let refund = item
-            .response
-            .refund
-            .as_deref()
-            .and_then(|history| matching_refund(history, &connector_refund_id));
-        let status = refund
-            .and_then(|entry| entry.refund_status.clone())
-            .or_else(|| {
-                item.response
-                    .transaction_status
-                    .as_ref()
-                    .filter(|status| status.as_str() == "voided")
-                    .cloned()
-            });
-        let code = refund.and_then(|entry| entry.refund_response_code.clone());
-        let message = refund.and_then(|entry| entry.refund_response_message.clone());
+        let status = item.response.transaction_status.clone();
+        let code = item.response.refund_response_code.clone();
+        let message = item.response.refund_response_message.clone();
         let refund_status = reddot_refund_sync_status(status.as_deref());
 
         Ok(Self {
@@ -1543,5 +1541,386 @@ impl TryFrom<ResponseRouterData<ReddotRefundSyncResponse, Self>>
             },
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn payment_codes_follow_rdp_confirmed_status_mapping() {
+        for (code, expected) in [
+            (json!(0), AttemptStatus::Charged),
+            (json!("0"), AttemptStatus::Charged),
+            (json!("-01"), AttemptStatus::Pending),
+            (json!(-1009), AttemptStatus::AuthenticationFailed),
+            (json!("-1003"), AttemptStatus::AuthenticationFailed),
+            (json!("new-code"), AttemptStatus::AuthenticationFailed),
+            (json!("-1"), AttemptStatus::AuthenticationFailed),
+            (json!("-7997"), AttemptStatus::AuthenticationFailed),
+        ] {
+            let fixture = json!({"response_code": code, "response_msg": "gateway message"});
+            let sync: ReddotPSyncResponse = serde_json::from_value(fixture.clone()).unwrap();
+            let webhook: ReddotWebhookBody = serde_json::from_value(fixture).unwrap();
+            assert_eq!(reddot_payment_status(&sync.response_code), expected);
+            assert_eq!(reddot_payment_status(&webhook.response_code), expected);
+        }
+    }
+
+    #[test]
+    fn authorize_ids_are_stable_and_scoped_to_merchant_and_reference() {
+        let id = generate_reddot_order_id("merchant", "attempt").unwrap();
+        assert_eq!(id.len(), 20);
+        assert_eq!(id, generate_reddot_order_id("merchant", "attempt").unwrap());
+        assert_ne!(id, generate_reddot_order_id("other", "attempt").unwrap());
+        assert_ne!(id, generate_reddot_order_id("merchant", "other").unwrap());
+        assert!(generate_reddot_order_id("merchant", "").is_err());
+    }
+
+    #[test]
+    fn subsequent_flows_require_the_original_order_id() {
+        assert!(resolve_reddot_order_id(&None).is_err());
+        for value in [json!(null), json!(123), json!(""), json!("x".repeat(21))] {
+            assert!(resolve_reddot_order_id(&Some(Secret::new(json!({
+                "reddot_order_id": value
+            }))))
+            .is_err());
+        }
+        assert_eq!(
+            resolve_reddot_order_id(&Some(Secret::new(json!({
+                "reddot_order_id": "legacy-order"
+            }))))
+            .unwrap(),
+            "legacy-order"
+        );
+    }
+
+    #[test]
+    fn non_json_errors_use_the_shared_missing_code_constant() {
+        let response = ReddotErrorResponse::from_non_json_body(403, b"  <html>blocked</html>  ");
+        assert_eq!(response.response_code, NO_ERROR_CODE);
+        assert_eq!(response.response_msg, "  <html>blocked</html>  ");
+    }
+
+    #[test]
+    fn refund_enquiry_keeps_unknown_and_payment_states_pending() {
+        for (status, expected) in [
+            (Some("refunded"), common_enums::RefundStatus::Success),
+            (Some("refund pending"), common_enums::RefundStatus::Pending),
+            (Some("paid"), common_enums::RefundStatus::Pending),
+            (Some("captured"), common_enums::RefundStatus::Pending),
+            (Some("new-status"), common_enums::RefundStatus::Pending),
+            (None, common_enums::RefundStatus::Pending),
+            (Some("rejected"), common_enums::RefundStatus::Failure),
+        ] {
+            let response: ReddotRefundSyncResponse = serde_json::from_value(json!({
+                "response_code": 0, "transaction_status": status
+            }))
+            .unwrap();
+            assert_eq!(
+                reddot_refund_sync_status(response.transaction_status.as_deref()),
+                expected
+            );
+        }
+    }
+
+    fn config() -> ConnectorSpecificConfig {
+        ConnectorSpecificConfig::Reddot {
+            mid: Secret::new("test-mid".to_string()),
+            secret: Secret::new("test-secret".to_string()),
+            acquirer_cybersource: "false".to_string(),
+            base_url: None,
+        }
+    }
+
+    fn payment_sync_data(
+    ) -> RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData> {
+        RouterDataV2 {
+            flow: std::marker::PhantomData,
+            resource_common_data: PaymentFlowData {
+                merchant_id: Default::default(),
+                customer_id: Default::default(),
+                connector_customer: Default::default(),
+                payment_id: Default::default(),
+                attempt_id: Default::default(),
+                status: Default::default(),
+                payment_method: Default::default(),
+                payment_method_type: Default::default(),
+                description: Default::default(),
+                return_url: Default::default(),
+                address: Default::default(),
+                auth_type: Default::default(),
+                connector_feature_data: Default::default(),
+                amount_captured: Default::default(),
+                amount_capturable: Default::default(),
+                amount: Default::default(),
+                access_token: Default::default(),
+                session_token: Default::default(),
+                reference_id: Default::default(),
+                connector_order_id: Default::default(),
+                preprocessing_id: Default::default(),
+                connector_api_version: Default::default(),
+                connector_request_reference_id: Default::default(),
+                test_mode: Default::default(),
+                connector_http_status_code: Default::default(),
+                connector_response_headers: Default::default(),
+                external_latency: Default::default(),
+                connectors: Default::default(),
+                raw_connector_response: Default::default(),
+                typed_connector_response: Default::default(),
+                raw_connector_request: Default::default(),
+                typed_connector_request: Default::default(),
+                vault_headers: Default::default(),
+                connector_response: Default::default(),
+                recurring_mandate_payment_data: Default::default(),
+                order_details: Default::default(),
+                amount_authorized: Default::default(),
+                l2_l3_data: Default::default(),
+                merchant_request_id: Default::default(),
+                sender_payment_instrument_id: Default::default(),
+                connector_returned_payment_method_details: Default::default(),
+                settlement_status: Default::default(),
+                raw_connector_status: Default::default(),
+            },
+            connector_config: config(),
+            request: PaymentsSyncData::default(),
+            response: Err(ErrorResponse::default()),
+        }
+    }
+
+    fn refund_sync_data(
+        id: &str,
+    ) -> RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData> {
+        RouterDataV2 {
+            flow: std::marker::PhantomData,
+            resource_common_data: RefundFlowData {
+                merchant_id: Default::default(),
+                status: Default::default(),
+                refund_id: Default::default(),
+                connectors: Default::default(),
+                connector_request_reference_id: Default::default(),
+                raw_connector_response: Default::default(),
+                typed_connector_response: Default::default(),
+                connector_response_headers: Default::default(),
+                raw_connector_request: Default::default(),
+                typed_connector_request: Default::default(),
+                access_token: Default::default(),
+                connector_feature_data: Default::default(),
+                test_mode: Default::default(),
+                payment_method: Default::default(),
+                merchant_request_id: Default::default(),
+                raw_connector_status: Default::default(),
+            },
+            connector_config: config(),
+            request: RefundSyncData {
+                connector_transaction_id: "original-payment".to_string(),
+                connector_refund_id: id.to_string(),
+                reason: Default::default(),
+                refund_connector_metadata: Default::default(),
+                refund_status: Default::default(),
+                all_keys_required: Default::default(),
+                integrity_object: Default::default(),
+                browser_info: Default::default(),
+                split_refunds: Default::default(),
+                connector_feature_data: Default::default(),
+                refund_money: Default::default(),
+                connector_order_id: Default::default(),
+            },
+            response: Err(ErrorResponse::default()),
+        }
+    }
+
+    #[test]
+    fn psync_transformer_fails_all_nonzero_codes_except_pending() {
+        for (code, expected) in [
+            (json!(0), AttemptStatus::Charged),
+            (json!("-01"), AttemptStatus::Pending),
+            (json!(-1009), AttemptStatus::AuthenticationFailed),
+            (json!("-1003"), AttemptStatus::AuthenticationFailed),
+            (json!("new-code"), AttemptStatus::AuthenticationFailed),
+            (json!("-1"), AttemptStatus::AuthenticationFailed),
+            (json!("-7997"), AttemptStatus::AuthenticationFailed),
+        ] {
+            let response: ReddotPSyncResponse = serde_json::from_value(json!({
+                "response_code": code, "transaction_id": "payment-1"
+            }))
+            .unwrap();
+            let result = RouterDataV2::try_from(ResponseRouterData {
+                response,
+                router_data: payment_sync_data(),
+                http_code: 200,
+            })
+            .unwrap();
+            assert_eq!(result.resource_common_data.status, expected);
+        }
+        let response: ReddotPSyncResponse = serde_json::from_value(json!({
+            "response_code": "-1003", "response_msg": "Invalid signature"
+        }))
+        .unwrap();
+        let result = RouterDataV2::try_from(ResponseRouterData {
+            response,
+            router_data: payment_sync_data(),
+            http_code: 200,
+        })
+        .unwrap();
+        assert_eq!(
+            result.resource_common_data.status,
+            AttemptStatus::AuthenticationFailed
+        );
+    }
+
+    #[test]
+    fn refund_enquiry_request_is_scoped_to_the_echoed_refund_id() {
+        use domain_types::payment_method_data::DefaultPCIHolder;
+        for id in ["refund-1", "refund-2"] {
+            let request = ReddotPSyncRequest::try_from(ReddotRouterData {
+                connector: crate::connectors::reddot::Reddot::<DefaultPCIHolder>::new().clone(),
+                router_data: refund_sync_data(id),
+            })
+            .unwrap();
+            assert_eq!(request.transaction_id, id);
+            assert_eq!(
+                request.signature.peek(),
+                &compute_generic_signature(
+                    vec![("request_mid", "test-mid"), ("transaction_id", id)],
+                    "test-secret"
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn rsync_transformer_uses_the_refund_scoped_status() {
+        for (status, expected) in [
+            ("refunded", common_enums::RefundStatus::Success),
+            ("refund pending", common_enums::RefundStatus::Pending),
+            ("paid", common_enums::RefundStatus::Pending),
+            ("unknown", common_enums::RefundStatus::Pending),
+            ("rejected", common_enums::RefundStatus::Failure),
+        ] {
+            let response: ReddotRefundSyncResponse = serde_json::from_value(json!({
+                "transaction_id": "refund-2", "refund_id": "refund-2", "transaction_status": status
+            }))
+            .unwrap();
+            let result = RouterDataV2::try_from(ResponseRouterData {
+                response,
+                router_data: refund_sync_data("refund-2"),
+                http_code: 200,
+            })
+            .unwrap();
+            let response = result.response.unwrap();
+            assert_eq!(response.connector_refund_id, "refund-2");
+            assert_eq!(response.refund_status, expected);
+        }
+    }
+    #[test]
+    fn cybersource_string_config_rejects_typos_instead_of_disabling_billing() {
+        for (value, expected) in [
+            ("true", true),
+            ("TRUE", true),
+            ("false", false),
+            ("False", false),
+        ] {
+            let mut config = config();
+            if let ConnectorSpecificConfig::Reddot {
+                acquirer_cybersource,
+                ..
+            } = &mut config
+            {
+                *acquirer_cybersource = value.to_string();
+            }
+            assert_eq!(
+                ReddotAuthType::try_from(&config)
+                    .unwrap()
+                    .acquirer_cybersource,
+                expected
+            );
+        }
+        for value in ["", "tru", "yes", "1"] {
+            let mut config = config();
+            if let ConnectorSpecificConfig::Reddot {
+                acquirer_cybersource,
+                ..
+            } = &mut config
+            {
+                *acquirer_cybersource = value.to_string();
+            }
+            assert!(ReddotAuthType::try_from(&config).is_err());
+        }
+    }
+    #[test]
+    fn rsync_handles_observed_full_and_partial_refund_responses() {
+        // Refund-scoped enquiries still echo the original payment transaction_id.
+        // Partial refund entries contain refund_id but no refund_status.
+        for (refund_id, payment_id, status, history) in [
+            (
+                "refund_1793166922",
+                "Mansi_1793166898_171032068910700",
+                "voided",
+                None,
+            ),
+            (
+                "mansi_khatri_refund_1",
+                "Mansi_1793167012_165242157421379",
+                "refunded",
+                Some(json!([
+                    {"refund_amount": "0.01", "refund_currency": "SGD", "refund_at": "2026-10-28 13:57:28", "refund_id": "mansi_khatri_refund_1"}
+                ])),
+            ),
+            (
+                "mansi_khatri_refund_2",
+                "Mansi_1793167012_165242157421379",
+                "refunded",
+                Some(json!([
+                    {"refund_amount": "0.02", "refund_currency": "SGD", "refund_at": "2026-10-28 13:57:52", "refund_id": "mansi_khatri_refund_2"}
+                ])),
+            ),
+        ] {
+            let response: ReddotRefundSyncResponse = serde_json::from_value(json!({
+                "order_id": "original-order",
+                "transaction_id": payment_id,
+                "authorized_amount": "1.10",
+                "authorized_currency": "SGD",
+                "transaction_status": status,
+                "refund": history,
+                "transaction_created_at": "2026-10-28 13:56:52",
+                "transaction_updated_at": "2026-10-28 13:57:52"
+            }))
+            .unwrap();
+            assert!(response.response_code.is_none());
+            let result = RouterDataV2::try_from(ResponseRouterData {
+                response,
+                router_data: refund_sync_data(refund_id),
+                http_code: 200,
+            })
+            .unwrap();
+            let response = result.response.unwrap();
+            assert_eq!(response.refund_status, common_enums::RefundStatus::Success);
+            assert_eq!(response.connector_refund_id, refund_id);
+        }
+    }
+
+    #[test]
+    fn payment_scoped_refund_history_deserializes_with_gateway_ids_and_statuses() {
+        let response: ReddotRefundSyncResponse = serde_json::from_value(json!({
+            "transaction_id": "Mansi_1793167012_165242157421379",
+            "transaction_status": "refunded",
+            "refund": [
+                {"refund_amount": "0.02", "refund_currency": "SGD", "refund_transaction_id": "mansi_khatri_refund_2_MIP", "refund_status": "refunded"},
+                {"refund_amount": "0.01", "refund_currency": "SGD", "refund_transaction_id": "mansi_khatri_refund_1_MIP", "refund_status": "refunded"}
+            ]
+        })).unwrap();
+        let history = response.refund.unwrap();
+        assert_eq!(history.len(), 2);
+        let second_refund = history.first().unwrap();
+        assert_eq!(
+            second_refund.refund_transaction_id.as_deref(),
+            Some("mansi_khatri_refund_2_MIP")
+        );
+        assert_eq!(second_refund.refund_status.as_deref(), Some("refunded"));
+        assert!(second_refund.refund_id.is_none());
     }
 }

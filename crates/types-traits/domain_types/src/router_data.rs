@@ -1593,7 +1593,8 @@ impl ConnectorSpecificConfig {
             Reddot {
                 mid,
                 secret,
-                acquirer_cybersource
+                acquirer_cybersource,
+                base_url
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -2137,7 +2138,8 @@ impl ConnectorSpecificConfig {
                 Reddot {
                     mid,
                     secret,
-                    acquirer_cybersource
+                    acquirer_cybersource,
+                    base_url
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },

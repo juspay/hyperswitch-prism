@@ -250,6 +250,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentWebhookReference {
                 connector_transaction_id: body.transaction_id,
                 merchant_transaction_id: body.merchant_reference,
+                connector_preprocessing_id: None,
             },
         )))
     }
@@ -266,14 +267,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("ReddotWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        // Same response_code semantics as the PSync transform: RDP sale txns
-        // are auto-captured, so success is Charged; `-01` is still in-flight;
-        // every other code is an authentication failure.
+        // RDP confirms only -01 is pending; all other nonzero payment codes
+        // are authentication failures, using the same classification as payment sync.
         let (status, error_code, error_message, error_reason) = match body.response_code.as_str() {
             "0" => (AttemptStatus::Charged, None, None, None),
             "-01" => (AttemptStatus::Pending, None, None, None),
             error_code => (
-                AttemptStatus::AuthenticationFailed,
+                transformers::reddot_payment_status(error_code),
                 Some(error_code.to_string()),
                 Some(body.response_msg.clone().unwrap_or_default()),
                 body.response_msg.clone(),
@@ -299,7 +299,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
