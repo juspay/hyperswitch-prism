@@ -453,6 +453,7 @@ pub struct Connectors {
     pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
     pub nsure: ConnectorParams,
+    pub clearsale_br: ConnectorParams,
     pub plaid: ConnectorParams,
     pub givepayments: ConnectorParams,
     pub grabpay: ConnectorParams,
@@ -955,6 +956,7 @@ impl Connectors {
         match connector {
             FrmConnectorEnum::Kount => patched.kount.apply(params_patch),
             FrmConnectorEnum::Nsure => patched.nsure.apply(params_patch),
+            FrmConnectorEnum::ClearsaleBr => patched.clearsale_br.apply(params_patch),
         }
         Ok(patched)
     }
@@ -4637,7 +4639,7 @@ impl TryFrom<grpc_payment_types::DocumentKind> for crate::payment_method_data::D
 /// `None` when the document type is `UNSPECIFIED` or the document number is missing
 /// — i.e. there is no usable customer document. Shared by the Authorize,
 /// SetupMandate (CIT) and RepeatPayment (MIT) request conversions.
-fn map_customer_document_details(
+pub(crate) fn map_customer_document_details(
     doc: &grpc_payment_types::CustomerDocumentDetails,
 ) -> Option<CustomerDocumentDetails> {
     crate::payment_method_data::DocumentKind::try_from(doc.document_type())
@@ -4729,6 +4731,11 @@ impl_enum_foreign_from! {
         PremiumEconomy => PremiumEconomy,
         Business => Business,
         First => First,
+    },
+    Gender => Gender {
+        Male => Male,
+        Female => Female,
+        Other => Other,
     },
     DepositPaymentType => DepositPaymentType {
         Cash => Cash,
@@ -5329,6 +5336,9 @@ impl ForeignTryFrom<grpc_payment_types::HotelSegment> for connector_types::Hotel
                 .daily_rate
                 .map(common_utils::types::Money::foreign_try_from)
                 .transpose()?,
+            hotel_state: segment.hotel_state,
+            reservation_date_time: segment.reservation_date_time,
+            reservation_expires_date_time: segment.reservation_expires_date_time,
         })
     }
 }
@@ -5339,11 +5349,20 @@ impl ForeignTryFrom<grpc_payment_types::Traveller> for connector_types::Travelle
     fn foreign_try_from(
         traveller: grpc_payment_types::Traveller,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Read enum getters (which borrow `traveller`) before moving fields out.
+        let gender = Option::<common_enums::Gender>::foreign_from(traveller.gender());
         Ok(Self {
             first_name: traveller.first_name,
             last_name: traveller.last_name,
             phone_number: traveller.phone_number,
             date_of_birth: traveller.date_of_birth,
+            document: traveller
+                .document
+                .as_ref()
+                .and_then(map_customer_document_details),
+            gender,
+            loyalty_card: traveller.loyalty_card,
+            loyalty_card_issuer: traveller.loyalty_card_issuer,
         })
     }
 }
@@ -5391,6 +5410,10 @@ impl ForeignTryFrom<grpc_payment_types::TravelSegment> for connector_types::Trav
                 .into_iter()
                 .map(connector_types::Traveller::foreign_try_from)
                 .collect::<Result<Vec<_>, _>>()?,
+            arrival_date_time: segment.arrival_date_time,
+            boarding_date_time: segment.boarding_date_time,
+            departure_date_time: segment.departure_date_time,
+            identification_number: segment.identification_number,
         })
     }
 }
