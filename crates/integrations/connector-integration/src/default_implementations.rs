@@ -979,7 +979,7 @@ default_impl_payment_method_eligibility_v2!(
         Affirm,
         Maya,
         Travelhub,
-        Reddot
+        Reddot,
         Ecommpay,
     ],
 );
