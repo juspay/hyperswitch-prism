@@ -1299,18 +1299,31 @@ fn build_tsys_product_details(
             .unwrap_or_else(|| sanitize_alphanumeric_space(&detail.product_name, 20));
 
         let product_name = truncate_chars(&detail.product_name, 50);
-        let price = super::TsysTransitAmountConvertor::convert(detail.amount, currency)?;
+        let price = super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
+            amount: detail.amount,
+            currency,
+        })?;
         let quantity = u32::from(detail.quantity);
         let measurement_unit = detail.unit_of_measure.clone();
         let unit_discount_amount = detail
             .unit_discount_amount
-            .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
+            .map(|amount| {
+                super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
+                    amount,
+                    currency,
+                })
+            })
             .transpose()?;
         let product_tax_name = detail.product_tax_code.clone();
 
         let product_tax_amount = detail
             .total_tax_amount
-            .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
+            .map(|amount| {
+                super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
+                    amount,
+                    currency,
+                })
+            })
             .transpose()?;
 
         let product_tax_percentage = detail.tax_rate.map(format_decimal);
@@ -1648,13 +1661,19 @@ fn compute_commercial_card_context<
             .as_ref()
             .map(|money| money.amount))
         .map(|amount| {
-            super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
+            super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
+                amount,
+                currency: router_data.request.currency,
+            })
         })
         .transpose()?;
     let duty_charges = l2_l3_data
         .and_then(|data| data.get_duty_amount())
         .map(|amount| {
-            super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
+            super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
+                amount,
+                currency: router_data.request.currency,
+            })
         })
         .transpose()?;
     let derived_tax_rate = order_details
@@ -1673,7 +1692,10 @@ fn compute_commercial_card_context<
             .map(|money| money.amount));
     let sales_tax = order_tax_amount
         .map(|amount| {
-            super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
+            super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
+                amount,
+                currency: router_data.request.currency,
+            })
         })
         .transpose()?;
     let tax_amount = sales_tax.clone();
@@ -1966,15 +1988,13 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
     }
     let card = card_opt;
 
-    let transaction_amount = super::TsysTransitAmountConvertor::convert(
-        router_data.request.amount.amount,
-        router_data.request.currency,
-    )?;
+    let transaction_amount =
+        super::TsysTransitAmountConvertor::convert(&router_data.request.amount)?;
     let surcharge = router_data
         .request
         .surcharge_amount
         .as_ref()
-        .map(|amount| super::TsysTransitAmountConvertor::convert(amount.amount, amount.currency))
+        .map(super::TsysTransitAmountConvertor::convert)
         .transpose()?;
     let billing = router_data
         .resource_common_data
@@ -2417,7 +2437,7 @@ fn compute_original_recurring_amount(
             | Some(CardNetwork::UnionPay),
             MandateDispatch::Ntid { .. } | MandateDispatch::Vault { .. },
         ) => Ok(Some(super::TsysTransitAmountConvertor::convert(
-            amount, currency,
+            &common_utils::types::Money { amount, currency },
         )?)),
         _ => Ok(None),
     }
@@ -2497,7 +2517,7 @@ fn derive_amount_captured(
     amount: Option<&StringMajorUnit>,
     currency: common_enums::Currency,
     http_status_code: u16,
-) -> Result<Option<MinorUnit>, Report<ConnectorError>> {
+) -> Result<Option<common_utils::types::Money>, Report<ConnectorError>> {
     let is_settled = matches!(
         status,
         AttemptStatus::Charged | AttemptStatus::PartialCharged
@@ -2529,7 +2549,7 @@ fn derive_amount_capturable(
     amount: Option<&StringMajorUnit>,
     currency: common_enums::Currency,
     http_status_code: u16,
-) -> Result<Option<MinorUnit>, Report<ConnectorError>> {
+) -> Result<Option<common_utils::types::Money>, Report<ConnectorError>> {
     let is_authorized = matches!(
         status,
         AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized
@@ -2641,17 +2661,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_account_reference: None,
         };
 
+        let integrity_amount = amount_captured
+            .as_ref()
+            .or(amount_capturable.as_ref())
+            .map(|money| money.amount)
+            .unwrap_or(router_data.request.amount.amount);
+
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: amount_captured.map(|amount| common_utils::types::Money {
-                    amount,
-                    currency: router_data.request.currency,
-                }),
-                amount_capturable: amount_capturable.map(|amount| common_utils::types::Money {
-                    amount,
-                    currency: router_data.request.currency,
-                }),
+                amount_captured,
+                amount_capturable,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -2662,9 +2682,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // request build and response handling, not connector-side drift.
             request: PaymentsAuthorizeData {
                 integrity_object: Some(AuthoriseIntegrityObject {
-                    amount: amount_captured
-                        .or(amount_capturable)
-                        .unwrap_or(router_data.request.amount.amount),
+                    amount: integrity_amount,
                     currency: router_data.request.currency, // currency is not echoed in Auth/Sale Response TSYS responses
                 }),
                 ..router_data.request.clone()
@@ -2785,6 +2803,7 @@ fn parse_ambiguous_transaction_amount(
         .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })?;
         amount_converter
             .convert_back(major_unit, currency)
+            .map(|money| money.amount)
             .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })
     } else {
         amount
@@ -2930,7 +2949,10 @@ fn compute_capture_sales_tax(
         .order_tax_amount
         .as_ref()
         .map(|amount| {
-            super::TsysTransitAmountConvertor::convert(amount.amount, router_data.request.currency)
+            super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
+                amount: amount.amount,
+                currency: router_data.request.currency,
+            })
         })
         .transpose()
 }
@@ -2955,10 +2977,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
         let transaction_id = router_data.request.get_connector_transaction_id()?;
 
-        let transaction_amount = super::TsysTransitAmountConvertor::convert(
-            router_data.request.amount_to_capture.amount,
-            router_data.request.currency,
-        )?;
+        let transaction_amount =
+            super::TsysTransitAmountConvertor::convert(&router_data.request.amount_to_capture)?;
         let sales_tax = compute_capture_sales_tax(router_data)?;
         Ok(Self {
             device_id: auth.device_id,
@@ -3063,13 +3083,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_account_reference: None,
         };
 
+        let integrity_amount = amount_captured
+            .as_ref()
+            .map(|money| money.amount)
+            .unwrap_or(router_data.request.amount_to_capture.amount);
+
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: amount_captured.map(|amount| common_utils::types::Money {
-                    amount,
-                    currency: router_data.request.currency,
-                }),
+                amount_captured,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -3078,8 +3100,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // rationale as Authorize above.
             request: PaymentsCaptureData {
                 integrity_object: Some(CaptureIntegrityObject {
-                    amount_to_capture: amount_captured
-                        .unwrap_or(router_data.request.amount_to_capture.amount),
+                    amount_to_capture: integrity_amount,
                     currency: router_data.request.currency, // currency is not echoed in CaptureResponse TSYS responses
                 }),
                 ..router_data.request.clone()
@@ -3107,10 +3128,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
 
-        let transaction_amount = super::TsysTransitAmountConvertor::convert(
-            router_data.request.refund_amount.amount,
-            router_data.request.currency,
-        )?;
+        let transaction_amount =
+            super::TsysTransitAmountConvertor::convert(&router_data.request.refund_amount)?;
 
         let connector_transaction_id = router_data.request.connector_transaction_id.clone();
 
@@ -3421,9 +3440,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .refund_money
             .as_ref()
-            .map(|amount| {
-                super::TsysTransitAmountConvertor::convert(amount.amount, amount.currency)
-            })
+            .map(super::TsysTransitAmountConvertor::convert)
             .transpose()?;
         // TSYS <voidReason> only accepts a fixed set of enum values, so an
         // arbitrary caller-supplied cancellation_reason (free text) is rejected
@@ -3560,7 +3577,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.currency,
         ) {
             (Some(amount), Some(currency)) => Some(super::TsysTransitAmountConvertor::convert(
-                amount, currency,
+                &common_utils::types::Money { amount, currency },
             )?),
             _ => None,
         };
@@ -3613,9 +3630,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .amount
             .as_ref()
-            .map(|amount| {
-                super::TsysTransitAmountConvertor::convert(amount.amount, amount.currency)
-            })
+            .map(super::TsysTransitAmountConvertor::convert)
             .transpose()?;
 
         Ok(Self {
@@ -4348,17 +4363,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
+        let integrity_amount = amount_captured
+            .as_ref()
+            .map(|money| money.amount)
+            .unwrap_or(router_data.request.amount.amount);
+
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: amount_captured.map(|amount| common_utils::types::Money {
-                    amount,
-                    currency: router_data.request.currency,
-                }),
-                amount_capturable: amount_capturable.map(|amount| common_utils::types::Money {
-                    amount,
-                    currency: router_data.request.currency,
-                }),
+                amount_captured,
+                amount_capturable,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -4367,7 +4381,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // rationale as Authorize above.
             request: RepeatPaymentData {
                 integrity_object: Some(RepeatPaymentIntegrityObject {
-                    amount: amount_captured.unwrap_or(router_data.request.amount.amount),
+                    amount: integrity_amount,
                     currency: router_data.request.currency, // Not echoed in RepeatPaymentResponse TSYS responses
                     mandate_reference, // Not returned by TSYS, echo the request's own mandate_reference for integrity check.
                 }),

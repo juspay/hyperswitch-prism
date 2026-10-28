@@ -281,10 +281,7 @@ where
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
@@ -597,7 +594,7 @@ where
         let amount = item
             .connector
             .amount_converter
-            .convert(req.amount.amount, req.currency)
+            .convert(&req.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
@@ -693,7 +690,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .or_else(|| data.request.connector_payment_method_id.clone());
                 let recharge_currency = data.request.currency;
                 let payment_method_details = body.wallet.as_ref().map(|w| {
-                    let balance = connector.convert_back(w.balance, recharge_currency).ok();
+                    let balance = connector
+                        .convert_back(w.balance, recharge_currency)
+                        .ok()
+                        .map(|money| money.amount);
                     let items = w
                         .card
                         .as_ref()
@@ -1012,15 +1012,8 @@ fn card_to_wallet_item(
     }
     last_four.reverse();
     let wallet_item_id: String = last_four.into_iter().collect();
-    let available_balance = currency.and_then(|c| {
-        amount_converter
-            .convert_back(card.amount, c)
-            .ok()
-            .map(|minor| common_utils::types::Money {
-                amount: minor,
-                currency: c,
-            })
-    });
+    let available_balance =
+        currency.and_then(|c| amount_converter.convert_back(card.amount, c).ok());
     Some(payment_method_data::WalletItem {
         wallet_item_id,
         product_id: card.card_program_name.clone().unwrap_or_default(),
@@ -1038,7 +1031,8 @@ fn wallet_details_to_payment_method_details(
     let balance = wallet
         .balance
         .zip(currency)
-        .and_then(|(b, c)| amount_converter.convert_back(b, c).ok());
+        .and_then(|(b, c)| amount_converter.convert_back(b, c).ok())
+        .map(|money| money.amount);
     let items = wallet
         .card
         .as_ref()

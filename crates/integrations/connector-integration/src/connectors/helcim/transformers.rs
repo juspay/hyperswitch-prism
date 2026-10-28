@@ -170,10 +170,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -407,10 +404,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount_to_capture.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount_to_capture)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -619,15 +613,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data
+            .convert(&common_utils::types::Money {
+                amount: item
+                    .router_data
                     .request
                     .amount
                     .as_ref()
                     .map(|money| money.amount)
                     .unwrap_or(common_utils::types::MinorUnit::new(0)),
-                item.router_data.request.currency,
-            )
+                currency: item.router_data.request.currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -749,10 +744,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.refund_amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.refund_amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

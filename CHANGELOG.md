@@ -19,6 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.28.1
+
+### Features
+
+- **connector:**
+  - [Ecommpay] add card, 3DS, mandate, refund, void and webhook flows ([#2561](https://github.com/juspay/connector-service/pull/2561)) ([`72b864c`](https://github.com/juspay/connector-service/commit/72b864ccf47b3b7798e8eda636f180109a7b63cc))
+  - [ClearSaleBR] add ClearSale Brazil FRM connector for PreRiskCheck ([#2639](https://github.com/juspay/connector-service/pull/2639)) ([`ca26630`](https://github.com/juspay/connector-service/commit/ca266309346e03472ab680b528326b6ea2831f39))
+- Adding superposition url for sbx ([#2637](https://github.com/juspay/connector-service/pull/2637)) ([`c6bf64a`](https://github.com/juspay/connector-service/commit/c6bf64ad1e378b3b553b79906d5b6626f6a19600))
+
+**Full Changelog:** [`2026.10.28.0...2026.10.28.1`](https://github.com/juspay/connector-service/compare/2026.10.28.0...2026.10.28.1)
+
+- - -
+
 ## 2026.10.28.0
 
 ### Features

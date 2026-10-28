@@ -623,7 +623,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = data
             .connector
             .amount_converter
-            .convert(item.request.amount.amount, item.request.amount.currency)
+            .convert(&item.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -686,7 +686,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let max_amount = data
                     .connector
                     .amount_converter
-                    .convert(mandate_amount.amount.amount, mandate_amount.amount.currency)
+                    .convert(&mandate_amount.amount)
                     .change_context(IntegrationError::RequestEncodingFailed {
                         context: IntegrationErrorContext {
                             suggested_action: Some(
@@ -1189,10 +1189,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = data
             .connector
             .amount_converter
-            .convert(
-                item.request.amount_to_capture.amount,
-                item.request.amount_to_capture.currency,
-            )
+            .convert(&item.request.amount_to_capture)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -1413,10 +1410,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &data.router_data;
-        let refund_amount = data.connector.amount_converter.convert(
-            data.router_data.request.refund_amount.amount,
-            data.router_data.request.refund_amount.currency,
-        );
+        let refund_amount = data
+            .connector
+            .amount_converter
+            .convert(&data.router_data.request.refund_amount);
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
         };
@@ -1993,7 +1990,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = data
             .connector
             .amount_converter
-            .convert(order_money.amount, order_money.currency)
+            .convert(order_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -2029,7 +2026,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let max_amount = data
             .connector
             .amount_converter
-            .convert(mandate_amount.amount.amount, mandate_amount.amount.currency)
+            .convert(&mandate_amount.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -2225,10 +2222,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.amount.amount,
-                router_data.request.amount.currency,
-            )
+            .convert(&router_data.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
