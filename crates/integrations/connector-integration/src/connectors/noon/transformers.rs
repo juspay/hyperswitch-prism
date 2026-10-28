@@ -294,10 +294,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = data
             .connector
             .amount_converter
-            .convert(
-                data.router_data.request.amount.amount,
-                data.router_data.request.currency,
-            )
+            .convert(&data.router_data.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -495,7 +492,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_amount_data.map(|amount_data| {
                         data.connector
                             .amount_converter
-                            .convert(amount_data.amount.amount, amount_data.amount.currency)
+                            .convert(&amount_data.amount)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),
@@ -746,10 +743,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &data.router_data;
-        let amount = data.connector.amount_converter.convert(
-            data.router_data.request.amount_to_capture.amount,
-            data.router_data.request.currency,
-        );
+        let amount = data
+            .connector
+            .amount_converter
+            .convert(&data.router_data.request.amount_to_capture);
         let order = NoonActionOrder {
             id: item
                 .request
@@ -861,10 +858,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &data.router_data;
-        let refund_amount = data.connector.amount_converter.convert(
-            data.router_data.request.refund_amount.amount,
-            data.router_data.request.currency,
-        );
+        let refund_amount = data
+            .connector
+            .amount_converter
+            .convert(&data.router_data.request.refund_amount);
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
         };
@@ -1187,10 +1184,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &data.router_data;
-        let amount = data.connector.amount_converter.convert(
-            common_utils::types::MinorUnit::new(1),
-            data.router_data.request.currency,
-        );
+        let amount = data
+            .connector
+            .amount_converter
+            .convert(&common_utils::types::Money {
+                amount: common_utils::types::MinorUnit::new(1),
+                currency: data.router_data.request.currency,
+            });
         let mandate_amount = &data.router_data.request.setup_mandate_details;
 
         let (payment_data, currency, category) = match &item.request.mandate_id {
@@ -1401,7 +1401,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_amount_data.map(|amount_data| {
                         data.connector
                             .amount_converter
-                            .convert(amount_data.amount.amount, amount_data.amount.currency)
+                            .convert(&amount_data.amount)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),
@@ -1578,10 +1578,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

@@ -288,15 +288,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
-        let amount_minor = domain_types::utils::convert_back_amount_to_minor_units_for_webhook(
+        let money = domain_types::utils::convert_back_amount_to_money_for_webhook(
             &common_utils::types::StringMajorUnitForConnector,
             dispute.dispute_amount.value,
             dispute.dispute_amount.currency_code,
         )?;
         let amount = domain_types::utils::convert_amount_for_webhook(
             &common_utils::types::StringMinorUnitForConnector,
-            amount_minor,
-            dispute.dispute_amount.currency_code,
+            &money,
         )?;
 
         let status = match details.event_type {

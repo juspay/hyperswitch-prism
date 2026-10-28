@@ -11,7 +11,7 @@ from payments import PaymentClient
 from payments import RecurringPaymentClient
 from payments.generated import common_types_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "reverse", "setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -177,6 +177,25 @@ def _build_refund_request(connector_transaction_id: str):
                 card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
             ),
         ),
+    )
+
+def _build_reverse_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceReverseRequest(
+        merchant_reverse_id="probe_reverse_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount=common_types_pb2.Money(  # Original payment amount and currency.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Original payment method for connectors that require PAN and expiry again.
+            card_with_no_cvc=payment_methods_pb2.CardDetailsWithNoCvc(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
+            ),
+        ),
+        capture_method=payment_pb2.CaptureMethod.Value("MANUAL"),  # Original payment's capture method, not the reversal's disposition. Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at different endpoints.
     )
 
 def _build_setup_recurring_request():
@@ -362,6 +381,15 @@ async def process_recurring_charge(merchant_transaction_id: str, config: sdk_con
     recurring_response = await recurringpayment_client.charge(_build_recurring_charge_request())
 
     return {"status": recurring_response.status}
+
+
+async def process_reverse(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.Reverse"""
+    payment_client = PaymentClient(config)
+
+    reverse_response = await payment_client.reverse(_build_reverse_request("C|123456|123456789012|000001"))
+
+    return {"status": reverse_response.status}
 
 
 async def process_setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

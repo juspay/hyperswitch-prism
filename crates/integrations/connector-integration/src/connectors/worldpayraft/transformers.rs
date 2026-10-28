@@ -11,12 +11,13 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, IncrementalAuthorization, Refund, RepeatPayment, SetupMandate, Void,
+        VoidPC,
     },
     connector_types::{
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData, RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, RefundFlowData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors,
     payment_method_data::{
@@ -24,7 +25,7 @@ use domain_types::{
         DefaultPCIHolder, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     utils::{get_card_issuer, CardIssuer},
 };
@@ -1430,10 +1431,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1829,10 +1827,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.amount_to_capture.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount_to_capture)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1886,7 +1881,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|original_amount| {
                     item.connector
                         .amount_converter
-                        .convert(original_amount.amount, original_amount.currency)
+                        .convert(original_amount)
                         .change_context(errors::IntegrationError::AmountConversionFailed {
                             context: errors::IntegrationErrorContext {
                                 additional_context: Some(
@@ -2140,10 +2135,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.refund_amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.refund_amount)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -2597,10 +2589,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -2923,7 +2912,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(amount.amount, currency)
+            .convert(&Money {
+                amount: amount.amount,
+                currency,
+            })
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -3050,6 +3042,331 @@ impl TryFrom<ResponseRouterData<WorldpayraftVoidResponse, Self>>
 }
 
 // =============================================================================
+// POST-CAPTURE REVERSAL
+// =============================================================================
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayraftVoidPCTraceNumbers {
+    authorization_number: String,
+}
+
+/// Completion reversals use schema 0601; purchase reversals use schema 0301.
+/// Only completion reversals include the prior authorization amount and trace.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayraftVoidPCInner {
+    misc_amounts_balances: WorldpayraftCompletionAmounts,
+    account_codes_and_data: WorldpayraftCreditAccountData,
+    card_info: WorldpayraftCardInfo<DefaultPCIHolder>,
+    terminal_data: WorldpayraftTerminalData,
+    #[serde(rename = "E-commerceData")]
+    ecommerce_data: WorldpayraftEcommerceData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    proc_flags_indicators: Option<WorldpayraftCompletionProcFlags>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reference_trace_numbers: Option<WorldpayraftVoidPCTraceNumbers>,
+    authorization_type: WorldpayraftAuthorizationType,
+    #[serde(rename = "WorldPayMerchantID")]
+    world_pay_merchant_id: Secret<String>,
+    #[serde(rename = "APITransactionID")]
+    api_transaction_id: String,
+    local_date_time: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum WorldpayraftVoidPCRequest {
+    Completion {
+        creditcompletion: WorldpayraftVoidPCInner,
+    },
+    Purchase {
+        creditpurchase: WorldpayraftVoidPCInner,
+    },
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayraftRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for WorldpayraftVoidPCRequest
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        item: WorldpayraftRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+        let auth = WorldpayraftAuthType::try_from(&router_data.connector_config)?;
+        let is_completion = match request.capture_method {
+            Some(common_enums::CaptureMethod::Manual) => true,
+            Some(
+                common_enums::CaptureMethod::Automatic
+                | common_enums::CaptureMethod::SequentialAutomatic,
+            ) => false,
+            None => return Err(missing_field_err("capture_method")()),
+            Some(capture_method) => {
+                return Err(errors::IntegrationError::CaptureMethodNotSupported {
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Worldpay RAFT cannot build a post-capture reversal for capture method {capture_method:?}; use the original payment's MANUAL, AUTOMATIC, or SEQUENTIAL_AUTOMATIC capture method"
+                        )),
+                        ..Default::default()
+                    },
+                }
+                .into())
+            }
+        };
+        let (transaction_type, authorization_number, _, _) =
+            parse_connector_transaction_id(&request.connector_transaction_id)?;
+        let payment_method = request
+            .payment_method_data
+            .as_ref()
+            .ok_or_else(missing_field_err("payment_method"))?;
+        let card = CardFields::try_from(payment_method)?;
+        if transaction_type.is_debit() || card.is_debit {
+            return Err(errors::IntegrationError::NotSupported {
+                message: "Post-capture reversal is supported only for credit transactions"
+                    .to_string(),
+                connector: "worldpayraft",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "The connector transaction ID or supplied card identifies a debit payment; credit/completion and credit/purchase reversals cannot reverse debit transactions".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
+        let amount = request
+            .amount
+            .as_ref()
+            .ok_or_else(missing_field_err("amount"))?;
+        let transaction_amount = item
+            .connector
+            .amount_converter
+            .convert(amount)
+            .change_context(errors::IntegrationError::AmountConversionFailed {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT post-capture reversal requires the captured amount in major currency units for MiscAmountsBalances.TransactionAmount".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+        let metadata = WorldpayraftConnectorMetadata::try_from(
+            router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref(),
+        )?;
+        // RAFT matches this reversal to the original transaction. A new reverse ID
+        // must never replace the APITransactionID from that transaction.
+        let api_transaction_id = metadata
+            .api_transaction_id
+            .filter(|id| !id.trim().is_empty())
+            .ok_or_else(missing_field_err(
+                "connector_feature_data.api_transaction_id",
+            ))?;
+        let terminal_data = metadata
+            .terminal_data
+            .ok_or_else(missing_field_err("connector_feature_data.terminal_data"))?;
+        let ecommerce_data = metadata
+            .ecommerce_data
+            .ok_or_else(missing_field_err("connector_feature_data.ecommerce_data"))?;
+
+        let mut inner = WorldpayraftVoidPCInner {
+            misc_amounts_balances: WorldpayraftCompletionAmounts {
+                transaction_amount,
+                preauthorized_amount: None,
+            },
+            account_codes_and_data: WorldpayraftCreditAccountData {
+                from_account_selected: WorldpayraftAccountType::CreditCard,
+            },
+            card_info: WorldpayraftCardInfo {
+                pan: Some(card.pan),
+                expiration_date: Some(card.expiration_date),
+            },
+            terminal_data,
+            ecommerce_data,
+            proc_flags_indicators: None,
+            reference_trace_numbers: None,
+            authorization_type: WorldpayraftAuthorizationType::Reversal,
+            world_pay_merchant_id: auth.merchant_id,
+            api_transaction_id,
+            local_date_time: get_local_datetime(),
+        };
+        if !is_completion {
+            return Ok(Self::Purchase {
+                creditpurchase: inner,
+            });
+        }
+
+        if authorization_number.trim().is_empty() {
+            return Err(missing_field_err(
+                "connector_transaction_id.authorization_number",
+            )());
+        }
+        let original_amount =
+            metadata
+                .original_authorized_amount
+                .as_ref()
+                .ok_or_else(missing_field_err(
+                    "connector_feature_data.original_authorized_amount",
+                ))?;
+        if original_amount.currency != amount.currency {
+            return Err(errors::IntegrationError::InvalidDataFormat {
+                field_name: "amount.currency",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Worldpay RAFT completion reversal currency {} must match the original authorized currency {} from connector_feature_data.original_authorized_amount",
+                        amount.currency, original_amount.currency
+                    )),
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
+        let preauthorized_amount = item
+            .connector
+            .amount_converter
+            .convert(original_amount)
+            .change_context(errors::IntegrationError::AmountConversionFailed {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT completion reversal requires the original authorized amount in major currency units for MiscAmountsBalances.PreauthorizedAmount".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+        inner.misc_amounts_balances.preauthorized_amount = Some(preauthorized_amount);
+        inner.reference_trace_numbers = Some(WorldpayraftVoidPCTraceNumbers {
+            authorization_number: authorization_number.to_string(),
+        });
+        inner.proc_flags_indicators = Some(
+            metadata
+                .proc_flags_indicators
+                .unwrap_or_default()
+                .into_completion(true),
+        );
+        Ok(Self::Completion {
+            creditcompletion: inner,
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayraftVoidPCResponseInner {
+    return_code: String,
+    reason_code: Option<String>,
+    return_text: Option<String>,
+    response_code: Option<String>,
+    #[serde(rename = "APITransactionID")]
+    api_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum WorldpayraftVoidPCResponse {
+    Completion {
+        creditcompletionresponse: WorldpayraftVoidPCResponseInner,
+    },
+    Purchase {
+        creditpurchaseresponse: WorldpayraftVoidPCResponseInner,
+    },
+}
+
+impl TryFrom<ResponseRouterData<WorldpayraftVoidPCResponse, Self>>
+    for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<WorldpayraftVoidPCResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let inner = match item.response {
+            WorldpayraftVoidPCResponse::Completion {
+                creditcompletionresponse,
+            } => creditcompletionresponse,
+            WorldpayraftVoidPCResponse::Purchase {
+                creditpurchaseresponse,
+            } => creditpurchaseresponse,
+        };
+        let succeeded = map_payment_status(
+            &inner.return_code,
+            inner.response_code.as_deref().unwrap_or_default(),
+        );
+        let status = if succeeded {
+            AttemptStatus::VoidedPostCapture
+        } else {
+            AttemptStatus::VoidFailed
+        };
+        let response = if succeeded {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.router_data.request.connector_transaction_id.clone(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: inner.api_transaction_id,
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: None,
+            })
+        } else {
+            Err(ErrorResponse {
+                status_code: item.http_code,
+                code: if inner.return_code == RETURN_CODE_SUCCESS {
+                    inner
+                        .response_code
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string())
+                } else {
+                    inner.return_code
+                },
+                message: inner
+                    .return_text
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: inner.reason_code,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: Some(
+                    item.router_data.request.connector_transaction_id.clone(),
+                ),
+                ..ErrorResponse::default()
+            })
+        };
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
 // INCREMENTAL AUTHORIZATION
 // =============================================================================
 
@@ -3147,7 +3464,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let convert_amount = |amount: &Money, field_name: &str| {
             item.connector
                 .amount_converter
-                .convert(amount.amount, amount.currency)
+                .convert(amount)
                 .change_context(errors::IntegrationError::AmountConversionFailed {
                     context: errors::IntegrationErrorContext {
                         additional_context: Some(format!(

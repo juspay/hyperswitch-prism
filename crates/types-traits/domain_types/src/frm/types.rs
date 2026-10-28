@@ -330,6 +330,27 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             mandate_details,
             merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
             payment_method_type,
+            billing_document_data: value
+                .billing_document_data
+                .as_ref()
+                .and_then(crate::types::map_customer_document_details),
+            shipping_document_data: value
+                .shipping_document_data
+                .as_ref()
+                .and_then(crate::types::map_customer_document_details),
+            domain_data: value
+                .domain_data
+                .map(crate::connector_types::DomainData::foreign_try_from)
+                .transpose()
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "domain_data",
+                    context: crate::errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Failed to parse domain data in pre-risk check".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?,
         })
     }
 }
@@ -452,6 +473,20 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
                 },
             })?;
 
+        let browser_info = value
+            .browser_info
+            .map(BrowserInformation::foreign_try_from)
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "browser_info",
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to parse browser info in post-risk check".to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
         Ok(Self {
             amount: Money {
                 amount: MinorUnit::new(amount.minor_amount),
@@ -459,6 +494,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             },
             customer_info,
             payment_method,
+            browser_info,
             merchant_transaction_id: value.merchant_transaction_id,
             order_details,
             metadata: value.metadata,
@@ -468,6 +504,27 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             connector_transaction_id: value.connector_transaction_id,
             payment_connector,
             address,
+            billing_document_data: value
+                .billing_document_data
+                .as_ref()
+                .and_then(crate::types::map_customer_document_details),
+            shipping_document_data: value
+                .shipping_document_data
+                .as_ref()
+                .and_then(crate::types::map_customer_document_details),
+            domain_data: value
+                .domain_data
+                .map(crate::connector_types::DomainData::foreign_try_from)
+                .transpose()
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "domain_data",
+                    context: crate::errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Failed to parse domain data in post-risk check".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?,
         })
     }
 }

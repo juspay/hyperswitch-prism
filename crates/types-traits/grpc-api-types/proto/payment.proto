@@ -268,7 +268,8 @@ enum PaymentStatus {
   VOID_INITIATED = 12;
   VOIDED = 11;
   VOID_FAILED = 15;
-  VOIDED_POST_CAPTURE = 57;
+  // Deprecated: use PostCaptureVoidStatus to track post-capture void outcomes.
+  VOIDED_POST_CAPTURE = 57 [deprecated = true];
 
   // Other payment flows
   COD_INITIATED = 10; // Cash on Delivery initiated
@@ -313,6 +314,15 @@ enum RefundStatus {
   REFUND_SUCCESS = 4;
   REFUND_TRANSACTION_FAILURE =
       5; // Failure at the transaction level for the refund
+}
+
+// Outcome of a post-capture void (PaymentService.Reverse). Describes the void
+// attempt itself, never the status of the payment being voided.
+enum PostCaptureVoidStatus {
+  POST_CAPTURE_VOID_STATUS_UNSPECIFIED = 0; // Default value
+  POST_CAPTURE_VOID_STATUS_SUCCEEDED = 1;   // The captured payment was voided
+  POST_CAPTURE_VOID_STATUS_PENDING = 2;     // The void was accepted but is not final yet
+  POST_CAPTURE_VOID_STATUS_FAILED = 3;      // The void was declined; the payment is unchanged
 }
 
 // Status of a dispute
@@ -744,6 +754,8 @@ enum Connector {
   MERCHANTE = 150;
   ELAVON_PG = 151;
   GLOBALPAYMENTS_REALEX = 152;
+  ECOMMPAY = 153;
+  CLEARSALE_BR = 154;
 }
 
 // Payment method types
@@ -976,6 +988,8 @@ message OrderDetailsWithAmount {
   optional string discount_type = 22;
   // The URL of the product
   optional string product_link = 23;
+  // Total amount for this line item
+  optional int64 total_amount = 24;
 }
 
 // Access token details
@@ -1275,6 +1289,10 @@ message OrderInfo {
 
   // Duty/customs amount for the order (in minor currency units)
   optional int64 duty_amount = 6;
+
+  // Commodity code classifying the order as a whole, as opposed to the
+  // per-item codes on each line item
+  optional string order_commodity_code = 7;
 }
 
 // Tax information for L2/L3 data.
@@ -1293,6 +1311,18 @@ message TaxInfo {
 
   // Total tax amount for the order (in minor currency units)
   optional int64 order_tax_amount = 5;
+
+  // Value added tax (VAT) amount for the order (in minor currency units)
+  optional int64 value_added_tax_amount = 6;
+
+  // Value added tax (VAT) rate for the order, as a percentage: 2.5 means 2.5%, not 0.025.
+  optional double value_added_tax_percent = 7;
+
+  // Reference number of the value added tax (VAT) invoice for the order
+  optional string vat_invoice_reference_number = 8;
+
+  // Merchant's VAT registration ID
+  optional SecretString merchant_vat_registration_id = 9;
 }
 
 // Level 2 / Level 3 data for enhanced payment processing.
@@ -2924,16 +2954,30 @@ message PaymentServiceReverseRequest {
 
   // Original payment amount and currency.
   optional Money amount = 10;
+
+  // Original payment method for connectors that require PAN and expiry again.
+  optional PaymentMethod payment_method = 11;
+
+  // Original payment's capture method, not the reversal's disposition.
+  // Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at
+  // different endpoints.
+  optional CaptureMethod capture_method = 12;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
 // to void but for post-capture transactions)
 message PaymentServiceReverseResponse {
   // Identification
+  // The connector's id of the original payment being voided, echoed from the
+  // request. The void's own id is in connector_reference_id.
   string connector_transaction_id = 1;
 
   // Status Information
-  PaymentStatus status = 2;
+  // Deprecated: use post_capture_void_status instead. Always
+  // PAYMENT_STATUS_UNSPECIFIED: a void's outcome is not the payment's status.
+  PaymentStatus status = 2 [deprecated = true];
+  // Set when post_capture_void_status is FAILED; carries the connector's
+  // failure message.
   optional ErrorInfo error = 3;
   uint32 status_code = 4;
   map<string, string> response_headers = 5;
@@ -2950,9 +2994,12 @@ message PaymentServiceReverseResponse {
   // The connector's reported status for this response.
   optional RawConnectorStatus raw_connector_status = 9;
 
-  // Another reference for the connector's transaction, returned in the connector's response.
-  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  // The connector's reference for the void, as the connector returned it. Not
+  // set when the connector returns an error. 
   optional string connector_reference_id = 10;
+
+  // Outcome of the void.
+  PostCaptureVoidStatus post_capture_void_status = 13;
 }
 
 // Request message for creating an access token
@@ -5749,6 +5796,22 @@ message NsureConfig {
   optional string base_url = 50;
 }
 
+message ClearsaleBrConfig {
+  // ClearSale account username, sent as `name` on POST /v1/authenticate.
+  // This is the RiskManagementAccount accountDetailsJson field name.
+  SecretString username = 1;
+  // ClearSale account password, sent as `password` on POST /v1/authenticate.
+  SecretString password = 2;
+  // Customer type sent as the order `b2bB2c` field: "b2b" or "b2c".
+  // Gateway/merchant-specific, so it lives in the RiskManagementAccount
+  // account details rather than per-transaction data.
+  optional string b2b_b2c = 3;
+  // ClearSale product id for the order `product` field, when the merchant runs
+  // a product other than the connector's default (Total Garantido).
+  optional int32 product = 4;
+  optional string base_url = 50;
+}
+
 message HyperswitchConfig {
   SecretString api_key = 1;
   optional string base_url = 50;
@@ -5930,6 +5993,19 @@ message PayhereConfig {
   // PayHere Merchant Secret -- hash secret only (checkout MD5 hash + webhook
   // md5sig verification), never transmitted.
   SecretString merchant_secret = 4;
+  optional string base_url = 50;
+}
+
+// Ecommpay Gate API v2. There is no authentication header: every request is signed in the
+// body (`general.signature`), so both values below come from the Ecommpay dashboard
+// (Project settings) and are supplied by the merchant.
+message EcommpayConfig {
+  // Numeric Ecommpay project id -- sent in the body as `general.project_id`, and the only
+  // one of the two that reaches the wire.
+  SecretString project_id = 1;
+  // Project secret key -- the HMAC-SHA512 key used to sign every request and to verify
+  // status responses and callbacks. Never sent to Ecommpay.
+  SecretString secret_key = 2;
   optional string base_url = 50;
 }
 
@@ -6285,6 +6361,10 @@ message ConnectorSpecificConfig {
     ElavonPgConfig elavon_pg = 162;
     // GLOBALPAYMENTS_REALEX = 152
     GlobalpaymentsRealexConfig globalpayments_realex = 163;
+    // ECOMMPAY = 153
+    EcommpayConfig ecommpay = 164;
+    // CLEARSALE_BR = 154
+    ClearsaleBrConfig clearsale_br = 165;
   }
 }
 

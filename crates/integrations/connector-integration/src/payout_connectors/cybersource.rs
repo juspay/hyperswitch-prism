@@ -481,7 +481,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converter = StringMajorUnitForConnector;
         let total_amount = converter
-            .convert(req.request.amount, req.request.destination_currency)
+            .convert(&common_utils::types::Money {
+                amount: req.request.amount,
+                currency: req.request.destination_currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

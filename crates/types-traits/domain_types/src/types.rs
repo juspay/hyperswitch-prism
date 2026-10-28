@@ -453,6 +453,7 @@ pub struct Connectors {
     pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
     pub nsure: ConnectorParams,
+    pub clearsale_br: ConnectorParams,
     pub plaid: ConnectorParams,
     pub givepayments: ConnectorParams,
     pub grabpay: ConnectorParams,
@@ -475,6 +476,7 @@ pub struct Connectors {
     pub elavon_pg: ConnectorParams,
     pub globalpayments_realex: ConnectorParams,
     pub payhere: ConnectorParams,
+    pub ecommpay: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -874,6 +876,9 @@ impl Connectors {
             ConnectorEnum::Payhere => {
                 patched.payhere.apply(params_patch);
             }
+            ConnectorEnum::Ecommpay => {
+                patched.ecommpay.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -881,7 +886,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, ecommpay",
                             connector
                         )),
                         ..Default::default()
@@ -951,6 +956,7 @@ impl Connectors {
         match connector {
             FrmConnectorEnum::Kount => patched.kount.apply(params_patch),
             FrmConnectorEnum::Nsure => patched.nsure.apply(params_patch),
+            FrmConnectorEnum::ClearsaleBr => patched.clearsale_br.apply(params_patch),
         }
         Ok(patched)
     }
@@ -4633,7 +4639,7 @@ impl TryFrom<grpc_payment_types::DocumentKind> for crate::payment_method_data::D
 /// `None` when the document type is `UNSPECIFIED` or the document number is missing
 /// — i.e. there is no usable customer document. Shared by the Authorize,
 /// SetupMandate (CIT) and RepeatPayment (MIT) request conversions.
-fn map_customer_document_details(
+pub(crate) fn map_customer_document_details(
     doc: &grpc_payment_types::CustomerDocumentDetails,
 ) -> Option<CustomerDocumentDetails> {
     crate::payment_method_data::DocumentKind::try_from(doc.document_type())
@@ -4725,6 +4731,11 @@ impl_enum_foreign_from! {
         PremiumEconomy => PremiumEconomy,
         Business => Business,
         First => First,
+    },
+    Gender => Gender {
+        Male => Male,
+        Female => Female,
+        Other => Other,
     },
     DepositPaymentType => DepositPaymentType {
         Cash => Cash,
@@ -5325,6 +5336,9 @@ impl ForeignTryFrom<grpc_payment_types::HotelSegment> for connector_types::Hotel
                 .daily_rate
                 .map(common_utils::types::Money::foreign_try_from)
                 .transpose()?,
+            hotel_state: segment.hotel_state,
+            reservation_date_time: segment.reservation_date_time,
+            reservation_expires_date_time: segment.reservation_expires_date_time,
         })
     }
 }
@@ -5335,11 +5349,20 @@ impl ForeignTryFrom<grpc_payment_types::Traveller> for connector_types::Travelle
     fn foreign_try_from(
         traveller: grpc_payment_types::Traveller,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Read enum getters (which borrow `traveller`) before moving fields out.
+        let gender = Option::<common_enums::Gender>::foreign_from(traveller.gender());
         Ok(Self {
             first_name: traveller.first_name,
             last_name: traveller.last_name,
             phone_number: traveller.phone_number,
             date_of_birth: traveller.date_of_birth,
+            document: traveller
+                .document
+                .as_ref()
+                .and_then(map_customer_document_details),
+            gender,
+            loyalty_card: traveller.loyalty_card,
+            loyalty_card_issuer: traveller.loyalty_card_issuer,
         })
     }
 }
@@ -5387,6 +5410,10 @@ impl ForeignTryFrom<grpc_payment_types::TravelSegment> for connector_types::Trav
                 .into_iter()
                 .map(connector_types::Traveller::foreign_try_from)
                 .collect::<Result<Vec<_>, _>>()?,
+            arrival_date_time: segment.arrival_date_time,
+            boarding_date_time: segment.boarding_date_time,
+            departure_date_time: segment.departure_date_time,
+            identification_number: segment.identification_number,
         })
     }
 }
@@ -6389,7 +6416,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
             state: value.state,
             first_name: value.first_name,
             last_name: value.last_name,
-            origin_zip: None,
+            origin_zip: value.origin_zip,
         })
     }
 }
@@ -6439,7 +6466,7 @@ impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderD
             unit_discount_amount: item
                 .unit_discount_amount
                 .map(common_utils::types::MinorUnit::new),
-            total_amount: None,
+            total_amount: item.total_amount.map(common_utils::types::MinorUnit::new),
             discount_name: item.discount_name,
             discount_percentage: item.discount_percentage,
             discount_type: item.discount_type,
@@ -9043,6 +9070,7 @@ impl ForeignFrom<common_enums::AttemptStatus> for grpc_api_types::payments::Paym
             common_enums::AttemptStatus::VoidPostCaptureInitiated => Self::VoidInitiated,
             common_enums::AttemptStatus::VoidFailed => Self::VoidFailed,
             common_enums::AttemptStatus::Voided => Self::Voided,
+            #[allow(deprecated)] // Preserve the legacy payment status mapping for compatibility.
             common_enums::AttemptStatus::VoidedPostCapture => Self::VoidedPostCapture,
             common_enums::AttemptStatus::Unresolved => Self::Unresolved,
             common_enums::AttemptStatus::PaymentMethodAwaited => Self::PaymentMethodAwaited,
@@ -9108,6 +9136,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentStatus> for common_enums::A
             grpc_api_types::payments::PaymentStatus::VoidInitiated => Ok(Self::VoidInitiated),
             grpc_api_types::payments::PaymentStatus::VoidFailed => Ok(Self::VoidFailed),
             grpc_api_types::payments::PaymentStatus::Voided => Ok(Self::Voided),
+            #[allow(deprecated)] // Accept the legacy payment status for compatibility.
             grpc_api_types::payments::PaymentStatus::VoidedPostCapture => {
                 Ok(Self::VoidedPostCapture)
             }
@@ -9134,6 +9163,18 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentStatus> for common_enums::A
             }
             grpc_api_types::payments::PaymentStatus::Unspecified => Ok(Self::Unknown),
             grpc_api_types::payments::PaymentStatus::Conflicted => Ok(Self::IntegrityFailure),
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::PostCaptureVoidStatus>
+    for grpc_api_types::payments::PostCaptureVoidStatus
+{
+    fn foreign_from(status: common_enums::PostCaptureVoidStatus) -> Self {
+        match status {
+            common_enums::PostCaptureVoidStatus::Succeeded => Self::Succeeded,
+            common_enums::PostCaptureVoidStatus::Pending => Self::Pending,
+            common_enums::PostCaptureVoidStatus::Failed => Self::Failed,
         }
     }
 }
@@ -9507,66 +9548,25 @@ pub fn generate_payment_void_post_capture_response(
         .clone()
         .map(ForeignFrom::foreign_from);
 
+    // The id of the payment being voided, echoed back as connector_transaction_id.
+    let original_connector_transaction_id = router_data_v2.request.connector_transaction_id.clone();
+
     match transaction_response {
         Ok(response) => match response {
-            PaymentsResponseData::TransactionResponse {
-                resource_id,
-                redirection_data: _,
-                connector_metadata: _,
-                network_txn_id: _,
-                network_txn_link_id: _,
-                connector_response_reference_id,
-                incremental_authorization_allowed: _,
-                mandate_reference: _,
-                status_code,
-                splits: _,
-                payment_account_reference: _,
-            } => {
-                let status = router_data_v2.resource_common_data.status;
-                let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
-
-                let grpc_resource_id = Option::foreign_try_from(resource_id)?;
-
-                Ok(PaymentServiceReverseResponse {
-                    connector_transaction_id: extract_connector_request_reference_id(
-                        &grpc_resource_id,
-                    ),
-                    status: grpc_status.into(),
-                    connector_reference_id: connector_response_reference_id.clone(),
-                    // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
-                    merchant_reverse_id: connector_response_reference_id,
-                    error: None,
-                    status_code: u32::from(status_code),
-                    response_headers: router_data_v2
-                        .resource_common_data
-                        .get_connector_response_headers_as_map(),
-                    raw_connector_request,
-                    typed_connector_request,
-                    raw_connector_response,
-                    typed_connector_response,
-                    raw_connector_status,
-                })
-            }
             PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id,
-                description: _,
                 status_code,
             } => {
-                let grpc_status = match post_capture_void_status {
-                    common_enums::PostCaptureVoidStatus::Succeeded => {
-                        grpc_api_types::payments::PaymentStatus::VoidedPostCapture
-                    }
-                    common_enums::PostCaptureVoidStatus::Pending => {
-                        grpc_api_types::payments::PaymentStatus::Pending
-                    }
-                    common_enums::PostCaptureVoidStatus::Failed => {
-                        grpc_api_types::payments::PaymentStatus::Failure
-                    }
-                };
+                #[allow(deprecated)]
                 Ok(PaymentServiceReverseResponse {
-                    connector_transaction_id: connector_reference_id.clone().unwrap_or_default(),
-                    status: grpc_status.into(),
+                    connector_transaction_id: original_connector_transaction_id,
+                    status: grpc_api_types::payments::PaymentStatus::Unspecified.into(),
+                    post_capture_void_status:
+                        grpc_api_types::payments::PostCaptureVoidStatus::foreign_from(
+                            post_capture_void_status,
+                        )
+                        .into(),
                     // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                     merchant_reverse_id: connector_reference_id.clone(),
                     connector_reference_id,
@@ -9591,21 +9591,21 @@ pub fn generate_payment_void_post_capture_response(
                 },
             })),
         },
+        // Connectors report a declined void (2xx included) as an ErrorResponse, so it lands here.
+        // Server errors leave the void outcome uncertain; report them as pending.
+        // Report void errors through post_capture_void_status, never through the payment status.
         Err(e) => {
-            let status = match e.get_attempt_status_for_grpc(
-                e.status_code,
-                router_data_v2.resource_common_data.status,
-            ) {
-                Some(attempt_status) => {
-                    grpc_api_types::payments::PaymentStatus::foreign_from(attempt_status)
-                }
-                None => grpc_api_types::payments::PaymentStatus::Unspecified,
+            let post_capture_void_status = if (500..=599).contains(&e.status_code) {
+                grpc_api_types::payments::PostCaptureVoidStatus::Pending
+            } else {
+                grpc_api_types::payments::PostCaptureVoidStatus::Failed
             };
+
+            #[allow(deprecated)]
             Ok(PaymentServiceReverseResponse {
-                connector_transaction_id: extract_connector_request_reference_id(
-                    &e.connector_transaction_id,
-                ),
-                status: status.into(),
+                connector_transaction_id: original_connector_transaction_id.clone(),
+                status: grpc_api_types::payments::PaymentStatus::Unspecified.into(),
+                post_capture_void_status: post_capture_void_status.into(),
                 connector_reference_id: None,
                 merchant_reverse_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
@@ -11392,7 +11392,13 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceReverseRequest>
     fn foreign_try_from(
         value: grpc_api_types::payments::PaymentServiceReverseRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let capture_method = Some(CaptureMethod::foreign_try_from(value.capture_method())?);
         Ok(Self {
+            payment_method_data: value
+                .payment_method
+                .map(PaymentMethodData::<DefaultPCIHolder>::foreign_try_from)
+                .transpose()?,
+            capture_method,
             browser_info: value
                 .browser_info
                 .map(BrowserInformation::foreign_try_from)
@@ -14237,6 +14243,7 @@ impl ForeignTryFrom<(&grpc_api_types::payments::OrderInfo, common_enums::Currenc
                 amount: common_utils::types::MinorUnit::new(amount),
                 currency,
             }),
+            order_commodity_code: value.order_commodity_code.clone(),
         })
     }
 }
@@ -14257,6 +14264,7 @@ impl ForeignTryFrom<(&grpc_api_types::payments::TaxInfo, common_enums::Currency)
             tax_status,
             customer_tax_registration_id: value.customer_tax_registration_id.clone(),
             merchant_tax_registration_id: value.merchant_tax_registration_id.clone(),
+            merchant_vat_registration_id: value.merchant_vat_registration_id.clone(),
             shipping_amount_tax: value.shipping_amount_tax.map(|amount| {
                 common_utils::types::Money {
                     amount: common_utils::types::MinorUnit::new(amount),
@@ -14269,6 +14277,14 @@ impl ForeignTryFrom<(&grpc_api_types::payments::TaxInfo, common_enums::Currency)
                     amount: common_utils::types::MinorUnit::new(amount),
                     currency,
                 }),
+            value_added_tax_amount: value.value_added_tax_amount.map(|amount| {
+                common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(amount),
+                    currency,
+                }
+            }),
+            value_added_tax_percent: value.value_added_tax_percent,
+            vat_invoice_reference_number: value.vat_invoice_reference_number.clone(),
         })
     }
 }
