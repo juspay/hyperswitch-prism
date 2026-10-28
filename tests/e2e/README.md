@@ -80,7 +80,7 @@ The first implementation targets `scenarios/payments/create-confirm/card/one-tim
 - Specs own the complete call sequence, request data, response dependencies and expected results.
 - `framework/fixtures.ts` owns setup and cleanup. `merchant-setup.ts` provisions an isolated merchant, profile, API key, sandbox connector account and routing.
 - `hyperswitch-client.ts` owns HTTP transport. Resource modules such as `payment-operations.ts` execute individual calls and return responses.
-- `assertions.ts` produces shared assertions and expected/actual comparisons. `report.ts` groups calls and checks; `ucs-audit.ts` attaches correlated masked evidence afterward.
+- Specs use native Playwright `expect`. `report.ts` groups calls, runs supplied native assertions and attaches selected expected/actual comparisons; `ucs-audit.ts` attaches correlated masked evidence afterward.
 - `payment-records.ts` reads recorded payment facts; the spec asserts them.
 - `connector-credentials.ts` loads external sandbox credentials, `configuration.ts` resolves runtime options, and `types.ts` defines shared types.
 - Connector definitions supply data, justified request overrides and exclusions with reasons. The registry selects connectors; shared specs retain journeys and expected outcomes.
