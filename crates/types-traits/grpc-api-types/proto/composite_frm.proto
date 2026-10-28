@@ -19,6 +19,7 @@ syntax = "proto3";
 package types;
 
 import "common_types.proto";
+import "domain.proto";
 import "frm.proto";
 import "payment.proto";
 import "payment_methods.proto";
@@ -77,6 +78,16 @@ message CompositeFrmPreRiskCheckRequest {
 
   // Merchant details (id + MCC) for risk scoring.
   optional MerchantDetails merchant_details = 15;
+
+  // Billing-side identity document (CPF/CNPJ).
+  optional CustomerDocumentDetails billing_document_data = 16;
+
+  // Shipping/buyer identity document.
+  optional CustomerDocumentDetails shipping_document_data = 17;
+
+  // Domain-specific order context (travel, hotel, airline…) as a typed
+  // object. 
+  optional DomainData domain_data = 18;
 }
 
 // Composite request for PostRiskCheck that includes all fields from
@@ -126,6 +137,19 @@ message CompositeFrmPostRiskCheckRequest {
 
   // Billing / shipping address information
   optional PaymentAddress address = 15;
+
+  // Billing-side identity document (CPF/CNPJ)
+  optional CustomerDocumentDetails billing_document_data = 16;
+
+  // Shipping/buyer identity document
+  optional CustomerDocumentDetails shipping_document_data = 17;
+
+  // Browser/device information for risk scoring (same as CompositeFrmPreRiskCheckRequest).
+  optional BrowserInformation browser_info = 18;
+
+  // Domain-specific order context (travel, hotel, airline…) as a typed object
+  // (same as CompositeFrmPreRiskCheckRequest).
+  optional DomainData domain_data = 19;
 }
 
 // ============================================================================

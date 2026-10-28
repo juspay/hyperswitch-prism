@@ -651,8 +651,10 @@ fn nsure_cart(
                     // request exercised so far, where both readings agree.
                     selling_price: NsureAmount {
                         value_in_currency: super::NsureAmountConvertor::convert(
-                            detail.amount,
-                            total.currency,
+                            &common_utils::types::Money {
+                                amount: detail.amount,
+                                currency: total.currency,
+                            },
                         )?,
                         currency: total.currency,
                     },
@@ -758,7 +760,10 @@ impl<
         };
 
         let paid_amount = NsureAmount {
-            value_in_currency: super::NsureAmountConvertor::convert(req.amount.amount, currency)?,
+            value_in_currency: super::NsureAmountConvertor::convert(&common_utils::types::Money {
+                amount: req.amount.amount,
+                currency,
+            })?,
             currency,
         };
         let cart = nsure_cart(req.order_details.as_ref(), &paid_amount, &feature_data)?;

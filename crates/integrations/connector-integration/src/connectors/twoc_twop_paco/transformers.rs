@@ -236,8 +236,10 @@ impl PacoTransactionAmount {
         let amount_text = format!("{raw:0>12}");
         let amount = <FloatMajorUnitForConnector as common_utils::types::AmountConvertor>::convert(
             &FloatMajorUnitForConnector,
-            minor_amount,
-            currency,
+            &common_utils::types::Money {
+                amount: minor_amount,
+                currency,
+            },
         )
         .map_err(|err| errors::IntegrationError::InvalidDataFormat {
             field_name: "amount",
