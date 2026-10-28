@@ -536,7 +536,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<&WalletData> for PaymentDetails<T> {
 /// Returns `None` for an encrypted token (and for every other wallet), which
 /// stays on the `opaqueData` path above.
 ///
-/// - Apple Pay decrypted data always carries an online payment cryptogram.
+/// - Apple Pay decrypted data always carries an online payment cryptogram; an
+///   empty one is rejected here, before Authorize.Net sees the request.
 /// - Google Pay decrypted data carries one for `CRYPTOGRAM_3DS` tokens only; a
 ///   `PAN_ONLY` token has none and is a plain card, so `isPaymentToken` is omitted.
 fn get_decrypted_wallet_card(
@@ -544,12 +545,23 @@ fn get_decrypted_wallet_card(
 ) -> Result<Option<DecryptedWalletCardDetails>, Error> {
     match wallet_data {
         WalletData::ApplePay(apple_pay) => match &apple_pay.payment_data {
-            ApplePayPaymentData::Decrypted(decrypted) => Ok(Some(DecryptedWalletCardDetails {
-                card_number: decrypted.application_primary_account_number.clone(),
-                expiration_date: decrypted.get_expiry_date_as_yyyymm("-"),
-                is_payment_token: Some(true),
-                cryptogram: Some(decrypted.payment_data.online_payment_cryptogram.clone()),
-            })),
+            ApplePayPaymentData::Decrypted(decrypted) => {
+                let cryptogram = decrypted.payment_data.online_payment_cryptogram.clone();
+                if cryptogram.peek().is_empty() {
+                    return Err(error_stack::report!(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "apple_pay_cryptogram",
+                            context: Default::default(),
+                        }
+                    ));
+                }
+                Ok(Some(DecryptedWalletCardDetails {
+                    card_number: decrypted.application_primary_account_number.clone(),
+                    expiration_date: decrypted.get_expiry_date_as_yyyymm("-"),
+                    is_payment_token: Some(true),
+                    cryptogram: Some(cryptogram),
+                }))
+            }
             ApplePayPaymentData::Encrypted(_) => Ok(None),
         },
         WalletData::GooglePay(google_pay) => match &google_pay.tokenization_data {
@@ -4034,6 +4046,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     expiration_date: Secret::new(expiration_date),
                     card_code: Some(ccard.card_cvc.clone()),
                 })
+            }
+            // A saved profile is charged later, but the cryptogram of a decrypted token is
+            // single-use, so only the encrypted Apple Pay token is stored
+            PaymentMethodData::Wallet(WalletData::ApplePay(applepay_token))
+                if matches!(
+                    applepay_token.payment_data,
+                    ApplePayPaymentData::Decrypted(_)
+                ) =>
+            {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Decrypted Apple Pay token for saving a payment profile".to_string(),
+                    connector: "authorizedotnet",
+                    context: Default::default()
+                }))
             }
             PaymentMethodData::Wallet(wallet_data) => PaymentDetails::try_from(wallet_data)?,
             pm => {
