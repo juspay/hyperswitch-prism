@@ -58,6 +58,13 @@ option go_package = "github.com/juspay/connector-service/crates/types-traits/grp
 // CORE DATA TYPES
 // ============================================================================
 
+// Integrity-check settings applied when comparing the connector response with the request.
+message IntegritySpecifications {
+  // When true, an amount mismatch between request and connector response is not
+  // treated as an integrity failure, in either direction. A currency mismatch still is.
+  optional bool allow_amount_mismatch = 1;
+}
+
 // Quote details associated with a currency conversion decision.
 message CurrencyConversionQuote {
   // Order amount for the transaction, expressed in the merchant's currency.
@@ -95,6 +102,12 @@ message CurrencyConversionQuote {
 
   // Time when the quote expires, in Unix epoch seconds.
   optional int64 expires_at = 11;
+
+  // Provider-defined code describing the reason or classification for this currency conversion.
+  optional string conversion_reason_code = 12;
+
+  // Identifier assigned to the user by the currency conversion provider.
+  optional string user_id = 13;
 }
 
 // Identifies the currency conversion model used for the payment.
@@ -255,7 +268,8 @@ enum PaymentStatus {
   VOID_INITIATED = 12;
   VOIDED = 11;
   VOID_FAILED = 15;
-  VOIDED_POST_CAPTURE = 57;
+  // Deprecated: use PostCaptureVoidStatus to track post-capture void outcomes.
+  VOIDED_POST_CAPTURE = 57 [deprecated = true];
 
   // Other payment flows
   COD_INITIATED = 10; // Cash on Delivery initiated
@@ -300,6 +314,15 @@ enum RefundStatus {
   REFUND_SUCCESS = 4;
   REFUND_TRANSACTION_FAILURE =
       5; // Failure at the transaction level for the refund
+}
+
+// Outcome of a post-capture void (PaymentService.Reverse). Describes the void
+// attempt itself, never the status of the payment being voided.
+enum PostCaptureVoidStatus {
+  POST_CAPTURE_VOID_STATUS_UNSPECIFIED = 0; // Default value
+  POST_CAPTURE_VOID_STATUS_SUCCEEDED = 1;   // The captured payment was voided
+  POST_CAPTURE_VOID_STATUS_PENDING = 2;     // The void was accepted but is not final yet
+  POST_CAPTURE_VOID_STATUS_FAILED = 3;      // The void was declined; the payment is unchanged
 }
 
 // Status of a dispute
@@ -963,6 +986,8 @@ message OrderDetailsWithAmount {
   optional string discount_type = 22;
   // The URL of the product
   optional string product_link = 23;
+  // Total amount for this line item
+  optional int64 total_amount = 24;
 }
 
 // Access token details
@@ -1262,6 +1287,10 @@ message OrderInfo {
 
   // Duty/customs amount for the order (in minor currency units)
   optional int64 duty_amount = 6;
+
+  // Commodity code classifying the order as a whole, as opposed to the
+  // per-item codes on each line item
+  optional string order_commodity_code = 7;
 }
 
 // Tax information for L2/L3 data.
@@ -1280,6 +1309,18 @@ message TaxInfo {
 
   // Total tax amount for the order (in minor currency units)
   optional int64 order_tax_amount = 5;
+
+  // Value added tax (VAT) amount for the order (in minor currency units)
+  optional int64 value_added_tax_amount = 6;
+
+  // Value added tax (VAT) rate for the order, as a percentage: 2.5 means 2.5%, not 0.025.
+  optional double value_added_tax_percent = 7;
+
+  // Reference number of the value added tax (VAT) invoice for the order
+  optional string vat_invoice_reference_number = 8;
+
+  // Merchant's VAT registration ID
+  optional SecretString merchant_vat_registration_id = 9;
 }
 
 // Level 2 / Level 3 data for enhanced payment processing.
@@ -1469,7 +1510,6 @@ message RedirectResponseSecrets {
   optional string additional_secret = 2;
 }
 
-
 // Request for notifying connectors about events
 message NotifyConnectorRequest {
   // Unique event identifier
@@ -1491,7 +1531,6 @@ message NotifyConnectorRequest {
   optional SecretString connector_feature_data = 6;
 }
 
-
 // Content of an event
 message NotifyConnectorContent {
   oneof content {
@@ -1502,7 +1541,6 @@ message NotifyConnectorContent {
     FrmNotificationContent frm_notification = 2;
   }
 }
-
 
 // Surcharge details object
 message SurchargeContent {
@@ -1584,7 +1622,6 @@ message NotifyConnectorResponse {
   // Optional error information if notification failed
   optional ErrorInfo error = 2;
 }
-
 
 // Data for a multiple capture request
 message MultipleCaptureRequestData {
@@ -2505,6 +2542,9 @@ message PaymentServiceAuthorizeRequest {
   // history, premium status, etc.) for connectors that factor customer risk
   // into authorization / onboarding decisions.
   optional RiskAssessmentData risk_assessment_data = 58;
+
+ // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 59;
 }
 
 // Customer risk-assessment signals supplied by the merchant, used by
@@ -2675,6 +2715,17 @@ message PaymentServiceGetRequest {
   optional SplitPaymentsDetails split_payments = 17;
 
   optional ConnectorMandateReferenceId mandate_reference = 18;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 19;
+
+  // Whether overcapture is enabled for this payment. When true, a connector-reported
+  // amount higher than the requested amount is not treated as an integrity failure.
+  optional bool is_overcapture_enabled = 20;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 21;
 }
 
 // Settlement phase reported by the connector on PaymentServiceGetResponse.
@@ -2759,7 +2810,6 @@ message PaymentServiceGetResponse {
   // per-value semantics. Absent when the connector doesn't distinguish phases.
   optional SettlementStatus settlement_status = 34;
 
-
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 35;
   // The connector's reported status (code/message/reason).
@@ -2775,6 +2825,13 @@ message PaymentServiceGetResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
    optional string payment_account_reference = 42;
+
+  // Captured amount and currency, as reported by the connector.
+  optional Money captured_money = 43;
+  // Amount and currency still capturable, as reported by the connector.
+  optional Money capturable_money = 44;
+  // Amount and currency the connector reported for this payment, as used by the integrity check.
+  optional Money authorized_money = 45;
 }
 
 // Request message for voiding a payment
@@ -2892,16 +2949,33 @@ message PaymentServiceReverseRequest {
   // endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
   // the real value; defaulting to None/test mode breaks live-URL substitution.
   optional bool test_mode = 9;
+
+  // Original payment amount and currency.
+  optional Money amount = 10;
+
+  // Original payment method for connectors that require PAN and expiry again.
+  optional PaymentMethod payment_method = 11;
+
+  // Original payment's capture method, not the reversal's disposition.
+  // Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at
+  // different endpoints.
+  optional CaptureMethod capture_method = 12;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
 // to void but for post-capture transactions)
 message PaymentServiceReverseResponse {
   // Identification
+  // The connector's id of the original payment being voided, echoed from the
+  // request. The void's own id is in connector_reference_id.
   string connector_transaction_id = 1;
 
   // Status Information
-  PaymentStatus status = 2;
+  // Deprecated: use post_capture_void_status instead. Always
+  // PAYMENT_STATUS_UNSPECIFIED: a void's outcome is not the payment's status.
+  PaymentStatus status = 2 [deprecated = true];
+  // Set when post_capture_void_status is FAILED; carries the connector's
+  // failure message.
   optional ErrorInfo error = 3;
   uint32 status_code = 4;
   map<string, string> response_headers = 5;
@@ -2918,9 +2992,12 @@ message PaymentServiceReverseResponse {
   // The connector's reported status for this response.
   optional RawConnectorStatus raw_connector_status = 9;
 
-  // Another reference for the connector's transaction, returned in the connector's response.
-  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  // The connector's reference for the void, as the connector returned it. Not
+  // set when the connector returns an error. 
   optional string connector_reference_id = 10;
+
+  // Outcome of the void.
+  PostCaptureVoidStatus post_capture_void_status = 13;
 }
 
 // Request message for creating an access token
@@ -3107,6 +3184,17 @@ message PaymentServiceCaptureRequest {
 
   // Original payment method, for connectors that require it again on capture (e.g. Worldpay RAFT).
   optional PaymentMethod payment_method = 16;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 17;
+
+  // Whether overcapture is enabled for this payment. When true, a connector-reported
+  // amount higher than the requested amount is not treated as an integrity failure.
+  optional bool is_overcapture_enabled = 18;
+
+  // Currency conversion quote and decision data passed through the
+  // capture flow for future connector-specific processing.
+  optional CurrencyConversionData currency_conversion_data = 19;
 }
 
 // Response message for a payment capture operation
@@ -3287,6 +3375,9 @@ message PaymentServiceRefundRequest {
   optional SplitRefundsDetails split_refunds = 20;
   // Split settlement refund (supersedes split_refunds).
   optional SplitSettlementRefund split_settlement_refund = 21;
+
+  // Currency conversion details for the refund's settlement leg.
+  optional CurrencyConversionData currency_conversion_data = 22;
 }
 
 // Response message for a refund operation (unified for both Create and Get)
@@ -3764,10 +3855,18 @@ message RecurringPaymentServiceChargeRequest {
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 42;
 
+
   // Connector session token, set by the caller from the session_token returned by
   // MerchantAuthenticationService.CreateServerSessionAuthenticationToken (e.g. Nuvei's
   // /getSessionToken.do sessionToken). Leave unset for connectors that do not use one.
   optional string session_token = 43;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 44;
+
+    // Currency conversion quote and decision data passed through the
+  // recurring flow for future connector-specific processing.
+  optional CurrencyConversionData currency_conversion_data = 45;
 }
 
 // Response message for repeat payment operation
@@ -3828,6 +3927,13 @@ message RecurringPaymentServiceChargeResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
    optional string payment_account_reference = 24;
+
+  // Captured amount and currency, as reported by the connector.
+  optional Money captured_money = 25;
+  // Amount and currency still capturable, as reported by the connector.
+  optional Money capturable_money = 26;
+  // Amount and currency the connector reported for this payment, as used by the integrity check.
+  optional Money authorized_money = 27;
 }
 
 // Request message for a mandate revoke operation
@@ -4413,6 +4519,9 @@ message PaymentMethodServiceTokenizeRequest {
   // Browser context forwarded to connectors that use it for fraud signals when
   // creating a reusable payment method (for example Stripe's ip/user_agent).
   optional BrowserInformation browser_info = 15;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 16;
 }
 
 // Response message for tokenizing a payment method
@@ -5030,6 +5139,8 @@ message JpmorganConfig {
   SecretString thumbprint = 3; // certificate thumbprint; hex SHA-1 format, colons allowed
   SecretString private_key = 4; // base64 encoded PEM
   SecretString resource_id = 5;
+  // JPMorgan merchant IDs keyed by currency, e.g. USD, CAD, EUR, GBP, JPY.
+  map<string, SecretString> merchant_id = 6;
   optional string base_url = 50;
   optional SecretString company_name = 51;
   optional SecretString product_name = 52;
@@ -6263,6 +6374,13 @@ message PaymentServiceTokenAuthorizeRequest {
 
   // Opt in to address verification using the supplied billing details.
   optional bool enable_avs_check = 24;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 25;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 26;
 }
 
 message PaymentServiceTokenSetupRecurringRequest {
@@ -6325,6 +6443,13 @@ message PaymentServiceProxyAuthorizeRequest {
 
   // Opt in to address verification using the supplied billing details.
   optional bool enable_avs_check = 29;
+
+  // Controls how the connector response is checked against the request.
+  optional IntegritySpecifications integrity_specifications = 30;
+
+  // Indicates if partial authorization is enabled. When true, a connector-reported
+  // amount lower than the requested amount is not treated as an integrity failure.
+  optional bool enable_partial_authorization = 31;
 }
 
 message PaymentServiceProxySetupRecurringRequest {

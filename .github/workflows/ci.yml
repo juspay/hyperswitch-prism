@@ -469,9 +469,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24.22.1'
           cache: 'npm'
-          cache-dependency-path: sdk/javascript/package-lock.json
+          cache-dependency-path: sdk/javascript/package.json
 
       - name: Install Python dependencies
         run: |
@@ -482,7 +482,7 @@ jobs:
         run: |
           pip install -r sdk/python/requirements.txt grpcio-tools protobuf
           make -C sdk install-deps
-          cd sdk/javascript && npm ci && cd ../..
+          cd sdk/javascript && npm install && cd ../..
 
       - name: Format Rust code
         run: cargo +nightly fmt --all
@@ -837,13 +837,13 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24.22.1'
 
       - name: Build and verify isolated browser worker
         if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
         working-directory: browser-automation-engine
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run check
           npm test
           npm run build:worker
@@ -1129,10 +1129,10 @@ jobs:
         if: matrix.node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24.22.1'
           cache: 'npm'
           cache-dependency-path: |
-            sdk/javascript/package-lock.json
+            sdk/javascript/package.json
             sdk/tests/package.json
 
       - name: Cache pip dependencies
@@ -1151,7 +1151,7 @@ jobs:
       - name: Install Node dependencies
         if: matrix.node
         run: |
-          cd sdk/javascript && npm ci && cd ../..
+          cd sdk/javascript && npm install && cd ../..
           cd sdk/tests && npm install && cd ../..
 
       - name: Generate flows.json

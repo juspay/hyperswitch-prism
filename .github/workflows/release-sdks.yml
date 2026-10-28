@@ -24,7 +24,7 @@ on:
         default: false
         type: boolean
       ref:
-        description: 'Git ref to checkout (tag or branch)'
+        description: 'Optional confirmation of the branch or tag selected for this workflow run'
         required: false
         default: ''
         type: string
@@ -104,6 +104,11 @@ jobs:
       - name: Normalize and validate inputs
         id: norm
         shell: bash
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+          REF_INPUT: ${{ inputs.ref }}
+          WORKFLOW_REF_NAME: ${{ github.ref_name }}
+          WORKFLOW_REF_TYPE: ${{ github.ref_type }}
         run: |
           # workflow_dispatch delivers boolean inputs as strings, while
           # workflow_call delivers real booleans. Comparing inputs.* against a
@@ -120,8 +125,16 @@ jobs:
           echo "publish_python=$(norm "${{ inputs.publish_python }}")" >> "$GITHUB_OUTPUT"
           echo "publish_javascript=$(norm "${{ inputs.publish_javascript }}")" >> "$GITHUB_OUTPUT"
 
-          VERSION="${{ inputs.version }}"
-          REF="${{ inputs.ref }}"
+          VERSION="${VERSION_INPUT}"
+          REF="${REF_INPUT}"
+
+          # Every checkout uses the commit that triggered this workflow. A
+          # separate ref input must never select different code for a run that
+          # can write caches or use publishing credentials.
+          if [ -n "${REF}" ] && [ "${REF}" != "${WORKFLOW_REF_NAME}" ] && [ "${REF}" != "${GITHUB_REF}" ]; then
+            echo "::error::ref input must match the branch or tag selected when starting this workflow"
+            exit 1
+          fi
 
           if [ "${PREVIEW}" = "false" ]; then
             # Publishing: a real SemVer is mandatory.
@@ -133,12 +146,12 @@ jobs:
               echo "::error::version '${VERSION}' is not valid SemVer (expected X.Y.Z)"
               exit 1
             fi
-            # Tag-only: publish must build from the matching release tag, not a branch.
-            if [ "${REF}" != "v${VERSION}" ] && [ "${REF}" != "${VERSION}" ]; then
-              echo "::error::publishing requires ref to be the release tag 'v${VERSION}' (got '${REF}'); publishing from a branch is not allowed"
+            # Tag-only: the workflow run itself must be on the release tag.
+            if [ "${WORKFLOW_REF_TYPE}" != "tag" ] || { [ "${WORKFLOW_REF_NAME}" != "v${VERSION}" ] && [ "${WORKFLOW_REF_NAME}" != "${VERSION}" ]; }; then
+              echo "::error::publishing requires the workflow run to use release tag 'v${VERSION}'"
               exit 1
             fi
-            echo "Publishing version ${VERSION} from tag ${REF}"
+            echo "Publishing version ${VERSION} from tag ${WORKFLOW_REF_NAME}"
           else
             # Preview: empty version is fine; default to a plain "0.0.0" so the
             # builders never see "" (which breaks the Java jar name). Avoid suffixes
@@ -174,8 +187,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -277,8 +288,6 @@ jobs:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -324,8 +333,6 @@ jobs:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -365,11 +372,9 @@ jobs:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24.22.1'
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -425,8 +430,6 @@ jobs:
     if: always() && needs.collect-sdks.result == 'success'
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
       - name: Download Java SDK artifact
         if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' }}
         uses: actions/download-artifact@v4
@@ -491,8 +494,6 @@ jobs:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -500,7 +501,7 @@ jobs:
       # Kept in step with the publish job so the dry-run exercises the same npm.
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '24.22.1'
           registry-url: 'https://registry.npmjs.org'
 
       - uses: actions/setup-java@v4
@@ -677,7 +678,7 @@ jobs:
         continue-on-error: true
         working-directory: sdk/javascript
         run: |
-          npm ci
+          npm install
           npm publish ../../artifacts/sdk-javascript/*.tgz --dry-run --access public
 
       - name: Pre-Publish Check Summary
@@ -739,8 +740,6 @@ jobs:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -814,8 +813,6 @@ jobs:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -869,12 +866,10 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
       # Node 24 ships npm >= 11.x; OIDC trusted publishing requires npm >= 11.5.1.
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '24.22.1'
           registry-url: 'https://registry.npmjs.org'
       - name: Verify npm supports trusted publishing
         run: |
@@ -930,5 +925,5 @@ jobs:
         if: ${{ needs.setup.outputs.preview_only == 'false' }}
         working-directory: sdk/javascript
         run: |
-          npm ci
+          npm install
           npm publish ../../artifacts/sdk-javascript/*.tgz --access public
