@@ -114,7 +114,9 @@
     "travelhub": {
       "reason": "new connector; no CI credentials yet (username/password/merchant_id for Worldline preprod not provisioned, and the current test merchant returns INVALID on authorize); remove from this list once credentials are added so CI starts certifying it"
     },
-    "trustpay": {},
+    "trustpay": {
+      "reason": "Trustpay sandbox credentials (card gateway test-tpgw) exist only locally and are not configured in CI, so certification cannot run; EventService/HandleEvent is exercised with offline fixture signing, and Apple Pay / Google Pay decrypted-token flows need merchant enablement on the Trustpay account. Removal is proposed in the PR body once a live run certifies the card flows."
+    },
     "trustpayments": {},
     "tsys_transit": {},
     "twoc_twop_paco": {},

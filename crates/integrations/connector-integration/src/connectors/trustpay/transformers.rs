@@ -15,7 +15,8 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, CreateOrder, Refund, RepeatPayment, ServerAuthenticationToken, SetupMandate,
+        Authorize, Capture, CreateOrder, PSync, Refund, RepeatPayment, ServerAuthenticationToken,
+        SetupMandate, Void,
     },
     connector_types::{
         AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
@@ -23,20 +24,21 @@ use domain_types::{
         GooglePaySessionResponse, GpayAllowedPaymentMethods, GpayClientAuthenticationResponse,
         GpayMerchantInfo, GpayShippingAddressParameters, MandateReference, MandateReferenceId,
         NextActionCall, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentsAuthorizeData, PaymentsResponseData, RefundFlowData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SdkNextAction, SecretInfoToInitiateSdk,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        SetupMandateRequestData, ThirdPartySdkSessionResponse,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SdkNextAction, SecretInfoToInitiateSdk, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
+        ThirdPartySdkSessionResponse,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        BankRedirectData, BankTransferData, Card, PaymentMethodData, PaymentMethodDataTypes,
-        RawCardNumber,
+        ApplePayPaymentData, BankRedirectData, BankTransferData, Card, GpayTokenizationData,
+        PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
-    router_request_types::BrowserInformation,
+    router_request_types::{AuthenticationData, BrowserInformation},
     router_response_types::RedirectForm,
 };
 use error_stack::{report, ResultExt};
@@ -84,6 +86,27 @@ const PAYMENT_TYPE: &str = "Plain";
 const PAYMENT_TYPE_RECURRING_INITIAL: &str = "RecurringInitial";
 const PAYMENT_TYPE_RECURRING: &str = "RecurringSubsequent";
 const STATUS: char = 'Y';
+
+/// Card gateway `paymentAction`: `Preauthorization` holds funds for a later `api/v1/Capture`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
+pub enum TrustpayPaymentAction {
+    Purchase,
+    Preauthorization,
+}
+
+impl From<Option<enums::CaptureMethod>> for TrustpayPaymentAction {
+    fn from(capture_method: Option<enums::CaptureMethod>) -> Self {
+        match capture_method {
+            Some(enums::CaptureMethod::Manual) | Some(enums::CaptureMethod::ManualMultiple) => {
+                Self::Preauthorization
+            }
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | Some(enums::CaptureMethod::Scheduled)
+            | None => Self::Purchase,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum TrustpayPaymentMethod {
@@ -441,6 +464,7 @@ fn get_pending_status_based_on_redirect_url(redirect_url: Option<Url>) -> enums:
 fn get_transaction_status(
     payment_status: Option<String>,
     redirect_url: Option<Url>,
+    is_preauth: bool,
 ) -> CustomResult<(enums::AttemptStatus, Option<String>), ConnectorError> {
     // We don't get payment_status only in case, when the user doesn't complete the authentication step.
     // If we receive status, then return the proper status based on the connector response
@@ -452,13 +476,30 @@ fn get_transaction_status(
                 Some(failure_message.to_string()),
             ))
         } else if is_payment_successful(&payment_status) {
-            Ok((enums::AttemptStatus::Charged, None))
+            // A successful Preauthorization holds funds; only a Purchase settles.
+            let success_status = if is_preauth {
+                enums::AttemptStatus::Authorized
+            } else {
+                enums::AttemptStatus::Charged
+            };
+            Ok((success_status, None))
         } else {
             let pending_status = get_pending_status_based_on_redirect_url(redirect_url);
             Ok((pending_status, None))
         }
     } else {
         Ok((enums::AttemptStatus::AuthenticationPending, None))
+    }
+}
+
+/// Status of an `api/v1/Capture` response. Failure codes route through
+/// `is_payment_failed`, success codes through `is_payment_successful`; anything
+/// else (including `000.200.000` and an absent `paymentStatus`) is inconclusive.
+fn get_capture_status(payment_status: Option<&str>) -> enums::AttemptStatus {
+    match payment_status {
+        Some(code) if is_payment_failed(code).0 => enums::AttemptStatus::CaptureFailed,
+        Some(code) if is_payment_successful(code) => enums::AttemptStatus::Charged,
+        Some(_) | None => enums::AttemptStatus::Pending,
     }
 }
 
@@ -493,6 +534,18 @@ impl From<TrustpayBankRedirectPaymentStatus> for enums::RefundStatus {
     }
 }
 
+/// Issuer / scheme decline data returned in `paymentStatusDetails`.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayPaymentStatusDetails {
+    pub additional_response_reason_code: Option<String>,
+    pub extended_description: Option<String>,
+    pub scheme_response_code: Option<String>,
+    // The docs' field table spells it `merchantAdviceCodeCode`; their JSON examples do not.
+    #[serde(alias = "merchantAdviceCodeCode")]
+    pub merchant_advice_code: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentsResponseCards {
@@ -501,8 +554,13 @@ pub struct PaymentsResponseCards {
     pub instance_id: String,
     pub payment_status: Option<String>,
     pub payment_description: Option<String>,
+    // The docs spell it both `redirectUrl` and `redirectURL`.
+    #[serde(alias = "redirectURL")]
     pub redirect_url: Option<Url>,
     pub redirect_params: Option<HashMap<String, String>>,
+    pub payment_status_details: Option<TrustpayPaymentStatusDetails>,
+    pub card_scheme_tx_id: Option<String>,
+    pub card_scheme_tx_link_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -544,32 +602,95 @@ pub enum TrustpayPaymentsResponse {
     WebhookResponse(Box<WebhookPaymentInformation>),
 }
 
-impl<F, T> TryFrom<ResponseRouterData<TrustpayPaymentsResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
+type PaymentsRouterDataResult<F, Req> = Result<
+    RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>,
+    error_stack::Report<ConnectorError>,
+>;
+
+fn build_payments_router_data<F, Req>(
+    item: ResponseRouterData<
+        TrustpayPaymentsResponse,
+        RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>,
+    >,
+    is_preauth: bool,
+) -> PaymentsRouterDataResult<F, Req> {
+    let (status, error, payment_response_data) = get_trustpay_response(
+        item.response,
+        item.http_code,
+        item.router_data.resource_common_data.status,
+        is_preauth,
+    )?;
+    Ok(RouterDataV2 {
+        resource_common_data: PaymentFlowData {
+            status,
+            ..item.router_data.resource_common_data
+        },
+        response: error.map_or_else(|| Ok(payment_response_data), Err),
+        ..item.router_data
+    })
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<TrustpayPaymentsResponse, Self>>
+    for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<TrustpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let (status, error, payment_response_data) = get_trustpay_response(
-            item.response,
-            item.http_code,
-            item.router_data.resource_common_data.status,
-        )?;
-        Ok(Self {
-            resource_common_data: PaymentFlowData {
-                status,
-                ..item.router_data.resource_common_data
-            },
-            response: error.map_or_else(|| Ok(payment_response_data), Err),
-            ..item.router_data
-        })
+        let is_preauth = TrustpayPaymentAction::from(item.router_data.request.capture_method)
+            == TrustpayPaymentAction::Preauthorization;
+        // CIT: the card instanceId sent with paymentType=RecurringInitial is the mandate id.
+        let is_card_cit = matches!(item.response, TrustpayPaymentsResponse::CardsPayments(_))
+            && item.router_data.request.setup_future_usage
+                == Some(common_enums::FutureUsage::OffSession);
+        let mut router_data = build_payments_router_data(item, is_preauth)?;
+        if is_card_cit {
+            if let Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(ref instance_id),
+                ref mut mandate_reference,
+                ..
+            }) = router_data.response
+            {
+                *mandate_reference = Some(Box::new(MandateReference {
+                    connector_mandate_id: Some(instance_id.clone()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
+                }));
+            }
+        }
+        Ok(router_data)
+    }
+}
+
+impl TryFrom<ResponseRouterData<TrustpayPaymentsResponse, Self>>
+    for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<TrustpayPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // A successful Preauthorization instance syncs as Authorized, a Purchase as Charged.
+        // The instance body is unchanged by a capture, so Capture's capture_instance_id
+        // (echoed back as connector_feature_data) marks a captured preauth (UD-09).
+        let is_captured = item
+            .router_data
+            .request
+            .connector_feature_data
+            .as_ref()
+            .is_some_and(|m| m.peek().get("capture_instance_id").is_some());
+        let is_preauth = TrustpayPaymentAction::from(item.router_data.request.capture_method)
+            == TrustpayPaymentAction::Preauthorization
+            && !is_captured;
+        build_payments_router_data(item, is_preauth)
     }
 }
 
 fn handle_cards_response(
     response: PaymentsResponseCards,
     status_code: u16,
+    is_preauth: bool,
 ) -> CustomResult<
     (
         enums::AttemptStatus,
@@ -581,6 +702,7 @@ fn handle_cards_response(
     let (status, message) = get_transaction_status(
         response.payment_status.to_owned(),
         response.redirect_url.to_owned(),
+        is_preauth,
     )?;
 
     let form_fields = response.redirect_params.unwrap_or_default();
@@ -589,6 +711,7 @@ fn handle_cards_response(
         method: Method::Post,
         form_fields,
     });
+    let details = response.payment_status_details.unwrap_or_default();
     let error = if message.is_some() {
         Some(ErrorResponse {
             code: response
@@ -599,11 +722,11 @@ fn handle_cards_response(
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: message,
             status_code,
-            attempt_status: None,
+            attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
             connector_transaction_id: Some(response.instance_id.clone()),
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: details.merchant_advice_code,
+            network_decline_code: details.scheme_response_code,
+            network_error_message: details.extended_description,
             typed_connector_response: None,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -617,8 +740,8 @@ fn handle_cards_response(
         redirection_data: redirection_data.map(Box::new),
         mandate_reference: None,
         connector_metadata: None,
-        network_txn_id: None,
-        network_txn_link_id: None,
+        network_txn_id: response.card_scheme_tx_id,
+        network_txn_link_id: response.card_scheme_tx_link_id,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         status_code,
@@ -857,6 +980,7 @@ pub fn handle_webhook_response_incoming_webhook(
     let status = match payment_information.status {
         WebhookStatus::Paid => enums::AttemptStatus::Charged,
         WebhookStatus::Rejected => enums::AttemptStatus::AuthorizationFailed,
+        WebhookStatus::Authorized => enums::AttemptStatus::Authorized,
         WebhookStatus::Refunded | WebhookStatus::Chargebacked | WebhookStatus::Unknown => {
             return Err(report!(WebhookError::WebhookProcessingFailed));
         }
@@ -911,6 +1035,7 @@ pub fn get_trustpay_response(
     response: TrustpayPaymentsResponse,
     status_code: u16,
     previous_attempt_status: enums::AttemptStatus,
+    is_preauth: bool,
 ) -> CustomResult<
     (
         enums::AttemptStatus,
@@ -921,7 +1046,7 @@ pub fn get_trustpay_response(
 > {
     match response {
         TrustpayPaymentsResponse::CardsPayments(response) => {
-            handle_cards_response(*response, status_code)
+            handle_cards_response(*response, status_code, is_preauth)
         }
         TrustpayPaymentsResponse::BankRedirectPayments(response) => {
             handle_bank_redirects_response(*response, status_code)
@@ -969,6 +1094,8 @@ pub struct TrustpayErrorResponse {
     pub errors: Option<Vec<Errors>>,
     pub instance_id: Option<String>,
     pub payment_description: Option<String>,
+    pub payment_status: Option<String>,
+    pub payment_status_details: Option<TrustpayPaymentStatusDetails>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -982,6 +1109,7 @@ pub enum CreditDebitIndicator {
 pub enum WebhookStatus {
     Paid,
     Rejected,
+    Authorized,
     Refunded,
     Chargebacked,
     #[serde(other)]
@@ -1054,6 +1182,9 @@ pub fn get_event_type_from_webhook(
         }
         (CreditDebitIndicator::Crdt, WebhookStatus::Rejected) => {
             domain_types::connector_types::EventType::PaymentIntentFailure
+        }
+        (CreditDebitIndicator::Crdt, WebhookStatus::Authorized) => {
+            domain_types::connector_types::EventType::PaymentIntentAuthorizationSuccess
         }
         // Debit (Dbit) = Refund events
         (CreditDebitIndicator::Dbit, WebhookStatus::Paid)
@@ -1176,18 +1307,20 @@ pub struct PaymentRequestCards<
     pub cvv: Secret<String>,
     #[serde(rename = "exp")]
     pub expiry_date: Secret<String>,
-    pub cardholder: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cardholder: Option<Secret<String>>,
     pub reference: String,
     #[serde(rename = "redirectUrl")]
     pub redirect_url: String,
-    #[serde(rename = "billing[city]")]
-    pub billing_city: String,
-    #[serde(rename = "billing[country]")]
-    pub billing_country: common_enums::CountryAlpha2,
-    #[serde(rename = "billing[street1]")]
-    pub billing_street1: Secret<String>,
-    #[serde(rename = "billing[postcode]")]
-    pub billing_postcode: Secret<String>,
+    // Billing block is all-or-nothing (spec: "Optional block; if any sent, all required").
+    #[serde(rename = "billing[city]", skip_serializing_if = "Option::is_none")]
+    pub billing_city: Option<String>,
+    #[serde(rename = "billing[country]", skip_serializing_if = "Option::is_none")]
+    pub billing_country: Option<common_enums::CountryAlpha2>,
+    #[serde(rename = "billing[street1]", skip_serializing_if = "Option::is_none")]
+    pub billing_street1: Option<Secret<String>>,
+    #[serde(rename = "billing[postcode]", skip_serializing_if = "Option::is_none")]
+    pub billing_postcode: Option<Secret<String>>,
     #[serde(rename = "customer[email]")]
     pub customer_email: Email,
     #[serde(rename = "customer[ipAddress]")]
@@ -1212,11 +1345,117 @@ pub struct PaymentRequestCards<
     pub browser_screen_color_depth: String,
     #[serde(rename = "browser[challengeWindow]")]
     pub browser_challenge_window: String,
-    #[serde(rename = "browser[paymentAction]")]
-    pub payment_action: Option<String>,
+    #[serde(rename = "paymentAction", skip_serializing_if = "Option::is_none")]
+    pub payment_action: Option<TrustpayPaymentAction>,
     #[serde(rename = "browser[paymentType]")]
     pub payment_type: String,
+    /// Top-level `paymentType`: `RecurringInitial` on a CIT so the instanceId can be charged later.
+    #[serde(rename = "paymentType", skip_serializing_if = "Option::is_none")]
+    pub recurring_payment_type: Option<String>,
+    #[serde(rename = "notificationUrl", skip_serializing_if = "Option::is_none")]
+    pub notification_url: Option<String>,
     pub descriptor: Option<String>,
+    /// External 3DS (third-party MPI) result; absent when Trustpay runs 3DS itself via redirect.
+    #[serde(flatten)]
+    pub external_three_ds: Option<TrustpayExternalThreeDs>,
+}
+
+/// `threeDSecure.*` block of `api/v1/purchase`, in the docs' dotted key form (sandbox-verified).
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpayExternalThreeDs {
+    /// Always `Y`: authentication data is only present for an enrolled card (as HS does).
+    #[serde(rename = "threeDSecure.EnrollmentStatus")]
+    pub enrollment_status: char,
+    #[serde(rename = "threeDSecure.Eci")]
+    pub eci: String,
+    #[serde(rename = "threeDSecure.AuthenticationStatus")]
+    pub authentication_status: common_enums::TransactionStatus,
+    #[serde(rename = "threeDSecure.VerificationId")]
+    pub verification_id: Secret<String>,
+    #[serde(
+        rename = "threeDSecure.Version",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub version: Option<String>,
+    #[serde(
+        rename = "threeDSecure.DsTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub ds_transaction_id: Option<String>,
+}
+
+fn get_external_three_ds(
+    authentication_data: Option<&AuthenticationData>,
+) -> Result<Option<TrustpayExternalThreeDs>, Error> {
+    let Some(auth) = authentication_data else {
+        return Ok(None);
+    };
+    // Fail closed: only a successful (Y) or attempted (A) authentication may be sent as authenticated.
+    let authentication_status = match auth.trans_status.clone() {
+        None | Some(common_enums::TransactionStatus::Success) => {
+            common_enums::TransactionStatus::Success
+        }
+        Some(common_enums::TransactionStatus::NotVerified) => {
+            common_enums::TransactionStatus::NotVerified
+        }
+        Some(
+            status @ (common_enums::TransactionStatus::Failure
+            | common_enums::TransactionStatus::VerificationNotPerformed
+            | common_enums::TransactionStatus::Rejected
+            | common_enums::TransactionStatus::ChallengeRequired
+            | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | common_enums::TransactionStatus::InformationOnly
+            | common_enums::TransactionStatus::SecurePaymentConfirmationRequired),
+        ) => {
+            return Err(error_stack::report!(IntegrationError::NotSupported {
+                message: format!("External 3DS with authentication status {status} on Authorize"),
+                connector: "trustpay",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send external authentication data only for a successful (Y) or attempted (A) authentication."
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://docs.trustpay.eu/".to_string()),
+                    additional_context: Some(
+                        "Trustpay threeDSecure.AuthenticationStatus would mark the purchase as authenticated."
+                            .to_string(),
+                    ),
+                },
+            }));
+        }
+    };
+    let missing = |field_name: &'static str| {
+        error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name,
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Send both eci and cavv in authentication_data for external 3DS.".to_string(),
+                ),
+                doc_url: Some("https://docs.trustpay.eu/".to_string()),
+                additional_context: Some(
+                    "Trustpay threeDSecure.Eci and threeDSecure.VerificationId are mandatory in the external authentication block."
+                        .to_string(),
+                ),
+            },
+        })
+    };
+    Ok(Some(TrustpayExternalThreeDs {
+        enrollment_status: 'Y',
+        eci: auth
+            .eci
+            .clone()
+            .ok_or_else(|| missing("authentication_data.eci"))?,
+        authentication_status,
+        verification_id: auth
+            .cavv
+            .clone()
+            .ok_or_else(|| missing("authentication_data.cavv"))?,
+        version: auth
+            .message_version
+            .as_ref()
+            .map(|version| version.to_string()),
+        ds_transaction_id: auth.ds_trans_id.clone(),
+    }))
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -1265,6 +1504,92 @@ pub enum TrustpayPaymentsRequest<
     BankRedirectPaymentRequest(Box<PaymentRequestBankRedirect>),
     BankTransferPaymentRequest(Box<PaymentRequestBankTransfer>),
     NetworkTokenPaymentRequest(Box<PaymentRequestNetworkToken>),
+    WalletTokenPaymentRequest(Box<PaymentRequestWalletToken>),
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+pub enum TrustpayTokenizedBy {
+    Wallet,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+pub enum TrustpayCardSource {
+    ApplePay,
+    GooglePay,
+}
+
+/// Token transaction on `api/v1/purchase`: a wallet DPAN decrypted by the merchant (Hyperswitch).
+#[derive(Debug, Serialize, PartialEq)]
+pub struct PaymentRequestWalletToken {
+    pub amount: StringMajorUnit,
+    pub currency: enums::Currency,
+    pub pan: cards::CardNumber,
+    #[serde(rename = "exp")]
+    pub expiry_date: Secret<String>,
+    #[serde(rename = "IsTokenized")]
+    pub is_tokenized: bool,
+    #[serde(rename = "TokenizedBy")]
+    pub tokenized_by: TrustpayTokenizedBy,
+    #[serde(rename = "CardSource")]
+    pub card_source: TrustpayCardSource,
+    #[serde(rename = "TokenSecure.Eci", skip_serializing_if = "Option::is_none")]
+    pub token_eci: Option<String>,
+    #[serde(
+        rename = "TokenSecure.Cryptogram",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub token_cryptogram: Option<Secret<String>>,
+    /// Wallet tokens (TokenizedBy=Wallet) must also carry the 3DS block: the gateway
+    /// rejects them with code 34 "VerificationId is mandatory" otherwise.
+    #[serde(rename = "threeDSecure.Eci", skip_serializing_if = "Option::is_none")]
+    pub three_ds_eci: Option<String>,
+    #[serde(
+        rename = "threeDSecure.VerificationId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub three_ds_verification_id: Option<Secret<String>>,
+    #[serde(rename = "paymentAction", skip_serializing_if = "Option::is_none")]
+    pub payment_action: Option<TrustpayPaymentAction>,
+    /// Top-level `paymentType`: `RecurringInitial` on a CIT so the instanceId can be charged later.
+    #[serde(rename = "paymentType", skip_serializing_if = "Option::is_none")]
+    pub recurring_payment_type: Option<String>,
+    pub reference: String,
+    #[serde(rename = "redirectUrl")]
+    pub redirect_url: String,
+    #[serde(rename = "notificationUrl", skip_serializing_if = "Option::is_none")]
+    pub notification_url: Option<String>,
+    #[serde(rename = "billing[city]")]
+    pub billing_city: String,
+    #[serde(rename = "billing[country]")]
+    pub billing_country: common_enums::CountryAlpha2,
+    #[serde(rename = "billing[street1]")]
+    pub billing_street1: Secret<String>,
+    #[serde(rename = "billing[postcode]")]
+    pub billing_postcode: Secret<String>,
+    #[serde(rename = "customer[email]")]
+    pub customer_email: Email,
+    #[serde(rename = "customer[ipAddress]")]
+    pub customer_ip_address: Secret<String, pii::IpAddress>,
+    #[serde(rename = "browser[acceptHeader]")]
+    pub browser_accept_header: String,
+    #[serde(rename = "browser[language]")]
+    pub browser_language: String,
+    #[serde(rename = "browser[screenHeight]")]
+    pub browser_screen_height: String,
+    #[serde(rename = "browser[screenWidth]")]
+    pub browser_screen_width: String,
+    #[serde(rename = "browser[timezone]")]
+    pub browser_timezone: String,
+    #[serde(rename = "browser[userAgent]")]
+    pub browser_user_agent: String,
+    #[serde(rename = "browser[javaEnabled]")]
+    pub browser_java_enabled: String,
+    #[serde(rename = "browser[javaScriptEnabled]")]
+    pub browser_java_script_enabled: String,
+    #[serde(rename = "browser[screenColorDepth]")]
+    pub browser_screen_color_depth: String,
+    #[serde(rename = "browser[challengeWindow]")]
+    pub browser_challenge_window: String,
 }
 
 // ===== SetupMandate (SetupRecurring) flow structs =====
@@ -1341,9 +1666,9 @@ pub struct TrustpaySetupMandateRequest<
     /// Challenge window size
     #[serde(rename = "browser[challengeWindow]")]
     pub browser_challenge_window: String,
-    /// Payment action - set to "preauth" for mandate setup
-    #[serde(rename = "browser[paymentAction]")]
-    pub payment_action: Option<String>,
+    /// Payment action - Preauthorization for mandate setup
+    #[serde(rename = "paymentAction", skip_serializing_if = "Option::is_none")]
+    pub payment_action: Option<TrustpayPaymentAction>,
     /// Browser-level payment type (legacy compatibility)
     #[serde(rename = "browser[paymentType]")]
     pub payment_type: String,
@@ -1363,7 +1688,9 @@ pub type TrustpaySetupMandateResponse = PaymentsResponseCards;
 pub struct TrustpayCreateIntentRequest {
     pub amount: StringMajorUnit,
     pub currency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub init_apple_pay: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub init_google_pay: Option<bool>,
     pub reference: String,
 }
@@ -1373,18 +1700,11 @@ pub struct TrustpayCreateIntentRequest {
 pub struct TrustpayCreateIntentResponse {
     // TrustPay's authorization secrets used by client
     pub secrets: SdkSecretInfo,
-    // 	Data object to be used for Apple Pay or Google Pay
-    #[serde(flatten)]
-    pub init_result_data: InitResultData,
+    // Data object to be used for Apple Pay or Google Pay; absent when no Init* flag was sent
+    pub apple_init_result_data: Option<TrustpayApplePayResponse>,
+    pub google_init_result_data: Option<TrustpayGooglePayResponse>,
     // Unique operation/transaction identifier
     pub instance_id: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum InitResultData {
-    AppleInitResultData(TrustpayApplePayResponse),
-    GoogleInitResultData(TrustpayGooglePayResponse),
 }
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
@@ -1481,19 +1801,40 @@ fn get_card_request_data<
 >(
     item: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
     browser_info: &BrowserInformation,
-    params: TrustpayMandatoryParams,
     amount: StringMajorUnit,
     ccard: &Card<T>,
     return_url: String,
 ) -> Result<TrustpayPaymentsRequest<T>, Error> {
+    let external_three_ds = get_external_three_ds(item.request.authentication_data.as_ref())?;
     let email = item.request.get_email()?;
     let customer_ip_address = browser_info.get_ip_address()?;
-    let billing_last_name = item
+    let billing_address = item
         .resource_common_data
-        .get_billing()?
-        .address
-        .as_ref()
-        .and_then(|address| address.last_name.clone());
+        .get_optional_billing()
+        .and_then(|billing| billing.address.as_ref());
+    // Send the four billing keys only when all are present, else none of them.
+    let billing = billing_address.and_then(|address| {
+        Some((
+            address.city.as_ref()?.peek().to_owned(),
+            address.country?,
+            address.line1.clone()?,
+            address.zip.clone()?,
+        ))
+    });
+    let cardholder = billing_address
+        .and_then(|address| {
+            address
+                .first_name
+                .clone()
+                .map(|first_name| get_full_name(first_name, address.last_name.clone()))
+        })
+        .or_else(|| ccard.card_holder_name.clone());
+    let (billing_city, billing_country, billing_street1, billing_postcode) = match billing {
+        Some((city, country, street1, postcode)) => {
+            (Some(city), Some(country), Some(street1), Some(postcode))
+        }
+        None => (None, None, None, None),
+    };
     Ok(TrustpayPaymentsRequest::CardsPaymentRequest(Box::new(
         PaymentRequestCards {
             amount,
@@ -1505,16 +1846,16 @@ fn get_card_request_data<
                 let year_2_digit = if year.len() == 4 { &year[2..] } else { year };
                 Secret::new(format!("{}/{}", ccard.card_exp_month.peek(), year_2_digit))
             },
-            cardholder: get_full_name(params.billing_first_name, billing_last_name),
+            cardholder,
             reference: item
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
             redirect_url: return_url,
-            billing_city: params.billing_city,
-            billing_country: params.billing_country,
-            billing_street1: params.billing_street1,
-            billing_postcode: params.billing_postcode,
+            billing_city,
+            billing_country,
+            billing_street1,
+            billing_postcode,
             customer_email: email,
             customer_ip_address,
             browser_accept_header: browser_info.get_accept_header()?,
@@ -1527,15 +1868,167 @@ fn get_card_request_data<
             browser_java_script_enabled: browser_info.get_java_script_enabled()?.to_string(),
             browser_screen_color_depth: browser_info.get_color_depth()?.to_string(),
             browser_challenge_window: CHALLENGE_WINDOW.to_string(),
-            payment_action: None,
+            payment_action: Some(TrustpayPaymentAction::from(item.request.capture_method)),
             payment_type: PAYMENT_TYPE.to_string(),
+            recurring_payment_type: (item.request.setup_future_usage
+                == Some(common_enums::FutureUsage::OffSession))
+            .then(|| PAYMENT_TYPE_RECURRING_INITIAL.to_string()),
+            notification_url: item.request.webhook_url.clone(),
             descriptor: item
                 .request
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor.clone()),
+            external_three_ds,
         },
     )))
+}
+
+/// Decrypted wallet token fields common to Apple Pay and Google Pay.
+struct WalletTokenData {
+    card_source: TrustpayCardSource,
+    pan: cards::CardNumber,
+    exp_month: Secret<String>,
+    exp_year_2_digit: Secret<String>,
+    cryptogram: Option<Secret<String>>,
+    eci: Option<String>,
+}
+
+fn get_wallet_token_data(wallet_data: &WalletData) -> Result<WalletTokenData, Error> {
+    let expiry_err = |field_name: &'static str| IntegrationError::InvalidDataFormat {
+        field_name,
+        context: IntegrationErrorContext {
+            suggested_action: Some(
+                "Send the decrypted token expiry as a 1-12 month and a 2- or 4-digit year."
+                    .to_string(),
+            ),
+            doc_url: Some("https://docs.trustpay.eu/".to_string()),
+            additional_context: Some("Trustpay token transactions send Exp as MM/YY.".to_string()),
+        },
+    };
+    match wallet_data {
+        WalletData::ApplePay(apple_pay) => match &apple_pay.payment_data {
+            ApplePayPaymentData::Decrypted(decrypted) => Ok(WalletTokenData {
+                card_source: TrustpayCardSource::ApplePay,
+                pan: decrypted.application_primary_account_number.clone(),
+                exp_month: decrypted.get_expiry_month(),
+                exp_year_2_digit: decrypted
+                    .get_two_digit_expiry_year()
+                    .change_context(expiry_err("apple_pay.application_expiration_year"))?,
+                cryptogram: Some(decrypted.payment_data.online_payment_cryptogram.clone()),
+                eci: decrypted.payment_data.eci_indicator.clone(),
+            }),
+            ApplePayPaymentData::Encrypted(_) => Err(authorize_refusal(
+                "Encrypted Apple Pay token",
+                "Decrypt the Apple Pay token before Authorize, or use PaymentService/CreateOrder with the finby JS SDK for PSP decryption.",
+                "Trustpay has no server-to-server API for encrypted wallet tokens; api/v1/purchase accepts only a decrypted DPAN (IsTokenized=true).",
+            )),
+        },
+        WalletData::GooglePay(google_pay) => match &google_pay.tokenization_data {
+            GpayTokenizationData::Decrypted(decrypted) => Ok(WalletTokenData {
+                card_source: TrustpayCardSource::GooglePay,
+                pan: decrypted.application_primary_account_number.clone(),
+                exp_month: decrypted
+                    .get_expiry_month()
+                    .change_context(expiry_err("google_pay.card_exp_month"))?,
+                exp_year_2_digit: decrypted
+                    .get_two_digit_expiry_year()
+                    .change_context(expiry_err("google_pay.card_exp_year"))?,
+                cryptogram: decrypted.cryptogram.clone(),
+                eci: decrypted.eci_indicator.clone(),
+            }),
+            GpayTokenizationData::Encrypted(_) => Err(authorize_refusal(
+                "Encrypted Google Pay token",
+                "Decrypt the Google Pay token before Authorize, or use PaymentService/CreateOrder with the finby JS SDK for PSP decryption.",
+                "Trustpay has no server-to-server API for encrypted wallet tokens; api/v1/purchase accepts only a decrypted DPAN (IsTokenized=true).",
+            )),
+        },
+        _ => Err(authorize_refusal(
+            "This wallet",
+            "Use Apple Pay or Google Pay with a decrypted token.",
+            "Trustpay token transactions support only CardSource ApplePay / GooglePay.",
+        )),
+    }
+}
+
+fn get_wallet_token_request_data<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    item: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+    browser_info: &BrowserInformation,
+    params: TrustpayMandatoryParams,
+    amount: StringMajorUnit,
+    wallet_data: &WalletData,
+) -> Result<TrustpayPaymentsRequest<T>, Error> {
+    let token = get_wallet_token_data(wallet_data)?;
+    // G-Authorize__Wallet-01: RedirectUrl is required (the token purchase may step up to 3DS).
+    let redirect_url = item.request.get_router_return_url()?;
+    // G-Authorize__Wallet-02: fail closed on a token with no TokenSecure data.
+    let token_cryptogram = token
+        .cryptogram
+        .filter(|cryptogram| !cryptogram.peek().is_empty());
+    let token_eci = token.eci.filter(|eci| !eci.is_empty());
+    if token_cryptogram.is_none() && token_eci.is_none() {
+        return Err(error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name: "cryptogram",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Send the decrypted wallet token with its online cryptogram and/or ECI."
+                        .to_string(),
+                ),
+                doc_url: Some("https://docs.trustpay.eu/".to_string()),
+                additional_context: Some(
+                    "Without TokenSecure.Cryptogram or TokenSecure.Eci the DPAN would be sent as an unauthenticated PAN."
+                        .to_string(),
+                ),
+            },
+        }));
+    }
+    Ok(TrustpayPaymentsRequest::WalletTokenPaymentRequest(
+        Box::new(PaymentRequestWalletToken {
+            amount,
+            currency: item.request.currency,
+            pan: token.pan,
+            expiry_date: Secret::new(format!(
+                "{:0>2}/{}",
+                token.exp_month.peek(),
+                token.exp_year_2_digit.peek()
+            )),
+            is_tokenized: true,
+            tokenized_by: TrustpayTokenizedBy::Wallet,
+            card_source: token.card_source,
+            three_ds_eci: token_eci.clone(),
+            three_ds_verification_id: token_cryptogram.clone(),
+            token_eci,
+            token_cryptogram,
+            payment_action: Some(TrustpayPaymentAction::from(item.request.capture_method)),
+            recurring_payment_type: (item.request.setup_future_usage
+                == Some(common_enums::FutureUsage::OffSession))
+            .then(|| PAYMENT_TYPE_RECURRING_INITIAL.to_string()),
+            reference: item
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            redirect_url,
+            notification_url: item.request.webhook_url.clone(),
+            billing_city: params.billing_city,
+            billing_country: params.billing_country,
+            billing_street1: params.billing_street1,
+            billing_postcode: params.billing_postcode,
+            customer_email: item.request.get_email()?,
+            customer_ip_address: browser_info.get_ip_address()?,
+            browser_accept_header: browser_info.get_accept_header()?,
+            browser_language: browser_info.get_language()?,
+            browser_screen_height: browser_info.get_screen_height()?.to_string(),
+            browser_screen_width: browser_info.get_screen_width()?.to_string(),
+            browser_timezone: browser_info.get_time_zone()?.to_string(),
+            browser_user_agent: browser_info.get_user_agent()?,
+            browser_java_enabled: browser_info.get_java_enabled()?.to_string(),
+            browser_java_script_enabled: browser_info.get_java_script_enabled()?.to_string(),
+            browser_screen_color_depth: browser_info.get_color_depth()?.to_string(),
+            browser_challenge_window: CHALLENGE_WINDOW.to_string(),
+        }),
+    ))
 }
 
 fn get_full_name(
@@ -1758,7 +2251,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             accept_language: Some(browser_info.accept_language.unwrap_or("en".to_string())),
             referer: None,
         };
-        let params = get_mandatory_fields(item.router_data.clone())?;
+        // Card arm has an optional Billing block; the other arms still require it.
+        let params = get_mandatory_fields(item.router_data.clone());
         let amount = item
             .connector
             .amount_converter
@@ -1778,7 +2272,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(ref ccard) => Ok(get_card_request_data(
                 item.router_data.clone(),
                 &default_browser_info,
-                params,
                 amount,
                 ccard,
                 item.router_data.request.get_router_return_url()?,
@@ -1787,7 +2280,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 get_bank_redirection_request_data(
                     item.router_data.clone(),
                     bank_redirection_data,
-                    params,
+                    params?,
                     amount,
                     auth,
                 )
@@ -1796,12 +2289,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 get_bank_transfer_request_data(
                     item.router_data.clone(),
                     bank_transfer_data,
-                    params,
+                    params?,
                     amount,
                     auth,
                 )
             }
             PaymentMethodData::NetworkToken(ref token_data) => {
+                params?;
                 let month = token_data.get_network_token_expiry_month();
                 let year = token_data.get_network_token_expiry_year();
                 let expiry_date =
@@ -1830,31 +2324,65 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 )))
             }
+            PaymentMethodData::Wallet(ref wallet_data) => get_wallet_token_request_data(
+                item.router_data.clone(),
+                &default_browser_info,
+                params?,
+                amount,
+                wallet_data,
+            ),
             PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
-            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::PaymentMethodToken(_)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("trustpay"),
                     connector: "trustpay",
                     context: Default::default(),
                 }))
             }
+            PaymentMethodData::CardWithNoCvc(_) => Err(authorize_refusal(
+                "Card without CVC",
+                "Send the card with its CVC (card_cvc).",
+                "Trustpay api/v1/purchase requires Cvv for a plain card payment.",
+            )),
+            PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(authorize_refusal(
+                "Card details for network transaction id",
+                "Send the NTID merchant-initiated payment through RecurringPaymentService/Charge.",
+                "Trustpay NTID-based MIT is a RepeatPayment (PaymentType=RecurringSubsequent), not an Authorize.",
+            )),
+            PaymentMethodData::MandatePayment => Err(authorize_refusal(
+                "Mandate payment",
+                "Charge a stored Trustpay mandate through RecurringPaymentService/Charge.",
+                "Trustpay recurring charges reference the initial instanceId via RepeatPayment, not Authorize.",
+            )),
         }
     }
+}
+
+fn authorize_refusal(
+    payment_method: &str,
+    suggested_action: &str,
+    additional_context: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::NotSupported {
+        message: format!("{payment_method} on Authorize"),
+        connector: "trustpay",
+        context: IntegrationErrorContext {
+            suggested_action: Some(suggested_action.to_string()),
+            doc_url: Some("https://docs.trustpay.eu/".to_string()),
+            additional_context: Some(additional_context.to_string()),
+        },
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -1871,6 +2399,346 @@ pub struct TrustpayRefundRequestCards {
     amount: StringMajorUnit,
     currency: String,
     reference: String,
+}
+
+/// `POST api/v1/Capture` body: captures (fully or partially) a Preauthorization instance.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayCaptureRequest {
+    instance_id: String,
+    amount: StringMajorUnit,
+    currency: enums::Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reference: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        TrustpayRouterData<
+            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            T,
+        >,
+    > for TrustpayCaptureRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: TrustpayRouterData<
+            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        // G-Capture-01: the Preauthorization instanceId is mandatory.
+        let instance_id = match &request.connector_transaction_id {
+            ResponseId::ConnectorTransactionId(id) => id.clone(),
+            ResponseId::EncodedData(_) | ResponseId::NoResponseId => {
+                return Err(report!(IntegrationError::MissingConnectorTransactionID {
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Pass the instanceId returned by the manual-capture Authorize (Preauthorization) as connector_transaction_id."
+                                .to_string(),
+                        ),
+                        doc_url: Some("https://docs.trustpay.eu/".to_string()),
+                        additional_context: Some(
+                            "Trustpay api/v1/Capture requires InstanceId of the Preauthorization instance; none was present on the capture request."
+                                .to_string(),
+                        ),
+                    },
+                }))
+            }
+        };
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(request.amount_to_capture.amount, request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send amount_to_capture as a minor-unit amount valid for the currency."
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://docs.trustpay.eu/".to_string()),
+                    additional_context: Some(
+                        "Trustpay api/v1/Capture takes Amount as a major-unit decimal string."
+                            .to_string(),
+                    ),
+                },
+            })?;
+        let reference = Some(request.merchant_order_id.clone().unwrap_or_else(|| {
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone()
+        }));
+        Ok(Self {
+            instance_id,
+            amount,
+            currency: request.currency,
+            reference,
+        })
+    }
+}
+
+/// `api/v1/Capture` answers with the card response shape; its `instanceId` is a NEW
+/// capture instance, distinct from the Preauthorization instance.
+pub type TrustpayCaptureResponse = PaymentsResponseCards;
+
+impl TryFrom<ResponseRouterData<TrustpayCaptureResponse, Self>>
+    for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<TrustpayCaptureResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        // Card gateway `status`: 0 succeeded, 1 succeeded pending; anything else failed.
+        let status = if matches!(response.status, 0 | 1) {
+            get_capture_status(response.payment_status.as_deref())
+        } else {
+            enums::AttemptStatus::CaptureFailed
+        };
+        let result = if status == enums::AttemptStatus::CaptureFailed {
+            let details = response.payment_status_details.unwrap_or_default();
+            let failure_message = response
+                .payment_status
+                .as_deref()
+                .map(|code| is_payment_failed(code).1.to_string());
+            Err(ErrorResponse {
+                code: response
+                    .payment_status
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: response
+                    .payment_description
+                    .clone()
+                    .or(failure_message.clone())
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: failure_message.or(response.description),
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::CaptureFailed)),
+                connector_transaction_id: Some(response.instance_id),
+                network_advice_code: details.merchant_advice_code,
+                network_decline_code: details.scheme_response_code,
+                network_error_message: details.extended_description,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        } else {
+            // Refund / PSync act on the Preauthorization instance, so it stays the resource id;
+            // the capture instance is kept in connector_metadata (UD-07).
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: item.router_data.request.connector_transaction_id.clone(),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: Some(serde_json::json!({
+                    "capture_instance_id": response.instance_id,
+                })),
+                network_txn_id: response.card_scheme_tx_id,
+                network_txn_link_id: response.card_scheme_tx_link_id,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
+            })
+        };
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response: result,
+            ..item.router_data
+        })
+    }
+}
+
+/// `POST api/v1/Reverse` body: reverses (voids) an authorized Preauthorization instance.
+/// Amount and Currency are optional on the wire and are sent as a pair or not at all.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayVoidRequest {
+    instance_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    currency: Option<enums::Currency>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reference: Option<String>,
+}
+
+fn void_missing_field(field_name: &'static str) -> Error {
+    report!(IntegrationError::MissingRequiredField {
+        field_name,
+        context: IntegrationErrorContext {
+            suggested_action: Some(
+                "Send both amount and currency on the void request, or neither.".to_string(),
+            ),
+            doc_url: Some("https://docs.trustpay.eu/".to_string()),
+            additional_context: Some(
+                "Trustpay api/v1/Reverse takes Amount and Currency together; only one was present."
+                    .to_string(),
+            ),
+        },
+    })
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        TrustpayRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    > for TrustpayVoidRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: TrustpayRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        // G-Void-01: the Preauthorization instanceId is mandatory.
+        if request.connector_transaction_id.trim().is_empty() {
+            return Err(report!(IntegrationError::MissingConnectorTransactionID {
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Pass the instanceId returned by the manual-capture Authorize (Preauthorization) as connector_transaction_id."
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://docs.trustpay.eu/".to_string()),
+                    additional_context: Some(
+                        "Trustpay api/v1/Reverse requires InstanceId of the Preauthorization instance; none was present on the void request."
+                            .to_string(),
+                    ),
+                },
+            }));
+        }
+        // G-Void-02: Amount and Currency travel as a pair or not at all.
+        let (amount, currency) = match (&request.amount, request.currency) {
+            (Some(money), Some(currency)) => {
+                let amount = item
+                    .connector
+                    .amount_converter
+                    .convert(money.amount, currency)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Send the void amount as a minor-unit amount valid for the currency."
+                                    .to_string(),
+                            ),
+                            doc_url: Some("https://docs.trustpay.eu/".to_string()),
+                            additional_context: Some(
+                                "Trustpay api/v1/Reverse takes Amount as a major-unit decimal string."
+                                    .to_string(),
+                            ),
+                        },
+                    })?;
+                (Some(amount), Some(currency))
+            }
+            (None, None) => (None, None),
+            (Some(_), None) => return Err(void_missing_field("currency")),
+            (None, Some(_)) => return Err(void_missing_field("amount")),
+        };
+        let reference = Some(request.merchant_order_id.clone().unwrap_or_else(|| {
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone()
+        }));
+        Ok(Self {
+            instance_id: request.connector_transaction_id.clone(),
+            amount,
+            currency,
+            reference,
+        })
+    }
+}
+
+/// `api/v1/Reverse` answers with the card response shape.
+pub type TrustpayVoidResponse = PaymentsResponseCards;
+
+/// Status of an `api/v1/Reverse` response: failure codes -> VoidFailed, success codes ->
+/// Voided, `000.200.000` -> VoidInitiated; anything else (or absent) is inconclusive.
+fn get_void_status(payment_status: Option<&str>) -> enums::AttemptStatus {
+    match payment_status {
+        Some(code) if is_payment_failed(code).0 => enums::AttemptStatus::VoidFailed,
+        Some(code) if is_payment_successful(code) => enums::AttemptStatus::Voided,
+        Some("000.200.000") => enums::AttemptStatus::VoidInitiated,
+        Some(_) | None => enums::AttemptStatus::Pending,
+    }
+}
+
+impl TryFrom<ResponseRouterData<TrustpayVoidResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: ResponseRouterData<TrustpayVoidResponse, Self>) -> Result<Self, Self::Error> {
+        let response = item.response;
+        // Card gateway `status`: 0 succeeded, 1 succeeded pending; anything else failed.
+        let status = if matches!(response.status, 0 | 1) {
+            get_void_status(response.payment_status.as_deref())
+        } else {
+            enums::AttemptStatus::VoidFailed
+        };
+        let result = if status == enums::AttemptStatus::VoidFailed {
+            let details = response.payment_status_details.unwrap_or_default();
+            let failure_message = response
+                .payment_status
+                .as_deref()
+                .map(|code| is_payment_failed(code).1.to_string());
+            Err(ErrorResponse {
+                code: response
+                    .payment_status
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: response
+                    .payment_description
+                    .clone()
+                    .or(failure_message.clone())
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: failure_message.or(response.description),
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::VoidFailed)),
+                connector_transaction_id: Some(response.instance_id),
+                network_advice_code: details.merchant_advice_code,
+                network_decline_code: details.scheme_response_code,
+                network_error_message: details.extended_description,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        } else {
+            // The reversed Preauthorization instance stays the resource id.
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.router_data.request.connector_transaction_id.clone(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
+            })
+        };
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response: result,
+            ..item.router_data
+        })
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -2016,8 +2884,8 @@ fn handle_cards_refund_response(
             message: message.clone(),
             reason: Some(message),
             status_code,
-            attempt_status: None,
-            connector_transaction_id: None,
+            attempt_status: Some(FlowStatus::Refund(enums::RefundStatus::Failure)),
+            connector_transaction_id: Some(response.instance_id.clone()),
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -2099,7 +2967,7 @@ pub fn handle_webhooks_refund_response_incoming_webhook(
     let refund_status = match response.status {
         WebhookStatus::Paid | WebhookStatus::Refunded => enums::RefundStatus::Success,
         WebhookStatus::Rejected => enums::RefundStatus::Failure,
-        WebhookStatus::Chargebacked | WebhookStatus::Unknown => {
+        WebhookStatus::Authorized | WebhookStatus::Chargebacked | WebhookStatus::Unknown => {
             return Err(report!(WebhookError::WebhookProcessingFailed));
         }
     };
@@ -2398,43 +3266,45 @@ impl TryFrom<ResponseRouterData<TrustpayCreateIntentResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let http_code = item.http_code;
         let instance_id = item.response.instance_id.clone();
-        let create_intent_response = item.response.init_result_data.clone();
+        let apple_init_result_data = item.response.apple_init_result_data.clone();
+        let google_init_result_data = item.response.google_init_result_data.clone();
         let secrets = item.response.secrets.clone();
 
-        // Get payment_method_type from the request
-        let payment_method_type = match item.router_data.request.payment_method_type.as_ref() {
-            Some(pmt) => pmt,
-            None => {
-                return Err(report!(
-                    ConnectorError::response_handling_failed_with_context(
-                        http_code,
-                        Some("missing payment_method_type".to_string()),
-                    )
-                ));
+        match (
+            item.router_data.request.payment_method_type,
+            apple_init_result_data,
+            google_init_result_data,
+        ) {
+            (Some(enums::PaymentMethodType::ApplePay), Some(apple_pay_response), _) => {
+                match get_apple_pay_session(instance_id, &secrets, apple_pay_response, item) {
+                    Ok(v) => Ok(v),
+                    Err(e) => Err(report!(utils::response_handling_fail_for_connector(
+                        http_code, "trustpay"
+                    ))
+                    .attach(e)),
+                }
             }
-        };
-
-        match (payment_method_type, create_intent_response) {
-            (
-                enums::PaymentMethodType::ApplePay,
-                InitResultData::AppleInitResultData(apple_pay_response),
-            ) => match get_apple_pay_session(instance_id, &secrets, apple_pay_response, item) {
-                Ok(v) => Ok(v),
-                Err(e) => Err(report!(utils::response_handling_fail_for_connector(
-                    http_code, "trustpay"
-                ))
-                .attach(e)),
-            },
-            (
-                enums::PaymentMethodType::GooglePay,
-                InitResultData::GoogleInitResultData(google_pay_response),
-            ) => match get_google_pay_session(instance_id, &secrets, google_pay_response, item) {
-                Ok(v) => Ok(v),
-                Err(e) => Err(report!(utils::response_handling_fail_for_connector(
-                    http_code, "trustpay"
-                ))
-                .attach(e)),
-            },
+            (Some(enums::PaymentMethodType::GooglePay), _, Some(google_pay_response)) => {
+                match get_google_pay_session(instance_id, &secrets, google_pay_response, item) {
+                    Ok(v) => Ok(v),
+                    Err(e) => Err(report!(utils::response_handling_fail_for_connector(
+                        http_code, "trustpay"
+                    ))
+                    .attach(e)),
+                }
+            }
+            // No wallet requested: a plain intent, no session data
+            (None, _, _) => Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: enums::AttemptStatus::Pending,
+                    ..item.router_data.resource_common_data.clone()
+                },
+                response: Ok(PaymentCreateOrderResponse {
+                    connector_order_id: instance_id,
+                    session_data: None,
+                }),
+                ..item.router_data
+            }),
             _ => Err(report!(
                 ConnectorError::response_handling_failed_with_context(
                     http_code,
@@ -2751,11 +3621,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Build cardholder name
         let cardholder = get_full_name(billing_first_name.clone(), billing_last_name);
 
-        // Use zero amount for mandate setup verification
+        // $0 RecurringInitial preauthorization unless the caller sends an amount
+        let minor_amount = router_data
+            .request
+            .amount
+            .as_ref()
+            .map_or(MinorUnit::new(0), |money| money.amount);
         let amount = item
             .connector
             .amount_converter
-            .convert(MinorUnit::new(0), router_data.request.currency)
+            .convert(minor_amount, router_data.request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2788,7 +3663,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             browser_java_script_enabled: browser_info.get_java_script_enabled()?.to_string(),
             browser_screen_color_depth: browser_info.get_color_depth()?.to_string(),
             browser_challenge_window: CHALLENGE_WINDOW.to_string(),
-            payment_action: Some("preauth".to_string()), // Use preauth for mandate setup
+            payment_action: Some(TrustpayPaymentAction::Preauthorization),
             payment_type: PAYMENT_TYPE.to_string(),
             // Mark as RecurringInitial so the returned InstanceId is chainable for MIT
             recurring_payment_type: PAYMENT_TYPE_RECURRING_INITIAL.to_string(),
@@ -2812,10 +3687,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        // Get transaction status from payment status
+        // SetupMandate is always a Preauthorization: a non-zero amount is held (Authorized),
+        // a $0 setup holds nothing.
+        let is_preauth = item
+            .router_data
+            .request
+            .amount
+            .as_ref()
+            .is_some_and(|m| m.amount > MinorUnit::new(0));
         let (status, message) = get_transaction_status(
             response.payment_status.clone(),
             response.redirect_url.clone(),
+            is_preauth,
         )?;
 
         // Build redirection data if redirect URL is present
@@ -2827,6 +3710,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         });
 
         // Build error response if there's a failure
+        let details = response.payment_status_details.as_ref();
         let error = if message.is_some() {
             Some(ErrorResponse {
                 code: response
@@ -2838,11 +3722,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 reason: message,
                 status_code: item.http_code,
-                attempt_status: None,
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                 connector_transaction_id: Some(response.instance_id.clone()),
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
+                network_advice_code: details.and_then(|d| d.merchant_advice_code.clone()),
+                network_decline_code: details.and_then(|d| d.scheme_response_code.clone()),
+                network_error_message: details.and_then(|d| d.extended_description.clone()),
                 typed_connector_response: None,
                 raw_connector_response: None,
                 raw_connector_request: None,
@@ -2865,8 +3749,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             redirection_data: redirection_data.map(Box::new),
             mandate_reference,
             connector_metadata: None,
-            network_txn_id: None,
-            network_txn_link_id: None,
+            network_txn_id: response.card_scheme_tx_id.clone(),
+            network_txn_link_id: response.card_scheme_tx_link_id.clone(),
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -2887,51 +3771,53 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // ===== RepeatPayment (recurring subsequent / MIT) structs =====
 
-/// TrustPay RepeatPayment request — references a stored mandate (InstanceId) and
-/// charges a subsequent MIT. Posted to `/api/v1/purchase` as form-url-encoded.
+/// TrustPay RepeatPayment request (`PaymentType=RecurringSubsequent`), posted to
+/// `/api/v1/purchase` as form-url-encoded. Either the GW recurring form, which charges the
+/// stored initial `InstanceId`, or the non-GW recurring form, which charges raw card data
+/// referenced by the scheme transaction id (NTID) returned on the initial payment.
 #[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpayRepeatPaymentRequest {
+#[serde(untagged)]
+pub enum TrustpayRepeatPaymentRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    MandateId(TrustpayRepeatPaymentMandateIdRequest),
+    NetworkTransactionId(Box<TrustpayRepeatPaymentNtidRequest<T>>),
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpayRepeatPaymentMandateIdRequest {
     pub amount: StringMajorUnit,
     pub currency: String,
     /// InstanceId of the initial preauth/setup — serves as the mandate reference.
     #[serde(rename = "InstanceId")]
     pub instance_id: String,
     pub reference: String,
-    /// PaymentType marks this as a subsequent recurring charge.
     #[serde(rename = "PaymentType")]
     pub payment_type: String,
+    #[serde(rename = "paymentAction", skip_serializing_if = "Option::is_none")]
+    pub payment_action: Option<TrustpayPaymentAction>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpayRepeatPaymentNtidRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    pub amount: StringMajorUnit,
+    pub currency: String,
+    #[serde(rename = "CardSchemeTxId")]
+    pub card_scheme_tx_id: Secret<String>,
+    pub pan: RawCardNumber<T>,
+    /// MM/YY, as on the card purchase request.
+    pub exp: Secret<String>,
+    pub reference: String,
+    #[serde(rename = "PaymentType")]
+    pub payment_type: String,
+    #[serde(rename = "paymentAction", skip_serializing_if = "Option::is_none")]
+    pub payment_action: Option<TrustpayPaymentAction>,
 }
 
 /// TrustPay RepeatPayment response — reuses the card payment response shape.
 pub type TrustpayRepeatPaymentResponse = PaymentsResponseCards;
-
-fn extract_trustpay_mandate_id(mandate_reference: &MandateReferenceId) -> Result<String, Error> {
-    match mandate_reference {
-        MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => connector_mandate_ref
-            .get_connector_mandate_id()
-            .ok_or_else(|| {
-                report!(IntegrationError::MissingRequiredField {
-                    field_name: "connector_mandate_id",
-                    context: Default::default(),
-                })
-            }),
-        MandateReferenceId::NetworkMandateId(_)
-        | MandateReferenceId::NetworkTokenWithNTI(_) => Err(report!(IntegrationError::NotSupported {
-            message: "Network mandate / NTI not supported for trustpay RepeatPayment".to_string(),
-            connector: "trustpay",
-            context: IntegrationErrorContext {
-                suggested_action: Some(
-                    "Use ConnectorMandateId with the Trustpay InstanceId returned during the initial setup/payment. Trustpay RepeatPayment cannot be built from NetworkMandateId or NetworkTokenWithNTI."
-                        .to_string(),
-                ),
-                doc_url: None,
-                additional_context: Some(
-                    "Trustpay RepeatPayment received a network mandate reference. This request builder only sends the connector mandate InstanceId as the recurring payment reference; network mandate references provide an NTI or network token data, but do not provide the Trustpay InstanceId required by this endpoint".to_string(),
-                ),
-            },
-        })),
-    }
-}
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -2944,7 +3830,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for TrustpayRepeatPaymentRequest
+    > for TrustpayRepeatPaymentRequest<T>
 {
     type Error = Error;
 
@@ -2960,8 +3846,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let instance_id = extract_trustpay_mandate_id(&router_data.request.mandate_reference)?;
-
         let amount = item
             .connector
             .amount_converter
@@ -2972,17 +3856,91 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
+        let currency = router_data.request.currency.to_string();
+        let reference = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        let payment_type = PAYMENT_TYPE_RECURRING.to_string();
+        let payment_action = Some(TrustpayPaymentAction::from(
+            router_data.request.capture_method,
+        ));
 
-        Ok(Self {
-            amount,
-            currency: router_data.request.currency.to_string(),
-            instance_id,
-            reference: router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
-            payment_type: PAYMENT_TYPE_RECURRING.to_string(),
-        })
+        // The mandate reference selects the form: a connector mandate id is the GW
+        // `InstanceId`; a network mandate id is the NTID and must travel with the raw card.
+        match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
+                let instance_id = connector_mandate_ref.get_connector_mandate_id().ok_or_else(|| {
+                    report!(IntegrationError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Pass the Trustpay instanceId returned by the initial RecurringInitial payment as connector_mandate_id.".to_string(),
+                            ),
+                            doc_url: Some("https://docs.trustpay.eu/".to_string()),
+                            additional_context: Some(
+                                "Trustpay GW recurring (PaymentType=RecurringSubsequent) charges the stored InstanceId; none was supplied.".to_string(),
+                            ),
+                        },
+                    })
+                })?;
+                Ok(Self::MandateId(TrustpayRepeatPaymentMandateIdRequest {
+                    amount,
+                    currency,
+                    instance_id,
+                    reference,
+                    payment_type,
+                    payment_action,
+                }))
+            }
+            MandateReferenceId::NetworkMandateId(network_mandate) => {
+                match &router_data.request.payment_method_data {
+                    PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
+                        Ok(Self::NetworkTransactionId(Box::new(
+                            TrustpayRepeatPaymentNtidRequest {
+                                amount,
+                                currency,
+                                card_scheme_tx_id: Secret::new(
+                                    network_mandate.network_transaction_id.clone(),
+                                ),
+                                pan: card.card_number.clone(),
+                                exp: card.get_card_expiry_month_year_2_digit_with_delimiter(
+                                    "/".to_string(),
+                                )?,
+                                reference,
+                                payment_type,
+                                payment_action,
+                            },
+                        )))
+                    }
+                    _ => Err(report!(IntegrationError::MissingRequiredField {
+                        field_name: "payment_method_data.card",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Send the card as CardDetailsForNetworkTransactionId together with the network transaction id.".to_string(),
+                            ),
+                            doc_url: Some("https://docs.trustpay.eu/".to_string()),
+                            additional_context: Some(
+                                "Trustpay non-GW recurring (CardSchemeTxId) requires the card pan and expiry; the request carried no card details.".to_string(),
+                            ),
+                        },
+                    })),
+                }
+            }
+            MandateReferenceId::NetworkTokenWithNTI(_) => Err(report!(IntegrationError::NotSupported {
+                message: "Network token with NTI on RepeatPayment".to_string(),
+                connector: "trustpay",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use ConnectorMandateId (Trustpay InstanceId) or NetworkMandateId with raw card details.".to_string(),
+                    ),
+                    doc_url: Some("https://docs.trustpay.eu/".to_string()),
+                    additional_context: Some(
+                        "Trustpay recurring subsequent payments accept an InstanceId or a CardSchemeTxId with card data; network tokens are not documented.".to_string(),
+                    ),
+                },
+            })),
+        }
     }
 }
 
@@ -2995,51 +3953,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ResponseRouterData<TrustpayRepeatPaymentResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = &item.response;
-
-        let (status, message) = get_transaction_status(
-            response.payment_status.clone(),
-            response.redirect_url.clone(),
-        )?;
-
-        let error = if message.is_some() {
-            Some(ErrorResponse {
-                code: response
-                    .payment_status
-                    .clone()
-                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                message: message
-                    .clone()
-                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                reason: message,
-                status_code: item.http_code,
-                attempt_status: None,
-                connector_transaction_id: Some(response.instance_id.clone()),
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-                typed_connector_response: None,
-                raw_connector_response: None,
-                raw_connector_request: None,
-                typed_connector_request: None,
-            })
-        } else {
-            None
-        };
-
-        let payment_response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(response.instance_id.clone()),
-            redirection_data: None,
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            network_txn_link_id: None,
-            connector_response_reference_id: None,
-            incremental_authorization_allowed: None,
-            status_code: item.http_code,
-            splits: None,
-            payment_account_reference: None,
-        };
+        // A MIT follows capture_method: Preauthorization holds (Authorized), Purchase settles.
+        // handle_cards_response carries the NTID (cardSchemeTxId) and, on a decline, the
+        // scheme/MAC codes with Payment(Failure).
+        let is_preauth = TrustpayPaymentAction::from(item.router_data.request.capture_method)
+            == TrustpayPaymentAction::Preauthorization;
+        let (status, error, payment_response_data) =
+            handle_cards_response(item.response, item.http_code, is_preauth)?;
 
         Ok(Self {
             resource_common_data: PaymentFlowData {

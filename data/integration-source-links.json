@@ -718,5 +718,27 @@
     "https://raw.githubusercontent.com/AuthorizeNet/sample-code-php/master/CustomerProfiles/create-customer-profile-from-transaction.php",
     "https://raw.githubusercontent.com/AuthorizeNet/sample-code-php/master/PaymentTransactions/debit-bank-account.php",
     "https://support.authorize.net/knowledgebase/article/KA-04421/en-us"
+  ],
+  "Trustpay": [
+    "https://doc.finby.eu/",
+    "https://doc.finby.eu/#cards-purchase",
+    "https://doc.finby.eu/#codes-acq-result",
+    "https://doc.finby.eu/#codes-result",
+    "https://doc.finby.eu/#creating-sign",
+    "https://doc.finby.eu/#payment-types",
+    "https://doc.finby.eu/#preauth-capture",
+    "https://doc.finby.eu/#test-cards",
+    "https://doc.finby.eu/#wire-notification",
+    "https://doc.finby.eu/aapi",
+    "https://doc.finby.eu/aapi/",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-3DS-data",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-3ds-instance-status",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-ChallengeIndicator",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-browser-data",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-common-payment-statuses",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-result-code",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-urls",
+    "https://docs.finby.com/docs/",
+    "https://docs.finby.com/llms.txt"
   ]
 }

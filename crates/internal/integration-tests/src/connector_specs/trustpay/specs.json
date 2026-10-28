@@ -8,6 +8,42 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
-    "PaymentService/SetupRecurring"
-  ]
+    "PaymentService/SetupRecurring",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "EventService/HandleEvent"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_manual_capture_incremental_auth": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory > Capture (\"incremental auth not supported\") - trustpay has no incremental authorization API",
+      "no3ds_auto_capture_google_pay_encrypted": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory > Create Intent (PSP-decryption path, CreateOrder) - encrypted Google Pay tokens are processed only by finby's client-side JS; no S2S API",
+      "no3ds_auto_capture_apple_pay_decrypted": "SANDBOX_NOT_PROVISIONED: run:rca/probes/r1/B012/9_applepay_3ds_verificationid_only.json code 900 'server to server tokenized transactions are disabled' - Trustpay sandbox Token Transactions not enabled (finby merchant enablement missing), code 900",
+      "no3ds_auto_capture_google_pay_decrypted": "SANDBOX_NOT_PROVISIONED: run:rca/probes/r1/B012/9_applepay_3ds_verificationid_only.json code 900 'server to server tokenized transactions are disabled' - Trustpay sandbox Token Transactions not enabled (finby merchant enablement missing), code 900",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "SANDBOX_NOT_PROVISIONED: run:rca/probes/r1/B012/9_applepay_3ds_verificationid_only.json code 900 'server to server tokenized transactions are disabled' - Trustpay sandbox Token Transactions not enabled (finby merchant enablement missing), code 900",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "SANDBOX_NOT_PROVISIONED: run:rca/probes/r1/B012/9_applepay_3ds_verificationid_only.json code 900 'server to server tokenized transactions are disabled' - Trustpay sandbox Token Transactions not enabled (finby merchant enablement missing), code 900",
+      "no3ds_auto_capture_ach_bank_transfer": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no ach_bank_transfer) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_affirm": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no affirm) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_afterpay_clearpay": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no afterpay_clearpay) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_alipay": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no alipay) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_bacs_bank_transfer": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no bacs_bank_transfer) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_bancontact": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no bancontact) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_crypto": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no crypto) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_duitnow_qr": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no duitnow_qr) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_fpx_maybank": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no fpx_maybank) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_klarna": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no klarna) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_przelewy24": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no przelewy24) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_upi_collect": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no upi_collect) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_upi_intent": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no upi_intent) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_upi_qr": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no upi_qr) - trustpay refuses it (NOT_SUPPORTED/NOT_IMPLEMENTED/MissingRequiredField, rca/verify/r5/report_auth/report.json)",
+      "no3ds_auto_capture_giropay": "SANDBOX_NOT_PROVISIONED: run:test/harness/r6.log (Trustpay error 1133001 'Giropay payments are not enabled in Project') - Giropay is not enabled on the Trustpay sandbox project; code path verified by eps/ideal/sepa_bank_transfer PASS"
+    },
+    "PaymentService/CreateOrder": {
+      "create_order_fail_zero_amount": "CONNECTOR_API_LACKS: run:rca/probes/r5/B026/direct_zero.txt (status 0, instanceId for amount 0.00) - trustpay api/v1/intent accepts a zero amount; there is no zero-amount refusal to assert"
+    },
+    "PaymentService/Get": {
+      "sync_upi_collect": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no UPI) - trustpay does not offer UPI",
+      "sync_upi_intent": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no UPI) - trustpay does not offer UPI",
+      "sync_upi_qr": "PM_NOT_OFFERED: spec:## Overview (Per-flow flavour map lists no UPI) - trustpay does not offer UPI"
+    }
+  }
 }
