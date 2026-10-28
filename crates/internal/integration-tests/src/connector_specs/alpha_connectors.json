@@ -19,6 +19,9 @@
     },
     "dlocal": {},
     "easebuzz": {},
+    "ecommpay": {
+      "reason": "Ecommpay staging credentials are not configured in CI, so certification cannot run. The sandbox forces a 3DS challenge on card payments that the harness cannot complete, so Capture, Void and Refund suites cannot reach a settled payment. Authorize, PSync, Capture, Void, Refund, RSync, SetupMandate, RepeatPayment and webhooks were exercised through Hyperswitch, UCS and the Ecommpay sandbox in the GRACE run; Apple Pay and Google Pay were not verified (no live wallet tokens). Remove this entry once credentials are added so CI starts certifying."
+    },
     "elavon_pg": {
       "reason": "No Elavon Payment Gateway sandbox credentials exist for this integration yet; sandbox access has not been provisioned. The request the connector emits is proven against a local mock EPG server, driven end to end from Hyperswitch through UCS: card no-3DS settles, and the hosted-payment-page 3DS chain (CreateOrder, PaymentSession, shopper redirect) is exercised from HS with the settle proven at the UCS boundary. Live certification will follow once credentials are available."
     },

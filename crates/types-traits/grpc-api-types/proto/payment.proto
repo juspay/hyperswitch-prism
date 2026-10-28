@@ -754,6 +754,7 @@ enum Connector {
   MERCHANTE = 150;
   ELAVON_PG = 151;
   GLOBALPAYMENTS_REALEX = 152;
+  ECOMMPAY = 153;
 }
 
 // Payment method types
@@ -5978,6 +5979,19 @@ message PayhereConfig {
   optional string base_url = 50;
 }
 
+// Ecommpay Gate API v2. There is no authentication header: every request is signed in the
+// body (`general.signature`), so both values below come from the Ecommpay dashboard
+// (Project settings) and are supplied by the merchant.
+message EcommpayConfig {
+  // Numeric Ecommpay project id -- sent in the body as `general.project_id`, and the only
+  // one of the two that reaches the wire.
+  SecretString project_id = 1;
+  // Project secret key -- the HMAC-SHA512 key used to sign every request and to verify
+  // status responses and callbacks. Never sent to Ecommpay.
+  SecretString secret_key = 2;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6330,6 +6344,8 @@ message ConnectorSpecificConfig {
     ElavonPgConfig elavon_pg = 162;
     // GLOBALPAYMENTS_REALEX = 152
     GlobalpaymentsRealexConfig globalpayments_realex = 163;
+    // ECOMMPAY = 153
+    EcommpayConfig ecommpay = 164;
   }
 }
 
