@@ -109,7 +109,7 @@ Responses are ordinary objects. Any returned field can be passed to a later oper
 
 `checks.fields(name, actual, expected)` compares fields and attaches the same expected/actual values to the report. `checks.oneOf(name, actual, allowed)` checks membership. `waitForPaymentStatus` polls the payment GET endpoint, for at most 90 seconds, and returns the response with the expected status. Mutating requests are never retried automatically.
 
-Only `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.spec.ts` is implemented. The four sibling files are empty placeholders. The current sequence is:
+Only `scenarios/api/payments/create-confirm/card/one-time/no3ds/automatic-create-confirm.spec.ts` is implemented. Other specs and reserved directories are empty placeholders. The current sequence is:
 
 ```text
 POST /payments with confirm:true
@@ -125,6 +125,60 @@ Read the payment and its active attempt from the test HS database
 The database read does not trigger or prove a fresh processor PSync call. It requires the corresponding HS database schema.
 
 ## Add coverage
+
+Organize scenarios by integration, resource, operation under test, payment method, and relevant variation. Each spec owns the complete journey, including prerequisites; a capture spec creates its own authorized payment before capturing it.
+
+```text
+scenarios/
+├── api/
+│   ├── payments/
+│   │   ├── create-confirm/
+│   │   │   ├── card/
+│   │   │   │   ├── one-time/
+│   │   │   │   │   ├── no3ds/
+│   │   │   │   │   │   ├── automatic-create-confirm.spec.ts
+│   │   │   │   │   │   ├── automatic-create-then-confirm.spec.ts
+│   │   │   │   │   │   ├── manual-create-confirm.spec.ts
+│   │   │   │   │   │   └── manual-create-then-confirm.spec.ts
+│   │   │   │   │   └── three-ds/
+│   │   │   │   └── recurring/
+│   │   │   │       ├── connector-mandate/
+│   │   │   │       └── network-transaction-id/
+│   │   │   ├── wallet/
+│   │   │   │   ├── apple-pay/
+│   │   │   │   ├── google-pay/
+│   │   │   │   └── paypal/
+│   │   │   ├── bank-debit/
+│   │   │   ├── bank-redirect/
+│   │   │   ├── bank-transfer/
+│   │   │   ├── pay-later/
+│   │   │   └── upi/
+│   │   ├── retrieve/
+│   │   ├── sync/
+│   │   ├── capture/
+│   │   │   └── card/full-capture.spec.ts
+│   │   └── cancel/
+│   │       └── card/cancel-authorized-payment.spec.ts
+│   └── refunds/
+│       ├── create/
+│       │   └── card/full-refund-after-automatic-capture.spec.ts
+│       └── sync/
+└── web-sdk/
+    └── checkout/
+        ├── card/
+        └── wallet/
+```
+
+`api/` calls HS endpoints directly. `web-sdk/` loads and operates the actual HS Web SDK checkout in a browser. Supplying a prepared sandbox wallet token through HTTP is API coverage; obtaining it through checkout belongs to Web SDK coverage. Browser authentication within an API journey does not itself test the HS Web SDK.
+
+`create-confirm/` groups initial payment journeys. In filenames, `create-confirm` means creation with `confirm: true`; `create-then-confirm` means separate requests. Automatic and manual describe capture mode.
+
+Recurring specs belong under their reference mechanism, for example `recurring/connector-mandate/zero-amount-setup-then-recurring.spec.ts` and `nonzero-amount-setup-then-recurring.spec.ts`. Each owns setup followed by a subsequent payment. Add network-transaction-ID variants where supported. Make authentication variations explicit in the relevant filename or subdirectory.
+
+Later operations have separate directories. Their specs declare required payment state and history, including authentication where relevant, rather than repeating every authorization dimension. Wallets use wallet-specific variations instead of universally inheriting card's authentication tree.
+
+Empty specs and `.gitkeep` directories are extension placeholders, not implemented coverage. Add one shared spec per journey; connectors inherit it through the registry.
+
 
 Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, and `checks`.
 

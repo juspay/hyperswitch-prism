@@ -1,10 +1,10 @@
 # Extending the E2E suite
 
-Start with `scenarios/api/payments/one-time/card/no3ds-automatic-create-confirm.spec.ts`. It is the reference for new API scenarios. Use ordinary TypeScript variables and the exported Playwright fixtures; there is no step language or hidden payment sequence.
+Start with `scenarios/api/payments/create-confirm/card/one-time/no3ds/automatic-create-confirm.spec.ts`. It is the reference for new API scenarios. Use ordinary TypeScript variables and the exported Playwright fixtures; there is no step language or hidden payment sequence.
 
 ## One supported contribution pattern
 
-1. Add one shared spec in the matching product/lifecycle/payment-method directory. Give it a stable, unique scenario ID, a readable title, a journey `description`, a `verifies` description of the expected outcome, and `paymentMethodsEnabled` describing the methods its merchant connector account needs.
+1. Add one shared spec under integration/resource/operation/payment-method and the relevant variation, following README.md. Place it by the operation being verified and include its prerequisites in the spec. Give it a stable, unique scenario ID, a readable title, a journey `description`, a `verifies` description of the expected outcome, and `paymentMethodsEnabled` describing the methods its merchant connector account needs.
 2. Import `test` from `framework/fixtures.ts` and the connector registry from `connectors/index.ts`. Use the same `for`/`describe`/`test.use` registration pattern as the reference spec. The loop includes every registered connector.
 3. Write the calls in execution order using the `payments` fixture. Group each call and its checks in `report.step(...)`; it attaches audit evidence afterward, including on failure. Keep request fields, use of returned values, and expected outcomes visible in the spec.
 4. Use `checks.fields` for exact field comparisons and `checks.oneOf` for an explicitly allowed set. Both produce the standard expected/actual report. Do not create a second assertion or attachment format in a scenario.

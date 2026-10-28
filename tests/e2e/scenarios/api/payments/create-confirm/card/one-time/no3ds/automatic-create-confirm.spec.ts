@@ -1,5 +1,5 @@
-import { test } from "../../../../../framework/fixtures.js";
-import { connectors } from "../../../../../connectors/index.js";
+import { test } from "../../../../../../../framework/fixtures.js";
+import { connectors } from "../../../../../../../connectors/index.js";
 
 const scenario = {
   id: "no3ds-automatic-create-confirm",
