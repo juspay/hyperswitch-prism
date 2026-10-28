@@ -107,7 +107,7 @@ Responses are ordinary objects. Any returned field can be passed to a later oper
 
 `checks.fields` validates that its target is an object and compares only the listed fields. Pass a nested response object to check selected nested fields; a nested object supplied as an expected value is compared in full. Keep sensitive values out of comparisons and report only their required presence.
 
-Only `scenarios/api/payments/create-confirm/card/one-time/no3ds/automatic-create-confirm.spec.ts` is implemented. Other specs and reserved directories are empty placeholders. The current sequence is:
+Only `scenarios/payments/create-confirm/card/one-time/no3ds/automatic-create-confirm.spec.ts` is implemented. Other specs and reserved directories are empty placeholders. The current sequence is:
 
 ```text
 POST /payments with confirm:true
@@ -122,51 +122,45 @@ The database read does not trigger or prove a fresh processor PSync call. It req
 
 ## Add coverage
 
-Organize scenarios by integration, resource, operation under test, payment method, and relevant variation. Each spec owns the complete journey, including prerequisites; a capture spec creates its own authorized payment before capturing it.
+Organize scenarios by resource, operation under test, payment method, and relevant variation. Each spec owns the complete journey, including prerequisites; a capture spec creates its own authorized payment before capturing it.
 
 ```text
 scenarios/
-├── api/
-│   ├── payments/
-│   │   ├── create-confirm/
-│   │   │   ├── card/
-│   │   │   │   ├── one-time/
-│   │   │   │   │   ├── no3ds/
-│   │   │   │   │   │   ├── automatic-create-confirm.spec.ts
-│   │   │   │   │   │   ├── automatic-create-then-confirm.spec.ts
-│   │   │   │   │   │   ├── manual-create-confirm.spec.ts
-│   │   │   │   │   │   └── manual-create-then-confirm.spec.ts
-│   │   │   │   │   └── three-ds/
-│   │   │   │   └── recurring/
-│   │   │   │       ├── connector-mandate/
-│   │   │   │       │   ├── zero-amount-setup-then-recurring.spec.ts
-│   │   │   │       │   └── nonzero-amount-setup-then-recurring.spec.ts
-│   │   │   │       └── network-transaction-id/
-│   │   │   ├── wallet/
-│   │   │   │   ├── apple-pay/
-│   │   │   │   ├── google-pay/
-│   │   │   │   └── paypal/
-│   │   │   ├── bank-debit/
-│   │   │   ├── bank-redirect/
-│   │   │   ├── bank-transfer/
-│   │   │   ├── pay-later/
-│   │   │   └── upi/
-│   │   ├── retrieve/
-│   │   ├── capture/
-│   │   │   └── full-capture.spec.ts
-│   │   └── cancel/
-│   │       └── cancel-authorized-payment.spec.ts
-│   └── refunds/
-│       ├── create/
-│       │   └── full-refund-after-automatic-capture.spec.ts
-│       └── sync/
-└── web-sdk/
-    └── checkout/
-        ├── card/
-        └── wallet/
+├── payments/
+│   ├── create-confirm/
+│   │   ├── card/
+│   │   │   ├── one-time/
+│   │   │   │   ├── no3ds/
+│   │   │   │   │   ├── automatic-create-confirm.spec.ts
+│   │   │   │   │   ├── automatic-create-then-confirm.spec.ts
+│   │   │   │   │   ├── manual-create-confirm.spec.ts
+│   │   │   │   │   └── manual-create-then-confirm.spec.ts
+│   │   │   │   └── three-ds/
+│   │   │   └── recurring/
+│   │   │       ├── connector-mandate/
+│   │   │       │   ├── zero-amount-setup-then-recurring.spec.ts
+│   │   │       │   └── nonzero-amount-setup-then-recurring.spec.ts
+│   │   │       └── network-transaction-id/
+│   │   ├── wallet/
+│   │   │   ├── apple-pay/
+│   │   │   ├── google-pay/
+│   │   │   └── paypal/
+│   │   ├── bank-debit/
+│   │   ├── bank-redirect/
+│   │   ├── bank-transfer/
+│   │   ├── pay-later/
+│   │   └── upi/
+│   ├── retrieve/
+│   ├── capture/
+│   │   └── full-capture.spec.ts
+│   └── cancel/
+│       └── cancel-authorized-payment.spec.ts
+└── refunds/
+    ├── create/
+    │   └── full-refund-after-automatic-capture.spec.ts
+    └── sync/
 ```
 
-`api/` calls HS endpoints directly. `web-sdk/` loads and operates the actual HS Web SDK checkout in a browser. Supplying a prepared sandbox wallet token through HTTP is API coverage; obtaining it through checkout belongs to Web SDK coverage. Browser authentication within an API journey does not itself test the HS Web SDK.
 
 `create-confirm/` groups initial payment journeys. In filenames, `create-confirm` means creation with `confirm: true`; `create-then-confirm` means separate requests. Automatic and manual describe capture mode.
 
@@ -208,13 +202,13 @@ Operations apply their request overrides automatically. Overrides replace comple
 
 `create-confirm` means a single create request with `confirm:true`; `create-then-confirm` means separate requests. `automatic` and `manual` describe capture mode. The filename identifies the scenario; its code states the full journey.
 
-`scenarios/api/` covers direct HS API calls. Future tests loading and operating the actual Web SDK belong under `scenarios/web-sdk/checkout/`. Browser authentication within an API flow does not itself constitute SDK coverage.
+`scenarios/` contains journeys driven through HS API calls.
 
 ## File responsibilities
 
 | File | Responsibility |
 | --- | --- |
-| `scenarios/api/**/*.spec.ts` | Own the complete journey, request data, use of responses, and expected results. |
+| `scenarios/**/*.spec.ts` | Own the complete journey, request data, use of responses, and expected results. |
 | `connectors/adyen.ts` | Declare sandbox data, optional request overrides, and reasoned exclusions. |
 | `connectors/index.ts` | Register connector definitions. |
 | `framework/types.ts` | Define scenario metadata and data-only connector configuration types. |
