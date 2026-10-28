@@ -180,6 +180,7 @@ fn create_test_billing_address() -> PaymentAddress {
             state: Some("NY".to_string().into()),
             zip_code: Some(format!("{:05}", 10001 + (unique_suffix % 1000)).into()),
             country_alpha2_code: Some(CountryAlpha2::Us.into()),
+            origin_zip: None,
         }),
     }
 }

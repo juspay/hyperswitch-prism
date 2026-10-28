@@ -17,12 +17,13 @@ use domain_types::{
         SetupMandate, Void,
     },
     connector_types::{
-        ConnectorWebhookSecrets, DisputeWebhookDetailsResponse, EventContext, EventType,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails, SetupMandateRequestData,
-        WebhookDetailsResponse,
+        ConnectorWebhookSecrets, DisputeWebhookDetailsResponse, DisputeWebhookReference,
+        EventContext, EventType, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, SetupMandateRequestData, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -291,14 +292,40 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: novalnet::NovalnetErrorResponse = res
-            .response
-            .parse_struct("NovalnetErrorResponse")
-            .change_context(
-                crate::utils::response_deserialization_fail(
-                    res.status_code,
-                "novalnet: response body did not match the expected format; confirm API version and connector documentation."),
-            )?;
+        // HS parity (hyperswitch_connectors novalnet.rs build_error_response): an empty or
+        // non-JSON error body is surfaced as a generic error rather than a hard parse failure.
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: common_utils::consts::NO_ERROR_CODE.to_string(),
+                message: common_utils::consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            });
+        }
+
+        let response: novalnet::NovalnetErrorResponse =
+            match res.response.parse_struct("NovalnetErrorResponse") {
+                Ok(response) => response,
+                Err(error_msg) => {
+                    if let Some(event) = event_builder {
+                        event.set_connector_response(&serde_json::json!({
+                            "error": "Error response parsing failed",
+                            "status_code": res.status_code,
+                        }))
+                    };
+                    tracing::error!(deserialization_error =? error_msg);
+                    return utils::handle_json_response_deserialization_failure(res, "novalnet");
+                }
+            };
 
         with_error_response_body!(event_builder, response);
 
@@ -738,36 +765,75 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         br#"{"event":{"checksum":"probe_checksum","tid":12345678901234,"type":"PAYMENT"},"result":{"status":"SUCCESS","status_code":100,"status_text":"Success"},"transaction":{"tid":12345678901234,"payment_type":"CREDITCARD","status":"CONFIRMED","status_code":100,"order_no":"probe_order_001","amount":1000,"currency":"EUR"}}"#
     }
 
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let notif = get_webhook_object_from_body(&request.body)?;
+        // `event.tid` / `event.type` are inside the Novalnet checksum preimage
+        // (spec: ### Webhook Authentication & Signature Verification) and decide the event class.
+        // `event.parent_tid` (spec: ### IncomingWebhook, source_24: parentTid = event.parent_tid
+        // ?: event.tid) is outside that preimage; it is used only as the lookup key that locates
+        // the original payment of a dispute-class event, never to classify or to derive a status.
+        let tid = notif.event.tid.to_string();
+
+        let reference = match notif.event.event_type {
+            // spec: ### Webhook Payload Structure (TRANSACTION_REFUND -> refund id = event.tid)
+            novalnet::WebhookEventType::TransactionRefund => {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: Some(tid),
+                    merchant_refund_id: None,
+                    connector_transaction_id: None,
+                    merchant_transaction_id: None,
+                })
+            }
+            // spec: ### IncomingWebhook (dispute id = event.tid; original payment =
+            // event.parent_tid ?: event.tid)
+            novalnet::WebhookEventType::Chargeback
+            | novalnet::WebhookEventType::ReturnDebit
+            | novalnet::WebhookEventType::Reversal
+            | novalnet::WebhookEventType::Credit => {
+                let original_payment_tid = notif
+                    .event
+                    .parent_tid
+                    .map(|parent_tid| parent_tid.to_string())
+                    .unwrap_or_else(|| tid.clone());
+                WebhookResourceReference::Dispute(DisputeWebhookReference {
+                    connector_dispute_id: Some(tid),
+                    connector_transaction_id: Some(original_payment_tid),
+                })
+            }
+            // spec: ### Webhook Payload Structure (otherwise payment by event.tid)
+            novalnet::WebhookEventType::Payment
+            | novalnet::WebhookEventType::TransactionCapture
+            | novalnet::WebhookEventType::TransactionCancel
+            | novalnet::WebhookEventType::Unknown => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(tid),
+                    merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
+                })
+            }
+        };
+
+        Ok(Some(reference))
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let notif = get_webhook_object_from_body(&request.body)?;
 
-        let optional_transaction_status = match notif.transaction {
-            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
-                Some(data.status)
-            }
-            novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => data.status,
-            novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
-                Some(data.status)
-            }
-            novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => {
-                Some(data.status)
-            }
-        };
-
-        let transaction_status = optional_transaction_status.ok_or_else(|| {
-            report!(WebhookError::WebhookReferenceIdNotFound)
-                .attach_printable("transaction_status missing on Novalnet webhook")
-        })?;
-        // NOTE: transaction_status will always be present for Webhooks
-        // But we are handling optional type here, since we are reusing TransactionData Struct from NovalnetPaymentsResponseTransactionData for Webhooks response too
-        // In NovalnetPaymentsResponseTransactionData, transaction_status is optional
-
-        let incoming_webhook_event =
-            novalnet::get_incoming_webhook_event(notif.event.event_type, transaction_status);
-        Ok(incoming_webhook_event)
+        // Classified from the signed checksum preimage (event.type, result.status).
+        // transaction.status is outside it, so it is passed under the lower-only rule: it can
+        // narrow PAYMENT/SUCCESS to authorization-success or processing, never widen an event.
+        let transaction_status = notif.transaction.transaction_status();
+        Ok(novalnet::get_incoming_webhook_event(
+            notif.event.event_type,
+            notif.result.status,
+            transaction_status,
+        ))
     }
 
     fn process_payment_webhook(
@@ -775,12 +841,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-        _event_context: Option<EventContext>,
+        event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let notif = get_webhook_object_from_body(&request.body)?;
 
-        let response = WebhookDetailsResponse::try_from(notif)
-            .change_context(WebhookError::WebhookBodyDecodingFailed);
+        // capture_method from the original authorize resolves Authorized vs Charged for a
+        // signed PAYMENT/SUCCESS without trusting the unsigned transaction.status (TH-17).
+        let capture_method = event_context.and_then(|ctx| ctx.capture_method);
+        let response = novalnet::webhook_payment_details(notif, capture_method);
 
         response.map(|mut response| {
             response.raw_connector_response =
@@ -885,6 +953,7 @@ macros::macro_connector_flow_status_impls!(
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
         GetConnectorCustomer,
+        // Novalnet hosts 3DS inside /v2/payment|/v2/authorize (enforce_3d + result.redirect_url), so no authentication leg exists.
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,

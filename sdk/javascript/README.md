@@ -95,7 +95,7 @@ npm install hyperswitch-prism
 ```
 
 **Requirements:**
-- Node.js 18+ (LTS recommended)
+- Node.js 22.23.4+, 24.22.1+, or 26.12.1+ on the corresponding release line. Earlier releases contain a vulnerable bundled Brotli decoder ([CVE-2026-111497](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)). The SDK rejects HTTP requests on other Node.js versions.
 - macOS (x64, arm64), Linux (x64, arm64), or Windows (x64)
 
 ---

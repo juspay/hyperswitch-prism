@@ -3500,6 +3500,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // connector_transaction_id is a String directly in PaymentsCancelPostCaptureData
         let order_code = router_data.request.connector_transaction_id.clone();
+        let amount = router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| {
+                Ok::<_, Self::Error>(requests::WorldpayxmlAmount {
+                    value: super::WorldpayxmlAmountConvertor::convert(
+                        amount.amount,
+                        amount.currency,
+                    )?,
+                    currency_code: amount.currency,
+                    exponent: get_worldpayxml_exponent(amount.currency)?,
+                })
+            })
+            .transpose()?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -3507,7 +3522,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             modify: requests::WorldpayxmlVoidPCModify {
                 order_modification: requests::WorldpayxmlVoidPCOrderModification {
                     order_code,
-                    cancel_or_refund: requests::WorldpayxmlCancelOrRefund {},
+                    cancel_or_refund: requests::WorldpayxmlCancelOrRefund { amount },
                 },
             },
         })
@@ -3526,18 +3541,25 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidPCResponse, Self>>
         let response = &item.response;
         let router_data = &item.router_data;
 
-        // Map a top-level <error> reply to PostCaptureVoidResponse with Failed status,
-        // surfacing the connector's error message via `description` (per WorldpayVantiv /
-        // Payload convention for VoidPC).
+        // A top-level <error> reply is a declined void; return it as an ErrorResponse.
         if let Some(error) = &response.reply.error {
-            let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
-                post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
-                connector_reference_id: Some(router_data.request.connector_transaction_id.clone()),
-                description: Some(error.message.clone()),
+            let error_response = ErrorResponse {
+                code: error.code.clone(),
+                message: error.message.clone(),
+                reason: Some(error.message.clone()),
                 status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
             return Ok(Self {
-                response: Ok(payments_response_data),
+                response: Err(error_response),
                 ..router_data.clone()
             });
         }
@@ -3575,7 +3597,6 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidPCResponse, Self>>
         let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
             post_capture_void_status: common_enums::PostCaptureVoidStatus::Succeeded,
             connector_reference_id: Some(order_code.clone()),
-            description: None,
             status_code: item.http_code,
         };
 

@@ -88,6 +88,12 @@ impl BrowserInformation {
             .clone()
             .ok_or_else(utils::missing_field_err("browser_info.referer"))
     }
+    /// `"<width>x<height>"` when both screen dimensions are present.
+    pub fn get_optional_screen_resolution(&self) -> Option<String> {
+        self.screen_width
+            .zip(self.screen_height)
+            .map(|(width, height)| format!("{width}x{height}"))
+    }
 }
 
 #[derive(Debug, Default, Clone)]

@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""`ss` for macOS, covering exactly the forms the GRACE workflow uses.
+
+    ss -Htln                      every TCP listener
+    ss -Htln  "sport = :8000"     listeners on one port (empty when none)
+    ss -Htlnp "sport = :8000"     same, with users:(("cmd",pid=N,fd=N))
+    ss -Htlnp "( sport = :A or sport = :B )"
+
+Backed by `lsof -nP -iTCP -sTCP:LISTEN`. That is a *listing* use: the
+workflow's ban at 2.6a:47 is on killing by port (`lsof -ti`, `fuser -k`,
+`pkill`), which this never does -- own_stop still kills only a recorded PID
+whose executable it has verified.
+
+Exit status matches ss: 0 even when nothing matches, so `! ss ... | grep -q .`
+behaves as the workflow expects instead of inverting.
+"""
+import re
+import subprocess
+import sys
+
+argv = sys.argv[1:]
+want_pid = False
+filter_parts = []
+
+for a in argv:
+    if a.startswith("-") and len(a) > 1 and not a.startswith("--"):
+        if "p" in a[1:]:
+            want_pid = True
+        # -H -t -l -n -4 -6 etc. are accepted and need no behaviour here:
+        # we always emit headerless, numeric, listening TCP.
+    elif a.startswith("--"):
+        if a == "--processes":
+            want_pid = True
+    else:
+        filter_parts.append(a)
+
+# Every port named by a `sport = :N` clause. No clause => no port restriction.
+ports = {int(m) for m in re.findall(r"sport\s*=\s*:(\d+)", " ".join(filter_parts))}
+
+try:
+    out = subprocess.run(
+        ["lsof", "-nP", "-iTCP", "-sTCP:LISTEN"],
+        capture_output=True, text=True, check=False,
+    ).stdout
+except OSError:
+    # No lsof: report nothing rather than claiming every port is free would be
+    # wrong, so fail loudly instead.
+    sys.stderr.write("ss-shim: lsof unavailable\n")
+    sys.exit(2)
+
+seen = set()
+for line in out.splitlines()[1:]:
+    cols = line.split()
+    if len(cols) < 9:
+        continue
+    cmd, pid, name = cols[0], cols[1], cols[-1]
+    if name.endswith("(LISTEN)"):
+        name = cols[-2]
+    # NAME is addr:port -- 127.0.0.1:8000, *:8080, [::1]:8080
+    m = re.match(r"^(.*):(\d+)$", name)
+    if not m:
+        continue
+    addr, port = m.group(1), int(m.group(2))
+    if ports and port not in ports:
+        continue
+    key = (addr, port, pid)
+    if key in seen:
+        continue
+    seen.add(key)
+    local = f"{'0.0.0.0' if addr == '*' else addr}:{port}"
+    row = f"LISTEN 0      4096   {local}            0.0.0.0:*"
+    if want_pid:
+        row += f'          users:(("{cmd}",pid={pid},fd=0))'
+    print(row)
+
+sys.exit(0)

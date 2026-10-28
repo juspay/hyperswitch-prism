@@ -1,4 +1,5 @@
 import { ProxyAgent, Agent, Dispatcher } from "undici";
+import { assertPatchedNodeRuntime } from "./runtime";
 // @ts-ignore
 import { types } from "./payments/generated/proto";
 
@@ -136,6 +137,7 @@ export async function execute(
   options: types.IHttpConfig = {},
   dispatcher?: Dispatcher // Pass the instance-owned pool here
 ): Promise<HttpResponse> {
+  assertPatchedNodeRuntime();
   // Check for mock intercept (used in smoke test mock mode)
   if (_intercept) {
     return _intercept(request);

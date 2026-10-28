@@ -1,0 +1,1267 @@
+{
+  "connector": "ecommpay",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for ecommpay"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "ApplePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "cHJvYmVfY2F2dl92YWx1ZQ==",
+            "threeds_server_transaction_id": "probe_3ds_server_txn_001",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "probe_ds_trans_001",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS"
+          },
+          "return_url": "https://example.com/payment/return",
+          "complete_authorize_url": "https://example.com/payment/complete",
+          "setup_future_usage": "OFF_SESSION",
+          "browser_info": {
+            "screen_height": 1080,
+            "screen_width": 1920,
+            "ip_address": "203.0.113.10"
+          },
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
+          "l2_l3_data": {
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/applepay/sale",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_txn_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"customer\":{\"id\":\"cust_probe_123\",\"ip_address\":\"203.0.113.10\",\"screen_res\":\"1920x1080\",\"shipping\":{\"country\":\"US\",\"region\":\"WA\",\"city\":\"Seattle\",\"address\":\"12 Main Street\",\"postal\":\"98101\"}},\"payment\":{\"amount\":1000,\"currency\":\"USD\"},\"return_url\":{\"success\":\"https://example.com/payment/complete\",\"decline\":\"https://example.com/payment/return\"},\"etoken\":{\"token\":\"{\\\"paymentData\\\":{\\\"version\\\":\\\"EC_v1\\\",\\\"data\\\":\\\"probe\\\",\\\"signature\\\":\\\"probe\\\",\\\"header\\\":{\\\"ephemeralPublicKey\\\":\\\"probe\\\",\\\"publicKeyHash\\\":\\\"probe\\\",\\\"transactionId\\\":\\\"probe_txn_id\\\"}},\\\"paymentMethod\\\":{\\\"displayName\\\":\\\"Visa 1111\\\",\\\"network\\\":\\\"Visa\\\",\\\"type\\\":\\\"debit\\\"},\\\"transactionIdentifier\\\":\\\"probe_txn_id\\\"}\"},\"merchant\":{\"descriptor\":\"PROBE DESCRIPTOR\"},\"receipt_data\":{\"total_tax_amount\":100},\"recurring\":{\"register\":true,\"type\":\"U\"}}"
+        }
+      },
+      "ApplePayDecrypted": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id",
+                  "device_manufacturer_identifier": "040010030273"
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "cHJvYmVfY2F2dl92YWx1ZQ==",
+            "threeds_server_transaction_id": "probe_3ds_server_txn_001",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "probe_ds_trans_001",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS"
+          },
+          "return_url": "https://example.com/payment/return",
+          "complete_authorize_url": "https://example.com/payment/complete",
+          "setup_future_usage": "OFF_SESSION",
+          "browser_info": {
+            "screen_height": 1080,
+            "screen_width": 1920,
+            "ip_address": "203.0.113.10"
+          },
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
+          "l2_l3_data": {
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/applepay/sale",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_txn_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"customer\":{\"id\":\"cust_probe_123\",\"ip_address\":\"203.0.113.10\",\"screen_res\":\"1920x1080\",\"shipping\":{\"country\":\"US\",\"region\":\"WA\",\"city\":\"Seattle\",\"address\":\"12 Main Street\",\"postal\":\"98101\"}},\"payment\":{\"amount\":1000,\"currency\":\"USD\"},\"return_url\":{\"success\":\"https://example.com/payment/complete\",\"decline\":\"https://example.com/payment/return\"},\"etoken\":{\"type\":\"apple\",\"decrypted_token\":{\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"applicationExpirationDate\":\"300331\",\"currencyCode\":\"840\",\"transactionAmount\":1000,\"paymentDataType\":\"3DSecure\",\"deviceManufacturerIdentifier\":\"040010030273\",\"paymentData\":{\"onlinePaymentCryptogram\":\"AAAAAA==\",\"eciIndicator\":\"05\"}}},\"merchant\":{\"descriptor\":\"PROBE DESCRIPTOR\"},\"receipt_data\":{\"total_tax_amount\":100},\"recurring\":{\"register\":true,\"type\":\"U\"}}"
+        }
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "cHJvYmVfY2F2dl92YWx1ZQ==",
+            "threeds_server_transaction_id": "probe_3ds_server_txn_001",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "probe_ds_trans_001",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS"
+          },
+          "return_url": "https://example.com/payment/return",
+          "complete_authorize_url": "https://example.com/payment/complete",
+          "setup_future_usage": "OFF_SESSION",
+          "browser_info": {
+            "screen_height": 1080,
+            "screen_width": 1920,
+            "ip_address": "203.0.113.10"
+          },
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
+          "l2_l3_data": {
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/card/sale",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_txn_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"customer\":{\"id\":\"cust_probe_123\",\"ip_address\":\"203.0.113.10\",\"screen_res\":\"1920x1080\",\"shipping\":{\"country\":\"US\",\"region\":\"WA\",\"city\":\"Seattle\",\"address\":\"12 Main Street\",\"postal\":\"98101\"}},\"payment\":{\"amount\":1000,\"currency\":\"USD\"},\"return_url\":{\"success\":\"https://example.com/payment/complete\",\"decline\":\"https://example.com/payment/return\"},\"card\":{\"pan\":\"4111111111111111\",\"year\":2030,\"month\":3,\"card_holder\":\"John Doe\",\"cvv\":\"737\"},\"merchant\":{\"descriptor\":\"PROBE DESCRIPTOR\"},\"receipt_data\":{\"total_tax_amount\":100},\"authentication_data\":{\"cavv\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"eci\":\"05\",\"ds_operation_id\":\"probe_ds_trans_001\",\"threeds_version\":\"3ds_2\",\"threeds_full_version\":\"2.2.0\",\"xid\":\"probe_3ds_server_txn_001\",\"authentication_status\":\"Y\"},\"recurring\":{\"register\":true,\"type\":\"U\"}}"
+        }
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Crypto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "DuitNow": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Givex": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "GooglePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com",
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "cHJvYmVfY2F2dl92YWx1ZQ==",
+            "threeds_server_transaction_id": "probe_3ds_server_txn_001",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "probe_ds_trans_001",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS"
+          },
+          "return_url": "https://example.com/payment/return",
+          "complete_authorize_url": "https://example.com/payment/complete",
+          "setup_future_usage": "OFF_SESSION",
+          "browser_info": {
+            "screen_height": 1080,
+            "screen_width": 1920,
+            "ip_address": "203.0.113.10"
+          },
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
+          "l2_l3_data": {
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/googlepay/sale",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_txn_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"customer\":{\"id\":\"cust_probe_123\",\"ip_address\":\"203.0.113.10\",\"email\":\"test@example.com\",\"screen_res\":\"1920x1080\",\"shipping\":{\"country\":\"US\",\"region\":\"WA\",\"city\":\"Seattle\",\"address\":\"12 Main Street\",\"postal\":\"98101\"}},\"payment\":{\"amount\":1000,\"currency\":\"USD\"},\"return_url\":{\"success\":\"https://example.com/payment/complete\",\"decline\":\"https://example.com/payment/return\"},\"etoken\":{\"token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\",\"google_tokenization_type\":\"PAYMENT_GATEWAY\"},\"merchant\":{\"descriptor\":\"PROBE DESCRIPTOR\"},\"receipt_data\":{\"total_tax_amount\":100},\"recurring\":{\"register\":true,\"type\":\"U\"}}"
+        }
+      },
+      "GooglePayDecrypted": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com",
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "cHJvYmVfY2F2dl92YWx1ZQ==",
+            "threeds_server_transaction_id": "probe_3ds_server_txn_001",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "probe_ds_trans_001",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS"
+          },
+          "return_url": "https://example.com/payment/return",
+          "complete_authorize_url": "https://example.com/payment/complete",
+          "setup_future_usage": "OFF_SESSION",
+          "browser_info": {
+            "screen_height": 1080,
+            "screen_width": 1920,
+            "ip_address": "203.0.113.10"
+          },
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
+          "l2_l3_data": {
+            "tax_info": {
+              "order_tax_amount": 100
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/googlepay/sale",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_txn_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"customer\":{\"id\":\"cust_probe_123\",\"ip_address\":\"203.0.113.10\",\"email\":\"test@example.com\",\"screen_res\":\"1920x1080\",\"shipping\":{\"country\":\"US\",\"region\":\"WA\",\"city\":\"Seattle\",\"address\":\"12 Main Street\",\"postal\":\"98101\"}},\"payment\":{\"amount\":1000,\"currency\":\"USD\"},\"return_url\":{\"success\":\"https://example.com/payment/complete\",\"decline\":\"https://example.com/payment/return\"},\"etoken\":{\"google_gateway_type\":\"gateway\",\"google_gateway_id\":\"ecommpay\",\"google_tokenization_type\":\"PAYMENT_GATEWAY\",\"decrypted_token\":{\"messageExpiration\":0000000000000,\"paymentMethodDetails\":{\"pan\":\"4111111111111111\",\"expirationMonth\":3,\"expirationYear\":2030,\"eciIndicator\":\"05\",\"cryptogram\":\"AAAAAA==\",\"authMethod\":\"CRYPTOGRAM_3DS\"}}},\"merchant\":{\"descriptor\":\"PROBE DESCRIPTOR\"},\"receipt_data\":{\"total_tax_amount\":100},\"recurring\":{\"register\":true,\"type\":\"U\"}}"
+        }
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "MobilePayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "OpenBankingPis": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Paysera": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Paze": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Ecommpay Gate wallets are implemented for Apple Pay and Google Pay only"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/card/capture",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_connector_txn_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"payment\":{\"amount\":1000,\"currency\":\"USD\"}}"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for ecommpay"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for ecommpay"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for ecommpay"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for ecommpay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for ecommpay"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for ecommpay"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for ecommpay"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for ecommpay"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for ecommpay"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by ecommpay connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/status",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_connector_txn_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}}"
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"project_id\":1,\"payment\":{\"id\":\"probe_payment\",\"status\":\"success\"},\"operation\":{\"id\":1,\"type\":\"sale\",\"status\":\"success\",\"request_id\":\"probe_request\"},\"signature\":\"\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"project_id\":1,\"payment\":{\"id\":\"probe_payment\",\"status\":\"success\"},\"operation\":{\"id\":1,\"type\":\"sale\",\"status\":\"success\",\"request_id\":\"probe_request\"},\"signature\":\"\"}"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for ecommpay"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"project_id\":1,\"payment\":{\"id\":\"probe_payment\",\"status\":\"success\"},\"operation\":{\"id\":1,\"type\":\"sale\",\"status\":\"success\",\"request_id\":\"probe_request\"},\"signature\":\"\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"project_id\":1,\"payment\":{\"id\":\"probe_payment\",\"status\":\"success\"},\"operation\":{\"id\":1,\"type\":\"sale\",\"status\":\"success\",\"request_id\":\"probe_request\"},\"signature\":\"\"}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for ecommpay"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for ecommpay"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "customer": {
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/card/sale",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_proxy_txn_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"customer\":{\"id\":\"cust_probe_123\",\"ip_address\":\"1.2.3.4\"},\"payment\":{\"amount\":1000,\"currency\":\"USD\"},\"return_url\":{\"success\":\"https://example.com/return\",\"decline\":\"https://example.com/return\"},\"card\":{\"pan\":\"{{$card_number}}\",\"year\":2030,\"month\":3,\"card_holder\":\"John Doe\",\"cvv\":\"{{$card_cvc}}\"}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "customer": {
+            "connector_customer_id": "probe_customer_001"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "return_url": "https://example.com/return",
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/card/account_verification",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_proxy_mandate_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"customer\":{\"id\":\"probe_customer_001\",\"ip_address\":\"1.2.3.4\",\"screen_res\":\"1440x900\",\"accept_header\":\"application/json\",\"browser\":\"Mozilla/5.0 (probe-bot)\",\"language\":\"en\",\"color_depth\":24,\"java_enabled\":false,\"js_enabled\":true,\"timezone_offset\":\"-480\"},\"payment\":{\"amount\":0,\"currency\":\"USD\"},\"return_url\":{\"success\":\"https://example.com/return\",\"decline\":\"https://example.com/return\"},\"card\":{\"pan\":\"{{$card_number}}\",\"year\":2030,\"month\":3,\"card_holder\":\"John Doe\",\"cvv\":\"{{$card_cvc}}\"},\"recurring\":{\"register\":true,\"type\":\"U\"}}"
+        }
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "1821234041"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "browser_info": {
+            "ip_address": "203.0.113.10"
+          },
+          "payment_method_type": "PAY_PAL",
+          "off_session": true,
+          "customer": {
+            "id": "cust_probe_123"
+          }
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/card/recurring",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"customer\":{\"id\":\"cust_probe_123\",\"ip_address\":\"203.0.113.10\"},\"payment\":{\"amount\":1000,\"currency\":\"USD\"},\"recurring\":{\"id\":1821234041}}"
+        }
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for ecommpay"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/card/refund",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_connector_txn_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"payment\":{\"description\":\"customer_request\",\"amount\":1000,\"currency\":\"USD\",\"merchant_refund_id\":\"probe_refund_001\"}}"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/status",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_connector_txn_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for ecommpay"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "customer": {
+            "id": "cust_probe_123"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/payment/return",
+          "complete_authorize_url": "https://example.com/payment/complete",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "browser_info": {
+            "ip_address": "203.0.113.10"
+          }
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/card/account_verification",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_mandate_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"customer\":{\"id\":\"cust_probe_123\",\"ip_address\":\"203.0.113.10\"},\"payment\":{\"amount\":0,\"currency\":\"USD\"},\"return_url\":{\"success\":\"https://example.com/payment/complete\",\"decline\":\"https://example.com/payment/return\"},\"card\":{\"pan\":\"4111111111111111\",\"year\":2030,\"month\":3,\"card_holder\":\"John Doe\",\"cvv\":\"737\"},\"recurring\":{\"register\":true,\"type\":\"U\"}}"
+        }
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card account verification is implemented for Ecommpay SetupMandate"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://api.ecommpay.com/v2/payment/card/cancel",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"general\":{\"project_id\":12345,\"payment_id\":\"probe_connector_txn_001\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}}"
+        }
+      }
+    }
+  }
+}

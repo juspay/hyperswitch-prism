@@ -901,8 +901,34 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by worldpayraft connector"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "C|123456|123456789012|000001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card_with_no_cvc": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_network": "VISA"
+            }
+          },
+          "capture_method": "MANUAL"
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/completion",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"creditcompletion\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\",\"PreauthorizedAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ProcFlagsIndicators\":{\"PriorAuth\":\"Y\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\"},\"AuthorizationType\":\"RV\",\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"0000000000000001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       }
     },
     "setup_recurring": {

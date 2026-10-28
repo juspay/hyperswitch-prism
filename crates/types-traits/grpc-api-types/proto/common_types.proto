@@ -221,6 +221,8 @@ message Address {
   optional SecretString state = 7;
   optional SecretString zip_code = 8;
   optional CountryAlpha2 country_alpha2_code = 9;
+  // Postal code of the shipping origin, separate from the destination postal code
+  optional SecretString origin_zip = 13;
 
   // Contact Information
   optional SecretString email = 10;

@@ -1,7 +1,430 @@
 {
   "PaymentService/Authorize": {
-    "no3ds_auto_capture_google_pay_encrypted": {
-      "grpc_req": {}
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_incremental_auth": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4000000000001091"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHENTICATION_PENDING"
+          ]
+        },
+        "connector_transaction_id": null,
+        "redirection_data": {
+          "must_exist": true
+        }
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "test_mode": true
+      }
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "test_mode": true
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "test_mode": true
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "test_mode": true
+      }
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "recurring_charge": {
+      "grpc_req": {
+        "webhook_url": "https://example.com/payment/webhook",
+        "email": {
+          "value": "max.mustermann@example.com"
+        },
+        "test_mode": true,
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "Max"
+            },
+            "last_name": {
+              "value": "Mustermann"
+            },
+            "line1": {
+              "value": "Hauptstrasse 9"
+            },
+            "city": {
+              "value": "Berlin"
+            },
+            "zip_code": {
+              "value": "10115"
+            },
+            "country_alpha2_code": "DE",
+            "email": {
+              "value": "max.mustermann@example.com"
+            }
+          }
+        }
+      }
+    },
+    "RecurringPaymentService/Charge": {
+      "grpc_req": {
+        "webhook_url": "https://example.com/payment/webhook",
+        "email": {
+          "value": "max.mustermann@example.com"
+        },
+        "test_mode": true,
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "Max"
+            },
+            "last_name": {
+              "value": "Mustermann"
+            },
+            "line1": {
+              "value": "Hauptstrasse 9"
+            },
+            "city": {
+              "value": "Berlin"
+            },
+            "zip_code": {
+              "value": "10115"
+            },
+            "country_alpha2_code": "DE",
+            "email": {
+              "value": "max.mustermann@example.com"
+            }
+          }
+        }
+      }
+    },
+    "recurring_charge_low_amount": {
+      "grpc_req": {
+        "webhook_url": "https://example.com/payment/webhook",
+        "email": {
+          "value": "max.mustermann@example.com"
+        },
+        "test_mode": true,
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "Max"
+            },
+            "last_name": {
+              "value": "Mustermann"
+            },
+            "line1": {
+              "value": "Hauptstrasse 9"
+            },
+            "city": {
+              "value": "Berlin"
+            },
+            "zip_code": {
+              "value": "10115"
+            },
+            "country_alpha2_code": "DE",
+            "email": {
+              "value": "max.mustermann@example.com"
+            }
+          }
+        }
+      }
+    },
+    "recurring_charge_with_order_context": {
+      "grpc_req": {
+        "webhook_url": "https://example.com/payment/webhook",
+        "email": {
+          "value": "max.mustermann@example.com"
+        },
+        "test_mode": true,
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "Max"
+            },
+            "last_name": {
+              "value": "Mustermann"
+            },
+            "line1": {
+              "value": "Hauptstrasse 9"
+            },
+            "city": {
+              "value": "Berlin"
+            },
+            "zip_code": {
+              "value": "10115"
+            },
+            "country_alpha2_code": "DE",
+            "email": {
+              "value": "max.mustermann@example.com"
+            }
+          }
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "event_status": null,
+        "source_verified": null,
+        "event_content": {
+          "must_exist": true
+        }
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "event_status": null,
+        "source_verified": null,
+        "event_content": {
+          "must_exist": true
+        }
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "event_status": null,
+        "source_verified": null,
+        "event_content": {
+          "must_exist": true
+        }
+      }
+    },
+    "invalid_signature": {
+      "assert": {
+        "event_status": null,
+        "event_content": {
+          "must_exist": true
+        }
+      }
+    },
+    "payment_status_tamper_manual_capture": {
+      "extends": "payment_succeeded",
+      "assert": {
+        "event_status": null,
+        "source_verified": null,
+        "event_type": {
+          "equals": "PAYMENT_INTENT_SUCCESS"
+        },
+        "event_content.payments_response.status": {
+          "one_of": [
+            "AUTHORIZED"
+          ]
+        }
+      }
+    },
+    "chargeback_parent_tid_reference": {
+      "extends": "payment_succeeded",
+      "assert": {
+        "event_status": null,
+        "source_verified": null,
+        "event_type": {
+          "equals": "WEBHOOK_DISPUTE_OPENED"
+        },
+        "event_content.disputes_response.connector_dispute_id": {
+          "equals": "15455000053329200"
+        },
+        "event_content.disputes_response.dispute_status": {
+          "equals": "DISPUTE_OPENED"
+        },
+        "event_content.disputes_response.dispute_stage": {
+          "equals": "ACTIVE_DISPUTE"
+        }
+      }
     }
   }
 }

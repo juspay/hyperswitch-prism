@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""GNU readlink, plus the three /proc entries the GRACE workflow reads.
+
+macOS has no procfs, and the workflow's process-ownership model is built on it:
+
+    readlink /proc/<pid>/exe      own_stop (2.6a:141), PID_MISMATCH (2.6a:150),
+                                  smoke-server stop (2.3b:471), waitx (2.0:253)
+    readlink /proc/<pid>/cwd      live-process checks
+    readlink /proc/<pid>/fd/1     reused-router log discovery (2.6a:244)
+
+Left unshimmed these return empty, and the failures are silent: own_stop's
+`[ "$exe" = "$2" ]` goes false and it never kills anything, orphaning every
+server the run starts. So resolve them from ps/lsof and keep the comparisons
+meaningful.
+
+Anything else is handed to the real GNU readlink untouched.
+"""
+import os
+import re
+import subprocess
+import sys
+
+# The real readlink to delegate to: GNU's if present (so -f/-m behave), else the system one.
+REAL = next((p for p in (
+    "/opt/homebrew/opt/coreutils/libexec/gnubin/readlink",
+    "/usr/local/opt/coreutils/libexec/gnubin/readlink",
+    "/usr/bin/readlink",
+) if os.path.exists(p)), "/usr/bin/readlink")
+PROC = re.compile(r"^/proc/(\d+)/(exe|cwd|fd/(\d+))$")
+
+
+def exe_of(pid):
+    """Absolute path of the pid's executable, or None."""
+    out = subprocess.run(["ps", "-o", "comm=", "-p", pid],
+                         capture_output=True, text=True).stdout.strip()
+    # ps prints the path it was exec'd with; only an absolute one is comparable
+    # to the $BIN values the workflow checks against.
+    return out if out.startswith("/") else None
+
+
+def lsof_name(pid, dflag):
+    """The NAME lsof reports for one fd/descriptor class of a pid."""
+    out = subprocess.run(["lsof", "-p", pid, "-a", "-d", dflag, "-Fn"],
+                         capture_output=True, text=True).stdout
+    for line in out.splitlines():
+        if line.startswith("n"):
+            return line[1:]
+    return None
+
+
+args = sys.argv[1:]
+targets = [a for a in args if not a.startswith("-")]
+
+if len(targets) == 1:
+    m = PROC.match(targets[0])
+    if m:
+        pid, kind = m.group(1), m.group(2)
+        # a pid that is gone must fail, exactly as readlink on Linux would
+        try:
+            os.kill(int(pid), 0)
+        except (ProcessLookupError, ValueError):
+            sys.exit(1)
+        except PermissionError:
+            pass  # alive, just not ours
+
+        if kind == "exe":
+            v = exe_of(pid) or lsof_name(pid, "txt")
+        elif kind == "cwd":
+            v = lsof_name(pid, "cwd")
+        else:
+            v = lsof_name(pid, m.group(3))
+
+        if not v:
+            sys.exit(1)
+        print(v)
+        sys.exit(0)
+
+os.execv(REAL, [REAL] + args)

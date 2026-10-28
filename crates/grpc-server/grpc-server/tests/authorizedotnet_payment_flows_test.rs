@@ -323,6 +323,7 @@ fn create_payment_authorize_request(
             phone_number: None,
             phone_country_code: None,
             email: None,
+            origin_zip: None,
         }),
         shipping_address: None, // Minimal address - no shipping for working grpcurl
     });
@@ -580,6 +581,7 @@ fn create_register_request() -> PaymentServiceSetupRecurringRequest {
             phone_number: None,
             phone_country_code: None,
             email: Some(generate_unique_email().into()),
+            origin_zip: None,
         }),
         shipping_address: None,
     });
