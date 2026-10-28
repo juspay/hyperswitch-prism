@@ -945,6 +945,197 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Sour
 {
 }
 
+// Flow declarations mirror the production transformer mappings, including
+// context-dependent and nonterminal outcomes.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiservcommercehub<T>,
+    flow: Authorize,
+    source: fiservcommercehub::FiservcommercehubTransactionState,
+    mapping: |status| { match status {
+            fiservcommercehub::FiservcommercehubTransactionState::Approved
+            | fiservcommercehub::FiservcommercehubTransactionState::Captured => success!(Charged),
+            fiservcommercehub::FiservcommercehubTransactionState::Authorized => success!(Authorized),
+            fiservcommercehub::FiservcommercehubTransactionState::Pending => non_terminal!(Pending),
+            fiservcommercehub::FiservcommercehubTransactionState::Declined
+            | fiservcommercehub::FiservcommercehubTransactionState::Rejected
+            | fiservcommercehub::FiservcommercehubTransactionState::Failed => failure!(Failure),
+            fiservcommercehub::FiservcommercehubTransactionState::Cancelled => non_terminal!(Voided),
+        } },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: FiservcommercehubAuthorizeResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.gateway_response.transaction_state.clone()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiservcommercehub<T>,
+    flow: PSync,
+    source: fiservcommercehub::FiservcommercehubTransactionState,
+    mapping: |status| { match status {
+        fiservcommercehub::FiservcommercehubTransactionState::Approved
+        | fiservcommercehub::FiservcommercehubTransactionState::Captured => success!(Charged),
+        fiservcommercehub::FiservcommercehubTransactionState::Authorized => success!(Authorized),
+        fiservcommercehub::FiservcommercehubTransactionState::Pending => non_terminal!(Pending),
+        fiservcommercehub::FiservcommercehubTransactionState::Cancelled => success!(Voided),
+        _ => failure!(Failure),
+    } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: FiservcommercehubPSyncResponse,
+        source: |_resource_common_data, _request, response, http_status_code| {
+            response.0.first().map(|item| item.gateway_response.transaction_state.clone()).ok_or(
+                errors::ConnectorError::ResponseDeserializationFailed {
+                    context: errors::ResponseTransformationErrorContext {
+                        http_status_code: Some(http_status_code),
+                        additional_context: Some("Fiserv Commerce Hub PSync returned an empty list".to_string()),
+                    },
+                },
+            )
+        },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiservcommercehub<T>,
+    flow: Capture,
+    source: fiservcommercehub::FiservcommercehubTransactionState,
+    mapping: |status| { match status {
+            fiservcommercehub::FiservcommercehubTransactionState::Approved
+            | fiservcommercehub::FiservcommercehubTransactionState::Captured => success!(Charged),
+            fiservcommercehub::FiservcommercehubTransactionState::Authorized => failure!(CaptureFailed),
+            fiservcommercehub::FiservcommercehubTransactionState::Pending => non_terminal!(Pending),
+            fiservcommercehub::FiservcommercehubTransactionState::Declined
+            | fiservcommercehub::FiservcommercehubTransactionState::Rejected
+            | fiservcommercehub::FiservcommercehubTransactionState::Failed => failure!(Failure),
+            fiservcommercehub::FiservcommercehubTransactionState::Cancelled => failure!(CaptureFailed),
+        } },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: FiservcommercehubCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.0.gateway_response.transaction_state.clone()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiservcommercehub<T>,
+    flow: Void,
+    source: fiservcommercehub::FiservcommercehubTransactionState,
+    mapping: |status| { match status {
+            fiservcommercehub::FiservcommercehubTransactionState::Approved
+            | fiservcommercehub::FiservcommercehubTransactionState::Captured => failure!(VoidFailed),
+            fiservcommercehub::FiservcommercehubTransactionState::Authorized => failure!(VoidFailed),
+            fiservcommercehub::FiservcommercehubTransactionState::Pending => non_terminal!(Pending),
+            fiservcommercehub::FiservcommercehubTransactionState::Declined
+            | fiservcommercehub::FiservcommercehubTransactionState::Rejected
+            | fiservcommercehub::FiservcommercehubTransactionState::Failed => failure!(Failure),
+            fiservcommercehub::FiservcommercehubTransactionState::Cancelled => success!(Voided),
+        } },
+    runtime: {
+        request: PaymentVoidData,
+        response: FiservcommercehubVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.gateway_response.transaction_state.clone()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiservcommercehub<T>,
+    flow: RepeatPayment,
+    source: fiservcommercehub::FiservcommercehubTransactionState,
+    mapping: |status| { match status {
+            fiservcommercehub::FiservcommercehubTransactionState::Approved
+            | fiservcommercehub::FiservcommercehubTransactionState::Captured => success!(Charged),
+            fiservcommercehub::FiservcommercehubTransactionState::Authorized => non_terminal!(Authorized),
+            fiservcommercehub::FiservcommercehubTransactionState::Pending => non_terminal!(Pending),
+            fiservcommercehub::FiservcommercehubTransactionState::Declined
+            | fiservcommercehub::FiservcommercehubTransactionState::Rejected
+            | fiservcommercehub::FiservcommercehubTransactionState::Failed => failure!(Failure),
+            fiservcommercehub::FiservcommercehubTransactionState::Cancelled => failure!(Failure),
+        } },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: FiservcommercehubRepeatResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.0.gateway_response.transaction_state.clone()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiservcommercehub<T>,
+    flow: SetupMandate,
+    source: fiservcommercehub::FiservcommercehubTransactionState,
+    mapping: |status| { match status {
+            fiservcommercehub::FiservcommercehubTransactionState::Authorized => success!(Charged),
+            fiservcommercehub::FiservcommercehubTransactionState::Approved
+            | fiservcommercehub::FiservcommercehubTransactionState::Captured => success!(Charged),
+            fiservcommercehub::FiservcommercehubTransactionState::Pending => non_terminal!(Pending),
+            fiservcommercehub::FiservcommercehubTransactionState::Declined
+            | fiservcommercehub::FiservcommercehubTransactionState::Rejected
+            | fiservcommercehub::FiservcommercehubTransactionState::Failed
+            | fiservcommercehub::FiservcommercehubTransactionState::Cancelled => failure!(Failure),
+        } },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: FiservcommercehubSetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.gateway_response.transaction_state.clone()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiservcommercehub<T>,
+    flow: Refund,
+    source: fiservcommercehub::FiservcommercehubRefundState,
+    mapping: |status| { match status {
+            fiservcommercehub::FiservcommercehubRefundState::Approved
+            | fiservcommercehub::FiservcommercehubRefundState::Captured => success!(Success),
+            fiservcommercehub::FiservcommercehubRefundState::Authorized
+            | fiservcommercehub::FiservcommercehubRefundState::Pending => non_terminal!(Pending),
+            fiservcommercehub::FiservcommercehubRefundState::Declined
+            | fiservcommercehub::FiservcommercehubRefundState::Rejected
+            | fiservcommercehub::FiservcommercehubRefundState::Failed
+            | fiservcommercehub::FiservcommercehubRefundState::Cancelled => failure!(Failure),
+        } },
+    runtime: {
+        request: RefundsData,
+        response: FiservcommercehubRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.gateway_response.transaction_state.clone()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiservcommercehub<T>,
+    flow: RSync,
+    source: fiservcommercehub::FiservcommercehubRefundState,
+    mapping: |status| { match status {
+        fiservcommercehub::FiservcommercehubRefundState::Approved
+        | fiservcommercehub::FiservcommercehubRefundState::Captured => success!(Success),
+        fiservcommercehub::FiservcommercehubRefundState::Authorized
+        | fiservcommercehub::FiservcommercehubRefundState::Pending => non_terminal!(Pending),
+        _ => failure!(Failure),
+    } },
+    runtime: {
+        request: RefundSyncData,
+        response: FiservcommercehubRSyncResponse,
+        source: |_resource_common_data, _request, response, http_status_code| {
+            response.0.first().map(|item| item.gateway_response.transaction_state.clone()).ok_or(
+                errors::ConnectorError::ResponseDeserializationFailed {
+                    context: errors::ResponseTransformationErrorContext {
+                        http_status_code: Some(http_status_code),
+                        additional_context: Some("Fiserv Commerce Hub RSync returned an empty list".to_string()),
+                    },
+                },
+            )
+        },
+    },
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Fiservcommercehub,
     generic_type: T,

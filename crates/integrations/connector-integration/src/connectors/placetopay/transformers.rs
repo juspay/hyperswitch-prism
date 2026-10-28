@@ -399,7 +399,7 @@ impl<F, T> TryFrom<ResponseRouterData<PlacetopayPaymentsResponse, Self>>
 /// of the generic `TransactionResponse`.
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct PlacetopayVoidPcResponse(PlacetopayPaymentsResponse);
+pub struct PlacetopayVoidPcResponse(pub PlacetopayPaymentsResponse);
 
 impl TryFrom<ResponseRouterData<PlacetopayVoidPcResponse, Self>>
     for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
@@ -595,7 +595,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlacetopayRefundStatus {
     Ok,
@@ -732,4 +732,16 @@ pub struct PlacetopayError {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlacetopayErrorStatus {
     Failed,
+}
+
+impl PlacetopayPaymentsResponse {
+    pub fn flow_status(&self) -> PlacetopayTransactionStatus {
+        self.status.status.clone()
+    }
+}
+
+impl PlacetopayRefundResponse {
+    pub fn flow_status(&self) -> PlacetopayRefundStatus {
+        self.status.status.clone()
+    }
 }

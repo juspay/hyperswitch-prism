@@ -52,8 +52,10 @@ use serde::Serialize;
 use transformers::{self as razorpay, ForeignTryFrom};
 
 use crate::{
-    connectors::razorpayv2::transformers::RazorpayV2SyncResponse, finalize_connector_response,
-    types::ResponseRouterData, with_error_response_body,
+    connectors::razorpayv2::transformers::{self as razorpayv2, RazorpayV2SyncResponse},
+    finalize_connector_response,
+    types::ResponseRouterData,
+    with_error_response_body,
 };
 
 pub(crate) mod headers {
@@ -1358,6 +1360,125 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&RAZORPAY_SUPPORTED_PAYMENT_METHODS)
     }
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Razorpay<T>,
+    flow: Authorize,
+    source: bool,
+    context: Option<CaptureMethod>,
+    mapping: |has_next_action, capture_method| { // Mirrors `get_authorization_razorpay_payment_status_from_action`.
+        if has_next_action {
+            non_terminal!(AuthenticationPending)
+        } else if capture_method == Some(CaptureMethod::Manual) {
+            success!(Authorized)
+        } else {
+            success!(Charged)
+        } },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: razorpay::RazorpayResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
+            razorpay::RazorpayResponse::PaymentResponse(payment_response) => {
+                payment_response.next.is_some()
+            }
+            razorpay::RazorpayResponse::PsyncResponse(_) => false,
+        }) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(request.capture_method) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Razorpay<T>,
+    flow: PSync,
+    source: razorpayv2::RazorpayStatus,
+    context: (),
+    mapping: |status, _ctx| { // Mirrors `get_psync_razorpay_payment_status(false, status)`.
+        match status {
+            razorpayv2::RazorpayStatus::Created => non_terminal!(Pending),
+            razorpayv2::RazorpayStatus::Authorized => success!(Charged),
+            razorpayv2::RazorpayStatus::Captured => success!(Charged),
+            razorpayv2::RazorpayStatus::Refunded => success!(AutoRefunded),
+            razorpayv2::RazorpayStatus::Failed => failure!(Failure),
+        } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: RazorpayV2SyncResponse,
+        // The PSync `ForeignTryFrom` ignores the request's capture_method and hardcodes
+        // `is_manual_capture = false`, so no mapping context is threaded through here.
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
+            RazorpayV2SyncResponse::PaymentResponse(payment) => payment.status,
+            RazorpayV2SyncResponse::OrderPaymentsCollection(collection) => collection
+                .items
+                .first()
+                .map(|payment| payment.status)
+                .unwrap_or(razorpayv2::RazorpayStatus::Created),
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Razorpay<T>,
+    flow: Capture,
+    source: razorpay::RazorpayPaymentStatus,
+    context: (),
+    mapping: |status, _ctx| { match status {
+            razorpay::RazorpayPaymentStatus::Captured => success!(Charged),
+            razorpay::RazorpayPaymentStatus::Authorized => non_terminal!(CaptureInitiated),
+            razorpay::RazorpayPaymentStatus::Failed => failure!(CaptureFailed),
+        } },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: razorpay::RazorpayCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Razorpay<T>,
+    flow: Refund,
+    source: razorpay::RazorpayRefundStatus,
+    context: (),
+    mapping: |status, _ctx| { match status {
+            razorpay::RazorpayRefundStatus::Failed => failure!(Failure),
+            razorpay::RazorpayRefundStatus::Pending | razorpay::RazorpayRefundStatus::Created => {
+                non_terminal!(Pending)
+            }
+            razorpay::RazorpayRefundStatus::Processed => success!(Success),
+        } },
+    runtime: {
+        request: RefundsData,
+        response: razorpay::RazorpayRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Razorpay<T>,
+    flow: RSync,
+    source: razorpay::RazorpayRefundStatus,
+    context: (),
+    mapping: |status, _ctx| { match status {
+            razorpay::RazorpayRefundStatus::Failed => failure!(Failure),
+            razorpay::RazorpayRefundStatus::Pending | razorpay::RazorpayRefundStatus::Created => {
+                non_terminal!(Pending)
+            }
+            razorpay::RazorpayRefundStatus::Processed => success!(Success),
+        } },
+    runtime: {
+        request: RefundSyncData,
+        response: razorpay::RazorpayRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
 }
 
 macros::macro_connector_flow_status_impls!(

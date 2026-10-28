@@ -415,7 +415,7 @@ pub struct FinixLink {
     pub href: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FinixPaymentStatus {
     Succeeded,
@@ -828,24 +828,11 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
         // A SUCCEEDED capture only confirms the authorization update; the funds
         // movement (transfer) settles asynchronously, so the attempt stays Pending
         // until a PSync on the transfer id confirms the charge.
-        let status = if response.is_void == Some(true) {
-            match response.state {
-                FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => {
-                    AttemptStatus::Voided
-                }
-                FinixPaymentStatus::Failed
-                | FinixPaymentStatus::Canceled
-                | FinixPaymentStatus::Unknown => AttemptStatus::VoidFailed,
-            }
-        } else {
-            match response.state {
-                FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => {
-                    AttemptStatus::Pending
-                }
-                FinixPaymentStatus::Failed
-                | FinixPaymentStatus::Canceled
-                | FinixPaymentStatus::Unknown => AttemptStatus::Failure,
-            }
+        let status = match response.state {
+            FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => AttemptStatus::Pending,
+            FinixPaymentStatus::Failed
+            | FinixPaymentStatus::Canceled
+            | FinixPaymentStatus::Unknown => AttemptStatus::Failure,
         };
 
         let connector_response = build_finix_connector_response(&response);
@@ -2402,4 +2389,22 @@ pub(super) fn build_finix_dispute_webhook_response(
         status_code: 200,
         response_headers: None,
     })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FinixIdKind {
+    /// `AU*` — an authorization (pre-auth). `Succeeded` maps to `Authorized`.
+    #[default]
+    Authorization,
+    /// `TR*` — a transfer (funds movement). `Succeeded` maps to `Charged`.
+    Transfer,
+}
+
+impl From<&FinixId> for FinixIdKind {
+    fn from(id: &FinixId) -> Self {
+        match id {
+            FinixId::Auth(_) => Self::Authorization,
+            FinixId::Transfer(_) => Self::Transfer,
+        }
+    }
 }

@@ -1387,3 +1387,59 @@ impl TryFrom<ResponseRouterData<JpmorganOrbitalInquiryResponse, Self>> for SyncR
         })
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JpmorganOrbitalInquiryOutcome {
+    /// The original transaction was found and approved at the issuer.
+    Success,
+    /// The original transaction was found and declined (`procStatus "0"` with a
+    /// non-approved `approvalStatus`) or completed with the one retriable gateway
+    /// failure (`procStatus "9710"`) — terminal for the PSync answer.
+    Failure,
+    /// The inquiry itself did not complete (`procStatus != "0"`: no record for this
+    /// `retryTrace`, past the 48-hour window, or a mismatched reference). Says nothing
+    /// about the payment, so this never terminates (the TryFrom records
+    /// `Unresolved`, a non-terminal status, for it).
+    #[allow(dead_code)]
+    NotFound,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JpmorganOrbitalAuthorizeOutcome {
+    /// Gateway edit checks passed (`procStatus "0"`) and the issuer approved
+    /// (`approvalStatus "1"`).
+    Success,
+    /// Every other combination — Orbital `/payments` is synchronous and terminal.
+    Failure,
+}
+
+impl JpmorganOrbitalPaymentsResponse {
+    /// Collapse the two-level `procStatus` / `approvalStatus` verdict into the typed
+    /// status consumed by the Authorize mapping macro.
+    pub fn authorize_outcome(&self) -> JpmorganOrbitalAuthorizeOutcome {
+        if self.is_success() {
+            JpmorganOrbitalAuthorizeOutcome::Success
+        } else {
+            JpmorganOrbitalAuthorizeOutcome::Failure
+        }
+    }
+}
+
+impl JpmorganOrbitalPaymentsResponse {
+    /// Collapse the `/inquiry` verdict per [`JpmorganOrbitalPaymentsResponse`]'s own
+    /// branch structure (`is_success` / `inquiry_failure_status`).
+    pub fn inquiry_outcome(&self) -> JpmorganOrbitalInquiryOutcome {
+        if self.is_success() {
+            JpmorganOrbitalInquiryOutcome::Success
+        } else if self.proc_status_value().map(str::trim) == Some(PROC_STATUS_TIMED_OUT) {
+            // Gateway accepted the inquiry but the original authorization timed out;
+            // like every other resolved-but-failed inquiry this terminates the sync.
+            JpmorganOrbitalInquiryOutcome::Failure
+        } else if self.gateway_accepted() {
+            // Found and declined.
+            JpmorganOrbitalInquiryOutcome::Failure
+        } else {
+            JpmorganOrbitalInquiryOutcome::NotFound
+        }
+    }
+}

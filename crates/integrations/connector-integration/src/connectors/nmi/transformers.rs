@@ -2249,3 +2249,17 @@ pub(crate) fn parse_nmi_webhook_signature_header(header: &str) -> Option<(&str, 
     let s_idx = after_t.rfind(",s=")?;
     Some((after_t.get(..s_idx)?, after_t.get(s_idx + 3..)?))
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum NmiPaymentVerdict {
+    /// Sync query returned no transaction record.
+    NotFound,
+    /// `response = 1` (approved) with auto-capture capture method.
+    ApprovedSale,
+    /// `response = 1` (approved) with manual capture.
+    ApprovedAuth,
+    /// `response = 2`/`0` — declined or gateway error.
+    DeclinedOrError,
+    #[default]
+    Other,
+}

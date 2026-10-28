@@ -554,7 +554,7 @@ impl TryFrom<&ConnectorSpecificConfig> for NoonAuthType {
         }
     }
 }
-#[derive(Default, Debug, Deserialize, Serialize, strum::Display)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum NoonPaymentStatus {
@@ -584,7 +584,7 @@ pub enum NoonPaymentStatus {
     Locked,
 }
 
-fn get_payment_status(item: NoonPaymentStatus) -> AttemptStatus {
+pub fn get_payment_status(item: NoonPaymentStatus) -> AttemptStatus {
     match item {
         NoonPaymentStatus::Authorized => AttemptStatus::Authorized,
         NoonPaymentStatus::Captured
@@ -616,7 +616,7 @@ pub struct NoonSubscriptionObject {
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsOrderResponse {
-    status: NoonPaymentStatus,
+    pub status: NoonPaymentStatus,
     id: u64,
     error_code: u64,
     error_message: Option<String>,
@@ -632,14 +632,14 @@ pub struct NoonCheckoutData {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsResponseResult {
-    order: NoonPaymentsOrderResponse,
+    pub order: NoonPaymentsOrderResponse,
     checkout_data: Option<NoonCheckoutData>,
     subscription: Option<NoonSubscriptionObject>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoonPaymentsResponse {
-    result: NoonPaymentsResponseResult,
+    pub result: NoonPaymentsResponseResult,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
@@ -950,19 +950,19 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsTransactionResponse {
     id: String,
-    status: RefundStatus,
+    pub status: RefundStatus,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonRefundResponseResult {
-    transaction: NoonPaymentsTransactionResponse,
+    pub transaction: NoonPaymentsTransactionResponse,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    result: NoonRefundResponseResult,
+    pub result: NoonRefundResponseResult,
     result_code: u32,
     class_description: String,
     message: String,
@@ -1012,20 +1012,20 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
 #[serde(rename_all = "camelCase")]
 pub struct NoonRefundResponseTransactions {
     id: String,
-    status: RefundStatus,
-    transaction_reference: Option<String>,
+    pub status: RefundStatus,
+    pub transaction_reference: Option<String>,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonRefundSyncResponseResult {
-    transactions: Vec<NoonRefundResponseTransactions>,
+    pub transactions: Vec<NoonRefundResponseTransactions>,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundSyncResponse {
-    result: NoonRefundSyncResponseResult,
+    pub result: NoonRefundSyncResponseResult,
     result_code: u32,
     class_description: String,
     message: String,

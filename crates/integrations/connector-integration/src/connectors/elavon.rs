@@ -474,6 +474,131 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 {
 }
 
+// Flow declarations mirror the production transformer mappings, including
+// context-dependent and nonterminal outcomes.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Elavon<T>,
+    flow: PSync,
+    source: elavon::TransactionSyncStatus,
+    context: elavon::SyncTransactionType,
+    mapping: |status, ctx| {
+        use elavon::{SyncTransactionType, TransactionSyncStatus};
+        match status {
+            TransactionSyncStatus::STL => match ctx {
+                SyncTransactionType::Sale | SyncTransactionType::AuthOnly => success!(Charged),
+                SyncTransactionType::Return => non_terminal!(Pending),
+            },
+            TransactionSyncStatus::OPN => match ctx {
+                SyncTransactionType::AuthOnly => success!(Authorized),
+                SyncTransactionType::Sale | SyncTransactionType::Return => non_terminal!(Pending),
+            },
+            TransactionSyncStatus::PEN | TransactionSyncStatus::REV => non_terminal!(Pending),
+            TransactionSyncStatus::PST | TransactionSyncStatus::FPR | TransactionSyncStatus::PRE => {
+                if ctx == SyncTransactionType::AuthOnly && status == TransactionSyncStatus::PRE {
+                    failure!(AuthenticationFailed)
+                } else {
+                    failure!(Failure)
+                }
+            }
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: ElavonPSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.ssl_trans_status.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.ssl_transaction_type.clone()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Elavon<T>,
+    flow: RSync,
+    source: elavon::TransactionSyncStatus,
+    context: elavon::SyncTransactionType,
+    mapping: |status, ctx| {
+        use elavon::{SyncTransactionType, TransactionSyncStatus};
+        match ctx {
+            SyncTransactionType::Return => match status {
+                TransactionSyncStatus::STL => success!(Success),
+                TransactionSyncStatus::PEN | TransactionSyncStatus::OPN => non_terminal!(Pending),
+                TransactionSyncStatus::REV => non_terminal!(ManualReview),
+                TransactionSyncStatus::PST | TransactionSyncStatus::FPR | TransactionSyncStatus::PRE => {
+                    failure!(Failure)
+                }
+            },
+            _ => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: ElavonRSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.ssl_trans_status.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.ssl_transaction_type.clone()) },
+    },
+}
+
+macro_rules! elavon_payment_mapping {
+    ($status:ident, $authorized:expr, $charged:expr) => {{
+        match $status {
+            elavon::ElavonResult::Error(_) => failure!(Failure),
+            elavon::ElavonResult::Success(response) => {
+                match response.ssl_transaction_type.as_deref() {
+                    Some("ccauthonly") | Some("AUTHONLY") => $authorized,
+                    Some("ccsale") | Some("cccomplete") | Some("SALE") | Some("COMPLETE") => {
+                        $charged
+                    }
+                    _ if matches!(response.ssl_result, elavon::SslResult::Approved) => $charged,
+                    _ => failure!(Failure),
+                }
+            }
+        }
+    }};
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Elavon<T>, flow: Authorize, source: elavon::ElavonResult,
+    mapping: |status| { elavon_payment_mapping!(status, success!(Authorized), success!(Charged)) },
+    runtime: { request: PaymentsAuthorizeData<T>, response: ElavonPaymentsResponse,
+        source: |_common, _request, response, _code| { Ok(response.result.clone()) }, },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Elavon<T>, flow: Capture, source: elavon::ElavonResult,
+    mapping: |status| { elavon_payment_mapping!(status, failure!(CaptureFailed), success!(Charged)) },
+    runtime: { request: PaymentsCaptureData, response: ElavonCaptureResponse,
+        source: |_common, _request, response, _code| { Ok(response.result.clone()) }, },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Elavon<T>, flow: RepeatPayment, source: elavon::ElavonResult,
+    mapping: |status| { elavon_payment_mapping!(status, non_terminal!(Authorized), success!(Charged)) },
+    runtime: { request: RepeatPaymentData<T>, response: ElavonRepeatPaymentResponse,
+        source: |_common, _request, response, _code| { Ok(response.result.clone()) }, },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Elavon<T>, flow: Refund, source: elavon::ElavonResult,
+    mapping: |status| { match status {
+        elavon::ElavonResult::Error(_) => failure!(Failure),
+        elavon::ElavonResult::Success(response) => match response.ssl_transaction_type.as_deref() {
+            Some("RETURN") => match response.ssl_result {
+                elavon::SslResult::Approved => success!(Success),
+                elavon::SslResult::Declined => failure!(Failure),
+                elavon::SslResult::Other(_) => non_terminal!(Pending),
+            },
+            _ => non_terminal!(Pending),
+        },
+    } },
+    runtime: { request: RefundsData, response: ElavonRefundResponse,
+        source: |_common, _request, response, _code| { Ok(response.result.clone()) }, },
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Elavon,
     generic_type: T,

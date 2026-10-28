@@ -561,3 +561,10 @@ impl TryFrom<ResponseRouterData<GigadatRefundResponse, Self>>
         Ok(router_data)
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GigadatRefundStatus {
+    Success,
+    Failure,
+    Pending,
+}

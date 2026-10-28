@@ -84,7 +84,7 @@ const AUTH_AND_CAPTURE_REQUEST: &str = "00003";
 const CANCEL_REQUEST: &str = "00005";
 const REFUND_REQUEST: &str = "00014";
 const SYNC_REQUEST: &str = "00017";
-const SUCCESS_CODE: &str = "00000";
+pub const SUCCESS_CODE: &str = "00000";
 const PAY_ORIGIN_INTERNET: &str = "024";
 const PAY_ORIGIN_RECURRING: &str = "027";
 const SUBSCRIBER_AUTH_REQUEST: &str = "00051";
@@ -1636,4 +1636,22 @@ pub struct PayboxErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PayboxPaymentVerdict {
+    Approved,
+    Rejected,
+}
+
+impl PayboxPaymentResponse {
+    /// Flow-status view used by the `impl_flow_status_mapping!` macros:
+    /// mirrors the TryFrom success test (`CODEREPONSE == "00000"`).
+    pub fn payment_verdict(&self) -> PayboxPaymentVerdict {
+        if self.response_code == SUCCESS_CODE {
+            PayboxPaymentVerdict::Approved
+        } else {
+            PayboxPaymentVerdict::Rejected
+        }
+    }
 }

@@ -477,6 +477,68 @@ macros::macro_connector_implementation!(
 // Unsupported / not-implemented flows
 // ---------------------------------------------------------------------------
 
+// ===== FLOW STATUS MAPPINGS =====
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Netcetera<T>,
+    flow: PreAuthenticate,
+    source: common_enums::AttemptStatus,
+    mapping: |status| { match status {
+        common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+        _ => failure!(AuthenticationFailed),
+    } },
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: NetceteraPreAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(transformers::pre_authenticate_attempt_status(response))
+        },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Netcetera<T>,
+    flow: Authenticate,
+    source: common_enums::AttemptStatus,
+    mapping: |status| { match status {
+        common_enums::AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+        common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+        _ => failure!(AuthenticationFailed),
+    } },
+    runtime: {
+        request: PaymentsAuthenticateData<T>,
+        response: NetceteraAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(transformers::authenticate_attempt_status(response))
+        },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Netcetera<T>,
+    flow: PostAuthenticate,
+    source: common_enums::AttemptStatus,
+    mapping: |status| {
+        match status {
+            common_enums::AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            _ => failure!(AuthenticationFailed),
+        }
+    },
+    runtime: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: NetceteraPostAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(transformers::post_authenticate_attempt_status(response))
+        },
+    },
+}
+
+// Authorize remains intentionally unmapped: this authentication-only connector returns
+// NotImplemented before dispatch and therefore has no connector response status to classify.
+
 macros::macro_connector_flow_status_impls!(
     connector: Netcetera,
     generic_type: T,

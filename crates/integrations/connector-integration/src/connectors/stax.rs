@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::{CurrencyUnit, PaymentMethod, PaymentMethodType};
+use common_enums::{AttemptStatus, CurrencyUnit, PaymentMethod, PaymentMethodType, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{
@@ -34,7 +34,7 @@ use interfaces::{
 use serde::Serialize;
 
 use self::transformers::{
-    StaxAuthType, StaxAuthorizeRequest, StaxAuthorizeResponse, StaxCaptureRequest,
+    self as stax, StaxAuthType, StaxAuthorizeRequest, StaxAuthorizeResponse, StaxCaptureRequest,
     StaxCaptureResponse, StaxCustomerRequest, StaxCustomerResponse, StaxErrorResponse,
     StaxPSyncRequest, StaxPSyncResponse, StaxRSyncRequest, StaxRSyncResponse, StaxRefundRequest,
     StaxRefundResponse, StaxRepeatPaymentRequest, StaxRepeatPaymentResponse,
@@ -654,6 +654,351 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Stax<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: Authorize,
+    source: StaxAuthorizeResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { if !response.success {
+            AttemptStatus::Failure
+        } else {
+            match response.transaction_type {
+                stax::StaxTransactionType::PreAuth => {
+                    if response.is_captured == 0 {
+                        AttemptStatus::Authorized
+                    } else {
+                        AttemptStatus::Charged
+                    }
+                }
+                stax::StaxTransactionType::Charge => AttemptStatus::Charged,
+                // `get_payment_status` errors out on unexpected types; they cannot
+                // be reported through the mapping, so fall back to Pending.
+                _ => AttemptStatus::Pending,
+            }
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: StaxAuthorizeResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: PSync,
+    source: StaxPSyncResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { if !response.success {
+            AttemptStatus::Failure
+        } else if response.is_voided {
+            AttemptStatus::Voided
+        } else {
+            match response.transaction_type {
+                stax::StaxTransactionType::PreAuth => {
+                    if response.is_captured == 0 {
+                        AttemptStatus::Authorized
+                    } else {
+                        AttemptStatus::Charged
+                    }
+                }
+                stax::StaxTransactionType::Charge => AttemptStatus::Charged,
+                _ => AttemptStatus::Pending,
+            }
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: StaxPSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: Capture,
+    source: StaxCaptureResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { if !response.success {
+            AttemptStatus::Failure
+        } else {
+            match response.transaction_type {
+                stax::StaxTransactionType::PreAuth => {
+                    if response.is_captured == 0 {
+                        AttemptStatus::Authorized
+                    } else {
+                        AttemptStatus::Charged
+                    }
+                }
+                stax::StaxTransactionType::Charge => AttemptStatus::Charged,
+                _ => AttemptStatus::Pending,
+            }
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: StaxCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: Void,
+    source: bool,
+    context: (),
+    mapping: |is_voided, _ctx| {
+        let mapped_status = (|| { if is_voided {
+            AttemptStatus::Voided
+        } else {
+            AttemptStatus::VoidFailed
+        } })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: StaxVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.is_voided) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: SetupMandate,
+    source: StaxSetupMandateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { if !response.success {
+            AttemptStatus::Failure
+        } else {
+            match response.transaction_type {
+                stax::StaxTransactionType::PreAuth => {
+                    if response.is_captured == 0 {
+                        AttemptStatus::Authorized
+                    } else {
+                        AttemptStatus::Charged
+                    }
+                }
+                stax::StaxTransactionType::Charge => AttemptStatus::Charged,
+                _ => AttemptStatus::Pending,
+            }
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: StaxSetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: RepeatPayment,
+    source: StaxRepeatPaymentResponse,
+    context: (),
+    mapping: |response, _ctx| {
+        let mapped_status = (|| { if !response.success {
+            AttemptStatus::Failure
+        } else {
+            match response.transaction_type {
+                stax::StaxTransactionType::PreAuth => {
+                    if response.is_captured == 0 {
+                        AttemptStatus::Authorized
+                    } else {
+                        AttemptStatus::Charged
+                    }
+                }
+                stax::StaxTransactionType::Charge => AttemptStatus::Charged,
+                _ => AttemptStatus::Pending,
+            }
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorized => non_terminal!(Authorized),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: StaxRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: Refund,
+    source: bool,
+    context: (),
+    mapping: |refund_child_success, _ctx| {
+        let mapped_status = (|| { if refund_child_success {
+            RefundStatus::Pending
+        } else {
+            RefundStatus::Failure
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: StaxRefundResponse,
+        // The handler errors out when no refund child matches, and compares
+        // `total` at FloatMajorUnit precision; unrepresentable here. `true`
+        // only says HTTP-200 carried the refund shape — Pending is honest.,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(true) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stax<T>,
+    flow: RSync,
+    source: bool,
+    context: (),
+    mapping: |success, _ctx| {
+        let mapped_status = (|| { if success {
+            RefundStatus::Success
+        } else {
+            RefundStatus::Failure
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: StaxRSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.success) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
 }
 
 macros::macro_connector_flow_status_impls!(

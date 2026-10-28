@@ -738,7 +738,7 @@ fn missing_transaction_id_err() -> ConnectorError {
 /// flow-specific — a rejected Capture should surface as `CaptureFailed`, a
 /// rejected Void as `VoidFailed`, not as a generic `Failure` that would imply
 /// the authorization itself was declined.
-fn map_attempt_status(
+pub fn map_attempt_status(
     body: &EtisalatTransactionBody,
     on_success: AttemptStatus,
     on_failure: AttemptStatus,
@@ -1106,5 +1106,24 @@ pub fn build_error_response(
         raw_connector_response: None,
         raw_connector_request: None,
         typed_connector_request: None,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EtisalatResponseVerdict {
+    Success,
+    Pending,
+    Failure,
+}
+
+impl From<&EtisalatTransactionBody> for EtisalatResponseVerdict {
+    fn from(body: &EtisalatTransactionBody) -> Self {
+        if body.is_success() {
+            Self::Success
+        } else if body.is_pending() {
+            Self::Pending
+        } else {
+            Self::Failure
+        }
     }
 }

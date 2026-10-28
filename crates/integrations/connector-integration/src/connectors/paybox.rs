@@ -271,41 +271,269 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// Paybox answers with a CODEREPONSE ack string, not a typed status — the
+// TryFrom treats "00000" as success and anything else as an ErrorResponse.
+// The flow-status view is therefore the binary `PayboxPaymentVerdict`; the
+// capture method (request context) decides Authorized vs Charged, mirroring
+// the TryFrom exactly.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paybox<T>,
+    flow: Authorize,
+    source: PayboxPaymentVerdict,
+    context: bool,
+    mapping: |status, is_auto_capture| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        match status {
+            PayboxPaymentVerdict::Approved => {
+                if is_auto_capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            PayboxPaymentVerdict::Rejected => AttemptStatus::Failure,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: PayboxAuthorizeResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(if response.response_code == SUCCESS_CODE {
+            PayboxPaymentVerdict::Approved
+        } else {
+            PayboxPaymentVerdict::Rejected
+        }) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(request.is_auto_capture()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Paybox<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paybox<T>,
+    flow: PSync,
+    source: PayboxStatus,
+    mapping: |status| {
+        match status {
+            PayboxStatus::Captured => success!(Charged),
+            PayboxStatus::Rejected => failure!(Failure),
+            PayboxStatus::Authorised => success!(Authorized),
+            PayboxStatus::Cancelled => success!(Voided),
+            PayboxStatus::Refunded => success!(AutoRefunded),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: PayboxPSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Paybox<T>
 {
 }
 
+// Capture answers with a CODEREPONSE ack only (no STATUS); the TryFrom treats
+// SUCCESS_CODE as captured and any other code as a failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paybox<T>,
+    flow: Capture,
+    source: PayboxPaymentVerdict,
+    mapping: |status| {
+        match status {
+            PayboxPaymentVerdict::Approved => success!(Charged),
+            PayboxPaymentVerdict::Rejected => failure!(CaptureFailed),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: PayboxCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(if response.response_code == SUCCESS_CODE {
+            PayboxPaymentVerdict::Approved
+        } else {
+            PayboxPaymentVerdict::Rejected
+        }) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Paybox<T>
 {
 }
 
+// Void answers with a CODEREPONSE ack only (no STATUS); the TryFrom treats
+// SUCCESS_CODE as voided and any other code as a failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paybox<T>,
+    flow: Void,
+    source: PayboxPaymentVerdict,
+    mapping: |status| {
+        match status {
+            PayboxPaymentVerdict::Approved => success!(Voided),
+            PayboxPaymentVerdict::Rejected => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: PayboxVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payment_verdict()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Paybox<T>
 {
 }
 
+// Refund answers with a CODEREPONSE ack only (no STATUS); the TryFrom treats
+// SUCCESS_CODE as a successful refund and any other code as an ErrorResponse.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paybox<T>,
+    flow: Refund,
+    source: PayboxPaymentVerdict,
+    mapping: |status| {
+        match status {
+            PayboxPaymentVerdict::Approved => success!(Success),
+            PayboxPaymentVerdict::Rejected => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: PayboxRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(if response.response_code == SUCCESS_CODE {
+            PayboxPaymentVerdict::Approved
+        } else {
+            PayboxPaymentVerdict::Rejected
+        }) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Paybox<T>
 {
 }
 
+// RSync reads STATUS when present; otherwise CODEREPONSE == SUCCESS_CODE means
+// the refund succeeded, any other code means it failed (mirrors the TryFrom).
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paybox<T>,
+    flow: RSync,
+    source: PayboxStatus,
+    mapping: |status| {
+        match status {
+            PayboxStatus::Refunded => success!(Success),
+            PayboxStatus::Rejected => failure!(Failure),
+            PayboxStatus::Cancelled => failure!(Failure),
+            PayboxStatus::Authorised => failure!(Failure),
+            PayboxStatus::Captured => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: PayboxRSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone().unwrap_or_else(|| {
+            if response.response_code == SUCCESS_CODE { PayboxStatus::Refunded } else { PayboxStatus::Rejected }
+        })) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Paybox<T>
 {
 }
 
+// RepeatPayment answers with a CODEREPONSE ack only; the TryFrom branches the
+// success status on the capture method, exactly like Authorize.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paybox<T>,
+    flow: RepeatPayment,
+    source: PayboxPaymentVerdict,
+    context: bool,
+    mapping: |status, is_auto_capture| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        match status {
+            PayboxPaymentVerdict::Approved => {
+                if is_auto_capture { AttemptStatus::Charged } else { AttemptStatus::Authorized }
+            }
+            PayboxPaymentVerdict::Rejected => AttemptStatus::Failure,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Authorized => non_terminal!(Authorized),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: PayboxRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payment_verdict()) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(request.is_auto_capture()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Paybox<T>
 {
 }
 
+// SetupMandate answers with a CODEREPONSE ack only (no STATUS); the TryFrom
+// treats SUCCESS_CODE as charged and any other code as a failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paybox<T>,
+    flow: SetupMandate,
+    source: PayboxPaymentVerdict,
+    mapping: |status| {
+        match status {
+            PayboxPaymentVerdict::Approved => success!(Charged),
+            PayboxPaymentVerdict::Rejected => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: PayboxSetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payment_verdict()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Paybox<T>
 {

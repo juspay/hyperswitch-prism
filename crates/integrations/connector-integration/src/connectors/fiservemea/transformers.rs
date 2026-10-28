@@ -531,9 +531,10 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FiservemeaTransactionType {
+    #[default]
     Sale,
     Preauth,
     Credit,
@@ -628,7 +629,7 @@ pub struct Processor {
     pub security_code_response: Option<String>,
 }
 
-fn map_status(
+pub fn map_status(
     fiservemea_status: Option<FiservemeaPaymentStatus>,
     fiservemea_result: Option<FiservemeaPaymentResult>,
     transaction_type: FiservemeaTransactionType,
@@ -680,7 +681,7 @@ fn map_status(
     }
 }
 
-fn map_refund_status(
+pub fn map_refund_status(
     fiservemea_status: Option<FiservemeaPaymentStatus>,
     fiservemea_result: Option<FiservemeaPaymentResult>,
 ) -> common_enums::RefundStatus {
@@ -1086,4 +1087,16 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
             ..item.router_data
         })
     }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FiservemeaStatusCtx {
+    pub transaction_result: Option<FiservemeaPaymentResult>,
+    pub transaction_type: FiservemeaTransactionType,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FiservemeaRefundCtx {
+    pub transaction_status: Option<FiservemeaPaymentStatus>,
+    pub transaction_result: Option<FiservemeaPaymentResult>,
 }

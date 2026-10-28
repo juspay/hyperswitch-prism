@@ -67,31 +67,279 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Barclaycard<T>,
+    flow: Authorize,
+    source: responses::BarclaycardPaymentStatus,
+    context: bool,
+    mapping: |status, auto_capture| {
+        let mapped_status = (|| { use responses::BarclaycardPaymentStatus as S;
+        match status {
+            S::Authorized | S::AuthorizedPendingReview => {
+                if auto_capture {
+                    // Barclaycard returns Payment Status as Authorized even for auto-capture
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::Authorized
+                }
+            }
+            S::Pending => {
+                if auto_capture {
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::Pending
+                }
+            }
+            S::Succeeded | S::Transmitted => common_enums::AttemptStatus::Charged,
+            S::Voided | S::Reversed | S::Cancelled => common_enums::AttemptStatus::Voided,
+            S::Failed
+            | S::Declined
+            | S::AuthorizedRiskDeclined
+            | S::InvalidRequest
+            | S::Rejected
+            | S::ServerError => common_enums::AttemptStatus::Failure,
+            S::PendingReview | S::StatusNotReceived => common_enums::AttemptStatus::Pending,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: BarclaycardAuthorizeResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
+            responses::BarclaycardPaymentsResponse::ClientReferenceInformation(info) => info
+                .status
+                .clone()
+                .unwrap_or(responses::BarclaycardPaymentStatus::StatusNotReceived),
+            responses::BarclaycardPaymentsResponse::ErrorInformation(_) => {
+                responses::BarclaycardPaymentStatus::Failed
+            }
+        }) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(matches!(
+            request.capture_method,
+            Some(common_enums::CaptureMethod::Automatic) | None
+        )) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Barclaycard<T>
 {
 }
 
+// BLOCKED: PSync leaves the previous common status unchanged when
+// application_information.status is absent. Exact runtime mapping therefore
+// requires FlowStatusReader rather than an infallible inline source extractor.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Barclaycard<T>,
+    flow:            PSync,
+    source:          responses::BarclaycardPaymentStatus,
+    context:         bool,
+    params:          [status, auto_capture],
+    success: Authorized => [Authorized, Charged, Voided],
+    failure: Failed => Failure,
+    {
+        use responses::BarclaycardPaymentStatus as S;
+        match status {
+            S::Authorized | S::AuthorizedPendingReview => {
+                if auto_capture {
+                    // Barclaycard returns Payment Status as Authorized even for auto-capture
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::Authorized
+                }
+            }
+            S::Pending => {
+                if auto_capture {
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::Pending
+                }
+            }
+            S::Succeeded | S::Transmitted => common_enums::AttemptStatus::Charged,
+            S::Voided | S::Reversed | S::Cancelled => common_enums::AttemptStatus::Voided,
+            S::Failed
+            | S::Declined
+            | S::AuthorizedRiskDeclined
+            | S::InvalidRequest
+            | S::Rejected
+            | S::ServerError => common_enums::AttemptStatus::Failure,
+            S::PendingReview | S::StatusNotReceived => common_enums::AttemptStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Barclaycard<T>
 {
 }
 
+// BLOCKED: Void calls the common payment mapper with auto_capture=false; that
+// can return Authorized, Charged, or Voided and does not use the per-flow
+// VoidInitiated/VoidFailed coercions declared below.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Barclaycard<T>,
+    flow:      Void,
+    source:    responses::BarclaycardPaymentStatus,
+    success:   Voided     => Voided,
+    failure:   Failed     => VoidFailed,
+    {
+        Authorized             => VoidInitiated,
+        Succeeded              => VoidFailed,
+        Transmitted            => VoidFailed,
+        Reversed               => Voided,
+        Cancelled              => Voided,
+        Pending                => Pending,
+        Declined               => VoidFailed,
+        Rejected               => VoidFailed,
+        AuthorizedPendingReview => VoidInitiated,
+        AuthorizedRiskDeclined => VoidFailed,
+        InvalidRequest         => VoidFailed,
+        ServerError            => VoidFailed,
+        PendingReview          => Pending,
+        StatusNotReceived      => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Barclaycard<T>
 {
 }
 
+// BLOCKED: Capture calls the same common mapper with auto_capture=true; failure
+// branches return Failure and voided branches return Voided, unlike this macro
+// and outside the complete Capture status contract.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Barclaycard<T>,
+    flow:      Capture,
+    source:    responses::BarclaycardPaymentStatus,
+    success:   Succeeded  => Charged,
+    failure:   Failed     => CaptureFailed,
+    {
+        Authorized             => Charged,
+        Transmitted            => Charged,
+        Voided                 => CaptureFailed,
+        Reversed               => CaptureFailed,
+        Cancelled              => CaptureFailed,
+        Pending                => Charged,
+        Declined               => CaptureFailed,
+        Rejected               => CaptureFailed,
+        AuthorizedPendingReview => Charged,
+        AuthorizedRiskDeclined => CaptureFailed,
+        InvalidRequest         => CaptureFailed,
+        ServerError            => CaptureFailed,
+        PendingReview          => Pending,
+        StatusNotReceived      => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Barclaycard<T>
 {
 }
 
+// BLOCKED: SetupMandate only converts Authorized to Charged after running the
+// common mapper. Voided/Reversed/Cancelled still produce Voided, which is not
+// in SetupMandate::ALLOWED; this declaration converted them to Failure.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Barclaycard<T>,
+    flow:      SetupMandate,
+    source:    responses::BarclaycardPaymentStatus,
+    success:   Succeeded  => Charged,
+    failure:   Failed     => Failure,
+    {
+        Authorized             => Charged,
+        Transmitted            => Charged,
+        Voided                 => Failure,
+        Reversed               => Failure,
+        Cancelled              => Failure,
+        Pending                => Pending,
+        Declined               => Failure,
+        Rejected               => Failure,
+        AuthorizedPendingReview => Charged,
+        AuthorizedRiskDeclined => Failure,
+        InvalidRequest         => Failure,
+        ServerError            => Failure,
+        PendingReview          => Pending,
+        StatusNotReceived      => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Barclaycard<T>
 {
 }
 
+// BLOCKED: RepeatPayment uses the common mapper unchanged. Its voided branches
+// return Voided, outside RepeatPayment::ALLOWED, while this macro changed them
+// to Failure.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Barclaycard<T>,
+    flow:            RepeatPayment,
+    source:          responses::BarclaycardPaymentStatus,
+    context:         bool,
+    params:          [status, auto_capture],
+    success: Succeeded => [Charged],
+    failure: Failed => Failure,
+    {
+        use responses::BarclaycardPaymentStatus as S;
+        match status {
+            S::Authorized | S::AuthorizedPendingReview => {
+                if auto_capture {
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::Authorized
+                }
+            }
+            S::Pending => {
+                if auto_capture {
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::Pending
+                }
+            }
+            S::Succeeded | S::Transmitted => common_enums::AttemptStatus::Charged,
+            S::Voided | S::Reversed | S::Cancelled => common_enums::AttemptStatus::Failure,
+            S::Failed
+            | S::Declined
+            | S::AuthorizedRiskDeclined
+            | S::InvalidRequest
+            | S::Rejected
+            | S::ServerError => common_enums::AttemptStatus::Failure,
+            S::PendingReview | S::StatusNotReceived => common_enums::AttemptStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Barclaycard<T>
 {
@@ -123,11 +371,87 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 
+// Refund: mirror of `map_barclaycard_refund_status(status, error_reason)`. Every
+// `BarclaycardRefundStatus` variant has a fixed target except `TwoZeroOne`,
+// which splits on the response's `error_information.reason` (the ctx here) —
+// PROCESSOR_DECLINED fails the refund, anything else keeps it Pending.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Barclaycard<T>,
+    flow: Refund,
+    source: responses::BarclaycardRefundStatus,
+    context: Option<String>,
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::RefundStatus;
+        use responses::BarclaycardRefundStatus as S;
+        match status {
+            S::Succeeded | S::Transmitted => RefundStatus::Success,
+            S::Cancelled | S::Failed | S::Voided => RefundStatus::Failure,
+            S::Pending => RefundStatus::Pending,
+            S::TwoZeroOne => {
+                if ctx == Some("PROCESSOR_DECLINED".to_string()) {
+                    RefundStatus::Failure
+                } else {
+                    RefundStatus::Pending
+                }
+            }
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: BarclaycardRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response
+            .error_information
+            .as_ref()
+            .and_then(|error| error.reason.clone())) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Barclaycard<T>
 {
 }
 
+// RSync goes through the same `map_barclaycard_refund_status(status,
+// error_reason)` mapping as Refund — identical body, keyed on the same ctx.
+// BLOCKED: RSync leaves the previous common refund status unchanged when the
+// nested application status is absent. Exact runtime mapping needs
+// FlowStatusReader for that branch.
+#[cfg(any())]
+domain_types::impl_refund_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Barclaycard<T>,
+    flow:           RSync,
+    source:         responses::BarclaycardRefundStatus,
+    context:        Option<String>,
+    params:         [status, ctx],
+    success: Succeeded => Success,
+    failure: Failed => Failure,
+    {
+        use common_enums::RefundStatus;
+        use responses::BarclaycardRefundStatus as S;
+        match status {
+            S::Succeeded | S::Transmitted => RefundStatus::Success,
+            S::Cancelled | S::Failed | S::Voided => RefundStatus::Failure,
+            S::Pending => RefundStatus::Pending,
+            S::TwoZeroOne => {
+                if ctx == Some("PROCESSOR_DECLINED".to_string()) {
+                    RefundStatus::Failure
+                } else {
+                    RefundStatus::Pending
+                }
+            }
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Barclaycard<T>
 {
@@ -186,6 +510,85 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentPostAuthenticateV2<T> for Barclaycard<T>
 {
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Barclaycard<T>,
+    flow: PreAuthenticate,
+    source: common_enums::AttemptStatus,
+    context: (),
+    mapping: |response, _ctx| {
+        match response {
+            common_enums::AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Authorized => non_terminal!(Authorized),
+            common_enums::AttemptStatus::Charged => non_terminal!(Charged),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: BarclaycardAuthSetupResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(barclaycard::auth_setup_status(response)) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Barclaycard<T>,
+    flow: Authenticate,
+    source: common_enums::AttemptStatus,
+    context: (),
+    mapping: |response, _ctx| {
+        match response {
+            common_enums::AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthenticateData<T>,
+        response: BarclaycardAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(barclaycard::authenticate_status(response)) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Barclaycard<T>,
+    flow: PostAuthenticate,
+    source: common_enums::AttemptStatus,
+    context: (),
+    mapping: |response, _ctx| {
+        match response {
+            common_enums::AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: BarclaycardPostAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(barclaycard::authenticate_status(response)) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
 }
 
 // SetupMandate implementation is below using macro_connector_implementation!

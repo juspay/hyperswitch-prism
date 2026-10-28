@@ -2810,7 +2810,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
 }
 
 // Status mapping functions
-fn get_attempt_status(
+pub fn get_attempt_status(
     flow: WorldpayvantivPaymentFlow,
     response: WorldpayvantivResponseCode,
 ) -> Result<common_enums::AttemptStatus, Report<ConnectorError>> {

@@ -1348,6 +1348,41 @@ pub struct GlobalpaymentsHeartlandReportBody {
     pub data: Option<GlobalpaymentsHeartlandReportData>,
 }
 
+impl GlobalpaymentsHeartlandReportBody {
+    pub fn sync_ctx(&self) -> GlobalpaymentsHeartlandSyncCtx {
+        let service_name = match self.service_name.as_deref() {
+            Some(SERVICE_NAME_CREDIT_AUTH) => GlobalpaymentsHeartlandServiceName::CreditAuth,
+            Some(SERVICE_NAME_CREDIT_SALE) => GlobalpaymentsHeartlandServiceName::CreditSale,
+            Some(SERVICE_NAME_CREDIT_VOID) => GlobalpaymentsHeartlandServiceName::CreditVoid,
+            Some(SERVICE_NAME_CREDIT_RETURN) => GlobalpaymentsHeartlandServiceName::CreditReturn,
+            _ => GlobalpaymentsHeartlandServiceName::Other,
+        };
+        let txn_status = match self
+            .data
+            .as_ref()
+            .and_then(|data| data.txn_status.as_deref())
+        {
+            Some(TXN_STATUS_ACTIVE) => GlobalpaymentsHeartlandTxnStatus::Active,
+            Some(TXN_STATUS_REVERSED) => GlobalpaymentsHeartlandTxnStatus::Reversed,
+            _ => GlobalpaymentsHeartlandTxnStatus::Other,
+        };
+        let is_declined = self
+            .data
+            .as_ref()
+            .and_then(|data| data.rsp_code.as_deref())
+            .map(|code| {
+                !code.is_empty()
+                    && !matches!(code, ISSUER_RSP_CODE_APPROVAL | ISSUER_RSP_CODE_CARD_OK)
+            })
+            .unwrap_or(false);
+        GlobalpaymentsHeartlandSyncCtx {
+            service_name,
+            txn_status,
+            is_declined,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct GlobalpaymentsHeartlandReportTransaction {
     #[serde(rename = "ReportTxnDetail")]
@@ -1661,4 +1696,44 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsHeartlandRSyncResponse, Self>> for
             ..item.router_data
         })
     }
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum GlobalpaymentsHeartlandFlowStatus {
+    Approved,
+    #[default]
+    Other,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum GlobalpaymentsHeartlandServiceName {
+    CreditAuth,
+    CreditSale,
+    CreditVoid,
+    CreditReturn,
+    /// Any service name Portico adds later — the TryFrom falls through to
+    /// Pending for these.
+    #[default]
+    Other,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum GlobalpaymentsHeartlandTxnStatus {
+    Active,
+    Reversed,
+    #[default]
+    Other,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct GlobalpaymentsHeartlandSyncCtx {
+    pub service_name: GlobalpaymentsHeartlandServiceName,
+    pub txn_status: GlobalpaymentsHeartlandTxnStatus,
+    pub is_declined: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct GlobalpaymentsHeartlandAuthorizeCtx {
+    pub gateway: GlobalpaymentsHeartlandFlowStatus,
+    pub is_auto_capture: bool,
 }

@@ -8,10 +8,10 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, IncrementalAuthorization, Refund, RepeatPayment, SetupMandate, Void,
+        Authorize, Capture, IncrementalAuthorization, Refund, RepeatPayment, SetupMandate,
     },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, RefundFlowData, RefundsData,
         RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
     },
@@ -36,7 +36,7 @@ use transformers::{
     WorldpayraftIncrementalAuthorizationResponse, WorldpayraftRefundRequest,
     WorldpayraftRefundResponse, WorldpayraftRepeatPaymentRequest,
     WorldpayraftRepeatPaymentResponse, WorldpayraftSetupMandateRequest,
-    WorldpayraftSetupMandateResponse, WorldpayraftVoidRequest, WorldpayraftVoidResponse,
+    WorldpayraftSetupMandateResponse,
 };
 
 use crate::{connectors::macros, types::ResponseRouterData, utils, with_error_response_body};
@@ -88,12 +88,6 @@ macros::create_all_prerequisites!(
             request_body: WorldpayraftRepeatPaymentRequest<T>,
             response_body: WorldpayraftRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-        ),
-        (
-            flow: Void,
-            request_body: WorldpayraftVoidRequest,
-            response_body: WorldpayraftVoidResponse,
-            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         )
     ],
     amount_converters: [amount_converter: StringMajorUnit],
@@ -264,7 +258,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Worldpayraft,
-    curl_request: Json(WorldpayraftAuthorizeRequest<T>),
+    curl_request: Json(WorldpayraftAuthorizeRequest),
     curl_response: WorldpayraftAuthorizeResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
@@ -284,14 +278,15 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
+            use domain_types::payment_method_data::PaymentMethodData;
             let base_url = self.connector_base_url_payments(req);
-            let is_debit = worldpayraft::is_debit_card(&req.request.payment_method_data);
-            let path = match (is_debit, req.request.is_auto_capture()) {
-                (true, true) => "debit/purchase",
-                (true, false) => "debit/preauth",
-                (false, true) => "credit/purchase",
-                (false, false) => "credit/authorization",
-            };
+            let is_debit = matches!(
+                &req.request.payment_method_data,
+                PaymentMethodData::Card(c) if c.card_type.as_deref()
+                    .map(|t| t.eq_ignore_ascii_case(worldpayraft::CARD_TYPE_DEBIT))
+                    .unwrap_or(false)
+            );
+            let path = if is_debit { "debit/preauth" } else { "credit/authorization" };
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -433,7 +428,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Worldpayraft,
-    curl_request: Json(WorldpayraftSetupMandateRequest<T>),
+    curl_request: Json(WorldpayraftSetupMandateRequest),
     curl_response: WorldpayraftSetupMandateResponse,
     flow_name: SetupMandate,
     resource_common_data: PaymentFlowData,
@@ -455,44 +450,6 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/tokenization/token"))
-        }
-    }
-);
-
-// ===== VOID TRAIT MARKER =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidV2 for Worldpayraft<T>
-{
-}
-
-// =============================================================================
-// VOID FLOW IMPLEMENTATION
-// =============================================================================
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Worldpayraft,
-    curl_request: Json(WorldpayraftVoidRequest),
-    curl_response: WorldpayraftVoidResponse,
-    flow_name: Void,
-    resource_common_data: PaymentFlowData,
-    flow_request: PaymentVoidData,
-    flow_response: PaymentsResponseData,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::IntegrationError> {
-            let base_url = self.connector_base_url_payments(req);
-            Ok(format!("{base_url}/credit/authorization"))
         }
     }
 );
@@ -537,6 +494,158 @@ macros::macro_connector_implementation!(
 );
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
+// The (String, String) source is (return_code, response_code) lifted off the
+// per-flow response envelope, scoped to the credit/debit inner block that the
+// TryFrom selects. Success is `ReturnCode == "0000" && ResponseCode == "000"`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayraft<T>,
+    flow: Authorize,
+    source: (String, String),
+    context: (),
+    mapping: |codes, _ctx|{ if codes.0 == "0000" && codes.1 == "000" {
+            success!(Authorized)
+        } else {
+            failure!(Failure)
+        } },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: WorldpayraftAuthorizeResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
+            WorldpayraftAuthorizeResponse::Credit { creditauthresponse } => (
+                creditauthresponse.return_code.clone(),
+                creditauthresponse.response_code.clone(),
+            ),
+            WorldpayraftAuthorizeResponse::Debit {
+                debitpreauthresponse,
+            } => (
+                debitpreauthresponse.return_code.clone(),
+                debitpreauthresponse.response_code.clone(),
+            ),
+            WorldpayraftAuthorizeResponse::CreditPurchase { creditpurchaseresponse } => (
+                creditpurchaseresponse.return_code.clone(),
+                creditpurchaseresponse.response_code.clone(),
+            ),
+            WorldpayraftAuthorizeResponse::DebitPurchase { debitpurchaseresponse } => (
+                debitpurchaseresponse.return_code.clone(),
+                debitpurchaseresponse.response_code.clone(),
+            ),
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayraft<T>,
+    flow: Capture,
+    source: (String, String),
+    context: (),
+    mapping: |codes, _ctx|{ if codes.0 == "0000" && codes.1 == "000" {
+            success!(Charged)
+        } else {
+            failure!(Failure)
+        } },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: WorldpayraftCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
+            WorldpayraftCaptureResponse::Credit {
+                creditcompletionresponse,
+            } => (
+                creditcompletionresponse.return_code.clone(),
+                creditcompletionresponse.response_code.clone(),
+            ),
+            WorldpayraftCaptureResponse::Debit {
+                debitcompletionresponse,
+            } => (
+                debitcompletionresponse.return_code.clone(),
+                debitcompletionresponse.response_code.clone(),
+            ),
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayraft<T>,
+    flow: Refund,
+    source: (String, String),
+    context: (),
+    mapping: |codes, _ctx|{ if codes.0 == "0000" && codes.1 == "000" {
+            success!(Success)
+        } else {
+            failure!(Failure)
+        } },
+    runtime: {
+        request: RefundsData,
+        response: WorldpayraftRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
+            WorldpayraftRefundResponse::Credit {
+                creditrefundresponse,
+            } => (
+                creditrefundresponse.return_code.clone(),
+                creditrefundresponse.response_code.clone(),
+            ),
+            WorldpayraftRefundResponse::Debit {
+                debitrefundresponse,
+            } => (
+                debitrefundresponse.return_code.clone(),
+                debitrefundresponse.response_code.clone(),
+            ),
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayraft<T>,
+    flow: SetupMandate,
+    source: (String, String),
+    context: (),
+    mapping: |codes, _ctx|{ if codes.0 == "0000" && codes.1 == "000" {
+            success!(Charged)
+        } else {
+            failure!(Failure)
+        } },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: WorldpayraftSetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            let inner = &response.tokenizeresponse;
+            (inner.return_code.clone(), inner.response_code.clone())
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpayraft<T>,
+    flow: RepeatPayment,
+    source: (String, String),
+    context: (),
+    mapping: |codes, _ctx|{ if codes.0 == "0000" && codes.1 == "000" {
+            success!(Charged)
+        } else {
+            failure!(Failure)
+        } },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: WorldpayraftRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            let inner = match response {
+                WorldpayraftRepeatPaymentResponse::Credit { creditauthresponse } => creditauthresponse,
+                WorldpayraftRepeatPaymentResponse::CreditPurchase { creditpurchaseresponse } => creditpurchaseresponse,
+            };
+            (inner.return_code.clone(), inner.response_code.clone())
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
 // not_implemented: flows that will be implemented later
 // not_supported: flows that Worldpay RAFT does not support
 crate::connectors::macros::macro_connector_flow_status_impls!(
@@ -544,6 +653,7 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
+        Void,
         CreateConnectorCustomer,
         GetConnectorCustomer,
         MandateRevoke,

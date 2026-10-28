@@ -6478,7 +6478,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCaptureResponse {
     merchant_account: Secret<String>,
@@ -8797,5 +8797,39 @@ fn get_capture_delay_hours(
             }
             .into()),
         },
+    }
+}
+
+impl SetupMandateResponse {
+    pub(crate) fn result_code(&self) -> AdyenStatus {
+        self.0.result_code()
+    }
+}
+
+impl AdyenRepeatPaymentResponse {
+    pub(crate) fn result_code(&self) -> AdyenStatus {
+        self.0.result_code()
+    }
+}
+
+impl AdyenPaymentResponse {
+    /// The `result_code` carried by every payments-response leg; webhook responses
+    /// have no `result_code`, so they report `AdyenStatus::Unknown` (which maps to
+    /// `AttemptStatus::Unspecified`, preserving the prior attempt status).
+    pub(crate) fn result_code(&self) -> AdyenStatus {
+        match self {
+            Self::Response(x) => x.result_code.clone(),
+            Self::PresentToShopper(x) => x.result_code.clone(),
+            Self::QrCodeResponse(x) => x.result_code.clone(),
+            Self::RedirectionResponse(x) => x.result_code.clone(),
+            Self::RedirectionErrorResponse(x) => x.result_code.clone(),
+            Self::WebhookResponse(_) => AdyenStatus::Unknown,
+        }
+    }
+}
+
+impl AdyenPSyncResponse {
+    pub(crate) fn result_code(&self) -> AdyenStatus {
+        self.0.result_code()
     }
 }

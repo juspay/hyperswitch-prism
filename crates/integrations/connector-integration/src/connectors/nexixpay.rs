@@ -809,6 +809,243 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
+// ===== FLOW STATUS MAPPINGS =====
+
+// Authorize — mirrors `From<NexixpayPaymentStatus> for AttemptStatus`
+// (transformers.rs:481) used by the Authorize TryFrom (transformers.rs:499). All targets
+// are in `Authorize::ALLOWED`.
+//
+// NOTE: `AttemptStatus::Voided` is not in `Authorize::ALLOWED`; `Canceled`/`Voided` map to
+// `Failure` here (a canceled order is terminal for this attempt), while `Refunded` →
+// `AutoRefunded` is allowed. PSync keeps the verbatim mirror since its ALLOWED is broad —
+// the two flows legitimately see the same wire status differently.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: Authorize,
+    source: transformers::NexixpayPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::NexixpayPaymentStatus::Authorized => success!(Authorized),
+            transformers::NexixpayPaymentStatus::Failed => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Declined => failure!(Failure),
+            transformers::NexixpayPaymentStatus::DeniedByRisk => failure!(Failure),
+            transformers::NexixpayPaymentStatus::ThreedsFailed => failure!(AuthenticationFailed),
+            transformers::NexixpayPaymentStatus::ThreedsValidated => non_terminal!(AuthenticationSuccessful),
+            transformers::NexixpayPaymentStatus::Executed => success!(Charged),
+            transformers::NexixpayPaymentStatus::Pending => non_terminal!(AuthenticationPending),
+            transformers::NexixpayPaymentStatus::Canceled => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Voided => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Refunded => non_terminal!(AutoRefunded),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: NexixpayPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.operation.operation_result.clone()) },
+    },
+}
+
+// PSync — mirrors the PSync TryFrom (transformers.rs:625), same mapping; `PSync::ALLOWED`
+// covers every target.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: PSync,
+    source: transformers::NexixpayPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::NexixpayPaymentStatus::Authorized => success!(Authorized),
+            transformers::NexixpayPaymentStatus::Failed => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Declined => failure!(Failure),
+            transformers::NexixpayPaymentStatus::DeniedByRisk => failure!(Failure),
+            transformers::NexixpayPaymentStatus::ThreedsFailed => failure!(AuthenticationFailed),
+            transformers::NexixpayPaymentStatus::ThreedsValidated => non_terminal!(AuthenticationSuccessful),
+            transformers::NexixpayPaymentStatus::Executed => success!(Charged),
+            transformers::NexixpayPaymentStatus::Pending => non_terminal!(AuthenticationPending),
+            transformers::NexixpayPaymentStatus::Canceled => success!(Voided),
+            transformers::NexixpayPaymentStatus::Voided => success!(Voided),
+            transformers::NexixpayPaymentStatus::Refunded => success!(AutoRefunded),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: NexixpaySyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.operation_result.clone()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: Capture,
+    source: (),
+    mapping: |_ack| { non_terminal!(Pending) },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: NexixpayCaptureResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: Void,
+    source: (),
+    mapping: |_ack| { success!(Voided) },
+    runtime: {
+        request: PaymentVoidData,
+        response: NexixpayVoidResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: PreAuthenticate,
+    source: NexixpayPreAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+
+
+            use transformers::NexixpayPaymentStatus;
+            match &response.operation.operation_result {
+                NexixpayPaymentStatus::ThreedsValidated => {
+                    success!(AuthenticationSuccessful)
+                }
+                NexixpayPaymentStatus::ThreedsFailed
+                | NexixpayPaymentStatus::Declined
+                | NexixpayPaymentStatus::DeniedByRisk => failure!(AuthenticationFailed),
+                _ => non_terminal!(AuthenticationPending),
+            }
+        },
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: NexixpayPreAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: PostAuthenticate,
+    source: NexixpayPostAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+
+
+            use transformers::NexixpayPaymentStatus;
+            match &response.operation.operation_result {
+                NexixpayPaymentStatus::ThreedsValidated => {
+                    success!(AuthenticationSuccessful)
+                }
+                NexixpayPaymentStatus::ThreedsFailed
+                | NexixpayPaymentStatus::Declined
+                | NexixpayPaymentStatus::DeniedByRisk => failure!(AuthenticationFailed),
+                _ => non_terminal!(AuthenticationPending),
+            }
+        },
+    runtime: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: NexixpayPostAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: SetupMandate,
+    source: transformers::NexixpayPaymentStatus,
+    mapping: |status| {
+        use transformers::NexixpayPaymentStatus as S;
+        match status {
+            S::ThreedsValidated => non_terminal!(AuthenticationSuccessful),
+            S::ThreedsFailed | S::Declined | S::DeniedByRisk => failure!(AuthenticationFailed),
+            _ => non_terminal!(AuthenticationPending),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: NexixpaySetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(response.operation.operation_result.clone())
+        },
+    },
+}
+
+// RepeatPayment — mirrors the MIT TryFrom (transformers.rs:2326), same
+// `From<NexixpayPaymentStatus>` mapping adapted to `RepeatPayment::ALLOWED`:
+// `ThreedsFailed` → `Failure` (RepeatPayment has no AuthenticationFailed), and
+// `Voided` / `AuthenticationSuccessful` / `AutoRefunded` are not in the flow's ALLOWED
+// (a canceled or already-refunded MIT is a terminal failure).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: RepeatPayment,
+    source: transformers::NexixpayPaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::NexixpayPaymentStatus::Executed => success!(Charged),
+            transformers::NexixpayPaymentStatus::Failed => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Declined => failure!(Failure),
+            transformers::NexixpayPaymentStatus::DeniedByRisk => failure!(Failure),
+            transformers::NexixpayPaymentStatus::ThreedsFailed => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Authorized => non_terminal!(Authorized),
+            transformers::NexixpayPaymentStatus::Pending => non_terminal!(AuthenticationPending),
+            transformers::NexixpayPaymentStatus::Canceled => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Voided => failure!(Failure),
+            transformers::NexixpayPaymentStatus::Refunded => failure!(Failure),
+            transformers::NexixpayPaymentStatus::ThreedsValidated => failure!(Failure),
+        } },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: NexixpayRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.operation.operation_result.clone()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: Refund,
+    source: (),
+    mapping: |_ack| { non_terminal!(Pending) },
+    runtime: {
+        request: RefundsData,
+        response: NexixpayRefundResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+// RSync — mirrors `From<NexixpayRefundResultStatus> for RefundStatus`
+// (transformers.rs:1053) used by the RSync TryFrom (transformers.rs:1072).
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Nexixpay<T>,
+    flow: RSync,
+    source: transformers::NexixpayRefundResultStatus,
+    mapping: |status| {
+        match status {
+            transformers::NexixpayRefundResultStatus::Refunded => success!(Success),
+            transformers::NexixpayRefundResultStatus::Failed => failure!(Failure),
+            transformers::NexixpayRefundResultStatus::Executed => success!(Success),
+            transformers::NexixpayRefundResultStatus::Voided => success!(Success),
+            transformers::NexixpayRefundResultStatus::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: NexixpayRSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.operation_result.clone()) },
+    },
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Nexixpay,
     generic_type: T,

@@ -121,7 +121,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
@@ -636,7 +636,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
@@ -833,25 +833,8 @@
     },
     "void": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_void_id": "probe_void_001",
-          "connector_transaction_id": "C|123456|123456789012|000001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          }
-        },
-        "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
-          "method": "Post",
-          "headers": {
-            "authorization": "VANTIV license=\"probe_key\"",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AuthorizationType\":\"RV\",\"ReversalAdviceReasonCd\":\"000\",\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\",\"SystemTraceNumber\":\"000001\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_void_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for worldpayraft"
       }
     }
   }

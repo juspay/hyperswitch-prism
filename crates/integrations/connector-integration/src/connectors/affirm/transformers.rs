@@ -863,3 +863,29 @@ impl TryFrom<ResponseRouterData<AffirmRSyncResponse, Self>>
         })
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AffirmRefundStatus {
+    Refunded,
+    Failed,
+    Pending,
+}
+
+impl AffirmRSyncResponse {
+    pub fn has_refund_event(&self, connector_refund_id: &str) -> bool {
+        self.events.as_ref().is_some_and(|events| {
+            events
+                .iter()
+                .any(|event| event.event_type == "refund" && event.id == connector_refund_id)
+        })
+    }
+}
+
+impl AffirmRefundResponse {
+    pub fn flow_status(&self) -> AffirmRefundStatus {
+        match self.event_type.as_str() {
+            "refund" => AffirmRefundStatus::Refunded,
+            _ => AffirmRefundStatus::Pending,
+        }
+    }
+}

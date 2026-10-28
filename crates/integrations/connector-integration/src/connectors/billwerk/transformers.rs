@@ -156,7 +156,7 @@ pub struct BillwerkPaymentsResponse {
 
 pub type BillwerkRepeatPaymentResponse = BillwerkPaymentsResponse;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundState {
     Refunded,
@@ -874,5 +874,17 @@ impl TryFrom<ResponseRouterData<BillwerkClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+impl BillwerkPaymentsResponse {
+    pub fn flow_status(&self) -> BillwerkPaymentState {
+        self.state.clone()
+    }
+}
+
+impl RefundResponse {
+    pub fn flow_status(&self) -> RefundState {
+        self.state.clone()
     }
 }

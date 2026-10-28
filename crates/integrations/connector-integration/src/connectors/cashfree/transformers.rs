@@ -19,6 +19,28 @@ use error_stack::{report, Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Default)]
+pub enum CashfreeRefundStatus {
+    Success,
+    Pending,
+    Cancelled,
+    Failed,
+    #[default]
+    Other,
+}
+
+impl From<&str> for CashfreeRefundStatus {
+    fn from(status: &str) -> Self {
+        match status {
+            "SUCCESS" | "OK" => Self::Success,
+            "PENDING" => Self::Pending,
+            "CANCELLED" => Self::Cancelled,
+            "FAILED" => Self::Failed,
+            _ => Self::Other,
+        }
+    }
+}
+
 use crate::types::ResponseRouterData;
 
 // ============================================================================
@@ -81,12 +103,12 @@ pub struct CashfreeOrderCreateRequest {
 }
 
 // Supporting types for Order Response (missing from original implementation)
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CashfreeOrderCreateUrlResponse {
     pub url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreeOrderTagsType {
     pub metadata1: Option<String>,
     pub metadata2: Option<String>,
@@ -96,14 +118,14 @@ pub struct CashfreeOrderTagsType {
     pub metadata6: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreeOrderSplitsType {
     pub vendor_id: String,
     pub amount: f64,
     pub percentage: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreeCustomerDetails {
     pub customer_id: String,
     pub customer_email: Option<Secret<String, EmailStrategy>>,
@@ -111,14 +133,14 @@ pub struct CashfreeCustomerDetails {
     pub customer_name: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreeOrderMeta {
     pub return_url: String,
     pub notify_url: String,
     pub payment_methods: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreeOrderCreateResponse {
     pub payment_session_id: String, // KEY: Used in Authorize flow
     pub cf_order_id: i64,
@@ -245,7 +267,7 @@ pub struct CashfreePaymentSurcharge {
     pub surcharge_percentage: f64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreePaymentResponse {
     pub payment_method: String,
     pub channel: String,
@@ -254,7 +276,7 @@ pub struct CashfreePaymentResponse {
     pub cf_payment_id: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreeResponseData {
     pub url: Option<String>,
     pub payload: Option<CashfreePayloadData>,
@@ -262,7 +284,7 @@ pub struct CashfreeResponseData {
     pub method: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CashfreePayloadData {
     #[serde(rename = "default")]
     pub default_link: String, // Universal deep link for Intent
@@ -1276,7 +1298,7 @@ pub struct CashfreeRefundResponse {
 }
 
 /// Cashfree refund status → internal RefundStatus
-fn map_refund_status(status: &str) -> common_enums::RefundStatus {
+pub fn map_refund_status(status: &str) -> common_enums::RefundStatus {
     match status {
         "SUCCESS" | "OK" => common_enums::RefundStatus::Success,
         "PENDING" => common_enums::RefundStatus::Pending,
@@ -1399,4 +1421,31 @@ impl TryFrom<ResponseRouterData<CashfreeRefundSyncResponse, Self>>
             ..router_data
         })
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum CashfreeVoidStatus {
+    /// `"VOID"` — the authorization was voided.
+    Void,
+    /// `"FAILED"` — the void was declined.
+    Failed,
+    /// `"PENDING"` — the void is still in flight.
+    Pending,
+    /// Any other status string — still in flight (the default).
+    #[default]
+    Other,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum CashfreeCaptureStatus {
+    /// `"SUCCESS"` (or the pre-auth authorization-status variant `"CAPTURE"`)
+    /// — the capture settled.
+    Success,
+    /// `"FAILED"` — the capture was declined.
+    Failed,
+    /// `"PENDING"` — the capture was initiated.
+    Pending,
+    /// Any other status string — still in flight (the default).
+    #[default]
+    Other,
 }

@@ -3780,7 +3780,7 @@ pub struct CybersourceErrorInformationResponse {
     error_information: CybersourceErrorInformation,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformationResponse {
     access_token: Secret<String>,
@@ -3788,7 +3788,7 @@ pub struct CybersourceConsumerAuthInformationResponse {
     reference_id: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientAuthSetupInfoResponse {
     id: String,
@@ -3796,7 +3796,7 @@ pub struct ClientAuthSetupInfoResponse {
     consumer_authentication_information: CybersourceConsumerAuthInformationResponse,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CybersourceAuthSetupResponse {
     ClientAuthSetupInfo(Box<ClientAuthSetupInfoResponse>),
@@ -4482,7 +4482,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CybersourceAuthenticateResponse {
     ClientAuthCheckInfo(Box<ClientAuthCheckInfoResponse>),
@@ -4937,7 +4937,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CybersourceAuthEnrollmentStatus {
     PendingAuthentication,
@@ -4947,7 +4947,7 @@ pub enum CybersourceAuthEnrollmentStatus {
     #[serde(other)]
     Unknown,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthValidateResponse {
     /// This field is supported only on Asia, Middle East, and Africa Gateway
@@ -4974,7 +4974,7 @@ pub struct CybersourceThreeDSMetadata {
     three_ds_data: CybersourceConsumerAuthValidateResponse,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformationEnrollmentResponse {
     access_token: Option<Secret<String>>,
@@ -4985,7 +4985,7 @@ pub struct CybersourceConsumerAuthInformationEnrollmentResponse {
     validate_response: CybersourceConsumerAuthValidateResponse,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientAuthCheckInfoResponse {
     id: String,
@@ -5214,6 +5214,15 @@ pub struct CybersourceTransactionResponse {
     processor_information: Option<ClientProcessorInformation>,
     client_reference_information: Option<ClientReferenceInformation>,
     error_information: Option<CybersourceErrorInformation>,
+}
+
+impl CybersourceTransactionResponse {
+    pub fn flow_status(&self) -> CybersourcePaymentStatus {
+        self.application_information
+            .status
+            .clone()
+            .unwrap_or(CybersourcePaymentStatus::StatusNotReceived)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -5494,6 +5503,12 @@ pub struct CybersourceRefundResponse {
     error_information: Option<CybersourceErrorInformation>,
 }
 
+impl CybersourceRefundResponse {
+    pub fn flow_status(&self) -> CybersourceRefundStatus {
+        self.status.clone()
+    }
+}
+
 impl<F> TryFrom<ResponseRouterData<CybersourceRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
@@ -5539,6 +5554,15 @@ pub struct CybersourceRsyncResponse {
     id: String,
     application_information: Option<RsyncApplicationInformation>,
     error_information: Option<CybersourceErrorInformation>,
+}
+
+impl CybersourceRsyncResponse {
+    pub fn flow_status(&self) -> CybersourceRefundStatus {
+        self.application_information
+            .as_ref()
+            .and_then(|info| info.status.clone())
+            .unwrap_or(CybersourceRefundStatus::Pending)
+    }
 }
 
 impl<F> TryFrom<ResponseRouterData<CybersourceRsyncResponse, Self>>
@@ -7298,7 +7322,7 @@ pub fn parse_cybersource_webhook_signature(
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::items_after_test_module)]
 mod tests {
     use super::{
         get_commerce_indicator_for_external_authentication, CybersourceWebhookBody,
@@ -7393,5 +7417,26 @@ mod tests {
                 .expect("capture method is supported"),
             Some(common_enums::AttemptStatus::Authorized)
         );
+    }
+}
+
+impl CybersourcePaymentsResponse {
+    pub fn flow_status(&self) -> CybersourcePaymentStatus {
+        self.status
+            .clone()
+            .unwrap_or(CybersourcePaymentStatus::StatusNotReceived)
+    }
+}
+
+pub fn authenticate_status(
+    response: &CybersourceAuthenticateResponse,
+) -> common_enums::AttemptStatus {
+    match response {
+        CybersourceAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
+            common_enums::AttemptStatus::from(info_response.status.clone())
+        }
+        CybersourceAuthenticateResponse::ErrorInformation(_) => {
+            common_enums::AttemptStatus::Failure
+        }
     }
 }

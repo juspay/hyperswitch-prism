@@ -777,7 +777,7 @@ pub enum HelcimRefundTransactionType {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    status: HelcimPaymentStatus,
+    pub status: HelcimPaymentStatus,
     transaction_id: u64,
     #[serde(rename = "type")]
     transaction_type: HelcimRefundTransactionType,
@@ -852,3 +852,25 @@ pub type HelcimPaymentsSyncResponse = HelcimPaymentsResponse;
 pub type HelcimPaymentsCaptureResponse = HelcimPaymentsResponse;
 pub type HelcimPaymentsVoidResponse = HelcimPaymentsResponse;
 pub type RefundSyncResponse = RefundResponse;
+
+impl HelcimPaymentsResponse {
+    /// Connector status leg of the `(transaction_type, status)` verdict the
+    /// `From<HelcimPaymentsResponse> for AttemptStatus` mapping keys on —
+    /// exposed for the runtime flow-status extractors in `helcim.rs`.
+    pub fn status(&self) -> &HelcimPaymentStatus {
+        &self.status
+    }
+
+    /// Transaction-type leg of the same verdict.
+    pub fn transaction_type(&self) -> &HelcimTransactionType {
+        &self.transaction_type
+    }
+}
+
+impl RefundResponse {
+    /// Connector status the `From<RefundResponse> for RefundStatus` mapping
+    /// keys on — exposed for the runtime flow-status extractors in `helcim.rs`.
+    pub fn status(&self) -> &HelcimPaymentStatus {
+        &self.status
+    }
+}

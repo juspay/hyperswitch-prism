@@ -41,7 +41,7 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    ZiftAuthPaymentsResponse, ZiftAuthPaymentsResponse as ZiftSetupMandateResponse,
+    self as zift, ZiftAuthPaymentsResponse, ZiftAuthPaymentsResponse as ZiftSetupMandateResponse,
     ZiftAuthPaymentsResponse as ZiftRepeatPaymentResponse, ZiftCaptureRequest, ZiftCaptureResponse,
     ZiftErrorResponse, ZiftPaymentsRequest, ZiftRefundRequest, ZiftRefundResponse,
     ZiftRepeatPaymentsRequest, ZiftSetupMandateRequest, ZiftSyncRequest, ZiftSyncResponse,
@@ -573,6 +573,181 @@ macros::macro_connector_implementation!(
         }
     }
 );
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Zift<T>,
+    flow: Authorize,
+    source: String,
+    context: bool,
+    mapping: |response_code, is_auto_capture| { use zift::ResponseCodeExt;
+        match (response_code.is_approved(), is_auto_capture) {
+            (true, true) => success!(Charged),
+            (true, false) => success!(Authorized),
+            _ if response_code.is_pending() => non_terminal!(Pending),
+            _ => failure!(Failure),
+        } },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: ZiftAuthPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.response_code.clone()) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(request.is_auto_capture()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Zift<T>,
+    flow: PSync,
+    source: (zift::PaymentRequestType, zift::TransactionStatus),
+    context: (),
+    mapping: |transaction, _ctx| { match transaction {
+            (zift::PaymentRequestType::Sale, zift::TransactionStatus::Processed) => {
+                success!(Charged)
+            }
+            (
+                zift::PaymentRequestType::Sale,
+                zift::TransactionStatus::Pending | zift::TransactionStatus::InRebill,
+            ) => non_terminal!(Pending),
+            (zift::PaymentRequestType::Sale, zift::TransactionStatus::Cancelled) => {
+                failure!(Failure)
+            }
+            (zift::PaymentRequestType::Auth, zift::TransactionStatus::Processed) => {
+                success!(Authorized)
+            }
+            (
+                zift::PaymentRequestType::Auth,
+                zift::TransactionStatus::Pending | zift::TransactionStatus::InRebill,
+            ) => non_terminal!(Pending),
+            (zift::PaymentRequestType::Auth, zift::TransactionStatus::Cancelled) => {
+                failure!(Failure)
+            }
+            (zift::PaymentRequestType::Capture, zift::TransactionStatus::Processed) => {
+                success!(Charged)
+            }
+            (
+                zift::PaymentRequestType::Capture,
+                zift::TransactionStatus::Pending | zift::TransactionStatus::InRebill,
+            ) => non_terminal!(CaptureInitiated),
+            (zift::PaymentRequestType::Capture, zift::TransactionStatus::Cancelled) => {
+                failure!(CaptureFailed)
+            }
+            (zift::PaymentRequestType::Void, zift::TransactionStatus::Processed) => success!(Voided),
+            (zift::PaymentRequestType::Void, zift::TransactionStatus::Pending | zift::TransactionStatus::InRebill) => non_terminal!(VoidInitiated),
+            (zift::PaymentRequestType::Void, zift::TransactionStatus::Cancelled) => failure!(VoidFailed),
+        } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: ZiftSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok((response.transaction_type.clone(), response.transaction_status)) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Zift<T>,
+    flow: Capture,
+    source: String,
+    context: (),
+    mapping: |response_code, _ctx| { use zift::ResponseCodeExt;
+        if response_code.is_approved() {
+            success!(Charged)
+        } else {
+            failure!(CaptureFailed)
+        } },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: ZiftCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.response_code.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Zift<T>,
+    flow: SetupMandate,
+    source: String,
+    context: (),
+    mapping: |response_code, _ctx| { use zift::ResponseCodeExt;
+        if response_code.is_approved() {
+            success!(Charged)
+        } else if response_code.is_pending() {
+            non_terminal!(Pending)
+        } else {
+            failure!(Failure)
+        } },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: ZiftSetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.response_code.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Zift<T>,
+    flow: Void,
+    source: String,
+    context: (),
+    mapping: |response_code, _ctx| { use zift::ResponseCodeExt;
+        if response_code.is_approved() {
+            success!(Voided)
+        } else {
+            failure!(Failure)
+        } },
+    runtime: {
+        request: PaymentVoidData,
+        response: ZiftVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.response_code.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Zift<T>,
+    flow: Refund,
+    source: String,
+    context: (),
+    mapping: |response_code, _ctx| { use zift::ResponseCodeExt;
+        if response_code.is_approved() {
+            success!(Success)
+        } else if response_code.is_pending() {
+            non_terminal!(Pending)
+        } else {
+            failure!(Failure)
+        } },
+    runtime: {
+        request: RefundsData,
+        response: ZiftRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.response_code.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Zift<T>,
+    flow: RepeatPayment,
+    source: String,
+    context: bool,
+    mapping: |response_code, is_auto_capture| { use zift::ResponseCodeExt;
+        match (response_code.is_approved(), is_auto_capture) {
+            (true, true) => success!(Charged),
+            (true, false) => non_terminal!(Authorized),
+            _ if response_code.is_pending() => non_terminal!(Pending),
+            _ => failure!(Failure),
+        } },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: ZiftRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.response_code.clone()) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(request.is_auto_capture()) },
+    },
+}
 
 macros::macro_connector_flow_status_impls!(
     connector: Zift,

@@ -60,25 +60,298 @@ pub(crate) mod headers {
     pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
 }
 
+// Mirrors `map_boa_attempt_status((status, is_auto_capture))` in the Authorize TryFrom.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bankofamerica<T>,
+    flow: Authorize,
+    source: transformers::BankofamericaPaymentStatus,
+    context: bool,
+    mapping: |status, auto_capture| {
+        let mapped_status = (|| { use transformers::BankofamericaPaymentStatus as S;
+        match status {
+            S::Authorized | S::AuthorizedPendingReview => {
+                if auto_capture {
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::Authorized
+                }
+            }
+            S::Pending => {
+                if auto_capture {
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::Pending
+                }
+            }
+            S::Succeeded | S::Transmitted => common_enums::AttemptStatus::Charged,
+            S::Voided | S::Reversed | S::Cancelled => common_enums::AttemptStatus::Voided,
+            S::Failed
+            | S::Declined
+            | S::AuthorizedRiskDeclined
+            | S::InvalidRequest
+            | S::Rejected
+            | S::ServerError => common_enums::AttemptStatus::Failure,
+            S::PendingAuthentication => common_enums::AttemptStatus::AuthenticationPending,
+            S::PendingReview | S::Challenge | S::Accepted => common_enums::AttemptStatus::Pending,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: BankofamericaPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
+            BankofamericaPaymentsResponse::ClientReferenceInformation(info) => info.status.clone(),
+            BankofamericaPaymentsResponse::ErrorInformation(_) => {
+                transformers::BankofamericaPaymentStatus::Failed
+            }
+        }) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(request.is_auto_capture()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Bankofamerica<T>
 {
+}
+// Mirrors the PSync TryFrom: `map_boa_attempt_status((app_status, is_auto_capture()))`.
+// BLOCKED: PSync reads an optional nested application status and preserves the
+// previous common status when it is absent. Exact runtime mapping needs
+// FlowStatusReader for that branch.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Bankofamerica<T>,
+    flow:            PSync,
+    source:          transformers::BankofamericaPaymentStatus,
+    context:         bool,
+    params:          [status, auto_capture],
+    success: Transmitted => [Authorized, Charged, Voided],
+    failure: Failed => Failure,
+    {
+        use transformers::BankofamericaPaymentStatus as S;
+        match status {
+            S::Authorized | S::AuthorizedPendingReview => {
+                if auto_capture {
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::Authorized
+                }
+            }
+            S::Pending => {
+                if auto_capture {
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::Pending
+                }
+            }
+            S::Succeeded | S::Transmitted => common_enums::AttemptStatus::Charged,
+            S::Voided | S::Reversed | S::Cancelled => common_enums::AttemptStatus::Voided,
+            S::Failed
+            | S::Declined
+            | S::AuthorizedRiskDeclined
+            | S::InvalidRequest
+            | S::Rejected
+            | S::ServerError => common_enums::AttemptStatus::Failure,
+            S::PendingAuthentication => common_enums::AttemptStatus::AuthenticationPending,
+            S::PendingReview | S::Challenge | S::Accepted => common_enums::AttemptStatus::Pending,
+        }
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Bankofamerica<T>
 {
 }
+// Mirrors the Void TryFrom (`map_boa_attempt_status((status, false))`), with connector
+// statuses re-targeted to Void-flow terminals: pre-capture auth states -> VoidInitiated,
+// settled (capture-complete) states -> VoidFailed, void confirmations -> Voided.
+// BLOCKED: Void runs map_boa_attempt_status with auto_capture=false. It can
+// return Authorized, Charged, Voided, or Failure; the declaration below
+// re-targeted those values and therefore did not match production behavior.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bankofamerica<T>,
+    flow:      Void,
+    source:    transformers::BankofamericaPaymentStatus,
+    success:   Voided     => Voided,
+    failure:   Failed     => VoidFailed,
+    {
+        Authorized              => VoidInitiated,
+        AuthorizedPendingReview => Pending,
+        Pending                 => Pending,
+        Succeeded               => VoidFailed,
+        Transmitted             => VoidFailed,
+        Reversed                => Voided,
+        Cancelled               => Voided,
+        Declined                => VoidFailed,
+        AuthorizedRiskDeclined  => VoidFailed,
+        InvalidRequest          => VoidFailed,
+        Rejected                => VoidFailed,
+        ServerError             => VoidFailed,
+        PendingAuthentication   => Pending,
+        PendingReview           => Pending,
+        Challenge               => Pending,
+        Accepted                => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Bankofamerica<T>
 {
+}
+// Refund / RSync map `BankofamericaRefundStatus` identically. Every variant has
+// a fixed target except `TwoZeroOne`, which splits on the response's
+// `error_information.reason` (the ctx here) — PROCESSOR_DECLINED fails the
+// refund, anything else keeps it Pending. Mirrors
+// `From<BankOfAmericaRefundResponse> for RefundStatus` and the RSync TryFrom's
+// inline match.
+// BLOCKED: RSync preserves the previous refund status when its optional nested
+// application status is absent. Exact runtime mapping needs FlowStatusReader.
+#[cfg(any())]
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bankofamerica<T>,
+    flow: RSync,
+    source: transformers::BankofamericaRefundStatus,
+    context: Option<String>,
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::RefundStatus;
+        use transformers::BankofamericaRefundStatus as S;
+        match status {
+            S::Succeeded | S::Transmitted => RefundStatus::Success,
+            S::Cancelled | S::Failed | S::Voided => RefundStatus::Failure,
+            S::Pending => RefundStatus::Pending,
+            S::TwoZeroOne => {
+                if ctx == Some("PROCESSOR_DECLINED".to_string()) {
+                    RefundStatus::Failure
+                } else {
+                    RefundStatus::Pending
+                }
+            }
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: BankOfAmericaRefundResponseForRefund,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response
+            .error_information
+            .as_ref()
+            .and_then(|error| error.reason.clone())) },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Bankofamerica<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bankofamerica<T>,
+    flow: Refund,
+    source: transformers::BankofamericaRefundStatus,
+    context: Option<String>,
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::RefundStatus;
+        use transformers::BankofamericaRefundStatus as S;
+        match status {
+            S::Succeeded | S::Transmitted => RefundStatus::Success,
+            S::Cancelled | S::Failed | S::Voided => RefundStatus::Failure,
+            S::Pending => RefundStatus::Pending,
+            S::TwoZeroOne => {
+                if ctx == Some("PROCESSOR_DECLINED".to_string()) {
+                    RefundStatus::Failure
+                } else {
+                    RefundStatus::Pending
+                }
+            }
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: BankOfAmericaRefundResponseForRefund,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response
+            .error_information
+            .as_ref()
+            .and_then(|error| error.reason.clone())) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Bankofamerica<T>
 {
+}
+// Mirrors the Capture TryFrom (`map_boa_attempt_status((status, true))`), with statuses
+// that cannot be ACL'd into the Capture flow re-targeted: void-like statuses ->
+// CaptureFailed, authentication/pending review states -> Pending.
+// BLOCKED: Capture runs map_boa_attempt_status with auto_capture=true. Its
+// voided and failure branches are Voided and Failure, while the declaration
+// re-targeted them to CaptureFailed/Pending.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bankofamerica<T>,
+    flow:      Capture,
+    source:    transformers::BankofamericaPaymentStatus,
+    success:   Succeeded  => Charged,
+    failure:   Failed     => CaptureFailed,
+    {
+        Authorized              => Pending,
+        AuthorizedPendingReview => Pending,
+        Pending                 => CaptureInitiated,
+        Transmitted             => Charged,
+        Voided                  => CaptureFailed,
+        Reversed                => CaptureFailed,
+        Cancelled               => CaptureFailed,
+        Declined                => CaptureFailed,
+        AuthorizedRiskDeclined  => CaptureFailed,
+        InvalidRequest          => CaptureFailed,
+        Rejected                => CaptureFailed,
+        ServerError             => CaptureFailed,
+        PendingAuthentication   => Pending,
+        PendingReview           => Pending,
+        Challenge               => Pending,
+        Accepted                => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Bankofamerica<T>
@@ -89,6 +362,38 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// Mirrors the SetupMandate TryFrom: `map_boa_attempt_status((status, false))` followed
+// by the mandate-specific `Authorized -> Charged` remap (verification success -> Charged).
+// BLOCKED: SetupMandate only remaps Authorized to Charged after the common
+// mapper. Voided-like branches remain Voided, outside SetupMandate::ALLOWED;
+// the declaration below changed them to Failure.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bankofamerica<T>,
+    flow:      SetupMandate,
+    source:    transformers::BankofamericaPaymentStatus,
+    success:   Succeeded  => Charged,
+    failure:   Failed     => Failure,
+    {
+        Authorized              => Charged,
+        AuthorizedPendingReview => Charged,
+        Pending                 => Pending,
+        Transmitted             => Charged,
+        Voided                  => Failure,
+        Reversed                => Failure,
+        Cancelled               => Failure,
+        Declined                => Failure,
+        AuthorizedRiskDeclined  => Failure,
+        InvalidRequest          => Failure,
+        Rejected                => Failure,
+        ServerError             => Failure,
+        PendingAuthentication   => AuthenticationPending,
+        PendingReview           => Pending,
+        Challenge               => Pending,
+        Accepted                => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Bankofamerica<T>
 {
@@ -120,6 +425,38 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// Mirrors the VoidPC TryFrom's PostCaptureVoidStatus logic, expressed as AttemptStatus:
+// Succeeded -> VoidedPostCapture, Pending -> Pending, Failed -> Failure.
+// BLOCKED: VoidPC writes PostCaptureVoidStatus in the response payload and does
+// not set PaymentFlowData.status. Applying this AttemptStatus declaration at
+// runtime would introduce a new common-status mutation.
+#[cfg(any())]
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bankofamerica<T>,
+    flow:      VoidPC,
+    source:    transformers::BankofamericaPaymentStatus,
+    success:   Voided     => VoidedPostCapture,
+    failure:   Failed     => Failure,
+    {
+        Authorized              => Pending,
+        AuthorizedPendingReview => Pending,
+        Pending                 => Pending,
+        Succeeded               => VoidPostCaptureInitiated,
+        Transmitted             => VoidPostCaptureInitiated,
+        Reversed                => VoidedPostCapture,
+        Cancelled               => VoidedPostCapture,
+        Declined                => Failure,
+        AuthorizedRiskDeclined  => Failure,
+        InvalidRequest          => Failure,
+        Rejected                => Failure,
+        ServerError             => Failure,
+        PendingAuthentication   => Pending,
+        PendingReview           => Pending,
+        Challenge               => Pending,
+        Accepted                => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidPostCaptureV2 for Bankofamerica<T>
 {

@@ -1656,3 +1656,15 @@ fn get_bank_transfer_method_id_for_country(
         .into()),
     }
 }
+
+impl DlocalPaymentsResponse {
+    pub fn flow_status(&self) -> DlocalPaymentStatus {
+        self.status.clone()
+    }
+}
+
+impl RefundResponse {
+    pub fn flow_status(&self) -> RefundStatus {
+        self.status.clone()
+    }
+}

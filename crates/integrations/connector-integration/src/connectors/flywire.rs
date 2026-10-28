@@ -63,16 +63,107 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Flywire<T>,
+    flow: Authorize,
+    source: FlywireConfirmResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(Pending) },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: FlywireConfirmResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Flywire<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Flywire<T>,
+    flow: Authenticate,
+    source: FlywireCheckoutSessionResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(Pending) },
+    runtime: {
+        request: PaymentsAuthenticateData<T>,
+        response: FlywireCheckoutSessionResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+// ── PSync ────────────────────────────────────────────────────────────────────
+// Mirrors `FlywirePaymentStatus::to_attempt_status`.  `Guaranteed`/`Delivered`
+// are the settled terminals; `Reversed` (a post-hoc clawback) surfaces as
+// AutoRefunded, which PSync's broad ALLOWED set accepts.
+// Deviation: `to_attempt_status` maps `Cancelled | Failed | Expired` to
+// `failure!(Failure)`; Failure ∈ PSync::TERMINAL_FAILURE_SET, so no change.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Flywire<T>,
+    flow: PSync,
+    source: flywire::FlywirePaymentStatus,
+    mapping: |status|{
+        match status {
+            flywire::FlywirePaymentStatus::Guaranteed => success!(Charged),
+            flywire::FlywirePaymentStatus::Failed => failure!(Failure),
+            flywire::FlywirePaymentStatus::Delivered => success!(Charged),
+            flywire::FlywirePaymentStatus::Authorized => success!(Authorized),
+            flywire::FlywirePaymentStatus::Adjusted => success!(Authorized),
+            flywire::FlywirePaymentStatus::Cancelled => failure!(Failure),
+            flywire::FlywirePaymentStatus::Expired => failure!(Failure),
+            flywire::FlywirePaymentStatus::Reversed => success!(AutoRefunded),
+            flywire::FlywirePaymentStatus::Initiated => non_terminal!(Pending),
+            flywire::FlywirePaymentStatus::Processed => non_terminal!(Pending),
+            flywire::FlywirePaymentStatus::Pending => non_terminal!(Pending),
+            flywire::FlywirePaymentStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: FlywirePSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Flywire<T>
 {
 }
 
+// Mirrors `FlywireRefundStatus::to_refund_status`: finished/completed/approved
+// is a settled refund; rejected/cancelled/failed/returned is a terminal failure;
+// initiated/pending/received (and an unannounced status) are still in flight.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Flywire<T>,
+    flow: Refund,
+    source: flywire::FlywireRefundStatus,
+    mapping: |status|{
+        match status {
+            flywire::FlywireRefundStatus::Finished => success!(Success),
+            flywire::FlywireRefundStatus::Failed => failure!(Failure),
+            flywire::FlywireRefundStatus::Completed => success!(Success),
+            flywire::FlywireRefundStatus::Approved => success!(Success),
+            flywire::FlywireRefundStatus::Rejected => failure!(Failure),
+            flywire::FlywireRefundStatus::Cancelled => failure!(Failure),
+            flywire::FlywireRefundStatus::Returned => failure!(Failure),
+            flywire::FlywireRefundStatus::Initiated => non_terminal!(Pending),
+            flywire::FlywireRefundStatus::Pending => non_terminal!(Pending),
+            flywire::FlywireRefundStatus::Received => non_terminal!(Pending),
+            flywire::FlywireRefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: FlywireRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Flywire<T>
 {
@@ -83,6 +174,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// RSync deserializes FlywireRefundResponse, like Refund.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Flywire<T>,
+    flow: RSync,
+    source: flywire::FlywireRefundStatus,
+    mapping: |status|{
+        match status {
+            flywire::FlywireRefundStatus::Finished => success!(Success),
+            flywire::FlywireRefundStatus::Failed => failure!(Failure),
+            flywire::FlywireRefundStatus::Completed => success!(Success),
+            flywire::FlywireRefundStatus::Approved => success!(Success),
+            flywire::FlywireRefundStatus::Rejected => failure!(Failure),
+            flywire::FlywireRefundStatus::Cancelled => failure!(Failure),
+            flywire::FlywireRefundStatus::Returned => failure!(Failure),
+            flywire::FlywireRefundStatus::Initiated => non_terminal!(Pending),
+            flywire::FlywireRefundStatus::Pending => non_terminal!(Pending),
+            flywire::FlywireRefundStatus::Received => non_terminal!(Pending),
+            flywire::FlywireRefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: FlywireRSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Flywire<T>
 {

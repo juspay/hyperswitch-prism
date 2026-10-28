@@ -2646,3 +2646,39 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
     }
 }
+
+pub fn authenticate_status(
+    response: &responses::BarclaycardAuthenticateResponse,
+) -> common_enums::AttemptStatus {
+    match response {
+        responses::BarclaycardAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
+            match &info_response.status {
+                responses::BarclaycardAuthEnrollmentStatus::PendingAuthentication => {
+                    common_enums::AttemptStatus::AuthenticationPending
+                }
+                responses::BarclaycardAuthEnrollmentStatus::AuthenticationSuccessful => {
+                    common_enums::AttemptStatus::AuthenticationSuccessful
+                }
+                responses::BarclaycardAuthEnrollmentStatus::AuthenticationFailed => {
+                    common_enums::AttemptStatus::AuthenticationFailed
+                }
+            }
+        }
+        responses::BarclaycardAuthenticateResponse::ErrorInformation(_) => {
+            common_enums::AttemptStatus::AuthenticationFailed
+        }
+    }
+}
+
+pub fn auth_setup_status(
+    response: &responses::BarclaycardAuthSetupResponse,
+) -> common_enums::AttemptStatus {
+    match response {
+        responses::BarclaycardAuthSetupResponse::ClientAuthSetupInfo(_) => {
+            common_enums::AttemptStatus::AuthenticationPending
+        }
+        responses::BarclaycardAuthSetupResponse::ErrorInformation(_) => {
+            common_enums::AttemptStatus::AuthenticationFailed
+        }
+    }
+}

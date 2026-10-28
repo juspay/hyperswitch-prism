@@ -1028,6 +1028,164 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Truelayer<T>,
+    flow: Authorize,
+    source: truelayer::TruelayerPaymentStatus,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { truelayer::get_attempt_status(status) })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: TruelayerPaymentsResponseData,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Truelayer<T>,
+    flow: PSync,
+    source: (AttemptStatus, Option<String>),
+    context: (),
+    mapping: |source, _ctx| { let (status, failure_reason) = source;
+        // A failed payment whose failure_reason is "canceled" is a voided payment.
+        if failure_reason.as_deref() == Some("canceled")
+            && domain_types::utils::is_payment_failure(status)
+        {
+            success!(Voided)
+        } else {
+            match status {
+                AttemptStatus::Authorized => success!(Authorized),
+                AttemptStatus::AutoRefunded => success!(AutoRefunded),
+                AttemptStatus::Charged => success!(Charged),
+                AttemptStatus::PartialCharged => success!(PartialCharged),
+                AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+                AttemptStatus::Voided => success!(Voided),
+                AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+                AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+                AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+                AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+                AttemptStatus::Failure => failure!(Failure),
+                AttemptStatus::RouterDeclined => failure!(Failure),
+                AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+                AttemptStatus::VoidFailed => failure!(VoidFailed),
+                AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+                AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+                AttemptStatus::Authorizing => non_terminal!(Authorizing),
+                AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+                AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+                AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+                AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+                AttemptStatus::Expired => non_terminal!(Expired),
+                AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+                AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+                AttemptStatus::Pending => non_terminal!(Pending),
+                AttemptStatus::Started => non_terminal!(Started),
+                AttemptStatus::Unknown => non_terminal!(Unknown),
+                AttemptStatus::Unresolved => non_terminal!(Unresolved),
+                AttemptStatus::Unspecified => non_terminal!(Unspecified),
+                AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+                AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            }
+        } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: TruelayerPSyncResponseData,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
+            TruelayerPSyncResponseData::PSyncResponse(response) => (
+                truelayer::get_attempt_status(response.status.clone()),
+                response.failure_reason.clone(),
+            ),
+            TruelayerPSyncResponseData::WebhookResponse(webhook) => (
+                truelayer::get_truelayer_payment_webhook_status(webhook._type.clone())
+                    .unwrap_or(AttemptStatus::Pending),
+                webhook.failure_reason.clone(),
+            ),
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Truelayer<T>,
+    flow: Refund,
+    source: (),
+    context: (),
+    mapping: |_ack, _ctx| { // The refund-create response only echoes an id; the request is accepted and the
+        // refund settles asynchronously.
+        non_terminal!(Pending) },
+    runtime: {
+        request: RefundsData,
+        response: TruelayerRefundResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Truelayer<T>,
+    flow: RSync,
+    source: RefundStatus,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { status })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: TruelayerRsyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
+            TruelayerRsyncResponse::RsyncResponse(response) => {
+                truelayer::get_refund_status(response.status.clone())
+            }
+            TruelayerRsyncResponse::WebhookResponse(webhook) => {
+                truelayer::get_truelayer_refund_webhook_status(webhook._type.clone())
+                    .unwrap_or(RefundStatus::Pending)
+            }
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Truelayer,
     generic_type: T,

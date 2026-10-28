@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
     errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMinorUnit,
 };
@@ -646,6 +646,506 @@ macros::macro_connector_implementation!(
 // ===== AUTHENTICATION FLOW SOURCE VERIFICATION =====
 
 // ===== CONNECTOR CUSTOMER SOURCE VERIFICATION =====
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpayments<T>,
+    flow: Authorize,
+    // `(errorcode, settlestatus, authcode)` distilled from the first response entry;
+    // `None` when the response array is empty.,
+    source: Option<(String, Option<trustpayments::TrustpaymentsSettleStatus>, Option<String>)>,
+    context: (),
+    mapping: |source, _ctx| {
+        let mapped_status = (|| { let Some((errorcode, settlestatus, authcode)) = source else {
+            return AttemptStatus::Failure;
+        };
+        if errorcode != "0" {
+            return AttemptStatus::Failure;
+        }
+        match settlestatus {
+            Some(trustpayments::TrustpaymentsSettleStatus::AutomaticCapture) => {
+                if authcode.is_some() {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Pending
+                }
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::SettledPending)
+            | Some(trustpayments::TrustpaymentsSettleStatus::SettledComplete) => {
+                AttemptStatus::Charged
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::ManualCapture) => {
+                if authcode.is_some() {
+                    AttemptStatus::Authorized
+                } else {
+                    AttemptStatus::Pending
+                }
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::Cancelled) => AttemptStatus::Voided,
+            None => AttemptStatus::Pending,
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: TrustpaymentsAuthorizeResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            response.responses.first().map(|auth_response| {
+                (
+                    auth_response.errorcode.clone(),
+                    auth_response.settlestatus.clone(),
+                    auth_response.authcode.clone(),
+                )
+            })
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpayments<T>,
+    flow: PSync,
+    // `(response-level errorcode, first record)` where the record is
+    // `(record errorcode, settlestatus, authcode)`; `None` on an empty response array.,
+    source: Option<(
+        String,
+        Option<(
+            String,
+            Option<trustpayments::TrustpaymentsSettleStatus>,
+            Option<String>,
+        )>,
+    )>,
+    context: (),
+    mapping: |source, _ctx| {
+        let mapped_status = (|| { let Some((response_errorcode, record)) = source else {
+            return AttemptStatus::Failure;
+        };
+        if response_errorcode != "0" {
+            return AttemptStatus::Failure;
+        }
+        let Some((record_errorcode, settlestatus, authcode)) = record else {
+            // No transaction records found for the query.
+            return AttemptStatus::Pending;
+        };
+        if record_errorcode != "0" {
+            return AttemptStatus::Failure;
+        }
+        match settlestatus {
+            Some(trustpayments::TrustpaymentsSettleStatus::AutomaticCapture) => {
+                if authcode.is_some() {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Pending
+                }
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::SettledPending)
+            | Some(trustpayments::TrustpaymentsSettleStatus::SettledComplete) => {
+                AttemptStatus::Charged
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::ManualCapture) => {
+                if authcode.is_some() {
+                    AttemptStatus::Authorized
+                } else {
+                    AttemptStatus::Pending
+                }
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::Cancelled) => AttemptStatus::Voided,
+            None => AttemptStatus::Pending,
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: TrustpaymentsPSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            response.response.first().map(|response_item| {
+                let record = response_item.records.as_ref().and_then(|records| {
+                    records.first().map(|record| {
+                        (
+                            record.errorcode.clone(),
+                            record.settlestatus.clone(),
+                            record.authcode.clone(),
+                        )
+                    })
+                });
+                (response_item.errorcode.clone(), record)
+            })
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpayments<T>,
+    flow: Capture,
+    source: Option<String>,
+    context: (),
+    mapping: |errorcode, _ctx| {
+        let mapped_status = (|| { match errorcode.as_deref() {
+            // A successful TRANSACTIONUPDATE means the capture was accepted.
+            Some("0") => AttemptStatus::Charged,
+            _ => AttemptStatus::Failure,
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: TrustpaymentsCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            response
+                .response
+                .first()
+                .map(|response_item| response_item.errorcode.clone())
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpayments<T>,
+    flow: Void,
+    source: Option<String>,
+    context: (),
+    mapping: |errorcode, _ctx| {
+        let mapped_status = (|| { match errorcode.as_deref() {
+            // A successful TRANSACTIONUPDATE means the void was accepted.
+            Some("0") => AttemptStatus::Voided,
+            _ => AttemptStatus::VoidFailed,
+        } })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: TrustpaymentsVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            response
+                .response
+                .first()
+                .map(|response_item| response_item.errorcode.clone())
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpayments<T>,
+    flow: SetupMandate,
+    source: Option<(String, Option<trustpayments::TrustpaymentsSettleStatus>, Option<String>)>,
+    context: (),
+    mapping: |source, _ctx| {
+        let mapped_status = (|| { let Some((errorcode, settlestatus, authcode)) = source else {
+            return AttemptStatus::Failure;
+        };
+        if errorcode != "0" {
+            return AttemptStatus::Failure;
+        }
+        match settlestatus {
+            Some(trustpayments::TrustpaymentsSettleStatus::AutomaticCapture) => {
+                if authcode.is_some() {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Pending
+                }
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::SettledPending)
+            | Some(trustpayments::TrustpaymentsSettleStatus::SettledComplete) => {
+                AttemptStatus::Charged
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::ManualCapture) => {
+                if authcode.is_some() {
+                    AttemptStatus::Authorized
+                } else {
+                    AttemptStatus::Pending
+                }
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::Cancelled) => AttemptStatus::Voided,
+            None => AttemptStatus::Pending,
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: TrustpaymentsSetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            response.responses.first().map(|auth_response| {
+                (
+                    auth_response.errorcode.clone(),
+                    auth_response.settlestatus.clone(),
+                    auth_response.authcode.clone(),
+                )
+            })
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpayments<T>,
+    flow: RepeatPayment,
+    source: Option<(String, Option<trustpayments::TrustpaymentsSettleStatus>, Option<String>)>,
+    context: (),
+    mapping: |source, _ctx| {
+        let mapped_status = (|| { let Some((errorcode, settlestatus, authcode)) = source else {
+            return AttemptStatus::Failure;
+        };
+        if errorcode != "0" {
+            return AttemptStatus::Failure;
+        }
+        match settlestatus {
+            Some(trustpayments::TrustpaymentsSettleStatus::AutomaticCapture) => {
+                if authcode.is_some() {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Pending
+                }
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::SettledPending)
+            | Some(trustpayments::TrustpaymentsSettleStatus::SettledComplete) => {
+                AttemptStatus::Charged
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::ManualCapture) => {
+                if authcode.is_some() {
+                    AttemptStatus::Authorized
+                } else {
+                    AttemptStatus::Pending
+                }
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::Cancelled) => AttemptStatus::Voided,
+            None => AttemptStatus::Pending,
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorized => non_terminal!(Authorized),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: TrustpaymentsRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            response.responses.first().map(|auth_response| {
+                (
+                    auth_response.errorcode.clone(),
+                    auth_response.settlestatus.clone(),
+                    auth_response.authcode.clone(),
+                )
+            })
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpayments<T>,
+    flow: Refund,
+    source: Option<(String, Option<trustpayments::TrustpaymentsSettleStatus>)>,
+    context: (),
+    mapping: |source, _ctx| {
+        let mapped_status = (|| { let Some((errorcode, settlestatus)) = source else {
+            return RefundStatus::Pending;
+        };
+        if errorcode != "0" {
+            return RefundStatus::Failure;
+        }
+        match settlestatus {
+            Some(trustpayments::TrustpaymentsSettleStatus::SettledComplete)
+            | Some(trustpayments::TrustpaymentsSettleStatus::SettledPending) => {
+                RefundStatus::Success
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::AutomaticCapture) | None => {
+                RefundStatus::Pending
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::ManualCapture) => {
+                RefundStatus::ManualReview
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::Cancelled) => RefundStatus::Failure,
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: TrustpaymentsRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            response.responses.first().map(|refund_response| {
+                (
+                    refund_response.errorcode.clone(),
+                    refund_response.settlestatus.clone(),
+                )
+            })
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpayments<T>,
+    flow: RSync,
+    // `(response-level errorcode, first record)`; `None` on an empty response array.,
+    source: Option<(
+        String,
+        Option<(String, Option<trustpayments::TrustpaymentsSettleStatus>)>,
+    )>,
+    context: (),
+    mapping: |source, _ctx| {
+        let mapped_status = (|| { let Some((response_errorcode, record)) = source else {
+            return RefundStatus::Pending;
+        };
+        if response_errorcode != "0" {
+            return RefundStatus::Failure;
+        }
+        let Some((record_errorcode, settlestatus)) = record else {
+            // No transaction records found for the refund query yet.
+            return RefundStatus::Pending;
+        };
+        if record_errorcode != "0" {
+            return RefundStatus::Failure;
+        }
+        match settlestatus {
+            Some(trustpayments::TrustpaymentsSettleStatus::SettledComplete)
+            | Some(trustpayments::TrustpaymentsSettleStatus::SettledPending) => {
+                RefundStatus::Success
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::AutomaticCapture) | None => {
+                RefundStatus::Pending
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::ManualCapture) => {
+                RefundStatus::ManualReview
+            }
+            Some(trustpayments::TrustpaymentsSettleStatus::Cancelled) => RefundStatus::Failure,
+        } })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: TrustpaymentsRSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            response.response.first().map(|response_item| {
+                let record = response_item.records.as_ref().and_then(|records| {
+                    records
+                        .first()
+                        .map(|record| (record.errorcode.clone(), record.settlestatus.clone()))
+                });
+                (response_item.errorcode.clone(), record)
+            })
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 
 macros::macro_connector_flow_status_impls!(
     connector: Trustpayments,

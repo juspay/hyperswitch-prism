@@ -729,6 +729,218 @@ macros::macro_connector_implementation!(
     }
 );
 
+// These declarations reuse the production conversions, including cross-flow states.
+// In particular, do not rewrite Authorized/Voided on Capture or Charged on Void
+// merely to fit a narrower flow ALLOWED set.
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: Authorize,
+    source: moneris::MonerisPaymentStatus,
+    mapping: |status| { match status {
+            moneris::MonerisPaymentStatus::Succeeded => success!(Charged),
+            moneris::MonerisPaymentStatus::Authorized => success!(Authorized),
+            moneris::MonerisPaymentStatus::Canceled => non_terminal!(Voided),
+            moneris::MonerisPaymentStatus::Declined
+            | moneris::MonerisPaymentStatus::DeclinedRetry => failure!(Failure),
+            moneris::MonerisPaymentStatus::Processing => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: MonerisAuthorizeResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payment_status.clone()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: PreAuthenticate,
+    source: MonerisPreAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+
+
+            use transformers::MonerisThreeDSecureTransactionStatus;
+            match response.three_d_secure_transaction_status {
+                MonerisThreeDSecureTransactionStatus::Authenticated
+                | MonerisThreeDSecureTransactionStatus::AuthenticatedAttempted
+                | MonerisThreeDSecureTransactionStatus::InformationOnly => {
+                    success!(AuthenticationSuccessful)
+                }
+                MonerisThreeDSecureTransactionStatus::ChallengeAuthenticationRequired
+                | MonerisThreeDSecureTransactionStatus::Decoupled => {
+                    non_terminal!(AuthenticationPending)
+                }
+                MonerisThreeDSecureTransactionStatus::NotAuthenticated
+                | MonerisThreeDSecureTransactionStatus::Rejected => {
+                    failure!(AuthenticationFailed)
+                }
+            }
+        },
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: MonerisPreAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: PostAuthenticate,
+    source: MonerisPostAuthenticateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+
+
+            use transformers::MonerisThreeDSecureTransactionStatus;
+            match response.three_d_secure_transaction_status {
+                Some(MonerisThreeDSecureTransactionStatus::Authenticated)
+                | Some(MonerisThreeDSecureTransactionStatus::AuthenticatedAttempted)
+                | Some(MonerisThreeDSecureTransactionStatus::InformationOnly) => {
+                    success!(AuthenticationSuccessful)
+                }
+                Some(MonerisThreeDSecureTransactionStatus::Decoupled)
+                | Some(MonerisThreeDSecureTransactionStatus::ChallengeAuthenticationRequired) => {
+                    non_terminal!(AuthenticationPending)
+                }
+                Some(MonerisThreeDSecureTransactionStatus::NotAuthenticated)
+                | Some(MonerisThreeDSecureTransactionStatus::Rejected)
+                | None => failure!(AuthenticationFailed),
+            }
+        },
+    runtime: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: MonerisPostAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: PSync,
+    source: moneris::MonerisPaymentStatus,
+    mapping: |status| { match status {
+            moneris::MonerisPaymentStatus::Succeeded => success!(Charged),
+            moneris::MonerisPaymentStatus::Authorized => success!(Authorized),
+            moneris::MonerisPaymentStatus::Canceled => success!(Voided),
+            moneris::MonerisPaymentStatus::Declined
+            | moneris::MonerisPaymentStatus::DeclinedRetry => failure!(Failure),
+            moneris::MonerisPaymentStatus::Processing => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: MonerisPaymentSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payment_status.clone()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: RepeatPayment,
+    source: moneris::MonerisPaymentStatus,
+    mapping: |status| { match status {
+            moneris::MonerisPaymentStatus::Succeeded => success!(Charged),
+            moneris::MonerisPaymentStatus::Authorized => non_terminal!(Authorized),
+            moneris::MonerisPaymentStatus::Canceled => failure!(Failure),
+            moneris::MonerisPaymentStatus::Declined
+            | moneris::MonerisPaymentStatus::DeclinedRetry => failure!(Failure),
+            moneris::MonerisPaymentStatus::Processing => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: MonerisRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payment_status.clone()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: Void,
+    source: moneris::MonerisPaymentStatus,
+    mapping: |status| { match status {
+            moneris::MonerisPaymentStatus::Succeeded => failure!(VoidFailed),
+            moneris::MonerisPaymentStatus::Authorized => failure!(VoidFailed),
+            moneris::MonerisPaymentStatus::Canceled => success!(Voided),
+            moneris::MonerisPaymentStatus::Declined
+            | moneris::MonerisPaymentStatus::DeclinedRetry => failure!(VoidFailed),
+            moneris::MonerisPaymentStatus::Processing => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: PaymentVoidData,
+        response: MonerisPaymentVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payment_status.clone()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: Capture,
+    source: moneris::MonerisPaymentStatus,
+    context: (MinorUnit, Option<MinorUnit>),
+    mapping: |status, ctx| { match status {
+            moneris::MonerisPaymentStatus::Succeeded => match ctx.1 {
+                Some(authorized) if ctx.0 < authorized => success!(PartialCharged),
+                _ => success!(Charged),
+            },
+            moneris::MonerisPaymentStatus::Authorized => non_terminal!(CaptureInitiated),
+            moneris::MonerisPaymentStatus::Canceled => failure!(CaptureFailed),
+            moneris::MonerisPaymentStatus::Declined
+            | moneris::MonerisPaymentStatus::DeclinedRetry => failure!(Failure),
+            moneris::MonerisPaymentStatus::Processing => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: MonerisCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payment_status.clone()) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok((request.amount_to_capture.amount, None)) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: Refund,
+    source: moneris::MonerisRefundStatus,
+    mapping: |status| { match status {
+            moneris::MonerisRefundStatus::Succeeded => success!(Success),
+            moneris::MonerisRefundStatus::Declined
+            | moneris::MonerisRefundStatus::DeclinedRetry => failure!(Failure),
+            moneris::MonerisRefundStatus::Processing => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: RefundsData,
+        response: MonerisRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.refund_status.clone()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Moneris<T>,
+    flow: RSync,
+    source: moneris::MonerisRefundStatus,
+    mapping: |status| { match status {
+            moneris::MonerisRefundStatus::Succeeded => success!(Success),
+            moneris::MonerisRefundStatus::Declined
+            | moneris::MonerisRefundStatus::DeclinedRetry => failure!(Failure),
+            moneris::MonerisRefundStatus::Processing => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: RefundSyncData,
+        response: MonerisRefundSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.refund_status.clone()) },
+    },
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Moneris,
     generic_type: T,

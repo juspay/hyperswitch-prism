@@ -1,5 +1,7 @@
 #![recursion_limit = "512"]
 #![allow(clippy::result_large_err)]
+// Status mapping bodies intentionally isolate legacy expressions before classifying them.
+#![allow(clippy::redundant_closure_call)]
 
 pub mod authenticator_connectors;
 pub mod common_macros;

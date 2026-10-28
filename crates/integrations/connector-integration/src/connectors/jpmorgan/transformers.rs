@@ -1196,7 +1196,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-fn map_transaction_state_to_attempt_status(
+pub fn map_transaction_state_to_attempt_status(
     transaction_state: &responses::JpmorganTransactionState,
     capture_method: &Option<requests::CapMethod>,
 ) -> AttemptStatus {

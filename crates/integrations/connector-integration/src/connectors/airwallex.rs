@@ -62,41 +62,457 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Airwallex<T>,
+    flow: CreateOrder,
+    source: airwallex::AirwallexPaymentStatus,
+    context: (),
+    mapping: |status, _ctx| {
+        match status {
+            airwallex::AirwallexPaymentStatus::RequiresCustomerAction => {
+                non_terminal!(AuthenticationPending)
+            }
+            airwallex::AirwallexPaymentStatus::RequiresPaymentMethod
+            | airwallex::AirwallexPaymentStatus::Processing
+            | airwallex::AirwallexPaymentStatus::Pending => non_terminal!(Pending),
+            airwallex::AirwallexPaymentStatus::Succeeded
+            | airwallex::AirwallexPaymentStatus::Settled
+            | airwallex::AirwallexPaymentStatus::Paid
+            | airwallex::AirwallexPaymentStatus::CaptureRequested => success!(Charged),
+            airwallex::AirwallexPaymentStatus::RequiresCapture
+            | airwallex::AirwallexPaymentStatus::Authorized => success!(Authorized),
+            airwallex::AirwallexPaymentStatus::Failed
+            | airwallex::AirwallexPaymentStatus::Cancelled => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentCreateOrderData,
+        response: AirwallexIntentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+// All five payment flows authenticate the same way: the `TryFrom` implementations call
+// `get_payment_status(status, next_action)`. `next_action` only refines the
+// `RequiresCustomerAction` variant (DeviceDataCollection → DeviceDataCollectionPending),
+// so the mapping is context-aware via `Option<AirwallexNextActionType>`.
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Airwallex<T>,
+    flow: Authorize,
+    source: transformers::AirwallexPaymentStatus,
+    context: Option<transformers::AirwallexNextActionType>,
+    mapping: |status, next_action| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        use transformers::{AirwallexNextActionType, AirwallexPaymentStatus};
+        match status {
+            AirwallexPaymentStatus::Succeeded
+            | AirwallexPaymentStatus::Paid
+            | AirwallexPaymentStatus::CaptureRequested
+            | AirwallexPaymentStatus::Settled => AttemptStatus::Charged,
+            AirwallexPaymentStatus::Failed => AttemptStatus::Failure,
+            AirwallexPaymentStatus::Processing | AirwallexPaymentStatus::Pending => {
+                AttemptStatus::Pending
+            }
+            AirwallexPaymentStatus::RequiresPaymentMethod => AttemptStatus::PaymentMethodAwaited,
+            AirwallexPaymentStatus::RequiresCustomerAction => match next_action {
+                Some(AirwallexNextActionType::DeviceDataCollection) => {
+                    AttemptStatus::DeviceDataCollectionPending
+                }
+                Some(AirwallexNextActionType::Redirect)
+                | Some(AirwallexNextActionType::Other)
+                | None => AttemptStatus::AuthenticationPending,
+            },
+            AirwallexPaymentStatus::RequiresCapture | AirwallexPaymentStatus::Authorized => {
+                AttemptStatus::Authorized
+            }
+            AirwallexPaymentStatus::Cancelled => AttemptStatus::Voided,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: AirwallexPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.next_action.as_ref().map(|action| action.action_type.clone())) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Airwallex<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Airwallex<T>,
+    flow: PSync,
+    source: transformers::AirwallexPaymentStatus,
+    context: Option<transformers::AirwallexNextActionType>,
+    mapping: |status, next_action| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        use transformers::{AirwallexNextActionType, AirwallexPaymentStatus};
+        match status {
+            AirwallexPaymentStatus::Succeeded
+            | AirwallexPaymentStatus::Paid
+            | AirwallexPaymentStatus::CaptureRequested
+            | AirwallexPaymentStatus::Settled => AttemptStatus::Charged,
+            AirwallexPaymentStatus::Failed => AttemptStatus::Failure,
+            AirwallexPaymentStatus::Processing | AirwallexPaymentStatus::Pending => {
+                AttemptStatus::Pending
+            }
+            AirwallexPaymentStatus::RequiresPaymentMethod => AttemptStatus::PaymentMethodAwaited,
+            AirwallexPaymentStatus::RequiresCustomerAction => match next_action {
+                Some(AirwallexNextActionType::DeviceDataCollection) => {
+                    AttemptStatus::DeviceDataCollectionPending
+                }
+                Some(AirwallexNextActionType::Redirect)
+                | Some(AirwallexNextActionType::Other)
+                | None => AttemptStatus::AuthenticationPending,
+            },
+            AirwallexPaymentStatus::RequiresCapture | AirwallexPaymentStatus::Authorized => {
+                AttemptStatus::Authorized
+            }
+            AirwallexPaymentStatus::Cancelled => AttemptStatus::Voided,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: AirwallexSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.next_action.as_ref().map(|action| action.action_type.clone())) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Airwallex<T>
 {
 }
 
+// Void (POST /payments/cancel): a successful cancel returns the intent with
+// status Cancelled → Voided. Succeeded being requested to void maps to Failure
+// per the "settled → cannot void" rule. The TryFrom shares `get_payment_status`
+// with Authorize, where RequiresPaymentMethod/RequiresCustomerAction carry their
+// payment-lifecycle meaning; here they (like RequiresCapture/Processing/Pending)
+// mean the pre-capture intent is still mid-flight, i.e. the cancel is in progress.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Airwallex<T>,
+    flow: Void,
+    source: transformers::AirwallexPaymentStatus,
+    context: Option<transformers::AirwallexNextActionType>,
+    mapping: |status, next_action| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        use transformers::AirwallexPaymentStatus;
+        let _ = next_action;
+        match status {
+            AirwallexPaymentStatus::Cancelled => AttemptStatus::Voided,
+            // mid-flight intent — cancellation still being processed
+            AirwallexPaymentStatus::RequiresPaymentMethod
+            | AirwallexPaymentStatus::RequiresCustomerAction
+            | AirwallexPaymentStatus::RequiresCapture
+            | AirwallexPaymentStatus::Authorized
+            | AirwallexPaymentStatus::Processing
+            | AirwallexPaymentStatus::Pending => AttemptStatus::VoidInitiated,
+            // settled / failed intent — cannot be voided
+            AirwallexPaymentStatus::Succeeded
+            | AirwallexPaymentStatus::Paid
+            | AirwallexPaymentStatus::CaptureRequested
+            | AirwallexPaymentStatus::Settled
+            | AirwallexPaymentStatus::Failed => AttemptStatus::Failure,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: AirwallexVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.next_action.as_ref().map(|action| action.action_type.clone())) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Airwallex<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Airwallex<T>,
+    flow: Capture,
+    source: transformers::AirwallexPaymentStatus,
+    context: Option<transformers::AirwallexNextActionType>,
+    mapping: |status, next_action| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        use transformers::AirwallexPaymentStatus;
+        let _ = next_action;
+        match status {
+            AirwallexPaymentStatus::Succeeded
+            | AirwallexPaymentStatus::Paid
+            | AirwallexPaymentStatus::CaptureRequested
+            | AirwallexPaymentStatus::Settled => AttemptStatus::Charged,
+            AirwallexPaymentStatus::Failed => AttemptStatus::Failure,
+            // The intent went CANCELLED instead of settling — the capture attempt
+            // can never complete. Flow-specific terminal failure, on par with other
+            // connectors (cybersource/barclaycard/... map Cancelled → CaptureFailed).
+            AirwallexPaymentStatus::Cancelled => AttemptStatus::CaptureFailed,
+            // mid-flight — capture still being processed
+            AirwallexPaymentStatus::RequiresPaymentMethod
+            | AirwallexPaymentStatus::RequiresCustomerAction
+            | AirwallexPaymentStatus::RequiresCapture
+            | AirwallexPaymentStatus::Authorized
+            | AirwallexPaymentStatus::Processing
+            | AirwallexPaymentStatus::Pending => AttemptStatus::CaptureInitiated,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: AirwallexCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.next_action.as_ref().map(|action| action.action_type.clone())) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Airwallex<T>
 {
 }
 
+// Mirrors `From<AirwallexRefundStatus> for RefundStatus`: settled is a completed
+// refund, failed is terminal, received/accepted are acknowledged but not settled.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Airwallex<T>,
+    flow: Refund,
+    source: transformers::AirwallexRefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::AirwallexRefundStatus::Settled => success!(Success),
+            transformers::AirwallexRefundStatus::Failed => failure!(Failure),
+            transformers::AirwallexRefundStatus::Received => non_terminal!(Pending),
+            transformers::AirwallexRefundStatus::Accepted => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: AirwallexRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Airwallex<T>
 {
 }
 
+// RSync reads the same refund object and goes through the identical
+// `From<AirwallexRefundStatus> for RefundStatus` mapping.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Airwallex<T>,
+    flow: RSync,
+    source: transformers::AirwallexRefundStatus,
+    mapping: |status| {
+        match status {
+            transformers::AirwallexRefundStatus::Settled => success!(Success),
+            transformers::AirwallexRefundStatus::Failed => failure!(Failure),
+            transformers::AirwallexRefundStatus::Received => non_terminal!(Pending),
+            transformers::AirwallexRefundStatus::Accepted => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: AirwallexRefundSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Airwallex<T>
 {
 }
 
+// SetupMandate: `Authorized` is not in this flow's ALLOWED set — a successful CIT
+// verification is Charged (mirrors how the TryFrom's Charged-producing variants map).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Airwallex<T>,
+    flow: SetupMandate,
+    source: transformers::AirwallexPaymentStatus,
+    context: Option<transformers::AirwallexNextActionType>,
+    mapping: |status, next_action| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        use transformers::{AirwallexNextActionType, AirwallexPaymentStatus};
+        match status {
+            AirwallexPaymentStatus::Succeeded
+            | AirwallexPaymentStatus::Paid
+            | AirwallexPaymentStatus::CaptureRequested
+            | AirwallexPaymentStatus::Settled => AttemptStatus::Charged,
+            AirwallexPaymentStatus::Failed | AirwallexPaymentStatus::Cancelled => {
+                AttemptStatus::Failure
+            }
+            AirwallexPaymentStatus::Processing
+            | AirwallexPaymentStatus::Pending
+            | AirwallexPaymentStatus::RequiresPaymentMethod
+            | AirwallexPaymentStatus::RequiresCapture
+            | AirwallexPaymentStatus::Authorized => AttemptStatus::Pending,
+            AirwallexPaymentStatus::RequiresCustomerAction => match next_action {
+                Some(AirwallexNextActionType::DeviceDataCollection) => AttemptStatus::Pending,
+                Some(AirwallexNextActionType::Redirect)
+                | Some(AirwallexNextActionType::Other)
+                | None => AttemptStatus::AuthenticationPending,
+            },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: AirwallexSetupMandateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.next_action.as_ref().map(|action| action.action_type.clone())) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Airwallex<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Airwallex<T>,
+    flow: RepeatPayment,
+    source: transformers::AirwallexPaymentStatus,
+    context: Option<transformers::AirwallexNextActionType>,
+    mapping: |status, next_action| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        use transformers::{AirwallexNextActionType, AirwallexPaymentStatus};
+        match status {
+            AirwallexPaymentStatus::Succeeded
+            | AirwallexPaymentStatus::Paid
+            | AirwallexPaymentStatus::CaptureRequested
+            | AirwallexPaymentStatus::Settled => AttemptStatus::Charged,
+            AirwallexPaymentStatus::Failed | AirwallexPaymentStatus::Cancelled => {
+                AttemptStatus::Failure
+            }
+            AirwallexPaymentStatus::Processing
+            | AirwallexPaymentStatus::Pending
+            | AirwallexPaymentStatus::RequiresPaymentMethod => AttemptStatus::Pending,
+            AirwallexPaymentStatus::RequiresCustomerAction => match next_action {
+                Some(AirwallexNextActionType::DeviceDataCollection) => AttemptStatus::Pending,
+                Some(AirwallexNextActionType::Redirect)
+                | Some(AirwallexNextActionType::Other)
+                | None => AttemptStatus::AuthenticationPending,
+            },
+            AirwallexPaymentStatus::RequiresCapture | AirwallexPaymentStatus::Authorized => {
+                AttemptStatus::Authorized
+            }
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Authorized => non_terminal!(Authorized),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: AirwallexRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.next_action.as_ref().map(|action| action.action_type.clone())) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Airwallex<T>
 {

@@ -130,7 +130,7 @@ pub enum SilverflowClearingStatus {
     Unknown,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SilverflowActionStatus {
     Completed,

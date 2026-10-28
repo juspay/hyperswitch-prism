@@ -95,23 +95,166 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Adyen<T>
 {
 }
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    flow: CreateOrder,
+    source: AdyenOrderCreateResponse,
+    context: (),
+    mapping: |response, _ctx| {
+            if response.result_code == "Success" {
+                non_terminal!(Pending)
+            } else {
+                failure!(Failure)
+            }
+        },
+    runtime: {
+        request: PaymentCreateOrderData,
+        response: AdyenOrderCreateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+// Mirrors `get_adyen_payment_status`: the HTTP response legs carry `AdyenStatus`
+// and disambiguate manual-capture (Authorized) vs auto-capture (Charged) via ctx.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    flow: Authorize,
+    source: adyen::AdyenStatus,
+    context: (bool, Option<PaymentMethodType>),
+    mapping: |status, ctx| { use common_enums::PaymentMethodType;
+        use adyen::AdyenStatus;
+        match status {
+            AdyenStatus::AuthenticationFinished => non_terminal!(Pending),
+            AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => non_terminal!(Pending),
+            AdyenStatus::Authorised => {
+                if ctx.0 {
+                    success!(Authorized)
+                } else {
+                    success!(Charged)
+                }
+            }
+            AdyenStatus::Cancelled => non_terminal!(Voided),
+            AdyenStatus::ChallengeShopper
+            | AdyenStatus::RedirectShopper
+            | AdyenStatus::PresentToShopper => non_terminal!(AuthenticationPending),
+            AdyenStatus::Error | AdyenStatus::Refused => failure!(Failure),
+            AdyenStatus::Pending => match ctx.1 {
+                Some(PaymentMethodType::Pix) => non_terminal!(AuthenticationPending),
+                _ => non_terminal!(Pending),
+            },
+            AdyenStatus::Unknown => non_terminal!(Unspecified),
+        } },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: AdyenPaymentResponse,
+        source: |_resource_common_data, _request, r, _http_status_code| { Ok(r.result_code()) },
+        context: |_resource_common_data, req, _response, _http_status_code| { Ok((
+            crate::utils::is_manual_capture(req.capture_method),
+            req.payment_method_type,
+        )) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Adyen<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    flow: IncrementalAuthorization,
+    source: (),
+    mapping: |_response| { preserve_existing!() },
+    runtime: {
+        request: PaymentsIncrementalAuthorizationData,
+        response: AdyenIncrementalAuthResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentIncrementalAuthorization for Adyen<T>
 {
 }
 
+// PSync uses the same `get_adyen_payment_status` mapping as Authorize.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    flow: PSync,
+    source: adyen::AdyenStatus,
+    context: (bool, Option<PaymentMethodType>),
+    mapping: |status, ctx| { use common_enums::PaymentMethodType;
+        use adyen::AdyenStatus;
+        match status {
+            AdyenStatus::AuthenticationFinished => non_terminal!(Pending),
+            AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => non_terminal!(Pending),
+            AdyenStatus::Authorised => {
+                if ctx.0 {
+                    success!(Authorized)
+                } else {
+                    success!(Charged)
+                }
+            }
+            AdyenStatus::Cancelled => failure!(Failure),
+            AdyenStatus::ChallengeShopper
+            | AdyenStatus::RedirectShopper
+            | AdyenStatus::PresentToShopper => non_terminal!(AuthenticationPending),
+            AdyenStatus::Error | AdyenStatus::Refused => failure!(Failure),
+            AdyenStatus::Pending => match ctx.1 {
+                Some(PaymentMethodType::Pix) => non_terminal!(AuthenticationPending),
+                _ => non_terminal!(Pending),
+            },
+            AdyenStatus::Unknown => non_terminal!(Unspecified),
+        } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: AdyenPSyncResponse,
+        source: |_resource_common_data, _request, r, _http_status_code| { Ok(r.result_code()) },
+        context: |_resource_common_data, req, _response, _http_status_code| { Ok((
+            crate::utils::is_manual_capture(req.capture_method),
+            req.payment_method_type,
+        )) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Adyen<T>
 {
 }
 
+// Adyen modification responses acknowledge async processing; the terminal outcome
+// is reported via webhook.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    flow: Void,
+    source: AdyenVoidResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(Pending) },
+    runtime: {
+        request: PaymentVoidData,
+        response: AdyenVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Adyen<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    flow: VoidPC,
+    source: (),
+    mapping: |_response| { preserve_existing!() },
+    runtime: {
+        request: PaymentsCancelPostCaptureData,
+        response: AdyenReversalResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidPostCaptureV2 for Adyen<T>
@@ -121,9 +264,56 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Adyen<T>
 {
 }
+// Adyen's /payments/{pspReference}/captures response has no terminal result_code;
+// it acknowledges the request and the actual capture outcome arrives via the
+// CAPTURE webhook.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    flow: Capture,
+    source: AdyenCaptureResponse,
+    context: (),
+    mapping: |_response, _ctx| { non_terminal!(Pending) },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: AdyenCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Adyen<T>
 {
+}
+// Mirrors the SetupMandate TryFrom: it reuses `get_adyen_payment_status` with
+// is_manual_capture = false, so status is always a function of AdyenStatus alone.
+// SetupMandate::ALLOWED has no Authorized/Voided — verification success ⇒ Charged.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    flow: SetupMandate,
+    source: adyen::AdyenStatus,
+    mapping: |status| {
+        match status {
+            adyen::AdyenStatus::Authorised => success!(Charged),
+            adyen::AdyenStatus::Refused => failure!(Failure),
+            adyen::AdyenStatus::AuthenticationFinished => non_terminal!(AuthenticationSuccessful),
+            adyen::AdyenStatus::AuthenticationNotRequired => non_terminal!(Pending),
+            adyen::AdyenStatus::Received => non_terminal!(Pending),
+            adyen::AdyenStatus::Cancelled => failure!(Failure),
+            adyen::AdyenStatus::ChallengeShopper => non_terminal!(AuthenticationPending),
+            adyen::AdyenStatus::RedirectShopper => non_terminal!(AuthenticationPending),
+            adyen::AdyenStatus::PresentToShopper => non_terminal!(AuthenticationPending),
+            adyen::AdyenStatus::Error => failure!(Failure),
+            adyen::AdyenStatus::Pending => non_terminal!(Pending),
+            adyen::AdyenStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: SetupMandateResponse,
+        source: |_resource_common_data, _request, r, _http_status_code| { Ok(r.result_code()) },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Adyen<T>
@@ -142,6 +332,47 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// Mirrors the RepeatPayment TryFrom: same `get_adyen_payment_status` mapping as
+// Authorize, disambiguated by capture method.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Adyen<T>,
+    flow: RepeatPayment,
+    source: adyen::AdyenStatus,
+    context: (bool, Option<PaymentMethodType>),
+    mapping: |status, ctx| { use common_enums::PaymentMethodType;
+        use adyen::AdyenStatus;
+        match status {
+            AdyenStatus::AuthenticationFinished => non_terminal!(Pending),
+            AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => non_terminal!(Pending),
+            AdyenStatus::Authorised => {
+                if ctx.0 {
+                    non_terminal!(Authorized)
+                } else {
+                    success!(Charged)
+                }
+            }
+            AdyenStatus::Cancelled => failure!(Failure),
+            AdyenStatus::ChallengeShopper
+            | AdyenStatus::RedirectShopper
+            | AdyenStatus::PresentToShopper => non_terminal!(AuthenticationPending),
+            AdyenStatus::Error | AdyenStatus::Refused => failure!(Failure),
+            AdyenStatus::Pending => match ctx.1 {
+                Some(PaymentMethodType::Pix) => non_terminal!(AuthenticationPending),
+                _ => non_terminal!(Pending),
+            },
+            AdyenStatus::Unknown => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: AdyenRepeatPaymentResponse,
+        source: |_resource_common_data, _request, r, _http_status_code| { Ok(r.result_code()) },
+        context: |_resource_common_data, req, _response, _http_status_code| { Ok((
+            crate::utils::is_manual_capture(req.capture_method),
+            req.payment_method_type,
+        )) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Adyen<T>
 {

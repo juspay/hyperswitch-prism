@@ -2211,3 +2211,9 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
         })
     }
 }
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RedsysPaymentStatusContext {
+    pub capture_method: Option<common_enums::CaptureMethod>,
+    pub is_three_ds: bool,
+}

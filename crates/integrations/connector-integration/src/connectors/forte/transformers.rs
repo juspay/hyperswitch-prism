@@ -402,7 +402,7 @@ impl TryFrom<&ConnectorSpecificConfig> for ForteAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FortePaymentStatus {
     Complete,
@@ -954,7 +954,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RefundSyncResponse {
-    status: RefundStatus,
+    pub status: RefundStatus,
     transaction_id: String,
 }
 
@@ -990,4 +990,55 @@ pub struct ErrorResponseStatus {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ForteErrorResponse {
     pub response: Option<ErrorResponseStatus>,
+}
+
+impl RefundSyncResponse {
+    pub fn flow_status(&self) -> RefundStatus {
+        self.status.clone()
+    }
+}
+
+impl RefundResponse {
+    pub fn flow_status(&self) -> RefundStatus {
+        match &self.response.response_code {
+            ForteResponseCode::A01 | ForteResponseCode::A05 | ForteResponseCode::A06 => {
+                RefundStatus::Ready
+            }
+            _ => RefundStatus::Failed,
+        }
+    }
+}
+
+impl FortePaymentsResponse {
+    pub fn flow_status(&self) -> FortePaymentStatus {
+        match (&self.response.response_code, &self.action) {
+            (ForteResponseCode::A01, ForteAction::Authorize) => FortePaymentStatus::Authorized,
+            (ForteResponseCode::A01, ForteAction::Verify | ForteAction::Capture) => {
+                FortePaymentStatus::Complete
+            }
+            (ForteResponseCode::A01, ForteAction::Sale)
+            | (ForteResponseCode::A05 | ForteResponseCode::A06, _) => FortePaymentStatus::Ready,
+            _ => FortePaymentStatus::Failed,
+        }
+    }
+}
+
+impl ForteCaptureResponse {
+    pub fn flow_status(&self) -> FortePaymentStatus {
+        match &self.response.response_code {
+            ForteResponseCode::A01 => FortePaymentStatus::Complete,
+            ForteResponseCode::A05 | ForteResponseCode::A06 => FortePaymentStatus::Ready,
+            _ => FortePaymentStatus::Failed,
+        }
+    }
+}
+
+impl ForteCancelResponse {
+    pub fn flow_status(&self) -> FortePaymentStatus {
+        match &self.response.response_code {
+            ForteResponseCode::A01 => FortePaymentStatus::Voided,
+            ForteResponseCode::A05 | ForteResponseCode::A06 => FortePaymentStatus::Ready,
+            _ => FortePaymentStatus::Failed,
+        }
+    }
 }

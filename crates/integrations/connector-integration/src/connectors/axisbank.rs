@@ -46,21 +46,197 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Axisbank<T>,
+    flow: Authorize,
+    source: AxisbankPaymentsResponse,
+    context: (),
+    mapping: |response, _ctx| {
+
+            if response.response_code.is_failure() {
+                failure!(Failure)
+            } else if response.payload.is_some() {
+                non_terminal!(AuthenticationPending)
+            } else {
+                non_terminal!(Pending)
+            }
+        },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: AxisbankPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Axisbank<T>
 {
 }
 
+// PSync (Status 360): mirror of `map_transaction_status` — `Success` is
+// disambiguated by the gateway_response_code in the payload (ctx).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Axisbank<T>,
+    flow: PSync,
+    source: crate::connectors::juspay_upi_stack::types::OuterResponseCode,
+    context: Option<String>,
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        use crate::connectors::juspay_upi_stack::types::{
+            GatewayResponseCode, OuterResponseCode as Outer,
+        };
+        match status {
+            // handle_psync_response short-circuits is_failure() codes to Failure —
+            // that set includes DuplicateRequest (unlike map_transaction_status).
+            Outer::Failure
+            | Outer::RequestExpired
+            | Outer::Dropout
+            | Outer::InvalidData
+            | Outer::Unauthorized
+            | Outer::InvalidMerchant
+            | Outer::DeviceFingerprintMismatch
+            | Outer::InternalServerError
+            | Outer::InvalidTransactionId
+            | Outer::UninitiatedRequest
+            | Outer::InvalidRefundAmount
+            | Outer::DuplicateRequest
+            | Outer::BadRequest => AttemptStatus::Failure,
+            Outer::RequestNotFound
+            | Outer::RequestPending
+            | Outer::ServiceUnavailable
+            | Outer::GatewayTimeout => AttemptStatus::Pending,
+            Outer::Success => match ctx.as_deref() {
+                Some(code) => match GatewayResponseCode::parse(code) {
+                    GatewayResponseCode::Success => AttemptStatus::Charged,
+                    GatewayResponseCode::Pending
+                    | GatewayResponseCode::Deemed
+                    | GatewayResponseCode::MandatePaused
+                    | GatewayResponseCode::MandateCompleted => AttemptStatus::Pending,
+                    GatewayResponseCode::Declined
+                    | GatewayResponseCode::Expired
+                    | GatewayResponseCode::BeneAddrIncorrect
+                    | GatewayResponseCode::IntentExpired
+                    | GatewayResponseCode::ValidationError
+                    | GatewayResponseCode::MandateRevoked
+                    | GatewayResponseCode::MandateDeclined
+                    | GatewayResponseCode::MandateExpired
+                    | GatewayResponseCode::Unknown(_) => AttemptStatus::Failure,
+                },
+                None => AttemptStatus::Pending,
+            },
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: AxisbankSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.response_code.clone()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok(response.payload.as_ref().map(|payload| payload.gateway_response_code.clone())) },
+    },
+}
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Axisbank<T>
 {
 }
 
+// Refund / RSync route through the shared juspay_upi_stack handlers
+// (`handle_refund_response` / `handle_rsync_response`), which map the gateway
+// codes to the shared `juspay_upi_stack::types::RefundStatus` and then to
+// `enums::RefundStatus` (`Deemed` → Pending). The contextual refund_type
+// (UDIR vs ONLINE/OFFLINE) split lives upstream of that enum inside
+// `map_refund_status`, so the declared mapping here covers the enum →
+// `RefundStatus` leg that both flows share.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Axisbank<T>,
+    flow: Refund,
+    source: crate::connectors::juspay_upi_stack::types::RefundStatus,
+    mapping: |status| { match status {
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Success => success!(Success),
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Failed => failure!(Failure),
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Pending => non_terminal!(Pending),
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Deemed => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: RefundsData,
+        response: AxisbankRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            use crate::connectors::juspay_upi_stack::types::RefundStatus as Status;
+            response.payload.as_ref().map_or(Status::Failed, |payload| {
+                if payload.refund_type.eq_ignore_ascii_case("UDIR") {
+                    Status::from_udir_gateway_code(&payload.gateway_response_code, &payload.gateway_response_status)
+                } else {
+                    Status::from_offline_gateway_code(&payload.gateway_response_code, &payload.gateway_response_status)
+                }
+            })
+        }) },
+    },
+}
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Axisbank<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Axisbank<T>,
+    flow: RSync,
+    source: crate::connectors::juspay_upi_stack::types::RefundStatus,
+    mapping: |status| { match status {
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Success => success!(Success),
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Failed => failure!(Failure),
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Pending => non_terminal!(Pending),
+            crate::connectors::juspay_upi_stack::types::RefundStatus::Deemed => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: RefundSyncData,
+        response: AxisbankRefundSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            use crate::connectors::juspay_upi_stack::types::RefundStatus as Status;
+            response.payload.as_ref().map_or(Status::Failed, |payload| {
+                if payload.refund_type.eq_ignore_ascii_case("UDIR") {
+                    Status::from_udir_gateway_code(&payload.gateway_response_code, &payload.gateway_response_status)
+                } else {
+                    Status::from_offline_gateway_code(&payload.gateway_response_code, &payload.gateway_response_status)
+                }
+            })
+        }) },
+    },
+}
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Axisbank<T>
 {

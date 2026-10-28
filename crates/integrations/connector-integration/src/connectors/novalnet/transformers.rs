@@ -697,7 +697,20 @@ pub struct NovalnetPaymentsResponseTransactionData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetPaymentsResponse {
     result: ResultData,
-    transaction: Option<NovalnetPaymentsResponseTransactionData>,
+    pub transaction: Option<NovalnetPaymentsResponseTransactionData>,
+}
+
+impl NovalnetPaymentsResponse {
+    pub fn transaction_status(&self) -> NovalnetTransactionStatus {
+        self.transaction
+            .as_ref()
+            .and_then(|transaction| transaction.status)
+            .unwrap_or(if self.result.redirect_url.is_some() {
+                NovalnetTransactionStatus::Progress
+            } else {
+                NovalnetTransactionStatus::Pending
+            })
+    }
 }
 
 pub fn get_error_response(
@@ -1313,7 +1326,7 @@ impl From<NovalnetTransactionStatus> for common_enums::RefundStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundSyncResponse {
     result: ResultData,
-    transaction: Option<NovalnetSyncResponseTransactionData>,
+    pub transaction: Option<NovalnetSyncResponseTransactionData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1801,7 +1814,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCancelResponse {
     result: ResultData,
-    transaction: Option<NovalnetPaymentsResponseTransactionData>,
+    pub transaction: Option<NovalnetPaymentsResponseTransactionData>,
 }
 
 impl<F> TryFrom<ResponseRouterData<NovalnetCancelResponse, Self>>

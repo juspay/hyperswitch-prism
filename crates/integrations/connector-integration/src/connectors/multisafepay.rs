@@ -1,4 +1,5 @@
 pub mod transformers;
+use transformers::MultisafepayRefundVerdict;
 
 use domain_types::router_data::ConnectorSpecificConfig;
 use std::fmt::Debug;
@@ -436,6 +437,171 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             typed_connector_request: None,
         })
     }
+}
+
+// ===== FLOW STATUS MAPPINGS =====
+
+// Authorize — mirrors the Authorize TryFrom (transformers/multisafepay/transformers.rs:925),
+// which maps via `From<MultisafepayPaymentStatus> for AttemptStatus` (transformers.rs:512).
+// All mapped targets are in `Authorize::ALLOWED`.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Multisafepay<T>,
+    flow: Authorize,
+    source: multisafepay::MultisafepayPaymentStatus,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
+            multisafepay::MultisafepayPaymentStatus::Completed => common_enums::AttemptStatus::Charged,
+            multisafepay::MultisafepayPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
+            multisafepay::MultisafepayPaymentStatus::Initialized => common_enums::AttemptStatus::AuthenticationPending,
+            multisafepay::MultisafepayPaymentStatus::Uncleared => common_enums::AttemptStatus::Pending,
+            multisafepay::MultisafepayPaymentStatus::Void => common_enums::AttemptStatus::Voided,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: MultisafepayPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.data.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+// PSync — mirrors the PSync TryFrom (transformers.rs:971), same
+// `From<MultisafepayPaymentStatus> for AttemptStatus` mapping; `PSync::ALLOWED` is a
+// superset of every target, so no flow adjustment is needed.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Multisafepay<T>,
+    flow: PSync,
+    source: multisafepay::MultisafepayPaymentStatus,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
+            multisafepay::MultisafepayPaymentStatus::Completed => common_enums::AttemptStatus::Charged,
+            multisafepay::MultisafepayPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
+            multisafepay::MultisafepayPaymentStatus::Initialized => common_enums::AttemptStatus::AuthenticationPending,
+            multisafepay::MultisafepayPaymentStatus::Uncleared => common_enums::AttemptStatus::Pending,
+            multisafepay::MultisafepayPaymentStatus::Void => common_enums::AttemptStatus::Voided,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: MultisafepayPaymentsSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.data.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+// Refund — mirrors the Refund TryFrom (transformers.rs:1090): the response carries only a
+// `success: bool` flag, folded into `MultisafepayRefundStatus::{Succeeded, Failed}` and
+// mapped by `From<MultisafepayRefundStatus> for RefundStatus` (transformers.rs:533).
+// `Processing` is unreachable here (that variant exists for the webhook path).
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Multisafepay<T>,
+    flow: Refund,
+    source: MultisafepayRefundVerdict,
+    mapping: |verdict| { match verdict {
+            MultisafepayRefundVerdict::Succeeded => success!(Success),
+            MultisafepayRefundVerdict::Failed => failure!(Failure),
+            MultisafepayRefundVerdict::Other => failure!(Failure),
+        } },
+    runtime: {
+        request: RefundsData,
+        response: MultisafepayRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            if response.success {
+                MultisafepayRefundVerdict::Succeeded
+            } else {
+                MultisafepayRefundVerdict::Failed
+            }
+        }) },
+    },
+}
+
+// RSync — mirrors the RSync TryFrom (transformers.rs:1117): identical bool-flag folding
+// as the Refund flow (the sync response is the same `MultisafepayRefundResponse` shape).
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Multisafepay<T>,
+    flow: RSync,
+    source: MultisafepayRefundVerdict,
+    mapping: |verdict| { match verdict {
+            MultisafepayRefundVerdict::Succeeded => success!(Success),
+            MultisafepayRefundVerdict::Failed => failure!(Failure),
+            MultisafepayRefundVerdict::Other => failure!(Failure),
+        } },
+    runtime: {
+        request: RefundSyncData,
+        response: MultisafepayRefundSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            if response.success {
+                MultisafepayRefundVerdict::Succeeded
+            } else {
+                MultisafepayRefundVerdict::Failed
+            }
+        }) },
+    },
 }
 
 macros::macro_connector_flow_status_impls!(

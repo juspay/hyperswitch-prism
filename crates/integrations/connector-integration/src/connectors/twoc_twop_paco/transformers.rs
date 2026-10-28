@@ -1340,7 +1340,7 @@ pub enum PacoPaymentStep {
     Unknown,
 }
 
-fn map_attempt_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> AttemptStatus {
+pub fn map_attempt_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> AttemptStatus {
     match (status, step) {
         (PacoPaymentStatus::A, PacoPaymentStep::PA) => AttemptStatus::Charged,
         (PacoPaymentStatus::S, PacoPaymentStep::ST) => AttemptStatus::Charged,
@@ -1364,7 +1364,7 @@ fn map_attempt_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Att
     }
 }
 
-fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> RefundStatus {
+pub fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> RefundStatus {
     use PacoPaymentStatus as St;
     use PacoPaymentStep as Sp;
     match (status, step) {

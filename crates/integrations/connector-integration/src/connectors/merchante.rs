@@ -287,33 +287,306 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Merchante<T>
 {
 }
+
+// Authorize: mirrors `MerchantePaymentStatus::to_attempt_status` (transformers.rs:310) —
+// Approved → Charged (auto-capture) / Authorized (manual), Declined → Failure; the
+// failure target does not depend on capture intent, unlike bambora, but the success
+// target does, hence the ctx.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow: Authorize,
+    source: transformers::MerchantePaymentStatus,
+    context: transformers::MerchanteCaptureIntent,
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        use transformers::MerchantePaymentStatus;
+        match status {
+            MerchantePaymentStatus::Approved => {
+                if ctx.is_auto_capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            MerchantePaymentStatus::Declined => AttemptStatus::Failure,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: MerchantePaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(transformers::MerchantePaymentStatus::from(response)) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(transformers::MerchanteCaptureIntent {
+            is_auto_capture: request.is_auto_capture(),
+        }) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Merchante<T>
 {
+}
+
+// PSync: mirrors the PSync TryFrom (transformers.rs:601), which reuses
+// `MerchantePaymentStatus::to_attempt_status` with the request's capture intent.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow: PSync,
+    source: transformers::MerchantePaymentStatus,
+    context: transformers::MerchanteCaptureIntent,
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        use transformers::MerchantePaymentStatus;
+        match status {
+            MerchantePaymentStatus::Approved => {
+                if ctx.is_auto_capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            MerchantePaymentStatus::Declined => AttemptStatus::Failure,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: MerchantePaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(transformers::MerchantePaymentStatus::from(response)) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(transformers::MerchanteCaptureIntent {
+            is_auto_capture: request.is_auto_capture(),
+        }) },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Merchante<T>
 {
 }
+
+// Capture: mirrors the Capture TryFrom (transformers.rs:785-789) — an approved
+// Settle is Charged, anything else Failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow: Capture,
+    source: transformers::MerchantePaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::MerchantePaymentStatus::Approved => success!(Charged),
+            transformers::MerchantePaymentStatus::Declined => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: MerchantePaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(transformers::MerchantePaymentStatus::from(response)) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Merchante<T>
 {
+}
+
+// Void: mirrors the Void TryFrom (transformers.rs:877-881) — an approved Void is
+// Voided, anything else VoidFailed.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow: Void,
+    source: transformers::MerchantePaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::MerchantePaymentStatus::Approved => success!(Voided),
+            transformers::MerchantePaymentStatus::Declined => failure!(VoidFailed),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: MerchantePaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(transformers::MerchantePaymentStatus::from(response)) },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Merchante<T>
 {
 }
+
+// Refund: mirrors the Refund TryFrom, i.e. `From<MerchantePaymentStatus> for
+// RefundStatus` (transformers.rs:319) — approved → Success, declined → Failure.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow: Refund,
+    source: transformers::MerchantePaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::MerchantePaymentStatus::Approved => success!(Success),
+            transformers::MerchantePaymentStatus::Declined => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: MerchantePaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(transformers::MerchantePaymentStatus::from(response)) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Merchante<T>
 {
+}
+
+// RSync: mirrors the RSync TryFrom (transformers.rs:676-692), the same
+// `From<MerchantePaymentStatus> for RefundStatus` mapping.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow: RSync,
+    source: transformers::MerchantePaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::MerchantePaymentStatus::Approved => success!(Success),
+            transformers::MerchantePaymentStatus::Declined => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: MerchantePaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(transformers::MerchantePaymentStatus::from(response)) },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Merchante<T>
 {
 }
+
+// RepeatPayment: mirrors the RepeatPayment TryFrom (transformers.rs:1197-1198),
+// the same `to_attempt_status` helper as Authorize.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow: RepeatPayment,
+    source: transformers::MerchantePaymentStatus,
+    context: transformers::MerchanteCaptureIntent,
+    mapping: |status, ctx| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        use transformers::MerchantePaymentStatus;
+        match status {
+            MerchantePaymentStatus::Approved => {
+                if ctx.is_auto_capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            MerchantePaymentStatus::Declined => AttemptStatus::Failure,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Authorized => non_terminal!(Authorized),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: MerchantePaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(transformers::MerchantePaymentStatus::from(response)) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(transformers::MerchanteCaptureIntent {
+            is_auto_capture: request.is_auto_capture(),
+        }) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Merchante<T>
 {
+}
+
+// SetupMandate: mirrors the SetupMandate TryFrom (transformers.rs:1350-1388) — an
+// approved $0 Verify (store_card=Y) is stamped Charged (the flow's terminal success),
+// a decline goes to the error path.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Merchante<T>,
+    flow: SetupMandate,
+    source: transformers::MerchantePaymentStatus,
+    mapping: |status| {
+        match status {
+            transformers::MerchantePaymentStatus::Approved => success!(Charged),
+            transformers::MerchantePaymentStatus::Declined => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: MerchantePaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(transformers::MerchantePaymentStatus::from(response)) },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Merchante<T>

@@ -143,6 +143,18 @@ pub struct AciMandateResponse {
     pub timestamp: String,
 }
 
+impl AciMandateResponse {
+    pub fn flow_status(&self) -> AciMandateStatus {
+        if SUCCESSFUL_CODES.contains(&self.result.code.as_str()) {
+            AciMandateStatus::Succeeded
+        } else if FAILURE_CODES.contains(&self.result.code.as_str()) {
+            AciMandateStatus::Failed
+        } else {
+            AciMandateStatus::Pending
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum PaymentDetails<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
@@ -1501,6 +1513,12 @@ pub struct AciCaptureResponse {
     short_id: Option<String>,
 }
 
+impl AciCaptureResponse {
+    pub fn flow_status(&self) -> Result<AciStatus, error_stack::Report<ConnectorError>> {
+        AciStatus::from_str(&self.result.code)
+    }
+}
+
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciCaptureResult {
@@ -1616,6 +1634,12 @@ pub struct AciVoidResponse {
     build_number: String,
     timestamp: String,
     ndc: Secret<String>,
+}
+
+impl AciVoidResponse {
+    pub fn flow_status(&self) -> Result<AciStatus, error_stack::Report<ConnectorError>> {
+        AciStatus::from_str(&self.result.code)
+    }
 }
 
 fn map_aci_void_status(item: AciStatus) -> common_enums::AttemptStatus {
@@ -1757,6 +1781,12 @@ pub struct AciRefundResponse {
     timestamp: String,
     build_number: String,
     pub(super) result: ResultCode,
+}
+
+impl AciRefundResponse {
+    pub fn flow_status(&self) -> Result<AciRefundStatus, error_stack::Report<ConnectorError>> {
+        AciRefundStatus::from_str(&self.result.code)
+    }
 }
 
 impl<F> TryFrom<ResponseRouterData<AciRefundResponse, Self>>
@@ -2030,5 +2060,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             three_ds_two_enrolled: None,
             recurring_type,
         })
+    }
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+pub enum AciMandateStatus {
+    Succeeded,
+    Failed,
+    #[default]
+    Pending,
+}
+
+impl AciPaymentsResponse {
+    pub fn flow_status(&self) -> Result<AciPaymentStatus, error_stack::Report<ConnectorError>> {
+        if self.redirect.is_some() {
+            Ok(AciPaymentStatus::RedirectShopper)
+        } else {
+            AciPaymentStatus::from_str(&self.result.code)
+        }
     }
 }

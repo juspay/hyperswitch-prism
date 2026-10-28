@@ -530,6 +530,201 @@ macros::macro_connector_implementation!(
     }
 );
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paynearme<T>,
+    flow: Authorize,
+    source: PaynearmeAuthorizeResponse,
+    context: (),
+    mapping: |response, _ctx| { let envelope = &response.envelope;
+        let status_ok = envelope.status.as_deref().map(|value| value == "ok").unwrap_or(true);
+        let code_ok = envelope
+            .response_code
+            .as_deref()
+            .map(|value| value == "0")
+            .unwrap_or(true);
+        let payment = envelope.orders.as_ref().and_then(|order| {
+            order
+                .payments
+                .as_ref()
+                .filter(|payments| !payments.is_empty())
+                .or_else(|| {
+                    order
+                        .electronic_payments
+                        .as_ref()
+                        .and_then(|electronic| electronic.payments.as_ref())
+                        .filter(|payments| !payments.is_empty())
+                })
+                .and_then(|payments| payments.last())
+        });
+
+        if !(status_ok && code_ok)
+            || payment
+                .and_then(|payment| payment.payment_status.as_ref())
+                .map(|status| *status == paynearme::PaynearmePaymentStatus::Rejected)
+                .unwrap_or(false)
+        {
+            failure!(Failure)
+        } else {
+            match payment.and_then(|payment| payment.payment_status.as_ref()) {
+                Some(paynearme::PaynearmePaymentStatus::Approved) => success!(Charged),
+                Some(paynearme::PaynearmePaymentStatus::Authorized) => non_terminal!(Pending),
+                Some(paynearme::PaynearmePaymentStatus::Canceled) => non_terminal!(Voided),
+                Some(paynearme::PaynearmePaymentStatus::Refunded) => success!(Charged),
+                Some(paynearme::PaynearmePaymentStatus::Rejected) => failure!(Failure),
+                Some(paynearme::PaynearmePaymentStatus::WaitingForReview)
+                | Some(paynearme::PaynearmePaymentStatus::Unknown)
+                | None => non_terminal!(Pending),
+            }
+        } },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: PaynearmeAuthorizeResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paynearme<T>,
+    flow: PSync,
+    source: PaynearmeSyncResponse,
+    context: (),
+    mapping: |response, _ctx| { let envelope = &response.0;
+        let status_ok = envelope.status.as_deref().map(|value| value == "ok").unwrap_or(true);
+        let code_ok = envelope
+            .response_code
+            .as_deref()
+            .map(|value| value == "0")
+            .unwrap_or(true);
+
+        match ((status_ok && code_ok), envelope.payment.as_ref()) {
+            (true, Some(payment)) => match payment.payment_status.as_ref() {
+                Some(paynearme::PaynearmePaymentStatus::Approved) => success!(Charged),
+                Some(paynearme::PaynearmePaymentStatus::Authorized) => non_terminal!(Pending),
+                Some(paynearme::PaynearmePaymentStatus::Canceled) => success!(Voided),
+                Some(paynearme::PaynearmePaymentStatus::Refunded) => success!(Charged),
+                Some(paynearme::PaynearmePaymentStatus::Rejected) => failure!(Failure),
+                Some(paynearme::PaynearmePaymentStatus::WaitingForReview)
+                | Some(paynearme::PaynearmePaymentStatus::Unknown)
+                | None => non_terminal!(Pending),
+            },
+            _ => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: PaynearmeSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paynearme<T>,
+    flow: Void,
+    source: PaynearmeVoidResponse,
+    context: (),
+    mapping: |response, _ctx| { let envelope = &response.0;
+        let status_ok = envelope.status.as_deref().map(|value| value == "ok").unwrap_or(true);
+        let code_ok = envelope
+            .response_code
+            .as_deref()
+            .map(|value| value == "0")
+            .unwrap_or(true);
+        let cancelled = (status_ok && code_ok)
+            && envelope
+                .payment
+                .as_ref()
+                .and_then(|payment| payment.payment_status.as_ref())
+                .map(|status| *status == paynearme::PaynearmePaymentStatus::Canceled)
+                .unwrap_or(false);
+
+        if cancelled {
+            success!(Voided)
+        } else {
+            failure!(VoidFailed)
+        } },
+    runtime: {
+        request: PaymentVoidData,
+        response: PaynearmeVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paynearme<T>,
+    flow: Refund,
+    source: PaynearmeRefundResponse,
+    context: (),
+    mapping: |response, _ctx| { let envelope = &response.0;
+        let status_ok = envelope.status.as_deref().map(|value| value == "ok").unwrap_or(true);
+        let code_ok = envelope
+            .response_code
+            .as_deref()
+            .map(|value| value == "0")
+            .unwrap_or(true);
+
+        match ((status_ok && code_ok), envelope.payment.as_ref()) {
+            (false, _) => failure!(Failure),
+            (true, Some(payment)) => match payment
+                .refund
+                .as_ref()
+                .and_then(|refund| refund.refund_status.as_ref())
+            {
+                Some(paynearme::PaynearmeRefundStatus::Completed) => success!(Success),
+                Some(paynearme::PaynearmeRefundStatus::Started)
+                | Some(paynearme::PaynearmeRefundStatus::Unknown)
+                | None => non_terminal!(Pending),
+            },
+            (true, None) => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: RefundsData,
+        response: PaynearmeRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Paynearme<T>,
+    flow: RSync,
+    source: PaynearmeRefundSyncResponse,
+    context: (),
+    mapping: |response, _ctx| { let envelope = &response.0;
+        let status_ok = envelope.status.as_deref().map(|value| value == "ok").unwrap_or(true);
+        let code_ok = envelope
+            .response_code
+            .as_deref()
+            .map(|value| value == "0")
+            .unwrap_or(true);
+
+        match ((status_ok && code_ok), envelope.payment.as_ref()) {
+            (true, Some(payment)) => match payment
+                .refund
+                .as_ref()
+                .and_then(|refund| refund.refund_status.as_ref())
+            {
+                Some(paynearme::PaynearmeRefundStatus::Completed) => success!(Success),
+                Some(paynearme::PaynearmeRefundStatus::Started)
+                | Some(paynearme::PaynearmeRefundStatus::Unknown)
+                | None => non_terminal!(Pending),
+            },
+            _ => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: RefundSyncData,
+        response: PaynearmeRefundSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
 // ===== CONNECTOR SERVICE TRAITS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Paynearme<T>

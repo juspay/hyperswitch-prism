@@ -1548,3 +1548,44 @@ impl TryFrom<ResponseRouterData<EasebuzzRefundSyncResponse, Self>>
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum EasebuzzRefundSyncStatus {
+    /// `"refunded"` — the refund settled.
+    Refunded,
+    /// `"settled"` — the refund settled.
+    Settled,
+    /// `"cancelled"` — the refund was cancelled.
+    Cancelled,
+    /// `"reverse chargeback"` — the refund was clawed back.
+    ReverseChargeback,
+    /// `"failed"` — the refund failed.
+    Failed,
+    /// Any other status string, or none (the default).
+    #[default]
+    Other,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum EasebuzzTxnStatus {
+    /// `"success"` — the transaction settled.
+    Success,
+    /// `"initiated"` / `"pending"` / `"in_process"` — still in flight.
+    InFlight,
+    /// Any other status string (the default) — the `TryFrom` implementations map these to a
+    /// failure outcome.
+    #[default]
+    Other,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum EasebuzzAuthorizeStatus {
+    /// `status: "success"` — the transaction settled (auto-capture only, so
+    /// a success is always `Charged`).
+    Success,
+    /// `status: "failure" | "failed"` — the transaction failed.
+    Failure,
+    /// Any other status, or a non-JSON (HTML redirect) body (the default).
+    #[default]
+    Other,
+}

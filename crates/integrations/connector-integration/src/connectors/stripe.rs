@@ -965,36 +965,6 @@ macros::macro_connector_implementation!(
                 headers::CONTENT_TYPE.to_string(),
                 self.common_get_content_type().to_string().into(),
             )];
-
-            // A Stripe *direct* charge routes by the `Stripe-Account` header, not by
-            // `on_behalf_of`, so a SetupMandate on a connected account has to carry it -- the
-            // sibling CreateConnectorCustomer flow below already does.
-            let transfer_account_id = req
-                .request
-                .split_payments
-                .as_ref()
-                .and_then(|split_payments| {
-                    if let domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment) =
-                        split_payments
-                    {
-                        Some(stripe_split_payment)
-                    } else {
-                        None
-                    }
-                })
-                .filter(|stripe_split_payment| {
-                    matches!(stripe_split_payment.charge_type, common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct))
-                })
-                .map(|stripe_split_payment| stripe_split_payment.transfer_account_id.clone());
-
-            if let Some(transfer_account_id) = transfer_account_id {
-                let mut customer_account_header = vec![(
-                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                    transfer_account_id.clone().into_masked(),
-                )];
-                header.append(&mut customer_account_header);
-            };
-
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
             Ok(header)
@@ -1401,6 +1371,47 @@ macros::macro_connector_implementation!(
 // 3DS leg count is 0: Stripe authenticates inside `POST /v1/payment_intents` (Authorize returns
 // `requires_action` + a redirect) and the outcome is read with `GET /v1/payment_intents/{id}`
 // (PSync). PreAuthenticate/Authenticate/PostAuthenticate stay unwired: a leg would re-confirm.
+// Refund: source is the refund's own status; Stripe refunds have a Failed terminal.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stripe<T>,
+    flow: Refund,
+    source: stripe::RefundStatus,
+    mapping: |status| { match status {
+        stripe::RefundStatus::Succeeded => success!(Success),
+        stripe::RefundStatus::Failed => failure!(Failure),
+        stripe::RefundStatus::Pending => non_terminal!(Pending),
+        stripe::RefundStatus::RequiresAction => non_terminal!(ManualReview),
+        stripe::RefundStatus::Canceled => failure!(Failure),
+        stripe::RefundStatus::Unknown => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: RefundsData,
+        response: RefundResponse,
+        source: |_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Stripe<T>,
+    flow: RSync,
+    source: stripe::RefundStatus,
+    mapping: |status| { match status {
+        stripe::RefundStatus::Succeeded => success!(Success),
+        stripe::RefundStatus::Failed => failure!(Failure),
+        stripe::RefundStatus::Pending => non_terminal!(Pending),
+        stripe::RefundStatus::RequiresAction => non_terminal!(ManualReview),
+        stripe::RefundStatus::Canceled => failure!(Failure),
+        stripe::RefundStatus::Unknown => non_terminal!(Pending),
+    } },
+    runtime: {
+        request: RefundSyncData,
+        response: RefundSyncResponse,
+        source: |_common_data, _request, response, _http_status_code| Ok(response.status.clone()),
+    },
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Stripe,
     generic_type: T,

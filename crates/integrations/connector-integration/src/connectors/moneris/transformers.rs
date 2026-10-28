@@ -881,7 +881,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisAuthorizeResponse {
-    payment_status: MonerisPaymentStatus,
+    pub payment_status: MonerisPaymentStatus,
     payment_id: String,
     payment_method: MonerisPaymentMethodData,
 }
@@ -940,7 +940,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisPaymentsResponse {
-    payment_status: MonerisPaymentStatus,
+    pub payment_status: MonerisPaymentStatus,
     payment_id: String,
     payment_method: MonerisPaymentMethodData,
 }
@@ -1012,7 +1012,7 @@ impl<F, T> TryFrom<ResponseRouterData<MonerisPaymentsResponse, Self>>
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisCaptureResponse {
-    payment_status: MonerisPaymentStatus,
+    pub payment_status: MonerisPaymentStatus,
     payment_id: String,
     payment_method: MonerisPaymentMethodData,
 }
@@ -1319,7 +1319,7 @@ impl From<MonerisRefundStatus> for RefundStatus {
 #[serde(rename_all = "camelCase")]
 pub struct MonerisRefundResponse {
     refund_id: String,
-    refund_status: MonerisRefundStatus,
+    pub refund_status: MonerisRefundStatus,
 }
 
 impl TryFrom<ResponseRouterData<MonerisRefundResponse, Self>>

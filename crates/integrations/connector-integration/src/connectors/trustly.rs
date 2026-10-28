@@ -524,6 +524,51 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustly<T>,
+    flow: Authorize,
+    // Trustly's authorize response only initializes a hosted-page redirect: `true` is the
+    // success envelope (a redirect URL), `false` the error envelope. Final payment status
+    // arrives via webhooks.,
+    source: bool,
+    context: (),
+    mapping: |acknowledged, _ctx|{ if acknowledged {
+            non_terminal!(AuthenticationPending)
+        } else {
+            failure!(Failure)
+        } },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: TrustlyPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(matches!(response, TrustlyPaymentsResponse::Success(_))) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustly<T>,
+    flow: Refund,
+    source: Option<trustly::TrustlyRefundResult>,
+    context: (),
+    mapping: |result, _ctx|{ match result {
+            Some(trustly::TrustlyRefundResult::Pending) => non_terminal!(Pending),
+            Some(trustly::TrustlyRefundResult::Failed) | None => failure!(Failure),
+        } },
+    runtime: {
+        request: RefundsData,
+        response: TrustlyRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
+            TrustlyRefundResponse::Success(success) => {
+                Some(success.result.data.result.clone())
+            }
+            TrustlyRefundResponse::Failure(_) => None,
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Trustly,
     generic_type: T,

@@ -1372,3 +1372,84 @@ impl TryFrom<ResponseRouterData<CitigateRefundSyncResponse, Self>> for RefundSyn
         })
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CitigatePostAuthStatus {
+    /// `ResponseCode 0` — the gateway approved the capture / cancel.
+    Approved,
+    /// Everything else — a bank decline or a gateway rejection (notably `561`,
+    /// "transaction already captured / no longer open").
+    NotReceived,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CitigateSyncStatus {
+    /// A payment-leg original (not a cancel) with `ResponseCode 0`.
+    PurchaseApproved,
+    /// A payment-leg original with any other `ResponseCode`.
+    PurchaseNotApproved,
+    /// A cancel-leg original (`TransTypeID 4`) with `ResponseCode 0` — the
+    /// authorisation is voided.
+    CancelApproved,
+    /// A cancel-leg original with any other `ResponseCode`.
+    CancelNotApproved,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CitigateAuthStatus {
+    /// `ResponseCode 0` (approved). The response `TransTypeID` (ctx) splits it
+    /// into sale (→ charged) vs. pre-auth (→ authorized).
+    Approved,
+    /// `ResponseCode 600` — the gateway asked for a cardholder redirect (3DS).
+    RedirectRequired,
+    /// `ResponseCode 999` with `TransTypeID 6` — the transaction is still being
+    /// processed by the bank.
+    Pending,
+    /// Everything else — a bank decline or a gateway rejection.
+    NotReceived,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CitigateFlowCtx {
+    pub trans_type_id: CitigateTransTypeId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
+pub enum CitigateTransTypeId {
+    Sale,
+    Authorise,
+    Capture,
+    Cancel,
+    Refund,
+    Pending,
+    /// Any other value observed on the echo (the default).
+    #[default]
+    Other,
+}
+
+impl CitigateFlowCtx {
+    /// Build the flow context from the raw `TransTypeID` echo.
+    pub fn from_trans_type_id(raw: Option<&str>) -> Self {
+        Self {
+            trans_type_id: CitigateTransTypeId::from_optional_str(raw),
+        }
+    }
+}
+
+impl CitigateTransTypeId {
+    /// Parse the raw `TransTypeID` string into the typed variant.
+    pub fn from_optional_str(raw: Option<&str>) -> Self {
+        match raw {
+            Some(RESP_TRANS_TYPE_SALE) => Self::Sale,
+            Some(RESP_TRANS_TYPE_AUTHORISE) => Self::Authorise,
+            Some(RESP_TRANS_TYPE_CAPTURE) => Self::Capture,
+            Some(RESP_TRANS_TYPE_CANCEL) => Self::Cancel,
+            Some(RESP_TRANS_TYPE_REFUND) => Self::Refund,
+            Some(RESP_TRANS_TYPE_PENDING) => Self::Pending,
+            _ => Self::Other,
+        }
+    }
+}

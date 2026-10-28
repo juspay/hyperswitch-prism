@@ -507,6 +507,156 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Silverflow<T>,
+    flow: Authorize,
+    source: (silverflow::SilverflowAuthorizationStatus, silverflow::SilverflowClearingStatus),
+    context: (),
+    mapping: |status, _ctx|{ match status {
+            // Approved authorization - check clearing status for final determination
+            (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Cleared)
+            | (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Settled) => {
+                success!(Charged)
+            }
+            (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Pending)
+            | (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Unknown) => {
+                success!(Authorized)
+            }
+            (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Failed)
+            | (silverflow::SilverflowAuthorizationStatus::Declined, _)
+            | (silverflow::SilverflowAuthorizationStatus::Failed, _) => failure!(Failure),
+            (silverflow::SilverflowAuthorizationStatus::Pending, _)
+            | (silverflow::SilverflowAuthorizationStatus::Unknown, _) => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: SilverflowPaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok((
+            response.status.authorization.clone(),
+            response.status.clearing.clone(),
+        )) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Silverflow<T>,
+    flow: PSync,
+    source: (silverflow::SilverflowAuthorizationStatus, silverflow::SilverflowClearingStatus),
+    context: (),
+    mapping: |status, _ctx|{ match status {
+            // Approved authorization - check clearing status for final determination
+            (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Cleared)
+            | (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Settled) => {
+                success!(Charged)
+            }
+            (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Pending)
+            | (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Unknown) => {
+                success!(Authorized)
+            }
+            (silverflow::SilverflowAuthorizationStatus::Approved, silverflow::SilverflowClearingStatus::Failed)
+            | (silverflow::SilverflowAuthorizationStatus::Declined, _)
+            | (silverflow::SilverflowAuthorizationStatus::Failed, _) => failure!(Failure),
+            (silverflow::SilverflowAuthorizationStatus::Pending, _)
+            | (silverflow::SilverflowAuthorizationStatus::Unknown, _) => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: SilverflowSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok((
+            response.status.authorization.clone(),
+            response.status.clearing.clone(),
+        )) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Silverflow<T>,
+    flow: Capture,
+    source: silverflow::SilverflowActionStatus,
+    context: (),
+    mapping: |status, _ctx|{ match status {
+            silverflow::SilverflowActionStatus::Completed
+            | silverflow::SilverflowActionStatus::Success => success!(Charged),
+            silverflow::SilverflowActionStatus::Failed => failure!(Failure),
+            silverflow::SilverflowActionStatus::Pending
+            | silverflow::SilverflowActionStatus::Unknown => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: SilverflowCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Silverflow<T>,
+    flow: Void,
+    source: silverflow::SilverflowAuthorizationStatus,
+    context: (),
+    mapping: |status, _ctx|{ match status {
+            silverflow::SilverflowAuthorizationStatus::Approved => success!(Voided),
+            silverflow::SilverflowAuthorizationStatus::Declined
+            | silverflow::SilverflowAuthorizationStatus::Failed => failure!(VoidFailed),
+            silverflow::SilverflowAuthorizationStatus::Pending
+            | silverflow::SilverflowAuthorizationStatus::Unknown => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: PaymentVoidData,
+        response: SilverflowVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.authorization.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Silverflow<T>,
+    flow: Refund,
+    source: silverflow::SilverflowActionStatus,
+    context: (),
+    mapping: |status, _ctx|{ match status {
+            silverflow::SilverflowActionStatus::Success
+            | silverflow::SilverflowActionStatus::Completed => success!(Success),
+            silverflow::SilverflowActionStatus::Failed => failure!(Failure),
+            silverflow::SilverflowActionStatus::Pending
+            | silverflow::SilverflowActionStatus::Unknown => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: RefundsData,
+        response: SilverflowRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Silverflow<T>,
+    flow: RSync,
+    source: silverflow::SilverflowActionStatus,
+    context: (),
+    mapping: |status, _ctx|{ match status {
+            silverflow::SilverflowActionStatus::Success
+            | silverflow::SilverflowActionStatus::Completed => success!(Success),
+            silverflow::SilverflowActionStatus::Failed => failure!(Failure),
+            silverflow::SilverflowActionStatus::Pending
+            | silverflow::SilverflowActionStatus::Unknown => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: RefundSyncData,
+        response: SilverflowRefundSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Silverflow,
     generic_type: T,

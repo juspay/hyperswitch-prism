@@ -60,21 +60,174 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Etisalat<T>
 {
 }
+// Mirrors `map_attempt_status` (transformers.rs:741) as the Authorize TryFrom
+// (transformers.rs:800) calls it: `is_auto_capture` chooses the success leg
+// (`Charged` auto / `Authorized` manual), `"0"` → that leg, a pending response
+// code → `Pending`, anything else → `Failure`. The response code string is
+// parsed into `EtisalatResponseVerdict` (transformers.rs) — the macro body
+// matches enum variants, never raw strings. The ctx bool is the request's
+// `is_auto_capture()` (Default false = manual capture, matching a `None`
+// capture_method).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Etisalat<T>,
+    flow: Authorize,
+    source: etisalat::EtisalatResponseVerdict,
+    context: bool,
+    mapping: |verdict, is_auto_capture| {
+        let mapped_status = (|| { use common_enums::AttemptStatus;
+        use etisalat::EtisalatResponseVerdict;
+        match verdict {
+            EtisalatResponseVerdict::Success => {
+                if is_auto_capture {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Authorized
+                }
+            }
+            EtisalatResponseVerdict::Pending => AttemptStatus::Pending,
+            EtisalatResponseVerdict::Failure => AttemptStatus::Failure,
+        } })();
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: EtisalatResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(etisalat::EtisalatResponseVerdict::from(&response.transaction)) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(request.is_auto_capture()) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Etisalat<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Etisalat<T>,
+    flow: Capture,
+    source: etisalat::EtisalatResponseVerdict,
+    context: bool,
+    mapping: |verdict, is_partial| { match verdict {
+        etisalat::EtisalatResponseVerdict::Success if is_partial => success!(PartialCharged),
+        etisalat::EtisalatResponseVerdict::Success => success!(Charged),
+        etisalat::EtisalatResponseVerdict::Pending => non_terminal!(Pending),
+        etisalat::EtisalatResponseVerdict::Failure => failure!(CaptureFailed),
+    } },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: EtisalatResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(etisalat::EtisalatResponseVerdict::from(&response.transaction))
+        },
+        context: |resource_common_data, request, _response, _http_status_code| {
+            Ok(domain_types::flow_status::FlowStatusReader::payment_amount(resource_common_data)
+                .is_some_and(|authorized| request.amount_to_capture.amount < authorized))
+        },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Etisalat<T>
 {
 }
+// The refund leg (transformers.rs:1031) keys its `RefundsResponseData.refund_status`
+// off the same `is_success()`/`is_pending()` response-code split as
+// `map_attempt_status` — `RefundStatus::Success` on `"0"`, `Pending` on the
+// PENDING_RESPONSE_CODES, `Failure` otherwise. The connector status string is
+// parsed into `EtisalatResponseVerdict` at the trust boundary (transformers.rs);
+// the macro body matches its variants, no raw string matching.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Etisalat<T>,
+    flow: Refund,
+    source: etisalat::EtisalatResponseVerdict,
+    mapping: |status| {
+        match status {
+            etisalat::EtisalatResponseVerdict::Success => success!(Success),
+            etisalat::EtisalatResponseVerdict::Failure => failure!(Failure),
+            etisalat::EtisalatResponseVerdict::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: EtisalatResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(etisalat::EtisalatResponseVerdict::from(&response.transaction)) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Etisalat<T>
 {
 }
+// Mirrors the Void TryFrom (transformers.rs:940): `map_attempt_status(&body,
+// AttemptStatus::Voided, AttemptStatus::VoidFailed)` — all Void targets land in
+// Void::ALLOWED (Voided / Pending / VoidFailed).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Etisalat<T>,
+    flow: Void,
+    source: etisalat::EtisalatResponseVerdict,
+    mapping: |status| {
+        match status {
+            etisalat::EtisalatResponseVerdict::Success => success!(Voided),
+            etisalat::EtisalatResponseVerdict::Failure => failure!(VoidFailed),
+            etisalat::EtisalatResponseVerdict::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: EtisalatResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(etisalat::EtisalatResponseVerdict::from(&response.transaction)) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Etisalat<T>
 {
+}
+// Mirrors the RepeatPayment TryFrom (transformers.rs:999): payer-not-present
+// recurring charges always auto-capture on Etisalat, so the call is
+// `map_attempt_status(&body, AttemptStatus::Charged, AttemptStatus::Failure)`
+// — a fixed success leg with no request-side split.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Etisalat<T>,
+    flow: RepeatPayment,
+    source: etisalat::EtisalatResponseVerdict,
+    mapping: |status| {
+        match status {
+            etisalat::EtisalatResponseVerdict::Success => success!(Charged),
+            etisalat::EtisalatResponseVerdict::Failure => failure!(Failure),
+            etisalat::EtisalatResponseVerdict::Pending => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: EtisalatResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(etisalat::EtisalatResponseVerdict::from(&response.transaction)) },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Etisalat<T>

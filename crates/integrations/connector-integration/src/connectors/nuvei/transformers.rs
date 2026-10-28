@@ -6433,3 +6433,11 @@ mod tests {
         );
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NuveiSyncTransactionType {
+    Auth,
+    Sale,
+    Settle,
+    Other,
+}

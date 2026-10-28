@@ -19,6 +19,14 @@ use domain_types::{
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+pub enum MultisafepayRefundVerdict {
+    Succeeded,
+    Failed,
+    #[default]
+    Other,
+}
+
 // ===== ENUMS =====
 
 /// MultiSafepay order type

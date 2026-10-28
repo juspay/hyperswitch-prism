@@ -1276,7 +1276,7 @@ pub enum FiuuPaymentsResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FiuuRecurringResponse {
-    status: FiuuRecurringStautus,
+    pub status: FiuuRecurringStautus,
     #[serde(rename = "orderid")]
     order_id: Option<String>,
     #[serde(rename = "tranID")]
@@ -1291,6 +1291,42 @@ pub enum FiuuRecurringStautus {
     Failed,
     #[serde(other)]
     Unknown,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum FiuuPaymentOutcome {
+    Charged,
+    Authorized,
+    AuthenticationPending,
+    Pending,
+    Failure,
+}
+
+pub fn classify_payment_response(
+    response: &FiuuPaymentsResponse,
+    is_auto_capture: bool,
+) -> FiuuPaymentOutcome {
+    match response {
+        FiuuPaymentsResponse::QRPaymentResponse(_) => FiuuPaymentOutcome::AuthenticationPending,
+        FiuuPaymentsResponse::Error(_) => FiuuPaymentOutcome::Failure,
+        FiuuPaymentsResponse::PaymentResponse(response) => match &response.txn_data.request_data {
+            RequestData::RedirectData(_) => FiuuPaymentOutcome::AuthenticationPending,
+            RequestData::NonThreeDS(response) => match response.status.as_str() {
+                "00" if is_auto_capture => FiuuPaymentOutcome::Charged,
+                "00" => FiuuPaymentOutcome::Authorized,
+                "22" => FiuuPaymentOutcome::Pending,
+                _ => FiuuPaymentOutcome::Failure,
+            },
+        },
+        FiuuPaymentsResponse::RecurringResponse(response) => match response.first() {
+            Some(response) => match response.status {
+                FiuuRecurringStautus::Accepted => FiuuPaymentOutcome::Charged,
+                FiuuRecurringStautus::Failed => FiuuPaymentOutcome::Failure,
+                FiuuRecurringStautus::Unknown => FiuuPaymentOutcome::Pending,
+            },
+            None => FiuuPaymentOutcome::Pending,
+        },
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1819,8 +1855,8 @@ pub enum FiuuPaymentResponse {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct FiuuPaymentSyncResponse {
-    stat_code: StatCode,
-    stat_name: StatName,
+    pub stat_code: StatCode,
+    pub stat_name: StatName,
     #[serde(rename = "TranID")]
     tran_id: String,
     error_code: Option<String>,
@@ -2357,7 +2393,7 @@ pub struct FiuuPaymentCancelRequest {
 pub struct FiuuPaymentCancelResponse {
     #[serde(rename = "TranID")]
     tran_id: String,
-    stat_code: String,
+    pub stat_code: String,
     #[serde(rename = "miscellaneous")]
     miscellaneous: Option<HashMap<String, Secret<String>>>,
 }
@@ -3010,6 +3046,29 @@ impl TryFrom<FiuuRefundSyncResponse> for RefundWebhookDetailsResponse {
                 "webhook body decoding failed".to_string(),
                 Default::default(),
             ))?,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum FiuuVoidStatus {
+    /// `stat_code "00"` — the authorisation was voided.
+    Voided,
+    /// Known void failures (`"11"`.."21"`).
+    Failed,
+    /// Any other `stat_code` (the default).
+    #[default]
+    Other,
+}
+
+impl FiuuVoidStatus {
+    pub fn from_stat_code(stat_code: &str) -> Self {
+        match stat_code {
+            "00" => Self::Voided,
+            "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18" | "19" | "20" | "21" => {
+                Self::Failed
+            }
+            _ => Self::Other,
         }
     }
 }

@@ -57,36 +57,281 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// Authorize: mirrors the TryFrom exactly. response_code 0 -> Authorized (manual capture) /
+// Charged (auto); non-zero -> Failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: Authorize,
+    source: u8,
+    context: bool,
+    mapping: |code, manual_capture|{
+        if code != 0 {
+            failure!(Failure)
+        } else if manual_capture {
+            success!(Authorized)
+        } else {
+            success!(Charged)
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: BamboraapacAuthorizeResponse,
+        source: |_common_data, _request, response, _http_status_code| {
+            let xml = response
+                .body
+                .submit_single_payment_response
+                .submit_single_payment_result
+                .replace("&lt;", "<")
+                .replace("&gt;", ">");
+            let parsed: transformers::PaymentResponse = xml.as_str().parse_xml().map_err(|error| {
+                ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                    format!("bamboraapac Authorize: {error}"),
+                ))
+            })?;
+            Ok(parsed.response_code)
+        },
+        context: |_common_data, request, _response, _http_status_code| {
+            Ok(request.capture_method == Some(common_enums::CaptureMethod::Manual))
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::PaymentAuthorizeV2<T> for Bamboraapac<T>
 {
 }
 
+// PSync: mirrors the TryFrom exactly. Found + response_code 0 -> Authorized (manual) /
+// Charged (auto); found + non-zero or not-found -> Failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: PSync,
+    source: u8,
+    context: bool,
+    mapping: |code, manual_capture|{
+        if code != 0 {
+            failure!(Failure)
+        } else if manual_capture {
+            success!(Authorized)
+        } else {
+            success!(Charged)
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: BamboraapacPSyncResponse,
+        source: |_common_data, _request, response, _http_status_code| {
+            let xml = response
+                .body
+                .query_transaction_response
+                .query_transaction_result
+                .replace("&lt;", "<")
+                .replace("&gt;", ">");
+            let parsed: transformers::QueryResponse = xml.as_str().parse_xml().map_err(|error| {
+                ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                    format!("bamboraapac PSync: {error}"),
+                ))
+            })?;
+            Ok(parsed.response.map_or(1, |response| response.response_code))
+        },
+        context: |_common_data, request, _response, _http_status_code| {
+            Ok(request.capture_method == Some(common_enums::CaptureMethod::Manual))
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::PaymentSyncV2 for Bamboraapac<T>
 {
 }
 
+// Capture: mirrors the TryFrom exactly. response_code 0 -> Charged, non-zero -> Failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: Capture,
+    source: u8,
+    mapping: |code|{
+        if code != 0 {
+            failure!(Failure)
+        } else {
+            success!(Charged)
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: BamboraapacCaptureResponse,
+        source: |_common_data, _request, response, _http_status_code| {
+            let xml = response
+                .body
+                .submit_single_capture_response
+                .submit_single_capture_result
+                .replace("&lt;", "<")
+                .replace("&gt;", ">");
+            let parsed: transformers::CaptureResponse = xml.as_str().parse_xml().map_err(|error| {
+                ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                    format!("bamboraapac Capture: {error}"),
+                ))
+            })?;
+            Ok(parsed.response_code)
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::PaymentCapture for Bamboraapac<T>
 {
 }
 
+// Refund: mirrors the TryFrom exactly. response_code 0 -> Success, non-zero -> Failure.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: Refund,
+    source: u8,
+    mapping: |code|{
+        if code != 0 {
+            failure!(Failure)
+        } else {
+            success!(Success)
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: BamboraapacRefundResponse,
+        source: |_common_data, _request, response, _http_status_code| {
+            let xml = response
+                .body
+                .submit_single_refund_response
+                .submit_single_refund_result
+                .replace("&lt;", "<")
+                .replace("&gt;", ">");
+            let parsed: transformers::RefundResponseInner = xml.as_str().parse_xml().map_err(|error| {
+                ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                    format!("bamboraapac Refund: {error}"),
+                ))
+            })?;
+            Ok(parsed.response_code)
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::RefundV2 for Bamboraapac<T>
 {
 }
 
+// RSync: mirrors the TryFrom exactly. Found + response_code 0 -> Success; found + non-zero or
+// not-found -> Failure.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: RSync,
+    source: u8,
+    mapping: |code|{
+        if code != 0 {
+            failure!(Failure)
+        } else {
+            success!(Success)
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: BamboraapacRSyncResponse,
+        source: |_common_data, _request, response, _http_status_code| {
+            let xml = response
+                .body
+                .query_transaction_response
+                .query_transaction_result
+                .replace("&lt;", "<")
+                .replace("&gt;", ">");
+            let parsed: transformers::QueryResponse = xml.as_str().parse_xml().map_err(|error| {
+                ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                    format!("bamboraapac RSync: {error}"),
+                ))
+            })?;
+            Ok(parsed.response.map_or(1, |response| response.response_code))
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::RefundSyncV2 for Bamboraapac<T>
 {
 }
 
+// SetupMandate: mirrors the TryFrom exactly. return_value 0 -> Charged, non-zero -> Failure.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: SetupMandate,
+    source: u8,
+    mapping: |code|{
+        if code != 0 {
+            failure!(Failure)
+        } else {
+            success!(Charged)
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: BamboraapacSetupMandateResponse,
+        source: |_common_data, _request, response, _http_status_code| {
+            let xml = response
+                .body
+                .register_single_customer_response
+                .register_single_customer_result
+                .replace("&lt;", "<")
+                .replace("&gt;", ">");
+            let parsed: transformers::RegisterSingleCustomerResponseInner = xml.as_str().parse_xml().map_err(|error| {
+                ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                    format!("bamboraapac SetupMandate: {error}"),
+                ))
+            })?;
+            Ok(parsed.return_value)
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::SetupMandateV2<T> for Bamboraapac<T>
 {
 }
 
+// RepeatPayment also respects manual capture: an approved authorization stays Authorized.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Bamboraapac<T>,
+    flow: RepeatPayment,
+    source: u8,
+    context: bool,
+    mapping: |code, manual_capture|{
+        if code != 0 {
+            failure!(Failure)
+        } else if manual_capture {
+            non_terminal!(Authorized)
+        } else {
+            success!(Charged)
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: BamboraapacRepeatPaymentResponse,
+        source: |_common_data, _request, response, _http_status_code| {
+            let xml = response
+                .body
+                .submit_single_payment_response
+                .submit_single_payment_result
+                .replace("&lt;", "<")
+                .replace("&gt;", ">");
+            let parsed: transformers::PaymentResponse = xml.as_str().parse_xml().map_err(|error| {
+                ConnectorError::response_handling_failed_http_status_unknown_with_context(Some(
+                    format!("bamboraapac RepeatPayment: {error}"),
+                ))
+            })?;
+            Ok(parsed.response_code)
+        },
+        context: |_common_data, request, _response, _http_status_code| {
+            Ok(request.capture_method == Some(common_enums::CaptureMethod::Manual))
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::connector_types::RepeatPaymentV2<T> for Bamboraapac<T>
 {

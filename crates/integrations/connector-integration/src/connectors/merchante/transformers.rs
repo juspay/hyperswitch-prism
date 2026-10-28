@@ -1389,3 +1389,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct MerchanteCaptureIntent {
+    pub is_auto_capture: bool,
+}

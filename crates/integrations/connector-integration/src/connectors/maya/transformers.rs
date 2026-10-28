@@ -130,7 +130,7 @@ pub struct MayaRedirectUrl {
 }
 
 /// Maya "Create Single Payment" response body.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MayaPaymentsResponse {
     pub payment_id: String,

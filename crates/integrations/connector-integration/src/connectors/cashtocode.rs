@@ -191,6 +191,22 @@ macros::create_all_prerequisites!(
     }
 );
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Cashtocode<T>,
+    flow: Authorize,
+    source: bool,
+    mapping: |is_error| {
+        if is_error { failure!(Failure) } else { non_terminal!(AuthenticationPending) }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: CashtocodePaymentsResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| {
+            Ok(matches!(response, CashtocodePaymentsResponse::CashtoCodeError(_)))
+        },
+    },
+}
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Cashtocode,

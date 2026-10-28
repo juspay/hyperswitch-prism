@@ -2444,7 +2444,7 @@ fn decode_mandate_id_string(raw: &str) -> MandateDispatch {
     // connector_mandate_id, so there is nothing to strip here.
     MandateDispatch::None
 }
-fn map_authorize_status(response: &TsysTransitAuthorizeResponse) -> AttemptStatus {
+pub fn map_authorize_status(response: &TsysTransitAuthorizeResponse) -> AttemptStatus {
     let body = response.body();
     match (
         body.status.as_ref(),
@@ -2703,7 +2703,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-fn get_payment_status_from_psync_response(
+pub fn get_payment_status_from_psync_response(
     item: &TsysTransitTransactionDetails,
     response_code: Option<String>,
 ) -> AttemptStatus {
@@ -2972,7 +2972,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 }
-fn map_capture_status(response: &TsysTransitCaptureResponse) -> AttemptStatus {
+pub fn map_capture_status(response: &TsysTransitCaptureResponse) -> AttemptStatus {
     match (response.status.as_ref(), response.response_code.as_deref()) {
         (Some(TsysTransitStatus::Pass), Some("A0000")) => AttemptStatus::Charged,
         (Some(TsysTransitStatus::Pass), Some(PARTIAL_TRANSACTION_AMOUNT_PROCESSED)) => {
@@ -3136,7 +3136,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-fn map_refund_status(response: &TsysTransitReturnResponse) -> RefundStatus {
+pub fn map_refund_status(response: &TsysTransitReturnResponse) -> RefundStatus {
     match (response.status.as_ref(), response.response_code.as_deref()) {
         (
             Some(TsysTransitStatus::Pass),
@@ -3279,7 +3279,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-fn get_refund_status(item: &TsysTransitTransactionDetails) -> Option<RefundStatus> {
+pub fn get_refund_status(item: &TsysTransitTransactionDetails) -> Option<RefundStatus> {
     let transaction_type = item.transaction_type.to_lowercase();
     if transaction_type.contains("return")
         || (transaction_type.contains("sale") && transaction_type.contains("void"))
@@ -3619,7 +3619,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 }
-fn map_void_status(response: &TsysTransitVoidResponse) -> AttemptStatus {
+pub fn map_void_status(response: &TsysTransitVoidResponse) -> AttemptStatus {
     match (response.status.as_ref(), response.response_code.as_deref()) {
         (Some(TsysTransitStatus::Pass), Some("A0000")) => AttemptStatus::Voided,
         (Some(TsysTransitStatus::Pass), Some(PARTIAL_TRANSACTION_AMOUNT_PROCESSED)) => {

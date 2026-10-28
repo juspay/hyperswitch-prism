@@ -400,7 +400,7 @@ pub struct AbsaSanlamPaymentsResponse {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AbsaSanlamPaymentEnqueueStatus {
     Queued,

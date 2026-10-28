@@ -158,7 +158,7 @@ pub struct SyncErrorCode {
     pub ds_errorcode: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DsState {
     /// Authenticating
@@ -184,7 +184,7 @@ pub enum DsState {
 }
 
 /// Sync response transaction data
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RedsysSyncResponseData {
     pub ds_authorisationcode: Option<String>,

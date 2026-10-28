@@ -664,6 +664,42 @@ macros::macro_connector_implementation!(
     }
 );
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Qwikcilver<T>,
+    flow: Authorize,
+    source: i64,
+    context: (),
+    mapping: |response_code, _ctx| { match response_code {
+            qwikcilver::QWIKCILVER_SUCCESS_CODE => success!(Charged),
+            _ => failure!(Failure),
+        } },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: QwikcilverRedeemResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.response_code) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Qwikcilver<T>,
+    flow: Refund,
+    source: i64,
+    context: (),
+    mapping: |response_code, _ctx| { match response_code {
+            qwikcilver::QWIKCILVER_SUCCESS_CODE => success!(Success),
+            _ => failure!(Failure),
+        } },
+    runtime: {
+        request: RefundsData,
+        response: QwikcilverCancelRedeemResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.response_code) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Qwikcilver,
     generic_type: T,

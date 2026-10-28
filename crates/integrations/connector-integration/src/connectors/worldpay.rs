@@ -8,11 +8,12 @@ use self::requests::{
     WorldpayRepeatPaymentRequest,
 };
 use self::response::{
-    WorldpayAuthorizeResponse, WorldpayCaptureResponse, WorldpayErrorResponse,
-    WorldpayIncrementalAuthResponse, WorldpayPostAuthenticateResponse,
+    EventType, PaymentOutcome, WorldpayAuthorizeResponse, WorldpayCaptureResponse,
+    WorldpayErrorResponse, WorldpayIncrementalAuthResponse, WorldpayPostAuthenticateResponse,
     WorldpayPreAuthenticateResponse, WorldpayRefundResponse, WorldpayRefundSyncResponse,
     WorldpayRepeatPaymentResponse, WorldpaySyncResponse, WorldpayVoidResponse,
 };
+use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::BytesExt};
 use domain_types::{
     connector_flow::{
@@ -319,7 +320,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             code: response.error_name,
             message: response.message,
             reason: response.validation_errors.map(|e| e.to_string()),
-            attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+            attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
@@ -679,6 +680,354 @@ macros::macro_connector_implementation!(
         }
     }
 );
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: Authorize,
+    source: PaymentOutcome,
+    context: common_utils::types::MinorUnit,
+    mapping: |status, amount| {
+        let mapped_status = (|| { if amount == common_utils::types::MinorUnit::zero()
+            && status == PaymentOutcome::Authorized
+        {
+            AttemptStatus::Charged
+        } else {
+            AttemptStatus::from(status)
+        } })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: WorldpayAuthorizeResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.outcome.clone()) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(request.amount.amount) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: PSync,
+    source: EventType,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(&status) })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            AttemptStatus::Expired => non_terminal!(Expired),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            AttemptStatus::Unknown => non_terminal!(Unknown),
+            AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: WorldpaySyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.last_event.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: Capture,
+    source: PaymentOutcome,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(status) })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: WorldpayCaptureResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.outcome.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: Void,
+    source: PaymentOutcome,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(status) })();
+        match mapped_status {
+            AttemptStatus::Voided => success!(Voided),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::VoidFailed => failure!(VoidFailed),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: WorldpayVoidResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.outcome.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: Refund,
+    source: PaymentOutcome,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { RefundStatus::from(status) })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: WorldpayRefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.outcome.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: RSync,
+    source: EventType,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { RefundStatus::from(status) })();
+        match mapped_status {
+            RefundStatus::Success => success!(Success),
+            RefundStatus::Failure => failure!(Failure),
+            RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            RefundStatus::Pending => non_terminal!(Pending),
+            RefundStatus::ManualReview => non_terminal!(ManualReview),
+            RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: WorldpayRefundSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.last_event.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+// Expands inside `mapping:` bodies only (it references the `success!` /
+// `failure!` / `non_terminal!` macros those bodies define). Mirrors the
+// `From<PaymentOutcome> for AttemptStatus` From impl, expanding each status
+// into the typed outcome class the enclosing flow's per-flow enums allow.
+macro_rules! worldpay_attempt_mapping {
+    ($status:ident) => {{
+        match $status {
+            PaymentOutcome::Authorized => common_enums::AttemptStatus::Authorized,
+            PaymentOutcome::SentForSettlement => common_enums::AttemptStatus::Charged,
+            PaymentOutcome::ThreeDsDeviceDataRequired => common_enums::AttemptStatus::Pending,
+            PaymentOutcome::ThreeDsAuthenticationFailed | PaymentOutcome::ThreeDsUnavailable => {
+                common_enums::AttemptStatus::AuthenticationFailed
+            }
+            PaymentOutcome::ThreeDsChallenged => common_enums::AttemptStatus::AuthenticationPending,
+            PaymentOutcome::SentForCancellation
+            | PaymentOutcome::SentForPartialRefund
+            | PaymentOutcome::SentForRefund => common_enums::AttemptStatus::Pending,
+            PaymentOutcome::Refused | PaymentOutcome::FraudHighRisk => {
+                common_enums::AttemptStatus::Failure
+            }
+        }
+    }};
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: PreAuthenticate,
+    source: PaymentOutcome,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { worldpay_attempt_mapping!(status) })();
+        match mapped_status {
+            AttemptStatus::AuthenticationSuccessful => success!(AuthenticationSuccessful),
+            AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorized => non_terminal!(Authorized),
+            AttemptStatus::Charged => non_terminal!(Charged),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsPreAuthenticateData<T>,
+        response: WorldpayPreAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.outcome.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: PostAuthenticate,
+    source: PaymentOutcome,
+    context: (),
+    mapping: |status, _ctx| { match status {
+            PaymentOutcome::Authorized => success!(Authorized),
+            PaymentOutcome::SentForSettlement => success!(Charged),
+            PaymentOutcome::ThreeDsDeviceDataRequired => non_terminal!(Pending),
+            PaymentOutcome::ThreeDsAuthenticationFailed
+            | PaymentOutcome::ThreeDsUnavailable => failure!(AuthenticationFailed),
+            PaymentOutcome::ThreeDsChallenged => non_terminal!(AuthenticationPending),
+            PaymentOutcome::SentForCancellation => non_terminal!(Voided),
+            PaymentOutcome::SentForPartialRefund | PaymentOutcome::SentForRefund => {
+                non_terminal!(Pending)
+            }
+            PaymentOutcome::Refused | PaymentOutcome::FraudHighRisk => failure!(Failure),
+        } },
+    runtime: {
+        request: PaymentsPostAuthenticateData<T>,
+        response: WorldpayPostAuthenticateResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.outcome.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: RepeatPayment,
+    source: PaymentOutcome,
+    context: common_utils::types::MinorUnit,
+    mapping: |status, amount| {
+        let mapped_status = (|| { if amount == common_utils::types::MinorUnit::zero()
+            && status == PaymentOutcome::Authorized
+        {
+            AttemptStatus::Charged
+        } else {
+            AttemptStatus::from(status)
+        } })();
+        match mapped_status {
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::PartialCharged => success!(PartialCharged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorized => non_terminal!(Authorized),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            AttemptStatus::PartiallyAuthorized => non_terminal!(PartiallyAuthorized),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Started => non_terminal!(Started),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: WorldpayRepeatPaymentResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.outcome.clone()) },
+        context: |_resource_common_data, request, _response, _http_status_code| { Ok(request.amount.amount) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Worldpay<T>,
+    flow: IncrementalAuthorization,
+    source: PaymentOutcome,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { AttemptStatus::from(status) })();
+        match mapped_status {
+            AttemptStatus::Authorized => success!(Authorized),
+            AttemptStatus::Charged => success!(Charged),
+            AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            AttemptStatus::Failure => failure!(Failure),
+            AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            AttemptStatus::Pending => non_terminal!(Pending),
+            AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsIncrementalAuthorizationData,
+        response: WorldpayIncrementalAuthResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.outcome.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 
 macros::macro_connector_flow_status_impls!(
     connector: Worldpay,

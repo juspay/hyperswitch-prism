@@ -317,7 +317,7 @@ pub struct ZiftRefundRequest {
 #[serde(rename_all = "camelCase")]
 pub struct ZiftRefundResponse {
     transaction_id: Option<String>,
-    response_code: String,
+    pub response_code: String,
     response_message: Option<String>,
     transaction_code: Option<String>,
 }

@@ -62,25 +62,188 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Fiuu<T>
 {
 }
+// BLOCKED: Authorize's response is mixed. QR and redirect branches hardcode
+// AuthenticationPending, recurring uses a different status type, Error preserves
+// the previous common status, and only NonThreeDS uses FiuuAuthorizeStatus.
+// An exact runtime mapping needs FlowStatusReader for the Error branch.
+#[cfg(any())]
+// Mirrors the non-3DS leg of the Authorize TryFrom
+// (`RequestData::NonThreeDS` in `TryFrom<ResponseRouterData<FiuuPaymentsResponse, ..>>`):
+// the raw `stat_code` string — typed as `FiuuAuthorizeStatus` — maps
+// "00" → Charged/Authorized by the request's capture method (ctx), "11" →
+// Failure, "22" → Pending. The redirect/QR legs force `AuthenticationPending`
+// and the recurring leg uses `FiuuRecurringStautus`; neither is covered by
+// this declaration.
+domain_types::impl_flow_status_mapping! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Fiuu<T>,
+    flow:            Authorize,
+    source:          fiuu::FiuuAuthorizeStatus,
+    context:         fiuu::FiuuCaptureMethodCtx,
+    params:          [status, ctx],
+    success: Approved => [Charged, Authorized],
+    failure: Failed => Failure,
+    {
+        match status {
+            fiuu::FiuuAuthorizeStatus::Approved => match ctx {
+                fiuu::FiuuCaptureMethodCtx::Auto => common_enums::AttemptStatus::Charged,
+                fiuu::FiuuCaptureMethodCtx::Manual => common_enums::AttemptStatus::Authorized,
+            },
+            fiuu::FiuuAuthorizeStatus::Failed => common_enums::AttemptStatus::Failure,
+            fiuu::FiuuAuthorizeStatus::Pending => common_enums::AttemptStatus::Pending,
+            // Unrecognised stat_code — the TryFrom rejects these as an
+            // unexpected-response error, which surfaces downstream as Failure.
+            fiuu::FiuuAuthorizeStatus::Other => common_enums::AttemptStatus::Failure,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Fiuu<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiuu<T>,
+    flow: PSync,
+    source: common_enums::AttemptStatus,
+    mapping: |status| {
+        match status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: FiuuPaymentResponse,
+        source: |_resource_common_data, request, response, _http_status_code| {
+            match response {
+                FiuuPaymentResponse::FiuuPaymentSyncResponse(response) => {
+                    common_enums::AttemptStatus::try_from(fiuu::FiuuSyncStatus {
+                        stat_name: response.stat_name,
+                        stat_code: response.stat_code.clone(),
+                    }).map_err(|error| error.current_context().clone())
+                }
+                FiuuPaymentResponse::FiuuWebhooksPaymentResponse(response) => {
+                    common_enums::AttemptStatus::try_from(fiuu::FiuuWebhookStatus {
+                        capture_method: request.capture_method,
+                        status: response.status.clone(),
+                    }).map_err(|error| error.current_context().clone())
+                }
+            }
+        },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Fiuu<T>
 {
 }
+// Mirrors the Cancel TryFrom (`TryFrom<ResponseRouterData<FiuuPaymentCancelResponse,
+// ..>>`): the raw `stat_code` — typed as `FiuuVoidStatus` — maps "00" → Voided,
+// the listed failure codes → VoidFailed, and any unexpected code to an error
+// (surfacing as failure).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiuu<T>,
+    flow: Void,
+    source: fiuu::FiuuVoidStatus,
+    mapping: |status| {
+        match status {
+            fiuu::FiuuVoidStatus::Voided => success!(Voided),
+            fiuu::FiuuVoidStatus::Failed => failure!(VoidFailed),
+            fiuu::FiuuVoidStatus::Other => failure!(VoidFailed),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: FiuuPaymentCancelResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(fiuu::FiuuVoidStatus::from_stat_code(&response.stat_code)) },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Fiuu<T>
 {
+}
+// BLOCKED: RSync has Success, Error, and Webhook response branches. Error
+// preserves the previous refund status; Success can also produce RefundStatus::Unknown,
+// which is outside RSync::ALLOWED. The inline extractor cannot preserve common data.
+#[cfg(any())]
+// Mirrors `From<fiuu::RefundStatus> for RefundStatus` (transformers.rs:2749) as
+// used by the RSync TryFrom: Success → Success, Rejected → Failure, Pending /
+// BLOCKED: RSync maps `Unknown` to RefundStatus::Unknown and its Error response
+// branch preserves the existing common status. `Unknown` is outside the flow's
+// allowed set, and coercing it to Pending would change production behavior.
+#[cfg(any())]
+domain_types::impl_refund_flow_status_mapping! {
+    generics:       [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:      Fiuu<T>,
+    flow:           RSync,
+    source:         fiuu::RefundStatus,
+    params:         [status],
+    success: Success => Success,
+    failure: Rejected => Failure,
+    {
+        match status {
+            fiuu::RefundStatus::Success => common_enums::RefundStatus::Success,
+            fiuu::RefundStatus::Rejected => common_enums::RefundStatus::Failure,
+            // Pending/Processing are in-flight; Unknown is not a real terminal
+            // for a sync poll — treat as still-pending (see NOTE above).
+            fiuu::RefundStatus::Pending
+            | fiuu::RefundStatus::Processing
+            | fiuu::RefundStatus::Unknown => common_enums::RefundStatus::Pending,
+        }
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Fiuu<T>
 {
 }
+// BLOCKED: Refund's Error response branch preserves the existing common status,
+// while the Success branch maps its status code. Exact runtime extraction needs
+// FlowStatusReader and cannot be expressed by the inline extractor alone.
+#[cfg(any())]
+// Mirrors the Refund TryFrom (`TryFrom<ResponseRouterData<FiuuRefundResponse,
+// ..>>`): the raw `status` string of `FiuuRefundSuccessResponse` — typed as
+// `FiuuRefundStatus` — maps "00" → Success, "11" → Failure, "22" → Pending;
+// unexpected codes are rejected as an error (surfacing as failure).
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiuu<T>,
+    flow:      Refund,
+    source:    fiuu::FiuuRefundStatus,
+    success:   Success => Success,
+    failure:   Failed  => Failure,
+    {
+        Pending => Pending,
+        Other   => Failure
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Fiuu<T>
 {
+}
+// BLOCKED: Capture maps known failure codes to AttemptStatus::Failure, while the
+// declaration below used CaptureFailed. Unknown codes return a transformer error.
+// Keeping the declaration active would change production status behavior.
+#[cfg(any())]
+// Mirrors the Capture TryFrom (`TryFrom<ResponseRouterData<PaymentCaptureResponse,
+// ..>>`): the raw `stat_code` — typed as `FiuuCaptureStatus` — maps "00" →
+// Charged, "22" → Pending, the listed failure codes → Failure; unexpected
+// codes are rejected as an error (surfacing as failure).
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiuu<T>,
+    flow:      Capture,
+    source:    fiuu::FiuuCaptureStatus,
+    success:   Success => Charged,
+    failure:   Other   => CaptureFailed,
+    {
+        Pending => Pending
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Fiuu<T>
@@ -102,9 +265,59 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
     for Fiuu<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiuu<T>,
+    flow: RepeatPayment,
+    source: fiuu::FiuuPaymentOutcome,
+    mapping: |outcome| {
+        match outcome {
+            fiuu::FiuuPaymentOutcome::Charged => success!(Charged),
+            fiuu::FiuuPaymentOutcome::Authorized => non_terminal!(Authorized),
+            fiuu::FiuuPaymentOutcome::AuthenticationPending => non_terminal!(AuthenticationPending),
+            fiuu::FiuuPaymentOutcome::Pending => non_terminal!(Pending),
+            fiuu::FiuuPaymentOutcome::Failure => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: RepeatPaymentData<T>,
+        response: FiuuRepeatPaymentsResponse,
+        source: |_resource_common_data, request, response, _http_status_code| {
+            Ok(fiuu::classify_payment_response(response, request.is_auto_capture()))
+        },
+    },
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Fiuu<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiuu<T>,
+    flow: SetupMandate,
+    source: fiuu::FiuuPaymentOutcome,
+    mapping: |outcome| {
+        match outcome {
+            fiuu::FiuuPaymentOutcome::Charged => success!(Charged),
+            fiuu::FiuuPaymentOutcome::Authorized => success!(Charged),
+            fiuu::FiuuPaymentOutcome::AuthenticationPending => non_terminal!(AuthenticationPending),
+            fiuu::FiuuPaymentOutcome::Pending => non_terminal!(Pending),
+            fiuu::FiuuPaymentOutcome::Failure => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: SetupMandateRequestData<T>,
+        response: FiuuSetupMandateResponse,
+        source: |_resource_common_data, request, response, _http_status_code| {
+            let is_auto_capture = !matches!(
+                request.capture_method,
+                Some(common_enums::CaptureMethod::Manual)
+                    | Some(common_enums::CaptureMethod::ManualMultiple)
+                    | Some(common_enums::CaptureMethod::Scheduled)
+            );
+            Ok(fiuu::classify_payment_response(response, is_auto_capture))
+        },
+    },
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Fiuu<T>
@@ -1134,66 +1347,12 @@ where
 
     let response: T = serde_json::from_value(Value::Object(json)).map_err(|e| {
         error!("Error in Deserializing Response Data: {:?}", e);
-        log_unparsable_plain_text_response::<T>(&response_str);
         error_stack::Report::from(
             crate::utils::response_deserialization_fail(http_status, "fiuu: response body did not match the expected format; confirm API version and connector documentation."),
         )
     })?;
 
     Ok(response)
-}
-
-fn log_unparsable_plain_text_response<T>(response_str: &str) {
-    const LOGGABLE_KEYS: [&str; 8] = [
-        "StatCode",
-        "StatName",
-        "TranID",
-        "Amount",
-        "Currency",
-        "Channel",
-        "ErrorCode",
-        "ErrorDesc",
-    ];
-    // Both apply only to lines without `=` (e.g. a bare error message or an HTML page).
-    // Cap on how much of such a line is logged.
-    const MAX_UNSTRUCTURED_LINE_LEN: usize = 200;
-    // Purely alphanumeric tokens at least this long are redacted: catches 32-char hex
-    // hashes like `skey`/`VrfKey` echoed in an error, while keeping a 10-digit `TranID`.
-    const MIN_REDACTED_TOKEN_LEN: usize = 16;
-
-    let redact_tokens = |line: &str| {
-        line.chars()
-            .take(MAX_UNSTRUCTURED_LINE_LEN)
-            .collect::<String>()
-            .split(' ')
-            .map(|token| {
-                if token.len() >= MIN_REDACTED_TOKEN_LEN
-                    && token.chars().all(|c| c.is_ascii_alphanumeric())
-                {
-                    "<redacted>"
-                } else {
-                    token
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
-    };
-
-    let lines: Vec<String> = response_str
-        .lines()
-        .map(|line| match line.split_once('=') {
-            Some((key, value)) if LOGGABLE_KEYS.contains(&key) => format!("{key:?}={value:?}"),
-            Some((key, _)) => format!("{key:?}=SECRET"),
-            None => format!("<no '='> {:?}", redact_tokens(line)),
-        })
-        .collect();
-    error!(
-        "Unparsable {} response: {} bytes, {} lines\n{:?}",
-        type_name::<T>(),
-        response_str.len(),
-        lines.len(),
-        lines
-    );
 }
 
 pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {

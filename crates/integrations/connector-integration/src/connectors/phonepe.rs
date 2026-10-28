@@ -893,6 +893,301 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Phonepe<T>,
+    flow: Authorize,
+    source: (),
+    context: enums::AttemptStatus,
+    mapping: |_source, status|{
+        let mapped_status = status;
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::AutoRefunded => non_terminal!(AutoRefunded),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::Voided => non_terminal!(Voided),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: PhonepePaymentsResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            // Shed the status into the context: `PhonepePaymentsResponse` is not Clone.
+            if response.success {
+                // A successful pay call only creates the collect/intent — the handler
+                // always parks the attempt in AuthenticationPending.
+                enums::AttemptStatus::AuthenticationPending
+            } else {
+                match response.code.as_str() {
+                    "INVALID_TRANSACTION_ID"
+                    | "TRANSACTION_NOT_FOUND"
+                    | "INVALID_REQUEST"
+                    | "PAYMENT_DECLINED" => enums::AttemptStatus::Failure,
+                    _ => enums::AttemptStatus::Pending,
+                }
+            }
+        }) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Phonepe<T>,
+    flow: PSync,
+    source: (),
+    context: enums::AttemptStatus,
+    mapping: |_source, status|{
+        let mapped_status = status;
+        match mapped_status {
+            common_enums::AttemptStatus::Authorized => success!(Authorized),
+            common_enums::AttemptStatus::AutoRefunded => success!(AutoRefunded),
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::PartiallyAuthorized => success!(PartiallyAuthorized),
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::VoidedPostCapture => success!(VoidedPostCapture),
+            common_enums::AttemptStatus::AuthenticationFailed => failure!(AuthenticationFailed),
+            common_enums::AttemptStatus::AuthorizationFailed => failure!(AuthorizationFailed),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::AuthenticationPending => non_terminal!(AuthenticationPending),
+            common_enums::AttemptStatus::AuthenticationSuccessful => non_terminal!(AuthenticationSuccessful),
+            common_enums::AttemptStatus::Authorizing => non_terminal!(Authorizing),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::CodInitiated => non_terminal!(CodInitiated),
+            common_enums::AttemptStatus::ConfirmationAwaited => non_terminal!(ConfirmationAwaited),
+            common_enums::AttemptStatus::DeviceDataCollectionPending => non_terminal!(DeviceDataCollectionPending),
+            common_enums::AttemptStatus::Expired => non_terminal!(Expired),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::PaymentMethodAwaited => non_terminal!(PaymentMethodAwaited),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::Started => non_terminal!(Started),
+            common_enums::AttemptStatus::Unknown => non_terminal!(Unknown),
+            common_enums::AttemptStatus::Unresolved => non_terminal!(Unresolved),
+            common_enums::AttemptStatus::Unspecified => non_terminal!(Unspecified),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            common_enums::AttemptStatus::VoidPostCaptureInitiated => non_terminal!(VoidPostCaptureInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsSyncData,
+        response: PhonepeSyncResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            // Shed the status into the context: `PhonepeSyncResponse` is not Clone.
+            if response.success && response.data.is_some() {
+                match response.code.as_str() {
+                    "PAYMENT_SUCCESS" => enums::AttemptStatus::Charged,
+                    "PAYMENT_PENDING" | "TIMED_OUT" | "INTERNAL_SERVER_ERROR" => {
+                        enums::AttemptStatus::Pending
+                    }
+                    "PAYMENT_ERROR"
+                    | "PAYMENT_DECLINED"
+                    | "BAD_REQUEST"
+                    | "AUTHORIZATION_FAILED"
+                    | "TRANSACTION_NOT_FOUND" => enums::AttemptStatus::Failure,
+                    _ => enums::AttemptStatus::Pending,
+                }
+            } else {
+                phonepe::get_phonepe_error_status(&response.code)
+                    .unwrap_or(enums::AttemptStatus::Failure)
+            }
+        }) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Phonepe<T>,
+    flow: Capture,
+    source: (),
+    context: enums::AttemptStatus,
+    mapping: |_source, status|{
+        let mapped_status = status;
+        match mapped_status {
+            common_enums::AttemptStatus::Charged => success!(Charged),
+            common_enums::AttemptStatus::PartialCharged => success!(PartialCharged),
+            common_enums::AttemptStatus::CaptureFailed => failure!(CaptureFailed),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::IntegrityFailure => failure!(IntegrityFailure),
+            common_enums::AttemptStatus::CaptureInitiated => non_terminal!(CaptureInitiated),
+            common_enums::AttemptStatus::PartialChargedAndChargeable => non_terminal!(PartialChargedAndChargeable),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentsCaptureData,
+        response: PhonepeCaptureResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            // Shed the status into the context: `PhonepeCaptureResponse` is not Clone.
+            if response.success {
+                response
+                    .data
+                    .as_ref()
+                    .and_then(|data| data.state.as_deref())
+                    .map(|state| match state {
+                        "PAYMENT_SUCCESS" | "SUCCESS" => enums::AttemptStatus::Charged,
+                        "PAYMENT_ERROR" | "PAYMENT_DECLINED" | "FAILED" | "ERROR" => {
+                            enums::AttemptStatus::Failure
+                        }
+                        _ => enums::AttemptStatus::Pending,
+                    })
+                    .unwrap_or(enums::AttemptStatus::Charged)
+            } else {
+                enums::AttemptStatus::Failure
+            }
+        }) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Phonepe<T>,
+    flow: Void,
+    source: (),
+    context: enums::AttemptStatus,
+    mapping: |_source, status|{
+        let mapped_status = status;
+        match mapped_status {
+            common_enums::AttemptStatus::Voided => success!(Voided),
+            common_enums::AttemptStatus::Failure => failure!(Failure),
+            common_enums::AttemptStatus::VoidFailed => failure!(VoidFailed),
+            common_enums::AttemptStatus::Pending => non_terminal!(Pending),
+            common_enums::AttemptStatus::VoidInitiated => non_terminal!(VoidInitiated),
+            _ => failure!(Failure),
+        }
+    },
+    runtime: {
+        request: PaymentVoidData,
+        response: PhonepeVoidResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            // Shed the status into the context: `PhonepeVoidResponse` is not Clone.
+            if response.success {
+                enums::AttemptStatus::Voided
+            } else {
+                match response.code.as_str() {
+                    "PAYMENT_PENDING" | "INTERNAL_SERVER_ERROR" => enums::AttemptStatus::Pending,
+                    _ => enums::AttemptStatus::VoidFailed,
+                }
+            }
+        }) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Phonepe<T>,
+    flow: Refund,
+    source: (),
+    context: enums::RefundStatus,
+    mapping: |_source, status|{
+        let mapped_status = status;
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: PhonepeRefundResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            // Shed the status into the context: `PhonepeRefundResponse` is not Clone.
+            if response.success {
+                response
+                    .data
+                    .as_ref()
+                    .and_then(|data| data.state.as_deref())
+                    .map(|state| match state {
+                        "SUCCESS" => enums::RefundStatus::Success,
+                        "FAILED" => enums::RefundStatus::Failure,
+                        _ => enums::RefundStatus::Pending,
+                    })
+                    .unwrap_or(enums::RefundStatus::Pending)
+            } else {
+                enums::RefundStatus::Failure
+            }
+        }) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: Phonepe<T>,
+    flow: RSync,
+    source: (),
+    context: enums::RefundStatus,
+    mapping: |_source, status|{
+        let mapped_status = status;
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: PhonepeRefundSyncResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+        context: |_resource_common_data, _request, response, _http_status_code| { Ok({
+            // Shed the status into the context: `PhonepeRefundSyncResponse` is not Clone.
+            if response.success {
+                response
+                    .data
+                    .as_ref()
+                    .and_then(|data| data.state.as_deref())
+                    .map(|state| match state {
+                        "PAYMENT_SUCCESS" | "SUCCESS" => enums::RefundStatus::Success,
+                        "PAYMENT_PENDING" | "PENDING" | "TIMED_OUT" => {
+                            enums::RefundStatus::Pending
+                        }
+                        "PAYMENT_ERROR" | "FAILED" | "ERROR" | "PAYMENT_DECLINED" => {
+                            enums::RefundStatus::Failure
+                        }
+                        _ => enums::RefundStatus::Pending,
+                    })
+                    .unwrap_or(enums::RefundStatus::Pending)
+            } else {
+                enums::RefundStatus::Failure
+            }
+        }) },
+    },
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: Phonepe,
     generic_type: T,

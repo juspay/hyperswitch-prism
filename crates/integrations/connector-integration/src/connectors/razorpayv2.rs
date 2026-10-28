@@ -952,6 +952,93 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: RazorpayV2<T>,
+    flow: Authorize,
+    source: (),
+    context: (),
+    mapping: |_source, _ctx| { // Both UPI and non-UPI authorize handlers set
+        // `AttemptStatus::AuthenticationPending` unconditionally.
+        non_terminal!(AuthenticationPending) },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: razorpayv2::RazorpayV2PaymentsResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: RazorpayV2<T>,
+    flow: PSync,
+    source: razorpayv2::RazorpayStatus,
+    context: (),
+    mapping: |status, _ctx| { // Mirrors `razorpayv2::get_psync_razorpay_payment_status`
+        // (kept private in transformers for the TryFrom; table expanded here).
+        match status {
+            razorpayv2::RazorpayStatus::Created => non_terminal!(Pending),
+            razorpayv2::RazorpayStatus::Authorized => success!(Authorized),
+            razorpayv2::RazorpayStatus::Captured => success!(Charged),
+            razorpayv2::RazorpayStatus::Refunded => success!(AutoRefunded),
+            razorpayv2::RazorpayStatus::Failed => failure!(Failure),
+        } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: razorpayv2::RazorpayV2SyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(match response {
+            razorpayv2::RazorpayV2SyncResponse::PaymentResponse(payment) => payment.status,
+            razorpayv2::RazorpayV2SyncResponse::OrderPaymentsCollection(collection) => collection
+                .items
+                .first()
+                .map(|payment| payment.status)
+                .unwrap_or(razorpayv2::RazorpayStatus::Created),
+        }) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: RazorpayV2<T>,
+    flow: Refund,
+    source: String,
+    context: (),
+    mapping: |status, _ctx| { match status.as_str() {
+            "processed" => success!(Success),
+            "pending" | "created" => non_terminal!(Pending),
+            "failed" => failure!(Failure),
+            _ => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: RefundsData,
+        response: razorpayv2::RazorpayV2RefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    connector: RazorpayV2<T>,
+    flow: RSync,
+    source: String,
+    context: (),
+    mapping: |status, _ctx| { match status.as_str() {
+            "processed" => success!(Success),
+            "pending" | "created" => non_terminal!(Pending),
+            "failed" => failure!(Failure),
+            _ => non_terminal!(Pending),
+        } },
+    runtime: {
+        request: RefundSyncData,
+        response: razorpayv2::RazorpayV2RefundResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
+
 macros::macro_connector_flow_status_impls!(
     connector: RazorpayV2,
     generic_type: T,

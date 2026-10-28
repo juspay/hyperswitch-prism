@@ -49,10 +49,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Mifinity<T>
 {
 }
+// NOTE — Authorize: the Authorize TryFrom (transformers.rs:317-375) does not parse a
+// connector status enum. The `init-iframe` response carries only `{traceId,
+// initializationToken}` and the TryFrom stamps `AttemptStatus::AuthenticationPending`
+// unconditionally; Mifinity's own `MifinityPaymentStatus` only exists on the PSync
+// `payment-status` endpoint. A mapping macro would need a typed status source on the
+// Authorize wire shape — i.e. Mifinity returning a real status field from init-iframe.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Mifinity<T>
 {
 }
+
+// NOTE — PSync: the PSync TryFrom reads `MifinityPaymentStatus` when the payload
+// exists, but the empty-payload fall-through (transformers.rs:486) stamps
+// `AttemptStatus::Unspecified`, which is not in PSync's ALLOWED status set — the
+// macro's const arms cannot express it. Lifting this needs the TryFrom to treat a
+// missing payload as a known pending/failure outcome instead of `Unspecified`.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Mifinity<T>
 {

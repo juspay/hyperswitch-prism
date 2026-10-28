@@ -1125,7 +1125,7 @@ impl<T: PaymentMethodDataTypes>
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Shift4PaymentsResponse {
     pub id: String,
@@ -1369,7 +1369,7 @@ fn build_shift4_failure_response(
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Shift4ResponseCard {
     /// Stored card id (`card_...`).
@@ -1379,7 +1379,7 @@ pub struct Shift4ResponseCard {
     pub customer_id: Option<Secret<String>>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Shift4ResponsePaymentMethod {
     /// Payment method id (`pm_...`). A later charge sends it as
@@ -1423,20 +1423,20 @@ pub enum Shift4PaymentMethodStatus {
     Unknown,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FlowResponse {
     pub next_action: Option<NextAction>,
     pub redirect: Option<RedirectResponse>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RedirectResponse {
     pub redirect_url: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NextAction {
     Redirect,
@@ -1448,7 +1448,7 @@ pub enum NextAction {
     None,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Shift4PaymentStatus {
     Successful,
@@ -1740,7 +1740,7 @@ pub struct Shift4RefundResponse {
 /// Both in-flight spellings are accepted so neither can fail deserialization,
 /// and anything Shift4 adds later lands on `Unknown` instead of failing the
 /// whole response parse.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Shift4RefundStatus {
     Successful,

@@ -1778,7 +1778,7 @@ impl IlixiumPaymentResponse {
 /// `SUCCESS` splits on the operation type Ilixium echoes back: `AUTH_CAP` means the funds were
 /// captured in the same call (`Charged`), `AUTH` means authorised-only (`Authorized`). When the
 /// platform omits `type`, fall back to what the request asked for.
-fn map_attempt_status(
+pub fn map_attempt_status(
     response: &IlixiumPaymentResponse,
     requested_auto_capture: bool,
 ) -> AttemptStatus {
@@ -1816,7 +1816,7 @@ fn map_attempt_status(
 /// authorised-only outcome to distinguish), and a failure is a *capture* failure — the
 /// authorisation itself is untouched and can still be captured again or reversed, which
 /// `CaptureFailed` conveys and the generic `Failure` does not.
-fn map_capture_status(response: &IlixiumPaymentResponse) -> AttemptStatus {
+pub fn map_capture_status(response: &IlixiumPaymentResponse) -> AttemptStatus {
     match response.status.code {
         IlixiumStatusCode::Success => AttemptStatus::Charged,
         IlixiumStatusCode::Pending => AttemptStatus::CaptureInitiated,
@@ -1837,7 +1837,7 @@ fn map_capture_status(response: &IlixiumPaymentResponse) -> AttemptStatus {
 /// back to the cardholder), and a failure is a *void* failure — the authorisation survives and
 /// can still be captured, or reversed again once whatever blocked it clears — which is what
 /// `VoidFailed` conveys and `CaptureFailed`/`Failure` do not.
-fn map_void_status(response: &IlixiumPaymentResponse) -> AttemptStatus {
+pub fn map_void_status(response: &IlixiumPaymentResponse) -> AttemptStatus {
     match response.status.code {
         IlixiumStatusCode::Success => AttemptStatus::Voided,
         IlixiumStatusCode::Cancelled => AttemptStatus::Voided,
@@ -1970,7 +1970,7 @@ fn build_void_error_response(
 /// still refundable for a *different* amount (a 125 "exceeds original" rejection is retryable
 /// with a smaller value), which `RefundStatus::Failure` conveys without implying anything about
 /// the payment.
-fn map_refund_status(response: &IlixiumPaymentResponse) -> RefundStatus {
+pub fn map_refund_status(response: &IlixiumPaymentResponse) -> RefundStatus {
     match response.status.code {
         IlixiumStatusCode::Success => RefundStatus::Success,
         IlixiumStatusCode::Pending => RefundStatus::Pending,
@@ -3820,5 +3820,35 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
             },
             ..item.router_data
         })
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct IlixiumAuthorizeCtx {
+    pub operation_type: Option<IlixiumOperationType>,
+    pub has_three_ds_url: bool,
+    pub is_auto_capture: bool,
+}
+
+impl IlixiumHistoryResponse {
+    pub fn payment_sync_flow_status(
+        &self,
+        merchant_ref: &str,
+        current_status: AttemptStatus,
+        requested_auto_capture: bool,
+    ) -> AttemptStatus {
+        if self.status.code != IlixiumHistoryStatusCode::Success {
+            return current_status;
+        }
+
+        let Some(operation) = self.latest_payment_operation(merchant_ref) else {
+            return current_status;
+        };
+
+        let Some(operation_status) = operation.status.as_ref() else {
+            return current_status;
+        };
+
+        map_history_sync_status(operation, operation_status, requested_auto_capture)
     }
 }

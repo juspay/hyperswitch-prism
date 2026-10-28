@@ -1,5 +1,6 @@
 pub mod crypto;
 pub mod transformers;
+use transformers::BoostPaymentStatus;
 
 use std::fmt::Debug;
 
@@ -364,6 +365,18 @@ macros::create_all_prerequisites!(
 // =============================================================================
 // AUTHORIZE — POST /v1/payments/init (paymentMethod="card", hosted/3DS redirect)
 // =============================================================================
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Boost<T>,
+    flow: Authorize,
+    source: (),
+    mapping: |_ack| { non_terminal!(AuthenticationPending) },
+    runtime: {
+        request: PaymentsAuthorizeData<T>,
+        response: BoostPaymentInitResponse,
+        source: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Boost,
@@ -435,6 +448,31 @@ macros::macro_connector_implementation!(
 // =============================================================================
 // PSYNC — GET /v1/payments/refs/{referenceId}
 // =============================================================================
+// Mirrors `From<BoostPaymentStatus> for AttemptStatus` (transformers.rs:222),
+// which the PSync TryFrom (transformers.rs:591) routes through via
+// `AttemptStatus::from(item.response.status)`. The webhook event classifier
+// (`BoostWebhookBody::get_event_type`, transformers.rs:828) consults the same
+// mapping. All targets land in PSync's intentionally broad ALLOWED set.
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Boost<T>,
+    flow: PSync,
+    source: BoostPaymentStatus,
+    mapping: |status| { match status {
+            BoostPaymentStatus::Succeeded => success!(Charged),
+            BoostPaymentStatus::PendingPaymentMethod => non_terminal!(PaymentMethodAwaited),
+            BoostPaymentStatus::PendingConfirmation | BoostPaymentStatus::AwaitingConfirmation => non_terminal!(ConfirmationAwaited),
+            BoostPaymentStatus::Processing | BoostPaymentStatus::Unknown => non_terminal!(Pending),
+            BoostPaymentStatus::Canceled => success!(Voided),
+            BoostPaymentStatus::Expired => non_terminal!(Expired),
+            BoostPaymentStatus::Failed | BoostPaymentStatus::Denied | BoostPaymentStatus::Error => failure!(Failure),
+        } },
+    runtime: {
+        request: PaymentsSyncData,
+        response: BoostPaymentSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+    },
+}
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Boost,
@@ -473,6 +511,44 @@ macros::macro_connector_implementation!(
 // =============================================================================
 // REFUND — POST /v1/reversals
 // =============================================================================
+// Mirrors `From<BoostReversalStatus> for RefundStatus` (transformers.rs:259),
+// which the Refund TryFrom (transformers.rs:739) routes through via
+// `RefundStatus::from(item.response.status)`. The `_ctx` variant (with `()`
+// context) is used because the enum carries a `#[serde(other)] Unknown`
+// catch-all the declarative macro expresses no differently — kept identical to
+// the RSync mapping below so both reversal legs stay in lockstep.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Boost<T>,
+    flow: Refund,
+    source: boost::BoostReversalStatus,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
+            boost::BoostReversalStatus::Succeeded => common_enums::RefundStatus::Success,
+            boost::BoostReversalStatus::Failed
+            | boost::BoostReversalStatus::Expired
+            | boost::BoostReversalStatus::Denied => common_enums::RefundStatus::Failure,
+            boost::BoostReversalStatus::Pending
+            | boost::BoostReversalStatus::PendingApproval
+            | boost::BoostReversalStatus::Unknown => common_enums::RefundStatus::Pending,
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundsData,
+        response: BoostReversalResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Boost,
@@ -504,6 +580,43 @@ macros::macro_connector_implementation!(
 // =============================================================================
 // RSYNC — GET /v1/reversals/{reversalUuid}
 // =============================================================================
+// Mirrors `From<BoostReversalStatus> for RefundStatus` (transformers.rs:259),
+// which the RSync TryFrom (transformers.rs:775) routes through via
+// `RefundStatus::from(item.response.status)` — the reversal resource is the
+// same on create and on read, so this is identical to the Refund mapping
+// above.
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Boost<T>,
+    flow: RSync,
+    source: boost::BoostReversalStatus,
+    context: (),
+    mapping: |status, _ctx| {
+        let mapped_status = (|| { match status {
+            boost::BoostReversalStatus::Succeeded => common_enums::RefundStatus::Success,
+            boost::BoostReversalStatus::Failed
+            | boost::BoostReversalStatus::Expired
+            | boost::BoostReversalStatus::Denied => common_enums::RefundStatus::Failure,
+            boost::BoostReversalStatus::Pending
+            | boost::BoostReversalStatus::PendingApproval
+            | boost::BoostReversalStatus::Unknown => common_enums::RefundStatus::Pending,
+        } })();
+        match mapped_status {
+            common_enums::RefundStatus::Success => success!(Success),
+            common_enums::RefundStatus::Failure => failure!(Failure),
+            common_enums::RefundStatus::TransactionFailure => non_terminal!(TransactionFailure),
+            common_enums::RefundStatus::Pending => non_terminal!(Pending),
+            common_enums::RefundStatus::ManualReview => non_terminal!(ManualReview),
+            common_enums::RefundStatus::Unknown => non_terminal!(Pending),
+        }
+    },
+    runtime: {
+        request: RefundSyncData,
+        response: BoostReversalSyncResponse,
+        source: |_resource_common_data, _request, response, _http_status_code| { Ok(response.status.clone()) },
+        context: |_resource_common_data, _request, _response, _http_status_code| { Ok(()) },
+    },
+}
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Boost,
@@ -599,7 +712,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // claimed connector_transaction_id and amount against an authenticated
         // PSync call (GET /v1/payments/refs/{referenceId}) before acting on
         // it. NOT declaring Currency here: WebhookDetailsResponse has no
-        // currency field to expose (only amount_captured),
+        // currency field to expose (only amount_captured/minor_amount_captured),
         // so there is nothing for a caller to actually compare — declaring the
         // check without backing data would be misleading.
         vec![
