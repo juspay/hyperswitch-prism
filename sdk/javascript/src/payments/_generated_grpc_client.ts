@@ -210,6 +210,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentServiceVerifyRedirectResponseRequest: ["connectorFeatureData"],
   PaymentServiceVerifyRedirectResponseResponse: ["rawConnectorResponse", "typedConnectorResponse", "connectorFeatureData"],
   RefundServiceGetRequest: ["refundMetadata", "connectorFeatureData"],
+  DisputeServiceSubmitEvidenceRequest: ["customerEmailAddress"],
   DisputeServiceSubmitEvidenceResponse: ["rawConnectorRequest", "typedConnectorRequest"],
   DisputeServiceDefendResponse: ["rawConnectorRequest", "typedConnectorRequest"],
   DisputeServiceAcceptResponse: ["rawConnectorRequest", "typedConnectorRequest"],
