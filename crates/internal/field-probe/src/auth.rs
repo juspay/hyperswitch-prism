@@ -927,5 +927,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             secret_key: k(),
             base_url: None,
         },
+        ConnectorEnum::Kgp => ConnectorSpecificConfig::Kgp {
+            api_key: k(),
+            public_key: Some(k()),
+            base_url: None,
+            secondary_base_url: None,
+        },
     }
 }

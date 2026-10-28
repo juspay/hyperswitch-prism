@@ -166,6 +166,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Betterpayment => Box::new(connectors::Betterpayment::<T>::new()),
             ConnectorEnum::Reddot => Box::new(connectors::Reddot::<T>::new()),
             ConnectorEnum::Ecommpay => Box::new(connectors::Ecommpay::<T>::new()),
+            ConnectorEnum::Kgp => Box::new(connectors::Kgp::<T>::new()),
         }
     }
 }

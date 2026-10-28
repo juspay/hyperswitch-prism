@@ -349,3 +349,6 @@ pub use self::reddot::Reddot;
 
 pub mod ecommpay;
 pub use self::ecommpay::Ecommpay;
+
+pub mod kgp;
+pub use self::kgp::Kgp;

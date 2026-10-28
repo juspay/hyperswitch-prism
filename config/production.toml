@@ -33,6 +33,7 @@ bypass_urls = ["localhost", "local"]
 [connectors]
 betterpayment.base_url = "https://api.betterpayment.de"
 ecommpay.base_url = "https://api.ecommpay.com/"
+kgp.base_url = "https://api.omise.co/"
 payhere.base_url = "https://www.payhere.lk"
 travelhub.base_url = "https://prod.travel.worldline-solutions.com/travelhub"
 d24.base_url = "https://api.directa24.com"
