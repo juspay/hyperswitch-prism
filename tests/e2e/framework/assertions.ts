@@ -4,14 +4,18 @@ import type { Json } from "./types.js";
 export class Assertions {
   constructor(private readonly info: TestInfo) {}
 
-  async fields(name: string, actual: Json, expected: Json): Promise<void> {
+  async fields(name: string, actual: unknown, expected: Json): Promise<void> {
+    if (actual === null || typeof actual !== "object" || Array.isArray(actual)) {
+      throw new Error(`${name}: expected a JSON object`);
+    }
+    const fields = actual as Json;
     const comparisons = Object.fromEntries(
       Object.entries(expected).map(([field, value]) => [
         field,
         {
           expected: value,
-          actual: Object.hasOwn(actual, field)
-            ? actual[field]
+          actual: Object.hasOwn(fields, field)
+            ? fields[field]
             : "<missing field>",
         },
       ]),
@@ -19,7 +23,7 @@ export class Assertions {
     await this.attach(name, comparisons);
     await test.step(name, async () => {
       for (const [field, value] of Object.entries(expected)) {
-        expect(actual[field], `${name}: ${field}`).toEqual(value);
+        expect(fields[field], `${name}: ${field}`).toEqual(value);
       }
     });
   }

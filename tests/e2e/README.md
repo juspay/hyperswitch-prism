@@ -73,7 +73,7 @@ Before payment calls, fixtures create an isolated merchant, issue an API key exp
 
 Each scenario declares `paymentMethodsEnabled`, which is sent as the connector account's `payment_methods_enabled`. The current scenario enables card credit only. Declare additional methods in scenarios that exercise them; the common setup does not assume every test uses cards. Optional merchant contact fields, webhook subscriptions, parent merchants, tokenization, and mandate settings are not prerequisites for this fresh-card scenario and are not enabled implicitly. Customer creation belongs in a journey that actually uses a customer.
 
-The implemented Adyen scenario requires `succeeded` in the create/confirm response and verifies the recorded payment outcome. It does not retrieve or synchronize the payment, accept `processing`, poll through intermediate states, or exercise failure scenarios.
+The implemented Adyen scenario requires `succeeded` in the create/confirm response, the full amount received, and zero amount left capturable. It checks merchant/profile ownership, one attempt, billing and email, a normalized return URL, null error/mandate fields, generated reference presence and timestamp validity, then verifies the recorded charged attempt through UCS. Generated processor references are reported only as presence checks. It does not retrieve or synchronize the payment, accept `processing`, poll through intermediate states, or exercise failure scenarios.
 
 Each file contains one complete shared scenario. Read it top to bottom to see the requests, response checks, polling, and database evidence. Calls run in the order written.
 
@@ -104,6 +104,8 @@ await report.step("Verify recorded payment outcome", async () => {
 Responses are ordinary objects. Any returned field can be passed to a later operation using normal TypeScript variables. Requests use HS API field names. Operations apply configured connector request differences before sending; they do not duplicate the full HS API schema or add payment defaults. The shared operations use the provisioned merchant's server API key.
 
 `checks.fields(name, actual, expected)` compares fields and attaches the same expected/actual values to the report. `checks.oneOf(name, actual, allowed)` checks membership. `waitForPaymentStatus` polls the payment GET endpoint, for at most 90 seconds, and returns the response with the expected status. Mutating requests are never retried automatically.
+
+`checks.fields` validates that its target is an object and compares only the listed fields. Pass a nested response object to check selected nested fields; a nested object supplied as an expected value is compared in full. Keep sensitive values out of comparisons and report only their required presence.
 
 Only `scenarios/api/payments/create-confirm/card/one-time/no3ds/automatic-create-confirm.spec.ts` is implemented. Other specs and reserved directories are empty placeholders. The current sequence is:
 
