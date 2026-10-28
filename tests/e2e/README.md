@@ -157,12 +157,12 @@ scenarios/
 │   │   │   └── upi/
 │   │   ├── retrieve/
 │   │   ├── capture/
-│   │   │   └── card/full-capture.spec.ts
+│   │   │   └── full-capture.spec.ts
 │   │   └── cancel/
-│   │       └── card/cancel-authorized-payment.spec.ts
+│   │       └── cancel-authorized-payment.spec.ts
 │   └── refunds/
 │       ├── create/
-│       │   └── card/full-refund-after-automatic-capture.spec.ts
+│       │   └── full-refund-after-automatic-capture.spec.ts
 │       └── sync/
 └── web-sdk/
     └── checkout/
@@ -176,7 +176,7 @@ scenarios/
 
 Recurring specs belong under their reference mechanism, for example `recurring/connector-mandate/zero-amount-setup-then-recurring.spec.ts` and `nonzero-amount-setup-then-recurring.spec.ts`. Each owns setup followed by a subsequent payment. Add network-transaction-ID variants where supported. Make authentication variations explicit in the relevant filename or subdirectory.
 
-Later operations have separate directories. Their specs declare required payment state and history, including authentication where relevant, rather than repeating every authorization dimension. Wallets use wallet-specific variations instead of universally inheriting card's authentication tree.
+Later operations have separate directories. Their specs declare required payment state and history, including authentication where relevant, rather than repeating every authorization dimension. Keep capture, cancel, retrieve and refund scenarios flat until implemented method-specific behavior warrants grouping. Wallets use wallet-specific variations instead of universally inheriting card's authentication tree.
 
 Payment retrieval and forced synchronization share `payments/retrieve/`, following HS's GET payment endpoint and its `force_sync` option. This directory remains empty until those dedicated scenarios are implemented.
 
