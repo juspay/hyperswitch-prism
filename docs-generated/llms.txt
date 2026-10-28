@@ -929,9 +929,9 @@ examples_python: none
 ## TrustPay
 connector_id: trustpay
 doc: docs/connectors/trustpay.md
-scenarios: checkout_autocapture, refund, get_payment
-payment_methods: Blik, Card, Eps, Giropay, Ideal, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, SepaBankTransfer, Sofort
-flows: authorize, create_order, create_server_authentication_token, get, handle_event, parse_event, proxy_authorize, recurring_charge, refund, refund_get
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: ApplePayDecrypted, Blik, Card, Eps, Giropay, GooglePayDecrypted, Ideal, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, SepaBankTransfer, Sofort
+flows: authorize, capture, create_order, create_server_authentication_token, get, handle_event, parse_event, proxy_authorize, recurring_charge, refund, refund_get, void
 examples_python: examples/trustpay/trustpay.py
 
 ## Trustpayments

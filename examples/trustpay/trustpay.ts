@@ -6,8 +6,8 @@
 // Run a scenario:  npx tsx trustpay.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CardNetwork, CountryAlpha2, Currency, HttpMethod, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "create_order", "create_server_authentication_token", "get", "parse_event", "proxy_authorize", "recurring_charge", "refund", "refund_get"];
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, HttpMethod, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "create_server_authentication_token", "get", "parse_event", "proxy_authorize", "recurring_charge", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -47,11 +47,6 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         },
         "address": {  // Address Information.
             "billingAddress": {
-                "firstName": {"value": "John"},
-                "line1": {"value": "123 Main St"},
-                "city": {"value": "Seattle"},
-                "zipCode": {"value": "98101"},
-                "countryAlpha2Code": CountryAlpha2.US
             }
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
@@ -59,6 +54,24 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         "browserInfo": {
             "userAgent": "Mozilla/5.0 (probe-bot)",
             "ipAddress": "1.2.3.4"  // Device Information.
+        },
+        "state": {  // State Information.
+            "accessToken": {  // Access token obtained from connector.
+                "token": {"value": "probe_access_token"},  // The token string.
+                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
+                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    };
+}
+
+function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentServiceCaptureRequest {
+    return {
+        "merchantCaptureId": "probe_capture_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amountToCapture": {  // Capture Details.
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "state": {  // State Information.
             "accessToken": {  // Access token obtained from connector.
@@ -118,7 +131,7 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
             "uri": "https://example.com/webhook",  // URI of the request.
             "headers": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}", "utf-8"))  // Body of the HTTP request.
+            "body": new Uint8Array(Buffer.from("{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"MerchantReference\":\"probe_txn_001\",\"PaymentRequestId\":\"72750\"},\"Status\":\"Paid\",\"Amount\":{\"Amount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -130,7 +143,7 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
             "uri": "https://example.com/webhook",  // URI of the request.
             "headers": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}", "utf-8"))  // Body of the HTTP request.
+            "body": new Uint8Array(Buffer.from("{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"MerchantReference\":\"probe_txn_001\",\"PaymentRequestId\":\"72750\"},\"Status\":\"Paid\",\"Amount\":{\"Amount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -155,11 +168,6 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
         },
         "address": {
             "billingAddress": {
-                "firstName": {"value": "John"},
-                "line1": {"value": "123 Main St"},
-                "city": {"value": "Seattle"},
-                "zipCode": {"value": "98101"},
-                "countryAlpha2Code": CountryAlpha2.US
             }
         },
         "captureMethod": CaptureMethod.AUTOMATIC,
@@ -241,6 +249,20 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     };
 }
 
+function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
+    return {
+        "merchantVoidId": "probe_void_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "state": {  // State Information.
+            "accessToken": {  // Access token obtained from connector.
+                "token": {"value": "probe_access_token"},  // The token string.
+                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
+                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // One-step Payment (Authorize + Capture)
@@ -260,6 +282,32 @@ async function processCheckoutAutocapture(merchantTransactionId: string, config:
     }
 
     return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: authorizeResponse.error } as any;
+}
+
+// Card Payment (Authorize + Capture)
+// Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
+async function processCheckoutCard(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
+
+    if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
+        throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
+    }
+    if (authorizeResponse.status === types.PaymentStatus.PENDING) {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    // Step 2: Capture — settle the reserved funds
+    const captureResponse = await paymentClient.capture(_buildCaptureRequest(authorizeResponse.connectorTransactionId!));
+
+    if (captureResponse.status === types.PaymentStatus.FAILURE) {
+        throw new Error(`Capture failed: ${JSON.stringify(captureResponse.error)}`);
+    }
+
+    return { status: captureResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: authorizeResponse.error } as any;
 }
 
 // Refund
@@ -286,6 +334,28 @@ async function processRefund(merchantTransactionId: string, config: types.IConne
     }
 
     return { status: refundResponse.status, error: refundResponse.error } as any;
+}
+
+// Void Payment
+// Cancel an authorized but not-yet-captured payment.
+async function processVoidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
+
+    if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
+        throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
+    }
+    if (authorizeResponse.status === types.PaymentStatus.PENDING) {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    const voidResponse = await paymentClient.void(_buildVoidRequest(authorizeResponse.connectorTransactionId!));
+
+    return { status: voidResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: voidResponse.error } as any;
 }
 
 // Get Payment Status
@@ -317,6 +387,15 @@ async function authorize(merchantTransactionId: string, config: types.IConnector
     const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
 
     return authorizeResponse;
+}
+
+// Flow: PaymentService.Capture
+async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const captureResponse = await paymentClient.capture(_buildCaptureRequest('probe_connector_txn_001'));
+
+    return captureResponse;
 }
 
 // Flow: PaymentService.CreateOrder
@@ -400,10 +479,19 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
     return refundResponse;
 }
 
+// Flow: PaymentService.Void
+async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const voidResponse = await paymentClient.void(_buildVoidRequest('probe_connector_txn_001'));
+
+    return voidResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processRefund, processGetPayment, authorize, createOrder, createServerAuthenticationToken, get, handleEvent, parseEvent, proxyAuthorize, recurringCharge, refund, refundGet, _buildAuthorizeRequest, _buildCreateOrderRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, createServerAuthenticationToken, get, handleEvent, parseEvent, proxyAuthorize, recurringCharge, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateOrderRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner
