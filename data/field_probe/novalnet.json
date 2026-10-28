@@ -113,8 +113,8 @@
         }
       },
       "ApplePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
+        "status": "not_supported",
+        "error": "Decrypted Apple Pay payment data is not supported by novalnet. Authorize: Apple Pay payment_data is Decrypted"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
@@ -328,8 +328,8 @@
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
+        "status": "not_supported",
+        "error": "Decrypted Google Pay payment data is not supported by novalnet. Authorize: Google Pay tokenization_data is Decrypted"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",

@@ -210,7 +210,8 @@ select_checks() {  # N bug_ids_csv changed_units_csv → test/select/r<N>.json =
 kill_warm() {  # [ucs|hs …] (default both) — R12 carve-out: the setsid bash wrapper leads its process group
   local n p; for n in ${@:-ucs hs}; do p=$(cat "$R/warm/$n.pid" 2>/dev/null) || continue
     case "$(readlink "/proc/$p/exe" 2>/dev/null)" in */bash) ;; *) continue;; esac
-    { tr '\0' ' ' < "/proc/$p/cmdline"; } 2>/dev/null | grep -qF "$R/warm/warm.sh" && kill -TERM -- "-$p" 2>/dev/null; done; }
+    { tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null || ps -o args= -p "$p" 2>/dev/null; } \
+      | grep -qF "$R/warm/warm.sh" && kill -TERM -- "-$p" 2>/dev/null; done; }
 ```
 
 `snapshots.tsv` = `seq ref stage unit commit tree utc`. Snapshot after every UCS tree-writing return: S1m (`s1m`), each
