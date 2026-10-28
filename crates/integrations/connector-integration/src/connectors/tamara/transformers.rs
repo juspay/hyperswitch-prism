@@ -5,8 +5,9 @@ use crate::types::ResponseRouterData;
 use crate::utils;
 use common_enums::EligibilityStatus;
 use common_enums::{
-    AttemptStatus, Currency, ProductType, DepositPaymentType, EducationType, FutureUsage, OnlineStatus,
-    PremiumCustomerStatus, RefundStatus, RoomClass, TicketRefundability, TravelClass, TripType,
+    AttemptStatus, Currency, DepositPaymentType, EducationType, FutureUsage, OnlineStatus,
+    PremiumCustomerStatus, ProductType, RefundStatus, RoomClass, TicketRefundability, TravelClass,
+    TripType,
 };
 use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
@@ -266,15 +267,17 @@ fn tamara_deposit_payment_type(deposit_payment_type: DepositPaymentType) -> Stri
 
 #[derive(Debug, Serialize)]
 pub struct TamaraRiskAssessment {
-    pub is_premium_customer: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_premium_customer: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub account_creation_date: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total_order_count: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub risk_score: Option<u32>,
-    // Required by Tamara; "will be null if first order".
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub date_first_paid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub date_last_paid: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_count_last_24h: Option<u32>,
@@ -297,30 +300,27 @@ impl TamaraRiskAssessment {
     /// `purchase_type` is Tamara's "Subscription" / "One-time" vocabulary and is
     /// inferred from the payment's setup signals by the caller.
     fn from_domain(
-        risk_assessment_data: &RiskAssessmentData,
+        risk_assessment_data: Option<&RiskAssessmentData>,
         domain_data: Option<&DomainData>,
         purchase_type: &str,
     ) -> Self {
         Self {
-            is_premium_customer: matches!(
-                risk_assessment_data.is_premium_customer,
-                Some(PremiumCustomerStatus::PremiumCustomer)
-            ),
+            is_premium_customer: risk_assessment_data
+                .and_then(|data| data.is_premium_customer)
+                .map(|status| matches!(status, PremiumCustomerStatus::PremiumCustomer)),
             account_creation_date: risk_assessment_data
-                .customer_account_creation_date
-                .as_deref()
+                .and_then(|data| data.customer_account_creation_date.as_deref())
                 .map(to_tamara_date),
-            total_order_count: risk_assessment_data.number_of_orders,
-            risk_score: risk_assessment_data.risk_score,
+            total_order_count: risk_assessment_data.and_then(|data| data.number_of_orders),
+            risk_score: risk_assessment_data.and_then(|data| data.risk_score),
             date_first_paid: risk_assessment_data
-                .date_first_paid
-                .as_deref()
+                .and_then(|data| data.date_first_paid.as_deref())
                 .map(to_tamara_date),
             date_last_paid: risk_assessment_data
-                .date_last_paid
-                .as_deref()
+                .and_then(|data| data.date_last_paid.as_deref())
                 .map(to_tamara_date),
-            order_count_last_24h: risk_assessment_data.number_of_orders_in_past_24h,
+            order_count_last_24h: risk_assessment_data
+                .and_then(|data| data.number_of_orders_in_past_24h),
             flights_itinerary: domain_data
                 .and_then(|domain| domain.airline_data.as_ref())
                 .map(FlightsItinerary::from),
@@ -986,16 +986,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 city: shipping_city.into(),
                 country_code: shipping_country.into(),
             },
-            // Only sent when the merchant supplied risk-assessment signals.
-            risk_assessment: router_data.request.risk_assessment_data.as_ref().map(
-                |risk_assessment_data| {
+            // Sent when the merchant supplied risk signals or any vertical's domain
+            // data; every field that is unknown is simply omitted.
+            risk_assessment: {
+                let domain_data = router_data.request.domain_data.as_ref();
+                let has_vertical = domain_data.is_some_and(|domain| {
+                    domain.airline_data.is_some()
+                        || domain.education_data.is_some()
+                        || domain.hotel_data.is_some()
+                        || domain.travel_data.is_some()
+                        || domain.sales_data.is_some()
+                        || domain.rental_data.is_some()
+                });
+                (router_data.request.risk_assessment_data.is_some() || has_vertical).then(|| {
                     TamaraRiskAssessment::from_domain(
-                        risk_assessment_data,
-                        router_data.request.domain_data.as_ref(),
+                        router_data.request.risk_assessment_data.as_ref(),
+                        domain_data,
                         purchase_type,
                     )
-                },
-            ),
+                })
+            },
         })
     }
 }
