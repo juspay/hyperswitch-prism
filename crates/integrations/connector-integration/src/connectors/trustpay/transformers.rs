@@ -672,18 +672,30 @@ impl TryFrom<ResponseRouterData<TrustpayPaymentsResponse, Self>>
         item: ResponseRouterData<TrustpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         // A successful Preauthorization instance syncs as Authorized, a Purchase as Charged.
-        // The instance body is unchanged by a capture, so Capture's capture_instance_id
-        // (echoed back as connector_feature_data) marks a captured preauth (UD-09).
-        let is_captured = item
-            .router_data
-            .request
-            .connector_feature_data
-            .as_ref()
-            .is_some_and(|m| m.peek().get("capture_instance_id").is_some());
+        // The instance body is unchanged by a Capture or Reverse, so their instance ids
+        // (echoed back as connector_feature_data) mark a captured (UD-09) or reversed (UD-10) payment.
+        let feature_has = |key: &str| {
+            item.router_data
+                .request
+                .connector_feature_data
+                .as_ref()
+                .is_some_and(|m| m.peek().get(key).is_some())
+        };
+        let is_captured = feature_has("capture_instance_id");
+        let is_voided = feature_has("void_instance_id");
         let is_preauth = TrustpayPaymentAction::from(item.router_data.request.capture_method)
             == TrustpayPaymentAction::Preauthorization
             && !is_captured;
-        build_payments_router_data(item, is_preauth)
+        let mut router_data = build_payments_router_data(item, is_preauth)?;
+        if is_voided
+            && matches!(
+                router_data.resource_common_data.status,
+                enums::AttemptStatus::Authorized | enums::AttemptStatus::Charged
+            )
+        {
+            router_data.resource_common_data.status = enums::AttemptStatus::Voided;
+        }
+        Ok(router_data)
     }
 }
 
@@ -2713,14 +2725,17 @@ impl TryFrom<ResponseRouterData<TrustpayVoidResponse, Self>>
                 typed_connector_request: None,
             })
         } else {
-            // The reversed Preauthorization instance stays the resource id.
+            // The reversed instance stays the resource id; its GET body is unchanged by a
+            // Reverse, so the Reverse instanceId is kept as void_instance_id for PSync (UD-10).
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.router_data.request.connector_transaction_id.clone(),
                 ),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: Some(serde_json::json!({
+                    "void_instance_id": response.instance_id,
+                })),
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: None,
