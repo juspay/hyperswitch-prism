@@ -36,6 +36,11 @@ type Error = Report<IntegrationError>;
 use common_enums::enums;
 use serde::{Deserialize, Serialize};
 
+/// For example, 2.5 with a multiplier of 100.0 becomes "250".
+pub fn scaled_percentage_to_string(percentage: f64, multiplier: f64) -> String {
+    format!("{:.0}", percentage * multiplier)
+}
+
 pub fn build_form_from_struct<T: Serialize>(
     data: T,
 ) -> Result<MultipartData, errors::ParsingError> {
@@ -397,6 +402,30 @@ where
     use serde::de::Error;
     let output = <&str>::deserialize(v)?;
     output.to_uppercase().parse::<T>().map_err(D::Error::custom)
+}
+
+/// Parses an optional connector response value, logging and discarding one that isn't recognised
+/// so an unexpected value doesn't fail the whole response.
+pub fn parse_or_log_unrecognised<T: FromStr>(value: &str) -> Option<T> {
+    value
+        .parse::<T>()
+        .inspect_err(|_| {
+            tracing::debug!(
+                value,
+                target_type = std::any::type_name::<T>(),
+                "Unrecognised value received from connector"
+            );
+        })
+        .ok()
+}
+
+/// Converts an ISO 3166 country code from a connector response, alpha-2 or numeric, to alpha-2.
+/// A value outside either table is logged and discarded.
+pub fn parse_country_code(code: &str) -> Option<enums::CountryAlpha2> {
+    code.parse::<u16>()
+        .ok()
+        .and_then(enums::CountryAlpha2::from_numeric)
+        .or_else(|| parse_or_log_unrecognised::<enums::CountryAlpha2>(code))
 }
 
 pub trait SplitPaymentData {
