@@ -411,7 +411,6 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
         currency_conversion_data: None,
         integrity_specifications: None,
         is_overcapture_enabled: None,
-        network_transaction_id: None,
         split_settlement: None,
         payment_method: None,
         merchant_capture_id: Some(request_ref_id),
