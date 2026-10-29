@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.29.0
+
+### Refactors
+
+- **common_utils:** Use Money in amount converters ([#2600](https://github.com/juspay/connector-service/pull/2600)) ([`246bc1e`](https://github.com/juspay/connector-service/commit/246bc1e3f12854e14f22eec7df52a18c387547f4))
+
+**Full Changelog:** [`2026.10.28.1...2026.10.29.0`](https://github.com/juspay/connector-service/compare/2026.10.28.1...2026.10.29.0)
+
+- - -
+
 ## 2026.10.28.1
 
 ### Features

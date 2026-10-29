@@ -25,7 +25,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 pub(super) const SANTANDER_PIX_DOCS_URL: &str =
@@ -365,9 +365,43 @@ pub struct SantanderBeneficiary {
     pub document_type: SantanderDocumentType,
     pub document_number: Secret<String>,
     pub name: Secret<String>,
-    pub bank_code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ispb: Option<Secret<String>>,
+}
+
+fn pix_bank_identifiers(
+    bank_code: Option<String>,
+    ispb: Option<Secret<String>>,
+) -> CustomResult<(Option<String>, Option<Secret<String>>), IntegrationError> {
+    let ispb = ispb
+        .map(|value| {
+            value
+                .expose()
+                .chars()
+                .filter(char::is_ascii_digit)
+                .collect::<String>()
+        })
+        .filter(|value| !value.is_empty())
+        .map(Secret::new);
+    match (ispb, bank_code.filter(|value| !value.trim().is_empty())) {
+        (Some(ispb), _) => Ok((None, Some(ispb))),
+        (None, Some(bank_code)) => Ok((Some(bank_code), None)),
+        (None, None) => Err(IntegrationError::MissingRequiredField {
+            field_name: "payout_method_data.ispb or payout_method_data.bank_code",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Pix bank transfers require either ISPB or bank code".to_string(),
+                ),
+                suggested_action: Some(
+                    "Provide ispb or the COMPE bank_code in payout_method_data".to_string(),
+                ),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+            },
+        }
+        .into()),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -519,14 +553,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
                         .collect::<String>(),
                 );
 
-                let ispb_str = ispb.clone().expose_option().map(|ispb_raw| {
-                    Secret::new(
-                        ispb_raw
-                            .chars()
-                            .filter(|ch| ch.is_ascii_digit())
-                            .collect::<String>(),
-                    )
-                });
+                let (bank_code, ispb_str) = pix_bank_identifiers(bank_code, ispb)?;
 
                 let name = account_holder_name.ok_or(IntegrationError::MissingRequiredField {
                     field_name: "payout_method_data.account_holder_name",
@@ -537,17 +564,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
                         suggested_action: Some(
                             "Provide the beneficiary account holder name in payout_method_data"
                                 .to_string(),
-                        ),
-                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
-                    },
-                })?;
-
-                let bank_code = bank_code.ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "payout_method_data.bank_code",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("missing required field: bank_code".to_string()),
-                        suggested_action: Some(
-                            "Provide the COMPE bank code in payout_method_data for Pix bank transfers".to_string(),
                         ),
                         doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                     },

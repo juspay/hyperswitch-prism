@@ -3943,6 +3943,9 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
+    /// Category of the order/service (proto `order_category`), for connectors that
+    /// require it on the mandate-setup order.
+    pub order_category: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -4503,6 +4506,8 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::RevolutPay(_) => Self::RevolutPay,
                 payment_method_data::WalletData::MbWay(_) => Self::MbWay,
                 payment_method_data::WalletData::Satispay(_) => Self::Satispay,
+                payment_method_data::WalletData::SatispayIntent(_) => Self::Satispay,
+                payment_method_data::WalletData::SatispayQr(_) => Self::Satispay,
                 payment_method_data::WalletData::Wero(_) => Self::Wero,
                 payment_method_data::WalletData::LazyPayRedirect(_) => Self::LazyPayRedirect,
                 payment_method_data::WalletData::PhonePeRedirect(_) => Self::PhonePeRedirect,
@@ -4535,6 +4540,10 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::BankRedirectData::BancontactCard { .. } => {
                     Self::BancontactCard
                 }
+                payment_method_data::BankRedirectData::BancontactIntent { .. } => {
+                    Self::BancontactCard
+                }
+                payment_method_data::BankRedirectData::BancontactQr { .. } => Self::BancontactCard,
                 payment_method_data::BankRedirectData::Bizum {} => Self::Bizum,
                 payment_method_data::BankRedirectData::Blik { .. } => Self::Blik,
                 payment_method_data::BankRedirectData::Eps { .. } => Self::Eps,
@@ -5472,7 +5481,7 @@ pub struct TaxInfo {
     pub vat_invoice_reference_number: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CustomerInfo {
     pub customer_id: Option<CustomerId>,
     pub customer_email: Option<common_utils::pii::Email>,

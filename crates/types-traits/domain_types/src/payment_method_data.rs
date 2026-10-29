@@ -869,6 +869,8 @@ pub enum BankRedirectData {
         card_exp_year: Option<Secret<String>>,
         card_holder_name: Option<Secret<String>>,
     },
+    BancontactIntent {},
+    BancontactQr {},
     Bizum {},
     Blik {
         blik_code: Option<String>,
@@ -992,6 +994,8 @@ pub enum WalletData {
     RevolutPay(RevolutPayData),
     MbWay(MbWayData),
     Satispay(SatispayData),
+    SatispayIntent(SatispayIntentData),
+    SatispayQr(SatispayQrData),
     Wero(WeroData),
     LazyPayRedirect(LazyPayRedirection),
     PhonePeRedirect(PhonePeRedirection),
@@ -1070,6 +1074,12 @@ pub struct MbWayData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SatispayData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SatispayIntentData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SatispayQrData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeroData {}

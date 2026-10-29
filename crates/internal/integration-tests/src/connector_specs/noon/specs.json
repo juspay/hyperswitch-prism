@@ -9,6 +9,43 @@
     "RefundService/Get",
     "RecurringPaymentService/Revoke",
     "PaymentService/SetupRecurring",
-    "PaymentService/Void"
-  ]
+    "PaymentService/Void",
+    "EventService/HandleEvent"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_ideal": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; ideal is not offered",
+      "no3ds_auto_capture_giropay": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; giropay is not offered",
+      "no3ds_auto_capture_bancontact": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; bancontact is not offered",
+      "no3ds_auto_capture_klarna": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; klarna is not offered",
+      "no3ds_auto_capture_affirm": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; affirm is not offered",
+      "no3ds_auto_capture_afterpay_clearpay": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; afterpay clearpay is not offered",
+      "no3ds_auto_capture_przelewy24": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; przelewy24 is not offered",
+      "no3ds_auto_capture_alipay": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; alipay is not offered",
+      "no3ds_auto_capture_eps": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; eps is not offered",
+      "no3ds_auto_capture_sepa_bank_transfer": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; sepa bank transfer is not offered",
+      "no3ds_auto_capture_ach_bank_transfer": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; ach bank transfer is not offered",
+      "no3ds_auto_capture_bacs_bank_transfer": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; bacs bank transfer is not offered",
+      "no3ds_auto_capture_upi_collect": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; upi collect is not offered",
+      "no3ds_auto_capture_upi_intent": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; upi intent is not offered",
+      "no3ds_auto_capture_upi_qr": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon's direct order API accepts CARD, APPLEPAY, GOOGLEPAY, PAYPAL and SUBSCRIPTION payment data only; upi qr is not offered",
+      "no3ds_auto_capture_apple_pay_decrypted": "CONNECTOR_API_LACKS: https://docs.noonpayments.com/payment-method/applepay — Noon decrypts Apple Pay and Google Pay tokens itself and documents no request shape for a pre-decrypted (merchant-decrypted) Apple Pay or Google Pay token",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "CONNECTOR_API_LACKS: https://docs.noonpayments.com/payment-method/applepay — Noon decrypts Apple Pay and Google Pay tokens itself and documents no request shape for a pre-decrypted (merchant-decrypted) Apple Pay or Google Pay token",
+      "no3ds_auto_capture_google_pay_decrypted": "CONNECTOR_API_LACKS: https://docs.noonpayments.com/payment-method/applepay — Noon decrypts Apple Pay and Google Pay tokens itself and documents no request shape for a pre-decrypted (merchant-decrypted) Apple Pay or Google Pay token",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "CONNECTOR_API_LACKS: https://docs.noonpayments.com/payment-method/applepay — Noon decrypts Apple Pay and Google Pay tokens itself and documents no request shape for a pre-decrypted (merchant-decrypted) Apple Pay or Google Pay token",
+      "no3ds_auto_capture_google_pay_encrypted": "SANDBOX_NOT_PROVISIONED: creds.json noon.metadata.google_pay and GPAY_HOSTED_URL — no Google Pay test-token credential is configured for Noon, so the harness cannot generate a real encrypted token",
+      "no3ds_manual_capture_incremental_auth": "FLOW_NOT_IN_SCOPE: crates/integrations/connector-integration/src/connectors/noon.rs not_supported list — Noon has no incremental authorization operation; IncrementalAuthorization is declared not_supported",
+      "no3ds_fail_payment": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory (Sandbox decline test data) — Noon's only documented decline cards (4415550123456789, 4550120123456789, 4575550123456789) fail the Luhn check so the proto CardNumber parse rejects them before any connector call, and no decline amount or generic Visa/MC decline card is documented"
+    },
+    "PaymentService/Get": {
+      "sync_upi_collect": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon offers no UPI payment method, so there is no UPI payment to sync",
+      "sync_upi_intent": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon offers no UPI payment method, so there is no UPI payment to sync",
+      "sync_upi_qr": "PM_NOT_OFFERED: https://docs.noonpayments.com/ — Noon offers no UPI payment method, so there is no UPI payment to sync"
+    },
+    "EventService/HandleEvent": {
+      "payment_succeeded": "SANDBOX_NOT_PROVISIONED: creds.json noon.webhook_secret — the Noon-issued merchant webhook secret (HMAC-SHA512 key over orderId,orderStatus,eventId,eventType,timeStamp) is not provisioned in any committed credential, so this fixture cannot carry a valid signature and source_verified cannot be true",
+      "payment_failed": "SANDBOX_NOT_PROVISIONED: creds.json noon.webhook_secret — the Noon-issued merchant webhook secret (HMAC-SHA512 key over orderId,orderStatus,eventId,eventType,timeStamp) is not provisioned in any committed credential, so this fixture cannot carry a valid signature and source_verified cannot be true",
+      "refund_succeeded": "SANDBOX_NOT_PROVISIONED: creds.json noon.webhook_secret — the Noon-issued merchant webhook secret (HMAC-SHA512 key over orderId,orderStatus,eventId,eventType,timeStamp) is not provisioned in any committed credential, so this fixture cannot carry a valid signature and source_verified cannot be true"
+    }
+  }
 }
