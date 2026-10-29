@@ -237,10 +237,6 @@ fn captured_wero_form_postback_decodes_and_routes() {
         serde_urlencoded::from_bytes(&request.body).expect("decode captured form");
     assert_eq!(parsed.message.as_deref(), Some("CONSENT DENIED"));
     assert_eq!(
-        parsed.additional_transaction_data.as_deref(),
-        Some("customer_id=123ABC, billing_info=12345678")
-    );
-    assert_eq!(
         connector.get_event_type(request.clone()).expect("event"),
         EventType::PaymentIntentFailure
     );

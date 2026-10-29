@@ -634,7 +634,6 @@ pub struct BetterpaymentRefundResponse {
     pub transaction_id: Option<String>,
     pub refund_id: Option<String>,
     pub status: BetterpaymentRefundStatus,
-    pub status_code: Option<i64>,
     pub error_code: Option<u64>,
     pub message: Option<String>,
 }
@@ -758,25 +757,15 @@ impl<F, Req> TryFrom<ResponseRouterData<BetterpaymentRefundResponse, Self>>
 #[derive(Debug, Deserialize, Clone)]
 pub struct BetterpaymentWebhookBody {
     pub transaction_id: String,
-    pub payment_type: Option<String>,
-    pub status_code: Option<i64>,
     pub status: BetterpaymentWebhookStatus,
     pub order_id: String,
     pub message: Option<String>,
     pub reason_code: Option<String>,
-    pub additional_transaction_data: Option<String>,
-    pub remittance_info: Option<String>,
-    pub wallet_activity_reference: Option<String>,
-    pub wallet_account_reference: Option<String>,
-    pub payer_location: Option<String>,
     // Refund-only fields; absent on payment postbacks.
     pub refund_id: Option<String>,
     #[serde(default)]
     pub refund_status_code: Option<BetterpaymentRefundWebhookStatus>,
     pub refund_reason_code: Option<String>,
-    pub refund_wallet_activity_reference: Option<String>,
-    pub refund_remittance_info: Option<String>,
-    pub checksum: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
