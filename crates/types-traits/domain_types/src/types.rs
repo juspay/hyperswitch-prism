@@ -321,7 +321,7 @@ use crate::{
     mandates::{self, MandateData},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_address::{
-        Address, AddressDetails, OrderDetailsWithAmount, PaymentAddress, PhoneDetails,
+        Address, AddressDetails, OrderDetailsWithAmount, PaymentAddress, PhoneDetails, State,
     },
     payment_method_data,
     payment_method_data::{
@@ -6399,14 +6399,14 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
         let country_code = value.country_alpha2_code();
         #[allow(deprecated)]
         let legacy_state = value.state;
-        let (state, state_code_iso) = match value.state_details {
+        let state = match value.state_details {
             Some(grpc_api_types::payments::address::StateDetails::StateName(state_name)) => {
-                (Some(state_name), None)
+                Some(State::StateValue(state_name))
             }
             Some(grpc_api_types::payments::address::StateDetails::StateCodeIso(state_code_iso)) => {
-                (legacy_state, Some(state_code_iso))
+                Some(State::StateCode(state_code_iso))
             }
-            None => (legacy_state, None),
+            None => legacy_state.map(State::StateValue),
         };
         let country = if matches!(
             country_code,
@@ -6425,7 +6425,6 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
             line3: value.line3,
             zip: value.zip_code,
             state,
-            state_code_iso,
             first_name: value.first_name,
             last_name: value.last_name,
             origin_zip: value.origin_zip,

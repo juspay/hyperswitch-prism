@@ -716,7 +716,7 @@ impl From<&Address> for BillTo {
             // line1, line2 and line3 joined under the 60-character limit
             address: details.and_then(|a| get_address_line(&a.line1, &a.line2, &a.line3)),
             city: details.and_then(|a| a.city.clone()),
-            state: details.and_then(|a| a.state.clone()),
+            state: details.and_then(|a| a.get_optional_state()),
             zip: details.and_then(|a| a.zip.clone()),
             country: details.and_then(|a| a.country),
             // Country code + number. `phoneNumber` is limited to 25 characters and an
@@ -759,7 +759,7 @@ impl From<&Address> for ShipTo {
             // Same 60-character joining rule as billTo.address
             address: details.and_then(|a| get_address_line(&a.line1, &a.line2, &a.line3)),
             city: details.and_then(|a| a.city.clone()),
-            state: details.and_then(|a| a.state.clone()),
+            state: details.and_then(|a| a.get_optional_state()),
             zip: details.and_then(|a| a.zip.clone()),
             country: details.and_then(|a| a.country),
         }
@@ -4013,7 +4013,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 last_name: address.last_name.clone(),
                 address: get_address_line(&address.line1, &address.line2, &address.line3),
                 city: address.city.clone(),
-                state: address.state.clone(),
+                state: address.get_optional_state(),
                 zip: address.zip.clone(),
                 country: address.country,
                 // The stored payment profile keeps its existing billTo shape.
@@ -4456,7 +4456,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         // line2 was present-but-empty.
                         address: address.line1.clone(),
                         city: address.city.clone(),
-                        state: address.state.clone(),
+                        state: address.get_optional_state(),
                         zip: address.zip.clone(),
                         country: address.country,
                         phone_number: shipping

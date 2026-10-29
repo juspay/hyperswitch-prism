@@ -1466,7 +1466,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             address1: billing_address.line1.clone(),
             address2: billing_address.line2.clone(),
             city: billing_address.city.clone(),
-            state: billing_address.state.clone(),
+            state: billing_address.get_optional_state(),
             zip: billing_address.zip.clone(),
             country: billing_address.country,
             customer_vault: CustomerAction::AddCustomer,

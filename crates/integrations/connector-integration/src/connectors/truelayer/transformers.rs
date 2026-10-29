@@ -1755,7 +1755,7 @@ fn get_address(billing: &domain_types::payment_address::Address) -> Option<Addre
                 address_line1: line1.clone(),
                 address_line2: address.line2.clone(),
                 city: city.clone(),
-                state: state.clone(),
+                state: state.as_secret().clone(),
                 zip: address.zip.clone(),
                 country_code: country,
             }),

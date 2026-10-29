@@ -183,6 +183,26 @@ impl Address {
 
 // used by customers also, could be moved outside
 /// Address details
+#[derive(Clone, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq)]
+pub enum State {
+    StateValue(Secret<String>),
+    StateCode(Secret<String>),
+}
+
+impl State {
+    pub fn as_secret(&self) -> &Secret<String> {
+        match self {
+            Self::StateValue(value) | Self::StateCode(value) => value,
+        }
+    }
+
+    pub fn into_secret(self) -> Secret<String> {
+        match self {
+            Self::StateValue(value) | Self::StateCode(value) => value,
+        }
+    }
+}
+
 #[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
@@ -205,10 +225,8 @@ pub struct AddressDetails {
     pub zip: Option<Secret<String>>,
 
     /// The address state
-    pub state: Option<Secret<String>>,
-
-    /// ISO 3166-2 subdivision code for the address state.
-    pub state_code_iso: Option<Secret<String>>,
+    /// State/province name or ISO 3166-2 subdivision code.
+    pub state: Option<State>,
 
     /// The first name for the address
     pub first_name: Option<Secret<String>>,
@@ -262,7 +280,6 @@ impl AddressDetails {
                 line3: self.line3.or(other.line3.clone()),
                 zip: self.zip.or(other.zip.clone()),
                 state: self.state.or(other.state.clone()),
-                state_code_iso: self.state_code_iso.or(other.state_code_iso.clone()),
                 origin_zip: self.origin_zip.clone().or(other.origin_zip.clone()),
             }
         } else {
@@ -311,6 +328,9 @@ impl AddressDetails {
     pub fn get_state(&self) -> Result<&Secret<String>, Error> {
         self.state
             .as_ref()
+            .map(|state| match state {
+                State::StateValue(value) | State::StateCode(value) => value,
+            })
             .ok_or_else(missing_field_err("address.state"))
     }
 
@@ -369,10 +389,22 @@ impl AddressDetails {
         self.country
     }
     pub fn get_optional_state(&self) -> Option<Secret<String>> {
-        self.state.clone()
+        self.state.as_ref().map(|state| match state {
+            State::StateValue(value) | State::StateCode(value) => value.clone(),
+        })
+    }
+
+    pub fn get_optional_state_code_iso(&self) -> Option<Secret<String>> {
+        self.state.as_ref().and_then(|state| match state {
+            State::StateValue(_) => None,
+            State::StateCode(value) => Some(value.clone()),
+        })
     }
 
     pub fn to_state_code(&self) -> Result<Secret<String>, Error> {
+        if let Some(State::StateCode(state_code)) = self.state.as_ref() {
+            return Ok(state_code.clone());
+        }
         let country = self.get_country()?;
         let state = self.get_state()?;
         match country {
@@ -391,11 +423,14 @@ impl AddressDetails {
     pub fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error> {
         self.state
             .as_ref()
-            .map(|state| {
-                if state.peek().len() == 2 {
-                    Ok(state.to_owned())
-                } else {
-                    self.to_state_code()
+            .map(|state| match state {
+                State::StateCode(value) => Ok(value.clone()),
+                State::StateValue(value) => {
+                    if value.peek().len() == 2 {
+                        Ok(value.clone())
+                    } else {
+                        self.to_state_code()
+                    }
                 }
             })
             .transpose()

@@ -312,7 +312,7 @@ fn build_bill_to(
         .to_state_code_as_optional()
         .unwrap_or_else(|_| {
             address
-                .state
+                .get_optional_state()
                 .as_ref()
                 .map(|state| truncate_string(state, 20)) // NOTE: Cybersource connector throws error if billing state exceeds 20 characters. Since Barclaycard is Cybersource just whitelisting, we truncate if state exceeds 20 characters, so truncation is done to avoid payment failure
         })
