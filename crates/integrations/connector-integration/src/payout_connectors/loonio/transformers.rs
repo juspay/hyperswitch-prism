@@ -200,18 +200,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
                         .map(|c| c.to_string()),
                 };
 
-                let amount = utils::convert_amount(
-                    &FloatMajorUnitForConnector,
-                    &common_utils::types::Money::new(
-                        req.request.amount,
-                        req.request.source_currency,
-                    ),
-                )?;
+                let amount =
+                    utils::convert_amount(&FloatMajorUnitForConnector, &req.request.money)?;
 
                 let customer_id = req.request.get_customer_id()?;
 
                 Ok(Self {
-                    currency_code: req.request.source_currency,
+                    currency_code: req.request.money.currency(),
                     customer_profile,
                     amount,
                     customer_id,

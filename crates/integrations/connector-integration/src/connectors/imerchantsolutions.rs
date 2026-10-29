@@ -251,7 +251,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: amount_captured
+            captured_money: amount_captured
                 .map(|amount| {
                     crate::utils::webhook_amount_to_money(
                         common_utils::types::AmountConvertor::convert_back(

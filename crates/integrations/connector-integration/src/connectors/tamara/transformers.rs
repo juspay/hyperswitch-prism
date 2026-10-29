@@ -6,7 +6,7 @@ use crate::utils;
 use common_enums::EligibilityStatus;
 use common_enums::{AttemptStatus, Currency, ProductType, RefundStatus};
 use common_utils::{
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
     Email,
 };
 use domain_types::{
@@ -243,7 +243,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .into())
             }
         }
-        let amount = router_data.request.amount.amount();
         let currency = router_data.request.currency;
         let order_ref = router_data
             .resource_common_data
@@ -256,7 +255,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .unwrap_or_default();
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&common_utils::types::Money::new(amount, currency))
+            .convert(&router_data.request.money)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -266,15 +265,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             })?;
         let shipping_amount = converter
-            .convert(&common_utils::types::Money::new(
-                router_data
+            .convert(
+                &router_data
                     .request
-                    .shipping_cost
-                    .as_ref()
-                    .map(|money| money.amount())
-                    .unwrap_or(MinorUnit(0)),
-                currency,
-            ))
+                    .shipping_money
+                    .clone()
+                    .unwrap_or_else(|| common_utils::types::Money::zero(currency)),
+            )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -284,15 +281,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             })?;
         let tax_amount = converter
-            .convert(&common_utils::types::Money::new(
-                router_data
+            .convert(
+                &router_data
                     .request
-                    .order_tax_amount
-                    .as_ref()
-                    .map(|money| money.amount())
-                    .unwrap_or(MinorUnit(0)),
-                currency,
-            ))
+                    .order_tax_money
+                    .clone()
+                    .unwrap_or_else(|| common_utils::types::Money::zero(currency)),
+            )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -585,7 +580,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&item.router_data.request.amount_to_capture)
+            .convert(&item.router_data.request.capture_money)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -678,7 +673,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let amount = router_data
             .request
-            .amount
+            .money
             .as_ref()
             .ok_or(error_stack::report!(
                 errors::IntegrationError::MissingRequiredField {
@@ -699,16 +694,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         ))?;
         let converter = FloatMajorUnitForConnector;
-        let amount = converter
-            .convert(&common_utils::types::Money::new(amount.amount(), currency))
-            .change_context(errors::IntegrationError::RequestEncodingFailed {
+        let amount = converter.convert(amount).change_context(
+            errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
                         "Failed to convert void amount from minor to major units".to_string(),
                     ),
                     ..Default::default()
                 },
-            })?;
+            },
+        )?;
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
         })
@@ -792,7 +787,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ))?;
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&item.router_data.request.refund_amount)
+            .convert(&item.router_data.request.refund_money)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -991,7 +986,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let email = customer.get_email()?;
         let phone_number = customer.get_phone_number()?;
         let converter = FloatMajorUnitForConnector;
-        let amount = converter.convert(&data.amount).change_context(
+        let amount = converter.convert(&data.money).change_context(
             errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1005,7 +1000,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             order: TamaraEligibilityOrder {
                 amount,
-                currency: data.amount.currency(),
+                currency: data.money.currency(),
             },
             customer: TamaraEligibilityCustomer {
                 phone_number,

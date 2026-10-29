@@ -578,10 +578,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .authentication_data
                     .as_ref()
                     .is_some_and(|a| a.cavv.is_some());
-                let amount = Money::new(
-                    item.router_data.request.amount.amount(),
-                    item.router_data.request.currency,
-                );
+                let amount = item.router_data.request.money.clone();
                 let ecommerce_indicator = Some(derive_ecommerce_indicator(
                     item.router_data.request.payment_channel.as_ref(),
                     item.router_data.request.mit_category.as_ref(),
@@ -846,10 +843,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 };
 
-                let amount = Money::new(
-                    item.router_data.request.amount.amount(),
-                    item.router_data.request.currency,
-                );
+                let amount = item.router_data.request.money.clone();
 
                 Ok(Self {
                     idempotency_key,
@@ -1026,8 +1020,8 @@ impl TryFrom<ResponseRouterData<MonerisCaptureResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let status = match item.response.payment_status {
             MonerisPaymentStatus::Succeeded => {
-                let captured = item.router_data.request.amount_to_capture.amount();
-                match item.router_data.resource_common_data.amount_capturable {
+                let captured = item.router_data.request.capture_money.amount();
+                match item.router_data.resource_common_data.capturable_money {
                     Some(ref authorized) if captured < authorized.amount() => {
                         common_enums::AttemptStatus::PartialCharged
                     }
@@ -1140,10 +1134,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         issuer_id: None,
                     }),
                 });
-                let amount = Money::new(
-                    item.router_data.request.amount.amount(),
-                    item.router_data.request.currency,
-                );
+                let amount = item.router_data.request.money.clone();
                 Ok(Self {
                     idempotency_key,
                     amount,
@@ -1197,10 +1188,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = Money::new(
-            item.router_data.request.amount_to_capture.amount(),
-            item.router_data.request.currency,
-        );
+        let amount = item.router_data.request.capture_money.clone();
         let idempotency_key = format!(
             "capture_{}",
             item.router_data
@@ -1274,10 +1262,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let refund_amount = Money::new(
-            item.router_data.request.refund_amount.amount(),
-            item.router_data.request.currency,
-        );
+        let refund_amount = item.router_data.request.refund_money.clone();
         let idempotency_key = format!(
             "refund_{}",
             item.router_data
@@ -1727,7 +1712,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             country: resource.get_optional_billing_country(),
         };
 
-        let amount = Money::new(req.amount.amount(), req.currency.unwrap_or_default());
+        let amount = req.money.clone();
 
         let idempotency_key = format!("3ds_{}", resource.connector_request_reference_id);
 

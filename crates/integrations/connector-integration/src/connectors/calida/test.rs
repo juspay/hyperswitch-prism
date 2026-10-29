@@ -8,7 +8,7 @@ mod tests {
     pub mod authorize {
         use std::{borrow::Cow, marker::PhantomData};
 
-        use common_utils::{pii::Email, request::RequestContent, types::MinorUnit};
+        use common_utils::{pii::Email, request::RequestContent};
         use domain_types::{
             self,
             connector_flow::Authorize,
@@ -18,7 +18,8 @@ mod tests {
             payment_method_data::{DefaultPCIHolder, PaymentMethodData, WalletData},
             router_data::{ConnectorSpecificConfig, ErrorResponse},
             router_data_v2::RouterDataV2,
-            types::{ConnectorParams, Connectors},
+            types::{AuthorizationRequest, ConnectorParams, Connectors},
+            utils::ForeignTryFrom,
         };
         use hyperswitch_masking::Secret;
         use interfaces::{
@@ -27,6 +28,22 @@ mod tests {
         use serde_json::json;
 
         use crate::{connectors::Calida, types::ConnectorData};
+
+        fn authorization_data() -> PaymentsAuthorizeData<DefaultPCIHolder> {
+            PaymentsAuthorizeData::foreign_try_from((
+                AuthorizationRequest::from(
+                    grpc_api_types::payments::PaymentServiceAuthorizeRequest {
+                        amount: Some(grpc_api_types::payments::Money {
+                            minor_amount: 1000,
+                            currency: grpc_api_types::payments::Currency::Usd.into(),
+                        }),
+                        ..Default::default()
+                    },
+                ),
+                PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
+            ))
+            .expect("valid authorization fixture")
+        }
 
         #[test]
         fn test_build_request_valid() {
@@ -72,8 +89,8 @@ mod tests {
                     ),
                     auth_type: common_enums::AuthenticationType::NoThreeDs,
                     connector_feature_data: None,
-                    amount_captured: None,
-                    amount_authorized: None,
+                    captured_money: None,
+                    authorized_money: None,
                     access_token: None,
                     session_token: None,
                     reference_id: None,
@@ -98,8 +115,8 @@ mod tests {
                     typed_connector_response: None,
                     raw_connector_request: None,
                     typed_connector_request: None,
-                    amount_capturable: None,
-                    amount: None,
+                    capturable_money: None,
+                    money: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     l2_l3_data: None,
@@ -123,12 +140,9 @@ mod tests {
                     currency_conversion_data: None,
                     access_token: None,
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
-                    amount: common_utils::types::Money::new(
-                        MinorUnit::new(1000),
-                        common_enums::Currency::USD,
-                    ),
-                    order_tax_amount: None,
-                    surcharge_amount: None,
+                    money: authorization_data().money,
+                    order_tax_money: None,
+                    surcharge_money: None,
                     email: Some(
                         Email::try_from("test@example.com".to_string())
                             .expect("Failed to parse email"),
@@ -160,7 +174,7 @@ mod tests {
                     request_incremental_authorization: Some(false),
                     metadata: None,
                     merchant_order_id: None,
-                    shipping_cost: None,
+                    shipping_money: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
                     all_keys_required: None,
@@ -273,8 +287,8 @@ mod tests {
                     ),
                     auth_type: common_enums::AuthenticationType::NoThreeDs,
                     connector_feature_data: None,
-                    amount_captured: None,
-                    amount_authorized: None,
+                    captured_money: None,
+                    authorized_money: None,
                     access_token: None,
                     session_token: None,
                     reference_id: None,
@@ -299,8 +313,8 @@ mod tests {
                     typed_connector_response: None,
                     raw_connector_request: None,
                     typed_connector_request: None,
-                    amount_capturable: None,
-                    amount: None,
+                    capturable_money: None,
+                    money: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     l2_l3_data: None,
@@ -324,12 +338,9 @@ mod tests {
                     currency_conversion_data: None,
                     access_token: None,
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
-                    amount: common_utils::types::Money::new(
-                        MinorUnit::new(1000),
-                        common_enums::Currency::USD,
-                    ),
-                    order_tax_amount: None,
-                    surcharge_amount: None,
+                    money: authorization_data().money,
+                    order_tax_money: None,
+                    surcharge_money: None,
                     email: Some(
                         Email::try_from("test@example.com".to_string())
                             .expect("Failed to parse email"),
@@ -361,7 +372,7 @@ mod tests {
                     request_incremental_authorization: Some(false),
                     metadata: None,
                     merchant_order_id: None,
-                    shipping_cost: None,
+                    shipping_money: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
                     all_keys_required: None,
@@ -460,8 +471,8 @@ mod tests {
                     ),
                     auth_type: common_enums::AuthenticationType::NoThreeDs,
                     connector_feature_data: None,
-                    amount_captured: None,
-                    amount_authorized: None,
+                    captured_money: None,
+                    authorized_money: None,
                     access_token: None,
                     session_token: None,
                     reference_id: None,
@@ -486,8 +497,8 @@ mod tests {
                     typed_connector_response: None,
                     raw_connector_request: None,
                     typed_connector_request: None,
-                    amount_capturable: None,
-                    amount: None,
+                    capturable_money: None,
+                    money: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     l2_l3_data: None,
@@ -511,12 +522,9 @@ mod tests {
                     connector_testing_data: None,
                     currency_conversion_data: None,
                     access_token: None,
-                    amount: common_utils::types::Money::new(
-                        MinorUnit::new(1000),
-                        common_enums::Currency::USD,
-                    ),
-                    order_tax_amount: None,
-                    surcharge_amount: None,
+                    money: authorization_data().money,
+                    order_tax_money: None,
+                    surcharge_money: None,
                     email: None,
                     customer_name: None,
                     currency: common_enums::Currency::USD,
@@ -540,7 +548,7 @@ mod tests {
                     request_incremental_authorization: Some(false),
                     metadata: None,
                     merchant_order_id: None,
-                    shipping_cost: None,
+                    shipping_money: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
                     all_keys_required: None,

@@ -295,7 +295,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         eci: None,
                     },
                     amount: requests::PeachpaymentsAmount {
-                        amount: item.router_data.request.amount.amount(),
+                        amount: item.router_data.request.money.amount(),
                         currency_code: item.router_data.request.currency,
                         display_amount: None,
                     },
@@ -351,7 +351,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 })?,
                         },
                         amount: requests::PeachpaymentsAmount {
-                            amount: item.router_data.request.amount.amount(),
+                            amount: item.router_data.request.money.amount(),
                             currency_code: item.router_data.request.currency,
                             display_amount: None,
                         },
@@ -507,7 +507,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: requests::PeachpaymentsAmount {
-                amount: item.router_data.request.amount_to_capture.amount(),
+                amount: item.router_data.request.capture_money.amount(),
                 currency_code: item.router_data.request.currency,
                 display_amount: None,
             },
@@ -567,7 +567,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount =
             item.router_data
                 .request
-                .amount
+                .money
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "amount",
                     context: Default::default(),
@@ -649,7 +649,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ecommerce_card_payment_only_transaction_data:
                 requests::PeachpaymentsRefundTransactionData {
                     amount: requests::PeachpaymentsAmount {
-                        amount: item.router_data.request.refund_amount.amount(),
+                        amount: item.router_data.request.refund_money.amount(),
                         currency_code: item.router_data.request.currency,
                         display_amount: None,
                     },
@@ -816,7 +816,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 let minor_amount = item
                     .router_data
                     .request
-                    .amount
+                    .money
                     .as_ref()
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "amount",
@@ -1053,7 +1053,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         eci: None,
                     },
                     amount: requests::PeachpaymentsAmount {
-                        amount: item.router_data.request.amount.amount(),
+                        amount: item.router_data.request.money.amount(),
                         currency_code: item.router_data.request.currency,
                         display_amount: None,
                     },
@@ -1102,7 +1102,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 })?,
                         },
                         amount: requests::PeachpaymentsAmount {
-                            amount: item.router_data.request.amount.amount(),
+                            amount: item.router_data.request.money.amount(),
                             currency_code: item.router_data.request.currency,
                             display_amount: None,
                         },

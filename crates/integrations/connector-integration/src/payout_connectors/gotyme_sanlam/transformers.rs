@@ -242,13 +242,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = convert_amount(
-            item.connector.amount_converter,
-            &common_utils::types::Money::new(
-                item.router_data.request.amount,
+        let amount = convert_amount(item.connector.amount_converter, &{
+            #[expect(
+                clippy::disallowed_methods,
+                clippy::disallowed_types,
+                reason = "Temporary payout currency contract: gotyme-sanlam-transfer; see PR #2642"
+            )]
+            let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
+                item.router_data.request.money.amount(),
                 item.router_data.request.destination_currency,
-            ),
-        )?;
+            );
+            legacy_money
+        })?;
         let payload = GotymeSanlamPayoutTransferPayload::try_from((&item.router_data, amount))?;
 
         Ok(Self {

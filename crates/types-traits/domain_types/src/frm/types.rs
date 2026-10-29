@@ -16,7 +16,7 @@ use crate::{
     utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom},
 };
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
-use common_utils::{pii::Email, types::Money};
+use common_utils::pii::Email;
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 
@@ -311,7 +311,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             .transpose()?;
 
         Ok(Self {
-            amount: Money::foreign_try_from(amount)?,
+            money: crate::money::from_proto_money(amount)?,
             customer_info,
             payment_method,
             browser_info,
@@ -482,7 +482,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             })?;
 
         Ok(Self {
-            amount: Money::foreign_try_from(amount)?,
+            money: crate::money::from_proto_money(amount)?,
             customer_info,
             payment_method,
             browser_info,
@@ -627,7 +627,7 @@ impl
 
         Ok(Self {
             connector_transaction_id: value.connector_transaction_id,
-            amount: Money::foreign_try_from(amount)?,
+            money: crate::money::from_proto_money(amount)?,
             frm_transaction_id: value.frm_transaction_id,
             payment_status,
             merchant_transaction_id: payment_details.merchant_transaction_id,
@@ -691,7 +691,7 @@ impl
 
         Ok(Self {
             connector_transaction_id: value.connector_transaction_id,
-            amount: Money::foreign_try_from(amount)?,
+            money: crate::money::from_proto_money(amount)?,
             frm_transaction_id: value.frm_transaction_id,
             connector_refund_id: refund.connector_refund_id,
             merchant_refund_id: refund.merchant_refund_id,
@@ -754,7 +754,7 @@ impl
 
         Ok(Self {
             connector_transaction_id: value.connector_transaction_id,
-            amount: Money::foreign_try_from(amount)?,
+            money: crate::money::from_proto_money(amount)?,
             frm_transaction_id: value.frm_transaction_id,
             connector_dispute_id: chargeback.connector_dispute_id,
             merchant_dispute_id: chargeback.merchant_dispute_id,

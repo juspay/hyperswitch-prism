@@ -171,12 +171,6 @@ impl AmountConvertor for ConnectorMinorUnitForConnector {
 
 pub struct MinorUnit(pub i64);
 
-impl From<i64> for MinorUnit {
-    fn from(value: i64) -> Self {
-        Self::new(value)
-    }
-}
-
 impl MinorUnit {
     /// gets amount as i64 value will be removed in future
     pub fn get_amount_as_i64(self) -> i64 {
@@ -611,13 +605,19 @@ pub struct Money {
 }
 
 impl Money {
-    /// Construct at a domain boundary, wrapping raw minor-unit integers here.
-    /// The connector crate bans this method with Clippy.
-    pub fn new(amount: impl Into<MinorUnit>, currency: enums::Currency) -> Self {
-        Self {
-            amount: amount.into(),
-            currency,
-        }
+    /// Construct money from an existing domain minor unit.
+    fn new(amount: MinorUnit, currency: enums::Currency) -> Self {
+        Self { amount, currency }
+    }
+
+    /// Creates a zero amount in the supplied currency.
+    pub fn zero(currency: enums::Currency) -> Self {
+        Self::new(MinorUnit::zero(), currency)
+    }
+
+    /// Creates one minor unit, not one major currency unit.
+    pub fn one_minor_unit(currency: enums::Currency) -> Self {
+        Self::new(MinorUnit::new(1), currency)
     }
 
     pub fn amount(&self) -> MinorUnit {
@@ -629,20 +629,32 @@ impl Money {
     }
 }
 
+/// Raw construction for domain mapping and legacy ingress only.
+/// Connector code must receive `Money`, use a fixed-value factory, or use an amount
+/// converter's `convert_back` for connector responses.
+pub struct MoneyBoundary;
+
+impl MoneyBoundary {
+    pub fn from_minor_unit(amount: MinorUnit, currency: enums::Currency) -> Money {
+        Money::new(amount, currency)
+    }
+}
+
 #[cfg(test)]
 mod money_boundary_tests {
     use super::Money;
 
     #[test]
-    fn money_wire_shape_stays_flat() {
-        let money = Money::new(123, common_enums::Currency::USD);
-        let value = serde_json::to_value(&money).expect("Money must serialize");
+    fn money_wire_shape_stays_flat() -> Result<(), serde_json::Error> {
+        let money = Money::new(super::MinorUnit::new(123), common_enums::Currency::USD);
+        let value = serde_json::to_value(&money)?;
         assert_eq!(
             value,
             serde_json::json!({ "amount": 123, "currency": "USD" })
         );
-        let restored: Money = serde_json::from_value(value).expect("Money must deserialize");
+        let restored: Money = serde_json::from_value(value)?;
         assert_eq!(restored, money);
+        Ok(())
     }
 }
 

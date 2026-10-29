@@ -602,10 +602,18 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         let creation_date_time = current_iso_utc_seconds()?;
         let execution_date = sepa_execution_date()?;
 
-        let amount = utils::convert_amount(
-            &FloatMajorUnitForConnector,
-            &common_utils::types::Money::new(req.request.amount, req.request.destination_currency),
-        )?;
+        let amount = utils::convert_amount(&FloatMajorUnitForConnector, &{
+            #[expect(
+                clippy::disallowed_methods,
+                clippy::disallowed_types,
+                reason = "Temporary payout currency contract: deutschebank-transfer; see PR #2642"
+            )]
+            let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
+                req.request.money.amount(),
+                req.request.destination_currency,
+            );
+            legacy_money
+        })?;
         let purpose_code = req
             .resource_common_data
             .description
@@ -659,7 +667,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
                     debtor: DeutschebankParty { name: debtor_name },
                     debtor_account: DeutschebankAccount {
                         identification: DeutschebankIbanIdentification { iban: debtor_iban },
-                        currency: Some(req.request.source_currency),
+                        currency: Some(req.request.money.currency()),
                     },
                     debtor_agent: DeutschebankAgent {
                         financial_institution_identification: DeutschebankBic {

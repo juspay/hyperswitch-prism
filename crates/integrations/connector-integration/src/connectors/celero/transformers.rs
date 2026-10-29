@@ -327,7 +327,7 @@ impl<T: PaymentMethodDataTypes>
             } else {
                 TransactionType::Authorize
             },
-            amount: item.request.amount.amount(),
+            amount: item.request.money.amount(),
             currency: item.request.currency,
             order_id: reference_id.clone(),
             payment_method,
@@ -764,7 +764,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         item: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: Some(item.request.amount_to_capture.amount()),
+            amount: Some(item.request.capture_money.amount()),
             tax_amount: None,      // Not available in PaymentsCaptureData
             shipping_amount: None, // Not available in PaymentsCaptureData
             tax_exempt: None,      // Not available in PaymentsCaptureData
@@ -900,7 +900,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         item: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: Some(item.request.refund_amount.amount()),
+            amount: Some(item.request.refund_money.amount()),
             surcharge: None, // Not available in RefundsData - could be added if needed
         })
     }

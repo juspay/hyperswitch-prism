@@ -463,10 +463,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let common = &router_data.resource_common_data;
 
         let order_currency = require_usd(router_data.request.currency)?;
-        let order_amount = PaynearmeAmountConvertor::convert(&common_utils::types::Money::new(
-            router_data.request.amount.amount(),
-            Currency::USD,
-        ))?;
+        let order_amount = PaynearmeAmountConvertor::convert(&router_data.request.money)?;
 
         // CreateOrder carries its `customer.id` on the request data: `PaymentFlowData`
         // has none on this flow. It is the same value the off-session Authorize and
@@ -794,10 +791,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = PaynearmeAuthType::try_from(&router_data.connector_config)?;
 
         let payment_currency = require_usd(request.currency)?;
-        let payment_amount = PaynearmeAmountConvertor::convert(&common_utils::types::Money::new(
-            request.amount.amount(),
-            Currency::USD,
-        ))?;
+        let payment_amount = PaynearmeAmountConvertor::convert(&request.money)?;
 
         // Written by the CreateOrder flow (or supplied by the caller as
         // `connector_order_id`); `/create_payment_method` cannot run without it.
@@ -901,7 +895,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // flow does not report; ignoring the amount would leave the merchant
         // believing the card was charged. Refuse instead.
         if request
-            .amount
+            .money
             .as_ref()
             .map(|money| money.amount())
             .is_some_and(|amount| amount.get_amount_as_i64() != 0)
@@ -1092,18 +1086,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = PaynearmeAuthType::try_from(&router_data.connector_config)?;
 
         let currency = require_usd(request.currency)?;
-        let (refund_amount, refund_currency) = if request.refund_amount.amount()
-            == request.payment_amount.amount()
-        {
-            (None, None)
-        } else {
-            (
-                Some(PaynearmeAmountConvertor::convert(
-                    &common_utils::types::Money::new(request.refund_amount.amount(), Currency::USD),
-                )?),
-                Some(currency),
-            )
-        };
+        let (refund_amount, refund_currency) =
+            if request.refund_money.amount() == request.payment_money.amount() {
+                (None, None)
+            } else {
+                (
+                    Some(PaynearmeAmountConvertor::convert(&request.refund_money)?),
+                    Some(currency),
+                )
+            };
 
         let mut built = Self {
             site_identifier: auth.site_identifier,
@@ -2586,10 +2577,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let auth = PaynearmeAuthType::try_from(&router_data.connector_config)?;
         let payment_currency = require_usd(request.currency)?;
-        let payment_amount = PaynearmeAmountConvertor::convert(&common_utils::types::Money::new(
-            request.amount.amount(),
-            Currency::USD,
-        ))?;
+        let payment_amount = PaynearmeAmountConvertor::convert(&request.money)?;
 
         let mut built = Self {
             site_identifier: auth.site_identifier,

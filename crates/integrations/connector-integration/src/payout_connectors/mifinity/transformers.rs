@@ -182,10 +182,18 @@ impl<T: PaymentMethodDataTypes> TryFrom<&MifinityPayoutRouterData<T>> for Mifini
             }
         };
 
-        let amount = convert_amount(
-            &StringMajorUnitForConnector,
-            &common_utils::types::Money::new(req.request.amount, req.request.destination_currency),
-        )?;
+        let amount = convert_amount(&StringMajorUnitForConnector, &{
+            #[expect(
+                clippy::disallowed_methods,
+                clippy::disallowed_types,
+                reason = "Temporary payout currency contract: mifinity-wallet-transfer; see PR #2642"
+            )]
+            let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
+                req.request.money.amount(),
+                req.request.destination_currency,
+            );
+            legacy_money
+        })?;
 
         Ok(Self {
             source_account,
@@ -328,10 +336,18 @@ impl<T: PaymentMethodDataTypes> TryFrom<&MifinityPayoutRouterData<T>> for Mifini
             )
         })?;
 
-        let amount = convert_amount(
-            &StringMajorUnitForConnector,
-            &common_utils::types::Money::new(req.request.amount, req.request.destination_currency),
-        )?;
+        let amount = convert_amount(&StringMajorUnitForConnector, &{
+            #[expect(
+                clippy::disallowed_methods,
+                clippy::disallowed_types,
+                reason = "Temporary payout currency contract: mifinity-bank-transfer; see PR #2642"
+            )]
+            let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
+                req.request.money.amount(),
+                req.request.destination_currency,
+            );
+            legacy_money
+        })?;
 
         let description = resolve_description(req);
 

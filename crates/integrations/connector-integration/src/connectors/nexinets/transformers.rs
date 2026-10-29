@@ -234,7 +234,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => None,
         };
         Ok(Self {
-            initial_amount: item.router_data.request.amount.amount().get_amount_as_i64(),
+            initial_amount: item.router_data.request.money.amount().get_amount_as_i64(),
             currency: item.router_data.request.currency,
             channel: NexinetsChannel::Ecom,
             product,
@@ -491,7 +491,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             initial_amount: item
                 .router_data
                 .request
-                .amount_to_capture
+                .capture_money
                 .amount()
                 .get_amount_as_i64(),
             currency: item.router_data.request.currency,
@@ -517,7 +517,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount =
             item.router_data
                 .request
-                .amount
+                .money
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "amount",
                     context: Default::default(),
@@ -621,7 +621,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             initial_amount: item
                 .router_data
                 .request
-                .refund_amount
+                .refund_money
                 .amount()
                 .get_amount_as_i64(),
             currency: item.router_data.request.currency,
@@ -1010,7 +1010,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         Ok(Self {
-            initial_amount: router_data.request.amount.amount().get_amount_as_i64(),
+            initial_amount: router_data.request.money.amount().get_amount_as_i64(),
             currency: router_data.request.currency,
             channel: NexinetsChannel::Ecom,
             transaction_type: NexinetsTransactionType::Preauth,
@@ -1175,7 +1175,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Nexinets requires a positive initialAmount. Error upfront when
         // the caller omits amount instead of silently defaulting.
         let initial_amount = request
-            .amount
+            .money
             .as_ref()
             .map(|money| money.amount().get_amount_as_i64())
             .ok_or(IntegrationError::MissingRequiredField {
@@ -1415,7 +1415,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         );
 
         Ok(Self {
-            initial_amount: request.amount.amount().get_amount_as_i64(),
+            initial_amount: request.money.amount().get_amount_as_i64(),
             currency: request.currency,
             channel: NexinetsChannel::Ecom,
             product: NexinetsProduct::Creditcard,

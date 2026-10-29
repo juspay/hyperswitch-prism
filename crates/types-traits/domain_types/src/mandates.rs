@@ -57,10 +57,12 @@ pub struct MandateAmountData {
     pub end_date: Option<PrimitiveDateTime>,
     pub metadata: Option<SecretSerdeValue>,
     pub amount_type: Option<String>, // Amount type for variable mandates (exact, max, variable)
-    pub frequency: Option<String>,   // Frequency / billing period (daily, weekly, monthly)
+    pub frequency: Option<String>,
+    #[serde(rename = "initial_billing_amount")]
+    // Frequency / billing period (daily, weekly, monthly)
     // Subscription / recurring-order context consumed by FRM risk scoring (e.g.
     // Kount). In that usage `money` is the per-period billing amount.
-    pub initial_billing_amount: Option<Money>,
+    pub initial_billing_money: Option<Money>,
     pub external_subscription_id: Option<String>,
     pub status: Option<common_enums::MandateStatus>,
     pub next_billing_date: Option<PrimitiveDateTime>,

@@ -551,11 +551,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: crate::utils::amount_conversion_ctx(
                     "rapyd authorize",
-                    &item.router_data.request.amount.amount(),
+                    &item.router_data.request.money.amount(),
                     &item.router_data.request.currency,
                 ),
             })?;
@@ -748,7 +748,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                             transaction_amount: item
                                                 .router_data
                                                 .request
-                                                .amount.amount(),
+                                                .money.amount(),
                                             payment_data_type:
                                                 RapydApplePayPaymentDataType::ThreeDSecure,
                                             payment_data: RapydApplePayCryptogram {
@@ -992,11 +992,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount_to_capture)
+            .convert(&item.router_data.request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: crate::utils::amount_conversion_ctx(
                     "rapyd capture",
-                    &item.router_data.request.amount_to_capture.amount(),
+                    &item.router_data.request.capture_money.amount(),
                     &item.router_data.request.currency,
                 ),
             })?;
@@ -1027,11 +1027,11 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.refund_amount)
+            .convert(&item.router_data.request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: crate::utils::amount_conversion_ctx(
                     "rapyd refund",
-                    &item.router_data.request.refund_amount.amount(),
+                    &item.router_data.request.refund_money.amount(),
                     &item.router_data.request.currency,
                 ),
             })?;
@@ -1154,7 +1154,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -1325,7 +1325,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1502,22 +1502,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // currency (e.g. ¥100 vs $1.00). Require the caller to pass an
         // explicit verification amount — zero-amount is allowed if the
         // Rapyd account supports zero-auth.
-        let minor_amount = request.amount.as_ref().map(|money| money.amount()).ok_or(
-            IntegrationError::MissingRequiredField {
+        let money = request
+            .money
+            .as_ref()
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "minor_amount",
                 context: Default::default(),
-            },
-        )?;
+            })?;
+        let minor_amount = money.amount();
         // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
         let amount = if minor_amount.get_amount_as_i64() == 0 {
             StringMajorUnit::zero()
         } else {
             item.connector
                 .amount_converter
-                .convert(&common_utils::types::Money::new(
-                    minor_amount,
-                    request.currency,
-                ))
+                .convert(money)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: crate::utils::amount_conversion_ctx(
                         "rapyd setup mandate",
@@ -1819,16 +1818,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data;
         let request = &router_data.request;
 
-        let amount = if request.amount.amount().get_amount_as_i64() == 0 {
+        let amount = if request.money.amount().get_amount_as_i64() == 0 {
             StringMajorUnit::zero()
         } else {
             item.connector
                 .amount_converter
-                .convert(&request.amount)
+                .convert(&request.money)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: crate::utils::amount_conversion_ctx(
                         "rapyd repeat payment",
-                        &request.amount.amount(),
+                        &request.money.amount(),
                         &request.currency,
                     ),
                 })?

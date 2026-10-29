@@ -488,12 +488,14 @@ pub struct OrderDetailsWithAmount {
     pub product_name: String,
     /// The quantity of the product to be purchased
     pub quantity: u16,
+    #[serde(rename = "amount")]
     /// the amount per quantity of product
-    pub amount: Money,
+    pub money: Money,
     /// tax rate applicable to the product
     pub tax_rate: Option<f64>,
+    #[serde(rename = "total_tax_amount")]
     /// total tax amount applicable to the product
-    pub total_tax_amount: Option<Money>,
+    pub total_tax_money: Option<Money>,
     // Does the order includes shipping
     pub requires_shipping: Option<bool>,
     /// The image URL of the product
@@ -520,10 +522,12 @@ pub struct OrderDetailsWithAmount {
     pub upc: Option<String>,
     /// commodity code of the product
     pub commodity_code: Option<String>,
+    #[serde(rename = "total_amount")]
     /// total amount of the product
-    pub total_amount: Option<Money>,
+    pub total_money: Option<Money>,
+    #[serde(rename = "unit_discount_amount")]
     /// discount amount on the unit
-    pub unit_discount_amount: Option<Money>,
+    pub unit_discount_money: Option<Money>,
     // discount name applied to this item
     pub discount_name: Option<String>,
     // discount percentage applied to this item
@@ -539,9 +543,12 @@ impl Default for OrderDetailsWithAmount {
         Self {
             product_name: Default::default(),
             quantity: Default::default(),
-            amount: Money::new(common_utils::MinorUnit::default(), Default::default()),
+            money: common_utils::types::MoneyBoundary::from_minor_unit(
+                common_utils::MinorUnit::default(),
+                Default::default(),
+            ),
             tax_rate: Default::default(),
-            total_tax_amount: Default::default(),
+            total_tax_money: Default::default(),
             requires_shipping: Default::default(),
             product_img_link: Default::default(),
             product_id: Default::default(),
@@ -555,8 +562,8 @@ impl Default for OrderDetailsWithAmount {
             sku: Default::default(),
             upc: Default::default(),
             commodity_code: Default::default(),
-            total_amount: Default::default(),
-            unit_discount_amount: Default::default(),
+            total_money: Default::default(),
+            unit_discount_money: Default::default(),
             discount_name: Default::default(),
             discount_percentage: Default::default(),
             discount_type: Default::default(),
@@ -594,9 +601,9 @@ impl OrderDetailsWithAmount {
 
     /// Line total: the explicit `total_amount` when present, else the unit `amount`.
     pub fn get_total_amount(&self) -> Money {
-        self.total_amount
+        self.total_money
             .clone()
-            .unwrap_or_else(|| self.amount.clone())
+            .unwrap_or_else(|| self.money.clone())
     }
 
     /// Product type (`item_type`/`type` on most connector line items).
@@ -618,18 +625,18 @@ impl OrderDetailsWithAmount {
 
     /// Unit price (`amount` is per-quantity, `unit_price` on most connector line items).
     pub fn get_unit_amount(&self) -> Money {
-        self.amount.clone()
+        self.money.clone()
     }
 
     /// Discount amount on the unit, in minor units (`discount_amount` on most connector
     /// line items).
     pub fn get_optional_unit_discount_amount(&self) -> Option<Money> {
-        self.unit_discount_amount.clone()
+        self.unit_discount_money.clone()
     }
 
     /// Total tax amount for the line, in minor units (`tax_amount` on most connector
     /// line items).
     pub fn get_optional_total_tax_amount(&self) -> Option<Money> {
-        self.total_tax_amount.clone()
+        self.total_tax_money.clone()
     }
 }

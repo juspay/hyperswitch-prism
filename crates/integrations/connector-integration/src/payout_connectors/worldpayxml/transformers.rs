@@ -196,9 +196,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde
             },
         );
 
-        let converted_amount = WorldpayxmlAmountConvertor::convert(
-            &common_utils::types::Money::new(request.amount, request.destination_currency),
-        )?;
+        let converted_amount = WorldpayxmlAmountConvertor::convert(&{
+            #[expect(
+                clippy::disallowed_methods,
+                clippy::disallowed_types,
+                reason = "Temporary payout currency contract: worldpayxml-transfer; see PR #2642"
+            )]
+            let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
+                request.money.amount(),
+                request.destination_currency,
+            );
+            legacy_money
+        })?;
 
         Ok(Self {
             version: API_VERSION.to_string(),

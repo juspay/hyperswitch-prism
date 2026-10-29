@@ -238,7 +238,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -600,7 +600,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(&router_data.request.amount_to_capture)
+            .convert(&router_data.request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -751,7 +751,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = router_data
             .request
-            .amount
+            .money
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: Default::default(),
@@ -766,12 +766,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     context: Default::default(),
                 })?;
 
-        let amount = connector
-            .amount_converter
-            .convert(&common_utils::types::Money::new(amount.amount(), currency))
-            .change_context(IntegrationError::AmountConversionFailed {
+        let amount = connector.amount_converter.convert(&amount).change_context(
+            IntegrationError::AmountConversionFailed {
                 context: Default::default(),
-            })?;
+            },
+        )?;
 
         Ok(Self {
             version: VERSION_PAYBOX.to_string(),
@@ -917,7 +916,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(&router_data.request.refund_amount)
+            .convert(&router_data.request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1194,25 +1193,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let expiration_date = card_data.get_expiry_date_as_mmyy()?;
 
         // Use minor_amount if available, otherwise default to zero for zero-dollar auth
-        let amount = match router_data
-            .request
-            .amount
-            .as_ref()
-            .map(|amount| amount.amount())
-        {
-            Some(minor_amount) => connector
-                .amount_converter
-                .convert(&common_utils::types::Money::new(
-                    minor_amount,
-                    router_data.request.currency,
-                ))
-                .change_context(IntegrationError::AmountConversionFailed {
+        let amount = match router_data.request.money.as_ref() {
+            Some(money) => connector.amount_converter.convert(money).change_context(
+                IntegrationError::AmountConversionFailed {
                     context: Default::default(),
-                })?,
+                },
+            )?,
             None => connector
                 .amount_converter
-                .convert(&common_utils::types::Money::new(
-                    MinorUnit::zero(),
+                .convert(&common_utils::types::Money::zero(
                     router_data.request.currency,
                 ))
                 .change_context(IntegrationError::AmountConversionFailed {
@@ -1443,7 +1432,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

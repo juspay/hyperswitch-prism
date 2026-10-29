@@ -225,7 +225,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let authorization_amount = item
                     .connector
                     .amount_converter
-                    .convert(&item.router_data.request.amount)
+                    .convert(&item.router_data.request.money)
                     .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
                 Ok(Self {
                     action,
@@ -282,7 +282,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let authorization_amount = item
                         .connector
                         .amount_converter
-                        .convert(&item.router_data.request.amount)
+                        .convert(&item.router_data.request.money)
                         .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
 
                     Ok(Self {
@@ -643,14 +643,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_authorized = item
             .router_data
             .resource_common_data
-            .amount_capturable
+            .capturable_money
             .map(|amount| amount.amount())
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: Default::default(),
             })?;
 
-        if item.router_data.request.amount_to_capture.amount() != amount_authorized {
+        if item.router_data.request.capture_money.amount() != amount_authorized {
             return Err(IntegrationError::NotSupported {
                 message: "Forte only supports full captures.".to_string(),
                 connector: "Forte",
@@ -871,7 +871,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let authorization_amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.refund_amount)
+            .convert(&item.router_data.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

@@ -245,11 +245,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.amount)
+            .convert(&request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "authorize",
-                    &request.amount.amount(),
+                    &request.money.amount(),
                     &request.currency,
                 ),
             })?;
@@ -346,11 +346,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.amount_to_capture)
+            .convert(&request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "capture",
-                    &request.amount_to_capture.amount(),
+                    &request.capture_money.amount(),
                     &request.currency,
                 ),
             })?;
@@ -361,11 +361,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let authorized = item
             .router_data
             .resource_common_data
-            .amount
+            .money
             .as_ref()
             .map(|m| m.amount());
         let is_partial = match authorized {
-            Some(auth_amount) => request.amount_to_capture.amount() < auth_amount,
+            Some(auth_amount) => request.capture_money.amount() < auth_amount,
             None => false,
         };
         let transaction_hint = if is_partial {
@@ -490,11 +490,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.refund_amount)
+            .convert(&request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "refund",
-                    &request.refund_amount.amount(),
+                    &request.refund_money.amount(),
                     &request.currency,
                 ),
             })?;
@@ -619,11 +619,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.amount)
+            .convert(&request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "repeat_payment",
-                    &request.amount.amount(),
+                    &request.money.amount(),
                     &request.currency,
                 ),
             })?;
@@ -852,11 +852,11 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
         let authorized = item
             .router_data
             .resource_common_data
-            .amount
+            .money
             .as_ref()
             .map(|m| m.amount());
         let is_partial = match authorized {
-            Some(auth_amount) => item.router_data.request.amount_to_capture.amount() < auth_amount,
+            Some(auth_amount) => item.router_data.request.capture_money.amount() < auth_amount,
             None => false,
         };
         let success_status = if is_partial {

@@ -938,7 +938,7 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let is_zero_amount = item.request.amount.amount() == MinorUnit::new(0);
+        let is_zero_amount = item.request.money.amount() == MinorUnit::new(0);
         // Shift4 rejects a zero-amount charge that asks to be captured with
         // HTTP 400 `{"type":"invalid_request","message":"Zero amount charge cannot
         // be captured"}` (verified against api.shift4.com). A zero-amount charge is
@@ -1099,7 +1099,7 @@ impl<T: PaymentMethodDataTypes>
         //   cardholder's statement, so aliasing the descriptor onto it would
         //   silently change its meaning.
         Ok(Self {
-            amount: item.request.amount.amount(),
+            amount: item.request.money.amount(),
             currency: item.request.currency,
             captured,
             description: item.resource_common_data.description.clone(),
@@ -1541,7 +1541,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
+                captured_money: amount_captured,
                 // AVS / CVV / ANI results are reported on both the success and the
                 // decline path — a declined charge is precisely when the merchant
                 // needs to know the AVS or CVV verdict.
@@ -1601,7 +1601,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_captured = get_shift4_captured_money(
             &connector,
             &item.response,
-            item.router_data.request.currency,
+            item.router_data.request.money.currency(),
             item.http_code,
         )?;
 
@@ -1609,7 +1609,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
+                captured_money: amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
             },
@@ -1695,7 +1695,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
+                captured_money: amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
             },
@@ -1723,7 +1723,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             charge_id: item.request.connector_transaction_id.clone(),
-            amount: item.request.refund_amount.amount(),
+            amount: item.request.refund_money.amount(),
         })
     }
 }
@@ -2104,7 +2104,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         Ok(Self {
-            amount: request.amount_to_capture.amount(),
+            amount: request.capture_money.amount(),
         })
     }
 }
@@ -2446,7 +2446,7 @@ impl<T: PaymentMethodDataTypes>
         // Same rule as Authorize: Shift4 rejects a captured zero-amount charge
         // ("Zero amount charge cannot be captured"), and no funds move on one.
         let captured =
-            item.request.amount.amount() != MinorUnit::new(0) && item.request.is_auto_capture();
+            item.request.money.amount() != MinorUnit::new(0) && item.request.is_auto_capture();
 
         let is_payment_method_charge =
             matches!(source, Shift4RepeatPaymentSource::PaymentMethod { .. });
@@ -2455,7 +2455,7 @@ impl<T: PaymentMethodDataTypes>
         // (same reasoning as the Authorize builder): `billing_descriptor` and
         // Level 2 / Level 3 data have no field on `POST /charges`.
         Ok(Self {
-            amount: item.request.amount.amount(),
+            amount: item.request.money.amount(),
             currency: item.request.currency,
             captured,
             description: item.resource_common_data.description.clone(),
@@ -2577,7 +2577,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
+                captured_money: amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
             },
@@ -2645,7 +2645,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             line_items: vec![Shift4LineItem {
                 product: Shift4InlineProduct {
                     name: "Payment".to_string(),
-                    amount: router_data.request.amount.amount(),
+                    amount: router_data.request.money.amount(),
                     currency: router_data.request.currency,
                 },
                 quantity: 1,
@@ -2704,7 +2704,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.amount.amount(),
+            amount: item.router_data.request.money.amount(),
         })
     }
 }
@@ -2923,7 +2923,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // zero-dollar auth.
         let amount = item
             .request
-            .amount
+            .money
             .as_ref()
             .map(|amount| amount.amount())
             .ok_or_else(|| {
@@ -3106,7 +3106,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             && item
                 .router_data
                 .request
-                .amount
+                .money
                 .as_ref()
                 .is_some_and(|amount| amount.amount() == MinorUnit::new(0))
         {
@@ -3194,7 +3194,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
+                captured_money: amount_captured,
                 connector_customer,
                 connector_response,
                 ..item.router_data.resource_common_data

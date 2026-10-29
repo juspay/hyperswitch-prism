@@ -362,7 +362,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 transaction_id,
                 order_id,
                 currency: Some(router_data.request.currency),
-                total: Some(router_data.request.amount.amount()),
+                total: Some(router_data.request.money.amount()),
             })),
             // INITIATE leg: create the checkout and mint the redirect URL.
             None => {
@@ -404,7 +404,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     merchant,
                     billing: build_billing_party(router_data)?,
                     shipping: build_shipping_party(router_data),
-                    total: router_data.request.amount.amount(),
+                    total: router_data.request.money.amount(),
                     order_id,
                 })))
             }
@@ -615,7 +615,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ref_id => Some(ref_id),
         };
         Ok(Self {
-            amount: item.router_data.request.amount_to_capture.amount(),
+            amount: item.router_data.request.capture_money.amount(),
             order_id,
         })
     }
@@ -771,7 +771,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.refund_amount.amount(),
+            amount: item.router_data.request.refund_money.amount(),
             reference_id: Some(item.router_data.request.refund_id.clone()),
         })
     }

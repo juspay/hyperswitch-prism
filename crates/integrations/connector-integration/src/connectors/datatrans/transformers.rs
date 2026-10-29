@@ -496,7 +496,7 @@ impl<Mcp: DatatransMcpPayload> DatatransMoney<Mcp> {
                 mcp: None,
             }),
             Some(quote) => {
-                let settlement = quote.merchant_order_amount.as_ref().ok_or_else(|| {
+                let settlement = quote.merchant_order_money.as_ref().ok_or_else(|| {
                     error_stack::report!(IntegrationError::MissingRequiredField {
                         field_name: "currency_conversion_data.quote.merchant_order_amount",
                         context: datatrans_context(
@@ -819,7 +819,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auto_settle = Some(router_data.request.is_auto_capture());
 
         let money = DatatransMoney::new(
-            &router_data.request.amount,
+            &router_data.request.money,
             router_data.request.currency_conversion_data.as_ref(),
         )?;
 
@@ -1543,7 +1543,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         });
 
         let money = DatatransMoney::new(
-            &router_data.request.amount,
+            &router_data.request.money,
             router_data.request.currency_conversion_data.as_ref(),
         )?;
 
@@ -1997,7 +1997,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let money = DatatransMoney::new(
-            &router_data.request.amount_to_capture,
+            &router_data.request.capture_money,
             router_data.request.currency_conversion_data.as_ref(),
         )?;
 
@@ -2097,7 +2097,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let money = DatatransMoney::new(
-            &router_data.request.refund_amount,
+            &router_data.request.refund_money,
             router_data.request.currency_conversion_data.as_ref(),
         )?;
 
@@ -2442,7 +2442,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         Ok(Self {
-            amount: router_data.request.amount.amount(),
+            amount: router_data.request.money.amount(),
             currency: router_data.request.currency,
             return_url: router_data
                 .resource_common_data

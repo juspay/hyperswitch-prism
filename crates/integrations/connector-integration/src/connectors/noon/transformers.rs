@@ -294,7 +294,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = data
             .connector
             .amount_converter
-            .convert(&data.router_data.request.amount)
+            .convert(&data.router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -746,7 +746,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = data
             .connector
             .amount_converter
-            .convert(&data.router_data.request.amount_to_capture);
+            .convert(&data.router_data.request.capture_money);
         let order = NoonActionOrder {
             id: item
                 .request
@@ -861,7 +861,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let refund_amount = data
             .connector
             .amount_converter
-            .convert(&data.router_data.request.refund_amount);
+            .convert(&data.router_data.request.refund_money);
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
         };
@@ -1184,13 +1184,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &data.router_data;
-        let amount = data
-            .connector
-            .amount_converter
-            .convert(&common_utils::types::Money::new(
-                common_utils::types::MinorUnit::new(1),
-                data.router_data.request.currency,
-            ));
+        let amount =
+            data.connector
+                .amount_converter
+                .convert(&common_utils::types::Money::one_minor_unit(
+                    data.router_data.request.currency,
+                ));
         let mandate_amount = &data.router_data.request.setup_mandate_details;
 
         let (payment_data, currency, category) = match &item.request.mandate_id {
@@ -1578,7 +1577,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

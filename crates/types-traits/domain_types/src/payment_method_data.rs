@@ -2172,8 +2172,10 @@ pub struct BankAccount {
     pub account_id: Secret<String>,
     pub bank_type: Option<common_enums::BankType>,
     pub bank_holder_type: Option<common_enums::BankHolderType>,
-    pub balance: Option<common_utils::types::Money>,
-    pub available_balance: Option<common_utils::types::Money>,
+    #[serde(rename = "balance")]
+    pub balance_money: Option<common_utils::types::Money>,
+    #[serde(rename = "available_balance")]
+    pub available_balance_money: Option<common_utils::types::Money>,
     pub account_details: Option<BankAccountRoutingDetails>,
     pub bank_name: Option<String>,
 }
@@ -2193,8 +2195,9 @@ pub struct WalletItem {
     pub product_id: String,
     /// Current status of this wallet item
     pub status: common_enums::WalletItemStatus,
+    #[serde(rename = "available_balance")]
     /// Available balance for this item (if applicable)
-    pub available_balance: Option<common_utils::types::Money>,
+    pub available_balance_money: Option<common_utils::types::Money>,
     /// Expiry date of this item (ISO 8601 format)
     pub expiry_date: Option<String>,
 }

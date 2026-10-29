@@ -13,10 +13,7 @@ mod tests {
     use std::str::FromStr;
 
     use common_enums::{AttemptStatus, CardNetwork, Currency, CustomerType, FrmDecision, Gender};
-    use common_utils::{
-        pii::Email,
-        types::{FloatMajorUnit, MinorUnit, Money},
-    };
+    use common_utils::{pii::Email, types::FloatMajorUnit};
     use domain_types::{
         connector_types::{
             CustomerInfo, DomainData, HotelData, HotelSegment, TravelData, TravelSegment, Traveller,
@@ -35,6 +32,7 @@ mod tests {
             WalletData,
         },
         router_request_types::BrowserInformation,
+        utils::ForeignTryFrom,
     };
     use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
@@ -109,24 +107,38 @@ mod tests {
     }
 
     fn order_details() -> Vec<OrderDetailsWithAmount> {
-        vec![OrderDetailsWithAmount {
-            product_name: "Passagem São Paulo → Rio".to_owned(),
-            quantity: 2,
-            amount: Money::new(MinorUnit(15000), Currency::BRL),
-            tax_rate: None,
-            total_tax_amount: None,
-            requires_shipping: None,
-            product_img_link: None,
-            product_id: Some("SKU-1".to_owned()),
-            category: Some("travel".to_owned()),
-            sub_category: None,
-            ..OrderDetailsWithAmount::default()
-        }]
+        vec![OrderDetailsWithAmount::foreign_try_from((
+            grpc_api_types::payments::OrderDetailsWithAmount {
+                product_name: "Passagem São Paulo → Rio".to_owned(),
+                quantity: 2,
+                amount: 15000,
+                tax_rate: None,
+                total_tax_amount: None,
+                requires_shipping: None,
+                product_img_link: None,
+                product_id: Some("SKU-1".to_owned()),
+                category: Some("travel".to_owned()),
+                sub_category: None,
+                ..Default::default()
+            },
+            Currency::BRL,
+        ))
+        .expect("valid order-item fixture")]
     }
 
     fn pre_risk_check_request() -> PreRiskCheckRequest {
+        let request = PreRiskCheckRequest::foreign_try_from(
+            grpc_api_types::frm::FrmServicePreRiskCheckRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: 30000,
+                    currency: grpc_api_types::payments::Currency::Brl.into(),
+                }),
+                ..Default::default()
+            },
+        )
+        .expect("valid pre-risk-check fixture");
         PreRiskCheckRequest {
-            amount: Money::new(MinorUnit(30000), Currency::BRL),
+            money: request.money,
             customer_info: Some(customer_info()),
             payment_method: Some(card()),
             browser_info: Some(BrowserInformation {
@@ -154,7 +166,7 @@ mod tests {
     fn post_risk_check_request() -> PostRiskCheckRequest {
         let pre = pre_risk_check_request();
         PostRiskCheckRequest {
-            amount: pre.amount,
+            money: pre.money,
             customer_info: pre.customer_info,
             payment_method: pre.payment_method,
             browser_info: pre.browser_info,
@@ -1160,7 +1172,17 @@ mod tests {
     #[test]
     fn non_brl_currency_is_rejected() {
         let mut req = pre_risk_check_request();
-        req.amount = Money::new(MinorUnit(1000), Currency::USD);
+        req.money = PreRiskCheckRequest::foreign_try_from(
+            grpc_api_types::frm::FrmServicePreRiskCheckRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: 1000,
+                    currency: grpc_api_types::payments::Currency::Usd.into(),
+                }),
+                ..Default::default()
+            },
+        )
+        .expect("valid USD pre-risk-check fixture")
+        .money;
         let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
         let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
         let err = order_from_common(inputs).expect_err("USD must fail");

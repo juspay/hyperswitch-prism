@@ -429,7 +429,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let currency = req.request.amount.as_ref()
+            let currency = req.request.money.as_ref()
                 .map(|money| money.currency())
                 .ok_or_else(domain_types::utils::missing_field_err("amount.currency"))?;
             self.build_headers(req, Some(currency))
@@ -554,7 +554,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req, Some(req.request.currency))
+            self.build_headers(req, Some(req.request.money.currency()))
         }
         fn get_url(
             &self,

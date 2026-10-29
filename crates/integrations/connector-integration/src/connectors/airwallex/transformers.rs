@@ -1679,16 +1679,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         // Extract capture amount from the capture data
-        let capture_amount = item.router_data.request.amount_to_capture.amount();
-
         // Use connector amount converter for proper amount formatting in major units (hyperswitch pattern)
         let amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money::new(
-                capture_amount,
-                item.router_data.request.currency,
-            ))
+            .convert(&item.router_data.request.capture_money)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1818,14 +1813,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let payment_intent_id = item.router_data.request.connector_transaction_id.clone();
 
         // Extract refund amount from RefundsData and convert to major units (hyperswitch pattern)
-        let refund_amount = item.router_data.request.refund_amount.amount();
         let amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money::new(
-                refund_amount,
-                item.router_data.request.currency,
-            ))
+            .convert(&item.router_data.request.refund_money)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -2206,7 +2197,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -2222,7 +2213,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         let unit_price = item
                             .connector
                             .amount_converter
-                            .convert(&detail.amount)
+                            .convert(&detail.money)
                             .map_err(|_| IntegrationError::RequestEncodingFailed {
                                 context: aw_err_ctx(
                                     "Failed to convert an order line item amount into the \

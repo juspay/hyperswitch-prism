@@ -867,16 +867,7 @@ where
         let card_data =
             requests::RedsysCardData::try_from(&router_data.request.payment_method_data.clone())?;
         let is_auto_capture = router_data.request.is_auto_capture()?;
-        let amount = RedsysAmountConvertor::convert(&common_utils::types::Money::new(
-            router_data.request.amount.amount(),
-            router_data
-                .request
-                .currency
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "currency",
-                    context: Default::default(),
-                })?,
-        ))?;
+        let amount = RedsysAmountConvertor::convert(&router_data.request.money)?;
 
         let ds_merchant_emv3ds = Some(requests::RedsysEmvThreeDsRequestData::new(
             requests::RedsysThreeDsInfo::CardData,
@@ -1093,16 +1084,7 @@ where
         .set_shipping_data(router_data.resource_common_data.get_optional_shipping())?;
 
         let payment_request = requests::RedsysPaymentRequest {
-            ds_merchant_amount: RedsysAmountConvertor::convert(&common_utils::types::Money::new(
-                router_data.request.amount.amount(),
-                router_data
-                    .request
-                    .currency
-                    .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "currency",
-                        context: Default::default(),
-                    })?,
-            ))?,
+            ds_merchant_amount: RedsysAmountConvertor::convert(&router_data.request.money)?,
             ds_merchant_currency: router_data
                 .request
                 .currency
@@ -1232,7 +1214,7 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     {
         return Ok(map_exemption_indicator(
             indicator,
-            request.amount.amount() <= *LWV_THRESHOLD,
+            request.money.amount() <= *LWV_THRESHOLD,
         ));
     }
     // 2. Auto-detect: MIT for stored credential payments
@@ -1248,7 +1230,7 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     }
     // 4. Default: amount-based
     // For Redsys, both LWV and TRA are capped at €30
-    if request.amount.amount() <= *LWV_THRESHOLD {
+    if request.money.amount() <= *LWV_THRESHOLD {
         Ok(requests::RedsysStrongCustomerAuthenticationException::Lwv)
     } else {
         Ok(requests::RedsysStrongCustomerAuthenticationException::Tra)
@@ -1441,7 +1423,7 @@ where
         )?;
 
         let payment_request = requests::RedsysPaymentRequest {
-            ds_merchant_amount: RedsysAmountConvertor::convert(&router_data.request.amount)?,
+            ds_merchant_amount: RedsysAmountConvertor::convert(&router_data.request.money)?,
             ds_merchant_currency: router_data.request.currency.iso_4217().to_owned(),
             ds_merchant_cvv2: card_data.cvv2,
             ds_merchant_emv3ds,
@@ -1564,13 +1546,8 @@ where
             }),
         }?;
 
-        let amount_to_capture = router_data.request.amount_to_capture.amount();
-
         let capture_request = requests::RedsysOperationRequest {
-            ds_merchant_amount: RedsysAmountConvertor::convert(&common_utils::types::Money::new(
-                amount_to_capture,
-                router_data.request.currency,
-            ))?,
+            ds_merchant_amount: RedsysAmountConvertor::convert(&router_data.request.capture_money)?,
             ds_merchant_currency: router_data.request.currency.iso_4217().to_owned(),
             ds_merchant_merchantcode: auth.merchant_id.clone(),
             ds_merchant_order: connector_transaction_id,
@@ -1692,7 +1669,7 @@ where
         let amount =
             router_data
                 .request
-                .amount
+                .money
                 .as_ref()
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "amount",
@@ -1700,10 +1677,7 @@ where
                 })?;
 
         let void_request = requests::RedsysOperationRequest {
-            ds_merchant_amount: RedsysAmountConvertor::convert(&common_utils::types::Money::new(
-                amount.amount(),
-                currency,
-            ))?,
+            ds_merchant_amount: RedsysAmountConvertor::convert(amount)?,
             ds_merchant_currency: currency.iso_4217().to_owned(),
             ds_merchant_merchantcode: auth.merchant_id.clone(),
             ds_merchant_order: connector_transaction_id,
@@ -2044,13 +2018,9 @@ where
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let auth = RedsysAuthType::try_from(&router_data.connector_config)?;
-        let refund_amount = router_data.request.refund_amount.amount();
 
         let refund_request = requests::RedsysOperationRequest {
-            ds_merchant_amount: RedsysAmountConvertor::convert(&common_utils::types::Money::new(
-                refund_amount,
-                router_data.request.currency,
-            ))?,
+            ds_merchant_amount: RedsysAmountConvertor::convert(&router_data.request.refund_money)?,
             ds_merchant_currency: router_data.request.currency.iso_4217().to_owned(),
             ds_merchant_merchantcode: auth.merchant_id.clone(),
             ds_merchant_order: router_data.request.connector_transaction_id.clone(),

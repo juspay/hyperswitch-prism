@@ -540,7 +540,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
-            amount: router_data.request.amount.amount(),
+            amount: router_data.request.money.amount(),
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -823,7 +823,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            capture_amount: item.router_data.request.amount_to_capture.amount(),
+            capture_amount: item.router_data.request.capture_money.amount(),
             idempotency_id: None,
         })
     }
@@ -1066,7 +1066,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            refund_amount: item.router_data.request.refund_amount.amount(),
+            refund_amount: item.router_data.request.refund_money.amount(),
             idempotency_id: None,
         })
     }
@@ -1785,7 +1785,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
-            amount: router_data.request.amount.amount(),
+            amount: router_data.request.money.amount(),
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -2334,7 +2334,7 @@ pub(super) fn build_finix_payment_webhook_response(
         raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
         status_code: 200,
         response_headers: None,
-        amount_captured: resource
+        captured_money: resource
             .captured_amount
             .map(|amount| {
                 crate::utils::webhook_amount_to_money(
@@ -2401,7 +2401,11 @@ pub(super) fn build_finix_dispute_webhook_response(
     Ok(DisputeWebhookDetailsResponse {
         amount: domain_types::utils::convert_amount_for_webhook(
             &common_utils::types::StringMinorUnitForConnector,
-            &common_utils::types::Money::new(dispute.amount, dispute.currency),
+            &domain_types::utils::convert_back_amount_to_money_for_webhook(
+                &common_utils::types::MinorUnitForConnector,
+                dispute.amount,
+                dispute.currency,
+            )?,
         )?,
         currency: dispute.currency,
         dispute_id: dispute.id,

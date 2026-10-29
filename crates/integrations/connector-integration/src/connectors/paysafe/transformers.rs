@@ -523,7 +523,7 @@ where
         })?;
 
         let currency = router_data.request.currency;
-        let amount = router_data.request.amount.amount();
+        let amount = router_data.request.money.amount();
 
         // Resolved before the match: both the returnLinks and `threeDs.merchantUrl` need it.
         let redirect_url = router_data.resource_common_data.get_return_url().ok_or(
@@ -829,7 +829,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     field_name: "currency",
                     context: Default::default(),
                 })?;
-        let amount = router_data.request.amount.amount();
+        let amount = router_data.request.money.amount();
 
         // The ACS return must land on continue_redirection_url (…/redirect/complete/) so HS runs
         // CompleteAuthorize and settles; router_return_url only PSyncs. Falls back to return_url.
@@ -1248,7 +1248,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let currency = router_data.request.currency;
-        let amount = router_data.request.amount.amount();
+        let amount = router_data.request.money.amount();
 
         let (payment_method, payment_type, account_id) =
             match &router_data.request.payment_method_data {
@@ -1808,7 +1808,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let amount = router_data.request.amount.amount();
+        let amount = router_data.request.money.amount();
 
         let auth = PaysafeAuthType::try_from(&item.router_data.connector_config)?;
         let account_id = auth
@@ -2400,7 +2400,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let amount = router_data.request.amount.amount();
+        let amount = router_data.request.money.amount();
 
         // Get mandate reference (carries the connector_mandate_id we issued at CIT time)
         let mandate_data = match &router_data.request.mandate_reference {
@@ -2712,7 +2712,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.router_data.request.amount_to_capture.amount(),
+            amount: item.router_data.request.capture_money.amount(),
         })
     }
 }
@@ -2772,7 +2772,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount =
             item.router_data
                 .request
-                .amount
+                .money
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "amount",
                     context: IntegrationErrorContext {
@@ -2846,7 +2846,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             merchant_ref_num: item.router_data.request.refund_id.clone(),
-            amount: item.router_data.request.refund_amount.amount(),
+            amount: item.router_data.request.refund_money.amount(),
         })
     }
 }

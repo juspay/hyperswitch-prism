@@ -12,7 +12,7 @@ use crate::{
         extract_connector_request_reference_id, extract_merchant_id_from_metadata, ForeignTryFrom,
     },
 };
-use common_utils::{metadata::MaskedMetadata, types::Money};
+use common_utils::metadata::MaskedMetadata;
 use error_stack::ResultExt;
 impl
     ForeignTryFrom<(
@@ -102,7 +102,7 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceCalculateRequest>
         })?;
 
         Ok(Self {
-            money: Money::foreign_try_from(amount)?,
+            money: crate::money::from_proto_money(amount)?,
             previous_connector_surcharge_id: value.previous_connector_surcharge_id,
             surcharge_strategy,
             card_bin: value.card_bin,

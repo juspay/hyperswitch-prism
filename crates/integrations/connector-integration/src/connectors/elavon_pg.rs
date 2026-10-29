@@ -598,7 +598,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let requested_total = self
                 .amount_converter
-                .convert(&req.request.amount_to_capture)
+                .convert(&req.request.capture_money)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: IntegrationErrorContext {
                         additional_context: Some(

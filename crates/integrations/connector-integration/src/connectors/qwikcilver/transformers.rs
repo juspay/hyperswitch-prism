@@ -281,13 +281,13 @@ where
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
                         "Failed to convert Redeem amount {} {} to FloatMajorUnit. \
                          Qwikcilver expects major-unit decimals (e.g. 0.20 AED).",
-                        item.router_data.request.amount.amount().get_amount_as_i64(),
+                        item.router_data.request.money.amount().get_amount_as_i64(),
                         item.router_data.request.currency,
                     ),
                     "Verify `amount.amount.amount` is a non-negative integer and \
@@ -594,12 +594,12 @@ where
         let amount = item
             .connector
             .amount_converter
-            .convert(&req.amount)
+            .convert(&req.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
                         "Failed to convert Recharge amount {} {} to FloatMajorUnit.",
-                        req.amount.amount().get_amount_as_i64(),
+                        req.money.amount().get_amount_as_i64(),
                         req.currency,
                     ),
                     "Verify `amount.amount.amount` is a non-negative integer and \
@@ -1018,7 +1018,7 @@ fn card_to_wallet_item(
         wallet_item_id,
         product_id: card.card_program_name.clone().unwrap_or_default(),
         status: map_wallet_item_status(card.card_status.as_ref()),
-        available_balance,
+        available_balance_money: available_balance,
         expiry_date: card.expiry.as_ref().map(|e| e.peek().to_string()),
     })
 }
@@ -1243,7 +1243,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             serde_json::to_string(&body).ok().map(Secret::new);
         data.response = match body.response_code {
             QWIKCILVER_SUCCESS_CODE => {
-                let currency = data.request.amount.currency();
+                let currency = data.request.money.currency();
                 let (eligibility, payment_method_details) =
                     if let Some(wallet) = body.wallet.as_ref() {
                         let eligibility = match map_wallet_status(wallet.status.as_ref()) {

@@ -391,7 +391,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][unit_cost]"),
-                        order_item.amount.amount().get_amount_as_i64().to_string(),
+                        order_item.money.amount().get_amount_as_i64().to_string(),
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][quantity]"),
@@ -403,7 +403,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                             product_code.clone(),
                         );
                     }
-                    if let Some(tax_amount) = order_item.total_tax_amount.as_ref() {
+                    if let Some(tax_amount) = order_item.total_tax_money.as_ref() {
                         has_line_item_tax = true;
                         items_map.insert(
                             format!("amount_details[line_items][{index}][tax][total_tax_amount]"),
@@ -416,7 +416,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                             unit_of_measure.clone(),
                         );
                     }
-                    if let Some(line_discount) = order_item.unit_discount_amount.as_ref() {
+                    if let Some(line_discount) = order_item.unit_discount_money.as_ref() {
                         items_map.insert(
                             format!("amount_details[line_items][{index}][discount_amount]"),
                             line_discount.amount().get_amount_as_i64().to_string(),
@@ -2653,7 +2653,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // G-Authorize-01: Stripe requires a PaymentIntent `amount` to be a positive integer
         // (https://docs.stripe.com/api/payment_intents/create#create_payment_intent-amount).
-        if item.request.amount.amount() < MinorUnit::zero() {
+        if item.request.money.amount() < MinorUnit::zero() {
             return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
                 context: IntegrationErrorContext {
@@ -2673,7 +2673,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // A $0 verification is a SetupIntent. Refused before the payment-method dispatch so it
         // holds for every payment method and no HTTP call is built.
-        if item.request.amount.amount() == MinorUnit::zero() {
+        if item.request.money.amount() == MinorUnit::zero() {
             return Err(error_stack::report!(IntegrationError::NotSupported {
                 message: "zero-amount PaymentIntent".to_string(),
                 connector: "stripe",
@@ -2740,7 +2740,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Some(SplitPaymentsDetails::StripeSplitPayment(_))
             );
 
-        let amount = StripeAmountConvertor::convert(&item.request.amount)?;
+        let amount = StripeAmountConvertor::convert(&item.request.money)?;
         let order_id = item
             .resource_common_data
             .connector_request_reference_id
@@ -3735,7 +3735,7 @@ where
         let response_currency = item
             .router_data
             .resource_common_data
-            .amount
+            .money
             .as_ref()
             .map(|money| money.currency())
             .unwrap_or_default();
@@ -3743,7 +3743,7 @@ where
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: item
+                captured_money: item
                     .response
                     .amount_received
                     .map(|amount| {
@@ -3757,7 +3757,7 @@ where
                     })
                     .transpose()?,
                 connector_response: connector_response_data,
-                amount_capturable: amount_capturable
+                capturable_money: amount_capturable
                     .map(|amount| {
                         crate::utils::response_amount_to_money(
                             &connector,
@@ -4077,14 +4077,14 @@ impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: common_enums::AttemptStatus::from(item.response.status.to_owned()),
-                amount_captured: item
+                captured_money: item
                     .response
                     .amount_received
                     .map(|amount| {
                         crate::utils::response_amount_to_money(
                             &connector,
                             amount,
-                            item.router_data.request.currency,
+                            item.router_data.request.money.currency(),
                             item.http_code,
                             domain_types::connector_types::ConnectorEnum::Stripe,
                         )
@@ -5306,7 +5306,7 @@ pub(crate) fn build_webhook_payment_response(
         raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
         status_code: 200,
         response_headers: None,
-        amount_captured: None,
+        captured_money: None,
         network_txn_id: None,
         payment_method_update: None,
         sender_payment_instrument_id: None,
@@ -5386,7 +5386,11 @@ pub(crate) fn build_webhook_dispute_response(
 
     let amount = domain_types::utils::convert_amount_for_webhook(
         &StringMinorUnitForConnector,
-        &common_utils::types::Money::new(amount, event_object.currency),
+        &domain_types::utils::convert_back_amount_to_money_for_webhook(
+            &common_utils::types::MinorUnitForConnector,
+            amount,
+            event_object.currency,
+        )?,
     )?;
 
     // A Dispute object always carries `status`; a missing or foreign one is an error rather
@@ -5881,7 +5885,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let amount_to_capture =
-            StripeAmountConvertor::convert(&item.router_data.request.amount_to_capture)?;
+            StripeAmountConvertor::convert(&item.router_data.request.capture_money)?;
         Ok(Self {
             amount_to_capture: Some(amount_to_capture),
         })
@@ -5925,8 +5929,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let refund_amount =
-            StripeAmountConvertor::convert(&item.router_data.request.refund_amount)?;
+        let refund_amount = StripeAmountConvertor::convert(&item.router_data.request.refund_money)?;
         match item.router_data.request.split_refunds.as_ref() {
             Some(domain_types::connector_types::SplitRefundsDetails::StripeSplitRefund(_)) => Ok(
                 Self::ChargeRefundRequest(ChargeRefundRequest::try_from(&item.router_data)?),
@@ -5971,7 +5974,7 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
     fn try_from(
         item: &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let amount = item.request.refund_amount.amount();
+        let amount = item.request.refund_money.amount();
         match item.request.split_refunds.as_ref() {
             None => Err(IntegrationError::MissingRequiredField {
                 field_name: "split_refunds",
@@ -6543,7 +6546,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = StripeAmountConvertor::convert(&item.router_data.request.amount)?;
+        let amount = StripeAmountConvertor::convert(&item.router_data.request.money)?;
 
         Ok(Self { amount })
     }
@@ -6741,7 +6744,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => None,
         };
 
-        let amount = StripeAmountConvertor::convert(&item.request.amount)?;
+        let amount = StripeAmountConvertor::convert(&item.request.money)?;
         let order_id = item
             .resource_common_data
             .connector_request_reference_id
@@ -7314,7 +7317,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
 
-        let amount = StripeAmountConvertor::convert(&router_data.request.amount)?;
+        let amount = StripeAmountConvertor::convert(&router_data.request.money)?;
 
         let currency = router_data.request.currency.to_string().to_lowercase();
 

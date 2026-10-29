@@ -445,7 +445,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1220,7 +1220,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // For partial refunds, include baseamount; for full refunds, omit it
         let base_amount = if router_data
             .request
-            .refund_amount
+            .refund_money
             .amount()
             .get_amount_as_i64()
             > 0
@@ -1229,7 +1229,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             let amount = item
                 .connector
                 .amount_converter
-                .convert(&router_data.request.refund_amount)
+                .convert(&router_data.request.refund_money)
                 .map_err(|_| IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?;
@@ -1576,7 +1576,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let base_amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -1755,19 +1755,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         // For SetupMandate, use 0 amount if no amount provided (zero dollar auth)
-        let minor_amount = router_data
+        let money = router_data
             .request
-            .amount
-            .as_ref()
-            .map(|money| money.amount())
-            .unwrap_or(common_utils::types::MinorUnit::zero());
+            .money
+            .clone()
+            .unwrap_or_else(|| common_utils::types::Money::zero(router_data.request.currency));
         let amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money::new(
-                minor_amount,
-                router_data.request.currency,
-            ))
+            .convert(&money)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1984,7 +1980,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

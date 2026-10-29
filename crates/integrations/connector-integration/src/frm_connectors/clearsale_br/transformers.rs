@@ -963,7 +963,7 @@ impl<'a> OrderInputs<'a> {
                 .as_ref()
                 .ok_or_else(|| missing_field_err("email"))?
                 .get_email()?,
-            money: req.amount.clone(),
+            money: req.money.clone(),
             ip: req
                 .browser_info
                 .as_ref()
@@ -999,7 +999,7 @@ impl<'a> OrderInputs<'a> {
                 .as_ref()
                 .ok_or_else(|| missing_field_err("email"))?
                 .get_email()?,
-            money: req.amount.clone(),
+            money: req.money.clone(),
             ip: req
                 .browser_info
                 .as_ref()
@@ -1652,7 +1652,7 @@ pub(crate) fn build_clear_sale_items(
                 name: detail.product_name.clone(),
                 code: detail.sku.clone().or(detail.product_id.clone()),
                 bar_code: detail.upc.clone(),
-                value: Some(super::ClearSaleBrAmountConvertor::convert(&detail.amount)?),
+                value: Some(super::ClearSaleBrAmountConvertor::convert(&detail.money)?),
                 // Line quantity, not money — the wire field is ClearSale's `amount`.
                 amount: Some(detail.quantity),
                 category_id: None,

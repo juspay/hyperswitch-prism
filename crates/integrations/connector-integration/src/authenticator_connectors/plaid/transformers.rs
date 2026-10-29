@@ -663,8 +663,8 @@ fn plaid_account_to_bank_account(
             PlaidHolderCategory::Personal => BankHolderType::Personal,
             PlaidHolderCategory::Business => BankHolderType::Business,
         }),
-        balance: convert(acct.balances.current),
-        available_balance: convert(acct.balances.available),
+        balance_money: convert(acct.balances.current),
+        available_balance_money: convert(acct.balances.available),
         account_details: None,
         bank_name: institution_name,
     }
@@ -793,7 +793,7 @@ impl TryFrom<ResponseRouterData<PlaidBalanceGetResponse, Self>>
         data.resource_common_data.raw_connector_response =
             serde_json::to_string(res).ok().map(Secret::new);
 
-        let request_currency = Some(data.request.amount.currency());
+        let request_currency = Some(data.request.money.currency());
         let institution_name = res.item.institution_name.clone();
 
         // Plaid signals failure via HTTP status (the connector error path);
@@ -814,8 +814,8 @@ impl TryFrom<ResponseRouterData<PlaidBalanceGetResponse, Self>>
                 }),
             )
         } else {
-            let request_amount = data.request.amount.amount();
-            let currency = data.request.amount.currency();
+            let request_amount = data.request.money.amount();
+            let currency = data.request.money.currency();
 
             // An account covers the request when its comparable balance
             // (available, else current) converts to more than the request

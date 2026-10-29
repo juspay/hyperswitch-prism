@@ -5,7 +5,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::jose::JoseConfig,
     request::Method,
-    types::{FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+    types::{FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
@@ -217,7 +217,8 @@ pub struct PacoTransactionAmount {
 }
 
 impl PacoTransactionAmount {
-    fn new(minor_amount: MinorUnit, currency: Currency) -> Result<Self, errors::IntegrationError> {
+    fn new(money: &common_utils::types::Money) -> Result<Self, errors::IntegrationError> {
+        let currency = money.currency();
         let decimals = currency
             .number_of_digits_after_decimal_point()
             .map_err(|_| errors::IntegrationError::InvalidDataFormat {
@@ -232,11 +233,11 @@ impl PacoTransactionAmount {
                     )),
                 },
             })?;
-        let raw = minor_amount.get_amount_as_i64();
+        let raw = money.amount().get_amount_as_i64();
         let amount_text = format!("{raw:0>12}");
         let amount = <FloatMajorUnitForConnector as common_utils::types::AmountConvertor>::convert(
             &FloatMajorUnitForConnector,
-            &common_utils::types::Money::new(minor_amount, currency),
+            money,
         )
         .map_err(|err| errors::IntegrationError::InvalidDataFormat {
             field_name: "amount",
@@ -653,7 +654,7 @@ pub struct PacoPassenger {
 impl TryFrom<&common_utils::types::Money> for PacoTransactionAmount {
     type Error = errors::IntegrationError;
     fn try_from(money: &common_utils::types::Money) -> Result<Self, Self::Error> {
-        Self::new(money.amount(), money.currency())
+        Self::new(money)
     }
 }
 
@@ -841,17 +842,17 @@ impl TryFrom<&connector_types::AirlineData> for PacoAirlineData {
         // the per-purchase amounts land at the right path (tickets[]) instead
         // of being silently dropped at the airlineData top level.
         let ticket_fare = airline
-            .total_fare
+            .total_fare_money
             .as_ref()
             .map(PacoTransactionAmount::try_from)
             .transpose()?;
         let tax_amount = airline
-            .total_taxes
+            .total_taxes_money
             .as_ref()
             .map(PacoTransactionAmount::try_from)
             .transpose()?;
         let agent_fee = airline
-            .total_fee
+            .total_fee_money
             .as_ref()
             .map(PacoTransactionAmount::try_from)
             .transpose()?;
@@ -905,7 +906,7 @@ where
         .unwrap_or_else(|| order_no.clone());
     let request_message_id =
         paco_require_merchant_request_id(item.resource_common_data.get_merchant_request_id())?;
-    let amount = PacoTransactionAmount::new(item.request.amount.amount(), item.request.currency)?;
+    let amount = PacoTransactionAmount::new(&item.request.money)?;
     let notification_urls = PacoNotificationUrls {
         confirmation_url: item.request.router_return_url.clone(),
         failed_url: item.request.router_return_url.clone(),
@@ -1117,10 +1118,7 @@ pub fn build_capture_request(
 ) -> Result<TwocTwopPacoCaptureRequest, error_stack::Report<errors::IntegrationError>> {
     let office_id = auth.office_id.clone();
     let invoice_no = item.request.get_connector_transaction_id()?;
-    let amount = PacoTransactionAmount::new(
-        item.request.amount_to_capture.amount(),
-        item.request.currency,
-    )?;
+    let amount = PacoTransactionAmount::new(&item.request.capture_money)?;
     let request_message_id =
         paco_require_merchant_request_id(item.resource_common_data.get_merchant_request_id())?;
     Ok(TwocTwopPacoCaptureRequest {
@@ -1222,8 +1220,7 @@ pub fn build_refund_request(
     auth: &TwocTwopPacoAuthType,
 ) -> Result<TwocTwopPacoRefundRequest, error_stack::Report<errors::IntegrationError>> {
     let office_id = auth.office_id.clone();
-    let amount =
-        PacoTransactionAmount::new(item.request.refund_amount.amount(), item.request.currency)?;
+    let amount = PacoTransactionAmount::new(&item.request.refund_money)?;
     let original_order_no = item.request.get_connector_order_id().change_context(
         errors::IntegrationError::MissingRequiredField {
             field_name: "connector_order_id",

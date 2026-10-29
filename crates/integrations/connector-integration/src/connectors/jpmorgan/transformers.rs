@@ -67,7 +67,7 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
 
     let quantity = i64::from(detail.quantity);
     let transaction_discount_amount = detail
-        .unit_discount_amount
+        .unit_discount_money
         .as_ref()
         .and_then(|unit_discount| {
             unit_discount
@@ -79,7 +79,7 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
         .map(MinorUnit::new);
 
     let line_item_taxes = detail
-        .total_tax_amount
+        .total_tax_money
         .as_ref()
         .filter(|tax| tax.amount().get_amount_as_i64() > 0)
         .map(|tax| requests::JpmorganLineItemTax {
@@ -98,9 +98,9 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
         item_comodity_code: detail.commodity_code.clone(),
         line_item_unit_quantity: (detail.quantity > 0).then(|| detail.quantity.to_string()),
         line_item_unit_of_measure_code: detail.unit_of_measure.clone(),
-        unit_price_amount: Some(detail.amount.amount()),
+        unit_price_amount: Some(detail.money.amount()),
         tax_inclusive_line_item_total_amount: detail
-            .total_amount
+            .total_money
             .as_ref()
             .map(|money| money.amount()),
         transaction_discount_amount,
@@ -304,12 +304,12 @@ fn authorize_level2_data<T: PaymentMethodDataTypes>(
         l2_l3_data,
         router_data
             .request
-            .order_tax_amount
+            .order_tax_money
             .as_ref()
             .map(|order_tax_amount| order_tax_amount.amount()),
         router_data
             .request
-            .shipping_cost
+            .shipping_money
             .as_ref()
             .map(|shipping_cost| shipping_cost.amount()),
     );
@@ -1103,7 +1103,7 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
         let (retail_addenda, ship_to) = authorize_level2_data(router_data);
         let request = Self {
             capture_method: map_capture_method(router_data.request.capture_method)?,
-            amount: JpmorganAmountConvertor::convert(&router_data.request.amount)?,
+            amount: JpmorganAmountConvertor::convert(&router_data.request.money)?,
             currency: router_data.request.currency,
             merchant: requests::JpmorganMerchant::try_from(&auth)?,
             payment_method_type: requests::JpmorganPaymentMethodType {
@@ -1235,7 +1235,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     token: None,
                 };
 
-                let amount = JpmorganAmountConvertor::convert(&router_data.request.amount)?;
+                let amount = JpmorganAmountConvertor::convert(&router_data.request.money)?;
 
                 let (retail_addenda, ship_to) = authorize_level2_data(router_data);
                 let request = Self {
@@ -1340,7 +1340,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     token: None,
                 };
 
-                let amount = JpmorganAmountConvertor::convert(&router_data.request.amount)?;
+                let amount = JpmorganAmountConvertor::convert(&router_data.request.money)?;
 
                 let (retail_addenda, ship_to) = authorize_level2_data(router_data);
                 let request = Self {
@@ -1404,7 +1404,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     token: None,
                 };
 
-                let amount = JpmorganAmountConvertor::convert(&router_data.request.amount)?;
+                let amount = JpmorganAmountConvertor::convert(&router_data.request.money)?;
 
                 // Get statement_descriptor from connector config
                 let statement_descriptor = auth.statement_descriptor.clone().ok_or(
@@ -1449,7 +1449,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     token: Some(token),
                 };
 
-                let amount = JpmorganAmountConvertor::convert(&router_data.request.amount)?;
+                let amount = JpmorganAmountConvertor::convert(&router_data.request.money)?;
 
                 let account_holder = requests::JpmorganAccountHolder {
                     first_name: Secret::new("NA".to_string()),
@@ -1512,7 +1512,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             let merchant = requests::JpmorganMerchant::try_from(&auth)?;
 
                             let amount =
-                                JpmorganAmountConvertor::convert(&router_data.request.amount)?;
+                                JpmorganAmountConvertor::convert(&router_data.request.money)?;
 
                             // Parse the Google Pay token string into its component fields.
                             // The token is a JSON string containing protocolVersion, signature,
@@ -1649,12 +1649,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let capture_method = requests::CapMethod::Now;
-        let amount_to_capture = item.router_data.request.amount_to_capture.amount();
-
-        let amount = JpmorganAmountConvertor::convert(&common_utils::types::Money::new(
-            amount_to_capture,
-            item.router_data.request.currency,
-        ))?;
+        let amount = JpmorganAmountConvertor::convert(&item.router_data.request.capture_money)?;
 
         // When AuthenticationType is `Manual`, Documentation suggests us to pass `isAmountFinal` field being `true`
         // isAmountFinal is by default `true`. Since Manual Multiple support is not added here, the field is not used.
@@ -1816,7 +1811,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
         };
 
-        let amount = JpmorganAmountConvertor::convert(&item.router_data.request.refund_amount)?;
+        let amount = JpmorganAmountConvertor::convert(&item.router_data.request.refund_money)?;
 
         let transaction_id = item.router_data.request.connector_transaction_id;
 
@@ -2277,7 +2272,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ..Default::default()
         };
         let amount = request
-            .amount
+            .money
             .as_ref()
             .map(|money| money.amount())
             .ok_or_else(|| IntegrationError::MissingRequiredField {
@@ -2668,7 +2663,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
