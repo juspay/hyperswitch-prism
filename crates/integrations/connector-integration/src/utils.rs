@@ -10,20 +10,21 @@ use common_utils::{
     errors::{ParsingError, ReportSwitchExt},
     ext_traits::ValueExt,
     request::MultipartData,
-    types::MinorUnit,
+    types::{AmountConvertor, MinorUnit, Money},
     CustomResult,
 };
 use domain_types::{
     connector_types::{
-        CaptureSyncResponse, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsSyncData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        CaptureSyncResponse, ConnectorEnum, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsSyncData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
     router_response_types::Response,
 };
-use error_stack::{Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde_json::Value;
 use std::{collections::HashMap, str::FromStr};
@@ -32,6 +33,11 @@ pub use xml_utils::preprocess_xml_response_bytes;
 type Error = Report<IntegrationError>;
 use common_enums::enums;
 use serde::{Deserialize, Serialize};
+
+/// For example, 2.5 with a multiplier of 100.0 becomes "250".
+pub fn scaled_percentage_to_string(percentage: f64, multiplier: f64) -> String {
+    format!("{:.0}", percentage * multiplier)
+}
 
 pub fn build_form_from_struct<T: Serialize>(
     data: T,
@@ -171,6 +177,41 @@ pub fn missing_field_err(
     })
 }
 
+/// A card expiry month given as `"1"`..`"12"` (a leading zero is allowed), as a number.
+pub fn parse_expiry_month(month: &str, field_name: &'static str) -> Result<u8, Error> {
+    month
+        .trim()
+        .parse::<u8>()
+        .ok()
+        .filter(|month| (1..=12).contains(month))
+        .ok_or_else(|| {
+            report!(IntegrationError::InvalidDataFormat {
+                field_name,
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some("Expected a month between 1 and 12".to_owned()),
+                    ..Default::default()
+                },
+            })
+        })
+}
+
+/// A card expiry year given as four digits, as a number.
+pub fn parse_expiry_year_four_digit(year: &str, field_name: &'static str) -> Result<u16, Error> {
+    let year = year.trim();
+    year.parse::<u16>()
+        .ok()
+        .filter(|_| year.len() == 4)
+        .ok_or_else(|| {
+            report!(IntegrationError::InvalidDataFormat {
+                field_name,
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some("Expected a four-digit year".to_owned()),
+                    ..Default::default()
+                },
+            })
+        })
+}
+
 /// Build [`errors::IntegrationErrorContext`] with explicit `additional_context` and `suggested_action`
 /// at the call site (no hidden defaults).
 pub fn integration_ctx(
@@ -184,7 +225,7 @@ pub fn integration_ctx(
     }
 }
 
-/// Use at `.convert(minor_amount, currency)` failures. `flow` should name the **payment operation**
+/// Use at `.convert(money)` failures. `flow` should name the **payment operation**
 pub fn amount_conversion_ctx(
     flow: &'static str,
     minor_amount: &impl std::fmt::Debug,
@@ -214,6 +255,39 @@ pub fn response_http_status_detail(connector: &str) -> String {
 /// Convenience helper for the common non-success HTTP status case.
 pub fn response_handling_fail_for_connector(http_status: u16, connector: &str) -> ConnectorError {
     response_handling_fail(http_status, response_http_status_detail(connector))
+}
+
+/// Converts a connector response amount into domain money through the connector's amount converter.
+pub fn response_amount_to_money<AC>(
+    amount_converter: &AC,
+    amount: AC::Output,
+    currency: enums::Currency,
+    http_status: u16,
+    connector: ConnectorEnum,
+) -> Result<Money, Report<ConnectorError>>
+where
+    AC: AmountConvertor + ?Sized,
+{
+    let connector_name = connector.to_string();
+    amount_converter
+        .convert_back(amount, currency)
+        .change_context(response_handling_fail_for_connector(
+            http_status,
+            &connector_name,
+        ))
+}
+
+/// Converts a webhook amount conversion result into domain money while preserving parsing failures.
+pub fn webhook_amount_to_money(
+    amount: Result<Money, Report<ParsingError>>,
+    currency: enums::Currency,
+) -> Result<Money, Report<errors::WebhookError>> {
+    amount.change_context(errors::WebhookError::WebhookAmountConversionFailed {
+        reason: format!(
+            "Failed to convert amount to minor units: currency={}",
+            currency
+        ),
+    })
 }
 
 /// Response bytes could not be parsed into the expected response type (JSON/XML, schema drift).
@@ -357,6 +431,30 @@ where
     use serde::de::Error;
     let output = <&str>::deserialize(v)?;
     output.to_uppercase().parse::<T>().map_err(D::Error::custom)
+}
+
+/// Parses an optional connector response value, logging and discarding one that isn't recognised
+/// so an unexpected value doesn't fail the whole response.
+pub fn parse_or_log_unrecognised<T: FromStr>(value: &str) -> Option<T> {
+    value
+        .parse::<T>()
+        .inspect_err(|_| {
+            tracing::debug!(
+                value,
+                target_type = std::any::type_name::<T>(),
+                "Unrecognised value received from connector"
+            );
+        })
+        .ok()
+}
+
+/// Converts an ISO 3166 country code from a connector response, alpha-2 or numeric, to alpha-2.
+/// A value outside either table is logged and discarded.
+pub fn parse_country_code(code: &str) -> Option<enums::CountryAlpha2> {
+    code.parse::<u16>()
+        .ok()
+        .and_then(enums::CountryAlpha2::from_numeric)
+        .or_else(|| parse_or_log_unrecognised::<enums::CountryAlpha2>(code))
 }
 
 pub trait SplitPaymentData {
@@ -527,6 +625,14 @@ where
 pub(crate) fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
     capture_method == Some(enums::CaptureMethod::Manual)
         || capture_method == Some(enums::CaptureMethod::ManualMultiple)
+}
+
+/// True for mail-order / telephone-order (MOTO) payment channels.
+pub fn is_moto_payment_channel(payment_channel: Option<&enums::PaymentChannel>) -> bool {
+    matches!(
+        payment_channel,
+        Some(enums::PaymentChannel::MailOrder | enums::PaymentChannel::TelephoneOrder)
+    )
 }
 
 pub fn get_token_expiry_month_year_2_digit_with_delimiter(

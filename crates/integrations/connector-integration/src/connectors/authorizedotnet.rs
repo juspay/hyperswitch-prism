@@ -2,7 +2,12 @@ pub mod transformers;
 
 use common_enums;
 use common_utils::{
-    consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit,
+    consts,
+    crypto::{HmacSha512, VerifySignature},
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    types::FloatMajorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -12,12 +17,12 @@ use domain_types::{
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, ConnectorSpecifications,
         ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ResponseId, ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
-        WebhookDetailsResponse,
+        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -27,7 +32,7 @@ use domain_types::{
     router_response_types::Response,
     types::Connectors,
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_masking::Maskable;
 use interfaces::{
     api::ConnectorCommon,
@@ -55,7 +60,7 @@ use self::transformers::{
     AuthorizedotnetVoidResponse, AuthorizedotnetWebhookEventType, AuthorizedotnetWebhookObjectId,
 };
 use super::macros;
-use crate::{types::ResponseRouterData, with_response_body};
+use crate::{types::ResponseRouterData, utils, with_response_body};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -134,10 +139,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // Parse "sha512=<hex>" format
-        let signature_hex = match signature_header.strip_prefix("sha512=") {
-            Some(hex) => hex,
-            None => {
+        // Parse "sha512=<hex>". The algorithm prefix is matched case-insensitively
+        // (techspec "Webhook Authentication & Signature Verification" step 1; the
+        // Hyperswitch connector lower-cases the header and splits at the first '=').
+        let signature_hex = match signature_header.split_once('=') {
+            Some((algorithm, hex)) if algorithm.eq_ignore_ascii_case("sha512") => hex,
+            Some(_) | None => {
                 tracing::warn!(
                     target: "authorizedotnet_webhook",
                     "Invalid signature format in X-ANET-Signature header, expected 'sha512=<hex>' but got: '{}' - verification failed but continuing processing",
@@ -161,34 +168,35 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // Compute HMAC-SHA512 of request body
-        use common_utils::crypto::{HmacSha512, SignMessage};
-        let crypto_algorithm = HmacSha512;
-        let computed_signature = match crypto_algorithm.sign_message(&webhook_secret, &request.body)
-        {
-            Ok(sig) => sig,
+        // HMAC-SHA512 over the raw request body bytes, keyed with the Signature Key as
+        // stored. `verify_signature` does the comparison in constant time.
+        match HmacSha512.verify_signature(&webhook_secret, &expected_signature, &request.body) {
+            Ok(verified) => Ok(verified),
             Err(crypto_error) => {
                 tracing::error!(
                     target: "authorizedotnet_webhook",
-                    "Failed to compute HMAC-SHA512 signature for webhook verification, error: {:?} - verification failed but continuing processing",
+                    "Failed to verify HMAC-SHA512 signature of the webhook, error: {:?} - verification failed but continuing processing",
                     crypto_error
                 );
-                return Ok(false); // Crypto error -> verification fails but continue processing
+                Ok(false) // Crypto error -> verification fails but continue processing
             }
-        };
-
-        // Constant-time comparison to prevent timing attacks
-        Ok(computed_signature == expected_signature)
+        }
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
-        br#"{"eventType":"net.authorize.payment.authcapture.created","payload":{"id":"probe_txn_001","responseCode":1,"authCode":"probe_auth"}}"#
+        br#"{"webhookId":"probe_webhook_001","eventType":"net.authorize.payment.authcapture.created","payload":{"id":"probe_txn_001","responseCode":1,"authCode":"probe_auth"}}"#
     }
 
     fn get_event_type(
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        // An empty body is the endpoint check, not an event (techspec "IncomingWebhook",
+        // "Expected result (empty body)").
+        if request.body.is_empty() {
+            return Ok(EventType::EndpointVerification);
+        }
+
         let webhook_body: AuthorizedotnetWebhookEventType = request
             .body
             .parse_struct("AuthorizedotnetWebhookEventType")
@@ -218,18 +226,88 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | transformers::AuthorizedotnetIncomingWebhookEventType::CustomerPaymentProfileCreated => {
                 EventType::MandateActive
             }
+            // Authorize.Net delivers many event types this connector does not act on
+            // (fraud, subscription, settlement, ...). They are acknowledged as
+            // not-supported, as hyperswitch does, instead of failing the delivery.
             transformers::AuthorizedotnetIncomingWebhookEventType::Unknown => {
-                tracing::warn!(
-                    target: "authorizedotnet_webhook",
-                    "Received unknown webhook event type from Authorize.Net - rejecting webhook"
-                );
-                return Err(
-                    report!(WebhookError::WebhookEventTypeNotFound)
-                        .attach_printable("Unknown webhook event type"),
-                );
+                EventType::IncomingWebhookEventUnspecified
             }
         };
         Ok(event_type)
+    }
+
+    /// Reference for `EventService.ParseEvent` (stateless: no secret, no verification).
+    /// `payload.id` is the transId of the transaction the event is about - for
+    /// `refund.created` that is the refund transaction itself - and
+    /// `payload.merchantReferenceId` echoes the `refId` of the request
+    /// (techspec "IncomingWebhook").
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        // Endpoint verification carries no resource.
+        if request.body.is_empty() {
+            return Ok(None);
+        }
+
+        let webhook_body: AuthorizedotnetWebhookObjectId = request
+            .body
+            .parse_struct("AuthorizedotnetWebhookObjectId")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable_lazy(|| {
+                "Failed to parse Authorize.Net webhook body for the event reference"
+            })?;
+
+        match webhook_body.event_type {
+            transformers::AuthorizedotnetWebhookEvent::RefundCreated => {
+                let connector_refund_id = webhook_body
+                    .payload
+                    .id
+                    .ok_or(WebhookError::WebhookReferenceIdNotFound)
+                    .attach_printable("payload.id missing in refund.created webhook")?;
+                // The payload has no link from the refund to its original payment.
+                Ok(Some(WebhookResourceReference::Refund(
+                    RefundWebhookReference {
+                        connector_refund_id: Some(connector_refund_id),
+                        merchant_refund_id: None,
+                        connector_transaction_id: None,
+                        merchant_transaction_id: None,
+                    },
+                )))
+            }
+            transformers::AuthorizedotnetWebhookEvent::AuthorizationCreated
+            | transformers::AuthorizedotnetWebhookEvent::PriorAuthCapture
+            | transformers::AuthorizedotnetWebhookEvent::AuthCapCreated
+            | transformers::AuthorizedotnetWebhookEvent::CaptureCreated
+            | transformers::AuthorizedotnetWebhookEvent::VoidCreated => {
+                // `priorAuthCapture` and `voidTransaction` act on the existing
+                // transaction rather than minting a new one: a single transId carries
+                // the whole lifecycle (`authorizedPendingCapture` ->
+                // `capturedPendingSettlement` -> `settledSuccessfully`, or `voided` -
+                // which is what `transformers::SyncStatus` models). So `payload.id` here
+                // is the same transId the Authorize response stored, and a lookup by
+                // `connector_transaction_id` resolves. `refund.created`, handled above,
+                // is the one event that mints a new transId, and the payload carries no
+                // link from it back to the payment.
+                let connector_transaction_id = webhook_body
+                    .payload
+                    .id
+                    .ok_or(WebhookError::WebhookReferenceIdNotFound)
+                    .attach_printable("payload.id missing in payment webhook")?;
+                Ok(Some(WebhookResourceReference::Payment(
+                    PaymentWebhookReference {
+                        connector_transaction_id: Some(connector_transaction_id),
+                        merchant_transaction_id: webhook_body.payload.merchant_reference_id,
+                        connector_preprocessing_id: None,
+                    },
+                )))
+            }
+            // Customer profile events identify a profile, not a payment or a refund.
+            transformers::AuthorizedotnetWebhookEvent::CustomerCreated
+            | transformers::AuthorizedotnetWebhookEvent::CustomerPaymentProfileCreated => Ok(None),
+            // An event type this connector does not act on has no resource to resolve.
+            transformers::AuthorizedotnetWebhookEvent::Unknown => Ok(None),
+        }
     }
 
     fn process_payment_webhook(
@@ -248,22 +326,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "Failed to parse Authorize.Net payment webhook body structure"
             })?;
 
-        let transaction_id = get_trans_id(&webhook_body).attach_printable_lazy(|| {
-            format!(
-                "Failed to extract transaction ID from payment webhook for event: {:?}",
-                webhook_body.event_type
-            )
-        })?;
+        let transaction_id = match webhook_body.event_type {
+            // An event type this connector does not act on is acknowledged with
+            // whatever id it carries; a missing id must not fail the delivery.
+            transformers::AuthorizedotnetWebhookEvent::Unknown => webhook_body.payload.id.clone(),
+            _ => Some(get_trans_id(&webhook_body).attach_printable_lazy(|| {
+                format!(
+                    "Failed to extract transaction ID from payment webhook for event: {:?}",
+                    webhook_body.event_type
+                )
+            })?),
+        };
         let status = transformers::SyncStatus::from(webhook_body.event_type.clone());
+        // The merchant's own reference is payload.merchantReferenceId (the echoed refId);
+        // it is absent when the request carried no refId, and is never the transId.
+        let merchant_reference_id = webhook_body.payload.merchant_reference_id.clone();
 
         Ok(WebhookDetailsResponse {
             connector_returned_payment_method_details: None,
-            resource_id: Some(ResponseId::ConnectorTransactionId(transaction_id.clone())),
+            resource_id: transaction_id
+                .clone()
+                .map(ResponseId::ConnectorTransactionId),
             status: common_enums::AttemptStatus::from(status),
             status_code: 200,
             mandate_reference: None,
-            connector_response_reference_id: Some(transaction_id.clone()),
-            connector_request_reference_id: Some(transaction_id),
+            connector_response_reference_id: transaction_id,
+            connector_request_reference_id: merchant_reference_id,
             error_code: None,
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
@@ -380,30 +468,73 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: transformers::ResponseMessages =
-            res.response.parse_struct("ResponseMessages").map_err(|_| {
-                crate::utils::response_deserialization_fail(
-                    res.status_code,
-                "authorizedotnet: response body did not match the expected format; confirm API version and connector documentation.")
-            })?;
+        // Authorize.Net prefixes its JSON with a UTF-8 BOM; this path does not go
+        // through `preprocess_response_bytes`, so strip it here.
+        let (body, _) = encoding_rs::UTF_8.decode_with_bom_removal(&res.response);
+
+        if body.trim().is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            });
+        }
+
+        // The error body is the regular envelope: `messages` nested at the root, with
+        // an optional `transactionResponse` whose `errors[0]` takes precedence.
+        let response: transformers::AuthorizedotnetPaymentsResponse = body
+            .as_bytes()
+            .parse_struct("AuthorizedotnetPaymentsResponse")
+            .change_context(utils::response_deserialization_fail(
+                res.status_code,
+                "authorizedotnet: response body did not match the expected format; confirm API version and connector documentation.",
+            ))?;
 
         with_response_body!(event_builder, response);
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
 
+        let transaction_error = match response.transaction_response.as_ref() {
+            Some(transformers::TransactionResponse::AuthorizedotnetTransactionResponse(
+                transaction_response,
+            )) => transaction_response
+                .errors
+                .as_ref()
+                .and_then(|errors| errors.first())
+                .map(|error| (error.error_code.clone(), error.error_text.clone())),
+            Some(transformers::TransactionResponse::AuthorizedotnetTransactionResponseError(_))
+            | None => None,
+        };
+        let (code, message) = transaction_error
+            .or_else(|| {
+                response
+                    .messages
+                    .message
+                    .first()
+                    .map(|message| (message.code.clone(), message.text.clone()))
+            })
+            .unwrap_or_else(|| {
+                (
+                    consts::NO_ERROR_CODE.to_string(),
+                    consts::NO_ERROR_MESSAGE.to_string(),
+                )
+            });
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response
-                .message
-                .first()
-                .map(|m| m.code.clone())
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .message
-                .first()
-                .map(|m| m.text.clone())
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            code,
+            message: message.clone(),
+            reason: Some(message),
             attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,
@@ -464,7 +595,7 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: RepeatPayment,
-            request_body: AuthorizedotnetRepeatPaymentRequest,
+            request_body: AuthorizedotnetRepeatPaymentRequest<T>,
             response_body: AuthorizedotnetRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),

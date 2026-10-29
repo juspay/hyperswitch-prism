@@ -95,6 +95,12 @@ impl CardWithNoCvc {
         expand_expiry_year_to_four_digits(&self.card_exp_year)
     }
 
+    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        let month = self.get_card_expiry_month_2_digit()?;
+        Ok(Secret::new(format!("{}{}", year.peek(), month.peek())))
+    }
+
     pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?;
         let month = self.get_card_expiry_month_2_digit()?;
@@ -2025,13 +2031,17 @@ pub struct ReceiverDetails {
 #[serde(rename_all = "snake_case")]
 pub enum DocumentKind {
     /// Cadastro de Pessoas Físicas - the Brazilian individual taxpayer identifier.
+    #[serde(alias = "CPF", alias = "Cpf")]
     Cpf,
     /// Cadastro Nacional da Pessoa Jurídica - the Brazilian business identifier.
+    #[serde(alias = "CNPJ", alias = "Cnpj")]
     Cnpj,
     /// Philippine PhilSys Number (PSN) — a 12-digit national ID required by dLocal for GCash.
+    #[serde(alias = "PSN", alias = "Psn")]
     Psn,
     /// Generic / other non-Brazilian national document. Carried through as-is; the
     /// connector validates it per country. Kept last as the catch-all.
+    #[serde(alias = "OTHER", alias = "Other")]
     Other,
 }
 

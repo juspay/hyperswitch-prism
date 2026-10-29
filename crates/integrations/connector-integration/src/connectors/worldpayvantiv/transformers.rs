@@ -2542,16 +2542,15 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         if let Some(void_response) = item.response.void_response {
-            let status =
-                get_attempt_status(WorldpayvantivPaymentFlow::VoidPC, void_response.response)?;
+            let post_capture_void_status = get_post_capture_void_status(void_response.response);
 
-            if is_payment_failure(status) {
+            if post_capture_void_status.is_post_capture_void_failure() {
                 let error_response = ErrorResponse {
                     code: void_response.response.to_string(),
                     message: void_response.message.clone(),
                     reason: Some(void_response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Payment(status)),
+                    attempt_status: None,
                     connector_transaction_id: Some(void_response.cnp_txn_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2563,30 +2562,17 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 };
 
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status,
-                        ..item.router_data.resource_common_data
-                    },
                     response: Err(error_response),
                     ..item.router_data
                 })
             } else {
-                let post_capture_void_status = get_post_capture_void_status(void_response.response);
-                let description = post_capture_void_status
-                    .is_post_capture_void_failure()
-                    .then(|| void_response.message.clone());
                 let payments_response = PaymentsResponseData::PostCaptureVoidResponse {
                     post_capture_void_status,
                     connector_reference_id: Some(void_response.cnp_txn_id.clone()),
-                    description,
                     status_code: item.http_code,
                 };
 
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status,
-                        ..item.router_data.resource_common_data
-                    },
                     response: Ok(payments_response),
                     ..item.router_data
                 })

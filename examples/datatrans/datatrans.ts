@@ -27,8 +27,8 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
     return {
         "merchantTransactionId": "probe_txn_001",  // Identification.
         "amount": {  // The amount for the payment.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "paymentMethod": {  // Payment method to be used.
             "card": {  // Generic card payment.
@@ -54,8 +54,8 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
         "merchantCaptureId": "probe_capture_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amountToCapture": {  // Capture Details.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }
@@ -65,8 +65,8 @@ function _buildCreateClientAuthenticationTokenRequest(): types.IMerchantAuthenti
         "merchantClientSessionId": "probe_sdk_session_001",  // Infrastructure.
         "payment": {
             "amount": {
-                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                "minorAmount": 1000,
+                "currency": Currency.USD
             }
         }
     };
@@ -77,8 +77,8 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }
@@ -87,8 +87,8 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
     return {
         "merchantTransactionId": "probe_proxy_txn_001",
         "amount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "cardProxy": {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
             "cardNumber": {"value": "4111111111111111"},  // Card Identification.
@@ -112,8 +112,8 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
     return {
         "merchantRecurringPaymentId": "probe_proxy_mandate_001",
         "amount": {
-            "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 0,
+            "currency": Currency.USD
         },
         "cardProxy": {  // Card proxy for vault-aliased payments.
             "cardNumber": {"value": "4111111111111111"},  // Card Identification.
@@ -125,8 +125,8 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
         },
         "address": {
             "billingAddress": {
-                "firstName": {"value": "John"},  // Personal Information.
-                "email": {"value": "test@example.com"}  // Contact Information.
+                "firstName": {"value": "John"},
+                "email": {"value": "test@example.com"}
             }
         },
         "customerAcceptance": {
@@ -144,8 +144,8 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
         "connectorTransactionId": connectorTransactionId,
         "paymentAmount": 1000,  // Amount Information.
         "refundAmount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "reason": "customer_request"  // Reason for the refund.
     };
@@ -170,8 +170,8 @@ function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringReque
     return {
         "merchantRecurringPaymentId": "probe_mandate_001",  // Identification.
         "amount": {  // Mandate Details.
-            "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 0,
+            "currency": Currency.USD
         },
         "paymentMethod": {
             "card": {  // Generic card payment.
@@ -184,8 +184,8 @@ function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringReque
         },
         "address": {  // Address Information.
             "billingAddress": {
-                "firstName": {"value": "John"},  // Personal Information.
-                "email": {"value": "test@example.com"}  // Contact Information.
+                "firstName": {"value": "John"},
+                "email": {"value": "test@example.com"}
             }
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Type of authentication to be used.
@@ -204,8 +204,8 @@ function _buildTokenAuthorizeRequest(): types.IPaymentServiceTokenAuthorizeReque
     return {
         "merchantTransactionId": "probe_tokenized_txn_001",
         "amount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
         "address": {
@@ -221,14 +221,14 @@ function _buildTokenSetupRecurringRequest(): types.IPaymentServiceTokenSetupRecu
     return {
         "merchantRecurringPaymentId": "probe_tokenized_mandate_001",
         "amount": {
-            "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 0,
+            "currency": Currency.USD
         },
         "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},
         "address": {
             "billingAddress": {
-                "firstName": {"value": "John"},  // Personal Information.
-                "email": {"value": "test@example.com"}  // Contact Information.
+                "firstName": {"value": "John"},
+                "email": {"value": "test@example.com"}
             }
         },
         "customerAcceptance": {
@@ -245,8 +245,8 @@ function _buildTokenSetupRecurringRequest(): types.IPaymentServiceTokenSetupRecu
                     "amount": 0,  // Use amount_money instead (will be removed in a future release).
                     "currency": Currency.USD,  // Use amount_money.currency instead (will be removed in a future release).
                     "amountMoney": {  // Amount in Money type.
-                        "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
-                        "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                        "minorAmount": 0,
+                        "currency": Currency.USD
                     }
                 }
             }

@@ -651,14 +651,9 @@ fn plaid_account_to_bank_account(
 ) -> BankAccount {
     let currency = acct.balances.iso_currency_code.or(request_currency);
     let convert = |amount: Option<FloatMajorUnit>| {
-        amount.zip(currency).and_then(|(amt, c)| {
-            super::PlaidAmountConvertor::convert_back(amt, c)
-                .ok()
-                .map(|amount| common_utils::types::Money {
-                    amount,
-                    currency: c,
-                })
-        })
+        amount
+            .zip(currency)
+            .and_then(|(amt, c)| super::PlaidAmountConvertor::convert_back(amt, c).ok())
     };
     BankAccount {
         account_id: acct.account_id.clone(),
@@ -830,7 +825,7 @@ impl TryFrom<ResponseRouterData<PlaidBalanceGetResponse, Self>>
                 let comparable = acct.balances.available.or(acct.balances.current);
                 comparable
                     .and_then(|bal| super::PlaidAmountConvertor::convert_back(bal, currency).ok())
-                    .is_some_and(|balance_minor| balance_minor > request_amount)
+                    .is_some_and(|balance| balance.amount > request_amount)
             };
 
             // When the request pins a specific account (connector_payment_method_id

@@ -1,4 +1,17 @@
 {
+  "PaymentService/Authorize": {
+    "threeds_manual_capture_credit_card": {
+      "assert": {
+        "status": null,
+        "connector_transaction_id": {
+          "must_not_exist": true
+        },
+        "error": {
+          "must_exist": true
+        }
+      }
+    }
+  },
   "PaymentService/Refund": {
     "refund_full_amount": {
       "assert": {

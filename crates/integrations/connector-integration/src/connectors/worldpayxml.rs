@@ -2,6 +2,10 @@ pub(crate) mod requests;
 pub(crate) mod responses;
 pub mod transformers;
 
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::panic)]
+mod tests;
+
 use std::fmt::Debug;
 
 use base64::Engine;

@@ -43,6 +43,11 @@ pub enum CardNetworkLowercase {
     Prop,
     PrivateLabel,
     Dinacard,
+    AirPlus,
+    Aurore,
+    EftposAustralia,
+    GeCapital,
+    Uatp,
 }
 
 #[derive(Debug, Serialize)]

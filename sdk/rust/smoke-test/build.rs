@@ -188,6 +188,20 @@ fn load_supported_flows_from_probe(
     Some(supported)
 }
 
+/// SUPPORTED_FLOWS entries that are intentionally absent from `flows.json`.
+///
+/// `flows.json` is generated from `services.proto` and therefore only lists the
+/// canonical proto flow names. Composite scenario entries (a named multi-step
+/// example built on top of a proto flow) can never appear there, so they are
+/// allow-listed here instead of being flagged as drift by CHECK 3. Any new
+/// scenario name must be added to this list.
+const KNOWN_SCENARIOS: &[&str] = &[
+    "recurring_charge",
+    "dispute_accept",
+    "dispute_defend",
+    "dispute_submit_evidence",
+];
+
 fn main() {
     // Declare env-var dependencies so cargo reruns this script when they change.
     println!("cargo:rerun-if-env-changed=CONNECTORS");
@@ -209,10 +223,6 @@ fn main() {
     let manifest_data = load_flow_manifest(&repo_root);
     let manifest = &manifest_data.flows;
     let _flow_to_example_fn = &manifest_data.flow_to_example_fn; // Prefixed with underscore as it's no longer used in legacy mode
-    println!(
-        "cargo:warning=Loaded {} flows from flows.json",
-        manifest.len()
-    );
 
     // Flow metadata for gRPC dispatch via builder functions.
     let flow_meta: &[(&str, &str, &str, &str, bool, bool)] = &[
@@ -470,10 +480,12 @@ fn main() {
         // Note: We only warn about stale flows instead of panicking, since scenarios
         // (like checkout_card, void_payment) are valid SUPPORTED_FLOWS entries but
         // are not in the flow manifest - they represent composite scenarios rather
-        // than individual protocol flows.
+        // than individual protocol flows (see KNOWN_SCENARIOS).
         let stale: Vec<_> = declared
             .iter()
-            .filter(|flow| !manifest_set.contains(*flow))
+            .filter(|flow| {
+                !manifest_set.contains(*flow) && !KNOWN_SCENARIOS.contains(&flow.as_str())
+            })
             .cloned()
             .collect();
         if !stale.is_empty() {

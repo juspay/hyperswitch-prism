@@ -5,7 +5,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     pii,
     request::Method,
-    types::FloatMajorUnit,
+    types::{AmountConvertor, FloatMajorUnit},
 };
 use domain_types::{
     connector_flow::{Authorize, Capture},
@@ -353,10 +353,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 amount: item
                     .connector
                     .amount_converter
-                    .convert(
-                        item.router_data.request.amount.amount,
-                        item.router_data.request.currency,
-                    )
+                    .convert(&item.router_data.request.amount)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })
@@ -448,22 +445,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<XenditPaymentResponse, Self>>
+    TryFrom<ResponseRouterData<XenditPaymentResponse, XenditRouterData<Self, T>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<XenditPaymentResponse, Self>,
+        item: ResponseRouterData<XenditPaymentResponse, XenditRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
             http_code,
         } = item;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
         let status = map_payment_response_to_attempt_status(
             response.clone(),
             is_auto_capture(&router_data.request).change_context(
-                crate::utils::response_handling_fail_for_connector(item.http_code, "xendit"),
+                crate::utils::response_handling_fail_for_connector(http_code, "xendit"),
             )?,
         );
 
@@ -529,15 +528,14 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             })
         };
 
-        let response_amount =
-            XenditAmountConvertor::convert_back(response.amount, response.currency)
-                .change_context(crate::utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "xendit",
-                ))?;
+        let response_amount = connector
+            .convert_back(response.amount, response.currency)
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                http_code, "xendit",
+            ))?;
 
         let response_integrity_object = Some(AuthoriseIntegrityObject {
-            amount: response_amount,
+            amount: response_amount.amount,
             currency: response.currency,
         });
 
@@ -662,13 +660,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = XenditAmountConvertor::convert(
-            item.router_data.request.amount_to_capture.amount,
-            item.router_data.request.currency,
-        )
-        .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        })?;
+        let amount = XenditAmountConvertor::convert(&item.router_data.request.amount_to_capture)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             capture_amount: amount,
         })
@@ -772,13 +767,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = XenditAmountConvertor::convert(
-            item.router_data.request.refund_amount.amount,
-            item.router_data.request.currency,
-        )
-        .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        })?;
+        let amount = XenditAmountConvertor::convert(&item.router_data.request.refund_amount)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             amount: amount.to_owned(),
             payment_request_id: item.router_data.request.connector_transaction_id.clone(),
@@ -805,27 +797,31 @@ pub enum RefundStatus {
     Cancelled,
 }
 
-impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
+impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<RefundResponse, XenditRouterData<Self, T>>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<RefundResponse, XenditRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
             http_code,
         } = item;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
 
-        let response_amount =
-            XenditAmountConvertor::convert_back(response.amount, response.currency)
-                .change_context(crate::utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "xendit",
-                ))?;
+        let response_amount = connector
+            .convert_back(response.amount, response.currency)
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                http_code, "xendit",
+            ))?;
 
         let response_integrity_object = {
             Some(RefundIntegrityObject {
-                refund_amount: response_amount,
+                refund_amount: response_amount.amount,
                 currency: response.currency,
             })
         };

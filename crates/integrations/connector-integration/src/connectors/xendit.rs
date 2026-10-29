@@ -89,6 +89,7 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: XenditPaymentsRequest<T>,
             response_body: XenditPaymentResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
@@ -106,6 +107,7 @@ macros::create_all_prerequisites!(
             flow: Refund,
             request_body: XenditRefundRequest,
             response_body: RefundResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ),
         (

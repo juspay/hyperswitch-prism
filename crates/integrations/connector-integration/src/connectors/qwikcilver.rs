@@ -148,23 +148,27 @@ macros::create_all_prerequisites!(
             flow: Recharge,
             request_body: QwikcilverRechargeRequest,
             response_body: QwikcilverRechargeResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
         ),
         (
             flow: CreatePaymentMethod,
             request_body: QwikcilverCreateWalletRequest,
             response_body: QwikcilverWalletEnvelope,
+            response_router_data: connector,
             router_data: RouterDataV2<CreatePaymentMethod, PaymentFlowData, CreatePaymentMethodData, CreatePaymentMethodResponseData>,
         ),
         (
             flow: GetPaymentMethod,
             request_body: QwikcilverEmptyBody,
             response_body: QwikcilverGetWalletResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<GetPaymentMethod, PaymentFlowData, GetPaymentMethodData, GetPaymentMethodResponseData>,
         ),
         (
             flow: PaymentMethodEligibility,
             response_body: QwikcilverEligibilityResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PaymentMethodEligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
         )
     ],

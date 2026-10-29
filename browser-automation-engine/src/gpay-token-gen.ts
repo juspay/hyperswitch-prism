@@ -13,7 +13,7 @@
  *   5. Click the Google Pay button on the main page
  *   6. The GPay popup opens at pay.google.com — Playwright catches it
  *   7. Attempt automated card selection + Pay/Continue button click inside popup
- *      (with screenshot-based discovery fallback if selectors miss)
+ *      (using DOM selectors)
  *   8. Poll the main page for window.__gpayDone / window.__gpayResult
  *   9. Extract and output the PaymentData / token
  *
@@ -49,7 +49,6 @@ interface CliOptions {
   /** Index of the credentials entry to use when creds.json has multiple entries (default: 0) */
   credsIndex: number;
   outputPath?: string;
-  screenshotDir?: string;
   headed: boolean;
   profileDir?: string;
   /** Total timeout (ms) to wait for the full GPay flow to complete */
@@ -86,7 +85,6 @@ function printUsage(): void {
     "  --headed                Run browser with visible UI (default)",
     "  --headless              Run browser without UI",
     "  --output <path>         Write full PaymentData JSON to file",
-    "  --screenshots <dir>     Directory to save debug screenshots (default: gpay/screenshots)",
     "  --profile <path>        Browser profile dir for persistent Google login",
     "                          (default: gpay/.webkit-profile)",
     "  --timeout <ms>          Total flow timeout in ms (default: 120000)",
@@ -109,7 +107,6 @@ function parseCliOptions(argv: string[]): CliOptions {
   let connector: string | undefined;
   let credsIndex = 0;
   let outputPath: string | undefined;
-  let screenshotDir: string | undefined;
   let headed = true;
   let profileDir: string | undefined;
   let timeout = 120_000;
@@ -138,11 +135,6 @@ function parseCliOptions(argv: string[]): CliOptions {
       if (!outputPath || outputPath.startsWith("--")) throw new Error("--output requires a file path");
       continue;
     }
-    if (arg === "--screenshots") {
-      screenshotDir = argv[++i];
-      if (!screenshotDir || screenshotDir.startsWith("--")) throw new Error("--screenshots requires a directory path");
-      continue;
-    }
     if (arg === "--headed") { headed = true; continue; }
     if (arg === "--headless") { headed = false; continue; }
     if (arg === "--profile") {
@@ -169,7 +161,7 @@ function parseCliOptions(argv: string[]): CliOptions {
     throw new Error("--connector is required. Usage: npm run gpay -- --connector <name>\nRun --help for full usage.");
   }
 
-  return { connector, credsIndex, outputPath, screenshotDir, headed, profileDir, timeout, popupTimeout, pretty };
+  return { connector, credsIndex, outputPath, headed, profileDir, timeout, popupTimeout, pretty };
 }
 
 /** Reads required env vars, throws a descriptive error if any are missing. */
@@ -327,14 +319,6 @@ function buildQueryParams(config: GPayConfig): string {
   return params.toString();
 }
 
-// ── Screenshot helper ─────────────────────────────────────────────────────────
-
-async function screenshot(page: Page, dir: string, name: string): Promise<void> {
-  await fs.mkdir(dir, { recursive: true });
-  const p = path.join(dir, `${name}-${Date.now()}.png`);
-  await page.screenshot({ path: p, fullPage: true }).catch(() => undefined);
-  console.log(`[gpay] Screenshot: ${p}`);
-}
 
 // ── Google Pay popup automation ───────────────────────────────────────────────
 
@@ -385,13 +369,11 @@ const PAY_BUTTON_SELECTORS = [
 /**
  * Attempt to automate the Google Pay popup:
  * 1. Wait for popup to fully load
- * 2. Take a discovery screenshot
- * 3. Try to select the first test card
- * 4. Try to click the Pay/Continue button
+ * 2. Try to select the first test card
+ * 3. Try to click the Pay/Continue button
  */
 async function automateGPayPopup(
   popup: Page,
-  screenshotDir: string,
   timeoutMs: number
 ): Promise<void> {
   console.log(`[gpay] Popup URL: ${popup.url()}`);
@@ -446,7 +428,6 @@ async function automateGPayPopup(
     console.log("[gpay] buyflow2 iframe did not become ready within 30s — proceeding anyway");
   }
 
-  await screenshot(popup, screenshotDir, "gpay-popup-initial");
 
   // ── Dump text from ALL frames (main + iframes) for debugging ─────────────
   const allText = await (async () => {
@@ -479,7 +460,6 @@ async function automateGPayPopup(
       );
       console.log("[gpay] Sign-in complete. Waiting for payment sheet...");
       await popup.waitForTimeout(4000);
-      await screenshot(popup, screenshotDir, "gpay-popup-after-signin");
     } catch {
       throw new Error("Timed out waiting for Google sign-in (5 min). Run with --headed and sign in.");
     }
@@ -644,7 +624,6 @@ async function automateGPayPopup(
   // card picker detail view (wrong direction) and collapses the Pay button.
   console.log("[gpay] Step 1: Attempting Pay click before card selection (card may be pre-selected)...");
   await popup.waitForTimeout(1500); // let animations settle after iframe load
-  await screenshot(popup, screenshotDir, "gpay-popup-before-pay");
 
   let payClicked = await tryClickPayButton();
 
@@ -674,7 +653,6 @@ async function automateGPayPopup(
           }
           await popup.waitForTimeout(500);
         }
-        await screenshot(popup, screenshotDir, "gpay-popup-after-card-select");
         break;
       }
     }
@@ -722,9 +700,7 @@ async function automateGPayPopup(
     await popup.waitForEvent("close", { timeout: 30_000 });
     console.log("[gpay] Popup closed — payment submitted");
   } catch {
-    // Popup didn't close — take a screenshot to see current state
-    console.log("[gpay] Popup did not close within 30s — taking screenshot");
-    await screenshot(popup, screenshotDir, "gpay-popup-after-pay").catch(() => undefined);
+    console.log("[gpay] Popup did not close within 30s");
   }
 }
 
@@ -753,7 +729,6 @@ async function main(): Promise<void> {
 
   const gpayDir = path.resolve(__dirname, "..", "gpay");
   const defaultProfileDir = path.join(gpayDir, ".webkit-profile");
-  const defaultScreenshotDir = path.join(gpayDir, "screenshots");
 
   const credsFullPath = path.resolve(credsPath);
 
@@ -764,7 +739,6 @@ async function main(): Promise<void> {
     : envProfileDir
       ? path.resolve(envProfileDir)
       : defaultProfileDir;
-  const screenshotDir = options.screenshotDir ? path.resolve(options.screenshotDir) : defaultScreenshotDir;
 
   console.log(`[gpay] Connector:          ${options.connector}`);
   console.log(`[gpay] Creds file:         ${credsFullPath}`);
@@ -778,14 +752,12 @@ async function main(): Promise<void> {
   console.log(`[gpay] Amount:             ${config.amount ?? "10.00"} ${config.currency ?? "USD"}`);
   console.log(`[gpay] Browser:            WebKit (Safari engine)`);
   console.log(`[gpay] Profile dir:        ${profileDir}`);
-  console.log(`[gpay] Screenshot dir:     ${screenshotDir}`);
   console.log(`[gpay] Headed:             ${options.headed}`);
   console.log(`[gpay] Flow timeout:       ${options.timeout}ms`);
   console.log(`[gpay] Hosted URL:         ${hostedUrl}`);
   console.log();
 
   await fs.mkdir(profileDir, { recursive: true });
-  await fs.mkdir(screenshotDir, { recursive: true });
 
   const queryParams = buildQueryParams(config);
 
@@ -872,7 +844,6 @@ async function main(): Promise<void> {
 
     console.log("[gpay] Navigating to Google Pay page...");
     await page.goto(pageUrl, { waitUntil: "networkidle", timeout: 30_000 });
-    await screenshot(page, screenshotDir, "main-page-loaded");
 
     // Wait for the Google Pay button to render (or status to show an error)
     console.log("[gpay] Waiting for Google Pay button...");
@@ -922,7 +893,6 @@ async function main(): Promise<void> {
     }
 
     await page.waitForTimeout(1500);
-    await screenshot(page, screenshotDir, "main-page-button-ready");
 
     // Log what's in the container for debug
     const containerHtml = await page.evaluate(
@@ -983,7 +953,7 @@ async function main(): Promise<void> {
         throw new Error(
           `Google Pay popup did not open within ${options.popupTimeout}ms. ` +
           `This usually means: (1) you are not signed into Google in WebKit (run once with --headed ` +
-          `to sign in), or (2) pay.js failed to initialize. Check screenshot: ${screenshotDir}`
+          `to sign in), or (2) pay.js failed to initialize. Inspect the browser status and retry`
         );
       }
       popup = null as unknown as Page;
@@ -991,7 +961,7 @@ async function main(): Promise<void> {
 
     // ── Automate the popup if it opened ──────────────────────────────────────
     if (popup) {
-      await automateGPayPopup(popup, screenshotDir, options.timeout);
+      await automateGPayPopup(popup, options.timeout);
     }
 
     // ── Wait for the result on the main page ──────────────────────────────────

@@ -58,8 +58,8 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         merchant_transaction_id: Some("probe_txn_001".to_string()), // Identification.
         amount: Some(Money {
             // The amount for the payment.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         payment_method: Some(PaymentMethod {
             // Payment method to be used.
@@ -80,14 +80,14 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         ), // Method for capturing the payment.
         customer: Some(Customer {
             // Customer Information.
-            email: Some(Secret::new("test@example.com".to_string())), // Customer's email address.
+            email: Some(Secret::new("test@example.com".to_string())),
             ..Default::default()
         }),
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
-                first_name: Some(Secret::new("John".to_string())), // Personal Information.
-                line1: Some(Secret::new("123 Main St".to_string())), // Address Details.
+                first_name: Some(Secret::new("John".to_string())),
+                line1: Some(Secret::new("123 Main St".to_string())),
                 city: Some(Secret::new("Seattle".to_string())),
                 zip_code: Some(Secret::new("98101".to_string())),
                 country_alpha2_code: Some(CountryAlpha2::Us.into()),
@@ -121,8 +121,8 @@ pub fn build_create_order_request() -> PaymentServiceCreateOrderRequest {
         merchant_order_id: Some("probe_order_001".to_string()), // Identification.
         amount: Some(Money {
             // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         state: Some(ConnectorState {
             // State Information.
@@ -151,8 +151,8 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
         connector_transaction_id: connector_transaction_id.to_string(),
         amount: Some(Money {
             // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         state: Some(ConnectorState {
             // State Information.
@@ -199,8 +199,8 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
     PaymentServiceProxyAuthorizeRequest {
         merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
         amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         card_proxy: Some(ProxyCardDetails {
             // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
@@ -213,13 +213,13 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
             ..Default::default()
         }),
         customer: Some(Customer {
-            email: Some(Secret::new("test@example.com".to_string())), // Customer's email address.
+            email: Some(Secret::new("test@example.com".to_string())),
             ..Default::default()
         }),
         address: Some(PaymentAddress {
             billing_address: Some(Address {
-                first_name: Some(Secret::new("John".to_string())), // Personal Information.
-                line1: Some(Secret::new("123 Main St".to_string())), // Address Details.
+                first_name: Some(Secret::new("John".to_string())),
+                line1: Some(Secret::new("123 Main St".to_string())),
                 city: Some(Secret::new("Seattle".to_string())),
                 zip_code: Some(Secret::new("98101".to_string())),
                 country_alpha2_code: Some(CountryAlpha2::Us.into()),
@@ -257,8 +257,8 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
         }),
         amount: Some(Money {
             // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         payment_method: Some(PaymentMethod {
             // Optional payment Method Information (for network transaction flows).
@@ -294,8 +294,8 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
         connector_transaction_id: connector_transaction_id.to_string(),
         payment_amount: 1000, // Amount Information.
         refund_amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         reason: Some("customer_request".to_string()), // Reason for the refund.
         state: Some(ConnectorState {

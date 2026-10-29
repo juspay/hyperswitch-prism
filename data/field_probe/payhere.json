@@ -528,14 +528,14 @@
     },
     "refund": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: refund flow for payhere"
+        "status": "error",
+        "error": "Stuck on field: access_token) — Failed to obtain authentication type. payhere: Refund needs an access token from CreateServerAuthenticationToken (Missing required field: access_token)"
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: refund_sync flow for payhere"
+        "status": "error",
+        "error": "Stuck on field: access_token) — Failed to obtain authentication type. payhere: RSync needs an access token from CreateServerAuthenticationToken (Missing required field: access_token)"
       }
     },
     "reverse": {
