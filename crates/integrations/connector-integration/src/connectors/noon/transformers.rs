@@ -470,6 +470,8 @@ pub(crate) fn build_noon_payment_data<
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
+            | WalletData::SatispayIntent(_)
+            | WalletData::SatispayQr(_)
             | WalletData::Wero(_)
             | WalletData::LazyPayRedirect(_)
             | WalletData::PhonePeRedirect(_)

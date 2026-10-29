@@ -343,6 +343,8 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
+            | WalletData::SatispayIntent(_)
+            | WalletData::SatispayQr(_)
             | WalletData::Wero(_)
             | WalletData::PaymayaRedirect(_)
             | WalletData::PayhereRedirect {}

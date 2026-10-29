@@ -1276,6 +1276,8 @@ fn get_payment_source<
             },
         })),
         BankRedirectData::BancontactCard { .. }
+        | BankRedirectData::BancontactIntent { .. }
+        | BankRedirectData::BancontactQr { .. }
         | BankRedirectData::Blik { .. }
         | BankRedirectData::Przelewy24 { .. } => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -1607,6 +1609,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::Paze(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
+                | WalletData::SatispayIntent(_)
+                | WalletData::SatispayQr(_)
                 | WalletData::Wero(_)
                 | WalletData::LazyPayRedirect(_)
                 | WalletData::PhonePeRedirect(_)
