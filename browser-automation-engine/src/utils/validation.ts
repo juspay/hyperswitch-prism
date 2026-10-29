@@ -3,18 +3,33 @@ import type {
   AssertTextRule,
   AssertVisibleRule,
   ClickRule,
-  EvaluateRule,
+  InitializeCashfreeSandboxRule,
   ExtractAllRule,
   ExtractRule,
   FillRule,
   GotoRule,
   PressRule,
   Rule,
-  ScreenshotRule,
   WaitForRule
 } from "../types/dsl";
 
 export class RequestValidationError extends Error {}
+
+export const MAX_INPUT_BYTES = 1_048_576;
+
+/** Navigation input is a destination, never a local file or browser command. */
+export function navigationUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new RequestValidationError("Navigation requires an absolute HTTP(S) URL");
+  }
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
+    throw new RequestValidationError("Only HTTP(S) URLs without embedded credentials are allowed");
+  }
+  return url.href;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -52,8 +67,8 @@ function optionalNumber(
   if (value === undefined) {
     return undefined;
   }
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    throw new RequestValidationError(`${path}.${key} must be a positive number`);
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0 || value > 90_000) {
+    throw new RequestValidationError(`${path}.${key} must be a positive number up to 90000`);
   }
   return value;
 }
@@ -112,7 +127,7 @@ function parseRule(rawRule: unknown, index: number): Rule {
 
       const rule: GotoRule = {
         action: "goto",
-        url: optionalString(rawRule, "url", path),
+        url: rawRule.url === undefined ? undefined : navigationUrl(requiredString(rawRule, "url", path)),
         waitUntil: waitUntil as GotoRule["waitUntil"],
         timeoutMs: optionalNumber(rawRule, "timeoutMs", path)
       };
@@ -233,22 +248,9 @@ function parseRule(rawRule: unknown, index: number): Rule {
       return rule;
     }
 
-    case "screenshot": {
-      const rule: ScreenshotRule = {
-        action: "screenshot",
-        path: optionalString(rawRule, "path", path),
-        as: optionalString(rawRule, "as", path),
-        fullPage: optionalBoolean(rawRule, "fullPage", path),
-        timeoutMs: optionalNumber(rawRule, "timeoutMs", path)
-      };
-      return rule;
-    }
-
-    case "evaluate": {
-      const rule: EvaluateRule = {
-        action: "evaluate",
-        expression: requiredString(rawRule, "expression", path),
-        as: optionalString(rawRule, "as", path),
+    case "initializeCashfreeSandbox": {
+      const rule: InitializeCashfreeSandboxRule = {
+        action: "initializeCashfreeSandbox",
         timeoutMs: optionalNumber(rawRule, "timeoutMs", path)
       };
       return rule;
@@ -268,6 +270,20 @@ function parseOptions(raw: unknown): RunOptions | undefined {
     throw new RequestValidationError("options must be an object");
   }
 
+  if (Object.keys(raw).some(key => ![
+    "headless", "slowMoMs", "defaultTimeoutMs", "navigationTimeoutMs", "viewport"
+  ].includes(key))) {
+    throw new RequestValidationError("Unsupported browser option");
+  }
+  if (raw.headless === false) {
+    throw new RequestValidationError("The isolated worker only supports headless execution");
+  }
+  for (const key of ["defaultTimeoutMs", "navigationTimeoutMs", "slowMoMs"]) {
+    if (typeof raw[key] === "number" && raw[key] > 90_000) {
+      throw new RequestValidationError("Browser timeouts and delays cannot exceed 90000 ms");
+    }
+  }
+
   let viewport: RunOptions["viewport"];
   if (raw.viewport !== undefined) {
     if (!isRecord(raw.viewport)) {
@@ -276,11 +292,13 @@ function parseOptions(raw: unknown): RunOptions | undefined {
 
     const width = raw.viewport.width;
     const height = raw.viewport.height;
-    if (typeof width !== "number" || typeof height !== "number") {
-      throw new RequestValidationError("options.viewport.width and height must be numbers");
+    if (!Number.isInteger(width) || !Number.isInteger(height) ||
+        (width as number) < 1 || (height as number) < 1 ||
+        (width as number) > 1920 || (height as number) > 1080) {
+      throw new RequestValidationError("Viewport must be positive integers up to 1920 x 1080");
     }
 
-    viewport = { width, height };
+    viewport = { width: width as number, height: height as number };
   }
 
   return {
@@ -288,7 +306,6 @@ function parseOptions(raw: unknown): RunOptions | undefined {
     slowMoMs: optionalNonNegativeNumber(raw, "slowMoMs", "options"),
     defaultTimeoutMs: optionalNumber(raw, "defaultTimeoutMs", "options"),
     navigationTimeoutMs: optionalNumber(raw, "navigationTimeoutMs", "options"),
-    screenshotDir: optionalString(raw, "screenshotDir", "options"),
     viewport
   };
 }
@@ -298,17 +315,31 @@ export function parseRunRequest(body: unknown): RunRequest {
     throw new RequestValidationError("body must be an object");
   }
 
-  const url = requiredString(body, "url", "body");
+  if (Object.keys(body).some(key => !["url", "rules", "options", "formFields", "callbackUrl"].includes(key))) {
+    throw new RequestValidationError("Unsupported job field");
+  }
+  const url = navigationUrl(requiredString(body, "url", "body"));
 
   const rulesRaw = body.rules;
-  if (!Array.isArray(rulesRaw)) {
-    throw new RequestValidationError("body.rules must be an array");
+  if (!Array.isArray(rulesRaw) || rulesRaw.length > 100) {
+    throw new RequestValidationError("body.rules must be an array of at most 100 rules");
+  }
+
+  let formFields: Record<string, string> | undefined;
+  if (body.formFields !== undefined) {
+    if (!isRecord(body.formFields) || Object.keys(body.formFields).length > 100 ||
+        Object.values(body.formFields).some(value => typeof value !== "string")) {
+      throw new RequestValidationError("formFields must contain at most 100 string fields");
+    }
+    formFields = body.formFields as Record<string, string>;
   }
 
   const rules = rulesRaw.map((rule, index) => parseRule(rule, index));
 
   return {
     url,
+    formFields,
+    callbackUrl: body.callbackUrl === undefined ? undefined : navigationUrl(requiredString(body, "callbackUrl", "body")),
     rules,
     options: parseOptions(body.options)
   };

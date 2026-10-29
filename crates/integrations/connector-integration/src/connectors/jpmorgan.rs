@@ -59,7 +59,6 @@ pub(crate) mod headers {
 pub trait JpmorganResourceData {
     fn access_token(&self) -> Option<&ServerAuthenticationTokenResponseData>;
     fn connector_request_reference_id(&self) -> String;
-    fn merchant_id(&self) -> &common_utils::id_type::MerchantId;
     fn connectors(&self) -> &Connectors;
 }
 
@@ -70,10 +69,6 @@ impl JpmorganResourceData for PaymentFlowData {
 
     fn connector_request_reference_id(&self) -> String {
         self.connector_request_reference_id.clone()
-    }
-
-    fn merchant_id(&self) -> &common_utils::id_type::MerchantId {
-        &self.merchant_id
     }
 
     fn connectors(&self) -> &Connectors {
@@ -88,10 +83,6 @@ impl JpmorganResourceData for RefundFlowData {
 
     fn connector_request_reference_id(&self) -> String {
         self.connector_request_reference_id.clone()
-    }
-
-    fn merchant_id(&self) -> &common_utils::id_type::MerchantId {
-        &self.merchant_id
     }
 
     fn connectors(&self) -> &Connectors {
@@ -143,6 +134,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Jpmorgan<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        JpmorganSyncResource::from_request(data).map(|_| ())
+    }
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
         true
     }
@@ -289,6 +287,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, ResourceData, Req, Res>(
             &self,
             req: &RouterDataV2<F, ResourceData, Req, Res>,
+            currency: Option<common_enums::Currency>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, ResourceData, Req, Res>,
@@ -319,9 +318,15 @@ macros::create_all_prerequisites!(
             );
 
             // Merchant-Id header
+            let currency = currency.ok_or(IntegrationError::MissingRequiredField {
+                field_name: "currency",
+                context: Default::default(),
+            })?;
+            let merchant_id = jpmorgan::JpmorganAuthType::try_from(&req.connector_config)?
+                .merchant_id_for_currency(currency)?;
             let merchant_id_header = (
                 headers::MERCHANT_ID.to_string(),
-                req.resource_common_data.merchant_id().get_string_repr().to_string().into_masked(), // to be fixed - [hyperswitch-cloud - #24029]
+                merchant_id.peek().to_string().into_masked(),
             );
 
             headers.push(auth_header);
@@ -424,7 +429,10 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            let currency = req.request.amount.as_ref()
+                .map(|money| money.currency)
+                .ok_or_else(domain_types::utils::missing_field_err("amount.currency"))?;
+            self.build_headers(req, Some(currency))
         }
         fn get_url(
             &self,
@@ -519,7 +527,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(req, Some(req.request.currency))
         }
         fn get_url(
             &self,
@@ -546,16 +554,13 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(req, Some(req.request.currency))
         }
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let transaction_id = req.request.connector_transaction_id
-                .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
-            Ok(format!("{}/payments/{}", self.connector_base_url(req), transaction_id))
+            Ok(JpmorganSyncResource::from_request(&req.request)?.url(self.connector_base_url(req)))
         }
     }
 );
@@ -577,7 +582,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(req, Some(req.request.currency))
         }
         fn get_url(
             &self,
@@ -608,7 +613,9 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            let currency = req.request.currency
+                .ok_or_else(domain_types::utils::missing_field_err("amount.currency"))?;
+            self.build_headers(req, Some(currency))
         }
         fn get_url(
             &self,
@@ -636,7 +643,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(req, Some(req.request.currency))
         }
         fn get_url(
             &self,
@@ -663,7 +670,10 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            let currency = req.request.refund_money.as_ref()
+                .map(|money| money.currency)
+                .ok_or_else(domain_types::utils::missing_field_err("refund_amount.currency"))?;
+            self.build_headers(req, Some(currency))
         }
         fn get_url(
             &self,
@@ -692,13 +702,13 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(req, Some(req.request.currency))
         }
         fn get_url(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/payments", self.connector_base_url(req)))
+            Ok(format!("{}/verifications", self.connector_base_url(req)))
         }
     }
 );
@@ -720,7 +730,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(req, Some(req.request.currency))
         }
         fn get_url(
             &self,

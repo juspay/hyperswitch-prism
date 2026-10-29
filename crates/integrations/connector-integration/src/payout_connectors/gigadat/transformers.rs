@@ -293,7 +293,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request.amount, request.destination_currency)
+            .convert(&common_utils::types::Money {
+                amount: request.amount,
+                currency: request.destination_currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(

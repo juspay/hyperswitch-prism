@@ -314,16 +314,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .payment_id
             .ok_or_else(|| report!(WebhookError::WebhookReferenceIdNotFound))?;
 
-        let minor_units = domain_types::utils::convert_back_amount_to_minor_units_for_webhook(
+        let money = domain_types::utils::convert_back_amount_to_money_for_webhook(
             &FloatMajorUnitForConnector,
             payment_info.amount.amount,
             payment_info.amount.currency,
         )?;
-        let amount = domain_types::utils::convert_amount_for_webhook(
-            &StringMinorUnitForConnector,
-            minor_units,
-            payment_info.amount.currency,
-        )?;
+        let amount =
+            domain_types::utils::convert_amount_for_webhook(&StringMinorUnitForConnector, &money)?;
 
         Ok(
             domain_types::connector_types::DisputeWebhookDetailsResponse {

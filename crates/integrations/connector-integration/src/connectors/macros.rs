@@ -1699,23 +1699,21 @@ macro_rules! create_amount_converter_wrapper {
 
             impl [<$connector_name AmountConvertor>] {
                 pub fn convert(
-                    amount: common_utils::types::MinorUnit,
-                    currency: common_enums::Currency,
+                    money: &common_utils::types::Money,
                 ) -> Result<
                     common_utils::types::$amount_type,
                     error_stack::Report<domain_types::errors::IntegrationError>,
                 > {
                     domain_types::utils::convert_amount(
                         &common_utils::types::[<$amount_type ForConnector>],
-                        amount,
-                        currency,
+                        money,
                     ).change_context(domain_types::errors::IntegrationError::InvalidDataFormat {
                         field_name: "amount",
                         context: Default::default()
                   })
                 }
 
-                /// Convert connector amount back to MinorUnit.
+                /// Convert connector amount back to domain Money.
                 ///
                 /// Returns generic ParsingError - caller should change_context appropriately:
                 /// ```ignore
@@ -1726,10 +1724,10 @@ macro_rules! create_amount_converter_wrapper {
                     amount: common_utils::types::$amount_type,
                     currency: common_enums::Currency,
                 ) -> Result<
-                    common_utils::types::MinorUnit,
+                    common_utils::types::Money,
                     error_stack::Report<common_utils::errors::ParsingError>,
                 > {
-                    domain_types::utils::convert_back_amount_to_minor_units(
+                    domain_types::utils::convert_back_amount_to_money(
                         &common_utils::types::[<$amount_type ForConnector>],
                         amount,
                         currency,
@@ -1749,16 +1747,14 @@ macro_rules! create_amount_converter_wrapper {
 
                 fn convert(
                     &self,
-                    amount: common_utils::types::MinorUnit,
-                    currency: common_enums::Currency,
+                    money: &common_utils::types::Money,
                 ) -> Result<
                     Self::Output,
                     error_stack::Report<common_utils::errors::ParsingError>,
                 > {
                     <common_utils::types::[<$amount_type ForConnector>] as common_utils::types::AmountConvertor>::convert(
                         &common_utils::types::[<$amount_type ForConnector>],
-                        amount,
-                        currency,
+                        money,
                     )
                 }
 
@@ -1767,7 +1763,7 @@ macro_rules! create_amount_converter_wrapper {
                     amount: Self::Output,
                     currency: common_enums::Currency,
                 ) -> Result<
-                    common_utils::types::MinorUnit,
+                    common_utils::types::Money,
                     error_stack::Report<common_utils::errors::ParsingError>,
                 > {
                     <common_utils::types::[<$amount_type ForConnector>] as common_utils::types::AmountConvertor>::convert_back(

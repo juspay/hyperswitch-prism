@@ -89,11 +89,11 @@ typealias CustomerServiceCreateResponse = types.Payment.CustomerServiceCreateRes
 // ---------------------------------------------------------------------------
 // Data types
 // ---------------------------------------------------------------------------
-typealias Money = types.Payment.Money
+typealias Money = types.CommonTypes.Money
 typealias ErrorInfo = types.Payment.ErrorInfo
-typealias Customer = types.Payment.Customer
+typealias Customer = types.CommonTypes.Customer
 typealias PaymentAddress = types.Payment.PaymentAddress
-typealias Address = types.Payment.Address
+typealias Address = types.CommonTypes.Address
 typealias Identifier = types.Payment.Identifier
 typealias ConnectorState = types.Payment.ConnectorState
 typealias AccessToken = types.Payment.AccessToken
@@ -110,10 +110,10 @@ typealias ConnectorSpecificConfig = types.Payment.ConnectorSpecificConfig
 // ---------------------------------------------------------------------------
 // Enums
 // ---------------------------------------------------------------------------
-typealias Currency = types.Payment.Currency
+typealias Currency = types.CommonTypes.Currency
 typealias CaptureMethod = types.Payment.CaptureMethod
 typealias AuthenticationType = types.Payment.AuthenticationType
-typealias DocumentKind = types.Payment.DocumentKind
+typealias DocumentKind = types.CommonTypes.DocumentKind
 typealias PaymentMethodType = types.Payment.PaymentMethodType
 typealias PaymentStatus = types.Payment.PaymentStatus
 typealias RefundStatus = types.Payment.RefundStatus

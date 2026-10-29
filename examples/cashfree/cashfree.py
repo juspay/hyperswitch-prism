@@ -9,7 +9,7 @@ import asyncio
 import sys
 from payments import PaymentClient
 from payments import RefundClient
-from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
+from payments.generated import common_types_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
 SUPPORTED_FLOWS = ["capture", "create_order", "get", "refund", "refund_get", "void"]
 
@@ -31,9 +31,9 @@ def _build_capture_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceCaptureRequest(
         merchant_capture_id="probe_capture_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
-        amount_to_capture=payment_pb2.Money(  # Capture Details.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount_to_capture=common_types_pb2.Money(  # Capture Details.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         merchant_order_id="probe_order_001",  # Additional Context.
     )
@@ -41,9 +41,9 @@ def _build_capture_request(connector_transaction_id: str):
 def _build_create_order_request():
     return payment_pb2.PaymentServiceCreateOrderRequest(
         merchant_order_id="probe_order_001",  # Identification.
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
     )
 
@@ -51,9 +51,9 @@ def _build_get_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceGetRequest(
         merchant_transaction_id="probe_merchant_txn_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
     )
 
@@ -62,9 +62,9 @@ def _build_refund_request(connector_transaction_id: str):
         merchant_refund_id="probe_refund_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
         payment_amount=1000,  # Amount Information.
-        refund_amount=payment_pb2.Money(
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        refund_amount=common_types_pb2.Money(
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         reason="customer_request",  # Reason for the refund.
     )

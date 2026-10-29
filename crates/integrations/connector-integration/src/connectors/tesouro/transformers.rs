@@ -644,10 +644,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let amount = TesouroAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = TesouroAmountConvertor::convert(&router_data.request.amount)?;
 
         Ok(Self {
             query: tesouro_queries::AUTHORIZE_TRANSACTION.to_string(),
@@ -934,10 +931,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }),
         );
 
-        let amount = TesouroAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = TesouroAmountConvertor::convert(&router_data.request.amount)?;
 
         Ok(Self {
             query: tesouro_queries::AUTHORIZE_RECURRING.to_string(),

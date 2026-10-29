@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_enums::{AttemptStatus, CountryAlpha2, Currency, RefundStatus};
+use common_enums::{AttemptStatus, CountryAlpha2, Currency, PostCaptureVoidStatus, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::jose::JoseConfig,
@@ -236,8 +236,10 @@ impl PacoTransactionAmount {
         let amount_text = format!("{raw:0>12}");
         let amount = <FloatMajorUnitForConnector as common_utils::types::AmountConvertor>::convert(
             &FloatMajorUnitForConnector,
-            minor_amount,
-            currency,
+            &common_utils::types::Money {
+                amount: minor_amount,
+                currency,
+            },
         )
         .map_err(|err| errors::IntegrationError::InvalidDataFormat {
             field_name: "amount",
@@ -1548,6 +1550,18 @@ pub struct PacoPaymentStatusInfo {
     pub payment_step: PacoPaymentStep,
 }
 
+/// Returns the void outcome: `Succeeded` for a voided payment at the VD step, `Failed` for a
+/// failure at any step; `None` means PACO has not reported a final void status yet.
+pub(super) fn map_post_capture_void_status(
+    info: &PacoPaymentStatusInfo,
+) -> Option<PostCaptureVoidStatus> {
+    match (&info.payment_status, &info.payment_step) {
+        (PacoPaymentStatus::V, PacoPaymentStep::VD) => Some(PostCaptureVoidStatus::Succeeded),
+        (PacoPaymentStatus::F, _) => Some(PostCaptureVoidStatus::Failed),
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PacoPriorPaymentResponseDetails {
@@ -1929,62 +1943,54 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
         } = item;
         let result = response.flat_data_block();
         let api_response = response.api_response.clone();
-        let (status, txn_id, ref_id, prior) =
-            extract_status(result.as_ref(), AttemptStatus::VoidInitiated);
+        let prior = result
+            .as_ref()
+            .and_then(|block| block.prior_payment_response_details.clone());
 
-        if matches!(status, AttemptStatus::Failure) {
+        // The void outcome comes straight from PACO's paymentStatus/paymentStep;
+        // the payment's attempt status is left untouched.
+        let post_capture_void_status = result
+            .as_ref()
+            .and_then(|block| block.payment_status_info.as_ref())
+            .and_then(map_post_capture_void_status)
+            .unwrap_or(PostCaptureVoidStatus::Pending);
+        let connector_reference_id = result
+            .as_ref()
+            .and_then(|block| block.invoice_no2c2p.clone().or(block.order_no.clone()));
+        let raw_connector_status = raw_connector_status_from_paco(&api_response, &prior);
+
+        let void_response = if post_capture_void_status.is_post_capture_void_failure() {
             let (code, message) = error_code_message(&api_response, &prior);
-            let error = ErrorResponse {
+            Err(ErrorResponse {
                 code,
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: Some(FlowStatus::Payment(status)),
-                connector_transaction_id: txn_id,
-                network_advice_code: None,
+                attempt_status: None,
+                connector_transaction_id: connector_reference_id,
                 network_decline_code: None,
+                network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
                 raw_connector_response: None,
                 raw_connector_request: None,
                 typed_connector_request: None,
-            };
-            return Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    status,
-                    raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
-                    ..router_data.resource_common_data
-                },
-                response: Err(error),
-                ..router_data
-            });
-        }
-
-        let resource_id = txn_id
-            .map(ResponseId::ConnectorTransactionId)
-            .unwrap_or(ResponseId::NoResponseId);
-        let raw_connector_status = raw_connector_status_from_paco(&api_response, &prior);
+            })
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id,
+                status_code: http_code,
+            })
+        };
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
-                status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 raw_connector_status,
                 ..router_data.resource_common_data
             },
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id,
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                network_txn_link_id: None,
-                connector_response_reference_id: ref_id,
-                incremental_authorization_allowed: None,
-                status_code: http_code,
-                splits: None,
-                payment_account_reference: None,
-            }),
+            response: void_response,
             ..router_data
         })
     }

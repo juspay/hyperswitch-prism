@@ -14,6 +14,8 @@ mod loader;
 mod nuvei;
 mod redsys;
 
+pub(crate) use loader::merge_scenario_variants;
+
 /// Connector-specific behavior extension points.
 ///
 /// The default implementation is file-driven via JSON patches, but this trait
@@ -29,9 +31,10 @@ pub trait ConnectorOverride: Send + Sync {
         grpc_req: &mut Value,
         assertions: &mut BTreeMap<String, FieldAssert>,
     ) -> Result<(), ScenarioError> {
-        // 1. Apply regular override.json patches (works for all suites).
-        if let Some(scenario_patch) =
-            loader::load_scenario_override_patch(self.connector_name(), suite, scenario)?
+        // Apply each ancestor before its variant, preserving merge-patch deletions
+        // and connector webhook fixtures along the inheritance chain.
+        for (name, scenario_patch) in
+            loader::load_scenario_override_chain(self.connector_name(), suite, scenario)?
         {
             if let Some(req_patch) = scenario_patch.grpc_req.as_ref() {
                 json_merge::json_merge_patch(grpc_req, req_patch);
@@ -39,13 +42,9 @@ pub trait ConnectorOverride: Send + Sync {
             if let Some(assertion_patch) = scenario_patch.assert_rules.as_ref() {
                 apply_assertion_patch(assertions, assertion_patch)?;
             }
-        }
-
-        // 2. For handle_event suite: load webhook_payload.json as an
-        //    additional merge-patch layer, then run post-merge transforms
-        //    (base64-encode body, compute HMAC signatures, inject webhook_secrets).
-        if suite == "EventService/HandleEvent" {
-            apply_webhook_payload_overrides(self.connector_name(), scenario, grpc_req)?;
+            if suite == "EventService/HandleEvent" {
+                apply_webhook_payload_overrides(self.connector_name(), &name, grpc_req)?;
+            }
         }
 
         Ok(())
@@ -177,10 +176,6 @@ fn apply_webhook_payload_overrides(
         json_merge::json_merge_patch(grpc_req, req_patch);
     }
 
-    // Post-merge transform: base64-encode `request_details.body` if it's a JSON
-    // object (the readable form from webhook_payload.json).
-    base64_encode_body_if_object(grpc_req);
-
     // Resolve webhook secret from creds.json.
     let secret_key = webhook_config
         .as_ref()
@@ -189,6 +184,22 @@ fn apply_webhook_payload_overrides(
         .unwrap_or("webhook_secret");
 
     let webhook_secret = load_webhook_secret(connector, secret_key);
+
+    // Body-field signatures: a connector that signs inside the JSON body names the
+    // field in `_webhook_config.signature_body_field`. It is computed over the body
+    // without that field and written back before the body is encoded; a value already
+    // present (e.g. the invalid_signature scenario) is left as is.
+    let signature_body_field = webhook_config
+        .as_ref()
+        .and_then(|c| c.get("signature_body_field"))
+        .and_then(Value::as_str);
+    if let (Some(field), Some(secret)) = (signature_body_field, webhook_secret.as_deref()) {
+        sign_body_field(connector, grpc_req, field, secret);
+    }
+
+    // Post-merge transform: base64-encode `request_details.body` if it's a JSON
+    // object (the readable form from webhook_payload.json).
+    base64_encode_body_if_object(grpc_req);
 
     // Compute HMAC signature if:
     //   - The webhook config specifies a signature_header
@@ -290,6 +301,42 @@ fn signature_context<'a>(
             ..Default::default()
         },
         _ => crate::webhook_signatures::SignatureContext::default(),
+    }
+}
+
+/// Writes the connector's signature into `request_details.body.<field>` when the body
+/// is a JSON object whose field is empty or absent. The signature covers the body
+/// without the field, as serialized JSON bytes.
+fn sign_body_field(connector: &str, grpc_req: &mut Value, field: &str, secret: &str) {
+    let Some(body) = grpc_req
+        .pointer("/request_details/body")
+        .and_then(Value::as_object)
+    else {
+        return;
+    };
+    let field_is_empty_or_absent = body
+        .get(field)
+        .map(|value| value.as_str().is_some_and(str::is_empty))
+        .unwrap_or(true);
+    if !field_is_empty_or_absent {
+        return;
+    }
+    let mut unsigned = body.clone();
+    unsigned.remove(field);
+    let Ok(payload_bytes) = serde_json::to_vec(&Value::Object(unsigned)) else {
+        return;
+    };
+    let ctx = signature_context(connector, grpc_req);
+    let Ok(signature) =
+        crate::webhook_signatures::generate_signature(connector, &payload_bytes, secret, &ctx)
+    else {
+        return;
+    };
+    if let Some(body) = grpc_req
+        .pointer_mut("/request_details/body")
+        .and_then(Value::as_object_mut)
+    {
+        body.insert(field.to_string(), Value::String(signature));
     }
 }
 

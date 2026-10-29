@@ -180,6 +180,7 @@ fn create_test_billing_address() -> PaymentAddress {
             state: Some("NY".to_string().into()),
             zip_code: Some(format!("{:05}", 10001 + (unique_suffix % 1000)).into()),
             country_alpha2_code: Some(CountryAlpha2::Us.into()),
+            origin_zip: None,
         }),
     }
 }
@@ -259,6 +260,9 @@ fn create_payment_sync_request(
     amount: i64,
 ) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        enable_partial_authorization: None,
+        integrity_specifications: None,
+        is_overcapture_enabled: None,
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         capture_method: None,

@@ -28,6 +28,32 @@ pub struct ScenarioDef {
     /// Optional human-friendly scenario name for docs and reports.
     #[serde(default)]
     pub display_name: Option<String>,
+    /// Payment method required by a method-specific dependent scenario.
+    #[serde(default)]
+    pub required_payment_method: Option<String>,
+    /// Replaces the effective suite prerequisites for this scenario, when set.
+    #[serde(default)]
+    pub depends_on: Option<Vec<SuiteDependency>>,
+    /// Overrides how often this scenario's prerequisites run.
+    #[serde(default)]
+    pub dependency_scope: Option<DependencyScope>,
+}
+
+impl ScenarioDef {
+    /// Custom chains always run independently, so they cannot reuse another
+    /// scenario's authorization, token, or other dependency response.
+    pub fn prerequisites<'a>(
+        &'a self,
+        suite: &'a SuiteSpec,
+    ) -> (&'a [SuiteDependency], DependencyScope) {
+        match &self.depends_on {
+            Some(dependencies) => (dependencies, DependencyScope::Scenario),
+            None => (
+                &suite.depends_on,
+                self.dependency_scope.unwrap_or(suite.dependency_scope),
+            ),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -282,7 +308,7 @@ pub struct ConnectorSuiteSpec {
     #[serde(default)]
     pub sync_poll_until_terminal_seconds: Option<u64>,
     /// Connector-scoped dependencies added around a global suite's
-    /// `depends_on`, as `suite -> { before, after, dependency_scope }`.
+    /// `depends_on`, as `suite -> { before, after, replace, dependency_scope }`.
     ///
     /// For a connector whose flows need a prerequisite no other connector does
     /// (for example a session token minted per order), without editing the
@@ -293,12 +319,17 @@ pub struct ConnectorSuiteSpec {
 }
 
 /// Dependencies one connector adds to one global suite (`specs.json`
-/// `suite_dependencies`). The effective chain is `before ++ global ++ after`;
+/// `suite_dependencies`). The effective chain is
+/// `before ++ (replace or global) ++ after`;
 /// each entry takes the same shape as a `suite_spec.json` `depends_on` entry,
 /// `context_map` included.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConnectorSuiteDependencies {
+    /// Replace the global chain before applying `before` and `after`.
+    /// An empty array explicitly removes the global prerequisites.
+    #[serde(default)]
+    pub replace: Option<Vec<SuiteDependency>>,
     /// Run before the global suite's own dependencies.
     #[serde(default)]
     pub before: Vec<SuiteDependency>,

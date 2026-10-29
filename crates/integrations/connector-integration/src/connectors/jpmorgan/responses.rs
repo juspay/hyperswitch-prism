@@ -69,8 +69,12 @@ pub struct JpmorganPaymentsResponse {
     pub response_status: JpmorganTransactionStatus,
     pub response_code: String,
     pub response_message: Option<String>,
+    pub host_message: Option<String>,
+    pub amount: Option<common_utils::types::MinorUnit>,
+    pub partial_authorization: Option<bool>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub capture_method: Option<requests::CapMethod>,
+    pub network_response: Option<NetworkResponse>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -78,6 +82,12 @@ pub struct JpmorganPaymentsResponse {
 pub struct PaymentMethodType {
     pub card: Option<Card>,
     pub ach: Option<AchResponse>,
+}
+
+impl PaymentMethodType {
+    pub(super) fn network_response(&self) -> Option<&NetworkResponse> {
+        self.card.as_ref()?.network_response.as_ref()
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -107,6 +117,14 @@ pub struct NetworkResponse {
     pub card_verification_result_code: Option<Secret<String>>,
     pub network_transaction_id: Option<String>,
     pub transaction_link_id: Option<String>,
+    pub network_response_code: Option<String>,
+    pub additional_data: Option<AdditionalNetworkResponseData>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AdditionalNetworkResponseData {
+    pub merchant_advice_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -184,12 +202,41 @@ pub struct JpmorganClientAuthResponse {
     pub expires_in: i64,
 }
 
-pub type JpmorganPSyncResponse = JpmorganPaymentsResponse;
 pub type JpmorganCaptureResponse = JpmorganPaymentsResponse;
 pub type JpmorganVoidResponse = JpmorganPaymentsResponse;
 /// VoidPC (post-capture void/reversal) response — JPMorgan returns the same payment
 /// response shape for both pre-capture void and post-capture void operations.
 pub type JpmorganVoidPcResponse = JpmorganPaymentsResponse;
 pub type JpmorganRSyncResponse = JpmorganRefundResponse;
-pub type JpmorganSetupMandateResponse = JpmorganPaymentsResponse;
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganVerificationResponse {
+    pub transaction_id: String,
+    pub request_id: String,
+    pub currency: common_enums::Currency,
+    pub response_status: JpmorganVerificationStatus,
+    pub response_code: String,
+    pub response_message: String,
+    pub host_message: String,
+    pub payment_method_type: PaymentMethodType,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum JpmorganVerificationStatus {
+    Success,
+    Denied,
+    Error,
+    #[serde(other)]
+    Unknown,
+}
+
+pub type JpmorganSetupMandateResponse = JpmorganVerificationResponse;
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum JpmorganPSyncResponse {
+    Payment(Box<JpmorganPaymentsResponse>),
+    Verification(Box<JpmorganVerificationResponse>),
+}
 pub type JpmorganRepeatPaymentResponse = JpmorganPaymentsResponse;

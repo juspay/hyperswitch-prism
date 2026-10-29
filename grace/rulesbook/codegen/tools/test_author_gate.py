@@ -278,6 +278,22 @@ def check_context_map(cur_ovr, base_ovr):
     return evidence
 
 
+def check_private_closed(cur_priv, base_priv):
+    """A run may not create `connector_specific_scenarios.json`. The bucket is closed
+    (`2.3a_plan.md`): a connector-only dimension belongs in `override.json` on the nearest
+    global scenario, or in `specs.json` `unsupported_scenarios` with its reason. Three runs
+    each shipped a different private patch to shared test infrastructure to make this file
+    load -- that is what this check exists to stop. A file already in the base ref
+    (cybersource, nuvei, travelhub) is pre-existing and not this run's doing."""
+    if cur_priv is None or base_priv is not None:
+        return []
+    return [{"file": PRIVATE,
+             "suites": sorted(cur_priv.keys()) if isinstance(cur_priv, dict) else [],
+             "scenarios": sum(len(v) for v in cur_priv.values()
+                              if isinstance(v, dict)) if isinstance(cur_priv, dict) else 0,
+             "why": "created by this run; the private-scenario bucket is closed to runs"}]
+
+
 def check_private_context_map(cur_priv, base_priv):
     """Advisory: a private scenario setting a context_map target has that value silently
     replaced, because the context map is applied after the scenario's own grpc_req.
@@ -458,6 +474,12 @@ def main():
     add("CTX-01", "override_vs_context_map", ctx,
         "The override is applied after the context map, so overriding a context_map target "
         "detaches the scenario from the dependency that was supposed to feed it.")
+    add("PRIV-01", "private_scenarios_not_created",
+        check_private_closed(cur_priv, base_priv),
+        "connector_specific_scenarios.json is closed to runs: its loader has never worked end "
+        "to end, so every run that authored one also patched the shared harness to make it load. "
+        "Put the case in override.json on the nearest global scenario, or waive it in specs.json "
+        "unsupported_scenarios with the reason, or raise the missing GLOBAL scenario as a finding.")
     add("WAIV-01", "waiver_reason_parses", w1,
         "A waiver is the only record of why a scenario is not run. It must name a class and cite "
         "evidence.")
@@ -635,13 +657,25 @@ def _replay():
     else:
         raise AssertionError("check_suites must refuse report_rows()'s method-keyed dict")
 
+    # -- PRIV-01: a run may not create the private-scenario file -----------------------
+    priv = {"PaymentService/Authorize": {"x_only_here": {"assert": {"status": "CHARGED"}}}}
+    # created by this run -> fails, and reports what it found
+    ev = check_private_closed(priv, None)
+    assert len(ev) == 1 and ev[0]["scenarios"] == 1, ev
+    assert ev[0]["suites"] == ["PaymentService/Authorize"], ev
+    # already in base (cybersource / nuvei / travelhub) -> not this run's doing
+    assert check_private_closed(priv, priv) == []
+    assert check_private_closed(priv, {}) == []
+    # absent -> nothing to say
+    assert check_private_closed(None, None) == []
+
     print("replay OK: response_asserting rejects a must_not_exist-only block (the shape that let "
           "a suite go green over four defects), ASSERT-01/02 fire only on scenarios this run "
           "changed and grade money suites S0, CTX-01 matches nested overrides against "
           "context_map targets and honours same_endpoint_justified while the private-scenario "
           "case stays advisory, WAIV-01/02/03 catch a malformed reason / waiving a passing test / "
           "waiving a P0 hook, and SUITE-01 refuses a suite declared with no COMMITTED PASS behind it "
-          "(a suite_ref-less ad-hoc row does not count)")
+          "(a suite_ref-less ad-hoc row does not count), and PRIV-01 refuses a connector_specific_scenarios.json this run created while leaving a pre-existing one alone")
     return 0
 
 
