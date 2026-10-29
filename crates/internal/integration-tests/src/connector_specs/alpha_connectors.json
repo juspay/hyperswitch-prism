@@ -7,6 +7,9 @@
     "absa_sanlam": {},
     "affirm": {},
     "axisbank": {},
+    "betterpayment": {
+      "reason": "Betterpayment sandbox credentials (api_key, api_password, and webhook_key) are not configured in CI, so live Wero certification cannot run. Connector regression tests and spec coverage checks pass; live sandbox behavior remains unverified. Remove this entry once CI credentials are configured so certification runs."
+    },
     "bluesnap": {},
     "boost": {},
     "braintree": {},
