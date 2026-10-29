@@ -1,11 +1,14 @@
+use crate::{
+    errors::IntegrationError,
+    state_codes::convert_state_to_code,
+    utils::{
+        convert_canada_state_to_code, convert_us_state_to_code, missing_field_err, Error,
+        ForeignTryFrom,
+    },
+};
 use common_enums::ProductType;
 use common_utils::{ext_traits::ConfigExt, Email, MinorUnit};
 use hyperswitch_masking::{PeekInterface, Secret, SerializableSecret};
-
-use crate::{
-    state_codes::convert_state_to_code,
-    utils::{convert_canada_state_to_code, convert_us_state_to_code, missing_field_err, Error},
-};
 
 #[derive(Clone, Default, Debug)]
 pub struct PaymentAddress {
@@ -187,6 +190,23 @@ impl Address {
 pub enum State {
     StateValue(Secret<String>),
     StateCode(Secret<String>),
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::address::StateDetails> for State {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::address::StateDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(match value {
+            grpc_api_types::payments::address::StateDetails::StateName(state_name) => {
+                Self::StateValue(state_name)
+            }
+            grpc_api_types::payments::address::StateDetails::StateCodeIso(state_code_iso) => {
+                Self::StateCode(state_code_iso)
+            }
+        })
+    }
 }
 
 impl State {

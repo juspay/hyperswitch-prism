@@ -6400,12 +6400,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
         #[allow(deprecated)]
         let legacy_state = value.state;
         let state = match value.state_details {
-            Some(grpc_api_types::payments::address::StateDetails::StateName(state_name)) => {
-                Some(State::StateValue(state_name))
-            }
-            Some(grpc_api_types::payments::address::StateDetails::StateCodeIso(state_code_iso)) => {
-                Some(State::StateCode(state_code_iso))
-            }
+            Some(state_details) => Some(State::foreign_try_from(state_details)?),
             None => legacy_state.map(State::StateValue),
         };
         let country = if matches!(
