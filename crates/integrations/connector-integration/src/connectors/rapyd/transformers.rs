@@ -18,12 +18,14 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+        Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_request_types::AuthenticationData,
     router_response_types::RedirectForm,
+    utils::get_card_issuer,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -121,11 +123,10 @@ fn parse_card_network(
 /// (`<country>_<network>_card`) and enumerated per-country by the List Payment
 /// Methods endpoint; this connector covers the India (`in_`) set.
 ///
-/// Raw card payments use `InAmexCard` as a fixed placeholder: resolving the
-/// correct per-country/per-funding type from a bare PAN is not implemented yet,
-/// and the sandbox merchant accepts `in_amex_card`. Digital wallets carry their
-/// network + funding, so they derive the funding-specific type
-/// (`in_credit_visa_card` / `in_debit_visa_card`, etc.) via `try_from_wallet_network`.
+/// Cards and digital wallets derive the funding-specific type
+/// (`in_credit_visa_card` / `in_debit_visa_card`, etc.) from the card network
+/// and funding. Networks outside the India set keep `in_amex_card`, the type
+/// the sandbox merchant has always accepted.
 ///
 /// Reference: https://docs.rapyd.net/en/list-payment-methods-by-country.html
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -139,6 +140,33 @@ pub enum RapydPaymentMethodType {
 }
 
 impl RapydPaymentMethodType {
+    /// Resolve the Rapyd `payment_method.type` for a raw card from its network
+    /// and funding. The network comes from the typed card data when present and
+    /// falls back to BIN detection. Networks outside the India set keep the
+    /// placeholder type so existing payments do not regress.
+    fn from_card<T: PaymentMethodDataTypes>(card: &Card<T>) -> Self {
+        let network = card
+            .card_network
+            .as_ref()
+            .map(|network| network.to_string())
+            .or_else(|| {
+                get_card_issuer(card.card_number.peek())
+                    .ok()
+                    .map(|issuer| issuer.to_string())
+            });
+        let is_debit = matches!(
+            card.card_type.as_deref().map(str::to_lowercase).as_deref(),
+            Some("debit")
+        );
+        match network.as_deref().map(str::to_lowercase).as_deref() {
+            Some("visa") if is_debit => Self::InDebitVisaCard,
+            Some("visa") => Self::InCreditVisaCard,
+            Some("mastercard") | Some("master") if is_debit => Self::InDebitMastercardCard,
+            Some("mastercard") | Some("master") => Self::InCreditMastercardCard,
+            _ => Self::InAmexCard,
+        }
+    }
+
     /// Resolve the Rapyd `payment_method.type` for a digital-wallet card from
     /// its network and funding. Wallets carry only the network and credit/debit
     /// funding (the PAN lives in the decrypted payload), so the type is derived
@@ -690,12 +718,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::Card(ref ccard) => {
                 Some(RapydPaymentMethodData::PaymentMethod(Box::new(
                     PaymentMethod {
-                        // Placeholder India type. Rapyd's valid `payment_method.type`
-                        // is country- and merchant-specific (this sandbox enables
-                        // `in_amex_card`, not plain `in_visa_card`), so the correct
-                        // per-network/funding mapping is deferred; sandbox is lenient
-                        // about the card BIN.
-                        pm_type: RapydPaymentMethodType::InAmexCard,
+                        pm_type: RapydPaymentMethodType::from_card(ccard),
                         fields: Some(PaymentFields {
                             number: ccard.card_number.to_owned(),
                             expiration_month: ccard.card_exp_month.to_owned(),
@@ -1642,9 +1665,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let payment_method = match &request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
-                // Placeholder India type — see the Authorize flow: the sandbox
-                // merchant enables `in_amex_card`, not the per-network types.
-                let pm_type = RapydPaymentMethodType::InAmexCard;
+                let pm_type = RapydPaymentMethodType::from_card(ccard);
                 // Rapyd documents `payment_method.fields.name` as required
                 // (https://docs.rapyd.net/en/create-card-payment-method.html).
                 // Prefer the cardholder name on the card itself; fall back to

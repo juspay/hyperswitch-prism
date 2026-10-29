@@ -423,6 +423,8 @@ mod tests {
             .expect("request body should be JSON");
         let options = &body["payment_method_options"];
         assert_eq!(options["3d_required"], true);
+        // Card type is derived from the network, not the old fixed placeholder.
+        assert_eq!(body["payment_method"]["type"], "in_credit_mastercard_card");
         // Hosted requests must not carry external authentication fields.
         assert!(options.get("3d_version").is_none());
         assert!(options.get("cavv").is_none());
@@ -452,6 +454,8 @@ mod tests {
             .map(masked_json)
             .expect("request body should be JSON");
         assert_eq!(body["payment_method_options"]["3d_required"], false);
+        // BIN detection must resolve Visa even when the card carries no network.
+        assert_eq!(body["payment_method"]["type"], "in_credit_visa_card");
     }
 
     fn setup_mandate_request(
@@ -580,6 +584,7 @@ mod tests {
             .expect("request body should be JSON");
         assert_eq!(body["payment_method_options"]["3d_required"], false);
         assert_eq!(body["save_payment_method"], true);
+        assert_eq!(body["payment_method"]["type"], "in_credit_visa_card");
     }
 
     fn repeat_payment_request(
