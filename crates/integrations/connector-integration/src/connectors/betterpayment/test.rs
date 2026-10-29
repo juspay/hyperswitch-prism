@@ -1,7 +1,7 @@
 #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
 
 use common_enums::{CountryAlpha2, Currency, RefundStatus};
-use common_utils::types::{AmountConvertor, MinorUnit, StringMajorUnitForConnector};
+use common_utils::types::{AmountConvertor, MinorUnit, Money, StringMajorUnitForConnector};
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync},
     connector_types::{
@@ -34,7 +34,10 @@ fn config() -> ConnectorSpecificConfig {
 fn payment_and_refund_amounts_are_major_unit_strings() {
     for (minor, expected) in [(1, "0.01"), (1000, "10.00"), (1590, "15.90")] {
         let amount = StringMajorUnitForConnector
-            .convert(MinorUnit::new(minor), Currency::EUR)
+            .convert(&Money {
+                amount: MinorUnit::new(minor),
+                currency: Currency::EUR,
+            })
             .expect("convert EUR amount");
         let payment = BetterpaymentAuthorizeRequest {
             payment_type: BetterpaymentPaymentType::Wero,

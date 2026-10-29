@@ -377,10 +377,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -651,10 +648,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.refund_amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.refund_amount)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -849,7 +843,7 @@ impl BoostWebhookBody {
         let amount_captured = match (self.amount, self.currency) {
             (Some(amount), Some(currency)) => {
                 match FloatMajorUnitForConnector.convert_back(amount, currency) {
-                    Ok(amount) => Some(common_utils::types::Money { amount, currency }),
+                    Ok(money) => Some(money),
                     Err(err) => {
                         tracing::warn!(
                             error = ?err,

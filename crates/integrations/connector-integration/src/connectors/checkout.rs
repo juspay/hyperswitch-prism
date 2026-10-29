@@ -356,8 +356,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = convert_amount_for_webhook(
             &StringMinorUnitForConnector,
-            body.data.amount.unwrap_or_default(),
-            currency,
+            &common_utils::types::Money {
+                amount: body.data.amount.unwrap_or_default(),
+                currency,
+            },
         )?;
 
         Ok(DisputeWebhookDetailsResponse {

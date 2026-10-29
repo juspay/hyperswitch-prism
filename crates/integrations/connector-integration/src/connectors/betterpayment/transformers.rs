@@ -242,18 +242,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let request = &router_data.request;
 
-        let amount = utils::convert_amount(
-            item.connector.amount_converter,
-            request.amount.amount,
-            request.amount.currency,
-        )
-        .change_context(errors::IntegrationError::AmountConversionFailed {
-            context: integration_error_context(
-                PAYMENT_DOC_URL,
-                "Provide a valid payment amount in minor units and its currency.",
-                "Betterpayment expects the payment amount in major units.",
-            ),
-        })?;
+        let amount = utils::convert_amount(item.connector.amount_converter, &request.amount)
+            .change_context(errors::IntegrationError::AmountConversionFailed {
+                context: integration_error_context(
+                    PAYMENT_DOC_URL,
+                    "Provide a valid payment amount in minor units and its currency.",
+                    "Betterpayment expects the payment amount in major units.",
+                ),
+            })?;
 
         let order_id = sanitize_merchant_transaction_id(
             &router_data
@@ -616,8 +612,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let amount = utils::convert_amount(
             item.connector.amount_converter,
-            item.router_data.request.refund_amount.amount,
-            item.router_data.request.refund_amount.currency,
+            &item.router_data.request.refund_amount,
         )
         .change_context(errors::IntegrationError::AmountConversionFailed {
             context: integration_error_context(
