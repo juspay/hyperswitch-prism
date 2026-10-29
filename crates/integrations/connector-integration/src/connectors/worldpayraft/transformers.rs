@@ -1326,19 +1326,6 @@ fn required_ecommerce_indicator(
             },
         })?;
 
-    if value.len() > 2 || !value.bytes().all(|byte| byte.is_ascii_digit()) {
-        return Err(errors::IntegrationError::InvalidDataFormat {
-            field_name,
-            context: errors::IntegrationErrorContext {
-                additional_context: Some(
-                    "Worldpay RAFT ECI must contain one or two digits".to_string(),
-                ),
-                ..Default::default()
-            },
-        }
-        .into());
-    }
-
     Ok(value.to_string())
 }
 
@@ -1374,18 +1361,19 @@ fn network_token_expiry(
 ) -> Result<Secret<String>, error_stack::Report<errors::IntegrationError>> {
     let year = token.get_token_expiry_year_2_digit()?;
     let token_month = token.get_network_token_expiry_month();
+    let invalid_month = || errors::IntegrationError::InvalidDataFormat {
+        field_name: "payment_method_data.network_token.token_exp_month",
+        context: errors::IntegrationErrorContext {
+            additional_context: Some("Expected a month from 01 through 12".to_string()),
+            ..Default::default()
+        },
+    };
     let month = token_month
         .peek()
         .parse::<u8>()
-        .ok()
-        .and_then(|month| cards::validate::CardExpirationMonth::try_from(month).ok())
-        .ok_or_else(|| errors::IntegrationError::InvalidDataFormat {
-            field_name: "payment_method_data.network_token.token_exp_month",
-            context: errors::IntegrationErrorContext {
-                additional_context: Some("Expected a month from 01 through 12".to_string()),
-                ..Default::default()
-            },
-        })?;
+        .change_context(invalid_month())?;
+    let month =
+        cards::validate::CardExpirationMonth::try_from(month).change_context(invalid_month())?;
     Ok(Secret::new(format!(
         "{}{}",
         year.peek(),
