@@ -436,10 +436,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let auth = ReddotAuthType::try_from(&router_data.connector_config)?;
-        let amount = ReddotAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = ReddotAmountConvertor::convert(&router_data.request.amount)?;
         let redirect_url = router_data.request.get_router_return_url()?;
         let notify_url = router_data.request.get_webhook_url()?;
         let payer_email = router_data.request.get_email()?;
@@ -886,7 +883,10 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
                                 .to_string(),
                         ),
                     ))?;
-                Some(PaymentSynIntegrityObject { amount, currency })
+                Some(PaymentSynIntegrityObject {
+                    amount: amount.amount,
+                    currency,
+                })
             }
             _ => None,
         };
@@ -1012,10 +1012,7 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
             }
         };
 
-        let amount_captured = minor_amount_captured.map(|amount| common_utils::types::Money {
-            amount,
-            currency: router_data.request.currency,
-        });
+        let amount_captured = minor_amount_captured;
         Ok(Self {
             response: payment_response,
             request: PaymentsSyncData {
@@ -1168,10 +1165,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.refund_amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.refund_amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1282,7 +1276,7 @@ impl TryFrom<ResponseRouterData<ReddotRefundResponse, Self>>
                         ),
                     ))?;
                 Some(RefundIntegrityObject {
-                    refund_amount,
+                    refund_amount: refund_amount.amount,
                     currency,
                 })
             }
