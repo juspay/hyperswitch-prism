@@ -25,19 +25,15 @@ use crate::errors::ParsingError;
 pub trait AmountConvertor: Send {
     /// Output type for the connector
     type Output;
-    /// helps in conversion of connector required amount type
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>>;
+    /// Converts domain money into the connector's amount representation.
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>>;
 
-    /// helps in converting back connector required amount type to core minor unit
+    /// Converts a connector amount into domain money with the supplied currency.
     fn convert_back(
         &self,
         amount: Self::Output,
         currency: enums::Currency,
-    ) -> Result<MinorUnit, error_stack::Report<ParsingError>>;
+    ) -> Result<Money, error_stack::Report<ParsingError>>;
 }
 
 /// Connector required amount type
@@ -46,20 +42,19 @@ pub struct StringMinorUnitForConnector;
 
 impl AmountConvertor for StringMinorUnitForConnector {
     type Output = StringMinorUnit;
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        _currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        amount.to_minor_unit_as_string()
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        money.amount.to_minor_unit_as_string()
     }
 
     fn convert_back(
         &self,
         amount: Self::Output,
-        _currency: enums::Currency,
-    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        amount.to_minor_unit_as_i64()
+        currency: enums::Currency,
+    ) -> Result<Money, error_stack::Report<ParsingError>> {
+        Ok(Money {
+            amount: amount.to_minor_unit_as_i64()?,
+            currency,
+        })
     }
 }
 
@@ -68,20 +63,19 @@ impl AmountConvertor for StringMinorUnitForConnector {
 pub struct StringMajorUnitForCore;
 impl AmountConvertor for StringMajorUnitForCore {
     type Output = StringMajorUnit;
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        amount.to_major_unit_as_string(currency)
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        money.amount.to_major_unit_as_string(money.currency)
     }
 
     fn convert_back(
         &self,
         amount: StringMajorUnit,
         currency: enums::Currency,
-    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        amount.to_minor_unit_as_i64(currency)
+    ) -> Result<Money, error_stack::Report<ParsingError>> {
+        Ok(Money {
+            amount: amount.to_minor_unit_as_i64(currency)?,
+            currency,
+        })
     }
 }
 
@@ -91,20 +85,19 @@ pub struct StringMajorUnitForConnector;
 
 impl AmountConvertor for StringMajorUnitForConnector {
     type Output = StringMajorUnit;
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        amount.to_major_unit_as_string(currency)
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        money.amount.to_major_unit_as_string(money.currency)
     }
 
     fn convert_back(
         &self,
         amount: StringMajorUnit,
         currency: enums::Currency,
-    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        amount.to_minor_unit_as_i64(currency)
+    ) -> Result<Money, error_stack::Report<ParsingError>> {
+        Ok(Money {
+            amount: amount.to_minor_unit_as_i64(currency)?,
+            currency,
+        })
     }
 }
 
@@ -114,19 +107,18 @@ pub struct FloatMajorUnitForConnector;
 
 impl AmountConvertor for FloatMajorUnitForConnector {
     type Output = FloatMajorUnit;
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        amount.to_major_unit_as_f64(currency)
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        money.amount.to_major_unit_as_f64(money.currency)
     }
     fn convert_back(
         &self,
         amount: FloatMajorUnit,
         currency: enums::Currency,
-    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        amount.to_minor_unit_as_i64(currency)
+    ) -> Result<Money, error_stack::Report<ParsingError>> {
+        Ok(Money {
+            amount: amount.to_minor_unit_as_i64(currency)?,
+            currency,
+        })
     }
 }
 
@@ -136,19 +128,41 @@ pub struct MinorUnitForConnector;
 
 impl AmountConvertor for MinorUnitForConnector {
     type Output = MinorUnit;
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        _currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        Ok(amount)
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        Ok(money.amount)
     }
     fn convert_back(
         &self,
         amount: MinorUnit,
-        _currency: enums::Currency,
-    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        Ok(amount)
+        currency: enums::Currency,
+    ) -> Result<Money, error_stack::Report<ParsingError>> {
+        Ok(Money { amount, currency })
+    }
+}
+
+/// Converts domain minor units to and from connector-side integer minor units.
+///
+/// Both representations use the currency's minor denomination, so this converter
+/// preserves the integer value without applying a currency scale.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct ConnectorMinorUnitForConnector;
+
+impl AmountConvertor for ConnectorMinorUnitForConnector {
+    type Output = ConnectorMinorUnit;
+
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        Ok(ConnectorMinorUnit(money.amount.get_amount_as_i64()))
+    }
+
+    fn convert_back(
+        &self,
+        amount: Self::Output,
+        currency: enums::Currency,
+    ) -> Result<Money, error_stack::Report<ParsingError>> {
+        Ok(Money {
+            amount: MinorUnit::new(amount.get_amount_as_i64()),
+            currency,
+        })
     }
 }
 
@@ -285,6 +299,44 @@ impl Mul<u16> for MinorUnit {
 impl Sum for MinorUnit {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(Self(0), |a, b| a + b)
+    }
+}
+
+/// An integer minor-unit amount carried by a connector request or response.
+///
+/// This is distinct from domain [`MinorUnit`]. Use
+/// [`ConnectorMinorUnitForConnector`] to cross the conversion boundary. Its wire
+/// representation remains a signed 64-bit integer.
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+)]
+pub struct ConnectorMinorUnit(i64);
+
+impl ConnectorMinorUnit {
+    /// Returns the integer minor-unit value for a connector payload.
+    pub fn get_amount_as_i64(self) -> i64 {
+        self.0
+    }
+
+    /// Creates a zero connector amount.
+    pub fn zero() -> Self {
+        Self(0)
+    }
+}
+
+impl Display for ConnectorMinorUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -521,12 +573,9 @@ impl AmountConvertor for StringTwoDecimalUnitForConnector {
 
     /// `wire = minor * 100 / 10^currency_exponent`, kept in `i128` so there is neither a
     /// float hop nor an intermediate decimal string to re-parse.
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        let minor = i128::from(amount.get_amount_as_i64());
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        let minor = i128::from(money.amount.get_amount_as_i64());
+        let currency = money.currency;
         let scale = currency_scale(currency)?;
         let scaled = minor * 10_i128.pow(TWO_DECIMAL_EXPONENT);
         // A currency with more than two decimals cannot always be expressed with two
@@ -549,8 +598,11 @@ impl AmountConvertor for StringTwoDecimalUnitForConnector {
         &self,
         amount: Self::Output,
         currency: enums::Currency,
-    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        amount.to_minor_unit_as_i64(currency)
+    ) -> Result<Money, error_stack::Report<ParsingError>> {
+        Ok(Money {
+            amount: amount.to_minor_unit_as_i64(currency)?,
+            currency,
+        })
     }
 }
 

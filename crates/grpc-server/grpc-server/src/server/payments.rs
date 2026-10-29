@@ -2780,6 +2780,9 @@ impl PaymentMethod {
             setup_mandate_details: None,
             mandate_id: None,
             integrity_object: None,
+            integrity_specifications: request
+                .integrity_specifications
+                .map(domain_types::connector_types::IntegritySpecifications::from),
             split_payments: None,
         };
 

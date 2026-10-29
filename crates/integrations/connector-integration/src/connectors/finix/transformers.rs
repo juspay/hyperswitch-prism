@@ -2401,8 +2401,10 @@ pub(super) fn build_finix_dispute_webhook_response(
     Ok(DisputeWebhookDetailsResponse {
         amount: domain_types::utils::convert_amount_for_webhook(
             &common_utils::types::StringMinorUnitForConnector,
-            dispute.amount,
-            dispute.currency,
+            &common_utils::types::Money {
+                amount: dispute.amount,
+                currency: dispute.currency,
+            },
         )?,
         currency: dispute.currency,
         dispute_id: dispute.id,

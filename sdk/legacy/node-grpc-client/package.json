@@ -22,5 +22,8 @@
     "@grpc/grpc-js": "^1.13.2",
     "@grpc/proto-loader": "^0.7.13"
   },
+  "overrides": {
+    "protobufjs": "^7.5.5"
+  },
   "types": "dist/index.d.ts"
 }

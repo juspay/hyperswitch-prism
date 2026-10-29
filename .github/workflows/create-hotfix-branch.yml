@@ -20,16 +20,23 @@ jobs:
   create_branch:
     runs-on: ubuntu-latest
     needs: [authorize]
-    # Checkout and the branch push both authenticate with
-    # CONNECTOR_SERVICE_CI_PAT, so GITHUB_TOKEN needs no scopes at all.
+    # Checkout and the branch push both authenticate with a hyperswitch-bot
+    # app token, so GITHUB_TOKEN needs no scopes at all.
     permissions: {}
 
     steps:
+      - name: Generate GitHub app token
+        id: generate_app_token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+          token: ${{ steps.generate_app_token.outputs.token }}
 
       - name: Check if the input is valid tag
         shell: bash

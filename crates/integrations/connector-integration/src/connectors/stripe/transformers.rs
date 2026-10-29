@@ -2740,8 +2740,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Some(SplitPaymentsDetails::StripeSplitPayment(_))
             );
 
-        let amount =
-            StripeAmountConvertor::convert(item.request.amount.amount, item.request.currency)?;
+        let amount = StripeAmountConvertor::convert(&item.request.amount)?;
         let order_id = item
             .resource_common_data
             .connector_request_reference_id
@@ -4063,7 +4062,7 @@ impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         item.http_code,
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
-        let amount_in_minor_unit = connector
+        let response_money = connector
             .convert_back(item.response.amount, currency_enum)
             .change_context(crate::utils::response_handling_fail_for_connector(
                 item.http_code,
@@ -4071,7 +4070,7 @@ impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ))?;
 
         let response_integrity_object = PaymentSynIntegrityObject {
-            amount: amount_in_minor_unit,
+            amount: response_money.amount,
             currency: currency_enum,
         };
 
@@ -5387,8 +5386,10 @@ pub(crate) fn build_webhook_dispute_response(
 
     let amount = domain_types::utils::convert_amount_for_webhook(
         &StringMinorUnitForConnector,
-        amount,
-        event_object.currency,
+        &common_utils::types::Money {
+            amount,
+            currency: event_object.currency,
+        },
     )?;
 
     // A Dispute object always carries `status`; a missing or foreign one is an error rather
@@ -5734,7 +5735,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
-        let amount_in_minor_unit = item
+        let response_money = item
             .router_data
             .connector
             .convert_back(item.response.0.amount, currency_enum)
@@ -5744,7 +5745,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ))?;
 
         let response_integrity_object = AuthoriseIntegrityObject {
-            amount: amount_in_minor_unit,
+            amount: response_money.amount,
             currency: currency_enum,
         };
 
@@ -5784,7 +5785,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
-        let capture_amount_in_minor_unit = item
+        let capture_money = item
             .response
             .0
             .amount_received
@@ -5800,8 +5801,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ))?;
 
         let response_integrity_object =
-            capture_amount_in_minor_unit.map(|amount_to_capture| CaptureIntegrityObject {
-                amount_to_capture,
+            capture_money.map(|amount_to_capture| CaptureIntegrityObject {
+                amount_to_capture: amount_to_capture.amount,
                 currency: currency_enum,
             });
 
@@ -5882,10 +5883,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount_to_capture = StripeAmountConvertor::convert(
-            item.router_data.request.amount_to_capture.amount,
-            item.router_data.request.currency,
-        )?;
+        let amount_to_capture =
+            StripeAmountConvertor::convert(&item.router_data.request.amount_to_capture)?;
         Ok(Self {
             amount_to_capture: Some(amount_to_capture),
         })
@@ -5929,10 +5928,8 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let refund_amount = StripeAmountConvertor::convert(
-            item.router_data.request.refund_amount.amount,
-            item.router_data.request.currency,
-        )?;
+        let refund_amount =
+            StripeAmountConvertor::convert(&item.router_data.request.refund_amount)?;
         match item.router_data.request.split_refunds.as_ref() {
             Some(domain_types::connector_types::SplitRefundsDetails::StripeSplitRefund(_)) => Ok(
                 Self::ChargeRefundRequest(ChargeRefundRequest::try_from(&item.router_data)?),
@@ -6087,7 +6084,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
-        let refund_amount_in_minor_unit = connector
+        let refund_money = connector
             .convert_back(item.response.amount, currency_enum)
             .change_context(crate::utils::response_handling_fail_for_connector(
                 item.http_code,
@@ -6096,7 +6093,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let response_integrity_object = RefundIntegrityObject {
             currency: currency_enum,
-            refund_amount: refund_amount_in_minor_unit,
+            refund_amount: refund_money.amount,
         };
 
         Ok(Self {
@@ -6549,10 +6546,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = StripeAmountConvertor::convert(
-            item.router_data.request.amount.amount,
-            item.router_data.request.currency,
-        )?;
+        let amount = StripeAmountConvertor::convert(&item.router_data.request.amount)?;
 
         Ok(Self { amount })
     }
@@ -6750,8 +6744,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => None,
         };
 
-        let amount =
-            StripeAmountConvertor::convert(item.request.amount.amount, item.request.currency)?;
+        let amount = StripeAmountConvertor::convert(&item.request.amount)?;
         let order_id = item
             .resource_common_data
             .connector_request_reference_id
@@ -7324,10 +7317,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
 
-        let amount = StripeAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = StripeAmountConvertor::convert(&router_data.request.amount)?;
 
         let currency = router_data.request.currency.to_string().to_lowercase();
 

@@ -301,8 +301,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert amount from MinorUnit to FloatMajorUnit
         let amount = domain_types::utils::convert_amount(
             item.connector.amount_converter,
-            item.router_data.request.amount.amount,
-            item.router_data.request.currency,
+            &item.router_data.request.amount,
         )?;
 
         Ok(Self {
@@ -618,8 +617,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert amount using FloatMajorUnit
         let amount = domain_types::utils::convert_amount(
             connector.amount_converter,
-            router_data.request.refund_amount.amount,
-            router_data.request.currency,
+            &router_data.request.refund_amount,
         )?;
 
         Ok(Self {

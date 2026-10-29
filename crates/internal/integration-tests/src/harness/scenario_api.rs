@@ -9,14 +9,14 @@
 use std::{
     collections::BTreeMap,
     path::PathBuf,
-    process::{Child, Command, Stdio},
+    process::{Command, Stdio},
     thread,
     time::Duration,
 };
 
 use base64::Engine;
 use prost::Message;
-use reqwest::{blocking::Client, Url};
+use reqwest::Url;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use tonic::transport::Channel;
@@ -112,7 +112,6 @@ pub const DEFAULT_ENDPOINT: &str = "localhost:8000";
 pub const DEFAULT_CONNECTOR: &str = "stripe";
 pub const DEFAULT_MERCHANT_ID: &str = "test_merchant";
 pub const DEFAULT_TENANT_ID: &str = "default";
-const DEFAULT_BROWSER_AUTOMATION_URL: &str = "http://localhost:3000/run";
 
 /// Materialized grpcurl command pieces used by CLI output and execution.
 #[derive(Debug, Clone)]
@@ -144,7 +143,7 @@ struct ExecutedDependency {
 struct BrowserRedirectTarget {
     url: String,
     redirect_uri: Option<String>,
-    cleanup_path: Option<PathBuf>,
+    post_fields: Option<BTreeMap<String, String>>,
     form_fields: BTreeMap<String, String>,
 }
 
@@ -443,8 +442,7 @@ fn maybe_execute_browser_automation_for_suite(
         });
     }
 
-    let managed_engine = env_bool("UCS_BROWSER_AUTOMATION_MANAGED", true);
-    let headed = env_bool("UCS_BROWSER_AUTOMATION_HEADED", true);
+    let headed = env_bool("UCS_BROWSER_AUTOMATION_HEADED", false);
     let slow_mo_ms = std::env::var("UCS_BROWSER_AUTOMATION_SLOW_MO_MS")
         .ok()
         .and_then(|value| value.trim().parse::<u64>().ok())
@@ -461,30 +459,25 @@ fn maybe_execute_browser_automation_for_suite(
         }
     });
 
-    let execution_result = if managed_engine {
-        let host = std::env::var("UCS_BROWSER_AUTOMATION_HOST")
-            .unwrap_or_else(|_| "127.0.0.1".to_string());
-        let port = std::env::var("UCS_BROWSER_AUTOMATION_PORT")
-            .ok()
-            .and_then(|value| value.trim().parse::<u16>().ok())
-            .unwrap_or(3000);
-        let run_url = format!("http://{host}:{port}/run");
-
-        let mut engine_process = start_browser_automation_engine(&host, port)?;
-        let execution_result = execute_browser_automation_run(&run_url, &payload, suite, scenario);
-        stop_browser_automation_engine(&mut engine_process);
-        execution_result
-    } else {
-        let run_url = std::env::var("UCS_BROWSER_AUTOMATION_URL")
-            .unwrap_or_else(|_| DEFAULT_BROWSER_AUTOMATION_URL.to_string());
-        execute_browser_automation_run(&run_url, &payload, suite, scenario)
-    };
-
-    if let Some(cleanup_path) = redirect_target.cleanup_path.as_ref() {
-        let _ = std::fs::remove_file(cleanup_path);
+    let mut payload = payload;
+    let payload_fields =
+        payload
+            .as_object_mut()
+            .ok_or_else(|| ScenarioError::GrpcurlExecution {
+                message: "Browser job must be an object".to_string(),
+            })?;
+    if let Some(fields) = &redirect_target.post_fields {
+        payload_fields.insert(
+            "formFields".to_string(),
+            serde_json::to_value(fields).map_err(|_| ScenarioError::GrpcurlExecution {
+                message: "Could not encode browser POST fields".to_string(),
+            })?,
+        );
     }
-
-    let browser_response = execution_result?;
+    if let Some(callback) = &redirect_target.redirect_uri {
+        payload_fields.insert("callbackUrl".to_string(), Value::String(callback.clone()));
+    }
+    let browser_response = crate::harness::browser_worker::execute(&payload)?;
     apply_browser_result_to_request(
         effective_req,
         browser_automation,
@@ -592,58 +585,6 @@ fn apply_browser_result_to_request(
     Ok(())
 }
 
-fn render_auto_submit_form_file(
-    endpoint: &str,
-    form_fields: &serde_json::Map<String, Value>,
-) -> Result<String, ScenarioError> {
-    let mut hidden_inputs = String::new();
-    for (key, value) in form_fields {
-        let field_value = value
-            .as_str()
-            .map(ToString::to_string)
-            .unwrap_or_else(|| value.to_string());
-        hidden_inputs.push_str(&format!(
-            "<input type=\"hidden\" name=\"{}\" value=\"{}\" />",
-            html_escape(key),
-            html_escape(&field_value)
-        ));
-    }
-
-    let html = format!(
-        "<!doctype html><html><head><meta charset=\"utf-8\"></head><body><form id=\"ucs-3ds-auto-form\" method=\"POST\" action=\"{}\">{}<noscript><button type=\"submit\">Continue</button></noscript></form><script>document.getElementById('ucs-3ds-auto-form').submit();</script></body></html>",
-        html_escape(endpoint),
-        hidden_inputs
-    );
-
-    let file_name = format!("ucs-connector-3ds-{}.html", Uuid::new_v4().simple());
-    let file_path = std::env::temp_dir().join(file_name);
-    std::fs::write(&file_path, html).map_err(|error| ScenarioError::GrpcurlExecution {
-        message: format!(
-            "failed to write browser automation POST form file '{}': {error}",
-            file_path.display()
-        ),
-    })?;
-
-    let file_url =
-        Url::from_file_path(&file_path).map_err(|_| ScenarioError::GrpcurlExecution {
-            message: format!(
-                "failed to convert browser automation form path '{}' to file URL",
-                file_path.display()
-            ),
-        })?;
-
-    Ok(file_url.to_string())
-}
-
-fn html_escape(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#39;")
-}
-
 fn is_post_redirect_method(method: Option<&str>) -> bool {
     method
         .map(|value| value.trim().to_ascii_uppercase().contains("POST"))
@@ -658,136 +599,6 @@ fn select_connector_browser_automation_hook<'a>(
     hooks.iter().find(|hook| {
         hook.suite == suite
             && (hook.scenarios.is_empty() || hook.scenarios.iter().any(|name| name == scenario))
-    })
-}
-
-fn execute_browser_automation_run(
-    run_url: &str,
-    payload: &Value,
-    suite: &str,
-    scenario: &str,
-) -> Result<Value, ScenarioError> {
-    let timeout_secs = std::env::var("UCS_BROWSER_AUTOMATION_TIMEOUT_SECS")
-        .ok()
-        .and_then(|value| value.trim().parse::<u64>().ok())
-        .unwrap_or(90);
-    let client = Client::builder()
-        .timeout(Duration::from_secs(timeout_secs))
-        .build()
-        .map_err(|error| ScenarioError::GrpcurlExecution {
-            message: format!(
-                "browser automation client initialization failed for '{suite}/{scenario}': {error}"
-            ),
-        })?;
-    let response = client.post(run_url).json(payload).send().map_err(|error| {
-        ScenarioError::GrpcurlExecution {
-            message: format!(
-                "browser automation request failed for '{suite}/{scenario}' via '{}': {error}",
-                run_url
-            ),
-        }
-    })?;
-
-    let status = response.status();
-    let response_text = response
-        .text()
-        .map_err(|error| ScenarioError::GrpcurlExecution {
-            message: format!(
-                "browser automation response read failed for '{suite}/{scenario}': {error}"
-            ),
-        })?;
-
-    if !status.is_success() {
-        return Err(ScenarioError::GrpcurlExecution {
-            message: format!(
-                "browser automation returned HTTP {} for '{suite}/{scenario}': {}",
-                status, response_text
-            ),
-        });
-    }
-
-    let response_json: Value =
-        serde_json::from_str(&response_text).map_err(|error| ScenarioError::GrpcurlExecution {
-            message: format!(
-                "browser automation returned non-JSON payload for '{suite}/{scenario}': {error}; body={response_text}"
-            ),
-        })?;
-
-    let success = response_json
-        .get("success")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    if !success {
-        let error_message = response_json
-            .get("error")
-            .and_then(Value::as_str)
-            .unwrap_or("browser automation marked run as failed");
-        return Err(ScenarioError::GrpcurlExecution {
-            message: format!("browser automation failed for '{suite}/{scenario}': {error_message}"),
-        });
-    }
-
-    Ok(response_json)
-}
-
-fn start_browser_automation_engine(host: &str, port: u16) -> Result<Child, ScenarioError> {
-    let engine_dir = browser_automation_engine_dir()?;
-    let mut child = Command::new("npm")
-        .arg("run")
-        .arg("dev")
-        .current_dir(&engine_dir)
-        .env("HOST", host)
-        .env("PORT", port.to_string())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|error| ScenarioError::GrpcurlExecution {
-            message: format!(
-                "failed to start browser automation engine from '{}': {error}",
-                engine_dir.display()
-            ),
-        })?;
-
-    wait_for_browser_automation_engine(host, port, &mut child)?;
-    Ok(child)
-}
-
-fn stop_browser_automation_engine(child: &mut Child) {
-    let _ = child.kill();
-    let _ = child.wait();
-}
-
-fn wait_for_browser_automation_engine(
-    host: &str,
-    port: u16,
-    child: &mut Child,
-) -> Result<(), ScenarioError> {
-    let endpoint = format!("{host}:{port}");
-    for _ in 0..60 {
-        if std::net::TcpStream::connect(&endpoint).is_ok() {
-            return Ok(());
-        }
-
-        if let Some(status) = child
-            .try_wait()
-            .map_err(|error| ScenarioError::GrpcurlExecution {
-                message: format!(
-                    "failed while waiting for browser automation engine startup: {error}"
-                ),
-            })?
-        {
-            return Err(ScenarioError::GrpcurlExecution {
-                message: format!(
-                    "browser automation engine exited before startup on {endpoint} with status: {status}"
-                ),
-            });
-        }
-
-        thread::sleep(Duration::from_millis(250));
-    }
-
-    Err(ScenarioError::GrpcurlExecution {
-        message: format!("timed out waiting for browser automation engine startup on {endpoint}"),
     })
 }
 
@@ -1207,18 +1018,14 @@ fn extract_redirect_target_from_dependencies(
         }
 
         if is_post_redirect_method(method) {
-            if let Some(fields) = form_fields.as_ref() {
-                let file_url = render_auto_submit_form_file(endpoint, fields)?;
-                let cleanup_path = Url::parse(&file_url)
-                    .ok()
-                    .and_then(|url| url.to_file_path().ok());
-                return Ok(Some(BrowserRedirectTarget {
-                    url: file_url,
-                    redirect_uri,
-                    cleanup_path,
-                    form_fields: form_field_values,
-                }));
-            }
+            // The isolated worker builds and submits this form in memory. There
+            // is no shared temporary HTML file or file:// navigation.
+            return Ok(Some(BrowserRedirectTarget {
+                url: endpoint.to_string(),
+                redirect_uri,
+                post_fields: Some(form_field_values.clone()),
+                form_fields: form_field_values,
+            }));
         }
 
         let mut redirect_url =
@@ -1242,7 +1049,7 @@ fn extract_redirect_target_from_dependencies(
         return Ok(Some(BrowserRedirectTarget {
             url: redirect_url.to_string(),
             redirect_uri,
-            cleanup_path: None,
+            post_fields: None,
             form_fields: form_field_values,
         }));
     }
@@ -5123,6 +4930,45 @@ pub fn all_known_suites() -> &'static [&'static str] {
 #[cfg(test)]
 #[allow(clippy::indexing_slicing)]
 mod tests {
+    #[test]
+    fn browser_post_redirect_keeps_fields_in_memory() {
+        let hook: crate::harness::scenario_types::BrowserAutomationHook =
+            serde_json::from_value(serde_json::json!({ "suite": "complete_authorize" }))
+                .expect("valid browser hook fixture");
+        let dependency = super::ExecutedDependency {
+            suite: "authorize".to_string(),
+            scenario: "fixture".to_string(),
+            res: serde_json::json!({
+                "redirection_data": { "form": {
+                    "endpoint": "https://example.com/3ds",
+                    "method": "POST",
+                    "form_fields": {
+                        "PaReq": "HARMLESS_3DS_FIXTURE",
+                        "submit": "field-not-a-method",
+                        "redirect_uri": "https://example.com/complete"
+                    }
+                }}
+            }),
+        };
+        let target = super::extract_redirect_target_from_dependencies(
+            &[dependency],
+            &serde_json::json!({}),
+            &hook,
+        )
+        .expect("valid redirect")
+        .expect("redirect present");
+        assert_eq!(target.url, "https://example.com/3ds");
+        assert_eq!(
+            target.redirect_uri.as_deref(),
+            Some("https://example.com/complete")
+        );
+        assert_eq!(target.post_fields.as_ref(), Some(&target.form_fields));
+        assert_eq!(
+            target.form_fields.get("PaReq").map(String::as_str),
+            Some("HARMLESS_3DS_FIXTURE")
+        );
+    }
+
     use std::{collections::BTreeSet, fs};
 
     use grpc_api_types::payments;
