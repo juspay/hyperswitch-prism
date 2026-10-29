@@ -1,6 +1,4 @@
 pub mod qr_code;
-#[cfg(test)]
-pub(crate) mod test_fixtures;
 pub mod xml_utils;
 use crate::{ConnectorError, IntegrationError};
 use base64::Engine;
