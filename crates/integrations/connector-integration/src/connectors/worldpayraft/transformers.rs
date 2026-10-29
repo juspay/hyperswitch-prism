@@ -1458,6 +1458,90 @@ fn wallet_decryption_required(wallet_name: &str) -> error_stack::Report<errors::
     .into()
 }
 
+/// Follow-up wallet transactions identify the original payment by its DPAN and
+/// expiry. The authorization cryptogram is single-use and is not sent again.
+fn wallet_card_fields_for_followup(
+    wallet: &WalletData,
+) -> Result<CardFields<DefaultPCIHolder>, error_stack::Report<errors::IntegrationError>> {
+    let (card_number, expiry_year, expiry_month, card_type, network) = match wallet {
+        WalletData::ApplePay(apple_pay) => match &apple_pay.payment_data {
+            ApplePayPaymentData::Decrypted(data) => (
+                &data.application_primary_account_number,
+                &data.application_expiration_year,
+                &data.application_expiration_month,
+                Some(&apple_pay.payment_method.pm_type),
+                apple_pay.payment_method.network.as_str(),
+            ),
+            ApplePayPaymentData::Encrypted(_) => {
+                return Err(wallet_decryption_required_for_followup("Apple Pay"))
+            }
+        },
+        WalletData::GooglePay(google_pay) => match &google_pay.tokenization_data {
+            GpayTokenizationData::Decrypted(data) => (
+                &data.application_primary_account_number,
+                &data.card_exp_year,
+                &data.card_exp_month,
+                None,
+                google_pay.info.card_network.as_str(),
+            ),
+            GpayTokenizationData::Encrypted(_) => {
+                return Err(wallet_decryption_required_for_followup("Google Pay"))
+            }
+        },
+        _ => {
+            return Err(errors::IntegrationError::NotSupported {
+                message: "Only decrypted Apple Pay and Google Pay wallets are supported for Worldpay RAFT follow-up transactions".to_string(),
+                connector: "worldpayraft",
+                context: Default::default(),
+            }
+            .into())
+        }
+    };
+    let card = CardWithNoCvc {
+        card_number: card_number.clone(),
+        card_exp_year: expiry_year.clone(),
+        card_exp_month: expiry_month.clone(),
+        card_network: match network.to_ascii_lowercase().as_str() {
+            "visa" => Some(CardNetwork::Visa),
+            "mastercard" => Some(CardNetwork::Mastercard),
+            "discover" => Some(CardNetwork::Discover),
+            "amex" | "americanexpress" | "american express" => Some(CardNetwork::AmericanExpress),
+            _ => None,
+        },
+        card_type: card_type.cloned(),
+        ..Default::default()
+    };
+    CardFields::try_from(&card)
+}
+
+fn card_fields_for_followup(
+    payment_method: &PaymentMethodData<DefaultPCIHolder>,
+) -> Result<CardFields<DefaultPCIHolder>, error_stack::Report<errors::IntegrationError>> {
+    match payment_method {
+        PaymentMethodData::Wallet(wallet) => wallet_card_fields_for_followup(wallet),
+        _ => CardFields::try_from(payment_method),
+    }
+}
+
+fn wallet_decryption_required_for_followup(
+    wallet_name: &str,
+) -> error_stack::Report<errors::IntegrationError> {
+    errors::IntegrationError::InvalidWalletToken {
+        wallet_name: wallet_name.to_string(),
+        context: errors::IntegrationErrorContext {
+            additional_context: Some(
+                "Worldpay RAFT follow-up transactions require the decrypted wallet DPAN and expiry"
+                    .to_string(),
+            ),
+            suggested_action: Some(
+                "Provide decrypted wallet card details for the follow-up request".to_string(),
+            ),
+            ..Default::default()
+        },
+    }
+    .into()
+}
+
 fn required_ecommerce_indicator(
     eci: Option<&str>,
     field_name: &'static str,
@@ -1694,10 +1778,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         validate_partial_approval(request.enable_partial_authorization)?;
         let request_incremental_authorization =
             request.request_incremental_authorization == Some(true) && !is_debit;
-        if request_incremental_authorization && (is_auto_capture || wallet.is_some()) {
+        if request_incremental_authorization && is_auto_capture {
             return Err(errors::IntegrationError::NotSupported {
-                message: "Incremental authorization requires a credit card with manual capture; wallets are not supported"
-                    .to_string(),
+                message: "Incremental authorization requires manual capture".to_string(),
                 connector: "worldpayraft",
                 context: errors::IntegrationErrorContext::default(),
             }
@@ -1794,6 +1877,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 request_incremental_authorization,
             )
         };
+        if request_incremental_authorization && wallet.is_some() {
+            pos.proc_flags
+                .get_or_insert_with(WorldpayraftProcFlags::default)
+                .estimated_auth = Some(WorldpayraftFlag::Yes);
+        }
         if let Some(token) = network_token.filter(|_| kind != WorldpayraftPaymentKind::Mit) {
             pos.terminal_data.entry_mode = WorldpayraftEntryMode::Ecommerce;
             pos.ecommerce_data.ecommerce_indicator =
@@ -2148,7 +2236,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .payment_method_data
             .as_ref()
-            .map(CardFields::try_from)
+            .map(card_fields_for_followup)
             .transpose()?;
         let card_info = card.map(|card| WorldpayraftCardInfo {
             pan: Some(card.pan),
@@ -2470,40 +2558,42 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .payment_method_data
             .as_ref()
             .ok_or_else(missing_field_err("payment_method"))?;
-        let decrypted_payment_data = match payment_method {
-            PaymentMethodData::Wallet(wallet) => Some(WorldpayraftWalletData::try_from(wallet)?),
-            _ => None,
+        let card_details = card_fields_for_followup(payment_method)?;
+        let wallet_metadata = if matches!(payment_method, PaymentMethodData::Wallet(_)) {
+            Some(WorldpayraftConnectorMetadata::try_from(
+                router_data.request.connector_feature_data.as_ref(),
+            )?)
+        } else {
+            None
         };
-        let card_details = match &decrypted_payment_data {
-            Some(data) => CardFields {
-                pan: WorldpayraftAuthorizePan::CardNumber(data.card_number.clone()),
-                expiration_date: data.expiration_date.clone(),
-                network: Some(data.network.clone()),
-                is_debit: false,
-            },
-            None => CardFields::try_from(payment_method)?,
-        };
-        let pos = (!is_debit).then(|| match &decrypted_payment_data {
-            Some(data) => WorldpayraftPosData::for_wallet(data),
-            None => WorldpayraftPosData {
+        let pos = (!is_debit).then(|| {
+            let is_wallet = wallet_metadata.is_some();
+            WorldpayraftPosData {
                 terminal_data: WorldpayraftTerminalData {
-                    entry_mode: WorldpayraftEntryMode::Keyed,
+                    entry_mode: if is_wallet {
+                        WorldpayraftEntryMode::Ecommerce
+                    } else {
+                        WorldpayraftEntryMode::Keyed
+                    },
                     pos_condition_code: WorldpayraftPosConditionCode::Ecommerce,
                     terminal_entry_cap: WorldpayraftTerminalEntryCapability::Unspecified,
                     pos_environment: None,
                 },
-                ecommerce_data: WorldpayraftEcommerceData {
-                    ecommerce_indicator: WorldpayraftEcommerceIndicator::NonThreeDs,
-                },
+                ecommerce_data: wallet_metadata
+                    .as_ref()
+                    .and_then(|metadata| metadata.ecommerce_data.clone())
+                    .unwrap_or(WorldpayraftEcommerceData {
+                        ecommerce_indicator: WorldpayraftEcommerceIndicator::NonThreeDs,
+                    }),
                 proc_flags: None,
-            },
+            }
         });
         let (terminal_data, ecommerce_data) = match pos {
             Some(pos) => (
                 Some(pos.terminal_data),
                 Some(WorldpayraftAuthorizeEcommerceData {
                     ecommerce_data: pos.ecommerce_data,
-                    cryptogram: decrypted_payment_data.map(|data| data.cryptogram),
+                    cryptogram: None,
                 }),
             ),
             None => (None, None),
@@ -3301,7 +3391,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .payment_method_data
             .as_ref()
-            .map(CardFields::try_from)
+            .map(card_fields_for_followup)
             .transpose()?
             .map(|card| WorldpayraftCardInfo {
                 pan: Some(card.pan),
@@ -3494,7 +3584,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .payment_method_data
             .as_ref()
             .ok_or_else(missing_field_err("payment_method"))?;
-        let card = CardFields::try_from(payment_method)?;
+        let card = card_fields_for_followup(payment_method)?;
         if transaction_type.is_debit() || card.is_debit {
             return Err(errors::IntegrationError::NotSupported {
                 message: "Post-capture reversal is supported only for credit transactions"
@@ -3862,7 +3952,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             }.into());
         }
-        let card = CardFields::try_from(payment_method)?;
+        let card = card_fields_for_followup(payment_method)?;
         if card.is_debit {
             return Err(errors::IntegrationError::NotSupported {
                 message: "Incremental authorization for debit cards".to_string(),
