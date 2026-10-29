@@ -22,6 +22,7 @@ use domain_types::{
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
+    router_request_types::AuthenticationData,
     router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
@@ -335,7 +336,7 @@ pub struct RapydPaymentsRequest<
     pub amount: StringMajorUnit,
     pub currency: common_enums::Currency,
     pub payment_method: RapydPaymentMethodData<T>,
-    pub payment_method_options: Option<PaymentMethodOptions>,
+    pub payment_method_options: Option<RapydPaymentMethodOptions>,
     pub merchant_reference_id: Option<String>,
     pub capture: Option<bool>,
     pub description: Option<String>,
@@ -397,6 +398,97 @@ pub enum RapydPaymentMethodData<
 pub struct PaymentMethodOptions {
     #[serde(rename = "3d_required")]
     pub three_ds: bool,
+}
+
+/// Rapyd `payment_method_options` is one of two mutually exclusive shapes:
+///
+/// - hosted 3DS: `{"3d_required": bool}`, driven by the requested auth type;
+/// - external 3DS: `{"3d_version", "cavv", "eci", "ds_trans_id"?}` built from
+///   a completed third-party authentication result, with `3d_required`
+///   omitted entirely.
+///
+/// Reference: https://docs.rapyd.net/en/creating-a-card-payment-with-3ds-authentication---external-3ds.html
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum RapydPaymentMethodOptions {
+    Hosted(PaymentMethodOptions),
+    External(RapydExternal3DsOptions),
+}
+
+/// External (third-party) 3DS authentication result forwarded to Rapyd under
+/// `payment_method_options`. `cavv` is kept as a secret end to end.
+#[derive(Debug, Serialize)]
+pub struct RapydExternal3DsOptions {
+    #[serde(rename = "3d_version")]
+    pub three_ds_version: String,
+    pub cavv: Secret<String>,
+    pub eci: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_trans_id: Option<String>,
+}
+
+/// Builds Rapyd's external-3DS `payment_method_options` from a completed
+/// authentication result. Rapyd requires `3d_version`, `cavv`, and `eci`;
+/// `ds_trans_id` is required for Mastercard 2.0, validated only when the
+/// caller supplies the card network. Existing non-external flows keep the
+/// hosted `3d_required` flag.
+pub fn build_external_3ds_options(
+    authentication_data: &AuthenticationData,
+    card_network: Option<common_enums::CardNetwork>,
+) -> Result<RapydExternal3DsOptions, error_stack::Report<IntegrationError>> {
+    // Reference: https://docs.rapyd.net/en/creating-a-card-payment-with-3ds-authentication---external-3ds.html
+    let message_version = authentication_data
+        .message_version
+        .as_ref()
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name: "authentication_data.message_version",
+            context: crate::utils::integration_ctx(
+                "Rapyd external 3DS requires the 3DS version from the authentication result",
+                "Send a completed external 3DS result that includes the 3DS version.",
+            ),
+        })?;
+    let three_ds_version = message_version.to_string();
+    let cavv =
+        authentication_data
+            .cavv
+            .clone()
+            .ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name: "authentication_data.cavv",
+                context: crate::utils::integration_ctx(
+                    "Rapyd external 3DS requires the cavv from the authentication result",
+                    "Send a completed external 3DS result that includes the cavv.",
+                ),
+            })?;
+    let eci =
+        authentication_data
+            .eci
+            .clone()
+            .ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name: "authentication_data.eci",
+                context: crate::utils::integration_ctx(
+                    "Rapyd external 3DS requires the eci from the authentication result",
+                    "Send a completed external 3DS result that includes the eci.",
+                ),
+            })?;
+    let ds_trans_id = authentication_data.ds_trans_id.clone();
+    if matches!(card_network, Some(common_enums::CardNetwork::Mastercard))
+        && message_version.get_major() == 2
+        && ds_trans_id.is_none()
+    {
+        Err(IntegrationError::MissingRequiredField {
+            field_name: "authentication_data.ds_trans_id",
+            context: crate::utils::integration_ctx(
+                "Rapyd requires ds_trans_id for Mastercard 3DS 2.0",
+                "Send the directory server transaction id from the authentication result.",
+            ),
+        })?;
+    }
+    Ok(RapydExternal3DsOptions {
+        three_ds_version,
+        cavv,
+        eci,
+        ds_trans_id,
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -560,19 +652,40 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ),
             })?;
 
-        // Capture intent applies to every payment method; the `three_ds`
-        // option is card-only (wallets carry their own authentication).
+        // Capture intent applies to every payment method; the 3DS
+        // `payment_method_options` is card-only (wallets carry their own
+        // authentication).
         let capture = Some(item.router_data.request.is_auto_capture());
-        let payment_method_options = matches!(
+        let is_card = matches!(
             item.router_data.resource_common_data.payment_method,
             common_enums::PaymentMethod::Card
-        )
-        .then(|| PaymentMethodOptions {
-            three_ds: matches!(
-                item.router_data.resource_common_data.auth_type,
-                common_enums::AuthenticationType::ThreeDs
-            ),
-        });
+        );
+        let card_network = match (&item.router_data.request.payment_method_data, is_card) {
+            (PaymentMethodData::Card(card), true) => card.card_network.clone(),
+            _ => None,
+        };
+        // Completed external 3DS results are forwarded under
+        // `payment_method_options` and never combined with the hosted
+        // `3d_required` flag. Requests without external results keep the
+        // existing auth-type-driven flag.
+        // Reference: https://docs.rapyd.net/en/creating-a-card-payment-with-3ds-authentication---external-3ds.html
+        let payment_method_options = if is_card {
+            Some(
+                match item.router_data.request.authentication_data.as_ref() {
+                    Some(authentication_data) => RapydPaymentMethodOptions::External(
+                        build_external_3ds_options(authentication_data, card_network)?,
+                    ),
+                    None => RapydPaymentMethodOptions::Hosted(PaymentMethodOptions {
+                        three_ds: matches!(
+                            item.router_data.resource_common_data.auth_type,
+                            common_enums::AuthenticationType::ThreeDs
+                        ),
+                    }),
+                },
+            )
+        } else {
+            None
+        };
         let payment_method = match item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref ccard) => {
                 Some(RapydPaymentMethodData::PaymentMethod(Box::new(
@@ -1575,8 +1688,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.resource_common_data.auth_type,
             common_enums::AuthenticationType::ThreeDs
         );
-        let payment_method_options = Some(PaymentMethodOptions {
-            three_ds: three_ds_enabled,
+        // Completed external 3DS results take precedence and omit the hosted
+        // `3d_required` flag, matching the Authorize flow.
+        // Reference: https://docs.rapyd.net/en/creating-a-card-payment-with-3ds-authentication---external-3ds.html
+        let card_network = match &request.payment_method_data {
+            PaymentMethodData::Card(card) => card.card_network.clone(),
+            _ => None,
+        };
+        let payment_method_options = Some(match request.authentication_data.as_ref() {
+            Some(authentication_data) => RapydPaymentMethodOptions::External(
+                build_external_3ds_options(authentication_data, card_network)?,
+            ),
+            None => RapydPaymentMethodOptions::Hosted(PaymentMethodOptions {
+                three_ds: three_ds_enabled,
+            }),
         });
 
         // Rapyd REQUIRES a customer to save a payment method. We pass an
@@ -1856,9 +1981,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.resource_common_data.auth_type,
             common_enums::AuthenticationType::ThreeDs
         );
-        let payment_method_options = Some(PaymentMethodOptions {
-            three_ds: three_ds_enabled,
-        });
+        let payment_method_options =
+            Some(RapydPaymentMethodOptions::Hosted(PaymentMethodOptions {
+                three_ds: three_ds_enabled,
+            }));
 
         // On Charge, return_url arrives on `request.router_return_url`;
         // `PaymentFlowData.return_url` is hardcoded to None for this flow.
