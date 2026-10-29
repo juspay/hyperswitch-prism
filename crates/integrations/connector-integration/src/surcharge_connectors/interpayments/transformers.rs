@@ -88,10 +88,9 @@ impl
             SurchargeCalculateResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = super::InterPaymentsAmountConvertor::convert(&common_utils::types::Money {
-            amount: req.request.amount,
-            currency: req.request.currency,
-        })?;
+        let amount = super::InterPaymentsAmountConvertor::convert(
+            &common_utils::types::Money::new(req.request.amount, req.request.currency),
+        )?;
 
         let region = req.request.postal_code.clone();
 

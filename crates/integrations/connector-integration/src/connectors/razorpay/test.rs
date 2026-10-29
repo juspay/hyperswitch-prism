@@ -154,10 +154,7 @@ mod tests {
                         card_holder_name: Some("Test User".to_string().into()),
                         co_badged_card_data: None,
                     }),
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(MinorUnit::new(1000), Currency::USD),
                     order_tax_amount: None,
                     surcharge_amount: None,
                     email: Some(email.clone()),
@@ -374,10 +371,7 @@ mod tests {
                         card_holder_name: Some("Test User".to_string().into()),
                         co_badged_card_data: None,
                     }),
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(MinorUnit::new(1000), Currency::USD),
                     order_tax_amount: None,
                     surcharge_amount: None,
                     email: None,
@@ -547,10 +541,7 @@ mod tests {
                         card_holder_name: Some("Test User".to_string().into()),
                         co_badged_card_data: None,
                     }),
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(MinorUnit::new(1000), Currency::USD),
                     order_tax_amount: None,
                     surcharge_amount: None,
                     email: Some(email),
@@ -744,10 +735,7 @@ mod tests {
                         card_holder_name: Some("Test User".to_string().into()),
                         co_badged_card_data: None,
                     }),
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(MinorUnit::new(1000), Currency::USD),
                     order_tax_amount: None,
                     surcharge_amount: None,
                     email: Some(email),
@@ -1139,10 +1127,7 @@ mod tests {
                     card_holder_name: Some("Test User".to_string().into()),
                     co_badged_card_data: None,
                 }),
-                amount: common_utils::types::Money {
-                    amount: MinorUnit::new(1000),
-                    currency: Currency::USD,
-                },
+                amount: common_utils::types::Money::new(MinorUnit::new(1000), Currency::USD),
                 order_tax_amount: None,
                 surcharge_amount: None,
                 email: Some(email),
@@ -1368,10 +1353,7 @@ mod tests {
                     card_holder_name: Some("Test User".to_string().into()),
                     co_badged_card_data: None,
                 }),
-                amount: common_utils::types::Money {
-                    amount: MinorUnit::new(1000),
-                    currency: Currency::USD,
-                },
+                amount: common_utils::types::Money::new(MinorUnit::new(1000), Currency::USD),
                 order_tax_amount: None,
                 surcharge_amount: None,
                 email: Some(email),
@@ -1577,10 +1559,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentCreateOrderData {
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(MinorUnit::new(1000), Currency::USD),
                     currency: Currency::USD,
                     integrity_object: None,
                     metadata: None,
@@ -1714,10 +1693,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentCreateOrderData {
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(0),
-                        currency: Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(MinorUnit::new(0), Currency::USD),
                     currency: Currency::USD,
                     integrity_object: None,
                     metadata: None,
@@ -1876,10 +1852,7 @@ mod tests {
                         card_holder_name: Some("Test User".to_string().into()),
                         co_badged_card_data: None,
                     }),
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(MinorUnit::new(1000), Currency::USD),
                     order_tax_amount: None,
                     surcharge_amount: None,
                     email: None,
@@ -2048,10 +2021,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentCreateOrderData {
-                amount: common_utils::types::Money {
-                    amount: MinorUnit::new(1000),
-                    currency: Currency::USD,
-                },
+                amount: common_utils::types::Money::new(MinorUnit::new(1000), Currency::USD),
                 currency: Currency::USD,
                 integrity_object: None,
                 metadata: None,
@@ -2197,10 +2167,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentCreateOrderData {
-                amount: common_utils::types::Money {
-                    amount: MinorUnit::new(1000),
-                    currency: Currency::USD,
-                },
+                amount: common_utils::types::Money::new(MinorUnit::new(1000), Currency::USD),
                 currency: Currency::USD,
                 integrity_object: None,
                 metadata: None,
@@ -2335,10 +2302,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentCreateOrderData {
-                amount: common_utils::types::Money {
-                    amount: MinorUnit::new(1000),
-                    currency: Currency::USD,
-                },
+                amount: common_utils::types::Money::new(MinorUnit::new(1000), Currency::USD),
                 currency: Currency::USD,
                 integrity_object: None,
                 metadata: None,

@@ -4740,10 +4740,7 @@ pub fn payment_webhook_details(
         .sum
         .as_ref()
         .filter(|_| settles_capture)
-        .map(|sum| Money {
-            amount: sum.amount,
-            currency: sum.currency,
-        });
+        .map(|sum| Money::new(sum.amount, sum.currency));
     Ok(WebhookDetailsResponse {
         resource_id: Some(ResponseId::ConnectorTransactionId(payment_id.clone())),
         status,

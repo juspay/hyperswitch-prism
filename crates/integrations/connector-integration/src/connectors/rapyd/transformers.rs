@@ -1514,10 +1514,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         } else {
             item.connector
                 .amount_converter
-                .convert(&common_utils::types::Money {
-                    amount: minor_amount,
-                    currency: request.currency,
-                })
+                .convert(&common_utils::types::Money::new(
+                    minor_amount,
+                    request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: crate::utils::amount_conversion_ctx(
                         "rapyd setup mandate",

@@ -2912,10 +2912,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(&Money {
-                amount: amount.amount,
-                currency,
-            })
+            .convert(&Money::new(amount.amount, currency))
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(

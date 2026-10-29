@@ -1107,10 +1107,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = utils::convert_amount_for_webhook(
             self.amount_converter_webhooks,
-            &common_utils::types::Money {
-                amount: notif.amount.value,
-                currency: notif.amount.currency,
-            },
+            &common_utils::types::Money::new(notif.amount.value, notif.amount.currency),
         )?;
 
         Ok(

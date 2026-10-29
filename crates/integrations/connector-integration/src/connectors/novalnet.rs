@@ -908,11 +908,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(DisputeWebhookDetailsResponse {
             amount: utils::convert_amount_for_webhook(
                 self.amount_converter,
-                &common_utils::types::Money {
-                    amount: amount.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
-                    currency: currency
-                        .ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
-                },
+                &common_utils::types::Money::new(
+                    amount.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
+                    currency.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
+                ),
             )?,
             currency: currency.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
             stage: common_enums::DisputeStage::Dispute,

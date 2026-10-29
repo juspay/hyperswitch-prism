@@ -301,10 +301,10 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         // Convert amount to FloatMajorUnit format
         let converter = FloatMajorUnitForConnector;
         let amount_major = converter
-            .convert(&common_utils::types::Money {
-                amount: capture_amount,
-                currency: item.request.currency,
-            })
+            .convert(&common_utils::types::Money::new(
+                capture_amount,
+                item.request.currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

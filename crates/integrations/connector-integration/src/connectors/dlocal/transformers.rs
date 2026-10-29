@@ -819,10 +819,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .amount;
                 let amount = utils::convert_amount(
                     item.connector.amount_converter,
-                    &common_utils::types::Money {
-                        amount: minor_amount,
-                        currency: router_data.request.currency,
-                    },
+                    &common_utils::types::Money::new(minor_amount, router_data.request.currency),
                 )?;
 
                 Ok(Self {

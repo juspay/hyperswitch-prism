@@ -62,10 +62,10 @@ mod tests {
                     base_url: None,
                 },
                 request: ClientAuthenticationTokenRequestData {
-                    amount: common_utils::types::Money {
-                        amount: common_utils::types::MinorUnit::new(0),
-                        currency: common_enums::Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(
+                        common_utils::types::MinorUnit::new(0),
+                        common_enums::Currency::USD,
+                    ),
                     currency: common_enums::Currency::USD,
                     country: None,
                     order_details: None,
@@ -273,10 +273,10 @@ mod tests {
                                 bank_holder_type: None,
                             },
                         ),
-                    amount: common_utils::types::Money {
-                        amount: common_utils::types::MinorUnit::new(0),
-                        currency: common_enums::Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(
+                        common_utils::types::MinorUnit::new(0),
+                        common_enums::Currency::USD,
+                    ),
                     currency: common_enums::Currency::USD,
                     metadata: metadata.map(|s| Secret::new(s.to_owned())),
                     split_payments: None,

@@ -1278,7 +1278,7 @@ pub(super) fn get_amount_details(
     currency: common_enums::Currency,
 ) -> Result<Option<NuveiAmountDetails>, Report<IntegrationError>> {
     let convert =
-        |amount| NuveiAmountConvertor::convert(&common_utils::types::Money { amount, currency });
+        |amount| NuveiAmountConvertor::convert(&common_utils::types::Money::new(amount, currency));
     l2_l3_data
         .map(|data| {
             Ok(NuveiAmountDetails {
@@ -2528,10 +2528,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let time_stamp = NuveiAuthType::get_timestamp();
         let currency = request.currency;
-        let amount = NuveiAmountConvertor::convert(&common_utils::types::Money {
-            amount: request.amount.amount,
+        let amount = NuveiAmountConvertor::convert(&common_utils::types::Money::new(
+            request.amount.amount,
             currency,
-        })?;
+        ))?;
 
         let l2_l3_data = resource.l2_l3_data.as_deref();
         let items = get_l2_l3_items(l2_l3_data)?;
@@ -3159,10 +3159,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let currency = request.currency.ok_or_else(|| {
             nuvei_missing_field("currency", "Send amount.currency for Nuvei initPayment")
         })?;
-        let amount = NuveiAmountConvertor::convert(&common_utils::types::Money {
-            amount: request.amount.amount,
+        let amount = NuveiAmountConvertor::convert(&common_utils::types::Money::new(
+            request.amount.amount,
             currency,
-        })?;
+        ))?;
 
         // browser_info (deviceDetails.ipAddress) and return_url are required
         let browser_info = request.browser_info.as_ref().ok_or_else(|| {
@@ -3366,10 +3366,8 @@ fn build_nuvei_three_ds_payment_request<
 
     let client_unique_id = get_valid_client_unique_id(&client_request_id)?;
 
-    let amount = NuveiAmountConvertor::convert(&common_utils::types::Money {
-        amount: minor_amount,
-        currency,
-    })?;
+    let amount =
+        NuveiAmountConvertor::convert(&common_utils::types::Money::new(minor_amount, currency))?;
     let transaction_type = TransactionType::get_from_capture_method(capture_method, minor_amount)?;
 
     // dynamicDescriptor.merchantPhone is at most 13 characters
@@ -4056,10 +4054,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let currency = router_data.request.currency;
 
         // Typed minor refund amount -> Nuvei major-unit string
-        let amount = NuveiAmountConvertor::convert(&common_utils::types::Money {
-            amount: router_data.request.refund_amount.amount,
+        let amount = NuveiAmountConvertor::convert(&common_utils::types::Money::new(
+            router_data.request.refund_amount.amount,
             currency,
-        })?;
+        ))?;
 
         // Generate checksum: merchantId + merchantSiteId + clientRequestId + clientUniqueId + amount + currency + relatedTransactionId + timeStamp + merchantSecretKey
         let checksum = auth.generate_checksum(&[
@@ -4394,10 +4392,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )
         })?;
 
-        let amount = NuveiAmountConvertor::convert(&common_utils::types::Money {
-            amount: minor_amount.amount,
+        let amount = NuveiAmountConvertor::convert(&common_utils::types::Money::new(
+            minor_amount.amount,
             currency,
-        })
+        ))
         .change_context(IntegrationError::RequestEncodingFailed {
             context: nuvei_error_context(
                 "Send a valid amount and currency",
@@ -5063,10 +5061,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_ref()
             .map(|money| money.amount)
             .unwrap_or(common_utils::types::MinorUnit::new(0));
-        let amount = NuveiAmountConvertor::convert(&common_utils::types::Money {
-            amount: minor_amount,
+        let amount = NuveiAmountConvertor::convert(&common_utils::types::Money::new(
+            minor_amount,
             currency,
-        })?;
+        ))?;
 
         let l2_l3_data = resource.l2_l3_data.as_deref();
         let items = get_l2_l3_items(l2_l3_data)?;
@@ -5518,10 +5516,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let time_stamp = NuveiAuthType::get_timestamp();
         let currency = request.currency;
-        let amount = NuveiAmountConvertor::convert(&common_utils::types::Money {
-            amount: request.amount.amount,
+        let amount = NuveiAmountConvertor::convert(&common_utils::types::Money::new(
+            request.amount.amount,
             currency,
-        })?;
+        ))?;
 
         // Auth for manual capture or amount 0, else Sale
         let transaction_type = TransactionType::get_from_capture_method(

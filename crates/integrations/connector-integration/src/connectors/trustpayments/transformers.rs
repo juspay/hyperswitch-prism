@@ -1758,10 +1758,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: minor_amount,
-                currency: router_data.request.currency,
-            })
+            .convert(&common_utils::types::Money::new(
+                minor_amount,
+                router_data.request.currency,
+            ))
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

@@ -5386,10 +5386,7 @@ pub(crate) fn build_webhook_dispute_response(
 
     let amount = domain_types::utils::convert_amount_for_webhook(
         &StringMinorUnitForConnector,
-        &common_utils::types::Money {
-            amount,
-            currency: event_object.currency,
-        },
+        &common_utils::types::Money::new(amount, event_object.currency),
     )?;
 
     // A Dispute object always carries `status`; a missing or foreign one is an error rather

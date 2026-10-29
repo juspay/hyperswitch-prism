@@ -992,10 +992,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         })?;
 
-        let amount = SaferpayAmountConvertor::convert(&common_utils::types::Money {
-            amount: request.amount.amount,
-            currency: request.currency.ok_or_else(|| missing_field("currency"))?,
-        })?;
+        let amount = SaferpayAmountConvertor::convert(&common_utils::types::Money::new(
+            request.amount.amount,
+            request.currency.ok_or_else(|| missing_field("currency"))?,
+        ))?;
 
         // `continue_redirection_url` first, deliberately. It is the URL that routes the
         // returning shopper into the caller's complete-authorize path, which is what

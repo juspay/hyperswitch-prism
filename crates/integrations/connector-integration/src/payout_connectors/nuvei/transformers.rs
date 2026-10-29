@@ -107,10 +107,10 @@ fn convert_payout_amount(
     destination_currency: common_enums::Currency,
 ) -> Result<StringMajorUnit, Report<IntegrationError>> {
     StringMajorUnitForConnector
-        .convert(&common_utils::types::Money {
+        .convert(&common_utils::types::Money::new(
             amount,
-            currency: destination_currency,
-        })
+            destination_currency,
+        ))
         .change_context(IntegrationError::InvalidDataFormat {
             field_name: "amount",
             context: nuvei_context(

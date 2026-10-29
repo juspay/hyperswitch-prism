@@ -112,10 +112,7 @@ mod tests {
         vec![OrderDetailsWithAmount {
             product_name: "Passagem São Paulo → Rio".to_owned(),
             quantity: 2,
-            amount: Money {
-                amount: MinorUnit(15000),
-                currency: Currency::BRL,
-            },
+            amount: Money::new(MinorUnit(15000), Currency::BRL),
             tax_rate: None,
             total_tax_amount: None,
             requires_shipping: None,
@@ -129,10 +126,7 @@ mod tests {
 
     fn pre_risk_check_request() -> PreRiskCheckRequest {
         PreRiskCheckRequest {
-            amount: Money {
-                amount: MinorUnit(30000),
-                currency: Currency::BRL,
-            },
+            amount: Money::new(MinorUnit(30000), Currency::BRL),
             customer_info: Some(customer_info()),
             payment_method: Some(card()),
             browser_info: Some(BrowserInformation {
@@ -1166,10 +1160,7 @@ mod tests {
     #[test]
     fn non_brl_currency_is_rejected() {
         let mut req = pre_risk_check_request();
-        req.amount = Money {
-            amount: MinorUnit(1000),
-            currency: Currency::USD,
-        };
+        req.amount = Money::new(MinorUnit(1000), Currency::USD);
         let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
         let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
         let err = order_from_common(inputs).expect_err("USD must fail");

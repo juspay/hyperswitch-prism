@@ -1053,10 +1053,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = match original_amount {
             Some(total) if total == amount_to_capture => None,
             _ => Some(JuspayAmountConvertor::convert(
-                &common_utils::types::Money {
-                    amount: amount_to_capture,
-                    currency: router_data.request.currency,
-                },
+                &common_utils::types::Money::new(amount_to_capture, router_data.request.currency),
             )?),
         };
 

@@ -768,10 +768,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: amount.amount,
-                currency,
-            })
+            .convert(&common_utils::types::Money::new(amount.amount, currency))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1205,19 +1202,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         {
             Some(minor_amount) => connector
                 .amount_converter
-                .convert(&common_utils::types::Money {
-                    amount: minor_amount,
-                    currency: router_data.request.currency,
-                })
+                .convert(&common_utils::types::Money::new(
+                    minor_amount,
+                    router_data.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
             None => connector
                 .amount_converter
-                .convert(&common_utils::types::Money {
-                    amount: MinorUnit::zero(),
-                    currency: router_data.request.currency,
-                })
+                .convert(&common_utils::types::Money::new(
+                    MinorUnit::zero(),
+                    router_data.request.currency,
+                ))
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,

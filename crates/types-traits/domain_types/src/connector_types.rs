@@ -759,7 +759,7 @@ pub struct IntegritySpecifications {
     pub allow_amount_mismatch: Option<bool>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct PaymentsSyncData {
     pub connector_transaction_id: ResponseId,
     pub encoded_data: Option<String>,
@@ -785,6 +785,31 @@ pub struct PaymentsSyncData {
     pub split_payments: Option<SplitPaymentsDetails>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub mandate_reference: Option<MandateReference>,
+}
+
+impl Default for PaymentsSyncData {
+    fn default() -> Self {
+        Self {
+            connector_transaction_id: Default::default(),
+            encoded_data: Default::default(),
+            capture_method: Default::default(),
+            connector_feature_data: Default::default(),
+            sync_type: Default::default(),
+            mandate_id: Default::default(),
+            payment_method_type: Default::default(),
+            currency: Default::default(),
+            payment_experience: Default::default(),
+            amount: Money::new(Default::default(), Default::default()),
+            all_keys_required: Default::default(),
+            integrity_object: Default::default(),
+            integrity_specifications: Default::default(),
+            is_overcapture_enabled: Default::default(),
+            enable_partial_authorization: Default::default(),
+            split_payments: Default::default(),
+            setup_future_usage: Default::default(),
+            mandate_reference: Default::default(),
+        }
+    }
 }
 
 impl PaymentsSyncData {
@@ -3750,7 +3775,7 @@ impl ForeignTryFrom<grpc_api_types::payments::RedirectResponseSecrets>
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct RefundsData {
     pub refund_id: String,
     pub connector_transaction_id: String,
@@ -3779,6 +3804,34 @@ pub struct RefundsData {
         Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
     /// Merchant-supplied settlement quote for this operation.
     pub currency_conversion_data: Option<CurrencyConversionData>,
+}
+
+impl Default for RefundsData {
+    fn default() -> Self {
+        Self {
+            refund_id: Default::default(),
+            connector_transaction_id: Default::default(),
+            connector_refund_id: Default::default(),
+            customer_id: Default::default(),
+            currency: Default::default(),
+            reason: Default::default(),
+            webhook_url: Default::default(),
+            connector_feature_data: Default::default(),
+            refund_connector_metadata: Default::default(),
+            payment_amount: Money::new(Default::default(), Default::default()),
+            refund_amount: Money::new(Default::default(), Default::default()),
+            refund_status: Default::default(),
+            merchant_account_id: Default::default(),
+            capture_method: Default::default(),
+            integrity_object: Default::default(),
+            browser_info: Default::default(),
+            split_refunds: Default::default(),
+            split_settlement_refund: Default::default(),
+            connector_order_id: Default::default(),
+            payment_method_data: Default::default(),
+            currency_conversion_data: Default::default(),
+        }
+    }
 }
 
 impl RefundsData {
@@ -3832,7 +3885,7 @@ pub struct MultipleCaptureRequestData {
     pub capture_reference: String,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct PaymentsCaptureData {
     pub payment_method_data:
         Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
@@ -3859,6 +3912,30 @@ pub struct PaymentsCaptureData {
     pub split_settlement: Option<Box<SplitSettlement>>,
     /// Merchant-supplied settlement quote for this operation.
     pub currency_conversion_data: Option<CurrencyConversionData>,
+}
+
+impl Default for PaymentsCaptureData {
+    fn default() -> Self {
+        Self {
+            payment_method_data: Default::default(),
+            amount_to_capture: Money::new(Default::default(), Default::default()),
+            currency: Default::default(),
+            connector_transaction_id: Default::default(),
+            multiple_capture_data: Default::default(),
+            connector_feature_data: Default::default(),
+            integrity_object: Default::default(),
+            integrity_specifications: Default::default(),
+            is_overcapture_enabled: Default::default(),
+            browser_info: Default::default(),
+            capture_method: Default::default(),
+            metadata: Default::default(),
+            order_tax_amount: Default::default(),
+            merchant_order_id: Default::default(),
+            split_payments: Default::default(),
+            split_settlement: Default::default(),
+            currency_conversion_data: Default::default(),
+        }
+    }
 }
 
 impl PaymentsCaptureData {

@@ -244,10 +244,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let amount = convert_amount(
             item.connector.amount_converter,
-            &common_utils::types::Money {
-                amount: item.router_data.request.amount,
-                currency: item.router_data.request.destination_currency,
-            },
+            &common_utils::types::Money::new(
+                item.router_data.request.amount,
+                item.router_data.request.destination_currency,
+            ),
         )?;
         let payload = GotymeSanlamPayoutTransferPayload::try_from((&item.router_data, amount))?;
 

@@ -578,10 +578,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .authentication_data
                     .as_ref()
                     .is_some_and(|a| a.cavv.is_some());
-                let amount = Money {
-                    amount: item.router_data.request.amount.amount,
-                    currency: item.router_data.request.currency,
-                };
+                let amount = Money::new(
+                    item.router_data.request.amount.amount,
+                    item.router_data.request.currency,
+                );
                 let ecommerce_indicator = Some(derive_ecommerce_indicator(
                     item.router_data.request.payment_channel.as_ref(),
                     item.router_data.request.mit_category.as_ref(),
@@ -846,10 +846,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 };
 
-                let amount = Money {
-                    amount: item.router_data.request.amount.amount,
-                    currency: item.router_data.request.currency,
-                };
+                let amount = Money::new(
+                    item.router_data.request.amount.amount,
+                    item.router_data.request.currency,
+                );
 
                 Ok(Self {
                     idempotency_key,
@@ -1140,10 +1140,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         issuer_id: None,
                     }),
                 });
-                let amount = Money {
-                    amount: item.router_data.request.amount.amount,
-                    currency: item.router_data.request.currency,
-                };
+                let amount = Money::new(
+                    item.router_data.request.amount.amount,
+                    item.router_data.request.currency,
+                );
                 Ok(Self {
                     idempotency_key,
                     amount,
@@ -1197,10 +1197,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = Money {
-            currency: item.router_data.request.currency,
-            amount: item.router_data.request.amount_to_capture.amount,
-        };
+        let amount = Money::new(
+            item.router_data.request.amount_to_capture.amount,
+            item.router_data.request.currency,
+        );
         let idempotency_key = format!(
             "capture_{}",
             item.router_data
@@ -1250,7 +1250,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisRefundRequest {
     pub refund_amount: Money,
@@ -1274,10 +1274,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let refund_amount = Money {
-            currency: item.router_data.request.currency,
-            amount: item.router_data.request.refund_amount.amount,
-        };
+        let refund_amount = Money::new(
+            item.router_data.request.refund_amount.amount,
+            item.router_data.request.currency,
+        );
         let idempotency_key = format!(
             "refund_{}",
             item.router_data
@@ -1727,10 +1727,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             country: resource.get_optional_billing_country(),
         };
 
-        let amount = Money {
-            currency: req.currency.unwrap_or_default(),
-            amount: req.amount.amount,
-        };
+        let amount = Money::new(req.amount.amount, req.currency.unwrap_or_default());
 
         let idempotency_key = format!("3ds_{}", resource.connector_request_reference_id);
 

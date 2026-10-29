@@ -482,7 +482,7 @@ pub struct RedirectionResponse {
     pub return_url_with_query_params: String,
 }
 
-#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
 pub struct OrderDetailsWithAmount {
     /// Name of the product that is being purchased
     pub product_name: String,
@@ -532,6 +532,37 @@ pub struct OrderDetailsWithAmount {
     pub discount_type: Option<String>,
     /// The image URL of the product
     pub product_link: Option<String>,
+}
+
+impl Default for OrderDetailsWithAmount {
+    fn default() -> Self {
+        Self {
+            product_name: Default::default(),
+            quantity: Default::default(),
+            amount: Money::new(Default::default(), Default::default()),
+            tax_rate: Default::default(),
+            total_tax_amount: Default::default(),
+            requires_shipping: Default::default(),
+            product_img_link: Default::default(),
+            product_id: Default::default(),
+            category: Default::default(),
+            sub_category: Default::default(),
+            brand: Default::default(),
+            description: Default::default(),
+            unit_of_measure: Default::default(),
+            product_type: Default::default(),
+            product_tax_code: Default::default(),
+            sku: Default::default(),
+            upc: Default::default(),
+            commodity_code: Default::default(),
+            total_amount: Default::default(),
+            unit_discount_amount: Default::default(),
+            discount_name: Default::default(),
+            discount_percentage: Default::default(),
+            discount_type: Default::default(),
+            product_link: Default::default(),
+        }
+    }
 }
 
 impl SerializableSecret for OrderDetailsWithAmount {}

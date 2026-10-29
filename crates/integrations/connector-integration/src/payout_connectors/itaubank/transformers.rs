@@ -261,10 +261,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = StringMajorUnitForConnector;
         let valor_pagamento = converter
-            .convert(&common_utils::types::Money {
-                amount: req.request.amount,
-                currency: req.request.source_currency,
-            })
+            .convert(&common_utils::types::Money::new(
+                req.request.amount,
+                req.request.source_currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

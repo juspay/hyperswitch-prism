@@ -837,14 +837,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: request_data
+            .convert(&common_utils::types::Money::new(
+                request_data
                     .amount
                     .as_ref()
                     .map(|money| money.amount)
                     .unwrap_or(common_utils::types::MinorUnit::new(0)),
-                currency: request_data.currency,
-            })
+                request_data.currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

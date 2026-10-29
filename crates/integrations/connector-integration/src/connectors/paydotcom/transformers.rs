@@ -1225,10 +1225,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = value
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: minor_amount,
-                currency: item.request.currency,
-            })
+            .convert(&common_utils::types::Money::new(
+                minor_amount,
+                item.request.currency,
+            ))
             .change_context(amount_conversion_error(
                 "Failed to convert setup-mandate amount to MinorUnit for the Pay.com \
                  POST /v1/charges|/v1/holds request",
@@ -1522,10 +1522,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = value
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: item.request.amount.amount,
+            .convert(&common_utils::types::Money::new(
+                item.request.amount.amount,
                 currency,
-            })
+            ))
             .change_context(amount_conversion_error(
                 "Failed to convert pre-authenticate amount to MinorUnit for the Pay.com \
                  POST /v1/charges|/v1/holds request",

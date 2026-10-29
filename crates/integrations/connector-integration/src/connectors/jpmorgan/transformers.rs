@@ -1651,10 +1651,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let capture_method = requests::CapMethod::Now;
         let amount_to_capture = item.router_data.request.amount_to_capture.amount;
 
-        let amount = JpmorganAmountConvertor::convert(&common_utils::types::Money {
-            amount: amount_to_capture,
-            currency: item.router_data.request.currency,
-        })?;
+        let amount = JpmorganAmountConvertor::convert(&common_utils::types::Money::new(
+            amount_to_capture,
+            item.router_data.request.currency,
+        ))?;
 
         // When AuthenticationType is `Manual`, Documentation suggests us to pass `isAmountFinal` field being `true`
         // isAmountFinal is by default `true`. Since Manual Multiple support is not added here, the field is not used.

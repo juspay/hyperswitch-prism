@@ -120,7 +120,7 @@ mod tests {
                             ..Default::default()
                         },
                     ),
-                    amount: common_utils::types::Money { amount: MinorUnit::new(1000), currency: common_enums::Currency::USD },
+                    amount: common_utils::types::Money::new(MinorUnit::new(1000), common_enums::Currency::USD),
                     order_tax_amount: None,
                     surcharge_amount: None,
                     email: Some(
@@ -328,7 +328,7 @@ mod tests {
                     connector_testing_data: None,
                     currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Default::default()),
-                    amount: common_utils::types::Money { amount: MinorUnit::new(1000), currency: common_enums::Currency::USD },
+                    amount: common_utils::types::Money::new(MinorUnit::new(1000), common_enums::Currency::USD),
                     order_tax_amount: None,
                     surcharge_amount: None,
                     email: None,

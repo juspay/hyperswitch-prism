@@ -1581,10 +1581,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: item.router_data.request.amount.amount.to_owned(),
-                currency: item.router_data.request.currency,
-            })
+            .convert(&common_utils::types::Money::new(
+                item.router_data.request.amount.amount.to_owned(),
+                item.router_data.request.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1641,7 +1641,6 @@ fn build_l2_l3_order_data<
         T,
     >,
 ) -> Result<L2L3OrderData, error_stack::Report<IntegrationError>> {
-    let currency = item.router_data.request.currency;
     let convert = |money: &common_utils::types::Money, field: &str| {
         item.connector
             .amount_converter
@@ -1685,10 +1684,12 @@ fn build_l2_l3_order_data<
         })
         .transpose()?;
 
-    let order_tax_amount = l2_l3_data.and_then(L2L3Data::get_order_tax_amount);
+    let order_tax_amount = l2_l3_data
+        .and_then(|data| data.tax_info.as_ref())
+        .and_then(|tax| tax.order_tax_amount.as_ref());
     let purchase_order_number = l2_l3_data.and_then(L2L3Data::get_merchant_order_reference_id);
     // `taxable` is required by Cybersource when tax is charged on the order.
-    let taxable = order_tax_amount.map(|tax| tax.get_amount_as_i64() > 0);
+    let taxable = order_tax_amount.map(|tax| tax.amount.get_amount_as_i64() > 0);
     let invoice_details =
         (purchase_order_number.is_some() || taxable.is_some()).then_some(InvoiceDetails {
             purchase_order_number,
@@ -1699,51 +1700,22 @@ fn build_l2_l3_order_data<
         line_items,
         invoice_details,
         tax_amount: order_tax_amount
-            .map(|tax| {
-                convert(
-                    &common_utils::types::Money {
-                        amount: tax,
-                        currency,
-                    },
-                    "tax_info.order_tax_amount",
-                )
-            })
+            .map(|tax| convert(tax, "tax_info.order_tax_amount"))
             .transpose()?,
         discount_amount: l2_l3_data
-            .and_then(L2L3Data::get_discount_amount)
-            .map(|discount| {
-                convert(
-                    &common_utils::types::Money {
-                        amount: discount,
-                        currency,
-                    },
-                    "order_info.discount_amount",
-                )
-            })
+            .and_then(|data| data.order_info.as_ref())
+            .and_then(|order| order.discount_amount.as_ref())
+            .map(|discount| convert(discount, "order_info.discount_amount"))
             .transpose()?,
         duty_amount: l2_l3_data
-            .and_then(L2L3Data::get_duty_amount)
-            .map(|duty| {
-                convert(
-                    &common_utils::types::Money {
-                        amount: duty,
-                        currency,
-                    },
-                    "order_info.duty_amount",
-                )
-            })
+            .and_then(|data| data.order_info.as_ref())
+            .and_then(|order| order.duty_amount.as_ref())
+            .map(|duty| convert(duty, "order_info.duty_amount"))
             .transpose()?,
         freight_amount: l2_l3_data
-            .and_then(L2L3Data::get_shipping_cost)
-            .map(|freight| {
-                convert(
-                    &common_utils::types::Money {
-                        amount: freight,
-                        currency,
-                    },
-                    "order_info.shipping_cost",
-                )
-            })
+            .and_then(|data| data.order_info.as_ref())
+            .and_then(|order| order.shipping_cost.as_ref())
+            .map(|freight| convert(freight, "order_info.shipping_cost"))
             .transpose()?,
     })
 }
@@ -3500,10 +3472,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = value
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: amount.amount,
-                currency,
-            })
+            .convert(&common_utils::types::Money::new(amount.amount, currency))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -4488,15 +4457,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: item.router_data.request.amount.amount,
-                currency: item.router_data.request.currency.ok_or(
+            .convert(&common_utils::types::Money::new(
+                item.router_data.request.amount.amount,
+                item.router_data.request.currency.ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "currency",
                         context: Default::default(),
                     },
                 )?,
-            })
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -4778,15 +4747,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: item.router_data.request.amount.amount,
-                currency: item.router_data.request.currency.ok_or(
+            .convert(&common_utils::types::Money::new(
+                item.router_data.request.amount.amount,
+                item.router_data.request.currency.ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "currency",
                         context: Default::default(),
                     },
                 )?,
-            })
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -5493,10 +5462,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let total_amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: item.router_data.request.refund_amount.amount.to_owned(),
-                currency: item.router_data.request.currency,
-            })
+            .convert(&common_utils::types::Money::new(
+                item.router_data.request.refund_amount.amount.to_owned(),
+                item.router_data.request.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -6369,10 +6338,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: item.router_data.request.amount.amount.to_owned(),
-                currency: item.router_data.request.currency,
-            })
+            .convert(&common_utils::types::Money::new(
+                item.router_data.request.amount.amount.to_owned(),
+                item.router_data.request.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

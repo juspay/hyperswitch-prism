@@ -1664,15 +1664,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             get_worldpayxml_info_3d_secure(router_data.request.authentication_data.as_ref())?;
 
         let converted_amount =
-            super::WorldpayxmlAmountConvertor::convert(&common_utils::types::Money {
-                amount: router_data
+            super::WorldpayxmlAmountConvertor::convert(&common_utils::types::Money::new(
+                router_data
                     .request
                     .amount
                     .as_ref()
                     .map(|money| money.amount)
                     .unwrap_or_else(common_utils::types::MinorUnit::zero),
-                currency: router_data.request.currency,
-            })?;
+                router_data.request.currency,
+            ))?;
 
         Ok(Self {
             version: API_VERSION.to_string(),

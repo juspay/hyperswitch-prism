@@ -1187,10 +1187,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = data
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(1),
-                currency: data.router_data.request.currency,
-            });
+            .convert(&common_utils::types::Money::new(
+                common_utils::types::MinorUnit::new(1),
+                data.router_data.request.currency,
+            ));
         let mandate_amount = &data.router_data.request.setup_mandate_details;
 
         let (payment_data, currency, category) = match &item.request.mandate_id {

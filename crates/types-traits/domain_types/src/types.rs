@@ -4611,10 +4611,10 @@ impl ForeignTryFrom<grpc_api_types::payments::Money> for common_utils::types::Mo
     fn foreign_try_from(
         value: grpc_api_types::payments::Money,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        Ok(Self {
-            amount: common_utils::types::MinorUnit::new(value.minor_amount),
-            currency: common_enums::Currency::foreign_try_from(value.currency())?,
-        })
+        Ok(Self::new(
+            common_utils::types::MinorUnit::new(value.minor_amount),
+            common_enums::Currency::foreign_try_from(value.currency())?,
+        ))
     }
 }
 
@@ -5623,10 +5623,10 @@ impl<
                 ))
             })
             .transpose()?;
-        let amount = common_utils::types::Money {
-            amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-            currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-        };
+        let amount = common_utils::types::Money::new(
+            common_utils::types::MinorUnit::new(amount.minor_amount),
+            common_enums::Currency::foreign_try_from(amount.currency())?,
+        );
         let merchant_config_currency = amount.currency;
 
         let connector_feature_data = value
@@ -5973,10 +5973,10 @@ impl<
                 .map(CaptureMethod::foreign_try_from)
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
-            amount: Some(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
+            amount: Some(common_utils::types::Money::new(
+                common_utils::types::MinorUnit::new(amount.minor_amount),
+                common_enums::Currency::foreign_try_from(amount.currency())?,
+            )),
             shipping_cost: value
                 .shipping_cost
                 .map(common_utils::types::Money::foreign_try_from)
@@ -6448,17 +6448,17 @@ impl
                     },
                 },
             )?,
-            amount: common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(item.amount),
+            amount: common_utils::types::Money::new(
+                common_utils::types::MinorUnit::new(item.amount),
                 currency,
-            },
+            ),
             tax_rate: item.tax_rate,
-            total_tax_amount: item
-                .total_tax_amount
-                .map(|amount| common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(amount),
+            total_tax_amount: item.total_tax_amount.map(|amount| {
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(amount),
                     currency,
-                }),
+                )
+            }),
             requires_shipping: item.requires_shipping,
             product_img_link: item.product_img_link,
             product_id: item.product_id,
@@ -6478,14 +6478,16 @@ impl
             sku: item.sku,
             upc: item.upc,
             unit_discount_amount: item.unit_discount_amount.map(|amount| {
-                common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(amount),
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(amount),
                     currency,
-                }
+                )
             }),
-            total_amount: item.total_amount.map(|amount| common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount),
-                currency,
+            total_amount: item.total_amount.map(|amount| {
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(amount),
+                    currency,
+                )
             }),
             discount_name: item.discount_name,
             discount_percentage: item.discount_percentage,
@@ -6800,10 +6802,10 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
                 .amount
                 .as_ref()
                 .map(|money| {
-                    Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money {
-                        amount: common_utils::types::MinorUnit::new(money.minor_amount),
-                        currency: common_enums::Currency::foreign_try_from(money.currency())?,
-                    })
+                    Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money::new(
+                        common_utils::types::MinorUnit::new(money.minor_amount),
+                        common_enums::Currency::foreign_try_from(money.currency())?,
+                    ))
                 })
                 .transpose()?,
             access_token,
@@ -7033,10 +7035,10 @@ impl
                 Ok::<_, error_stack::Report<IntegrationError>>(
                     connector_types::RecurringMandatePaymentData {
                         payment_method_type: None,
-                        original_payment_authorized_amount: Some(common_utils::types::Money {
-                            amount: common_utils::types::MinorUnit::new(money.minor_amount),
-                            currency: common_enums::Currency::foreign_try_from(money.currency())?,
-                        }),
+                        original_payment_authorized_amount: Some(common_utils::types::Money::new(
+                            common_utils::types::MinorUnit::new(money.minor_amount),
+                            common_enums::Currency::foreign_try_from(money.currency())?,
+                        )),
                         mandate_metadata: None,
                     },
                 )
@@ -7072,10 +7074,10 @@ impl
                 .amount
                 .as_ref()
                 .map(|money| {
-                    Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money {
-                        amount: common_utils::types::MinorUnit::new(money.minor_amount),
-                        currency: common_enums::Currency::foreign_try_from(money.currency())?,
-                    })
+                    Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money::new(
+                        common_utils::types::MinorUnit::new(money.minor_amount),
+                        common_enums::Currency::foreign_try_from(money.currency())?,
+                    ))
                 })
                 .transpose()?,
             access_token,
@@ -7169,10 +7171,10 @@ impl
                 .amount
                 .as_ref()
                 .map(|money| {
-                    Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money {
-                        amount: common_utils::types::MinorUnit::new(money.minor_amount),
-                        currency: common_enums::Currency::foreign_try_from(money.currency())?,
-                    })
+                    Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money::new(
+                        common_utils::types::MinorUnit::new(money.minor_amount),
+                        common_enums::Currency::foreign_try_from(money.currency())?,
+                    ))
                 })
                 .transpose()?,
             access_token,
@@ -9004,10 +9006,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             field_name: "amount",
             context: IntegrationErrorContext::default(),
         })?;
-        let amount = common_utils::types::Money {
-            amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-            currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-        };
+        let amount = common_utils::types::Money::new(
+            common_utils::types::MinorUnit::new(amount.minor_amount),
+            common_enums::Currency::foreign_try_from(amount.currency())?,
+        );
         // An empty id from the caller means "no connector transaction id yet". Keep that as
         // `NoResponseId` so connector-level checks (`validate_psync_reference_id`,
         // `get_connector_transaction_id`) reject the sync instead of building a request URL
@@ -9938,10 +9940,10 @@ pub fn generate_payment_sync_response(
                         .integrity_object
                         .as_ref()
                         .map(|integrity_object| {
-                            connector_money_to_grpc(&common_utils::types::Money {
-                                amount: integrity_object.amount,
-                                currency: integrity_object.currency,
-                            })
+                            connector_money_to_grpc(&common_utils::types::Money::new(
+                                integrity_object.amount,
+                                integrity_object.currency,
+                            ))
                         })
                         .transpose()?,
                     payment_method_type: None,
@@ -10092,10 +10094,10 @@ pub fn generate_payment_sync_response(
                         .integrity_object
                         .as_ref()
                         .map(|integrity_object| {
-                            connector_money_to_grpc(&common_utils::types::Money {
-                                amount: integrity_object.amount,
-                                currency: integrity_object.currency,
-                            })
+                            connector_money_to_grpc(&common_utils::types::Money::new(
+                                integrity_object.amount,
+                                integrity_object.currency,
+                            ))
                         })
                         .transpose()?,
                     payment_method_type: None,
@@ -10219,10 +10221,10 @@ pub fn generate_payment_sync_response(
                     .integrity_object
                     .as_ref()
                     .map(|integrity_object| {
-                        connector_money_to_grpc(&common_utils::types::Money {
-                            amount: integrity_object.amount,
-                            currency: integrity_object.currency,
-                        })
+                        connector_money_to_grpc(&common_utils::types::Money::new(
+                            integrity_object.amount,
+                            integrity_object.currency,
+                        ))
                     })
                     .transpose()?,
                 payment_method_type: None,
@@ -11319,10 +11321,10 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
                 },
             })
         })?;
-        let amount = common_utils::types::Money {
-            amount: common_utils::types::MinorUnit::new(money.minor_amount),
-            currency: common_enums::Currency::foreign_try_from(money.currency())?,
-        };
+        let amount = common_utils::types::Money::new(
+            common_utils::types::MinorUnit::new(money.minor_amount),
+            common_enums::Currency::foreign_try_from(money.currency())?,
+        );
 
         // Resolve fields read via prost accessors (which borrow all of `value`)
         // before moving any owned fields out of `value`.
@@ -11382,10 +11384,10 @@ impl ForeignTryFrom<PaymentServiceVoidRequest> for PaymentVoidData {
                         None,
                     )
                 } else {
-                    Ok(Some(common_utils::types::Money {
-                        amount: common_utils::types::MinorUnit::new(a.minor_amount),
-                        currency: common_enums::Currency::foreign_try_from(a.currency())?,
-                    }))
+                    Ok(Some(common_utils::types::Money::new(
+                        common_utils::types::MinorUnit::new(a.minor_amount),
+                        common_enums::Currency::foreign_try_from(a.currency())?,
+                    )))
                 }
             })
             .transpose()?
@@ -12373,10 +12375,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementMarketplace>
         let split_value = match value.split_value {
             Some(grpc_api_types::payments::split_settlement_marketplace::SplitValue::Amount(
                 money,
-            )) => connector_types::SplitValue::Amount(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(money.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(money.currency())?,
-            }),
+            )) => connector_types::SplitValue::Amount(common_utils::types::Money::new(common_utils::types::MinorUnit::new(money.minor_amount), common_enums::Currency::foreign_try_from(money.currency())?)),
             Some(
                 grpc_api_types::payments::split_settlement_marketplace::SplitValue::Percentage(
                     percentage,
@@ -12412,10 +12411,10 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementVendor>
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let split_value = match value.split_value {
             Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Amount(money)) => {
-                connector_types::SplitValue::Amount(common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(money.minor_amount),
-                    currency: common_enums::Currency::foreign_try_from(money.currency())?,
-                })
+                connector_types::SplitValue::Amount(common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(money.minor_amount),
+                    common_enums::Currency::foreign_try_from(money.currency())?,
+                ))
             }
             Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Percentage(
                 percentage,
@@ -12475,10 +12474,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefundMarketplace>
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let split_value = match value.split_value {
             Some(grpc_api_types::payments::split_settlement_refund_marketplace::SplitValue::RefundAmount(money)) => {
-                connector_types::SplitValue::Amount(common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(money.minor_amount),
-                    currency: common_enums::Currency::foreign_try_from(money.currency())?,
-                })
+                connector_types::SplitValue::Amount(common_utils::types::Money::new(common_utils::types::MinorUnit::new(money.minor_amount), common_enums::Currency::foreign_try_from(money.currency())?))
             }
             Some(grpc_api_types::payments::split_settlement_refund_marketplace::SplitValue::Percentage(percentage)) => {
                 connector_types::SplitValue::Percentage(percentage)
@@ -12516,10 +12512,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefundVendor>
                 grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::RefundAmount(
                     money,
                 ),
-            ) => connector_types::SplitValue::Amount(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(money.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(money.currency())?,
-            }),
+            ) => connector_types::SplitValue::Amount(common_utils::types::Money::new(common_utils::types::MinorUnit::new(money.minor_amount), common_enums::Currency::foreign_try_from(money.currency())?)),
             Some(
                 grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::Percentage(
                     percentage,
@@ -12660,14 +12653,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
             })?;
 
         let currency = common_enums::Currency::foreign_try_from(refund_amount.currency())?;
-        let refund_amount = common_utils::types::Money {
-            amount: common_utils::types::MinorUnit::new(refund_amount.minor_amount),
+        let refund_amount = common_utils::types::Money::new(
+            common_utils::types::MinorUnit::new(refund_amount.minor_amount),
             currency,
-        };
-        let payment_amount = common_utils::types::Money {
-            amount: common_utils::types::MinorUnit::new(value.payment_amount),
+        );
+        let payment_amount = common_utils::types::Money::new(
+            common_utils::types::MinorUnit::new(value.payment_amount),
             currency,
-        };
+        );
 
         // Extract transaction_id as connector_transaction_id
         let connector_transaction_id = value.connector_transaction_id;
@@ -13050,10 +13043,10 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     .transpose()?;
 
                 Ok(Self {
-                    amount: common_utils::types::Money {
-                        amount: common_utils::types::MinorUnit::new(0),
-                        currency: common_enums::Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(
+                        common_utils::types::MinorUnit::new(0),
+                        common_enums::Currency::USD,
+                    ),
                     currency: common_enums::Currency::USD,
                     country: None,
                     order_details: None,
@@ -13071,10 +13064,10 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
             Some(DomainContext::Payment(payment_ctx)) => {
                 // Payment SDK session flow (Adyen, Braintree, Shift4, etc.)
                 let money = match payment_ctx.amount {
-                    Some(amount) => Ok(common_utils::types::Money {
-                        amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                        currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-                    }),
+                    Some(amount) => Ok(common_utils::types::Money::new(
+                        common_utils::types::MinorUnit::new(amount.minor_amount),
+                        common_enums::Currency::foreign_try_from(amount.currency())?,
+                    )),
                     None => Err(report!(IntegrationError::MissingRequiredField {
                         field_name: "amount",
                         context: IntegrationErrorContext::default(),
@@ -13109,16 +13102,16 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     order_details: None,
                     customer,
                     order_tax_amount: payment_ctx.order_tax_amount.map(|amount| {
-                        common_utils::types::Money {
-                            amount: common_utils::types::MinorUnit::new(amount),
-                            currency: money.currency,
-                        }
+                        common_utils::types::Money::new(
+                            common_utils::types::MinorUnit::new(amount),
+                            money.currency,
+                        )
                     }),
                     shipping_cost: payment_ctx.shipping_cost.map(|amount| {
-                        common_utils::types::Money {
-                            amount: common_utils::types::MinorUnit::new(amount),
-                            currency: money.currency,
-                        }
+                        common_utils::types::Money::new(
+                            common_utils::types::MinorUnit::new(amount),
+                            money.currency,
+                        )
                     }),
                     payment_method_type,
                     permissions,
@@ -13164,10 +13157,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
                 });
 
         let amount = match value.amount_to_capture {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
+            Some(amount) => Ok(common_utils::types::Money::new(
+                common_utils::types::MinorUnit::new(amount.minor_amount),
+                common_enums::Currency::foreign_try_from(amount.currency())?,
+            )),
             None => Err(report!(IntegrationError::MissingRequiredField {
                 field_name: "amount_to_capture",
                 context: IntegrationErrorContext::default(),
@@ -13962,10 +13955,10 @@ impl<
         })?;
 
         let amount = match value.amount {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
+            Some(amount) => Ok(common_utils::types::Money::new(
+                common_utils::types::MinorUnit::new(amount.minor_amount),
+                common_enums::Currency::foreign_try_from(amount.currency())?,
+            )),
             None => Err(report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: IntegrationErrorContext::default(),
@@ -14050,12 +14043,12 @@ impl<
                 .transpose()?,
             integrity_object: None,
             amount: Some(amount.clone()),
-            shipping_cost: value
-                .shipping_cost
-                .map(|shipping_cost| common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(shipping_cost),
-                    currency: amount.currency,
-                }),
+            shipping_cost: value.shipping_cost.map(|shipping_cost| {
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(shipping_cost),
+                    amount.currency,
+                )
+            }),
             customer_id: value
                 .customer
                 .as_ref()
@@ -14266,21 +14259,23 @@ impl ForeignTryFrom<(&grpc_api_types::payments::OrderInfo, common_enums::Currenc
             }),
             order_details,
             merchant_order_reference_id: value.merchant_order_reference_id.clone(),
-            discount_amount: value
-                .discount_amount
-                .map(|amount| common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(amount),
+            discount_amount: value.discount_amount.map(|amount| {
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(amount),
                     currency,
-                }),
-            shipping_cost: value
-                .shipping_cost
-                .map(|amount| common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(amount),
+                )
+            }),
+            shipping_cost: value.shipping_cost.map(|amount| {
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(amount),
                     currency,
-                }),
-            duty_amount: value.duty_amount.map(|amount| common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount),
-                currency,
+                )
+            }),
+            duty_amount: value.duty_amount.map(|amount| {
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(amount),
+                    currency,
+                )
             }),
             order_commodity_code: value.order_commodity_code.clone(),
         })
@@ -14305,22 +14300,22 @@ impl ForeignTryFrom<(&grpc_api_types::payments::TaxInfo, common_enums::Currency)
             merchant_tax_registration_id: value.merchant_tax_registration_id.clone(),
             merchant_vat_registration_id: value.merchant_vat_registration_id.clone(),
             shipping_amount_tax: value.shipping_amount_tax.map(|amount| {
-                common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(amount),
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(amount),
                     currency,
-                }
+                )
             }),
-            order_tax_amount: value
-                .order_tax_amount
-                .map(|amount| common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(amount),
+            order_tax_amount: value.order_tax_amount.map(|amount| {
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(amount),
                     currency,
-                }),
+                )
+            }),
             value_added_tax_amount: value.value_added_tax_amount.map(|amount| {
-                common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(amount),
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(amount),
                     currency,
-                }
+                )
             }),
             value_added_tax_percent: value.value_added_tax_percent,
             vat_invoice_reference_number: value.vat_invoice_reference_number.clone(),
@@ -14523,10 +14518,10 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
         };
         let money =
             match amount_data.amount_money {
-                Some(amount_money) => common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(amount_money.minor_amount),
-                    currency: common_enums::Currency::foreign_try_from(amount_money.currency())?,
-                },
+                Some(amount_money) => common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(amount_money.minor_amount),
+                    common_enums::Currency::foreign_try_from(amount_money.currency())?,
+                ),
                 None => {
                     let amount = amount_data.amount.ok_or_else(|| {
                         IntegrationError::MissingRequiredField {
@@ -14541,9 +14536,9 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
                         }
                     })?;
 
-                    common_utils::types::Money {
-                        amount: common_utils::types::MinorUnit::new(amount),
-                        currency: common_enums::Currency::foreign_try_from(
+                    common_utils::types::Money::new(
+                        common_utils::types::MinorUnit::new(amount),
+                        common_enums::Currency::foreign_try_from(
                             grpc_api_types::payments::Currency::try_from(currency).map_err(
                                 |_| IntegrationError::InvalidDataFormat {
                                     field_name: "mandate_data.currency",
@@ -14551,7 +14546,7 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
                                 },
                             )?,
                         )?,
-                    }
+                    )
                 }
             };
 
@@ -14565,14 +14560,10 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
             initial_billing_amount: if let Some(initial_billing_amount) =
                 amount_data.initial_billing_amount
             {
-                Some(common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(
-                        initial_billing_amount.minor_amount,
-                    ),
-                    currency: common_enums::Currency::foreign_try_from(
-                        initial_billing_amount.currency(),
-                    )?,
-                })
+                Some(common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(initial_billing_amount.minor_amount),
+                    common_enums::Currency::foreign_try_from(initial_billing_amount.currency())?,
+                ))
             } else {
                 None
             },
@@ -15133,10 +15124,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
         value: grpc_api_types::payments::PaymentServiceCreateOrderRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
+            Some(amount) => Ok(common_utils::types::Money::new(
+                common_utils::types::MinorUnit::new(amount.minor_amount),
+                common_enums::Currency::foreign_try_from(amount.currency())?,
+            )),
             None => Err(report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: IntegrationErrorContext::default(),
@@ -15916,10 +15907,10 @@ impl ForeignTryFrom<PaymentServiceAuthorizeRequest>
                 context: IntegrationErrorContext::default(),
             })
         })?;
-        let amount = common_utils::types::Money {
-            amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-            currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-        };
+        let amount = common_utils::types::Money::new(
+            common_utils::types::MinorUnit::new(amount.minor_amount),
+            common_enums::Currency::foreign_try_from(amount.currency())?,
+        );
         let customer_id = value
             .customer
             .as_ref()
@@ -16085,10 +16076,7 @@ impl
         };
 
         let amount = match payment_ctx.amount {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
+            Some(amount) => Ok(common_utils::types::Money::new(common_utils::types::MinorUnit::new(amount.minor_amount), common_enums::Currency::foreign_try_from(amount.currency())?)),
             None => Err(report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: IntegrationErrorContext::default(),
@@ -16229,10 +16217,10 @@ impl<
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let money = match value.amount {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
+            Some(amount) => Ok(common_utils::types::Money::new(
+                common_utils::types::MinorUnit::new(amount.minor_amount),
+                common_enums::Currency::foreign_try_from(amount.currency())?,
+            )),
             None => Err(report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: IntegrationErrorContext::default(),
@@ -16445,10 +16433,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceRechargeReques
         value: grpc_api_types::payments::PaymentMethodServiceRechargeRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let money = match value.amount {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
+            Some(amount) => Ok(common_utils::types::Money::new(
+                common_utils::types::MinorUnit::new(amount.minor_amount),
+                common_enums::Currency::foreign_try_from(amount.currency())?,
+            )),
             None => Err(report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: IntegrationErrorContext::default(),
@@ -16526,11 +16514,13 @@ impl
                 .transpose()?,
             amount_captured: None,
             amount_capturable: None,
-            amount: value.amount.map(|amt| common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amt.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amt.currency())
-                    .ok()
-                    .unwrap_or_default(),
+            amount: value.amount.map(|amt| {
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(amt.minor_amount),
+                    common_enums::Currency::foreign_try_from(amt.currency())
+                        .ok()
+                        .unwrap_or_default(),
+                )
             }),
             access_token,
             session_token: None,
@@ -17372,10 +17362,10 @@ impl<
             .map(router_request_types::AuthenticationData::try_from)
             .transpose()?;
         let amount = match value.amount {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
+            Some(amount) => Ok(common_utils::types::Money::new(
+                common_utils::types::MinorUnit::new(amount.minor_amount),
+                common_enums::Currency::foreign_try_from(amount.currency())?,
+            )),
             None => Err(report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: IntegrationErrorContext::default(),
@@ -17424,20 +17414,20 @@ impl<
             recurring_mandate_payment_data: match value.original_payment_authorized_amount {
                 Some(money) => Some(RecurringMandatePaymentData {
                     payment_method_type: None,
-                    original_payment_authorized_amount: Some(common_utils::types::Money {
-                        amount: common_utils::types::MinorUnit::new(money.minor_amount),
-                        currency: common_enums::Currency::foreign_try_from(money.currency())?,
-                    }),
+                    original_payment_authorized_amount: Some(common_utils::types::Money::new(
+                        common_utils::types::MinorUnit::new(money.minor_amount),
+                        common_enums::Currency::foreign_try_from(money.currency())?,
+                    )),
                     mandate_metadata: None,
                 }),
                 None => None,
             },
-            shipping_cost: value
-                .shipping_cost
-                .map(|shipping_cost| common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(shipping_cost),
-                    currency: amount.currency,
-                }),
+            shipping_cost: value.shipping_cost.map(|shipping_cost| {
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(shipping_cost),
+                    amount.currency,
+                )
+            }),
             payment_channel,
             mit_category,
             billing_descriptor,
@@ -17640,10 +17630,10 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                             .integrity_object
                             .as_ref()
                             .map(|integrity_object| {
-                                connector_money_to_grpc(&common_utils::types::Money {
-                                    amount: integrity_object.amount,
-                                    currency: integrity_object.currency,
-                                })
+                                connector_money_to_grpc(&common_utils::types::Money::new(
+                                    integrity_object.amount,
+                                    integrity_object.currency,
+                                ))
                             })
                             .transpose()?,
                         incremental_authorization_allowed,
@@ -17731,10 +17721,10 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                         .integrity_object
                         .as_ref()
                         .map(|integrity_object| {
-                            connector_money_to_grpc(&common_utils::types::Money {
-                                amount: integrity_object.amount,
-                                currency: integrity_object.currency,
-                            })
+                            connector_money_to_grpc(&common_utils::types::Money::new(
+                                integrity_object.amount,
+                                integrity_object.currency,
+                            ))
                         })
                         .transpose()?,
                     incremental_authorization_allowed: None,
@@ -20542,10 +20532,10 @@ impl<
         };
 
         let amount = match value.amount {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
+            Some(amount) => Ok(common_utils::types::Money::new(
+                common_utils::types::MinorUnit::new(amount.minor_amount),
+                common_enums::Currency::foreign_try_from(amount.currency())?,
+            )),
             None => Err(report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: IntegrationErrorContext::default(),
@@ -20666,10 +20656,10 @@ impl<
         };
 
         let amount = match value.amount {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
+            Some(amount) => Ok(common_utils::types::Money::new(
+                common_utils::types::MinorUnit::new(amount.minor_amount),
+                common_enums::Currency::foreign_try_from(amount.currency())?,
+            )),
             None => Err(report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: IntegrationErrorContext::default(),
@@ -20816,10 +20806,10 @@ impl<
         };
 
         let amount = match value.amount {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
+            Some(amount) => Ok(common_utils::types::Money::new(
+                common_utils::types::MinorUnit::new(amount.minor_amount),
+                common_enums::Currency::foreign_try_from(amount.currency())?,
+            )),
             None => Err(report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: IntegrationErrorContext::default(),

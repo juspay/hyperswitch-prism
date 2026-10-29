@@ -1014,10 +1014,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let currency = router_data.request.currency;
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            &common_utils::types::Money {
-                amount: router_data.request.amount.amount,
-                currency,
-            },
+            &common_utils::types::Money::new(router_data.request.amount.amount, currency),
         )?;
 
         let access_token = router_data.resource_common_data.get_access_token()?;
@@ -1879,10 +1876,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             (Some(minor_amount), Some(currency)) => {
                 let total = utils::convert_amount(
                     item.connector.amount_converter,
-                    &common_utils::types::Money {
-                        amount: minor_amount,
-                        currency,
-                    },
+                    &common_utils::types::Money::new(minor_amount, currency),
                 )?;
                 Some(FiservcommercehubAuthorizeAmount { currency, total })
             }

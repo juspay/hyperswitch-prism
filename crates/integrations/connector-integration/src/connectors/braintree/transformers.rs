@@ -2884,10 +2884,10 @@ pub(super) fn build_webhook_dispute_response(
         Some(dispute_data) => Ok(connector_types::DisputeWebhookDetailsResponse {
             amount: domain_types::utils::convert_amount_for_webhook(
                 &common_utils::types::StringMinorUnitForConnector,
-                &common_utils::types::Money {
-                    amount: dispute_data.amount_disputed,
-                    currency: dispute_data.currency_iso_code,
-                },
+                &common_utils::types::Money::new(
+                    dispute_data.amount_disputed,
+                    dispute_data.currency_iso_code,
+                ),
             )?,
             currency: dispute_data.currency_iso_code,
             dispute_id: dispute_data.id.clone(),

@@ -2688,10 +2688,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     total_amount: item
                         .connector
                         .amount_converter
-                        .convert(&common_utils::types::Money {
-                            amount: amount.amount,
-                            currency,
-                        })
+                        .convert(&common_utils::types::Money::new(amount.amount, currency))
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,

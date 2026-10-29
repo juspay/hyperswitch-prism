@@ -51,10 +51,7 @@ impl AmountConvertor for StringMinorUnitForConnector {
         amount: Self::Output,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money {
-            amount: amount.to_minor_unit_as_i64()?,
-            currency,
-        })
+        Ok(Money::new(amount.to_minor_unit_as_i64()?, currency))
     }
 }
 
@@ -72,10 +69,7 @@ impl AmountConvertor for StringMajorUnitForCore {
         amount: StringMajorUnit,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money {
-            amount: amount.to_minor_unit_as_i64(currency)?,
-            currency,
-        })
+        Ok(Money::new(amount.to_minor_unit_as_i64(currency)?, currency))
     }
 }
 
@@ -94,10 +88,7 @@ impl AmountConvertor for StringMajorUnitForConnector {
         amount: StringMajorUnit,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money {
-            amount: amount.to_minor_unit_as_i64(currency)?,
-            currency,
-        })
+        Ok(Money::new(amount.to_minor_unit_as_i64(currency)?, currency))
     }
 }
 
@@ -115,10 +106,7 @@ impl AmountConvertor for FloatMajorUnitForConnector {
         amount: FloatMajorUnit,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money {
-            amount: amount.to_minor_unit_as_i64(currency)?,
-            currency,
-        })
+        Ok(Money::new(amount.to_minor_unit_as_i64(currency)?, currency))
     }
 }
 
@@ -136,7 +124,7 @@ impl AmountConvertor for MinorUnitForConnector {
         amount: MinorUnit,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money { amount, currency })
+        Ok(Money::new(amount, currency))
     }
 }
 
@@ -159,10 +147,10 @@ impl AmountConvertor for ConnectorMinorUnitForConnector {
         amount: Self::Output,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money {
-            amount: MinorUnit::new(amount.get_amount_as_i64()),
+        Ok(Money::new(
+            MinorUnit::new(amount.get_amount_as_i64()),
             currency,
-        })
+        ))
     }
 }
 
@@ -599,20 +587,59 @@ impl AmountConvertor for StringTwoDecimalUnitForConnector {
         amount: Self::Output,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money {
-            amount: amount.to_minor_unit_as_i64(currency)?,
-            currency,
-        })
+        Ok(Money::new(amount.to_minor_unit_as_i64(currency)?, currency))
     }
 }
 
-#[derive(
-    Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, ToSchema,
-)]
-
-pub struct Money {
+/// Read-only view of the fields carried by [`Money`].
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, ToSchema)]
+pub struct MoneyFields {
     pub amount: MinorUnit,
     pub currency: enums::Currency,
+}
+
+/// Domain amount and currency. Connector code can read these fields through `Deref`,
+/// but it cannot build or mutate this value with a struct literal.
+///
+/// ```compile_fail
+/// use ucs_common_utils::types::Money;
+/// let _ = Money { amount: Default::default(), currency: Default::default() };
+/// ```
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, ToSchema)]
+#[serde(transparent)]
+#[schema(value_type = MoneyFields)]
+pub struct Money(MoneyFields);
+
+impl Money {
+    /// Construct at a domain boundary. The connector crate bans this method with Clippy.
+    pub fn new(amount: MinorUnit, currency: enums::Currency) -> Self {
+        Self(MoneyFields { amount, currency })
+    }
+}
+
+impl std::ops::Deref for Money {
+    type Target = MoneyFields;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[cfg(test)]
+mod money_boundary_tests {
+    use super::{MinorUnit, Money};
+
+    #[test]
+    fn money_wire_shape_stays_flat() {
+        let money = Money::new(MinorUnit::new(123), common_enums::Currency::USD);
+        let value = serde_json::to_value(&money).expect("Money must serialize");
+        assert_eq!(
+            value,
+            serde_json::json!({ "amount": 123, "currency": "USD" })
+        );
+        let restored: Money = serde_json::from_value(value).expect("Money must deserialize");
+        assert_eq!(restored, money);
+    }
 }
 
 /// A type representing a range of time for filtering, including a mandatory start time and an optional end time.

@@ -292,10 +292,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
         let amount = PayoutAmount {
             value: domain_utils::convert_amount(
                 &StringMajorUnitForConnector,
-                &common_utils::types::Money {
-                    amount: minor_amount,
-                    currency: item.request.destination_currency,
-                },
+                &common_utils::types::Money::new(minor_amount, item.request.destination_currency),
             )?,
             currency: item.request.destination_currency,
         };

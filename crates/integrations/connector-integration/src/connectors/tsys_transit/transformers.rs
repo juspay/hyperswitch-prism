@@ -1645,19 +1645,19 @@ fn compute_commercial_card_context<
             .as_ref()
             .map(|money| money.amount))
         .map(|amount| {
-            super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
+            super::TsysTransitAmountConvertor::convert(&common_utils::types::Money::new(
                 amount,
-                currency: router_data.request.currency,
-            })
+                router_data.request.currency,
+            ))
         })
         .transpose()?;
     let duty_charges = l2_l3_data
         .and_then(|data| data.get_duty_amount())
         .map(|amount| {
-            super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
+            super::TsysTransitAmountConvertor::convert(&common_utils::types::Money::new(
                 amount,
-                currency: router_data.request.currency,
-            })
+                router_data.request.currency,
+            ))
         })
         .transpose()?;
     let derived_tax_rate = order_details
@@ -1676,10 +1676,10 @@ fn compute_commercial_card_context<
             .map(|money| money.amount));
     let sales_tax = order_tax_amount
         .map(|amount| {
-            super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
+            super::TsysTransitAmountConvertor::convert(&common_utils::types::Money::new(
                 amount,
-                currency: router_data.request.currency,
-            })
+                router_data.request.currency,
+            ))
         })
         .transpose()?;
     let tax_amount = sales_tax.clone();
@@ -2421,7 +2421,7 @@ fn compute_original_recurring_amount(
             | Some(CardNetwork::UnionPay),
             MandateDispatch::Ntid { .. } | MandateDispatch::Vault { .. },
         ) => Ok(Some(super::TsysTransitAmountConvertor::convert(
-            &common_utils::types::Money { amount, currency },
+            &common_utils::types::Money::new(amount, currency),
         )?)),
         _ => Ok(None),
     }
@@ -2866,17 +2866,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
-                    amount_captured: amount_captured.map(|amount| common_utils::types::Money {
-                        amount,
-                        currency: transaction_details
-                            .currency_code
-                            .unwrap_or(router_data.request.currency),
+                    amount_captured: amount_captured.map(|amount| {
+                        common_utils::types::Money::new(
+                            amount,
+                            transaction_details
+                                .currency_code
+                                .unwrap_or(router_data.request.currency),
+                        )
                     }),
-                    amount_capturable: amount_capturable.map(|amount| common_utils::types::Money {
-                        amount,
-                        currency: transaction_details
-                            .currency_code
-                            .unwrap_or(router_data.request.currency),
+                    amount_capturable: amount_capturable.map(|amount| {
+                        common_utils::types::Money::new(
+                            amount,
+                            transaction_details
+                                .currency_code
+                                .unwrap_or(router_data.request.currency),
+                        )
                     }),
                     ..router_data.resource_common_data.clone()
                 },
@@ -2933,10 +2937,10 @@ fn compute_capture_sales_tax(
         .order_tax_amount
         .as_ref()
         .map(|amount| {
-            super::TsysTransitAmountConvertor::convert(&common_utils::types::Money {
-                amount: amount.amount,
-                currency: router_data.request.currency,
-            })
+            super::TsysTransitAmountConvertor::convert(&common_utils::types::Money::new(
+                amount.amount,
+                router_data.request.currency,
+            ))
         })
         .transpose()
 }
@@ -3561,7 +3565,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.currency,
         ) {
             (Some(amount), Some(currency)) => Some(super::TsysTransitAmountConvertor::convert(
-                &common_utils::types::Money { amount, currency },
+                &common_utils::types::Money::new(amount, currency),
             )?),
             _ => None,
         };

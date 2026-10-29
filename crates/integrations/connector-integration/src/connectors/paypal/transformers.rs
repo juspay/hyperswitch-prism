@@ -148,16 +148,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let shipping_value = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: item
-                    .router_data
+            .convert(&common_utils::types::Money::new(
+                item.router_data
                     .request
                     .shipping_cost
                     .as_ref()
                     .map(|money| money.amount)
                     .unwrap_or(MinorUnit::zero()),
-                currency: item.router_data.request.currency,
-            })
+                item.router_data.request.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -215,16 +214,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let shipping_value = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: item
-                    .router_data
+            .convert(&common_utils::types::Money::new(
+                item.router_data
                     .request
                     .shipping_cost
                     .as_ref()
                     .map(|money| money.amount)
                     .unwrap_or(MinorUnit::zero()),
-                currency: item.router_data.request.currency,
-            })
+                item.router_data.request.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -3016,10 +3014,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | common_enums::AttemptStatus::Expired
             | common_enums::AttemptStatus::Unknown
             | common_enums::AttemptStatus::PartiallyAuthorized => {
-                Some(common_utils::types::Money {
-                    amount: MinorUnit::zero(),
-                    currency: item.router_data.request.currency,
-                })
+                Some(common_utils::types::Money::new(
+                    MinorUnit::zero(),
+                    item.router_data.request.currency,
+                ))
             }
             common_enums::AttemptStatus::Charged
             | common_enums::AttemptStatus::PartialCharged

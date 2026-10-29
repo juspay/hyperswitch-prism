@@ -1236,10 +1236,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
         let total = domain_types::utils::convert_amount(
             item.connector.amount_converter,
-            &common_utils::types::Money {
-                amount: minor_amount,
-                currency: item.router_data.request.currency,
-            },
+            &common_utils::types::Money::new(minor_amount, item.router_data.request.currency),
         )?;
 
         let mandate_reference_id = item

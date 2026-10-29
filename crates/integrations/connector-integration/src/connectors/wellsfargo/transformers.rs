@@ -636,7 +636,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let total_amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money { amount, currency })
+            .convert(&common_utils::types::Money::new(amount, currency))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -773,7 +773,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let total_amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money { amount, currency })
+            .convert(&common_utils::types::Money::new(amount, currency))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -899,10 +899,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let total_amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: amount.amount,
-                currency,
-            })
+            .convert(&common_utils::types::Money::new(amount.amount, currency))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -969,7 +966,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let total_amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money { amount, currency })
+            .convert(&common_utils::types::Money::new(amount, currency))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })

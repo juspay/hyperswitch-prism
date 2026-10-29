@@ -256,7 +256,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .unwrap_or_default();
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&common_utils::types::Money { amount, currency })
+            .convert(&common_utils::types::Money::new(amount, currency))
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -266,15 +266,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             })?;
         let shipping_amount = converter
-            .convert(&common_utils::types::Money {
-                amount: router_data
+            .convert(&common_utils::types::Money::new(
+                router_data
                     .request
                     .shipping_cost
                     .as_ref()
                     .map(|money| money.amount)
                     .unwrap_or(MinorUnit(0)),
                 currency,
-            })
+            ))
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -284,15 +284,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             })?;
         let tax_amount = converter
-            .convert(&common_utils::types::Money {
-                amount: router_data
+            .convert(&common_utils::types::Money::new(
+                router_data
                     .request
                     .order_tax_amount
                     .as_ref()
                     .map(|money| money.amount)
                     .unwrap_or(MinorUnit(0)),
                 currency,
-            })
+            ))
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -700,10 +700,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ))?;
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&common_utils::types::Money {
-                amount: amount.amount,
-                currency,
-            })
+            .convert(&common_utils::types::Money::new(amount.amount, currency))
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(

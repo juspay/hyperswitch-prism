@@ -1685,10 +1685,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: capture_amount,
-                currency: item.router_data.request.currency,
-            })
+            .convert(&common_utils::types::Money::new(
+                capture_amount,
+                item.router_data.request.currency,
+            ))
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1822,10 +1822,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: refund_amount,
-                currency: item.router_data.request.currency,
-            })
+            .convert(&common_utils::types::Money::new(
+                refund_amount,
+                item.router_data.request.currency,
+            ))
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

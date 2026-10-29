@@ -1387,10 +1387,10 @@ where
             .map(|(minor_amount, currency)| {
                 item.connector
                     .amount_converter
-                    .convert(&common_utils::types::Money {
-                        amount: minor_amount.amount,
+                    .convert(&common_utils::types::Money::new(
+                        minor_amount.amount,
                         currency,
-                    })
+                    ))
             })
             .transpose()
             .change_context(IntegrationError::AmountConversionFailed {

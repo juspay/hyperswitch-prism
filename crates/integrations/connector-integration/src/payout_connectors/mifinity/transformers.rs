@@ -184,10 +184,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<&MifinityPayoutRouterData<T>> for Mifini
 
         let amount = convert_amount(
             &StringMajorUnitForConnector,
-            &common_utils::types::Money {
-                amount: req.request.amount,
-                currency: req.request.destination_currency,
-            },
+            &common_utils::types::Money::new(req.request.amount, req.request.destination_currency),
         )?;
 
         Ok(Self {
@@ -333,10 +330,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<&MifinityPayoutRouterData<T>> for Mifini
 
         let amount = convert_amount(
             &StringMajorUnitForConnector,
-            &common_utils::types::Money {
-                amount: req.request.amount,
-                currency: req.request.destination_currency,
-            },
+            &common_utils::types::Money::new(req.request.amount, req.request.destination_currency),
         )?;
 
         let description = resolve_description(req);

@@ -202,10 +202,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
 
                 let amount = utils::convert_amount(
                     &FloatMajorUnitForConnector,
-                    &common_utils::types::Money {
-                        amount: req.request.amount,
-                        currency: req.request.source_currency,
-                    },
+                    &common_utils::types::Money::new(
+                        req.request.amount,
+                        req.request.source_currency,
+                    ),
                 )?;
 
                 let customer_id = req.request.get_customer_id()?;

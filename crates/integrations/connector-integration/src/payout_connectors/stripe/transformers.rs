@@ -129,10 +129,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let amount = StripeAmountConvertor::convert(&common_utils::types::Money {
-            amount: request.amount,
-            currency: request.destination_currency,
-        })?;
+        let amount = StripeAmountConvertor::convert(&common_utils::types::Money::new(
+            request.amount,
+            request.destination_currency,
+        ))?;
         let currency = request.destination_currency;
 
         let destination = request
@@ -239,10 +239,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let amount = StripeAmountConvertor::convert(&common_utils::types::Money {
-            amount: request.amount,
-            currency: request.destination_currency,
-        })?;
+        let amount = StripeAmountConvertor::convert(&common_utils::types::Money::new(
+            request.amount,
+            request.destination_currency,
+        ))?;
         let currency = request.destination_currency;
         Ok(Self { amount, currency })
     }

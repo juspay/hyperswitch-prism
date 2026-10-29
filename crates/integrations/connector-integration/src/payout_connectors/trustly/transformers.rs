@@ -558,10 +558,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = domain_utils::convert_amount(
             &StringMajorUnitForConnector,
-            &common_utils::types::Money {
-                amount: item.request.amount,
-                currency: item.request.source_currency,
-            },
+            &common_utils::types::Money::new(item.request.amount, item.request.source_currency),
         )?;
 
         let notification_url = item

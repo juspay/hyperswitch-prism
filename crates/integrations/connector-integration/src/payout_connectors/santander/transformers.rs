@@ -409,10 +409,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = StringMajorUnitForConnector;
         let payment_value = converter
-            .convert(&common_utils::types::Money {
-                amount: req.request.amount,
-                currency: req.request.source_currency,
-            })
+            .convert(&common_utils::types::Money::new(
+                req.request.amount,
+                req.request.source_currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -706,10 +706,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = StringMajorUnitForConnector;
         let payment_value = converter
-            .convert(&common_utils::types::Money {
-                amount: req.request.amount,
-                currency: req.request.source_currency,
-            })
+            .convert(&common_utils::types::Money::new(
+                req.request.amount,
+                req.request.source_currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -904,10 +904,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
         let doc_url = santander_doc_url(&req.request.payout_method_data)?;
         let converter = StringMajorUnitForConnector;
         let payment_value = converter
-            .convert(&common_utils::types::Money {
-                amount: req.request.amount,
-                currency: req.request.source_currency,
-            })
+            .convert(&common_utils::types::Money::new(
+                req.request.amount,
+                req.request.source_currency,
+            ))
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(

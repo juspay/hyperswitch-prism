@@ -797,10 +797,10 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&common_utils::types::Money {
-                amount: minor_amount.amount,
+            .convert(&common_utils::types::Money::new(
+                minor_amount.amount,
                 currency,
-            })
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })

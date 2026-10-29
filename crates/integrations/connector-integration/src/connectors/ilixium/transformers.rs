@@ -840,10 +840,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: request.amount.amount,
+            .convert(&common_utils::types::Money::new(
+                request.amount.amount,
                 currency,
-            })
+            ))
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -1199,10 +1199,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: minor_amount.amount,
+            .convert(&common_utils::types::Money::new(
+                minor_amount.amount,
                 currency,
-            })
+            ))
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,

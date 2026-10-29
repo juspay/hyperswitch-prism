@@ -123,10 +123,10 @@ mod tests {
                     currency_conversion_data: None,
                     access_token: None,
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: common_enums::Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(
+                        MinorUnit::new(1000),
+                        common_enums::Currency::USD,
+                    ),
                     order_tax_amount: None,
                     surcharge_amount: None,
                     email: Some(
@@ -324,10 +324,10 @@ mod tests {
                     currency_conversion_data: None,
                     access_token: None,
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: common_enums::Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(
+                        MinorUnit::new(1000),
+                        common_enums::Currency::USD,
+                    ),
                     order_tax_amount: None,
                     surcharge_amount: None,
                     email: Some(
@@ -511,10 +511,10 @@ mod tests {
                     connector_testing_data: None,
                     currency_conversion_data: None,
                     access_token: None,
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: common_enums::Currency::USD,
-                    },
+                    amount: common_utils::types::Money::new(
+                        MinorUnit::new(1000),
+                        common_enums::Currency::USD,
+                    ),
                     order_tax_amount: None,
                     surcharge_amount: None,
                     email: None,
