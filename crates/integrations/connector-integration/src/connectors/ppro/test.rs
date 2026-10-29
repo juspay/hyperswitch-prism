@@ -1501,6 +1501,13 @@ mod satispay_request_tests {
                     minor_amount: 1000,
                     currency: grpc_api_types::payments::Currency::Eur.into(),
                 }),
+                payment_method: Some(grpc_api_types::payments::PaymentMethod {
+                    payment_method: Some(
+                        grpc_api_types::payments::payment_method::PaymentMethod::Satispay(
+                            Default::default(),
+                        ),
+                    ),
+                }),
                 ..Default::default()
             }),
             PaymentMethodData::Wallet(WalletData::Satispay(SatispayData {})),

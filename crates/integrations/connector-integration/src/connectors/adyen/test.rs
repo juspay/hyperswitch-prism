@@ -36,6 +36,13 @@ mod tests {
                             minor_amount: 1000,
                             currency: grpc_api_types::payments::Currency::Usd.into(),
                         }),
+                        payment_method: Some(grpc_api_types::payments::PaymentMethod {
+                            payment_method: Some(
+                                grpc_api_types::payments::payment_method::PaymentMethod::Card(
+                                    Default::default(),
+                                ),
+                            ),
+                        }),
                         ..Default::default()
                     },
                 ),

@@ -41,6 +41,13 @@ fn payment_and_refund_amounts_are_major_unit_strings() {
                     minor_amount: minor,
                     currency: grpc_api_types::payments::Currency::Eur.into(),
                 }),
+                payment_method: Some(grpc_api_types::payments::PaymentMethod {
+                    payment_method: Some(
+                        grpc_api_types::payments::payment_method::PaymentMethod::Wero(
+                            Default::default(),
+                        ),
+                    ),
+                }),
                 ..Default::default()
             }),
             domain_types::payment_method_data::PaymentMethodData::Wallet(
