@@ -1,0 +1,89 @@
+{
+  "_webhook_config": {
+    "webhook_secret_key": "webhook_secret",
+    "signature_algorithm": "base64(hmac_sha512(webhook_secret, orderId,orderStatus,eventId,eventType,timeStamp))",
+    "signature_location": "body field signature (Noon v1 JSON webhook); there is no signature header, so the harness cannot sign these bodies",
+    "note": "Bodies follow the documented Noon v1 webhook shape (https://docs.noonpayments.com/). Every signature is a fixed all-zero fixture value, not derived from any secret, so these entries never verify: invalid_signature asserts that, and the other three grade event mapping without source verification."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "orderId": 301234567890,
+          "orderStatus": "CAPTURED",
+          "eventType": "Sale",
+          "eventId": "noon_webhook_evt_payment_succeeded",
+          "timeStamp": "2024-01-01T00:00:00Z",
+          "merchantOrderRef": "noon_webhook_order_ref",
+          "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+        }
+      },
+      "merchant_event_id": "noon_webhook_evt_payment_succeeded"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "orderId": 301234567891,
+          "orderStatus": "FAILED",
+          "eventType": "Fail",
+          "eventId": "noon_webhook_evt_payment_failed",
+          "timeStamp": "2024-01-01T00:01:00Z",
+          "merchantOrderRef": "noon_webhook_order_ref",
+          "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+        }
+      },
+      "merchant_event_id": "noon_webhook_evt_payment_failed"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "orderId": 301234567890,
+          "orderStatus": "REFUNDED",
+          "eventType": "Refund",
+          "eventId": "noon_webhook_evt_refund_succeeded",
+          "timeStamp": "2024-01-01T00:02:00Z",
+          "merchantOrderRef": "noon_webhook_order_ref",
+          "merchantTxnRef": "noon_webhook_refund_ref",
+          "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+        }
+      },
+      "merchant_event_id": "noon_webhook_evt_refund_succeeded"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "orderId": 301234567892,
+          "orderStatus": "CAPTURED",
+          "eventType": "Sale",
+          "eventId": "noon_webhook_evt_invalid_signature",
+          "timeStamp": "2024-01-01T00:03:00Z",
+          "merchantOrderRef": "noon_webhook_order_ref",
+          "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+        }
+      },
+      "merchant_event_id": "noon_webhook_evt_invalid_signature"
+    }
+  }
+}

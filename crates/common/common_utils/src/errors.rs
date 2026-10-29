@@ -142,6 +142,12 @@ pub enum CryptoError {
     /// The cryptographic algorithm was unable to encode the message
     #[error("Failed to encode given message")]
     EncodingFailed,
+    /// The plaintext is too large for the selected asymmetric encryption scheme and key
+    #[error("Plaintext length {actual_length} bytes exceeds the maximum {max_length} bytes")]
+    PlaintextTooLong {
+        max_length: usize,
+        actual_length: usize,
+    },
     /// The cryptographic algorithm was unable to decode the message
     #[error("Failed to decode given message")]
     DecodingFailed,
