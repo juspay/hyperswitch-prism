@@ -590,6 +590,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })))
                 }
                 BankRedirectData::BancontactCard { .. }
+                | BankRedirectData::BancontactIntent { .. }
+                | BankRedirectData::BancontactQr { .. }
                 | BankRedirectData::Bizum {}
                 | BankRedirectData::Blik { .. }
                 | BankRedirectData::Eft { .. }
@@ -661,6 +663,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BluecodeRedirect { .. }
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
+                | WalletData::SatispayIntent(_)
+                | WalletData::SatispayQr(_)
                 | WalletData::Wero(_)
                 | WalletData::LazyPayRedirect(_)
                 | WalletData::PhonePeRedirect(_)
@@ -961,6 +965,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })))
                 }
                 BankRedirectData::BancontactCard { .. }
+                | BankRedirectData::BancontactIntent { .. }
+                | BankRedirectData::BancontactQr { .. }
                 | BankRedirectData::Bizum {}
                 | BankRedirectData::Blik { .. }
                 | BankRedirectData::Eft { .. }
@@ -1030,6 +1036,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BluecodeRedirect { .. }
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
+                | WalletData::SatispayIntent(_)
+                | WalletData::SatispayQr(_)
                 | WalletData::Wero(_)
                 | WalletData::LazyPayRedirect(_)
                 | WalletData::PhonePeRedirect(_)

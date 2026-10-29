@@ -2310,7 +2310,17 @@ macro_rules! expand_flow_status_impl {
         );
     };
     (connector: $c:ident, flow: PSync, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
-        impl<$g: $($b)*> ::interfaces::connector_types::PaymentSyncV2 for $c<$g> {}
+        impl<$g: $($b)*> ::interfaces::connector_types::PaymentSyncV2 for $c<$g> {
+            fn validate_psync_reference_id(
+                &self,
+                _data: &::domain_types::connector_types::PaymentsSyncData,
+                _payment_flow_data: &::domain_types::connector_types::PaymentFlowData,
+            ) -> ::common_utils::errors::CustomResult<(), ::domain_types::errors::IntegrationError> {
+                // This macro only generates unsupported or unimplemented flow stubs.
+                // Let the flow stub report its support status without checking references.
+                Ok(())
+            }
+        }
         $crate::connectors::macros::flow_status_emit!(
             connector: $c, status: $st, generic_type: $g, [$($b)*],
             flow: ::domain_types::connector_flow::PSync,

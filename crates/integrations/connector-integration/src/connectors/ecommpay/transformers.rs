@@ -1333,6 +1333,8 @@ fn wallet_source<T: PaymentMethodDataTypes>(
         | WalletData::PaymayaRedirect(_)
         | WalletData::PayhereRedirect {}
         | WalletData::QwikcilverWalletDirect(_)
+        | WalletData::SatispayIntent(_)
+        | WalletData::SatispayQr(_)
         | WalletData::Skrill(_)
         | WalletData::Neteller(_) => Err(unimplemented_payment_method(
             SALE_DOC_URL,

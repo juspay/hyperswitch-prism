@@ -178,6 +178,8 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
             BankRedirectData::Blik { .. } => Ok(Self::Blik),
             BankRedirectData::BancontactCard { .. }
+            | BankRedirectData::BancontactIntent { .. }
+            | BankRedirectData::BancontactQr { .. }
             | BankRedirectData::Bizum {}
             | BankRedirectData::Eft { .. }
             | BankRedirectData::Interac { .. }

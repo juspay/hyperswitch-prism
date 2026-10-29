@@ -180,6 +180,28 @@ default = '{}'
 [connector_overrides."setup_recurring,proxy_setup_recurring,token_setup_recurring".shift4]
 "customer.connector_customer_id" = "cust_probe_123"
 
+# Noon refuses a mandate setup without an order category (order_category, or
+# metadata.order_category) and without a description (order.name / subscription.name,
+# read from metadata.description). Both are local preconditions rather than fields the
+# patcher discovers, so pre-set them to let the probe show subscription and tokenizeCC.
+# The mandate amount (subscription.maxAmount) has no default either; 1 = Currency::AED.
+# Applies to both setup_recurring and proxy_setup_recurring (same SetupMandate builder).
+[connector_overrides."setup_recurring,proxy_setup_recurring".noon]
+"order_category" = "pay"
+"metadata" = '{"description":"Probe mandate setup"}'
+"setup_mandate_details.mandate_type.mandate_type.MultiUse.amount" = 10000
+"setup_mandate_details.mandate_type.mandate_type.MultiUse.currency" = 1
+
+# Noon looks a refund up through the payment order (GET order/getbyreference/{order.reference}),
+# so RSync needs the payment's merchant reference as connector_order_id. The base refund_get
+# request has none and the patcher cannot invent one; pre-set it. connector_refund_id
+# repeats the base refund_id (what RefundSyncData falls back to when it is empty): the
+# base request leaves that non-optional string empty, which drops it from the JSON this
+# override is applied through, and the request would not deserialise back without it.
+[connector_overrides.refund_get.noon]
+"connector_order_id" = "probe_order_ref_001"
+"connector_refund_id" = "probe_refund_id_001"
+
 # Cybersource serialises shipping details, the dynamic descriptor and Level II/III
 # data only when the request carries them. None of them is a required field, so
 # the patcher never adds them and the probed body would never show

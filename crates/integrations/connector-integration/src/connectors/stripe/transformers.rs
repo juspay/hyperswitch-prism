@@ -1169,7 +1169,8 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             common_enums::PaymentMethodType::Becs => Ok(Self::Becs),
             common_enums::PaymentMethodType::Bacs => Ok(Self::Bacs),
             common_enums::PaymentMethodType::BancontactCard => Ok(Self::Bancontact),
-            common_enums::PaymentMethodType::WeChatPay => Ok(Self::Wechatpay),
+            common_enums::PaymentMethodType::WeChatPay
+            | common_enums::PaymentMethodType::WeChatPayQr => Ok(Self::Wechatpay),
             common_enums::PaymentMethodType::Blik => Ok(Self::Blik),
             common_enums::PaymentMethodType::AliPay => Ok(Self::Alipay),
             common_enums::PaymentMethodType::Przelewy24 => Ok(Self::Przelewy24),
@@ -1266,6 +1267,10 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::NetworkToken
             | common_enums::PaymentMethodType::Mifinity
             | common_enums::PaymentMethodType::Satispay
+            | common_enums::PaymentMethodType::SatispayIntent
+            | common_enums::PaymentMethodType::SatispayQr
+            | common_enums::PaymentMethodType::BancontactIntent
+            | common_enums::PaymentMethodType::BancontactQr
             | common_enums::PaymentMethodType::Wero
             | common_enums::PaymentMethodType::LazyPay
             | common_enums::PaymentMethodType::PhonePe
@@ -1520,6 +1525,8 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodType {
                 Default::default(),
             )),
             BankRedirectData::Bizum {}
+            | BankRedirectData::BancontactIntent { .. }
+            | BankRedirectData::BancontactQr { .. }
             | BankRedirectData::Interac { .. }
             | BankRedirectData::Eft { .. }
             | BankRedirectData::OnlineBankingCzechRepublic { .. }
@@ -1580,6 +1587,8 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::Mifinity(_)
         | WalletData::MbWay(_)
         | WalletData::Satispay(_)
+        | WalletData::SatispayIntent(_)
+        | WalletData::SatispayQr(_)
         | WalletData::Wero(_)
         | WalletData::LazyPayRedirect(_)
         | WalletData::PhonePeRedirect(_)
@@ -2318,6 +2327,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::Mifinity(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
+            | WalletData::SatispayIntent(_)
+            | WalletData::SatispayQr(_)
             | WalletData::Wero(_)
             | WalletData::LazyPayRedirect(_)
             | WalletData::PhonePeRedirect(_)
@@ -2402,6 +2413,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
             .into()),
             BankRedirectData::Bizum {}
+            | BankRedirectData::BancontactIntent { .. }
+            | BankRedirectData::BancontactQr { .. }
             | BankRedirectData::Eft { .. }
             | BankRedirectData::Interac { .. }
             | BankRedirectData::OnlineBankingCzechRepublic { .. }

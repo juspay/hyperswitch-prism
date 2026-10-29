@@ -13,7 +13,7 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -82,7 +82,7 @@ def _build_parse_event_request():
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
             headers={},  # Headers of the HTTP request.
-            body="{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"SALE\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}".encode(),  # Body of the HTTP request.
+            body="{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}".encode(),  # Body of the HTTP request.
         ),
     )
 
@@ -129,13 +129,22 @@ def _build_proxy_setup_recurring_request():
         address=payment_pb2.PaymentAddress(
             billing_address=common_types_pb2.Address(),
         ),
-        metadata=payment_methods_pb2.SecretString(value="{\"order_category\":\"mobile\",\"description\":\"purchase desc\"}"),
+        metadata=payment_methods_pb2.SecretString(value="{\"description\":\"Probe mandate setup\"}"),
+        setup_mandate_details=payment_pb2.SetupMandateDetails(
+            mandate_type=payment_pb2.MandateType(  # Type of mandate (single_use or multi_use) with amount details.
+                multi_use=payment_pb2.MandateAmountData(
+                    amount=10000,  # Use amount_money instead (will be removed in a future release).
+                    currency=common_types_pb2.Currency.Value("AED"),  # Use amount_money.currency instead (will be removed in a future release).
+                ),
+            ),
+        ),
         customer_acceptance=payment_pb2.CustomerAcceptance(
             acceptance_type=payment_pb2.AcceptanceType.Value("OFFLINE"),  # Type of acceptance (e.g., online, offline).
             accepted_at=0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
         ),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
         setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),
+        order_category="pay",  # Category of the order/service.
     )
 
 def _build_recurring_charge_request():
@@ -185,6 +194,48 @@ def _build_refund_get_request():
         merchant_refund_id="probe_refund_001",  # Identification.
         connector_transaction_id="probe_connector_txn_001",
         refund_id="probe_refund_id_001",  # Deprecated.
+        connector_refund_id="probe_refund_id_001",
+        connector_order_id="probe_order_ref_001",  # Connector-side identifier for the original payment that this refund sync targets.
+    )
+
+def _build_setup_recurring_request():
+    return payment_pb2.PaymentServiceSetupRecurringRequest(
+        merchant_recurring_payment_id="probe_mandate_001",  # Identification.
+        amount=common_types_pb2.Money(  # Mandate Details.
+            minor_amount=0,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(
+            card=payment_methods_pb2.CardDetails(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_cvc=payment_methods_pb2.SecretString(value="737"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            ),
+        ),
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            billing_address=common_types_pb2.Address(),
+        ),
+        auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Type of authentication to be used.
+        enrolled_for_3ds=False,  # Indicates if the customer is enrolled for 3D Secure.
+        metadata=payment_methods_pb2.SecretString(value="{\"description\":\"Probe mandate setup\"}"),  # Additional metadata for the connector.
+        return_url="https://example.com/mandate-return",  # URL to redirect after setup.
+        order_category="pay",  # Category of the order/service related to the mandate.
+        setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),  # Indicates future usage intention.
+        request_incremental_authorization=False,  # Indicates if incremental authorization is requested.
+        customer_acceptance=payment_pb2.CustomerAcceptance(  # Details of customer acceptance.
+            acceptance_type=payment_pb2.AcceptanceType.Value("OFFLINE"),  # Type of acceptance (e.g., online, offline).
+            accepted_at=0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        ),
+        setup_mandate_details=payment_pb2.SetupMandateDetails(  # Mandate setup details.
+            mandate_type=payment_pb2.MandateType(  # Type of mandate (single_use or multi_use) with amount details.
+                multi_use=payment_pb2.MandateAmountData(
+                    amount=10000,  # Use amount_money instead (will be removed in a future release).
+                    currency=common_types_pb2.Currency.Value("AED"),  # Use amount_money.currency instead (will be removed in a future release).
+                ),
+            ),
+        ),
     )
 
 def _build_void_request(connector_transaction_id: str):
@@ -384,6 +435,15 @@ async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb
     refund_response = await refund_client.refund_get(_build_refund_get_request())
 
     return {"status": refund_response.status}
+
+
+async def process_setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.SetupRecurring"""
+    payment_client = PaymentClient(config)
+
+    setup_response = await payment_client.setup_recurring(_build_setup_recurring_request())
+
+    return {"status": setup_response.status, "mandate_id": setup_response.connector_recurring_payment_id}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

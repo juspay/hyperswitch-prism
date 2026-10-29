@@ -142,6 +142,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Ppro<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Ppro<T>
@@ -504,6 +511,16 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             specific_features: None,
         },
     );
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        common_enums::PaymentMethodType::WeChatPayQr,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
     ppro_supported_payment_methods.add(
         common_enums::PaymentMethod::Wallet,
@@ -519,6 +536,30 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
     ppro_supported_payment_methods.add(
         common_enums::PaymentMethod::Wallet,
         common_enums::PaymentMethodType::Satispay,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Satispay's APP_INTENT flow (native app-to-app handoff), mirroring UpiIntent.
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        common_enums::PaymentMethodType::SatispayIntent,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Satispay's SCAN_CODE (QR) flow, mirroring UpiQr.
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        common_enums::PaymentMethodType::SatispayQr,
         PaymentMethodDetails {
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
@@ -568,6 +609,14 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
         (
             common_enums::PaymentMethodType::BancontactCard,
             FeatureStatus::Supported,
+        ),
+        (
+            common_enums::PaymentMethodType::BancontactIntent,
+            FeatureStatus::NotSupported,
+        ),
+        (
+            common_enums::PaymentMethodType::BancontactQr,
+            FeatureStatus::NotSupported,
         ),
         (
             common_enums::PaymentMethodType::Trustly,
