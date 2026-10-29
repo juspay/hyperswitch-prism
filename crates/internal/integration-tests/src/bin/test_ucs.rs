@@ -26,7 +26,8 @@
 //! | `--scenario <name>`  | Run a single scenario within the selected suite |
 //! | `--interface grpc\|sdk` | Execution interface (default: grpc) |
 //! | `--endpoint <addr>`  | Override gRPC endpoint |
-//! | `--report`           | Write report.json + markdown test reports |
+//! | `--report`           | Write a safe scenario summary |
+//! | `--local-debug-report` | Write typed-and-masked UCS audit events locally |
 //! | `--interactive`      | Open the step-by-step searchable TUI wizard |
 
 use std::{collections::BTreeSet, fs, path::PathBuf};
@@ -34,7 +35,10 @@ use std::{collections::BTreeSet, fs, path::PathBuf};
 use inquire::{list_option::ListOption, validator::Validation, Confirm, MultiSelect, Select, Text};
 use integration_tests::harness::{
     credentials::load_connector_config,
-    report::{append_report_best_effort, extract_pm_and_pmt, now_epoch_ms, ReportEntry},
+    report::{
+        append_report_best_effort, enable_local_debug_report, extract_pm_and_pmt, now_epoch_ms,
+        ReportEntry,
+    },
     scenario_api::{
         get_the_grpc_req_for_connector, run_all_suites_with_options,
         run_scenario_test_with_options, run_suite_test_with_options, ExecutionBackend,
@@ -103,6 +107,7 @@ fn run_non_interactive(args: &[String]) -> Result<(), String> {
     let mut interface_str: Option<String> = None;
     let mut endpoint_flag: Option<String> = None;
     let mut report = false;
+    let mut local_debug_report = false;
 
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
@@ -139,6 +144,9 @@ fn run_non_interactive(args: &[String]) -> Result<(), String> {
             "--report" => {
                 report = true;
             }
+            "--local-debug-report" => {
+                local_debug_report = true;
+            }
             other => {
                 return Err(format!(
                     "unknown flag '{other}'. run with --help for usage."
@@ -150,8 +158,18 @@ fn run_non_interactive(args: &[String]) -> Result<(), String> {
     if scenario.is_some() && suite.is_none() {
         return Err("--scenario requires --suite to be specified".to_string());
     }
+    if report && local_debug_report {
+        return Err("--report and --local-debug-report are mutually exclusive".to_string());
+    }
 
     let backend = parse_backend(interface_str.as_deref().unwrap_or("grpc"))?;
+    if local_debug_report && backend != ExecutionBackend::Grpcurl {
+        return Err("--local-debug-report requires --interface grpc".to_string());
+    }
+    if local_debug_report {
+        enable_local_debug_report();
+        report = true;
+    }
     let defaults = load_defaults();
     let endpoint = endpoint_flag
         .or_else(|| std::env::var("UCS_ENDPOINT").ok())
@@ -212,17 +230,22 @@ fn run_non_interactive(args: &[String]) -> Result<(), String> {
 // ── Interactive mode ───────────────────────────────────────────────────────────
 
 fn run_interactive(args: &[String]) -> Result<(), String> {
-    // Accepted pre-flags: --interface, --report, --endpoint
+    // Accepted pre-flags: --interface, --report, --local-debug-report, --endpoint
     // (interface selection is also offered in the wizard, but CLI can override)
     let mut report_flag: Option<bool> = None;
     let mut endpoint_flag: Option<String> = None;
     let mut interface_flag: Option<String> = None;
+    let mut local_debug_report = false;
 
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--interactive" | "-h" | "--help" => {}
             "--report" => report_flag = Some(true),
+            "--local-debug-report" => {
+                local_debug_report = true;
+                report_flag = Some(true);
+            }
             "--endpoint" => {
                 endpoint_flag = Some(iter.next().ok_or("--endpoint requires a value")?.clone());
             }
@@ -421,6 +444,12 @@ fn run_interactive(args: &[String]) -> Result<(), String> {
             .prompt()
             .map_err(|e| format!("report: {e}"))?
     };
+    if local_debug_report && backend != ExecutionBackend::Grpcurl {
+        return Err("--local-debug-report requires the gRPC interface".to_string());
+    }
+    if local_debug_report {
+        enable_local_debug_report();
+    }
 
     // ── Step 7: Show equivalent command ───────────────────────────────────────
     let equivalent_cmd = build_equivalent_command(
@@ -430,6 +459,7 @@ fn run_interactive(args: &[String]) -> Result<(), String> {
         interface_label,
         &endpoint,
         report,
+        local_debug_report,
     );
     println!("\nEquivalent command:");
     println!("  {equivalent_cmd}");
@@ -480,6 +510,7 @@ fn build_equivalent_command(
     interface: &str,
     endpoint: &str,
     report: bool,
+    local_debug_report: bool,
 ) -> String {
     let mut parts =
         vec!["make cargo ARGS=\"run -p integration-tests --bin test_ucs --".to_string()];
@@ -522,7 +553,9 @@ fn build_equivalent_command(
     parts.push(format!("--interface {interface_flag}"));
     parts.push(format!("--endpoint {endpoint}"));
 
-    if report {
+    if local_debug_report {
+        parts.push("--local-debug-report".to_string());
+    } else if report {
         parts.push("--report".to_string());
     }
 
@@ -878,6 +911,8 @@ fn build_report_entry(
         res_body,
         grpc_request,
         grpc_response,
+        audit_events: Vec::new(),
+        audit_error: None,
     }
 }
 
@@ -996,7 +1031,8 @@ FLAGS
   --scenario <name>      Run a single scenario (requires --suite)
   --interface grpc|sdk   Execution interface (default: grpc)
   --endpoint <addr>      Override gRPC endpoint
-  --report               Write report.json + markdown test_report/ files
+  --report               Write a safe summary without request/response payloads
+  --local-debug-report   Write local typed-and-masked UCS audit events
   -h, --help             Print this help and exit
 
 Default (no flags):

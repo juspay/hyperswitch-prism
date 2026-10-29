@@ -638,6 +638,9 @@ impl Connectors {
             ConnectorEnum::Stripe => {
                 patched.stripe.apply(params_patch);
             }
+            ConnectorEnum::Ppro => {
+                patched.ppro.apply(params_patch);
+            }
             ConnectorEnum::Adyen => {
                 patched.adyen.apply(params_patch);
             }
@@ -890,7 +893,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, ecommpay, betterpayment",
+                             Supported connectors: stripe, ppro, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, ecommpay, betterpayment",
                             connector
                         )),
                         ..Default::default()
@@ -1978,6 +1981,16 @@ impl<
                         payment_method_data::SatispayData {},
                     )))
                 }
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayIntent(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::SatispayIntent(
+                        payment_method_data::SatispayIntentData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayQr(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::SatispayQr(
+                        payment_method_data::SatispayQrData {},
+                    )))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::Wero(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::Wero(
                         payment_method_data::WeroData {},
@@ -2380,6 +2393,12 @@ impl<
                         card_holder_name: bancontactcard.card_holder_name,
                     },
                 )),
+                grpc_api_types::payments::payment_method::PaymentMethod::BancontactIntent(_) => Ok(
+                    Self::BankRedirect(payment_method_data::BankRedirectData::BancontactIntent {}),
+                ),
+                grpc_api_types::payments::payment_method::PaymentMethod::BancontactQr(_) => Ok(
+                    Self::BankRedirect(payment_method_data::BankRedirectData::BancontactQr {}),
+                ),
                 grpc_payment_types::payment_method::PaymentMethod::Blik(blik) => Ok(
                     Self::BankRedirect(payment_method_data::BankRedirectData::Blik {
                         blik_code: blik.blik_code,
@@ -3413,7 +3432,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::AmazonPayRedirect(_) => Ok(Some(PaymentMethodType::AmazonPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::CashappQr(_) => Ok(Some(PaymentMethodType::Cashapp)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PaypalRedirect(_) => Ok(Some(PaymentMethodType::Paypal)),
-                grpc_api_types::payments::payment_method::PaymentMethod::WeChatPayQr(_) => Ok(Some(PaymentMethodType::WeChatPay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::WeChatPayQr(_) => Ok(Some(PaymentMethodType::WeChatPayQr)),
                 grpc_api_types::payments::payment_method::PaymentMethod::WeChatPayRedirect(_) => Ok(Some(PaymentMethodType::WeChatPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::AliPayRedirect(_) => Ok(Some(PaymentMethodType::AliPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPay(_) => Ok(Some(PaymentMethodType::RevolutPay)),
@@ -3435,6 +3454,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::SamsungPaySdk(_) => Ok(Some(PaymentMethodType::SamsungPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MbWay(_) => Ok(Some(PaymentMethodType::MbWay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Satispay(_) => Ok(Some(PaymentMethodType::Satispay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayIntent(_) => Ok(Some(PaymentMethodType::SatispayIntent)),
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayQr(_) => Ok(Some(PaymentMethodType::SatispayQr)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Wero(_) => Ok(Some(PaymentMethodType::Wero)),
                 grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_) => Ok(Some(PaymentMethodType::LazyPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PhonepeRedirect(_) => Ok(Some(PaymentMethodType::PhonePe)),
@@ -3476,6 +3497,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::Eps(_) => Ok(Some(PaymentMethodType::Eps)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Przelewy24(_) => Ok(Some(PaymentMethodType::Przelewy24)),
                 grpc_api_types::payments::payment_method::PaymentMethod::BancontactCard(_) => Ok(Some(PaymentMethodType::BancontactCard)),
+                grpc_api_types::payments::payment_method::PaymentMethod::BancontactIntent(_) => Ok(Some(PaymentMethodType::BancontactIntent)),
+                grpc_api_types::payments::payment_method::PaymentMethod::BancontactQr(_) => Ok(Some(PaymentMethodType::BancontactQr)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Blik(_) => Ok(Some(PaymentMethodType::Blik)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Sofort(_) => Ok(Some(PaymentMethodType::Sofort)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Bizum(_) => Ok(Some(PaymentMethodType::Bizum)),
@@ -8595,6 +8618,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SatispayIntent(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SatispayQr(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
@@ -8728,6 +8759,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::BancontactCard(_)),
+            } => Ok(Self::BankRedirect),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::BancontactIntent(_)),
+            } => Ok(Self::BankRedirect),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::BancontactQr(_)),
             } => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -10619,6 +10658,23 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
             router_response_types::RedirectForm::Uri { uri } => Ok(Self {
                 form_type: Some(grpc_api_types::payments::redirect_form::FormType::Uri(
                     grpc_api_types::payments::UriData { uri },
+                )),
+            }),
+            router_response_types::RedirectForm::Qr {
+                payload,
+                image_base64,
+                image_url,
+                fallback_url,
+                expires_at,
+            } => Ok(Self {
+                form_type: Some(grpc_api_types::payments::redirect_form::FormType::QrData(
+                    grpc_api_types::payments::QrData {
+                        payload,
+                        image_base64,
+                        image_url,
+                        fallback_url,
+                        expires_at,
+                    },
                 )),
             }),
             router_response_types::RedirectForm::Mifinity {

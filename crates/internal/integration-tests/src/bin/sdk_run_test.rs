@@ -311,6 +311,8 @@ fn write_report_entry(
         res_body,
         grpc_request,
         grpc_response,
+        audit_events: Vec::new(),
+        audit_error: None,
     });
 }
 
