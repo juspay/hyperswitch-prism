@@ -233,10 +233,10 @@ message Address {
   // remains available for backward compatibility.
   oneof state_details {
     // Full state/province name as supplied by the caller.
-    SecretString state_name = 13;
+    SecretString state_name = 15;
     // ISO 3166-2 subdivision code, when available. Consumers may apply a
     // connector-specific length or format restriction to this value.
-    SecretString state_code_iso = 14;
+    SecretString state_code_iso = 16;
   }
 }
 
