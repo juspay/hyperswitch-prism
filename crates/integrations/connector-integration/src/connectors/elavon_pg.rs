@@ -515,6 +515,13 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for ElavonPg<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 
 macros::macro_connector_implementation!(
@@ -598,10 +605,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let requested_total = self
                 .amount_converter
-                .convert(
-                    req.request.amount_to_capture.amount,
-                    req.request.currency,
-                )
+                .convert(&req.request.amount_to_capture)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: IntegrationErrorContext {
                         additional_context: Some(

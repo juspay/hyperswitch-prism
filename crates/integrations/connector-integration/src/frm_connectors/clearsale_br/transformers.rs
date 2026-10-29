@@ -1654,8 +1654,10 @@ pub(crate) fn build_clear_sale_items(
                 code: detail.sku.clone().or(detail.product_id.clone()),
                 bar_code: detail.upc.clone(),
                 value: Some(super::ClearSaleBrAmountConvertor::convert(
-                    detail.amount,
-                    currency,
+                    &common_utils::types::Money {
+                        amount: detail.amount,
+                        currency,
+                    },
                 )?),
                 // Line quantity, not money — the wire field is ClearSale's `amount`.
                 amount: Some(detail.quantity),
@@ -2109,7 +2111,7 @@ pub(crate) fn order_from_common(
         .map(|doc| doc.document_type)
         .or(billing_document_kind);
 
-    let total_value = super::ClearSaleBrAmountConvertor::convert(money.amount, money.currency)?;
+    let total_value = super::ClearSaleBrAmountConvertor::convert(&money)?;
 
     let billing_address = address
         .and_then(|addr| addr.get_payment_billing())

@@ -638,6 +638,9 @@ impl Connectors {
             ConnectorEnum::Stripe => {
                 patched.stripe.apply(params_patch);
             }
+            ConnectorEnum::Ppro => {
+                patched.ppro.apply(params_patch);
+            }
             ConnectorEnum::Adyen => {
                 patched.adyen.apply(params_patch);
             }
@@ -890,7 +893,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, ecommpay",
+                             Supported connectors: stripe, ppro, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, ecommpay",
                             connector
                         )),
                         ..Default::default()
@@ -1978,6 +1981,16 @@ impl<
                         payment_method_data::SatispayData {},
                     )))
                 }
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayIntent(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::SatispayIntent(
+                        payment_method_data::SatispayIntentData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayQr(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::SatispayQr(
+                        payment_method_data::SatispayQrData {},
+                    )))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::Wero(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::Wero(
                         payment_method_data::WeroData {},
@@ -2380,6 +2393,12 @@ impl<
                         card_holder_name: bancontactcard.card_holder_name,
                     },
                 )),
+                grpc_api_types::payments::payment_method::PaymentMethod::BancontactIntent(_) => Ok(
+                    Self::BankRedirect(payment_method_data::BankRedirectData::BancontactIntent {}),
+                ),
+                grpc_api_types::payments::payment_method::PaymentMethod::BancontactQr(_) => Ok(
+                    Self::BankRedirect(payment_method_data::BankRedirectData::BancontactQr {}),
+                ),
                 grpc_payment_types::payment_method::PaymentMethod::Blik(blik) => Ok(
                     Self::BankRedirect(payment_method_data::BankRedirectData::Blik {
                         blik_code: blik.blik_code,
@@ -3413,7 +3432,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::AmazonPayRedirect(_) => Ok(Some(PaymentMethodType::AmazonPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::CashappQr(_) => Ok(Some(PaymentMethodType::Cashapp)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PaypalRedirect(_) => Ok(Some(PaymentMethodType::Paypal)),
-                grpc_api_types::payments::payment_method::PaymentMethod::WeChatPayQr(_) => Ok(Some(PaymentMethodType::WeChatPay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::WeChatPayQr(_) => Ok(Some(PaymentMethodType::WeChatPayQr)),
                 grpc_api_types::payments::payment_method::PaymentMethod::WeChatPayRedirect(_) => Ok(Some(PaymentMethodType::WeChatPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::AliPayRedirect(_) => Ok(Some(PaymentMethodType::AliPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPay(_) => Ok(Some(PaymentMethodType::RevolutPay)),
@@ -3435,6 +3454,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::SamsungPaySdk(_) => Ok(Some(PaymentMethodType::SamsungPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MbWay(_) => Ok(Some(PaymentMethodType::MbWay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Satispay(_) => Ok(Some(PaymentMethodType::Satispay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayIntent(_) => Ok(Some(PaymentMethodType::SatispayIntent)),
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayQr(_) => Ok(Some(PaymentMethodType::SatispayQr)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Wero(_) => Ok(Some(PaymentMethodType::Wero)),
                 grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_) => Ok(Some(PaymentMethodType::LazyPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PhonepeRedirect(_) => Ok(Some(PaymentMethodType::PhonePe)),
@@ -3476,6 +3497,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::Eps(_) => Ok(Some(PaymentMethodType::Eps)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Przelewy24(_) => Ok(Some(PaymentMethodType::Przelewy24)),
                 grpc_api_types::payments::payment_method::PaymentMethod::BancontactCard(_) => Ok(Some(PaymentMethodType::BancontactCard)),
+                grpc_api_types::payments::payment_method::PaymentMethod::BancontactIntent(_) => Ok(Some(PaymentMethodType::BancontactIntent)),
+                grpc_api_types::payments::payment_method::PaymentMethod::BancontactQr(_) => Ok(Some(PaymentMethodType::BancontactQr)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Blik(_) => Ok(Some(PaymentMethodType::Blik)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Sofort(_) => Ok(Some(PaymentMethodType::Sofort)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Bizum(_) => Ok(Some(PaymentMethodType::Bizum)),
@@ -6002,6 +6025,7 @@ impl<
             payment_channel,
             enable_partial_authorization: value.enable_partial_authorization,
             locale: value.locale.clone(),
+            order_category: value.order_category.clone(),
             mit_category: value.mit_category,
             connector_testing_data,
             split_payments: value
@@ -8595,6 +8619,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SatispayIntent(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SatispayQr(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
@@ -8728,6 +8760,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::BancontactCard(_)),
+            } => Ok(Self::BankRedirect),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::BancontactIntent(_)),
+            } => Ok(Self::BankRedirect),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::BancontactQr(_)),
             } => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -10619,6 +10659,23 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
             router_response_types::RedirectForm::Uri { uri } => Ok(Self {
                 form_type: Some(grpc_api_types::payments::redirect_form::FormType::Uri(
                     grpc_api_types::payments::UriData { uri },
+                )),
+            }),
+            router_response_types::RedirectForm::Qr {
+                payload,
+                image_base64,
+                image_url,
+                fallback_url,
+                expires_at,
+            } => Ok(Self {
+                form_type: Some(grpc_api_types::payments::redirect_form::FormType::QrData(
+                    grpc_api_types::payments::QrData {
+                        payload,
+                        image_base64,
+                        image_url,
+                        fallback_url,
+                        expires_at,
+                    },
                 )),
             }),
             router_response_types::RedirectForm::Mifinity {
@@ -13939,12 +13996,38 @@ impl<
 
         let setup_future_usage = value.setup_future_usage();
 
+        // The mandate type (and its amount) comes from setup_mandate_details when the
+        // caller sends it; customer acceptance stays sourced from the request itself.
+        // Only mandate_type is converted here: the embedded customer_acceptance and
+        // update_mandate_id are not parsed on this path, so they cannot fail SetupRecurring.
+        //
+        // This field was previously hardcoded `None` for every connector, so a malformed
+        // mandate_type was silently ignored. It is converted leniently here for that reason:
+        // a conversion failure falls back to `None` and is logged, so no SetupRecurring that
+        // succeeded before can start failing on this path. A connector that requires the
+        // mandate amount validates it itself and raises its own field-specific error.
+        let mandate_type = match foreign_mandate_data_type(
+            value
+                .setup_mandate_details
+                .as_ref()
+                .and_then(|details| details.mandate_type.clone()),
+        ) {
+            Ok(mandate_type) => mandate_type,
+            Err(error) => {
+                tracing::warn!(
+                    ?error,
+                    "SetupRecurring: setup_mandate_details.mandate_type could not be converted; \
+                     treating it as absent"
+                );
+                None
+            }
+        };
         let setup_mandate_details = MandateData {
             update_mandate_id: None,
             customer_acceptance: Some(mandates::CustomerAcceptance::foreign_try_from(
                 customer_acceptance.clone(),
             )?),
-            mandate_type: None,
+            mandate_type,
         };
 
         let billing_descriptor =
@@ -14040,6 +14123,7 @@ impl<
             payment_channel,
             enable_partial_authorization: value.enable_partial_authorization,
             locale: value.locale.clone(),
+            order_category: value.order_category.clone(),
             connector_testing_data: value.connector_testing_data.and_then(|s| {
                 serde_json::from_str(&s.expose())
                     .ok()
@@ -14561,11 +14645,26 @@ impl ForeignTryFrom<grpc_api_types::payments::SetupMandateDetails> for MandateDa
         value: grpc_api_types::payments::SetupMandateDetails,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         // Map the mandate_type from grpc type to domain type
-        #[allow(deprecated)]
-        let mandate_type = match value
-            .mandate_type
-            .and_then(|grpc_mandate_type| grpc_mandate_type.mandate_type)
-        {
+        let mandate_type = foreign_mandate_data_type(value.mandate_type)?;
+
+        Ok(Self {
+            update_mandate_id: value.update_mandate_id,
+            customer_acceptance: value
+                .customer_acceptance
+                .map(mandates::CustomerAcceptance::foreign_try_from)
+                .transpose()?,
+            mandate_type,
+        })
+    }
+}
+
+/// Converts a grpc `MandateType` into the domain `MandateDataType`.
+fn foreign_mandate_data_type(
+    mandate_type: Option<grpc_api_types::payments::MandateType>,
+) -> Result<Option<mandates::MandateDataType>, error_stack::Report<IntegrationError>> {
+    #[allow(deprecated)]
+    let mandate_type =
+        match mandate_type.and_then(|grpc_mandate_type| grpc_mandate_type.mandate_type) {
             Some(grpc_api_types::payments::mandate_type::MandateType::SingleUse(amount_data)) => {
                 Some(mandates::MandateDataType::SingleUse(
                     mandates::MandateAmountData::foreign_try_from(amount_data)?,
@@ -14578,16 +14677,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SetupMandateDetails> for MandateDa
             }
             None => None,
         };
-
-        Ok(Self {
-            update_mandate_id: value.update_mandate_id,
-            customer_acceptance: value
-                .customer_acceptance
-                .map(mandates::CustomerAcceptance::foreign_try_from)
-                .transpose()?,
-            mandate_type,
-        })
-    }
+    Ok(mandate_type)
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::FutureUsage> for common_enums::FutureUsage {
