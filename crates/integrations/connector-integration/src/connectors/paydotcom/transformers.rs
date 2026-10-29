@@ -1219,7 +1219,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .amount
             .as_ref()
-            .map(|amount| amount.amount)
+            .map(|amount| amount.amount())
             .unwrap_or_else(MinorUnit::zero);
 
         let amount = value
@@ -1523,7 +1523,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(&common_utils::types::Money::new(
-                item.request.amount.amount,
+                item.request.amount.amount(),
                 currency,
             ))
             .change_context(amount_conversion_error(
@@ -2298,7 +2298,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .amount
             .as_ref()
-            .map(|money| money.amount);
+            .map(|money| money.amount());
 
         let status = match item.response.attempt_status() {
             // A capture smaller than the amount originally held leaves the payment

@@ -243,7 +243,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .into())
             }
         }
-        let amount = router_data.request.amount.amount;
+        let amount = router_data.request.amount.amount();
         let currency = router_data.request.currency;
         let order_ref = router_data
             .resource_common_data
@@ -271,7 +271,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .request
                     .shipping_cost
                     .as_ref()
-                    .map(|money| money.amount)
+                    .map(|money| money.amount())
                     .unwrap_or(MinorUnit(0)),
                 currency,
             ))
@@ -289,7 +289,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .request
                     .order_tax_amount
                     .as_ref()
-                    .map(|money| money.amount)
+                    .map(|money| money.amount())
                     .unwrap_or(MinorUnit(0)),
                 currency,
             ))
@@ -700,7 +700,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ))?;
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&common_utils::types::Money::new(amount.amount, currency))
+            .convert(&common_utils::types::Money::new(amount.amount(), currency))
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1005,7 +1005,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             order: TamaraEligibilityOrder {
                 amount,
-                currency: data.amount.currency,
+                currency: data.amount.currency(),
             },
             customer: TamaraEligibilityCustomer {
                 phone_number,

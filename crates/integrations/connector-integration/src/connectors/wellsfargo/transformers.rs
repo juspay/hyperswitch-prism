@@ -629,7 +629,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         // Get amount and currency - amount is in minor units (cents)
-        let amount = request.amount.amount;
+        let amount = request.amount.amount();
         let currency = request.currency;
 
         // Convert amount using the framework's amount converter
@@ -766,7 +766,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let common_data = &router_data.resource_common_data;
 
         // Amount information
-        let amount = request.amount_to_capture.amount;
+        let amount = request.amount_to_capture.amount();
         let currency = request.currency;
 
         // Convert amount using the framework's amount converter
@@ -899,7 +899,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let total_amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money::new(amount.amount, currency))
+            .convert(&common_utils::types::Money::new(amount.amount(), currency))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -959,7 +959,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let request = &router_data.request;
 
         // Amount information
-        let amount = request.refund_amount.amount;
+        let amount = request.refund_amount.amount();
         let currency = request.currency;
 
         // Convert amount using the framework's amount converter

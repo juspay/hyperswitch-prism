@@ -71,7 +71,7 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
         .as_ref()
         .and_then(|unit_discount| {
             unit_discount
-                .amount
+                .amount()
                 .get_amount_as_i64()
                 .checked_mul(quantity)
         })
@@ -81,9 +81,9 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
     let line_item_taxes = detail
         .total_tax_amount
         .as_ref()
-        .filter(|tax| tax.amount.get_amount_as_i64() > 0)
+        .filter(|tax| tax.amount().get_amount_as_i64() > 0)
         .map(|tax| requests::JpmorganLineItemTax {
-            line_item_tax_amount: Some(tax.amount),
+            line_item_tax_amount: Some(tax.amount()),
             tax_percent: detail
                 .tax_rate
                 .filter(|rate| *rate >= 0.0 && rate.is_finite())
@@ -98,11 +98,11 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
         item_comodity_code: detail.commodity_code.clone(),
         line_item_unit_quantity: (detail.quantity > 0).then(|| detail.quantity.to_string()),
         line_item_unit_of_measure_code: detail.unit_of_measure.clone(),
-        unit_price_amount: Some(detail.amount.amount),
+        unit_price_amount: Some(detail.amount.amount()),
         tax_inclusive_line_item_total_amount: detail
             .total_amount
             .as_ref()
-            .map(|money| money.amount),
+            .map(|money| money.amount()),
         transaction_discount_amount,
         line_item_tax_indicator: Some(!line_item_taxes.is_empty()),
         line_item_discount_indicator: Some(transaction_discount_amount.is_some()),
@@ -306,12 +306,12 @@ fn authorize_level2_data<T: PaymentMethodDataTypes>(
             .request
             .order_tax_amount
             .as_ref()
-            .map(|order_tax_amount| order_tax_amount.amount),
+            .map(|order_tax_amount| order_tax_amount.amount()),
         router_data
             .request
             .shipping_cost
             .as_ref()
-            .map(|shipping_cost| shipping_cost.amount),
+            .map(|shipping_cost| shipping_cost.amount()),
     );
     let ship_to = build_ship_to(l2_l3_data, &router_data.resource_common_data.address);
     (retail_addenda, ship_to)
@@ -1649,7 +1649,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let capture_method = requests::CapMethod::Now;
-        let amount_to_capture = item.router_data.request.amount_to_capture.amount;
+        let amount_to_capture = item.router_data.request.amount_to_capture.amount();
 
         let amount = JpmorganAmountConvertor::convert(&common_utils::types::Money::new(
             amount_to_capture,
@@ -2279,7 +2279,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = request
             .amount
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .ok_or_else(|| IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: context.clone(),

@@ -2144,7 +2144,7 @@ pub(crate) fn order_from_common(
         &now,
         feature_data.installments,
         Some(billing.primary_document.clone()),
-        money.currency,
+        money.currency(),
     )?];
     let items = build_clear_sale_items(order_details, feature_data.is_gift)?;
     let billing_country = billing_address

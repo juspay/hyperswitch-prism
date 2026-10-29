@@ -171,6 +171,12 @@ impl AmountConvertor for ConnectorMinorUnitForConnector {
 
 pub struct MinorUnit(pub i64);
 
+impl From<i64> for MinorUnit {
+    fn from(value: i64) -> Self {
+        Self::new(value)
+    }
+}
+
 impl MinorUnit {
     /// gets amount as i64 value will be removed in future
     pub fn get_amount_as_i64(self) -> i64 {
@@ -591,47 +597,45 @@ impl AmountConvertor for StringTwoDecimalUnitForConnector {
     }
 }
 
-/// Read-only view of the fields carried by [`Money`].
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, ToSchema)]
-pub struct MoneyFields {
-    pub amount: MinorUnit,
-    pub currency: enums::Currency,
-}
-
-/// Domain amount and currency. Connector code can read these fields through `Deref`,
-/// but it cannot build or mutate this value with a struct literal.
+/// Domain amount and currency. Other crates can read these fields through methods,
+/// but cannot build or mutate this value with a struct literal.
 ///
 /// ```compile_fail
 /// use ucs_common_utils::types::Money;
 /// let _ = Money { amount: Default::default(), currency: Default::default() };
 /// ```
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, ToSchema)]
-#[serde(transparent)]
-#[schema(value_type = MoneyFields)]
-pub struct Money(MoneyFields);
-
-impl Money {
-    /// Construct at a domain boundary. The connector crate bans this method with Clippy.
-    pub fn new(amount: MinorUnit, currency: enums::Currency) -> Self {
-        Self(MoneyFields { amount, currency })
-    }
+pub struct Money {
+    amount: MinorUnit,
+    currency: enums::Currency,
 }
 
-impl std::ops::Deref for Money {
-    type Target = MoneyFields;
+impl Money {
+    /// Construct at a domain boundary, wrapping raw minor-unit integers here.
+    /// The connector crate bans this method with Clippy.
+    pub fn new(amount: impl Into<MinorUnit>, currency: enums::Currency) -> Self {
+        Self {
+            amount: amount.into(),
+            currency,
+        }
+    }
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    pub fn amount(&self) -> MinorUnit {
+        self.amount
+    }
+
+    pub fn currency(&self) -> enums::Currency {
+        self.currency
     }
 }
 
 #[cfg(test)]
 mod money_boundary_tests {
-    use super::{MinorUnit, Money};
+    use super::Money;
 
     #[test]
     fn money_wire_shape_stays_flat() {
-        let money = Money::new(MinorUnit::new(123), common_enums::Currency::USD);
+        let money = Money::new(123, common_enums::Currency::USD);
         let value = serde_json::to_value(&money).expect("Money must serialize");
         assert_eq!(
             value,

@@ -1341,15 +1341,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             discount_amount: item
                                 .unit_discount_amount
                                 .as_ref()
-                                .map(|money| money.amount),
+                                .map(|money| money.amount()),
                             name: Some(item.product_name.clone()),
                             quantity: Some(item.quantity),
                             reference: item.product_id.clone(),
                             tax_exempt: None,
-                            tax_amount: item.total_tax_amount.as_ref().map(|money| money.amount),
-                            total_amount: item.total_amount.as_ref().map(|money| money.amount),
+                            tax_amount: item.total_tax_amount.as_ref().map(|money| money.amount()),
+                            total_amount: item.total_amount.as_ref().map(|money| money.amount()),
                             unit_of_measure: item.unit_of_measure.clone(),
-                            unit_price: Some(item.amount.amount),
+                            unit_price: Some(item.amount.amount()),
                         })
                         .collect::<Vec<_>>()
                 }),
@@ -1456,7 +1456,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let request = Self {
             source: source_var,
-            amount: item.router_data.request.amount.amount,
+            amount: item.router_data.request.amount.amount(),
             currency: item.router_data.request.currency.to_string(),
             processing_channel_id,
             three_ds,
@@ -1813,15 +1813,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             discount_amount: item
                                 .unit_discount_amount
                                 .as_ref()
-                                .map(|money| money.amount),
+                                .map(|money| money.amount()),
                             name: Some(item.product_name.clone()),
                             quantity: Some(item.quantity),
                             reference: item.product_id.clone(),
                             tax_exempt: None,
-                            tax_amount: item.total_tax_amount.as_ref().map(|money| money.amount),
-                            total_amount: item.total_amount.as_ref().map(|money| money.amount),
+                            tax_amount: item.total_tax_amount.as_ref().map(|money| money.amount()),
+                            total_amount: item.total_amount.as_ref().map(|money| money.amount()),
                             unit_of_measure: item.unit_of_measure.clone(),
-                            unit_price: Some(item.amount.amount),
+                            unit_price: Some(item.amount.amount()),
                         })
                         .collect::<Vec<_>>()
                 }),
@@ -1924,7 +1924,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let request = Self {
             source: source_var,
-            amount: item.router_data.request.amount.amount,
+            amount: item.router_data.request.amount.amount(),
             currency: item.router_data.request.currency.to_string(),
             processing_channel_id,
             three_ds,
@@ -2223,15 +2223,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             discount_amount: item
                                 .unit_discount_amount
                                 .as_ref()
-                                .map(|money| money.amount),
+                                .map(|money| money.amount()),
                             name: Some(item.product_name.clone()),
                             quantity: Some(item.quantity),
                             reference: item.product_id.clone(),
                             tax_exempt: None,
-                            tax_amount: item.total_tax_amount.as_ref().map(|money| money.amount),
-                            total_amount: item.total_amount.as_ref().map(|money| money.amount),
+                            tax_amount: item.total_tax_amount.as_ref().map(|money| money.amount()),
+                            total_amount: item.total_amount.as_ref().map(|money| money.amount()),
                             unit_of_measure: item.unit_of_measure.clone(),
-                            unit_price: Some(item.amount.amount),
+                            unit_price: Some(item.amount.amount()),
                         })
                         .collect::<Vec<_>>()
                 }),
@@ -3319,7 +3319,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_ref()
             .map(|multiple_capture_data| multiple_capture_data.capture_reference.clone());
         Ok(Self {
-            amount: Some(item.router_data.request.amount_to_capture.amount.to_owned()),
+            amount: Some(
+                item.router_data
+                    .request
+                    .amount_to_capture
+                    .amount()
+                    .to_owned(),
+            ),
             capture_type: Some(capture_type),
             processing_channel_id,
             reference, // hyperswitch's reference for this capture
@@ -3348,7 +3354,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
             (
                 common_enums::AttemptStatus::Charged,
                 Some(common_utils::types::Money::new(
-                    item.router_data.request.amount_to_capture.amount,
+                    item.router_data.request.amount_to_capture.amount(),
                     item.router_data.request.currency,
                 )),
             )
@@ -3417,7 +3423,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     ) -> Result<Self, Self::Error> {
         let reference = item.router_data.request.refund_id.clone();
         Ok(Self {
-            amount: Some(item.router_data.request.refund_amount.amount.to_owned()),
+            amount: Some(item.router_data.request.refund_amount.amount().to_owned()),
             reference,
         })
     }

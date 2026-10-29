@@ -287,7 +287,7 @@ where
                     format!(
                         "Failed to convert Redeem amount {} {} to FloatMajorUnit. \
                          Qwikcilver expects major-unit decimals (e.g. 0.20 AED).",
-                        item.router_data.request.amount.amount.get_amount_as_i64(),
+                        item.router_data.request.amount.amount().get_amount_as_i64(),
                         item.router_data.request.currency,
                     ),
                     "Verify `amount.amount.amount` is a non-negative integer and \
@@ -599,7 +599,7 @@ where
                 context: qc_err_ctx(
                     format!(
                         "Failed to convert Recharge amount {} {} to FloatMajorUnit.",
-                        req.amount.amount.get_amount_as_i64(),
+                        req.amount.amount().get_amount_as_i64(),
                         req.currency,
                     ),
                     "Verify `amount.amount.amount` is a non-negative integer and \
@@ -693,7 +693,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let balance = connector
                         .convert_back(w.balance, recharge_currency)
                         .ok()
-                        .map(|money| money.amount);
+                        .map(|money| money.amount());
                     let items = w
                         .card
                         .as_ref()
@@ -1032,7 +1032,7 @@ fn wallet_details_to_payment_method_details(
         .balance
         .zip(currency)
         .and_then(|(b, c)| amount_converter.convert_back(b, c).ok())
-        .map(|money| money.amount);
+        .map(|money| money.amount());
     let items = wallet
         .card
         .as_ref()
@@ -1243,7 +1243,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             serde_json::to_string(&body).ok().map(Secret::new);
         data.response = match body.response_code {
             QWIKCILVER_SUCCESS_CODE => {
-                let currency = data.request.amount.currency;
+                let currency = data.request.amount.currency();
                 let (eligibility, payment_method_details) =
                     if let Some(wallet) = body.wallet.as_ref() {
                         let eligibility = match map_wallet_status(wallet.status.as_ref()) {

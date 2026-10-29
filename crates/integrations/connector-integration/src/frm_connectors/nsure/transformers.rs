@@ -722,7 +722,7 @@ impl<
             })
         })?;
 
-        let currency = req.amount.currency;
+        let currency = req.amount.currency();
         let feature_data = NsureFeatureData::parse(req.connector_feature_data.as_ref());
 
         // sessionInfo carries the SDK device id plus the browser signals prism

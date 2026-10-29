@@ -430,7 +430,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let currency = req.request.amount.as_ref()
-                .map(|money| money.currency)
+                .map(|money| money.currency())
                 .ok_or_else(domain_types::utils::missing_field_err("amount.currency"))?;
             self.build_headers(req, Some(currency))
         }
@@ -671,7 +671,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let currency = req.request.refund_money.as_ref()
-                .map(|money| money.currency)
+                .map(|money| money.currency())
                 .ok_or_else(domain_types::utils::missing_field_err("refund_amount.currency"))?;
             self.build_headers(req, Some(currency))
         }

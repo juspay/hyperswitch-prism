@@ -793,7 +793,7 @@ impl TryFrom<ResponseRouterData<PlaidBalanceGetResponse, Self>>
         data.resource_common_data.raw_connector_response =
             serde_json::to_string(res).ok().map(Secret::new);
 
-        let request_currency = Some(data.request.amount.currency);
+        let request_currency = Some(data.request.amount.currency());
         let institution_name = res.item.institution_name.clone();
 
         // Plaid signals failure via HTTP status (the connector error path);
@@ -814,8 +814,8 @@ impl TryFrom<ResponseRouterData<PlaidBalanceGetResponse, Self>>
                 }),
             )
         } else {
-            let request_amount = data.request.amount.amount;
-            let currency = data.request.amount.currency;
+            let request_amount = data.request.amount.amount();
+            let currency = data.request.amount.currency();
 
             // An account covers the request when its comparable balance
             // (available, else current) converts to more than the request
@@ -825,7 +825,7 @@ impl TryFrom<ResponseRouterData<PlaidBalanceGetResponse, Self>>
                 let comparable = acct.balances.available.or(acct.balances.current);
                 comparable
                     .and_then(|bal| super::PlaidAmountConvertor::convert_back(bal, currency).ok())
-                    .is_some_and(|balance| balance.amount > request_amount)
+                    .is_some_and(|balance| balance.amount() > request_amount)
             };
 
             // When the request pins a specific account (connector_payment_method_id

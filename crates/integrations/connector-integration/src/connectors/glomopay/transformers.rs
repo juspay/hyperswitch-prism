@@ -996,7 +996,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     (
                         Some(amount.clone()),
                         Some(PaymentSynIntegrityObject {
-                            amount: amount.amount,
+                            amount: amount.amount(),
                             currency,
                         }),
                     )

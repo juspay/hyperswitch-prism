@@ -1014,7 +1014,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let currency = router_data.request.currency;
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            &common_utils::types::Money::new(router_data.request.amount.amount, currency),
+            &common_utils::types::Money::new(router_data.request.amount.amount(), currency),
         )?;
 
         let access_token = router_data.resource_common_data.get_access_token()?;
@@ -1870,7 +1870,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .request
                 .amount
                 .as_ref()
-                .map(|money| money.amount),
+                .map(|money| money.amount()),
             router_data.request.currency,
         ) {
             (Some(minor_amount), Some(currency)) => {
@@ -2463,7 +2463,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .amount
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .is_some_and(|amount| amount > common_utils::types::MinorUnit::zero())
         {
             return Err(error_stack::report!(

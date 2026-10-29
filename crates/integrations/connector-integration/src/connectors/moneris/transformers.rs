@@ -579,7 +579,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .as_ref()
                     .is_some_and(|a| a.cavv.is_some());
                 let amount = Money::new(
-                    item.router_data.request.amount.amount,
+                    item.router_data.request.amount.amount(),
                     item.router_data.request.currency,
                 );
                 let ecommerce_indicator = Some(derive_ecommerce_indicator(
@@ -847,7 +847,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 let amount = Money::new(
-                    item.router_data.request.amount.amount,
+                    item.router_data.request.amount.amount(),
                     item.router_data.request.currency,
                 );
 
@@ -1026,9 +1026,9 @@ impl TryFrom<ResponseRouterData<MonerisCaptureResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let status = match item.response.payment_status {
             MonerisPaymentStatus::Succeeded => {
-                let captured = item.router_data.request.amount_to_capture.amount;
+                let captured = item.router_data.request.amount_to_capture.amount();
                 match item.router_data.resource_common_data.amount_capturable {
-                    Some(ref authorized) if captured < authorized.amount => {
+                    Some(ref authorized) if captured < authorized.amount() => {
                         common_enums::AttemptStatus::PartialCharged
                     }
                     _ => common_enums::AttemptStatus::Charged,
@@ -1141,7 +1141,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }),
                 });
                 let amount = Money::new(
-                    item.router_data.request.amount.amount,
+                    item.router_data.request.amount.amount(),
                     item.router_data.request.currency,
                 );
                 Ok(Self {
@@ -1198,7 +1198,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let amount = Money::new(
-            item.router_data.request.amount_to_capture.amount,
+            item.router_data.request.amount_to_capture.amount(),
             item.router_data.request.currency,
         );
         let idempotency_key = format!(
@@ -1275,7 +1275,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let refund_amount = Money::new(
-            item.router_data.request.refund_amount.amount,
+            item.router_data.request.refund_amount.amount(),
             item.router_data.request.currency,
         );
         let idempotency_key = format!(
@@ -1727,7 +1727,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             country: resource.get_optional_billing_country(),
         };
 
-        let amount = Money::new(req.amount.amount, req.currency.unwrap_or_default());
+        let amount = Money::new(req.amount.amount(), req.currency.unwrap_or_default());
 
         let idempotency_key = format!("3ds_{}", resource.connector_request_reference_id);
 

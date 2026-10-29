@@ -288,7 +288,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }?;
 
         Ok(Self {
-            amount: item.router_data.request.amount.amount,
+            amount: item.router_data.request.amount.amount(),
             currency: item.router_data.request.currency,
             payment_method,
             user_reference: item

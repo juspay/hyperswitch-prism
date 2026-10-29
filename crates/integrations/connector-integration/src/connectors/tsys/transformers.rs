@@ -1115,7 +1115,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .request
                     .amount
                     .as_ref()
-                    .map(|money| money.amount)
+                    .map(|money| money.amount())
                     .unwrap_or_else(|| MinorUnit::new(1));
                 let transaction_amount = item_data
                     .connector

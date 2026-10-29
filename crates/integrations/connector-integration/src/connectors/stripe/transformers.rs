@@ -391,7 +391,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][unit_cost]"),
-                        order_item.amount.amount.get_amount_as_i64().to_string(),
+                        order_item.amount.amount().get_amount_as_i64().to_string(),
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][quantity]"),
@@ -407,7 +407,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                         has_line_item_tax = true;
                         items_map.insert(
                             format!("amount_details[line_items][{index}][tax][total_tax_amount]"),
-                            tax_amount.amount.get_amount_as_i64().to_string(),
+                            tax_amount.amount().get_amount_as_i64().to_string(),
                         );
                     }
                     if let Some(unit_of_measure) = order_item.unit_of_measure.as_ref() {
@@ -419,7 +419,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                     if let Some(line_discount) = order_item.unit_discount_amount.as_ref() {
                         items_map.insert(
                             format!("amount_details[line_items][{index}][discount_amount]"),
-                            line_discount.amount.get_amount_as_i64().to_string(),
+                            line_discount.amount().get_amount_as_i64().to_string(),
                         );
                     }
                     if let Some(commodity_code) = order_item.commodity_code.as_ref() {
@@ -2653,7 +2653,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // G-Authorize-01: Stripe requires a PaymentIntent `amount` to be a positive integer
         // (https://docs.stripe.com/api/payment_intents/create#create_payment_intent-amount).
-        if item.request.amount.amount < MinorUnit::zero() {
+        if item.request.amount.amount() < MinorUnit::zero() {
             return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
                 context: IntegrationErrorContext {
@@ -2673,7 +2673,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // A $0 verification is a SetupIntent. Refused before the payment-method dispatch so it
         // holds for every payment method and no HTTP call is built.
-        if item.request.amount.amount == MinorUnit::zero() {
+        if item.request.amount.amount() == MinorUnit::zero() {
             return Err(error_stack::report!(IntegrationError::NotSupported {
                 message: "zero-amount PaymentIntent".to_string(),
                 connector: "stripe",
@@ -3737,7 +3737,7 @@ where
             .resource_common_data
             .amount
             .as_ref()
-            .map(|money| money.currency)
+            .map(|money| money.currency())
             .unwrap_or_default();
 
         Ok(Self {
@@ -4070,7 +4070,7 @@ impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ))?;
 
         let response_integrity_object = PaymentSynIntegrityObject {
-            amount: response_money.amount,
+            amount: response_money.amount(),
             currency: currency_enum,
         };
 
@@ -5742,7 +5742,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ))?;
 
         let response_integrity_object = AuthoriseIntegrityObject {
-            amount: response_money.amount,
+            amount: response_money.amount(),
             currency: currency_enum,
         };
 
@@ -5799,7 +5799,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let response_integrity_object =
             capture_money.map(|amount_to_capture| CaptureIntegrityObject {
-                amount_to_capture: amount_to_capture.amount,
+                amount_to_capture: amount_to_capture.amount(),
                 currency: currency_enum,
             });
 
@@ -5971,7 +5971,7 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
     fn try_from(
         item: &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let amount = item.request.refund_amount.amount;
+        let amount = item.request.refund_amount.amount();
         match item.request.split_refunds.as_ref() {
             None => Err(IntegrationError::MissingRequiredField {
                 field_name: "split_refunds",
@@ -6090,7 +6090,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let response_integrity_object = RefundIntegrityObject {
             currency: currency_enum,
-            refund_amount: refund_money.amount,
+            refund_amount: refund_money.amount(),
         };
 
         Ok(Self {

@@ -296,7 +296,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         // No validation needed here
 
         // Get capture amount from minor_amount_to_capture
-        let capture_amount = item.request.amount_to_capture.amount;
+        let capture_amount = item.request.amount_to_capture.amount();
 
         // Convert amount to FloatMajorUnit format
         let converter = FloatMajorUnitForConnector;
@@ -1154,7 +1154,7 @@ impl
                     })
                     .map(|total| TransactionAmount {
                         total,
-                        currency: amount.currency,
+                        currency: amount.currency(),
                     })
             })
             .transpose()?;

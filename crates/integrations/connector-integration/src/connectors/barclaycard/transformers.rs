@@ -431,7 +431,7 @@ where
         .and_then(|data| {
             data.original_payment_authorized_amount
                 .as_ref()
-                .map(|oa| (oa.amount, oa.currency))
+                .map(|oa| (oa.amount(), oa.currency()))
         });
 
     match original_pair {
@@ -1017,7 +1017,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .request
                 .amount
                 .as_ref()
-                .map(|money| money.amount)
+                .map(|money| money.amount())
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "amount",
                     context: Default::default(),
@@ -2278,7 +2278,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .currency
             .ok_or_else(|| missing_required_field_error(FIELD_CURRENCY, FLOW_AUTHENTICATE))?;
         let total_amount = BarclaycardAmountConvertor::convert(&common_utils::types::Money::new(
-            router_data.request.amount.amount,
+            router_data.request.amount.amount(),
             currency,
         ))?;
 
@@ -2513,7 +2513,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .currency
             .ok_or_else(|| missing_required_field_error(FIELD_CURRENCY, FLOW_POST_AUTHENTICATE))?;
         let total_amount = BarclaycardAmountConvertor::convert(&common_utils::types::Money::new(
-            router_data.request.amount.amount,
+            router_data.request.amount.amount(),
             currency,
         ))?;
         let order_information = requests::OrderInformation {

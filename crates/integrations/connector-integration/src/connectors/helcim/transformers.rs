@@ -618,7 +618,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .request
                     .amount
                     .as_ref()
-                    .map(|money| money.amount)
+                    .map(|money| money.amount())
                     .unwrap_or(common_utils::types::MinorUnit::new(0)),
                 item.router_data.request.currency,
             ))

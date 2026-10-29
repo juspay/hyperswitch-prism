@@ -535,7 +535,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             ))?;
 
         let response_integrity_object = Some(AuthoriseIntegrityObject {
-            amount: response_amount.amount,
+            amount: response_amount.amount(),
             currency: response.currency,
         });
 
@@ -821,7 +821,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 
         let response_integrity_object = {
             Some(RefundIntegrityObject {
-                refund_amount: response_amount.amount,
+                refund_amount: response_amount.amount(),
                 currency: response.currency,
             })
         };

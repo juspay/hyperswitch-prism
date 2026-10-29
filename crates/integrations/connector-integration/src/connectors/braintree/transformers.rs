@@ -2093,7 +2093,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                     total: AmountInfo {
                                         label: payment_request_data.label,
                                         total_type: None,
-                                        amount: item.router_data.request.amount.amount,
+                                        amount: item.router_data.request.amount.amount(),
                                     },
                                     merchant_capabilities: Some(
                                         payment_request_data.merchant_capabilities,
@@ -2160,7 +2160,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                         ))?,
                                         currency_code: item.router_data.request.currency,
                                         total_price_status: GooglePayPriceStatus::Final.to_string(),
-                                        total_price: item.router_data.request.amount.amount,
+                                        total_price: item.router_data.request.amount.amount(),
                                     },
                                     secrets: Some(SecretInfoToInitiateSdk {
                                         display: res.data.create_client_token.client_token.clone(),
@@ -2204,7 +2204,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                 transaction_info: Some(PaypalTransactionInfo {
                                     flow: PaypalFlow::Checkout.into(),
                                     currency_code: item.router_data.request.currency,
-                                    total_price: item.router_data.request.amount.amount,
+                                    total_price: item.router_data.request.amount.amount(),
                                 }),
                             },
                         ))

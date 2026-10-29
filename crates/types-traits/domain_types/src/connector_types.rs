@@ -799,7 +799,7 @@ impl Default for PaymentsSyncData {
             payment_method_type: Default::default(),
             currency: Default::default(),
             payment_experience: Default::default(),
-            amount: Money::new(Default::default(), Default::default()),
+            amount: Money::new(MinorUnit::default(), Default::default()),
             all_keys_required: Default::default(),
             integrity_object: Default::default(),
             integrity_specifications: Default::default(),
@@ -959,7 +959,7 @@ impl PaymentFlowData {
     }
 
     pub fn get_currency(&self) -> Option<common_enums::Currency> {
-        self.amount.as_ref().map(|money| money.currency)
+        self.amount.as_ref().map(|money| money.currency())
     }
 
     pub fn get_merchant_request_id(&self) -> Result<String, Error> {
@@ -3818,8 +3818,8 @@ impl Default for RefundsData {
             webhook_url: Default::default(),
             connector_feature_data: Default::default(),
             refund_connector_metadata: Default::default(),
-            payment_amount: Money::new(Default::default(), Default::default()),
-            refund_amount: Money::new(Default::default(), Default::default()),
+            payment_amount: Money::new(MinorUnit::default(), Default::default()),
+            refund_amount: Money::new(MinorUnit::default(), Default::default()),
             refund_status: Default::default(),
             merchant_account_id: Default::default(),
             capture_method: Default::default(),
@@ -3918,7 +3918,7 @@ impl Default for PaymentsCaptureData {
     fn default() -> Self {
         Self {
             payment_method_data: Default::default(),
-            amount_to_capture: Money::new(Default::default(), Default::default()),
+            amount_to_capture: Money::new(MinorUnit::default(), Default::default()),
             currency: Default::default(),
             connector_transaction_id: Default::default(),
             multiple_capture_data: Default::default(),
@@ -5005,13 +5005,13 @@ impl RecurringMandateData for RecurringMandatePaymentData {
     fn get_original_payment_amount(&self) -> Result<MinorUnit, Error> {
         self.original_payment_authorized_amount
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
     }
     fn get_original_payment_currency(&self) -> Result<Currency, Error> {
         self.original_payment_authorized_amount
             .as_ref()
-            .map(|money| money.currency)
+            .map(|money| money.currency())
             .ok_or_else(missing_field_err("original_payment_authorized_currency"))
     }
 }
@@ -5711,19 +5711,19 @@ impl L2L3Data {
     pub fn get_discount_amount(&self) -> Option<MinorUnit> {
         self.order_info
             .as_ref()
-            .and_then(|order| order.discount_amount.as_ref().map(|money| money.amount))
+            .and_then(|order| order.discount_amount.as_ref().map(|money| money.amount()))
     }
 
     pub fn get_shipping_cost(&self) -> Option<MinorUnit> {
         self.order_info
             .as_ref()
-            .and_then(|order| order.shipping_cost.as_ref().map(|money| money.amount))
+            .and_then(|order| order.shipping_cost.as_ref().map(|money| money.amount()))
     }
 
     pub fn get_duty_amount(&self) -> Option<MinorUnit> {
         self.order_info
             .as_ref()
-            .and_then(|order| order.duty_amount.as_ref().map(|money| money.amount))
+            .and_then(|order| order.duty_amount.as_ref().map(|money| money.amount()))
     }
 
     pub fn get_order_commodity_code(&self) -> Option<String> {
@@ -5736,7 +5736,7 @@ impl L2L3Data {
         self.tax_info.as_ref().and_then(|tax| {
             tax.value_added_tax_amount
                 .as_ref()
-                .map(|money| money.amount)
+                .map(|money| money.amount())
         })
     }
 
@@ -5777,13 +5777,13 @@ impl L2L3Data {
     pub fn get_shipping_amount_tax(&self) -> Option<MinorUnit> {
         self.tax_info
             .as_ref()
-            .and_then(|tax| tax.shipping_amount_tax.as_ref().map(|money| money.amount))
+            .and_then(|tax| tax.shipping_amount_tax.as_ref().map(|money| money.amount()))
     }
 
     pub fn get_order_tax_amount(&self) -> Option<MinorUnit> {
         self.tax_info
             .as_ref()
-            .and_then(|tax| tax.order_tax_amount.as_ref().map(|money| money.amount))
+            .and_then(|tax| tax.order_tax_amount.as_ref().map(|money| money.amount()))
     }
 
     pub fn get_customer_id(&self) -> Option<CustomerId> {

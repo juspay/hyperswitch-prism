@@ -798,7 +798,7 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
         let converter = FloatMajorUnitForConnector;
         let amount = converter
             .convert(&common_utils::types::Money::new(
-                minor_amount.amount,
+                minor_amount.amount(),
                 currency,
             ))
             .change_context(IntegrationError::AmountConversionFailed {

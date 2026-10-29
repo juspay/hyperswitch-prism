@@ -1167,7 +1167,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         if status == AttemptStatus::Charged
             && settled_amount
                 .as_ref()
-                .is_some_and(|settled| settled.amount < item.router_data.request.amount.amount)
+                .is_some_and(|settled| settled.amount() < item.router_data.request.amount.amount())
         {
             status = AttemptStatus::PartialCharged;
         }

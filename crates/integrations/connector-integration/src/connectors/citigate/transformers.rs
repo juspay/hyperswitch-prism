@@ -1214,7 +1214,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &router_data.request;
         let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
 
-        let amount = if request.refund_amount.amount == request.payment_amount.amount {
+        let amount = if request.refund_amount.amount() == request.payment_amount.amount() {
             None
         } else {
             Some(CitigateAmountConvertor::convert(&request.refund_amount)?)

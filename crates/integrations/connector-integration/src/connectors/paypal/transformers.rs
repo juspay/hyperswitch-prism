@@ -153,7 +153,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .request
                     .shipping_cost
                     .as_ref()
-                    .map(|money| money.amount)
+                    .map(|money| money.amount())
                     .unwrap_or(MinorUnit::zero()),
                 item.router_data.request.currency,
             ))
@@ -219,7 +219,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .request
                     .shipping_cost
                     .as_ref()
-                    .map(|money| money.amount)
+                    .map(|money| money.amount())
                     .unwrap_or(MinorUnit::zero()),
                 item.router_data.request.currency,
             ))
@@ -4241,7 +4241,7 @@ impl TryFrom<ResponseRouterData<PaypalClientAuthTokenResponse, Self>>
                 transaction_info: Some(PaypalTransactionInfoDomain {
                     flow: PaypalFlowDomain::Checkout,
                     currency_code: item.router_data.request.currency,
-                    total_price: item.router_data.request.amount.amount,
+                    total_price: item.router_data.request.amount.amount(),
                 }),
             },
         ));

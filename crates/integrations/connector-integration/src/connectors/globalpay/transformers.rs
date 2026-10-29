@@ -1644,7 +1644,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector
                     .amount_converter
                     .convert(&common_utils::types::Money::new(
-                        amount_value.amount,
+                        amount_value.amount(),
                         currency,
                     ))
                     .change_context(IntegrationError::AmountConversionFailed {

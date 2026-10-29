@@ -1089,7 +1089,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .amount
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .is_some_and(|amount| amount > common_utils::types::MinorUnit::zero())
         {
             return Err(IntegrationError::FlowNotSupported {

@@ -218,7 +218,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let connector_router_data: razorpayv2::RazorpayV2RouterData<&PaymentCreateOrderData, T> =
             razorpayv2::RazorpayV2RouterData::try_from((
-                req.request.amount.amount,
+                req.request.amount.amount(),
                 &req.request,
                 Some(
                     req.resource_common_data

@@ -924,7 +924,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let void_amount_string = StringMinorUnitForConnector
             .convert(&common_utils::types::Money::new(
-                void_amount.amount,
+                void_amount.amount(),
                 currency,
             ))
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -1334,7 +1334,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             order_id: get_nexi_order_id(&item.resource_common_data.payment_id)?,
             amount: StringMinorUnitForConnector
                 .convert(&common_utils::types::Money::new(
-                    item.request.amount.amount,
+                    item.request.amount.amount(),
                     currency,
                 ))
                 .change_context(IntegrationError::RequestEncodingFailed {
@@ -1372,7 +1372,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         });
 
         // Add actionType logic for zero-amount payments
-        let action_type = if item.request.amount.amount == common_utils::types::MinorUnit::zero() {
+        let action_type = if item.request.amount.amount() == common_utils::types::MinorUnit::zero()
+        {
             Some(NexixpayPaymentRequestActionType::Verify)
         } else {
             None
@@ -1797,7 +1798,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         "Failed to encode amount={:?} currency={:?} as a Nexi \
                          `paymentSession.amount` (string minor-units) for the /orders/hpp \
                          ClientAuthenticationToken flow.",
-                        router_data.request.amount.amount, router_data.request.currency,
+                        router_data.request.amount.amount(),
+                        router_data.request.currency,
                     )),
                 },
             })?;

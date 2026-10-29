@@ -539,7 +539,7 @@ impl Default for OrderDetailsWithAmount {
         Self {
             product_name: Default::default(),
             quantity: Default::default(),
-            amount: Money::new(Default::default(), Default::default()),
+            amount: Money::new(common_utils::MinorUnit::default(), Default::default()),
             tax_rate: Default::default(),
             total_tax_amount: Default::default(),
             requires_shipping: Default::default(),

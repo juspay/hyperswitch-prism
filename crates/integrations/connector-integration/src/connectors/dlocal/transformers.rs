@@ -816,7 +816,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         field_name: "amount",
                         context: Default::default(),
                     })?
-                    .amount;
+                    .amount();
                 let amount = utils::convert_amount(
                     item.connector.amount_converter,
                     &common_utils::types::Money::new(minor_amount, router_data.request.currency),

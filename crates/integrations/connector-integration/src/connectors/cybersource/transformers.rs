@@ -1582,7 +1582,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(&common_utils::types::Money::new(
-                item.router_data.request.amount.amount.to_owned(),
+                item.router_data.request.amount.amount().to_owned(),
                 item.router_data.request.currency,
             ))
             .change_context(IntegrationError::AmountConversionFailed {
@@ -1689,7 +1689,7 @@ fn build_l2_l3_order_data<
         .and_then(|tax| tax.order_tax_amount.as_ref());
     let purchase_order_number = l2_l3_data.and_then(L2L3Data::get_merchant_order_reference_id);
     // `taxable` is required by Cybersource when tax is charged on the order.
-    let taxable = order_tax_amount.map(|tax| tax.amount.get_amount_as_i64() > 0);
+    let taxable = order_tax_amount.map(|tax| tax.amount().get_amount_as_i64() > 0);
     let invoice_details =
         (purchase_order_number.is_some() || taxable.is_some()).then_some(InvoiceDetails {
             purchase_order_number,
@@ -3472,7 +3472,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = value
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money::new(amount.amount, currency))
+            .convert(&common_utils::types::Money::new(amount.amount(), currency))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -3567,7 +3567,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok::<_, Self::Error>(OrderInformation {
                     amount_details: Amount {
                         total_amount,
-                        currency: amount.currency,
+                        currency: amount.currency(),
                         discount_amount: None,
                         duty_amount: None,
                         freight_amount: None,
@@ -4458,7 +4458,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(&common_utils::types::Money::new(
-                item.router_data.request.amount.amount,
+                item.router_data.request.amount.amount(),
                 item.router_data.request.currency.ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "currency",
@@ -4748,7 +4748,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(&common_utils::types::Money::new(
-                item.router_data.request.amount.amount,
+                item.router_data.request.amount.amount(),
                 item.router_data.request.currency.ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "currency",
@@ -5463,7 +5463,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             .connector
             .amount_converter
             .convert(&common_utils::types::Money::new(
-                item.router_data.request.refund_amount.amount.to_owned(),
+                item.router_data.request.refund_amount.amount().to_owned(),
                 item.router_data.request.currency,
             ))
             .change_context(IntegrationError::AmountConversionFailed {
@@ -6339,7 +6339,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(&common_utils::types::Money::new(
-                item.router_data.request.amount.amount.to_owned(),
+                item.router_data.request.amount.amount().to_owned(),
                 item.router_data.request.currency,
             ))
             .change_context(IntegrationError::AmountConversionFailed {
@@ -6424,7 +6424,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 .original_payment_authorized_amount
                                 .clone()
                         })
-                        .map(|original_amount| (original_amount.amount, original_amount.currency));
+                        .map(|original_amount| {
+                            (original_amount.amount(), original_amount.currency())
+                        });
 
                     let original_authorized_amount = match original_authorized_amount {
                         Some((original_amount, original_currency)) => {
@@ -6487,7 +6489,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     recurring_mandate_payment_data
                                         .original_payment_authorized_amount
                                         .as_ref()
-                                        .map(|money| money.amount)
+                                        .map(|money| money.amount())
                                 });
 
                             let original_currency = item
@@ -6499,7 +6501,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     recurring_mandate_payment_data
                                         .original_payment_authorized_amount
                                         .as_ref()
-                                        .map(|money| money.currency)
+                                        .map(|money| money.currency())
                                 });
 
                             (original_amount, original_currency)
@@ -6565,7 +6567,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     recurring_mandate_payment_data
                                         .original_payment_authorized_amount
                                         .as_ref()
-                                        .map(|money| money.amount)
+                                        .map(|money| money.amount())
                                 });
 
                             let original_currency = item
@@ -6577,7 +6579,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     recurring_mandate_payment_data
                                         .original_payment_authorized_amount
                                         .as_ref()
-                                        .map(|money| money.currency)
+                                        .map(|money| money.currency())
                                 });
 
                             (original_amount, original_currency)

@@ -2475,7 +2475,7 @@ pub(crate) fn get_apple_pay_session(
                         field_name: "amount",
                         context: Default::default(),
                     })?
-                    .amount,
+                    .amount(),
                     total_type: None,
                 },
                 merchant_identifier: None,
@@ -2578,7 +2578,7 @@ impl From<GooglePayTransactionInfo> for domain_types::connector_types::GpayTrans
     fn from(value: GooglePayTransactionInfo) -> Self {
         let total_price =
             TrustpayAmountConvertor::convert_back(value.total_price, value.currency_code)
-                .map(|money| money.amount)
+                .map(|money| money.amount())
                 .unwrap_or_else(|_| MinorUnit::new(0));
 
         Self {

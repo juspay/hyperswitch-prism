@@ -397,7 +397,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     holder: card_data.get_optional_cardholder_name(),
                 });
                 Ok(Self {
-                    amount: item.router_data.request.amount.amount,
+                    amount: item.router_data.request.amount.amount(),
                     currency: item.router_data.request.currency,
                     reference: item
                         .router_data
@@ -481,7 +481,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     }?;
                     Ok(Self {
-                        amount: item.router_data.request.amount.amount,
+                        amount: item.router_data.request.amount.amount(),
                         currency: item.router_data.request.currency,
                         reference: item
                             .router_data
@@ -535,7 +535,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     }?;
                     Ok(Self {
-                        amount: item.router_data.request.amount.amount,
+                        amount: item.router_data.request.amount.amount(),
                         currency: item.router_data.request.currency,
                         reference: item
                             .router_data
@@ -854,7 +854,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = item.router_data.request.amount.amount;
+        let amount = item.router_data.request.amount.amount();
         let currency = item.router_data.request.currency;
         let reference = item
             .router_data
@@ -1582,7 +1582,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             psp_reference,
-            amount: item.router_data.request.amount_to_capture.amount,
+            amount: item.router_data.request.amount_to_capture.amount(),
             currency: item.router_data.request.currency,
             final_capture,
         })
@@ -1684,7 +1684,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             psp_reference: item.router_data.request.connector_transaction_id.clone(),
-            amount: item.router_data.request.refund_amount.amount,
+            amount: item.router_data.request.refund_amount.amount(),
             currency: item.router_data.request.currency,
             reference: Some(item.router_data.request.refund_id.clone()),
             reason: item.router_data.request.reason,

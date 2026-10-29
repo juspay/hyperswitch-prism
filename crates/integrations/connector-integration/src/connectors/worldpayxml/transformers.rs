@@ -1602,7 +1602,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .amount
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .is_some_and(|amount| amount.get_amount_as_i64() > 0)
         {
             return Err(IntegrationError::FlowNotSupported {
@@ -1669,7 +1669,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .request
                     .amount
                     .as_ref()
-                    .map(|money| money.amount)
+                    .map(|money| money.amount())
                     .unwrap_or_else(common_utils::types::MinorUnit::zero),
                 router_data.request.currency,
             ))?;
@@ -3500,8 +3500,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .map(|amount| {
                 Ok::<_, Self::Error>(requests::WorldpayxmlAmount {
                     value: super::WorldpayxmlAmountConvertor::convert(amount)?,
-                    currency_code: amount.currency,
-                    exponent: get_worldpayxml_exponent(amount.currency)?,
+                    currency_code: amount.currency(),
+                    exponent: get_worldpayxml_exponent(amount.currency())?,
                 })
             })
             .transpose()?;

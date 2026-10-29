@@ -164,7 +164,7 @@ where
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
             value: common_utils::MinorUnit::new(
-                router_data.request.amount.amount.get_amount_as_i64(),
+                router_data.request.amount.amount().get_amount_as_i64(),
             ),
         };
 
@@ -524,7 +524,7 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.amount_to_capture.amount,
+            amount: item.router_data.request.amount_to_capture.amount(),
         })
     }
 }
@@ -556,12 +556,12 @@ where
             .router_data
             .request
             .amount
-            .map(|amount| amount.amount)
+            .map(|amount| amount.amount())
             .or(item
                 .router_data
                 .resource_common_data
                 .amount_authorized
-                .map(|amount| amount.amount))
+                .map(|amount| amount.amount()))
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "amount or amount_authorized.amount",
                 context: Default::default(),
@@ -595,7 +595,7 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.refund_amount.amount,
+            amount: item.router_data.request.refund_amount.amount(),
             merchant_refund_reference: item.router_data.request.refund_id.clone(),
             refund_reason: item
                 .router_data
@@ -869,7 +869,7 @@ where
                     .resource_common_data
                     .amount
                     .as_ref()
-                    .map(|m| m.currency)
+                    .map(|m| m.currency())
             });
 
         let response_amount = resolved_minor_amount
@@ -929,7 +929,7 @@ where
             .resource_common_data
             .amount
             .as_ref()
-            .map(|money| money.currency)
+            .map(|money| money.currency())
             .unwrap_or_default();
 
         Ok(Self {
@@ -1265,7 +1265,7 @@ where
                     .request
                     .amount
                     .as_ref()
-                    .map(|money| money.amount)
+                    .map(|money| money.amount())
                     .map(|a| a.get_amount_as_i64())
                     .unwrap_or(0),
             ),
@@ -1664,7 +1664,7 @@ where
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
             value: common_utils::MinorUnit::new(
-                router_data.request.amount.amount.get_amount_as_i64(),
+                router_data.request.amount.amount().get_amount_as_i64(),
             ),
         };
 

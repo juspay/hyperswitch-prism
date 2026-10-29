@@ -956,7 +956,7 @@ fn check_common_guards<T: PaymentMethodDataTypes>(
     }
     // payment.amount is 1..10^13 minor units; zero and negative are refused on
     // the payment leg only.
-    let minor_amount = request.amount.amount.get_amount_as_i64();
+    let minor_amount = request.amount.amount().get_amount_as_i64();
     if !is_three_ds_completion(request) && minor_amount <= 0 {
         return Err(invalid_format(
             "amount",
@@ -1131,7 +1131,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             customer,
             payment: EcommpayPaymentInfo {
                 amount,
-                currency: request.amount.currency,
+                currency: request.amount.currency(),
                 description: description(common),
             },
             return_url: router_return_url.map(|decline| EcommpayReturnUrl {
@@ -1242,7 +1242,7 @@ fn payment_source<T: PaymentMethodDataTypes>(
     match &request.payment_method_data {
         PaymentMethodData::Card(card) => Ok(EcommpayPaymentSource::Card(build_card(card)?)),
         PaymentMethodData::Wallet(wallet) => {
-            wallet_source(wallet, request.amount.currency, request.amount.amount)
+            wallet_source(wallet, request.amount.currency(), request.amount.amount())
         }
         PaymentMethodData::CardWithNoCvc(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
@@ -1787,7 +1787,7 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
         .map(|line| {
             let line_total = line
                 .amount
-                .amount
+                .amount()
                 .get_amount_as_i64()
                 .checked_mul(i64::from(line.quantity))
                 .ok_or_else(|| {
@@ -1811,7 +1811,7 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
                 amount: MinorUnit::new(line_total),
                 quantity: line.quantity,
                 description,
-                tax_amount: line.total_tax_amount.as_ref().map(|money| money.amount),
+                tax_amount: line.total_tax_amount.as_ref().map(|money| money.amount()),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -1820,7 +1820,7 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
         .and_then(|data| data.tax_info.as_ref())
         .and_then(|tax| tax.order_tax_amount.as_ref())
         .or(request.order_tax_amount.as_ref())
-        .map(|money| money.amount)
+        .map(|money| money.amount())
         .filter(|amount| amount.get_amount_as_i64() > 0);
     if positions.is_empty() && total_tax_amount.is_none() {
         return Ok(None);
@@ -2194,7 +2194,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         if let Some(requested) = request
             .amount
             .as_ref()
-            .map(|money| money.amount.get_amount_as_i64())
+            .map(|money| money.amount().get_amount_as_i64())
             .filter(|minor_amount| *minor_amount != 0)
         {
             return Err(error_stack::report!(IntegrationError::NotSupported {
@@ -2607,7 +2607,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let operation = repeat_payment_operation(request)?;
 
         // PaymentInfoRecurring amount >= 1 minor unit.
-        let minor_amount = request.amount.amount.get_amount_as_i64();
+        let minor_amount = request.amount.amount().get_amount_as_i64();
         if minor_amount <= 0 {
             return Err(invalid_format(
                 "amount",
@@ -2686,7 +2686,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         };
         let payment = EcommpayPaymentInfo {
             amount,
-            currency: request.amount.currency,
+            currency: request.amount.currency(),
             description: description(common),
         };
 
@@ -2842,7 +2842,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let payment_id = capture_payment_id(&request.connector_transaction_id)?;
         // The Gate accepts 1..=10^13 minor units; a zero or negative capture is
         // refused here instead of being sent.
-        let amount_to_capture = request.amount_to_capture.amount;
+        let amount_to_capture = request.amount_to_capture.amount();
         if amount_to_capture <= MinorUnit::zero() {
             return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "amount_to_capture",
@@ -2857,7 +2857,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 ),
             }));
         }
-        let currency = request.amount_to_capture.currency;
+        let currency = request.amount_to_capture.currency();
         let amount = item
             .connector
             .amount_converter
@@ -3112,7 +3112,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 })
             })?;
         // A zero or negative refund is refused here instead of being sent.
-        let refund_amount = request.refund_amount.amount;
+        let refund_amount = request.refund_amount.amount();
         if refund_amount <= MinorUnit::zero() {
             return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "refund_amount",
@@ -3146,7 +3146,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         if description_length > MAX_ID_LENGTH {
             return Err(too_long("reason", MAX_ID_LENGTH, description_length));
         }
-        let currency = request.refund_amount.currency;
+        let currency = request.refund_amount.currency();
         let amount = item
             .connector
             .amount_converter

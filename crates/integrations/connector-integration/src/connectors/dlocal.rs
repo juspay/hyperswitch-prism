@@ -551,7 +551,7 @@ macros::macro_connector_implementation!(
                     context: Default::default(),
                 })?;
 
-            if req.request.amount.amount == MinorUnit::new(0) {
+            if req.request.amount.amount() == MinorUnit::new(0) {
                 Ok(format!(
                     "{}enrollments/{connector_transaction_id}",
                     self.connector_base_url_payments(req),

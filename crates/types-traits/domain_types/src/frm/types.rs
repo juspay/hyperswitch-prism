@@ -16,10 +16,7 @@ use crate::{
     utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom},
 };
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
-use common_utils::{
-    pii::Email,
-    types::{MinorUnit, Money},
-};
+use common_utils::{pii::Email, types::Money};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 
@@ -314,7 +311,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             .transpose()?;
 
         Ok(Self {
-            amount: Money::new(MinorUnit::new(amount.minor_amount), currency),
+            amount: Money::foreign_try_from(amount)?,
             customer_info,
             payment_method,
             browser_info,
@@ -485,7 +482,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             })?;
 
         Ok(Self {
-            amount: Money::new(MinorUnit::new(amount.minor_amount), currency),
+            amount: Money::foreign_try_from(amount)?,
             customer_info,
             payment_method,
             browser_info,
@@ -605,20 +602,6 @@ impl
             })
         })?;
 
-        let currency = {
-            let grpc_currency = grpc_api_types::payments::Currency::try_from(amount.currency)
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "currency",
-                    context: crate::errors::IntegrationErrorContext {
-                        additional_context: Some(
-                            "Invalid currency in FRM payment outcome".to_owned(),
-                        ),
-                        ..Default::default()
-                    },
-                })?;
-            common_enums::Currency::foreign_try_from(grpc_currency)?
-        };
-
         let payment_details = match value.notification_type {
             Some(grpc_api_types::payments::frm_notification_content::NotificationType::PaymentDetails(pd)) => pd,
             _ => return Err(error_stack::report!(IntegrationError::MissingRequiredField {
@@ -644,7 +627,7 @@ impl
 
         Ok(Self {
             connector_transaction_id: value.connector_transaction_id,
-            amount: Money::new(MinorUnit::new(amount.minor_amount), currency),
+            amount: Money::foreign_try_from(amount)?,
             frm_transaction_id: value.frm_transaction_id,
             payment_status,
             merchant_transaction_id: payment_details.merchant_transaction_id,
@@ -683,20 +666,6 @@ impl
             })
         })?;
 
-        let currency = {
-            let grpc_currency = grpc_api_types::payments::Currency::try_from(amount.currency)
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "currency",
-                    context: crate::errors::IntegrationErrorContext {
-                        additional_context: Some(
-                            "Invalid currency in FRM refund processed".to_owned(),
-                        ),
-                        ..Default::default()
-                    },
-                })?;
-            common_enums::Currency::foreign_try_from(grpc_currency)?
-        };
-
         let refund = match value.notification_type {
             Some(grpc_api_types::payments::frm_notification_content::NotificationType::Refund(
                 r,
@@ -722,7 +691,7 @@ impl
 
         Ok(Self {
             connector_transaction_id: value.connector_transaction_id,
-            amount: Money::new(MinorUnit::new(amount.minor_amount), currency),
+            amount: Money::foreign_try_from(amount)?,
             frm_transaction_id: value.frm_transaction_id,
             connector_refund_id: refund.connector_refund_id,
             merchant_refund_id: refund.merchant_refund_id,
@@ -760,18 +729,6 @@ impl
             })
         })?;
 
-        let currency = {
-            let grpc_currency = grpc_api_types::payments::Currency::try_from(amount.currency)
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "currency",
-                    context: crate::errors::IntegrationErrorContext {
-                        additional_context: Some("Invalid currency in FRM chargeback".to_owned()),
-                        ..Default::default()
-                    },
-                })?;
-            common_enums::Currency::foreign_try_from(grpc_currency)?
-        };
-
         let chargeback = match value.notification_type {
             Some(
                 grpc_api_types::payments::frm_notification_content::NotificationType::Chargeback(c),
@@ -797,7 +754,7 @@ impl
 
         Ok(Self {
             connector_transaction_id: value.connector_transaction_id,
-            amount: Money::new(MinorUnit::new(amount.minor_amount), currency),
+            amount: Money::foreign_try_from(amount)?,
             frm_transaction_id: value.frm_transaction_id,
             connector_dispute_id: chargeback.connector_dispute_id,
             merchant_dispute_id: chargeback.merchant_dispute_id,

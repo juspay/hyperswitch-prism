@@ -1257,7 +1257,7 @@ impl TryFrom<&MandateAmountData> for KountRecurring {
         // independent of the connector's main amount converter. Omit a 0 value so
         // we never emit a bogus "0" to Kount.
         let minor_unit_amount = |money: &common_utils::types::Money| {
-            let amount = money.amount.get_amount_as_i64();
+            let amount = money.amount().get_amount_as_i64();
             (amount != 0).then(|| amount.to_string())
         };
         // Shared MandateAmountData carries dates as PrimitiveDateTime; Kount's
@@ -1943,7 +1943,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             creation_date_time: account_created_at,
         });
 
-        let currency = req.amount.currency;
+        let currency = req.amount.currency();
 
         // Subscription / recurring context, applied to every line item when the
         // order carries mandate info.
@@ -2529,7 +2529,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .payment_status
                 .and_then(KountPaymentStatus::from_attempt_status),
             order_total: super::KountAmountConvertor::convert(&req.amount)?,
-            currency: req.amount.currency.to_string(),
+            currency: req.amount.currency().to_string(),
             frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
             merchant_category_code,
             merchant,
@@ -2664,7 +2664,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .or_else(|| req.merchant_refund_id.clone()),
             refund_reason: req.refund_reason.clone(),
             refund_amount: super::KountAmountConvertor::convert(&req.amount)?,
-            currency: req.amount.currency.to_string(),
+            currency: req.amount.currency().to_string(),
             frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
             merchant_category_code,
             merchant,

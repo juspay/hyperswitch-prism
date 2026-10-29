@@ -1493,7 +1493,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     .change_context(ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
                     })?;
-                let amount_data = item.router_data.request.amount.amount;
+                let amount_data = item.router_data.request.amount.amount();
                 let currency_data = item.router_data.request.currency.ok_or(
                     ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
@@ -1696,7 +1696,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .amount
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .is_some_and(|amount| amount > common_utils::types::MinorUnit::zero())
         {
             return Err(IntegrationError::NotSupported {

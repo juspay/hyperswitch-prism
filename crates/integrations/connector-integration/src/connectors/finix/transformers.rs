@@ -540,7 +540,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
-            amount: router_data.request.amount.amount,
+            amount: router_data.request.amount.amount(),
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -823,7 +823,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            capture_amount: item.router_data.request.amount_to_capture.amount,
+            capture_amount: item.router_data.request.amount_to_capture.amount(),
             idempotency_id: None,
         })
     }
@@ -1066,7 +1066,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            refund_amount: item.router_data.request.refund_amount.amount,
+            refund_amount: item.router_data.request.refund_amount.amount(),
             idempotency_id: None,
         })
     }
@@ -1785,7 +1785,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
-            amount: router_data.request.amount.amount,
+            amount: router_data.request.amount.amount(),
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,

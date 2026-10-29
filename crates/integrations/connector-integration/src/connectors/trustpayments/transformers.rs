@@ -1218,7 +1218,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Check if this is a partial refund
         // For partial refunds, include baseamount; for full refunds, omit it
-        let base_amount = if router_data.request.refund_amount.amount.get_amount_as_i64() > 0 {
+        let base_amount = if router_data
+            .request
+            .refund_amount
+            .amount()
+            .get_amount_as_i64()
+            > 0
+        {
             // Partial refund - include the amount
             let amount = item
                 .connector
@@ -1753,7 +1759,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .amount
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .unwrap_or(common_utils::types::MinorUnit::zero());
         let amount = item
             .connector

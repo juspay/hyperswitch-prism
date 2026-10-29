@@ -245,8 +245,8 @@ fn build_travel_data(
                     .or_else(|| airline.flight_date.clone()),
                 air_class: s.class_of_service.clone(),
                 fare: s.fare_amount.as_ref().map(|m| TravelhubTravelFare {
-                    amount: Some(m.amount),
-                    currency: Some(m.currency),
+                    amount: Some(m.amount()),
+                    currency: Some(m.currency()),
                     fare_class: s.class_of_service.clone(),
                     fare_basis: s.fare_basis_code.clone(),
                     stopover_allowed: s.stopover_code.as_deref().map(|c| c == "O"),
@@ -654,7 +654,7 @@ impl<T: PaymentMethodDataTypes>
             order_id: validate_travelhub_order_id(
                 &item.resource_common_data.connector_request_reference_id,
             )?,
-            amount: item.request.amount.amount,
+            amount: item.request.amount.amount(),
             currency: item.request.currency,
             capture: is_auto_capture,
             travel: build_travel_data(item.request.domain_data.as_ref()),
@@ -967,7 +967,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
             order_id: validate_travelhub_order_id(
                 &item.resource_common_data.connector_request_reference_id,
             )?,
-            amount: item.request.amount_to_capture.amount,
+            amount: item.request.amount_to_capture.amount(),
             currency: item.request.currency,
         })
     }
@@ -1316,7 +1316,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         Ok(Self {
             merchant_id: auth.get_merchant_id(),
             order_id: resolve_original_order_id(item.request.connector_order_id.as_deref())?,
-            amount: item.request.refund_amount.amount,
+            amount: item.request.refund_amount.amount(),
             currency: item.request.currency,
         })
     }

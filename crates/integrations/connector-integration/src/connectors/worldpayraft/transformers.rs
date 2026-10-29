@@ -972,7 +972,7 @@ impl WorldpayraftMandateMetadata {
             WorldpayraftPosData::for_debit(request.is_auto_capture())
         } else {
             WorldpayraftPosData::for_credit(
-                request.amount.amount,
+                request.amount.amount(),
                 metadata.connector_metadata.card_network.as_ref(),
                 request.mit_category.as_ref(),
                 kind,
@@ -996,7 +996,7 @@ impl WorldpayraftMandateMetadata {
             Some(&request.mandate_reference),
         );
         let pos = WorldpayraftPosData::for_credit(
-            request.amount.amount,
+            request.amount.amount(),
             metadata.connector_metadata.card_network.as_ref(),
             request.mit_category.as_ref(),
             WorldpayraftPaymentKind::Mit,
@@ -1518,7 +1518,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_transaction_id.as_deref(),
             )?;
             WorldpayraftPosData::for_credit(
-                request.amount.amount,
+                request.amount.amount(),
                 network.as_ref(),
                 request.mit_category.as_ref(),
                 kind,
@@ -2677,7 +2677,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             network_transaction_id.as_deref(),
         )?;
         let pos = WorldpayraftPosData::for_credit(
-            request.amount.amount,
+            request.amount.amount(),
             network.as_ref(),
             request.mit_category.as_ref(),
             WorldpayraftPaymentKind::Mit,
@@ -2912,7 +2912,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(&Money::new(amount.amount, currency))
+            .convert(&Money::new(amount.amount(), currency))
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -3227,13 +3227,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .ok_or_else(missing_field_err(
                     "connector_feature_data.original_authorized_amount",
                 ))?;
-        if original_amount.currency != amount.currency {
+        if original_amount.currency() != amount.currency() {
             return Err(errors::IntegrationError::InvalidDataFormat {
                 field_name: "amount.currency",
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(format!(
                         "Worldpay RAFT completion reversal currency {} must match the original authorized currency {} from connector_feature_data.original_authorized_amount",
-                        amount.currency, original_amount.currency
+                        amount.currency(), original_amount.currency()
                     )),
                     ..Default::default()
                 },
@@ -3444,9 +3444,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .additional_amount
             .as_ref()
             .ok_or_else(missing_field_err("additional_amount"))?;
-        if additional_amount.currency != request.amount.currency
-            || additional_amount.amount <= MinorUnit::zero()
-            || additional_amount.amount > request.amount.amount
+        if additional_amount.currency() != request.amount.currency()
+            || additional_amount.amount() <= MinorUnit::zero()
+            || additional_amount.amount() > request.amount.amount()
         {
             return Err(errors::IntegrationError::InvalidDataFormat {
                 field_name: "additional_amount",

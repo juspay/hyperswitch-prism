@@ -768,7 +768,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(&common_utils::types::Money::new(amount.amount, currency))
+            .convert(&common_utils::types::Money::new(amount.amount(), currency))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1198,7 +1198,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .amount
             .as_ref()
-            .map(|amount| amount.amount)
+            .map(|amount| amount.amount())
         {
             Some(minor_amount) => connector
                 .amount_converter

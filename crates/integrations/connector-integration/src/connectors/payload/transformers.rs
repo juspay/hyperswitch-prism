@@ -428,7 +428,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .amount
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
         {
             Some(amount) if amount > common_utils::types::MinorUnit::zero() => {
                 Err(IntegrationError::FlowNotSupported {

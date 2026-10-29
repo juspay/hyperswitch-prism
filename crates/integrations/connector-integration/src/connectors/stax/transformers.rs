@@ -1228,7 +1228,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .amount
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name:
                     "minor_amount (Stax requires a non-zero authorization amount for SetupMandate)",

@@ -993,7 +993,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })?;
 
         let amount = SaferpayAmountConvertor::convert(&common_utils::types::Money::new(
-            request.amount.amount,
+            request.amount.amount(),
             request.currency.ok_or_else(|| missing_field("currency"))?,
         ))?;
 
@@ -1219,10 +1219,10 @@ impl TryFrom<ResponseRouterData<SaferpayCaptureResponse, Self>> for CaptureRoute
             .resource_common_data
             .amount
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .or_else(|| authorized_amount_from_metadata(request));
         let is_partial = authorized_amount
-            .map(|amount| amount > request.amount_to_capture.amount)
+            .map(|amount| amount > request.amount_to_capture.amount())
             .unwrap_or(true);
 
         let status = response.attempt_status(is_partial);

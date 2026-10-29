@@ -1043,12 +1043,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount_to_capture = router_data.request.amount_to_capture.amount;
+        let amount_to_capture = router_data.request.amount_to_capture.amount();
         let original_amount = router_data
             .resource_common_data
             .amount
             .as_ref()
-            .map(|money| money.amount);
+            .map(|money| money.amount());
 
         let amount = match original_amount {
             Some(total) if total == amount_to_capture => None,

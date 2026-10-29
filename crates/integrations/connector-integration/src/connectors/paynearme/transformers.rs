@@ -464,7 +464,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let order_currency = require_usd(router_data.request.currency)?;
         let order_amount = PaynearmeAmountConvertor::convert(&common_utils::types::Money::new(
-            router_data.request.amount.amount,
+            router_data.request.amount.amount(),
             Currency::USD,
         ))?;
 
@@ -795,7 +795,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payment_currency = require_usd(request.currency)?;
         let payment_amount = PaynearmeAmountConvertor::convert(&common_utils::types::Money::new(
-            request.amount.amount,
+            request.amount.amount(),
             Currency::USD,
         ))?;
 
@@ -903,7 +903,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         if request
             .amount
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .is_some_and(|amount| amount.get_amount_as_i64() != 0)
         {
             return Err(not_supported("SetupMandate with a non-zero amount"));
@@ -1092,14 +1092,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = PaynearmeAuthType::try_from(&router_data.connector_config)?;
 
         let currency = require_usd(request.currency)?;
-        let (refund_amount, refund_currency) = if request.refund_amount.amount
-            == request.payment_amount.amount
+        let (refund_amount, refund_currency) = if request.refund_amount.amount()
+            == request.payment_amount.amount()
         {
             (None, None)
         } else {
             (
                 Some(PaynearmeAmountConvertor::convert(
-                    &common_utils::types::Money::new(request.refund_amount.amount, Currency::USD),
+                    &common_utils::types::Money::new(request.refund_amount.amount(), Currency::USD),
                 )?),
                 Some(currency),
             )
@@ -2587,7 +2587,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = PaynearmeAuthType::try_from(&router_data.connector_config)?;
         let payment_currency = require_usd(request.currency)?;
         let payment_amount = PaynearmeAmountConvertor::convert(&common_utils::types::Money::new(
-            request.amount.amount,
+            request.amount.amount(),
             Currency::USD,
         ))?;
 

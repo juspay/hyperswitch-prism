@@ -1388,7 +1388,7 @@ where
                 item.connector
                     .amount_converter
                     .convert(&common_utils::types::Money::new(
-                        minor_amount.amount,
+                        minor_amount.amount(),
                         currency,
                     ))
             })
