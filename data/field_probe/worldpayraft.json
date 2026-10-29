@@ -678,40 +678,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_authorization_id": "probe_auth_001",
-          "connector_transaction_id": "C|123456|123456789012|000001",
-          "amount": {
-            "minor_amount": 1100,
-            "currency": "USD"
-          },
-          "reason": "incremental_auth_probe",
-          "additional_amount": {
-            "minor_amount": 100,
-            "currency": "USD"
-          },
-          "network_transaction_id": "probe_network_txn_001",
-          "payment_method": {
-            "card_with_no_cvc": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_holder_name": "John Doe",
-              "card_network": "VISA"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
-          "method": "Post",
-          "headers": {
-            "authorization": "VANTIV license=\"probe_key\"",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"1.00\",\"CumulativeAmount\":\"11.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ProcFlagsIndicators\":{\"EstimatedAuth\":\"Y\",\"IncrementalAuth\":\"Y\"},\"VisaSpecificData\":{\"VisaTransactionId\":\"probe_network_txn_001\",\"VisaSubsequentTransactionReasonCode\":\"40\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_auth_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.terminal_data — Missing required field: connector_feature_data.terminal_data"
       }
     },
     "parse_event": {
@@ -844,7 +812,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{},\"EncryptionTokenData\":{\"TokenizedPAN\":\"probe-mandate-123\"},\"TerminalData\":{\"EntryMode\":\"CREDONFL\",\"POSConditionCode\":\"08\",\"TerminalEntryCap\":\"0\",\"POSEnvironment\":\"C\"},\"E-commerceData\":{\"E-commerceIndicator\":\"01\"},\"ProcFlagsIndicators\":{\"MerchantInitiatedTransaction\":\"Y\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{},\"EncryptionTokenData\":{\"TokenizedPAN\":\"probe-mandate-123\"},\"TerminalData\":{\"EntryMode\":\"CREDONFL\",\"POSConditionCode\":\"08\",\"TerminalEntryCap\":\"0\",\"POSEnvironment\":\"C\"},\"E-commerceData\":{\"E-commerceIndicator\":\"01\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
@@ -889,7 +857,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditrefund\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_refund_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditrefund\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"ToAccountSelected\":\"CC\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_refund_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
