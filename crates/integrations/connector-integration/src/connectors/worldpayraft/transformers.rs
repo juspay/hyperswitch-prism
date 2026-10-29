@@ -3680,20 +3680,10 @@ impl TryFrom<ResponseRouterData<WorldpayraftVoidPCResponse, Self>>
             AttemptStatus::VoidFailed
         };
         let response = if succeeded {
-            Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.router_data.request.connector_transaction_id.clone(),
-                ),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                network_txn_link_id: None,
-                connector_response_reference_id: inner.api_transaction_id,
-                incremental_authorization_allowed: None,
-                splits: None,
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status: common_enums::PostCaptureVoidStatus::Succeeded,
+                connector_reference_id: inner.api_transaction_id,
                 status_code: item.http_code,
-                payment_account_reference: None,
             })
         } else {
             Err(ErrorResponse {
