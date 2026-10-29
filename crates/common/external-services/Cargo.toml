@@ -45,7 +45,7 @@ tower = "0.5.2"
 hyper = "=1.8.1"
 hyper-util = { version = "=0.1.20", features = ["client-legacy"] }
 native-tls = "=0.2.18"
-rustls = { version = "=0.23.37", default-features = false }
+rustls = { version = "=0.23.45", default-features = false }
 http-body = "1.0.1"
 domain_types = { path = "../../types-traits/domain_types" }
 interfaces = { path = "../../types-traits/interfaces" }
