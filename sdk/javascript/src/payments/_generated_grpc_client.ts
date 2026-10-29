@@ -210,10 +210,6 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentServiceVerifyRedirectResponseRequest: ["connectorFeatureData"],
   PaymentServiceVerifyRedirectResponseResponse: ["rawConnectorResponse", "typedConnectorResponse", "connectorFeatureData"],
   RefundServiceGetRequest: ["refundMetadata", "connectorFeatureData"],
-  DisputeServiceSubmitEvidenceRequest: ["customerEmailAddress"],
-  DisputeServiceSubmitEvidenceResponse: ["rawConnectorRequest", "typedConnectorRequest"],
-  DisputeServiceDefendResponse: ["rawConnectorRequest", "typedConnectorRequest"],
-  DisputeServiceAcceptResponse: ["rawConnectorRequest", "typedConnectorRequest"],
   PaymentMethodServiceTokenizeRequest: ["metadata", "connectorFeatureData"],
   PaymentMethodServiceCreateRequest: ["metadata", "connectorFeatureData"],
   PaymentMethodServiceCreateResponse: ["rawConnectorResponse", "typedConnectorResponse", "rawConnectorRequest", "typedConnectorRequest"],
@@ -415,6 +411,10 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PayoutMethodEligibilityResponse: ["connectorMetadata"],
   ConnectorError: ["rawConnectorResponse", "rawConnectorRequest"],
   SurchargeServiceCalculateRequest: ["postalCode"],
+  DisputeServiceSubmitEvidenceRequest: ["customerEmailAddress"],
+  DisputeServiceSubmitEvidenceResponse: ["rawConnectorRequest", "typedConnectorRequest"],
+  DisputeServiceDefendResponse: ["rawConnectorRequest", "typedConnectorRequest"],
+  DisputeServiceAcceptResponse: ["rawConnectorRequest", "typedConnectorRequest"],
 };
 
 const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
@@ -544,10 +544,6 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentServiceVerifyRedirectResponseRequest: { "requestDetails": "RequestDetails", "redirectResponseSecrets": "RedirectResponseSecrets" },
   PaymentServiceVerifyRedirectResponseResponse: { "responseAmount": "Money", "error": "ErrorInfo" },
   RefundServiceGetRequest: { "browserInfo": "BrowserInformation", "state": "ConnectorState", "refundAmount": "Money", "splitRefunds": "SplitRefundsDetails" },
-  DisputeServiceSubmitEvidenceRequest: { "evidenceDocuments": "EvidenceDocument" },
-  DisputeServiceSubmitEvidenceResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
-  DisputeServiceDefendResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
-  DisputeServiceAcceptResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   PaymentMethodServiceTokenizeRequest: { "amount": "Money", "paymentMethod": "PaymentMethod", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "splitPayments": "SplitPaymentsDetails", "customerAcceptance": "CustomerAcceptance", "setupMandateDetails": "SetupMandateDetails", "browserInfo": "BrowserInformation", "integritySpecifications": "IntegritySpecifications" },
   PaymentMethodServiceTokenizeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState" },
   PaymentMethodServiceCreateRequest: { "customer": "Customer", "state": "ConnectorState" },
@@ -656,6 +652,10 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   FfiResult: { "httpRequest": "FfiConnectorHttpRequest", "httpResponse": "FfiConnectorHttpResponse", "integrationError": "IntegrationError", "connectorError": "ConnectorError" },
   SurchargeServiceCalculateRequest: { "amount": "Money" },
   SurchargeServiceCalculateResponse: { "surchargeAmount": "Money", "error": "ErrorInfo" },
+  DisputeServiceSubmitEvidenceRequest: { "evidenceDocuments": "EvidenceDocument" },
+  DisputeServiceSubmitEvidenceResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  DisputeServiceDefendResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  DisputeServiceAcceptResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
 };
 
 function _wrapSecretStrings(obj: unknown, msgName: string): unknown {
