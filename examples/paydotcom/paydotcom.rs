@@ -240,8 +240,9 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
 pub fn build_refund_get_request() -> RefundServiceGetRequest {
     RefundServiceGetRequest {
         merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
-        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        connector_transaction_id: "chrg_146231656762572800".to_string(),
         refund_id: "probe_refund_id_001".to_string(), // Deprecated.
+        connector_refund_id: "probe_refund_id_001".to_string(),
         ..Default::default()
     }
 }

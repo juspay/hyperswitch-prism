@@ -652,6 +652,12 @@ aliases = ["connector_meta_data", "connector_metadata", "connector_request_id"]
 type = "secret_string"
 value = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\"}"
 
+# ── reverse flow ──────────────────────────────────────────────────────────────
+
+["reverse.amount"]
+aliases = ["amount.currency"]
+type = "usd_money"
+
 # ── proxy_setup_recurring flow ───────────────────────────────────────────────
 
 ["proxy_setup_recurring.metadata"]

@@ -688,7 +688,8 @@
         "proto_request": {
           "merchant_refund_id": "probe_refund_001",
           "connector_transaction_id": "probe_connector_txn_001",
-          "refund_id": "probe_refund_id_001"
+          "refund_id": "probe_refund_id_001",
+          "connector_refund_id": "probe_refund_id_001"
         },
         "sample": {
           "url": "https://sandbox.forte.net/api/v3/organizations/org_probe_org_id/locations/loc_probe_loc_id/transactions/probe_connector_txn_001",

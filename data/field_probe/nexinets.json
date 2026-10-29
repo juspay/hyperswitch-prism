@@ -911,7 +911,7 @@
     "refund_get": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_meta_data — Missing required field: connector_meta_data"
+        "error": "Invalid data format: connector_integration::connectors::nexinets::transformers::NexinetsPaymentsMetadata"
       }
     },
     "reverse": {

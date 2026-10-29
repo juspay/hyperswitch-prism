@@ -158,6 +158,7 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
         merchantRefundId = "probe_refund_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"
         refundId = "probe_refund_id_001"  // Deprecated.
+        connectorRefundId = "probe_refund_id_001"
         stateBuilder.apply {  // State Information.
             accessTokenBuilder.apply {  // Access token obtained from connector.
                 tokenBuilder.value = "probe_access_token"  // The token string.

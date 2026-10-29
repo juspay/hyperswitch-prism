@@ -1016,14 +1016,61 @@
     },
     "refund_get": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: refund_amount.currency — Missing required field: refund_amount.currency"
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001",
+          "connector_refund_id": "probe_refund_id_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/refunds/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-id": "probe_refund_001",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
       }
     },
     "reverse": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: amount.currency — Missing required field: amount.currency"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api-ms-test.payments.jpmorgan.com/api/v2/payments/probe_connector_txn_001",
+          "method": "Patch",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-id": "probe_reverse_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"isVoid\":true}"
+        }
       }
     },
     "setup_recurring": {

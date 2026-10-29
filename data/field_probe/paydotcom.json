@@ -885,8 +885,9 @@
         "status": "supported",
         "proto_request": {
           "merchant_refund_id": "probe_refund_001",
-          "connector_transaction_id": "probe_connector_txn_001",
-          "refund_id": "probe_refund_id_001"
+          "connector_transaction_id": "chrg_146231656762572800",
+          "refund_id": "probe_refund_id_001",
+          "connector_refund_id": "probe_refund_id_001"
         },
         "sample": {
           "url": "https://api.sandbox.pay.com/v1/refunds/probe_refund_id_001",

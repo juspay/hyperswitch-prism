@@ -170,8 +170,9 @@ def _build_refund_request(connector_transaction_id: str):
 def _build_refund_get_request():
     return payment_pb2.RefundServiceGetRequest(
         merchant_refund_id="probe_refund_001",  # Identification.
-        connector_transaction_id="probe_connector_txn_001",
+        connector_transaction_id="chrg_146231656762572800",
         refund_id="probe_refund_id_001",  # Deprecated.
+        connector_refund_id="probe_refund_id_001",
     )
 
 def _build_setup_recurring_request():

@@ -122,6 +122,7 @@ def _build_refund_get_request():
         merchant_refund_id="probe_refund_001",  # Identification.
         connector_transaction_id="probe_connector_txn_001",
         refund_id="probe_refund_id_001",  # Deprecated.
+        connector_refund_id="probe_refund_id_001",
     )
 
 def _build_void_request(connector_transaction_id: str):

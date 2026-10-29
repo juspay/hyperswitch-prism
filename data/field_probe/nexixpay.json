@@ -661,7 +661,8 @@
         "proto_request": {
           "merchant_refund_id": "probe_refund_001",
           "connector_transaction_id": "probe_connector_txn_001",
-          "refund_id": "probe_refund_id_001"
+          "refund_id": "probe_refund_id_001",
+          "connector_refund_id": "probe_refund_id_001"
         },
         "sample": {
           "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/operations/probe_refund_id_001",

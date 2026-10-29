@@ -135,7 +135,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L74) · [Kotlin](../../examples/boost/boost.kt#L55) · [Rust](../../examples/boost/boost.rs)
+**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L75) · [Kotlin](../../examples/boost/boost.kt#L55) · [Rust](../../examples/boost/boost.rs)
 
 ### Refunds
 
@@ -148,4 +148,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L101) · [Kotlin](../../examples/boost/boost.kt#L94) · [Rust](../../examples/boost/boost.rs)
+**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L102) · [Kotlin](../../examples/boost/boost.kt#L94) · [Rust](../../examples/boost/boost.rs)

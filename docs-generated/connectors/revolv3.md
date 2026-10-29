@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py#L166) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L103) · [Rust](../../examples/revolv3/revolv3.rs#L215)
+**Examples:** [Python](../../examples/revolv3/revolv3.py#L167) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L103) · [Rust](../../examples/revolv3/revolv3.rs#L216)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,19 +137,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py#L185) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L119) · [Rust](../../examples/revolv3/revolv3.rs#L231)
+**Examples:** [Python](../../examples/revolv3/revolv3.py#L186) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L119) · [Rust](../../examples/revolv3/revolv3.rs#L232)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py#L210) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L141) · [Rust](../../examples/revolv3/revolv3.rs#L254)
+**Examples:** [Python](../../examples/revolv3/revolv3.py#L211) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L141) · [Rust](../../examples/revolv3/revolv3.rs#L255)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py#L235) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L163) · [Rust](../../examples/revolv3/revolv3.rs#L277)
+**Examples:** [Python](../../examples/revolv3/revolv3.py#L236) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L163) · [Rust](../../examples/revolv3/revolv3.rs#L278)
 
 ## API Reference
 
@@ -297,7 +297,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L271) · [Kotlin](../../examples/revolv3/revolv3.kt#L181) · [Rust](../../examples/revolv3/revolv3.rs)
+**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L272) · [Kotlin](../../examples/revolv3/revolv3.kt#L181) · [Rust](../../examples/revolv3/revolv3.rs)
 
 #### PaymentService.Capture
 
@@ -308,7 +308,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L280) · [Kotlin](../../examples/revolv3/revolv3.kt#L193) · [Rust](../../examples/revolv3/revolv3.rs)
+**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L281) · [Kotlin](../../examples/revolv3/revolv3.kt#L193) · [Rust](../../examples/revolv3/revolv3.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -319,7 +319,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L289) · [Kotlin](../../examples/revolv3/revolv3.kt#L203) · [Rust](../../examples/revolv3/revolv3.rs)
+**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L290) · [Kotlin](../../examples/revolv3/revolv3.kt#L203) · [Rust](../../examples/revolv3/revolv3.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -330,7 +330,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L298) · [Kotlin](../../examples/revolv3/revolv3.kt#L232) · [Rust](../../examples/revolv3/revolv3.rs)
+**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L299) · [Kotlin](../../examples/revolv3/revolv3.kt#L232) · [Rust](../../examples/revolv3/revolv3.rs)
 
 #### PaymentService.Refund
 
@@ -341,7 +341,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L307) · [Kotlin](../../examples/revolv3/revolv3.kt#L264) · [Rust](../../examples/revolv3/revolv3.rs)
+**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L308) · [Kotlin](../../examples/revolv3/revolv3.kt#L264) · [Rust](../../examples/revolv3/revolv3.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -352,7 +352,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L325) · [Kotlin](../../examples/revolv3/revolv3.kt#L286) · [Rust](../../examples/revolv3/revolv3.rs)
+**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L326) · [Kotlin](../../examples/revolv3/revolv3.kt#L287) · [Rust](../../examples/revolv3/revolv3.rs)
 
 #### PaymentService.Void
 
@@ -363,7 +363,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts) · [Kotlin](../../examples/revolv3/revolv3.kt#L325) · [Rust](../../examples/revolv3/revolv3.rs)
+**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts) · [Kotlin](../../examples/revolv3/revolv3.kt#L326) · [Rust](../../examples/revolv3/revolv3.rs)
 
 ### Refunds
 
@@ -376,4 +376,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L316) · [Kotlin](../../examples/revolv3/revolv3.kt#L274) · [Rust](../../examples/revolv3/revolv3.rs)
+**Examples:** [Python](../../examples/revolv3/revolv3.py) · [TypeScript](../../examples/revolv3/revolv3.ts#L317) · [Kotlin](../../examples/revolv3/revolv3.kt#L274) · [Rust](../../examples/revolv3/revolv3.rs)

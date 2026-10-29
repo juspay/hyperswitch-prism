@@ -172,6 +172,10 @@ default = '{}'
 [connector_overrides.refund_get.braintree]
 "refund_metadata" = '{"currency":"USD"}'
 
+# Reverse has no state field; JPMorgan reads its OAuth token from metadata.
+[connector_overrides.reverse.jpmorgan]
+"connector_feature_data" = '{"access_token":"probe_access_token","token_type":"Bearer","expires_in":3600}'
+
 # Shift4 stores a card or wallet payment method on file only under a Shift4
 # customer, so every setup flow refuses a request without
 # `customer.connector_customer_id` before building the charge. That is a local

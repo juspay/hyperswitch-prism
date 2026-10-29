@@ -138,7 +138,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L105) · [Kotlin](../../examples/dlocal/dlocal.kt#L86) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L106) · [Kotlin](../../examples/dlocal/dlocal.kt#L86) · [Rust](../../examples/dlocal/dlocal.rs)
 
 #### PaymentService.Get
 
@@ -149,7 +149,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L114) · [Kotlin](../../examples/dlocal/dlocal.kt#L96) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L115) · [Kotlin](../../examples/dlocal/dlocal.kt#L96) · [Rust](../../examples/dlocal/dlocal.rs)
 
 #### PaymentService.Refund
 
@@ -160,7 +160,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L141) · [Kotlin](../../examples/dlocal/dlocal.kt#L135) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L142) · [Kotlin](../../examples/dlocal/dlocal.kt#L135) · [Rust](../../examples/dlocal/dlocal.rs)
 
 #### PaymentService.Void
 
@@ -171,7 +171,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts) · [Kotlin](../../examples/dlocal/dlocal.kt#L157) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts) · [Kotlin](../../examples/dlocal/dlocal.kt#L158) · [Rust](../../examples/dlocal/dlocal.rs)
 
 ### Refunds
 
@@ -184,4 +184,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L150) · [Kotlin](../../examples/dlocal/dlocal.kt#L145) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L151) · [Kotlin](../../examples/dlocal/dlocal.kt#L145) · [Rust](../../examples/dlocal/dlocal.rs)

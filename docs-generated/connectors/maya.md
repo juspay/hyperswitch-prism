@@ -134,7 +134,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/maya/maya.py) · [TypeScript](../../examples/maya/maya.ts#L98) · [Kotlin](../../examples/maya/maya.kt#L74) · [Rust](../../examples/maya/maya.rs)
+**Examples:** [Python](../../examples/maya/maya.py) · [TypeScript](../../examples/maya/maya.ts#L99) · [Kotlin](../../examples/maya/maya.kt#L74) · [Rust](../../examples/maya/maya.rs)
 
 #### PaymentService.Refund
 
@@ -145,7 +145,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/maya/maya.py) · [TypeScript](../../examples/maya/maya.ts#L125) · [Kotlin](../../examples/maya/maya.kt#L113) · [Rust](../../examples/maya/maya.rs)
+**Examples:** [Python](../../examples/maya/maya.py) · [TypeScript](../../examples/maya/maya.ts#L126) · [Kotlin](../../examples/maya/maya.kt#L113) · [Rust](../../examples/maya/maya.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -156,7 +156,7 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/maya/maya.py) · [TypeScript](../../examples/maya/maya.ts#L143) · [Kotlin](../../examples/maya/maya.kt#L135) · [Rust](../../examples/maya/maya.rs)
+**Examples:** [Python](../../examples/maya/maya.py) · [TypeScript](../../examples/maya/maya.ts#L144) · [Kotlin](../../examples/maya/maya.kt#L136) · [Rust](../../examples/maya/maya.rs)
 
 #### PaymentService.Void
 
@@ -167,7 +167,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/maya/maya.py) · [TypeScript](../../examples/maya/maya.ts) · [Kotlin](../../examples/maya/maya.kt#L145) · [Rust](../../examples/maya/maya.rs)
+**Examples:** [Python](../../examples/maya/maya.py) · [TypeScript](../../examples/maya/maya.ts) · [Kotlin](../../examples/maya/maya.kt#L146) · [Rust](../../examples/maya/maya.rs)
 
 ### Refunds
 
@@ -180,4 +180,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/maya/maya.py) · [TypeScript](../../examples/maya/maya.ts#L134) · [Kotlin](../../examples/maya/maya.kt#L123) · [Rust](../../examples/maya/maya.rs)
+**Examples:** [Python](../../examples/maya/maya.py) · [TypeScript](../../examples/maya/maya.ts#L135) · [Kotlin](../../examples/maya/maya.kt#L123) · [Rust](../../examples/maya/maya.rs)

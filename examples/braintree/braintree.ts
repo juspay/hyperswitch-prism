@@ -5,9 +5,9 @@
 // Braintree — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx braintree.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, EventClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CardNetwork, Currency, FutureUsage, HttpMethod } = types;
-export const SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "void"];
+export const SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "refund_get", "reverse", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -134,6 +134,16 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
     };
 }
 
+function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
+    return {
+        "merchantRefundId": "probe_refund_001",  // Identification.
+        "connectorTransactionId": "probe_connector_txn_001",
+        "refundId": "probe_refund_id_001",  // Deprecated.
+        "connectorRefundId": "probe_refund_id_001",
+        "refundMetadata": {"value": "{\"currency\":\"USD\"}"}  // Metadata specific to the refund sync.
+    };
+}
+
 function _buildReverseRequest(connectorTransactionId: string): types.IPaymentServiceReverseRequest {
     return {
         "merchantReverseId": "probe_reverse_001",  // Identification.
@@ -245,6 +255,15 @@ async function refund(merchantTransactionId: string, config: types.IConnectorCon
     return refundResponse;
 }
 
+// Flow: RefundService.Get
+async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const refundClient = new RefundClient(config);
+
+    const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
+
+    return refundResponse;
+}
+
 // Flow: PaymentService.Reverse
 async function reverse(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -275,7 +294,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, createClientAuthenticationToken, get, handleEvent, parseEvent, proxySetupRecurring, refund, reverse, setupRecurring, voidPayment, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxySetupRecurringRequest, _buildRefundRequest, _buildReverseRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    capture, createClientAuthenticationToken, get, handleEvent, parseEvent, proxySetupRecurring, refund, refundGet, reverse, setupRecurring, voidPayment, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxySetupRecurringRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

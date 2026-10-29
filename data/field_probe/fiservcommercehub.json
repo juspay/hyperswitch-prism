@@ -752,6 +752,7 @@
           "merchant_refund_id": "probe_refund_001",
           "connector_transaction_id": "probe_connector_txn_001",
           "refund_id": "probe_refund_id_001",
+          "connector_refund_id": "probe_refund_id_001",
           "state": {
             "access_token": {
               "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",

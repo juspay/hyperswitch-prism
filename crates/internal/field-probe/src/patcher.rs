@@ -116,6 +116,7 @@ fn parse_rule_key(key: &str) -> (&str, Option<&str>) {
         "capture",
         "refund",
         "void",
+        "reverse",
         "get",
         "setup_recurring",
         "tokenize",
@@ -331,6 +332,39 @@ mod tests {
         };
         smart_patch(&mut req, "void", "amount");
         assert!(req.amount.is_some());
+    }
+
+    #[test]
+    fn test_smart_patch_refund_get_currency() {
+        let mut req = crate::requests::base_refund_get_request();
+        assert!(req.refund_amount.is_none());
+
+        smart_patch(&mut req, "refund_get", "refund_amount.currency");
+
+        let money = req
+            .refund_amount
+            .expect("refund currency should be patched");
+        assert_eq!(
+            money.currency,
+            grpc_api_types::payments::Currency::Usd as i32
+        );
+        assert_eq!(req.connector_refund_id, "probe_refund_id_001");
+        assert_eq!(req.refund_id, "probe_refund_id_001");
+    }
+
+    #[test]
+    fn test_smart_patch_reverse_currency() {
+        let mut req = crate::requests::base_reverse_request();
+        assert!(req.amount.is_none());
+
+        smart_patch(&mut req, "reverse", "amount.currency");
+
+        let money = req.amount.expect("reverse currency should be patched");
+        assert_eq!(
+            money.currency,
+            grpc_api_types::payments::Currency::Usd as i32
+        );
+        assert_eq!(req.connector_transaction_id, "probe_connector_txn_001");
     }
 
     #[test]

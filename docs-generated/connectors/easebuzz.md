@@ -255,7 +255,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L106) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L102) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L107) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L102) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.Capture
 
@@ -266,7 +266,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L115) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L114) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L116) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L114) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.CreateOrder
 
@@ -277,7 +277,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L124) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L124) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L125) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L124) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.Get
 
@@ -288,7 +288,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L133) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L138) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L134) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L138) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.Refund
 
@@ -299,7 +299,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L142) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L146) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L143) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L146) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 ### Refunds
 
@@ -312,4 +312,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L151) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L156) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L152) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L156) · [Rust](../../examples/easebuzz/easebuzz.rs)

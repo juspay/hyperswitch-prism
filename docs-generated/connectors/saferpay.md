@@ -140,7 +140,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts#L92) · [Kotlin](../../examples/saferpay/saferpay.kt#L73) · [Rust](../../examples/saferpay/saferpay.rs)
+**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts#L93) · [Kotlin](../../examples/saferpay/saferpay.kt#L73) · [Rust](../../examples/saferpay/saferpay.rs)
 
 #### PaymentService.Get
 
@@ -151,7 +151,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts#L101) · [Kotlin](../../examples/saferpay/saferpay.kt#L83) · [Rust](../../examples/saferpay/saferpay.rs)
+**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts#L102) · [Kotlin](../../examples/saferpay/saferpay.kt#L83) · [Rust](../../examples/saferpay/saferpay.rs)
 
 #### PaymentService.Void
 
@@ -162,7 +162,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts) · [Kotlin](../../examples/saferpay/saferpay.kt#L131) · [Rust](../../examples/saferpay/saferpay.rs)
+**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts) · [Kotlin](../../examples/saferpay/saferpay.kt#L132) · [Rust](../../examples/saferpay/saferpay.rs)
 
 ### Refunds
 
@@ -175,7 +175,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts#L119) · [Kotlin](../../examples/saferpay/saferpay.kt#L119) · [Rust](../../examples/saferpay/saferpay.rs)
+**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts#L120) · [Kotlin](../../examples/saferpay/saferpay.kt#L119) · [Rust](../../examples/saferpay/saferpay.rs)
 
 ### Authentication
 
@@ -188,4 +188,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts#L110) · [Kotlin](../../examples/saferpay/saferpay.kt#L91) · [Rust](../../examples/saferpay/saferpay.rs)
+**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts#L111) · [Kotlin](../../examples/saferpay/saferpay.kt#L91) · [Rust](../../examples/saferpay/saferpay.rs)

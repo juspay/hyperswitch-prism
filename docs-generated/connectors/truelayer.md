@@ -152,7 +152,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L106) · [Kotlin](../../examples/truelayer/truelayer.kt#L77) · [Rust](../../examples/truelayer/truelayer.rs)
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L107) · [Kotlin](../../examples/truelayer/truelayer.kt#L77) · [Rust](../../examples/truelayer/truelayer.rs)
 
 ### Refunds
 
@@ -165,7 +165,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L133) · [Kotlin](../../examples/truelayer/truelayer.kt#L116) · [Rust](../../examples/truelayer/truelayer.rs)
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L134) · [Kotlin](../../examples/truelayer/truelayer.kt#L116) · [Rust](../../examples/truelayer/truelayer.rs)
 
 ### Authentication
 
@@ -178,4 +178,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L97) · [Kotlin](../../examples/truelayer/truelayer.kt#L67) · [Rust](../../examples/truelayer/truelayer.rs)
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L98) · [Kotlin](../../examples/truelayer/truelayer.kt#L67) · [Rust](../../examples/truelayer/truelayer.rs)

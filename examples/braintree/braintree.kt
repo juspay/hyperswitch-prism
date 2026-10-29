@@ -13,6 +13,7 @@ import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
 import payments.EventClient
+import payments.RefundClient
 import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CardNetwork
@@ -26,7 +27,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.BraintreeConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "refund_get", "reverse", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -210,6 +211,20 @@ fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Done: ${response.status.name}")
 }
 
+// Flow: RefundService.Get
+fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RefundClient(config)
+    val request = RefundServiceGetRequest.newBuilder().apply {
+        merchantRefundId = "probe_refund_001"  // Identification.
+        connectorTransactionId = "probe_connector_txn_001"
+        refundId = "probe_refund_id_001"  // Deprecated.
+        connectorRefundId = "probe_refund_id_001"
+        refundMetadataBuilder.value = "{\"currency\":\"USD\"}"  // Metadata specific to the refund sync.
+    }.build()
+    val response = client.refund_get(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Reverse
 fun reverse(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -279,9 +294,10 @@ fun main(args: Array<String>) {
         "parseEvent" -> parseEvent(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "refund" -> refund(txnId)
+        "refundGet" -> refundGet(txnId)
         "reverse" -> reverse(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, handleEvent, parseEvent, proxySetupRecurring, refund, reverse, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, handleEvent, parseEvent, proxySetupRecurring, refund, refundGet, reverse, setupRecurring, void")
     }
 }

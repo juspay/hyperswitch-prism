@@ -926,7 +926,8 @@
         "proto_request": {
           "merchant_refund_id": "probe_refund_001",
           "connector_transaction_id": "probe_connector_txn_001",
-          "refund_id": "probe_refund_id_001"
+          "refund_id": "probe_refund_id_001",
+          "connector_refund_id": "probe_refund_id_001"
         },
         "sample": {
           "url": "https://api.sandbox.checkout.com/payments/probe_connector_txn_001/actions",

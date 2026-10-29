@@ -734,8 +734,25 @@
     },
     "refund_get": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: connector_order_id. RefundFlowData::connector_request_reference_id is derived from merchant_refund_id, so it identifies the refund rather than the payment, and connector_transaction_id holds Ilixium's gatewayRef — Missing required field: connector_order_id. RefundFlowData::connector_request_reference_id is derived from merchant_refund_id, so it identifies the refund rather than the payment, and connector_transaction_id holds Ilixium's gatewayRef (a dashed UUID) which is not a merchantRef and cannot be converted into one. Rather than send a reference that matches no transaction — response code 104, 'No Matching Transaction', or a history filter that selects nothing — the request is refused here."
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001",
+          "connector_refund_id": "probe_refund_id_001",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://prprocessing.ilixium.com/platform/ili/history/operations",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-digest": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"periodStartDate\":\"2020-01-01T00:00:00+00:00\",\"periodEndDate\":\"2020-01-01T00:00:00+00:00\",\"merchant\":{\"merchantId\":\"probe_key\",\"accountId\":\"probe_key\"},\"reportFormat\":\"JSON\"}"
+        }
       }
     },
     "reverse": {

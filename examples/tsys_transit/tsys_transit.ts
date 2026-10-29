@@ -66,7 +66,8 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     return {
         "merchantRefundId": "probe_refund_001",  // Identification.
         "connectorTransactionId": "probe_connector_txn_001",
-        "refundId": "probe_refund_id_001"  // Deprecated.
+        "refundId": "probe_refund_id_001",  // Deprecated.
+        "connectorRefundId": "probe_refund_id_001"
     };
 }
 

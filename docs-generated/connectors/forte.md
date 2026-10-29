@@ -135,19 +135,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/forte/forte.py#L80) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L91) · [Rust](../../examples/forte/forte.rs#L105)
+**Examples:** [Python](../../examples/forte/forte.py#L81) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L91) · [Rust](../../examples/forte/forte.rs#L106)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/forte/forte.py#L99) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L107) · [Rust](../../examples/forte/forte.rs#L121)
+**Examples:** [Python](../../examples/forte/forte.py#L100) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L107) · [Rust](../../examples/forte/forte.rs#L122)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/forte/forte.py#L121) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L126) · [Rust](../../examples/forte/forte.rs#L140)
+**Examples:** [Python](../../examples/forte/forte.py#L122) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L126) · [Rust](../../examples/forte/forte.rs#L141)
 
 ## API Reference
 
@@ -303,7 +303,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L147) · [Kotlin](../../examples/forte/forte.kt#L144) · [Rust](../../examples/forte/forte.rs)
+**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L148) · [Kotlin](../../examples/forte/forte.kt#L144) · [Rust](../../examples/forte/forte.rs)
 
 #### PaymentService.Get
 
@@ -314,7 +314,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L156) · [Kotlin](../../examples/forte/forte.kt#L156) · [Rust](../../examples/forte/forte.rs)
+**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L157) · [Kotlin](../../examples/forte/forte.kt#L156) · [Rust](../../examples/forte/forte.rs)
 
 #### PaymentService.Void
 
@@ -325,7 +325,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts) · [Kotlin](../../examples/forte/forte.kt#L176) · [Rust](../../examples/forte/forte.rs)
+**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts) · [Kotlin](../../examples/forte/forte.kt#L177) · [Rust](../../examples/forte/forte.rs)
 
 ### Refunds
 
@@ -338,4 +338,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L165) · [Kotlin](../../examples/forte/forte.kt#L164) · [Rust](../../examples/forte/forte.rs)
+**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L166) · [Kotlin](../../examples/forte/forte.kt#L164) · [Rust](../../examples/forte/forte.rs)

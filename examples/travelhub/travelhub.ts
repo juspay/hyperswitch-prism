@@ -5,9 +5,9 @@
 // Travelhub — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx travelhub.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
+import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -108,6 +108,16 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
         },
         "reason": "customer_request",  // Reason for the refund.
         "connectorOrderId": "connector_order_id"  // Connector-side identifier for the original payment that this refund targets.
+    };
+}
+
+function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
+    return {
+        "merchantRefundId": "probe_refund_001",  // Identification.
+        "connectorTransactionId": "probe_connector_txn_001",
+        "refundId": "probe_refund_id_001",  // Deprecated.
+        "connectorRefundId": "probe_refund_id_001",
+        "connectorOrderId": "connector_order_id"  // Connector-side identifier for the original payment that this refund sync targets.
     };
 }
 
@@ -280,6 +290,15 @@ async function refund(merchantTransactionId: string, config: types.IConnectorCon
     return refundResponse;
 }
 
+// Flow: RefundService.Get
+async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const refundClient = new RefundClient(config);
+
+    const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
+
+    return refundResponse;
+}
+
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -292,7 +311,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, proxyAuthorize, refund, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, proxyAuthorize, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner
