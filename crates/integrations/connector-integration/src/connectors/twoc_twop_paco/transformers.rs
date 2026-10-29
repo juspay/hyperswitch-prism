@@ -311,6 +311,9 @@ pub struct PacoShippingAddress {
     pub ship_addr_post_code: Option<Secret<String>>,
 }
 
+/// PACO accepts a short state value only. Do not fall back to the deprecated
+/// state-name field: sending a full subdivision code or name can make the
+/// request invalid.
 fn select_paco_billing_state(state_code_iso: Option<Secret<String>>) -> Option<Secret<String>> {
     state_code_iso.filter(|state| state.peek().chars().count() <= 3)
 }

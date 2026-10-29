@@ -388,12 +388,16 @@ impl AddressDetails {
     pub fn get_optional_country(&self) -> Option<common_enums::CountryAlpha2> {
         self.country
     }
+    /// Returns the supplied state representation, regardless of whether it is
+    /// a state name or an ISO subdivision code.
     pub fn get_optional_state(&self) -> Option<Secret<String>> {
         self.state.as_ref().map(|state| match state {
             State::StateValue(value) | State::StateCode(value) => value.clone(),
         })
     }
 
+    /// Returns only an ISO subdivision code. A state name is intentionally not
+    /// converted here because conversion depends on the connector's needs.
     pub fn get_optional_state_code_iso(&self) -> Option<Secret<String>> {
         self.state.as_ref().and_then(|state| match state {
             State::StateValue(_) => None,
