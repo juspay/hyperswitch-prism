@@ -6,7 +6,7 @@ use crate::utils;
 use common_enums::EligibilityStatus;
 use common_enums::{
     AttemptStatus, Currency, DepositPaymentType, FutureUsage, PremiumCustomerStatus, ProductType,
-    RefundStatus, TicketRefundability, TravelClass, TripType,
+    RefundStatus, TicketRefundability,
 };
 use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
@@ -366,7 +366,6 @@ pub struct FlightsItinerary {
 impl From<&AirlineData> for FlightsItinerary {
     fn from(airline_data: &AirlineData) -> Self {
         let first_segment = airline_data.flight_segments.first();
-        let last_segment = airline_data.flight_segments.last();
         let location_code = |location: &domain_types::connector_types::AirlineLocation| {
             location
                 .airport_code
@@ -377,18 +376,15 @@ impl From<&AirlineData> for FlightsItinerary {
             origin: first_segment
                 .and_then(|segment| segment.departure.as_ref())
                 .and_then(location_code),
-            destination: last_segment
+            // Destination is the outbound leg's arrival. On a return trip the
+            // last leg flies back to the origin, so its arrival is the origin.
+            destination: first_segment
                 .and_then(|segment| segment.arrival.as_ref())
                 .and_then(location_code),
             travel_type: first_segment.and_then(|segment| segment.flight_type.clone()),
-            trip_type: airline_data.trip_type.map(|trip_type| {
-                match trip_type {
-                    TripType::OneWay => "OneWay",
-                    TripType::Return => "Return",
-                    TripType::MultipleDestination => "MultipleDestination",
-                }
-                .to_string()
-            }),
+            trip_type: airline_data
+                .trip_type
+                .map(|trip_type| trip_type.to_string()),
             class: first_segment.and_then(|segment| segment.class_of_service.clone()),
             carrier: first_segment
                 .and_then(|segment| segment.marketing_carrier_name.clone())
@@ -457,15 +453,7 @@ impl From<&TravelData> for TrainsItinerary {
             destination: first_segment.and_then(|segment| segment.destination.clone()),
             class: first_segment
                 .and_then(|segment| segment.travel_class)
-                .map(|travel_class| {
-                    match travel_class {
-                        TravelClass::Economy => "Economy",
-                        TravelClass::PremiumEconomy => "Premium",
-                        TravelClass::Business => "Business",
-                        TravelClass::First => "First",
-                    }
-                    .to_string()
-                }),
+                .map(|travel_class| travel_class.to_string()),
             carrier: travel_data.carrier_name.clone(),
             number_of_passengers: travel_data.number_of_passengers,
             name_of_passengers: tamara_name_map(
