@@ -2020,20 +2020,19 @@ impl responses::JpmorganPaymentsResponse {
     }
 }
 
+type PartialAuthorizationAmounts = (
+    Option<common_utils::types::Money>,
+    Option<common_utils::types::Money>,
+    Option<common_utils::types::Money>,
+);
+
 fn get_partial_authorization_amounts(
     response: &responses::JpmorganPaymentsResponse,
     capture_method: Option<CaptureMethod>,
     enable_partial_authorization: Option<bool>,
     currency: common_enums::Currency,
     http_code: u16,
-) -> Result<
-    (
-        Option<common_utils::types::Money>,
-        Option<common_utils::types::Money>,
-        Option<common_utils::types::Money>,
-    ),
-    ResponseError,
-> {
+) -> Result<PartialAuthorizationAmounts, ResponseError> {
     if response.partial_authorization != Some(true) {
         return Ok((None, None, None));
     }

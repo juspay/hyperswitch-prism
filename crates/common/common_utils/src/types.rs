@@ -645,15 +645,16 @@ mod money_boundary_tests {
     use super::Money;
 
     #[test]
-    fn money_wire_shape_stays_flat() -> Result<(), serde_json::Error> {
+    fn money_wire_shape_stays_flat() -> Result<(), Box<dyn std::error::Error>> {
         let money = Money::new(super::MinorUnit::new(123), common_enums::Currency::USD);
         let value = serde_json::to_value(&money)?;
-        assert_eq!(
-            value,
-            serde_json::json!({ "amount": 123, "currency": "USD" })
-        );
+        if value != serde_json::json!({ "amount": 123, "currency": "USD" }) {
+            return Err(format!("unexpected Money JSON: {value}").into());
+        }
         let restored: Money = serde_json::from_value(value)?;
-        assert_eq!(restored, money);
+        if restored != money {
+            return Err("Money must round-trip without changing its value".into());
+        }
         Ok(())
     }
 }

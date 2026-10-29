@@ -1483,18 +1483,17 @@ mod satispay_request_tests {
         }};
     }
 
+    type AuthorizeRouterData = RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<DefaultPCIHolder>,
+        PaymentsResponseData,
+    >;
+
     fn base_router_data(
         payment_method_type: common_enums::PaymentMethodType,
         router_return_url: Option<String>,
-    ) -> Result<
-        RouterDataV2<
-            Authorize,
-            PaymentFlowData,
-            PaymentsAuthorizeData<DefaultPCIHolder>,
-            PaymentsResponseData,
-        >,
-        Box<dyn std::error::Error>,
-    > {
+    ) -> Result<AuthorizeRouterData, Box<dyn std::error::Error>> {
         let authorization = PaymentsAuthorizeData::<DefaultPCIHolder>::foreign_try_from((
             AuthorizationRequest::from(grpc_api_types::payments::PaymentServiceAuthorizeRequest {
                 amount: Some(grpc_api_types::payments::Money {
@@ -1780,7 +1779,7 @@ mod satispay_request_tests {
             router_data,
         };
         let result = PproPaymentsRequest::try_from(ppro_router_data);
-        assert!(
+        ensure!(
             result.is_err(),
             "request without a billing country should be rejected"
         );
