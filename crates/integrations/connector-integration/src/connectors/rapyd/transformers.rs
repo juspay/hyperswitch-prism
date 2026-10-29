@@ -504,7 +504,7 @@ pub fn build_external_3ds_options(
 pub struct PaymentMethod<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
     #[serde(rename = "type")]
     pub pm_type: RapydPaymentMethodType,
-    pub fields: Option<PaymentFields<T>>,
+    pub fields: Option<RapydPaymentMethodFields<T>>,
     pub address: Option<Address>,
     pub digital_wallet: Option<RapydWallet>,
 }
@@ -516,6 +516,54 @@ pub struct PaymentFields<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
     pub expiration_year: Secret<String>,
     pub name: Secret<String>,
     pub cvv: Secret<String>,
+}
+
+/// Rapyd `payment_method.fields` differs by method type: the PAN fields for
+/// raw cards, and the recurring-purpose marker when a digital wallet is
+/// saved for recurring use.
+///
+/// Reference: https://docs.rapyd.net/en/recurring-digital-wallet-payments.html
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum RapydPaymentMethodFields<
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+> {
+    Card(PaymentFields<T>),
+    WalletRecurring(RapydWalletRecurringFields),
+}
+
+#[derive(Debug, Serialize)]
+pub struct RapydWalletRecurringFields {
+    pub recurrence_type: RapydRecurrenceType,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RapydRecurrenceType {
+    Recurring,
+}
+
+/// Decides Rapyd's wallet `recurrence_type` purpose from the caller's
+/// future-usage intent. Saving a wallet for recurring use requires
+/// `payment_method.fields.recurrence_type = "recurring"` on the initial
+/// payment. Off-session usage means recurring unless the caller explicitly
+/// selects a different MIT category; one-time and customer-present
+/// (OnSession) wallets stay unmarked.
+pub fn is_recurring_wallet_intent(
+    setup_future_usage: Option<common_enums::FutureUsage>,
+    mit_category: Option<common_enums::MitCategory>,
+) -> bool {
+    match setup_future_usage {
+        None | Some(common_enums::FutureUsage::OnSession) => false,
+        Some(common_enums::FutureUsage::OffSession) => !matches!(
+            mit_category,
+            Some(
+                common_enums::MitCategory::Installment
+                    | common_enums::MitCategory::Unscheduled
+                    | common_enums::MitCategory::Resubmission
+            )
+        ),
+    }
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -696,7 +744,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Some(RapydPaymentMethodData::PaymentMethod(Box::new(
                     PaymentMethod {
                         pm_type: RapydPaymentMethodType::from_card(ccard),
-                        fields: Some(PaymentFields {
+                        fields: Some(RapydPaymentMethodFields::Card(PaymentFields {
                             number: ccard.card_number.to_owned(),
                             expiration_month: ccard.card_exp_month.to_owned(),
                             expiration_year: ccard.card_exp_year.to_owned(),
@@ -707,7 +755,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 .to_owned()
                                 .unwrap_or(Secret::new("".to_string())),
                             cvv: ccard.card_cvc.to_owned(),
-                        }),
+                        })),
                         address: None,
                         digital_wallet: None,
                     },
@@ -921,10 +969,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         context: Default::default(),
                     })?,
                 };
+                // Wallet saved-token recurring payments require the
+                // recurring purpose marker in `payment_method.fields` on the
+                // initial payment; one-time wallets keep `fields` absent.
+                // Reference: https://docs.rapyd.net/en/recurring-digital-wallet-payments.html
+                let wallet_fields = is_recurring_wallet_intent(
+                    item.router_data.request.setup_future_usage,
+                    item.router_data.request.mit_category.clone(),
+                )
+                .then_some(RapydPaymentMethodFields::WalletRecurring(
+                    RapydWalletRecurringFields {
+                        recurrence_type: RapydRecurrenceType::Recurring,
+                    },
+                ));
                 Some(RapydPaymentMethodData::PaymentMethod(Box::new(
                     PaymentMethod {
                         pm_type,
-                        fields: None,
+                        fields: wallet_fields,
                         address: None,
                         digital_wallet: Some(rapyd_wallet),
                     },
@@ -1663,13 +1724,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     })?;
                 RapydPaymentMethodData::PaymentMethod(Box::new(PaymentMethod {
                     pm_type,
-                    fields: Some(PaymentFields {
+                    fields: Some(RapydPaymentMethodFields::Card(PaymentFields {
                         number: ccard.card_number.to_owned(),
                         expiration_month: ccard.card_exp_month.to_owned(),
                         expiration_year: ccard.card_exp_year.to_owned(),
                         name: cardholder_name,
                         cvv: ccard.card_cvc.to_owned(),
-                    }),
+                    })),
                     address: None,
                     digital_wallet: None,
                 }))
