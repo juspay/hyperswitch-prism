@@ -617,10 +617,10 @@ examples_python: examples/nexinets/nexinets.py
 ## Nexixpay
 connector_id: nexixpay
 doc: docs/connectors/nexixpay.md
-scenarios: none
-payment_methods: none
-flows: capture, get, refund, refund_get, void
-examples_python: none
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, handle_event, parse_event, refund, refund_get, void
+examples_python: examples/nexixpay/nexixpay.py
 
 ## Nmi
 connector_id: nmi

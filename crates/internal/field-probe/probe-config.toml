@@ -96,7 +96,7 @@ truelayer = '{"merchant_account_id":"probe_merchant_acct","account_holder_name":
 cybersource = '{"merchant_id":"probe_merchant","merchant_key_id":"probe_key_id","merchant_secret_key":"probe_secret"}'
 bankofamerica = '{"merchant_id":"probe_merchant"}'
 nexinets = '{"transaction_id":"probe_txn_001","order_id":"probe_order_001","psync_flow":"DEBIT"}'
-nexixpay = '{"operationId":"probe_op_id_001","authorization_operation_id":"probe_op_id_001","capture_operation_id":"probe_op_id_001","cancel_operation_id":"probe_op_id_001"}'
+nexixpay = '{"authorizationOperationId":"probe_op_id_001","captureOperationId":"probe_op_id_001","cancelOperationId":"probe_op_id_001","psyncFlow":"Authorize"}'
 paypal = '{"authorize_id":"probe_auth_001","capture_id":"probe_cap_001","psync_flow":"CAPTURE","order_id":"probe_order_001"}'
 forte = '{"auth_id":"probe_auth_001"}'
 authorizedotnet = '{"creditCard":{"cardNumber":"4111111111111111","expirationDate":"2025-12"}}'
@@ -119,8 +119,17 @@ default = '{}'
 "connector_transaction_id" = "12345"
 
 # RAFT follow-up requests carry the credit/debit prefix and authorization traces.
-[connector_overrides."capture,void,refund,incremental_authorization".worldpayraft]
+[connector_overrides."capture,void,refund".worldpayraft]
 "connector_transaction_id" = "C|123456|123456789012|000001"
+
+# An incremental authorization continues an estimated Visa authorization. The
+# connector metadata matches the original response; 1100 is the new cumulative
+# amount and 100 is the additional amount to authorize.
+[connector_overrides.incremental_authorization.worldpayraft]
+"connector_transaction_id" = "C|123456|123456789012|000001"
+"additional_amount" = { minor_amount = 100, currency = "USD" }
+"network_transaction_id" = "263010131742906"
+"payment_method" = { payment_method = { card_with_no_cvc = { card_number = "4111111111111111", card_exp_month = "03", card_exp_year = "2030", card_network = "VISA" } } }
 
 # Reverse probes a prior-auth completion reversal with the original payment context.
 [connector_overrides.reverse.worldpayraft]
@@ -148,6 +157,17 @@ default = '{}'
 "address.billing_address.country_alpha2_code" = 46
 "customer.customer_document_details.document_type" = 4
 "customer.customer_document_details.document_number" = "12345678-5"
+
+# Nexixpay sends recurrence.contractId / contractType only when setting up a stored
+# credential (setup_future_usage OFF_SESSION) and actionType VERIFY only on a
+# zero-amount payment; the base request sets neither, so the probed body would never
+# show those fields. auth_type THREE_DS (1) is needed as well: Nexi has no non-3DS
+# e-commerce endpoint and the connector refuses NO_THREE_DS before building a body.
+[connector_overrides.authorize.nexixpay]
+"auth_type" = 1
+"setup_future_usage" = 1
+"amount.minor_amount" = 0
+
 # Pay.com routes by resource-id prefix: `hld_` is a Hold (the only thing that can
 # be captured or cancelled) and `chrg_` is a Charge (the only thing that can be
 # synced or refunded). The default "probe_connector_txn_001" matches neither, so
