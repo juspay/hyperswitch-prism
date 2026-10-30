@@ -193,7 +193,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentServiceRefundRequest: ["metadata", "refundMetadata", "connectorFeatureData"],
   RefundResponse: ["email", "metadata", "refundMetadata", "acquirerReferenceNumber", "rawConnectorResponse", "typedConnectorResponse", "rawConnectorRequest", "typedConnectorRequest", "stateMetadata"],
   RefundServiceVoidPostRefundRequest: ["refundMetadata", "connectorFeatureData"],
-  DisputeResponse: ["rawConnectorRequest", "typedConnectorRequest"],
+  DisputeResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse"],
   PaymentServiceSetupRecurringRequest: ["metadata", "connectorFeatureData", "connectorTestingData"],
   PaymentServiceSetupRecurringResponse: ["rawConnectorRequest", "typedConnectorRequest", "connectorFeatureData", "rawConnectorResponse", "typedConnectorResponse"],
   RecurringPaymentServiceChargeRequest: ["metadata", "connectorFeatureData", "email", "merchantAccountId", "connectorTestingData"],
@@ -412,9 +412,9 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   ConnectorError: ["rawConnectorResponse", "rawConnectorRequest"],
   SurchargeServiceCalculateRequest: ["postalCode"],
   DisputeServiceSubmitEvidenceRequest: ["customerEmailAddress", "customerName", "customerPurchaseIp"],
-  DisputeServiceSubmitEvidenceResponse: ["rawConnectorRequest", "typedConnectorRequest"],
-  DisputeServiceDefendResponse: ["rawConnectorRequest", "typedConnectorRequest"],
-  DisputeServiceAcceptResponse: ["rawConnectorRequest", "typedConnectorRequest"],
+  DisputeServiceSubmitEvidenceResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse"],
+  DisputeServiceDefendResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse"],
+  DisputeServiceAcceptResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse"],
 };
 
 const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {

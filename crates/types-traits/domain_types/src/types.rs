@@ -27,7 +27,7 @@ use common_enums::{
 };
 use common_utils::config_patch::Patch;
 use common_utils::{
-    consts::{self, NO_ERROR_CODE, X_EXTERNAL_VAULT_METADATA},
+    consts::{self, X_EXTERNAL_VAULT_METADATA},
     id_type::CustomerId,
     metadata::MaskedMetadata,
     pii::Email,
@@ -10729,6 +10729,18 @@ pub fn generate_accept_dispute_response(
         .resource_common_data
         .get_typed_connector_request()
         .map(Secret::new);
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let typed_connector_response = router_data_v2
+        .resource_common_data
+        .get_typed_connector_response()
+        .map(Secret::new);
+    let merchant_dispute_id = router_data_v2.resource_common_data.dispute_id.clone();
+    let connector_dispute_id = router_data_v2
+        .resource_common_data
+        .connector_dispute_id
+        .clone();
 
     match dispute_response {
         Ok(response) => {
@@ -10737,14 +10749,16 @@ pub fn generate_accept_dispute_response(
 
             Ok(DisputeServiceAcceptResponse {
                 dispute_status: grpc_status.into(),
-                dispute_id: response.connector_dispute_id,
+                connector_dispute_id: response.connector_dispute_id,
                 connector_status_code: None,
                 error: None,
-                merchant_dispute_id: None,
+                merchant_dispute_id,
                 status_code: response.status_code as u32,
                 response_headers,
                 raw_connector_request,
                 typed_connector_request,
+                raw_connector_response,
+                typed_connector_response,
             })
         }
         Err(e) => {
@@ -10752,7 +10766,7 @@ pub fn generate_accept_dispute_response(
 
             Ok(DisputeServiceAcceptResponse {
                 dispute_status: grpc_dispute_status as i32,
-                dispute_id: e.connector_transaction_id.clone().unwrap_or_default(),
+                connector_dispute_id,
                 connector_status_code: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
@@ -10765,11 +10779,13 @@ pub fn generate_accept_dispute_response(
                     }),
                     issuer_details: None,
                 }),
-                merchant_dispute_id: None,
+                merchant_dispute_id,
                 status_code: e.status_code as u32,
                 response_headers,
                 raw_connector_request,
                 typed_connector_request,
+                raw_connector_response,
+                typed_connector_response,
             })
         }
     }
@@ -10790,9 +10806,9 @@ impl
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            dispute_id: None,
+            dispute_id: value.merchant_dispute_id.clone(),
             connectors: connectors.into(),
-            connector_dispute_id: value.dispute_id,
+            connector_dispute_id: value.connector_dispute_id,
             defense_reason_code: None,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_dispute_id.clone(),
@@ -10826,9 +10842,9 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_dispute_id.clone(),
             ),
-            dispute_id: None,
+            dispute_id: value.merchant_dispute_id.clone(),
             connectors: connectors.into(),
-            connector_dispute_id: value.dispute_id,
+            connector_dispute_id: value.connector_dispute_id,
             defense_reason_code: None,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -10859,6 +10875,18 @@ pub fn generate_submit_evidence_response(
         .resource_common_data
         .get_typed_connector_request()
         .map(Secret::new);
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let typed_connector_response = router_data_v2
+        .resource_common_data
+        .get_typed_connector_response()
+        .map(Secret::new);
+    let merchant_dispute_id = router_data_v2.resource_common_data.dispute_id.clone();
+    let connector_dispute_id = router_data_v2
+        .resource_common_data
+        .connector_dispute_id
+        .clone();
 
     match dispute_response {
         Ok(response) => {
@@ -10867,15 +10895,17 @@ pub fn generate_submit_evidence_response(
 
             Ok(DisputeServiceSubmitEvidenceResponse {
                 dispute_status: grpc_status.into(),
-                dispute_id: Some(response.connector_dispute_id),
+                connector_dispute_id: Some(response.connector_dispute_id),
                 submitted_evidence_ids: vec![],
                 connector_status_code: None,
                 error: None,
-                merchant_dispute_id: None,
+                merchant_dispute_id,
                 status_code: response.status_code as u32,
                 response_headers,
                 raw_connector_request,
                 typed_connector_request,
+                raw_connector_response,
+                typed_connector_response,
             })
         }
         Err(e) => {
@@ -10886,7 +10916,7 @@ pub fn generate_submit_evidence_response(
 
             Ok(DisputeServiceSubmitEvidenceResponse {
                 dispute_status: status.into(),
-                dispute_id: e.connector_transaction_id.clone(),
+                connector_dispute_id: Some(connector_dispute_id),
                 submitted_evidence_ids: vec![],
                 connector_status_code: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
@@ -10900,11 +10930,13 @@ pub fn generate_submit_evidence_response(
                     }),
                     issuer_details: None,
                 }),
-                merchant_dispute_id: None,
+                merchant_dispute_id,
                 status_code: e.status_code as u32,
                 response_headers,
                 raw_connector_request,
                 typed_connector_request,
+                raw_connector_response,
+                typed_connector_response,
             })
         }
     }
@@ -10925,9 +10957,9 @@ impl
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            dispute_id: None,
+            dispute_id: value.merchant_dispute_id.clone(),
             connectors: connectors.into(),
-            connector_dispute_id: value.dispute_id,
+            connector_dispute_id: value.connector_dispute_id,
             defense_reason_code: None,
             connector_request_reference_id: value.merchant_dispute_id.unwrap_or_default(),
             raw_connector_response: None,
@@ -10960,9 +10992,9 @@ impl
                 &value.merchant_dispute_id,
             ),
 
-            dispute_id: None,
+            dispute_id: value.merchant_dispute_id.clone(),
             connectors: connectors.into(),
-            connector_dispute_id: value.dispute_id,
+            connector_dispute_id: value.connector_dispute_id,
             defense_reason_code: None,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -11999,6 +12031,8 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
             response_headers,
             raw_connector_request: None,
             typed_connector_request: None,
+            raw_connector_response: None,
+            typed_connector_response: None,
             additional_details: value.additional_details.map(|details| {
                 grpc_api_types::payments::DisputeAdditionalDetails {
                     network_details: details.network_details.map(|network| match network {
@@ -12697,7 +12731,7 @@ impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceAcceptRequest> for A
         value: grpc_api_types::payments::DisputeServiceAcceptRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            connector_dispute_id: value.dispute_id,
+            connector_dispute_id: value.connector_dispute_id,
             integrity_object: None,
         })
     }
@@ -12751,8 +12785,8 @@ impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceSubmitEvidenceReques
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         // Initialize all fields to None
         let mut result = Self {
-            dispute_id: value.merchant_dispute_id.or(Some(value.dispute_id.clone())),
-            connector_dispute_id: value.dispute_id,
+            dispute_id: value.merchant_dispute_id,
+            connector_dispute_id: value.connector_dispute_id,
             integrity_object: None,
             access_activity_log: value.access_activity_log,
             billing_address: value.billing_address.and_then(dispute_address_to_text),
@@ -14964,9 +14998,9 @@ impl ForeignTryFrom<(DisputeServiceDefendRequest, Connectors)> for DisputeFlowDa
         (value, connectors): (DisputeServiceDefendRequest, Connectors),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            dispute_id: Some(value.dispute_id.clone()),
+            dispute_id: value.merchant_dispute_id.clone(),
             connectors: connectors.into(),
-            connector_dispute_id: value.dispute_id,
+            connector_dispute_id: value.connector_dispute_id,
             defense_reason_code: Some(value.reason_code.unwrap_or_default()),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_dispute_id,
@@ -14992,9 +15026,9 @@ impl ForeignTryFrom<(DisputeServiceDefendRequest, Connectors, &MaskedMetadata)>
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_dispute_id,
             ),
-            dispute_id: Some(value.dispute_id.clone()),
+            dispute_id: value.merchant_dispute_id.clone(),
             connectors: connectors.into(),
-            connector_dispute_id: value.dispute_id,
+            connector_dispute_id: value.connector_dispute_id,
             defense_reason_code: Some(value.reason_code.unwrap_or_default()),
             raw_connector_response: None,
             raw_connector_request: None,
@@ -15009,7 +15043,7 @@ impl ForeignTryFrom<DisputeServiceDefendRequest> for DisputeDefendData {
     fn foreign_try_from(
         value: DisputeServiceDefendRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let connector_dispute_id = value.dispute_id;
+        let connector_dispute_id = value.connector_dispute_id;
         Ok(Self {
             dispute_id: connector_dispute_id.clone(),
             connector_dispute_id,
@@ -15036,28 +15070,39 @@ pub fn generate_defend_dispute_response(
         .resource_common_data
         .get_typed_connector_request()
         .map(Secret::new);
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let typed_connector_response = router_data_v2
+        .resource_common_data
+        .get_typed_connector_response()
+        .map(Secret::new);
+    let merchant_dispute_id = router_data_v2.resource_common_data.dispute_id.clone();
+    let connector_dispute_id = router_data_v2
+        .resource_common_data
+        .connector_dispute_id
+        .clone();
 
     match defend_dispute_response {
         Ok(response) => Ok(DisputeServiceDefendResponse {
-            dispute_id: response.connector_dispute_id,
+            connector_dispute_id: response.connector_dispute_id,
             dispute_status: grpc_api_types::payments::DisputeStatus::foreign_from(
                 response.dispute_status,
             ) as i32,
             connector_status_code: None,
             error: None,
-            merchant_dispute_id: None,
+            merchant_dispute_id,
             status_code: response.status_code as u32,
             response_headers: router_data_v2
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
             raw_connector_request,
             typed_connector_request,
+            raw_connector_response,
+            typed_connector_response,
         }),
         Err(e) => Ok(DisputeServiceDefendResponse {
-            dispute_id: e
-                .connector_transaction_id
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            connector_dispute_id,
             dispute_status: grpc_api_types::payments::DisputeStatus::DisputeLost as i32,
             connector_status_code: None,
             error: Some(grpc_api_types::payments::ErrorInfo {
@@ -15071,13 +15116,15 @@ pub fn generate_defend_dispute_response(
                 }),
                 issuer_details: None,
             }),
-            merchant_dispute_id: None,
+            merchant_dispute_id,
             status_code: e.status_code as u32,
             response_headers: router_data_v2
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
             raw_connector_request,
             typed_connector_request,
+            raw_connector_response,
+            typed_connector_response,
         }),
     }
 }

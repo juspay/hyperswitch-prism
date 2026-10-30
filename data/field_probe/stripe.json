@@ -1354,7 +1354,7 @@
         "proto_request": {
           "merchant_dispute_id": "probe_dispute_001",
           "connector_transaction_id": "probe_txn_001",
-          "dispute_id": "probe_dispute_id_001"
+          "connector_dispute_id": "probe_dispute_id_001"
         },
         "sample": {
           "url": "https://api.stripe.com/v1/disputes/probe_dispute_id_001/close",
@@ -1386,7 +1386,7 @@
         "proto_request": {
           "merchant_dispute_id": "probe_dispute_001",
           "connector_transaction_id": "probe_txn_001",
-          "dispute_id": "probe_dispute_id_001",
+          "connector_dispute_id": "probe_dispute_id_001",
           "evidence_documents": [
             {
               "evidence_type": "SERVICE_DOCUMENTATION",
