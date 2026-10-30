@@ -1,0 +1,138 @@
+// Copyright (c) Juspay Technologies. All rights reserved.
+//
+// Dispute-specific request/response messages. DisputeService is in services.proto.
+// Shared dispute status, evidence, and response types remain in payment.proto.
+
+syntax = "proto3";
+
+package types;
+
+import "payment.proto";
+import "payment_methods.proto";
+import "common_types.proto";
+
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
+
+// ============================================================================
+// DISPUTE SERVICE MESSAGES
+// ============================================================================
+
+// Request message for submitting evidence for a dispute
+message DisputeServiceSubmitEvidenceRequest {
+  // Identification
+  optional string merchant_dispute_id = 1;
+  optional string connector_transaction_id = 2;
+  string dispute_id = 3;
+
+  // Dates
+  optional int64 service_date = 4;
+  optional int64 shipping_date = 5;
+
+  // Evidence
+  repeated EvidenceDocument evidence_documents =
+      6; // Collection of evidence documents
+
+  // Text evidence accompanying the documents. Keep these separate from
+  // EvidenceDocument because they have distinct connector meanings.
+  optional string access_activity_log = 7;
+  optional Address billing_address = 8;
+  optional string cancellation_policy_disclosure = 9;
+  optional string cancellation_rebuttal = 10;
+  optional SecretString customer_email_address = 11;
+  optional SecretString customer_name = 12;
+  optional SecretString customer_purchase_ip = 13;
+  optional string product_description = 14;
+  optional string refund_policy_disclosure = 15;
+  optional string refund_refusal_explanation = 16;
+  optional Address shipping_address = 17;
+  optional string shipping_carrier = 18;
+  optional string shipping_tracking_number = 19;
+}
+
+// Response message for a submit evidence operation
+message DisputeServiceSubmitEvidenceResponse {
+  // Identification
+  optional string dispute_id = 1;
+  repeated string submitted_evidence_ids = 2;
+
+  // Status Information
+  DisputeStatus dispute_status = 3;
+  optional string connector_status_code = 4;
+  optional ErrorInfo error = 5;
+  uint32 status_code = 6;
+  map<string, string> response_headers = 7;
+
+  // Reference
+  optional string merchant_dispute_id = 8;
+
+  // Raw Request for debugging
+  optional SecretString raw_connector_request = 9;
+  optional SecretString typed_connector_request = 10;
+}
+
+// Request message for retrieving dispute information
+message DisputeServiceGetRequest {
+  // Identification
+  optional string merchant_dispute_id = 1;
+  optional string dispute_id = 2;
+  string connector_dispute_id = 3;
+}
+
+// Request message for defending a dispute
+message DisputeServiceDefendRequest {
+  // Identification
+  optional string merchant_dispute_id = 1;
+  string connector_transaction_id = 2;
+  string dispute_id = 3;
+
+  // Defend Details
+  optional string reason_code = 4;
+}
+
+// Response message for defending a dispute
+message DisputeServiceDefendResponse {
+  // Identification
+  string dispute_id = 1;
+
+  // Status Information
+  DisputeStatus dispute_status = 2;
+  optional string connector_status_code = 3;
+  optional ErrorInfo error = 4;
+  uint32 status_code = 5;
+  map<string, string> response_headers = 6;
+
+  // Reference
+  optional string merchant_dispute_id = 7;
+
+  // Raw Request for debugging
+  optional SecretString raw_connector_request = 8;
+  optional SecretString typed_connector_request = 9;
+}
+
+// Request message for accepting a dispute
+message DisputeServiceAcceptRequest {
+  // Identification
+  optional string merchant_dispute_id = 1;
+  string connector_transaction_id = 2;
+  string dispute_id = 3;
+}
+
+// Response message for accepting a dispute
+message DisputeServiceAcceptResponse {
+  // Identification
+  string dispute_id = 1;
+
+  // Status Information
+  DisputeStatus dispute_status = 2;
+  optional string connector_status_code = 3;
+  optional ErrorInfo error = 4;
+  uint32 status_code = 5;
+  map<string, string> response_headers = 6;
+
+  // Reference
+  optional string merchant_dispute_id = 7;
+
+  // Raw Request for debugging
+  optional SecretString raw_connector_request = 8;
+  optional SecretString typed_connector_request = 9;
+}

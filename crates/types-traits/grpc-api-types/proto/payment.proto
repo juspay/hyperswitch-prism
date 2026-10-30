@@ -7,10 +7,9 @@
 //   This file defines the core data types, enumerations, and request/response
 //   messages used across the Unified Connector Service (UCS) v2 API.
 //
-//   It is imported by services.proto, which defines the gRPC service interfaces
-//   (PaymentService, RefundService, DisputeService). Consumers of the API
-//   should treat services.proto as the entry point and this file as the
-//   shared type library.
+//   It is imported by services.proto for the core gRPC services and by
+//   dispute.proto for DisputeService. This file holds types shared between
+//   payment, dispute, and event flows.
 //
 // Key Concepts:
 //   - Money:         All monetary amounts are represented in minor currency
@@ -39,6 +38,7 @@
 //
 // Related Files:
 //   - services.proto      — gRPC service definitions
+//   - dispute.proto       — DisputeService and its request/response messages
 //   - common_types.proto  — Shared base types (Money, Currency, Address, Customer)
 //   - domain.proto        — Domain-specific data (airline, education)
 //   - payment_methods.proto — Payment method data types and SecretString
@@ -268,7 +268,8 @@ enum PaymentStatus {
   VOID_INITIATED = 12;
   VOIDED = 11;
   VOID_FAILED = 15;
-  VOIDED_POST_CAPTURE = 57;
+  // Deprecated: use PostCaptureVoidStatus to track post-capture void outcomes.
+  VOIDED_POST_CAPTURE = 57 [deprecated = true];
 
   // Other payment flows
   COD_INITIATED = 10; // Cash on Delivery initiated
@@ -313,6 +314,15 @@ enum RefundStatus {
   REFUND_SUCCESS = 4;
   REFUND_TRANSACTION_FAILURE =
       5; // Failure at the transaction level for the refund
+}
+
+// Outcome of a post-capture void (PaymentService.Reverse). Describes the void
+// attempt itself, never the status of the payment being voided.
+enum PostCaptureVoidStatus {
+  POST_CAPTURE_VOID_STATUS_UNSPECIFIED = 0; // Default value
+  POST_CAPTURE_VOID_STATUS_SUCCEEDED = 1;   // The captured payment was voided
+  POST_CAPTURE_VOID_STATUS_PENDING = 2;     // The void was accepted but is not final yet
+  POST_CAPTURE_VOID_STATUS_FAILED = 3;      // The void was declined; the payment is unchanged
 }
 
 // Status of a dispute
@@ -744,6 +754,9 @@ enum Connector {
   MERCHANTE = 150;
   ELAVON_PG = 151;
   GLOBALPAYMENTS_REALEX = 152;
+  ECOMMPAY = 153;
+  CLEARSALE_BR = 154;
+  BETTERPAYMENT = 155;
 }
 
 // Payment method types
@@ -976,6 +989,8 @@ message OrderDetailsWithAmount {
   optional string discount_type = 22;
   // The URL of the product
   optional string product_link = 23;
+  // Total amount for this line item
+  optional int64 total_amount = 24;
 }
 
 // Access token details
@@ -1275,6 +1290,10 @@ message OrderInfo {
 
   // Duty/customs amount for the order (in minor currency units)
   optional int64 duty_amount = 6;
+
+  // Commodity code classifying the order as a whole, as opposed to the
+  // per-item codes on each line item
+  optional string order_commodity_code = 7;
 }
 
 // Tax information for L2/L3 data.
@@ -1293,6 +1312,18 @@ message TaxInfo {
 
   // Total tax amount for the order (in minor currency units)
   optional int64 order_tax_amount = 5;
+
+  // Value added tax (VAT) amount for the order (in minor currency units)
+  optional int64 value_added_tax_amount = 6;
+
+  // Value added tax (VAT) rate for the order, as a percentage: 2.5 means 2.5%, not 0.025.
+  optional double value_added_tax_percent = 7;
+
+  // Reference number of the value added tax (VAT) invoice for the order
+  optional string vat_invoice_reference_number = 8;
+
+  // Merchant's VAT registration ID
+  optional SecretString merchant_vat_registration_id = 9;
 }
 
 // Level 2 / Level 3 data for enhanced payment processing.
@@ -1333,6 +1364,10 @@ message RedirectForm {
     // Generic hosted-iframe redirection: load `endpoint` in an iframe and
     // attach the connector-built `events` postMessage listener.
     HostedIframeData hosted_iframe = 7;
+
+    // QR-code data for QR-initiated payment methods, distinct from
+    // intent-initiated flows (which continue to populate `uri` above).
+    QrData qr_data = 11;
 
     // A standalone script snippet (e.g. a device-data-collection script), when
     // the connector returns script content instead of a full HTML document.
@@ -1444,6 +1479,30 @@ message NmiData {
 
   // URL to redirect to after 3DS completion
   string continue_redirection_url = 5;
+}
+
+// Represents QR-code data for QR-initiated payment methods.
+message QrData {
+  // Raw QR payload string intended to be rendered into a QR code
+  // client-side (e.g. a `upi://pay?...` intent string or some payload
+  // required for a wallet).
+  optional string payload = 1;
+
+  // Base64-encoded QR image bytes, already rendered server-side by the
+  // connector.
+  optional string image_base64 = 2;
+
+  // Hosted URL to a QR image, when the connector serves the image itself
+  // rather than returning bytes or a raw payload.
+  optional string image_url = 3;
+
+  // Browser-fallback URL if the payer's app/wallet can't act on the QR
+  // content directly.
+  optional string fallback_url = 4;
+
+  // Absolute expiry time (unix timestamp, in seconds) for this QR code, as
+  // sent by the gateway, if present.
+  optional int64 expires_at = 5;
 }
 
 // Details of an HTTP request, typically for incoming webhooks
@@ -2924,16 +2983,30 @@ message PaymentServiceReverseRequest {
 
   // Original payment amount and currency.
   optional Money amount = 10;
+
+  // Original payment method for connectors that require PAN and expiry again.
+  optional PaymentMethod payment_method = 11;
+
+  // Original payment's capture method, not the reversal's disposition.
+  // Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at
+  // different endpoints.
+  optional CaptureMethod capture_method = 12;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
 // to void but for post-capture transactions)
 message PaymentServiceReverseResponse {
   // Identification
+  // The connector's id of the original payment being voided, echoed from the
+  // request. The void's own id is in connector_reference_id.
   string connector_transaction_id = 1;
 
   // Status Information
-  PaymentStatus status = 2;
+  // Deprecated: use post_capture_void_status instead. Always
+  // PAYMENT_STATUS_UNSPECIFIED: a void's outcome is not the payment's status.
+  PaymentStatus status = 2 [deprecated = true];
+  // Set when post_capture_void_status is FAILED; carries the connector's
+  // failure message.
   optional ErrorInfo error = 3;
   uint32 status_code = 4;
   map<string, string> response_headers = 5;
@@ -2950,9 +3023,12 @@ message PaymentServiceReverseResponse {
   // The connector's reported status for this response.
   optional RawConnectorStatus raw_connector_status = 9;
 
-  // Another reference for the connector's transaction, returned in the connector's response.
-  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  // The connector's reference for the void, as the connector returned it. Not
+  // set when the connector returns an error. 
   optional string connector_reference_id = 10;
+
+  // Outcome of the void.
+  PostCaptureVoidStatus post_capture_void_status = 13;
 }
 
 // Request message for creating an access token
@@ -4318,114 +4394,6 @@ message RefundServiceGetRequest {
 }
 
 // ============================================================================
-// DISPUTE SERVICE MESSAGES
-// ============================================================================
-
-// Request message for submitting evidence for a dispute
-message DisputeServiceSubmitEvidenceRequest {
-  // Identification
-  optional string merchant_dispute_id = 1;
-  optional string connector_transaction_id = 2;
-  string dispute_id = 3;
-
-  // Dates
-  optional int64 service_date = 4;
-  optional int64 shipping_date = 5;
-
-  // Evidence
-  repeated EvidenceDocument evidence_documents =
-      6; // Collection of evidence documents
-}
-
-// Response message for a submit evidence operation
-message DisputeServiceSubmitEvidenceResponse {
-  // Identification
-  optional string dispute_id = 1;
-  repeated string submitted_evidence_ids = 2;
-
-  // Status Information
-  DisputeStatus dispute_status = 3;
-  optional string connector_status_code = 4;
-  optional ErrorInfo error = 5;
-  uint32 status_code = 6;
-  map<string, string> response_headers = 7;
-
-  // Reference
-  optional string merchant_dispute_id = 8;
-
-  // Raw Request for debugging
-  optional SecretString raw_connector_request = 9;
-  optional SecretString typed_connector_request = 10;
-}
-
-// Request message for retrieving dispute information
-message DisputeServiceGetRequest {
-  // Identification
-  optional string merchant_dispute_id = 1;
-  optional string dispute_id = 2;
-  string connector_dispute_id = 3;
-}
-
-// Request message for defending a dispute
-message DisputeServiceDefendRequest {
-  // Identification
-  optional string merchant_dispute_id = 1;
-  string connector_transaction_id = 2;
-  string dispute_id = 3;
-
-  // Defend Details
-  optional string reason_code = 4;
-}
-
-// Response message for defending a dispute
-message DisputeServiceDefendResponse {
-  // Identification
-  string dispute_id = 1;
-
-  // Status Information
-  DisputeStatus dispute_status = 2;
-  optional string connector_status_code = 3;
-  optional ErrorInfo error = 4;
-  uint32 status_code = 5;
-  map<string, string> response_headers = 6;
-
-  // Reference
-  optional string merchant_dispute_id = 7;
-
-  // Raw Request for debugging
-  optional SecretString raw_connector_request = 8;
-  optional SecretString typed_connector_request = 9;
-}
-
-// Request message for accepting a dispute
-message DisputeServiceAcceptRequest {
-  // Identification
-  optional string merchant_dispute_id = 1;
-  string connector_transaction_id = 2;
-  string dispute_id = 3;
-}
-
-// Response message for accepting a dispute
-message DisputeServiceAcceptResponse {
-  // Identification
-  string dispute_id = 1;
-
-  // Status Information
-  DisputeStatus dispute_status = 2;
-  optional string connector_status_code = 3;
-  optional ErrorInfo error = 4;
-  uint32 status_code = 5;
-  map<string, string> response_headers = 6;
-
-  // Reference
-  optional string merchant_dispute_id = 7;
-
-  // Raw Request for debugging
-  optional SecretString raw_connector_request = 8;
-  optional SecretString typed_connector_request = 9;
-}
-
-// ============================================================================
 // ADDITIONAL REQUEST/RESPONSE MESSAGES
 // ============================================================================
 
@@ -5749,6 +5717,22 @@ message NsureConfig {
   optional string base_url = 50;
 }
 
+message ClearsaleBrConfig {
+  // ClearSale account username, sent as `name` on POST /v1/authenticate.
+  // This is the RiskManagementAccount accountDetailsJson field name.
+  SecretString username = 1;
+  // ClearSale account password, sent as `password` on POST /v1/authenticate.
+  SecretString password = 2;
+  // Customer type sent as the order `b2bB2c` field: "b2b" or "b2c".
+  // Gateway/merchant-specific, so it lives in the RiskManagementAccount
+  // account details rather than per-transaction data.
+  optional string b2b_b2c = 3;
+  // ClearSale product id for the order `product` field, when the merchant runs
+  // a product other than the connector's default (Total Garantido).
+  optional int32 product = 4;
+  optional string base_url = 50;
+}
+
 message HyperswitchConfig {
   SecretString api_key = 1;
   optional string base_url = 50;
@@ -5930,6 +5914,30 @@ message PayhereConfig {
   // PayHere Merchant Secret -- hash secret only (checkout MD5 hash + webhook
   // md5sig verification), never transmitted.
   SecretString merchant_secret = 4;
+  optional string base_url = 50;
+}
+
+message BetterpaymentConfig {
+  // Betterpayment API key, used as the HTTP Basic Authentication username.
+  SecretString api_key = 1;
+  // Betterpayment API password, used as the HTTP Basic Authentication password.
+  SecretString api_password = 2;
+  // Betterpayment outgoing key, used only for webhook HMAC verification, not API authentication.
+  SecretString webhook_key = 3;
+  // Optional override for the Betterpayment API base URL.
+  optional string base_url = 50;
+}
+
+// Ecommpay Gate API v2. There is no authentication header: every request is signed in the
+// body (`general.signature`), so both values below come from the Ecommpay dashboard
+// (Project settings) and are supplied by the merchant.
+message EcommpayConfig {
+  // Numeric Ecommpay project id -- sent in the body as `general.project_id`, and the only
+  // one of the two that reaches the wire.
+  SecretString project_id = 1;
+  // Project secret key -- the HMAC-SHA512 key used to sign every request and to verify
+  // status responses and callbacks. Never sent to Ecommpay.
+  SecretString secret_key = 2;
   optional string base_url = 50;
 }
 
@@ -6285,6 +6293,12 @@ message ConnectorSpecificConfig {
     ElavonPgConfig elavon_pg = 162;
     // GLOBALPAYMENTS_REALEX = 152
     GlobalpaymentsRealexConfig globalpayments_realex = 163;
+    // ECOMMPAY = 153
+    EcommpayConfig ecommpay = 164;
+    // CLEARSALE_BR = 154
+    ClearsaleBrConfig clearsale_br = 165;
+    // BETTERPAYMENT = 155
+    BetterpaymentConfig betterpayment = 166;
   }
 }
 

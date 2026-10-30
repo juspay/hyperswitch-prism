@@ -182,10 +182,7 @@ impl<
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -214,7 +211,10 @@ impl<
                 let order_amount = item
                     .connector
                     .amount_converter
-                    .convert(details.amount, item.router_data.request.currency)
+                    .convert(&common_utils::types::Money {
+                        amount: details.amount,
+                        currency: item.router_data.request.currency,
+                    })
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?;

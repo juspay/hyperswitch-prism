@@ -499,7 +499,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         })?;
 
-        let amount = SaferpayAmountConvertor::convert(request.amount.amount, request.currency)?;
+        let amount = SaferpayAmountConvertor::convert(&request.amount)?;
 
         let description = common
             .description
@@ -992,10 +992,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         })?;
 
-        let amount = SaferpayAmountConvertor::convert(
-            request.amount.amount,
-            request.currency.ok_or_else(|| missing_field("currency"))?,
-        )?;
+        let amount = SaferpayAmountConvertor::convert(&common_utils::types::Money {
+            amount: request.amount.amount,
+            currency: request.currency.ok_or_else(|| missing_field("currency"))?,
+        })?;
 
         // `continue_redirection_url` first, deliberately. It is the URL that routes the
         // returning shopper into the caller's complete-authorize path, which is what
@@ -1143,8 +1143,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_connector_transaction_id()
             .map_err(|_| missing_field("connector_transaction_id"))?;
 
-        let amount =
-            SaferpayAmountConvertor::convert(request.amount_to_capture.amount, request.currency)?;
+        let amount = SaferpayAmountConvertor::convert(&request.amount_to_capture)?;
 
         Ok(Self {
             request_header: SaferpayRequestHeader::new(
@@ -1406,8 +1405,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let capture_id = extract_capture_id(request)
             .ok_or_else(|| missing_field("refund_metadata.capture_id"))?;
 
-        let amount =
-            SaferpayAmountConvertor::convert(request.refund_amount.amount, request.currency)?;
+        let amount = SaferpayAmountConvertor::convert(&request.refund_amount)?;
 
         Ok(Self {
             request_header: SaferpayRequestHeader::new(

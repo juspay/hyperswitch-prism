@@ -340,3 +340,8 @@ pub use self::globalpayments_heartland::GlobalpaymentsHeartland;
 
 pub mod merchante;
 pub use self::merchante::Merchante;
+
+pub mod betterpayment;
+pub use self::betterpayment::Betterpayment;
+pub mod ecommpay;
+pub use self::ecommpay::Ecommpay;

@@ -350,6 +350,7 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
                 phone_number: None,
                 phone_country_code: None,
                 email: Some(unique_email.into()),
+                origin_zip: None,
             }),
             shipping_address: None,
         }),

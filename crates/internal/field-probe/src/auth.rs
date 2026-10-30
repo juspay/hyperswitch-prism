@@ -907,5 +907,18 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_secret: k(),
             base_url: None,
         },
+        ConnectorEnum::Betterpayment => ConnectorSpecificConfig::Betterpayment {
+            api_key: k(),
+            api_password: k(),
+            webhook_key: Some(k()),
+            base_url: None,
+        },
+        // `project_id` must be numeric: the connector parses it into the integer
+        // `general.project_id`, so the generic `k()` dummy would fail every probed flow.
+        ConnectorEnum::Ecommpay => ConnectorSpecificConfig::Ecommpay {
+            project_id: Secret::new("12345".to_string()),
+            secret_key: k(),
+            base_url: None,
+        },
     }
 }
