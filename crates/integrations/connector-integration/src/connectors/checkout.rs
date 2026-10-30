@@ -140,6 +140,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Checkout<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Checkout<T>
@@ -463,8 +470,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
-        let amount =
-            convert_amount_for_webhook(&StringMinorUnitForConnector, dispute_amount, currency)?;
+        let amount = convert_amount_for_webhook(
+            &StringMinorUnitForConnector,
+            &common_utils::types::Money {
+                amount: dispute_amount,
+                currency,
+            },
+        )?;
 
         Ok(DisputeWebhookDetailsResponse {
             amount,

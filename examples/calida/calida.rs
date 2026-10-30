@@ -39,8 +39,8 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
         connector_transaction_id: connector_transaction_id.to_string(),
         amount: Some(Money {
             // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         ..Default::default()
     }

@@ -206,6 +206,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     }
                     BankRedirectData::BancontactCard { .. }
+                    | BankRedirectData::BancontactIntent { .. }
+                    | BankRedirectData::BancontactQr { .. }
                     | BankRedirectData::Bizum {}
                     | BankRedirectData::Blik { .. }
                     | BankRedirectData::Eft { .. }

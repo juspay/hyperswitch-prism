@@ -405,6 +405,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Citigate<T>
 {
+    /// Status checks use MerchantRef; a connector transaction ID is not required.
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        citigate::required_merchant_ref(&payment_flow_data.connector_request_reference_id)
+            .map(|_| ())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

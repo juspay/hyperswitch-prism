@@ -1,0 +1,25 @@
+{
+  "_webhook_config": {
+    "signature_header": "gateway-webhook-signature",
+    "webhook_secret_key": "webhook_key"
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "uri": "/webhooks/betterpayment",
+        "headers": {
+          "gateway-webhook-signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        },
+        "body": {
+          "transaction_id": "bp_test123",
+          "payment_type": "wero",
+          "status_code": 3,
+          "status": "completed",
+          "order_id": "019abcde12347abc8def123456789abc",
+          "amount": 15.9
+        }
+      },
+      "merchant_event_id": "betterpayment_invalid_signature"
+    }
+  }
+}

@@ -636,7 +636,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let total_amount = item
             .connector
             .amount_converter
-            .convert(amount, currency)
+            .convert(&common_utils::types::Money { amount, currency })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -773,7 +773,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let total_amount = item
             .connector
             .amount_converter
-            .convert(amount, currency)
+            .convert(&common_utils::types::Money { amount, currency })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -899,7 +899,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let total_amount = item
             .connector
             .amount_converter
-            .convert(amount.amount, currency)
+            .convert(&common_utils::types::Money {
+                amount: amount.amount,
+                currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -966,7 +969,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let total_amount = item
             .connector
             .amount_converter
-            .convert(amount, currency)
+            .convert(&common_utils::types::Money { amount, currency })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -1688,6 +1691,13 @@ impl From<&ClientProcessorInformation> for AdditionalPaymentMethodConnectorRespo
             card_network: None,
             domestic_network: None,
             auth_code: None,
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         }
     }
 }

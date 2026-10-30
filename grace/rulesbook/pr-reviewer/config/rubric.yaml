@@ -36,6 +36,8 @@ severity:
         - incomplete implementation for claimed code scope
         - missing companion-file updates in touched code paths
         - missing code-level tests or specs for a risky behavioral change
+        - a defect whose claim cites a review comment on an already-merged PR (a repeat of
+          feedback a human has already given; never downgrade one to a nit)
 
     - id: S2
       name: moderate-nonblocker

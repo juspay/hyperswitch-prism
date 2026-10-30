@@ -353,10 +353,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 amount: item
                     .connector
                     .amount_converter
-                    .convert(
-                        item.router_data.request.amount.amount,
-                        item.router_data.request.currency,
-                    )
+                    .convert(&item.router_data.request.amount)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })
@@ -538,7 +535,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             ))?;
 
         let response_integrity_object = Some(AuthoriseIntegrityObject {
-            amount: response_amount,
+            amount: response_amount.amount,
             currency: response.currency,
         });
 
@@ -663,13 +660,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = XenditAmountConvertor::convert(
-            item.router_data.request.amount_to_capture.amount,
-            item.router_data.request.currency,
-        )
-        .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        })?;
+        let amount = XenditAmountConvertor::convert(&item.router_data.request.amount_to_capture)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             capture_amount: amount,
         })
@@ -773,13 +767,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = XenditAmountConvertor::convert(
-            item.router_data.request.refund_amount.amount,
-            item.router_data.request.currency,
-        )
-        .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        })?;
+        let amount = XenditAmountConvertor::convert(&item.router_data.request.refund_amount)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             amount: amount.to_owned(),
             payment_request_id: item.router_data.request.connector_transaction_id.clone(),
@@ -830,7 +821,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 
         let response_integrity_object = {
             Some(RefundIntegrityObject {
-                refund_amount: response_amount,
+                refund_amount: response_amount.amount,
                 currency: response.currency,
             })
         };

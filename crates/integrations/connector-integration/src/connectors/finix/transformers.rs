@@ -88,6 +88,13 @@ pub(crate) fn convert_to_additional_payment_method_connector_response(
         card_network,
         domestic_network: None,
         auth_code,
+        processor_card_network: None,
+        card_subtype: None,
+        card_segment_type: None,
+        funding_source: None,
+        card_type: None,
+        issuer_name: None,
+        issuer_country: None,
     })
 }
 
@@ -706,6 +713,13 @@ fn build_finix_connector_response(
         card_network,
         domestic_network: None,
         auth_code,
+        processor_card_network: None,
+        card_subtype: None,
+        card_segment_type: None,
+        funding_source: None,
+        card_type: None,
+        issuer_name: None,
+        issuer_country: None,
     };
 
     Some(ConnectorResponseData::with_additional_payment_method_data(
@@ -2387,8 +2401,10 @@ pub(super) fn build_finix_dispute_webhook_response(
     Ok(DisputeWebhookDetailsResponse {
         amount: domain_types::utils::convert_amount_for_webhook(
             &common_utils::types::StringMinorUnitForConnector,
-            dispute.amount,
-            dispute.currency,
+            &common_utils::types::Money {
+                amount: dispute.amount,
+                currency: dispute.currency,
+            },
         )?,
         currency: dispute.currency,
         dispute_id: dispute.id,

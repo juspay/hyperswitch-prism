@@ -1032,7 +1032,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let amount = value
                     .connector
                     .amount_converter
-                    .convert(item.request.amount.amount, item.request.currency)
+                    .convert(&item.request.amount)
                     .change_context(amount_conversion_error(
                         "Failed to convert authorize amount to MinorUnit for the Pay.com \
                          POST /v1/charges|/v1/holds request",
@@ -1225,7 +1225,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = value
             .connector
             .amount_converter
-            .convert(minor_amount, item.request.currency)
+            .convert(&common_utils::types::Money {
+                amount: minor_amount,
+                currency: item.request.currency,
+            })
             .change_context(amount_conversion_error(
                 "Failed to convert setup-mandate amount to MinorUnit for the Pay.com \
                  POST /v1/charges|/v1/holds request",
@@ -1519,7 +1522,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = value
             .connector
             .amount_converter
-            .convert(item.request.amount.amount, currency)
+            .convert(&common_utils::types::Money {
+                amount: item.request.amount.amount,
+                currency,
+            })
             .change_context(amount_conversion_error(
                 "Failed to convert pre-authenticate amount to MinorUnit for the Pay.com \
                  POST /v1/charges|/v1/holds request",
@@ -1679,7 +1685,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_to_capture = value
             .connector
             .string_amount_converter
-            .convert(item.request.amount_to_capture.amount, item.request.currency)
+            .convert(&item.request.amount_to_capture)
             .change_context(amount_conversion_error(
                 "Failed to convert capture amount to StringMinorUnit for the Pay.com \
                  POST /v1/holds/{id}/capture request",
@@ -1748,7 +1754,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_to_refund = value
             .connector
             .string_amount_converter
-            .convert(item.request.refund_amount.amount, item.request.currency)
+            .convert(&item.request.refund_amount)
             .change_context(amount_conversion_error(
                 "Failed to convert refund amount to StringMinorUnit for the Pay.com \
                  POST /v1/refunds request",
@@ -2672,7 +2678,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = value
             .connector
             .amount_converter
-            .convert(item.request.amount.amount, item.request.currency)
+            .convert(&item.request.amount)
             .change_context(amount_conversion_error(
                 "Failed to convert repeat-payment amount to MinorUnit for the Pay.com \
                  POST /v1/charges (off_session) request",

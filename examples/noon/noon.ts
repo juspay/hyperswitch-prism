@@ -7,7 +7,7 @@
 
 import { PaymentClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -28,8 +28,8 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
     return {
         "merchantTransactionId": "probe_txn_001",  // Identification.
         "amount": {  // The amount for the payment.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "paymentMethod": {  // Payment method to be used.
             "card": {  // Generic card payment.
@@ -57,8 +57,8 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
         "merchantCaptureId": "probe_capture_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amountToCapture": {  // Capture Details.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }
@@ -68,8 +68,8 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }
@@ -82,7 +82,7 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
             "uri": "https://example.com/webhook",  // URI of the request.
             "headers": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"SALE\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}", "utf-8"))  // Body of the HTTP request.
+            "body": new Uint8Array(Buffer.from("{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -94,7 +94,7 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
             "uri": "https://example.com/webhook",  // URI of the request.
             "headers": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"SALE\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}", "utf-8"))  // Body of the HTTP request.
+            "body": new Uint8Array(Buffer.from("{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -103,8 +103,8 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
     return {
         "merchantTransactionId": "probe_proxy_txn_001",
         "amount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "cardProxy": {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
             "cardNumber": {"value": "4111111111111111"},  // Card Identification.
@@ -130,8 +130,8 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
     return {
         "merchantRecurringPaymentId": "probe_proxy_mandate_001",
         "amount": {
-            "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 0,
+            "currency": Currency.USD
         },
         "cardProxy": {  // Card proxy for vault-aliased payments.
             "cardNumber": {"value": "4111111111111111"},  // Card Identification.
@@ -145,13 +145,22 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
             "billingAddress": {
             }
         },
-        "metadata": {"value": "{\"order_category\":\"mobile\",\"description\":\"purchase desc\"}"},
+        "metadata": {"value": "{\"description\":\"Probe mandate setup\"}"},
+        "setupMandateDetails": {
+            "mandateType": {  // Type of mandate (single_use or multi_use) with amount details.
+                "multiUse": {  // Multi use mandate with amount details (for recurring payments).
+                    "amount": 10000,  // Use amount_money instead (will be removed in a future release).
+                    "currency": Currency.AED  // Use amount_money.currency instead (will be removed in a future release).
+                }
+            }
+        },
         "customerAcceptance": {
             "acceptanceType": AcceptanceType.OFFLINE,  // Type of acceptance (e.g., online, offline).
             "acceptedAt": 0  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
         },
         "authType": AuthenticationType.NO_THREE_DS,
-        "setupFutureUsage": FutureUsage.OFF_SESSION
+        "setupFutureUsage": FutureUsage.OFF_SESSION,
+        "orderCategory": "pay"  // Category of the order/service.
     };
 }
 
@@ -160,8 +169,8 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
         "connectorRecurringPaymentId": {  // Reference to existing mandate.
         },
         "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
             "token": {  // Payment tokens.
@@ -190,8 +199,8 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
         "connectorTransactionId": connectorTransactionId,
         "paymentAmount": 1000,  // Amount Information.
         "refundAmount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "reason": "customer_request"  // Reason for the refund.
     };
@@ -201,7 +210,51 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     return {
         "merchantRefundId": "probe_refund_001",  // Identification.
         "connectorTransactionId": "probe_connector_txn_001",
-        "refundId": "probe_refund_id_001"  // Deprecated.
+        "refundId": "probe_refund_id_001",  // Deprecated.
+        "connectorRefundId": "probe_refund_id_001",
+        "connectorOrderId": "probe_order_ref_001"  // Connector-side identifier for the original payment that this refund sync targets.
+    };
+}
+
+function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringRequest {
+    return {
+        "merchantRecurringPaymentId": "probe_mandate_001",  // Identification.
+        "amount": {  // Mandate Details.
+            "minorAmount": 0,
+            "currency": Currency.USD
+        },
+        "paymentMethod": {
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
+        },
+        "authType": AuthenticationType.NO_THREE_DS,  // Type of authentication to be used.
+        "enrolledFor_3ds": false,  // Indicates if the customer is enrolled for 3D Secure.
+        "metadata": {"value": "{\"description\":\"Probe mandate setup\"}"},  // Additional metadata for the connector.
+        "returnUrl": "https://example.com/mandate-return",  // URL to redirect after setup.
+        "orderCategory": "pay",  // Category of the order/service related to the mandate.
+        "setupFutureUsage": FutureUsage.OFF_SESSION,  // Indicates future usage intention.
+        "requestIncrementalAuthorization": false,  // Indicates if incremental authorization is requested.
+        "customerAcceptance": {  // Details of customer acceptance.
+            "acceptanceType": AcceptanceType.OFFLINE,  // Type of acceptance (e.g., online, offline).
+            "acceptedAt": 0  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        },
+        "setupMandateDetails": {  // Mandate setup details.
+            "mandateType": {  // Type of mandate (single_use or multi_use) with amount details.
+                "multiUse": {  // Multi use mandate with amount details (for recurring payments).
+                    "amount": 10000,  // Use amount_money instead (will be removed in a future release).
+                    "currency": Currency.AED  // Use amount_money.currency instead (will be removed in a future release).
+                }
+            }
+        }
     };
 }
 
@@ -428,6 +481,15 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
     return refundResponse;
 }
 
+// Flow: PaymentService.SetupRecurring
+async function setupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const setupResponse = await paymentClient.setupRecurring(_buildSetupRecurringRequest());
+
+    return setupResponse;
+}
+
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -440,7 +502,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, recurringRevoke, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRecurringRevokeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, recurringRevoke, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRecurringRevokeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner
