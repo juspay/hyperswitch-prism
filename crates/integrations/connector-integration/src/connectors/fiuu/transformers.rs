@@ -64,6 +64,9 @@ const GOOGLEPAY_API_VERSION: u8 = 2;
 
 const FIUU_DIRECT_API_DOC_URL: &str = "https://fiuu.com/developer/";
 
+/// `mpstokenstatus=4`: merchant is passing a stored card number (Fiuu Direct Server API).
+const MPS_TOKEN_STATUS_STORED_CARD: i32 = 4;
+
 pub struct FiuuAuthType {
     pub(super) merchant_id: Secret<String>,
     pub(super) verify_key: Secret<String>,
@@ -467,6 +470,9 @@ pub struct FiuuCardWithNTI {
     /// 1 = merchant initiated (Fiuu Direct Server API).
     #[serde(rename = "MerchantInitiated")]
     merchant_initiated: i32,
+    /// `MPS_TOKEN_STATUS_STORED_CARD`; without it the sandbox declines the NTID MIT with 11 CC_82.
+    #[serde(rename = "mpstokenstatus")]
+    mps_token_status: i32,
 }
 
 /// Direct API MIT on a card verified by Zero Dollar Verification (Fiuu Direct Server API): `OriginalTranID`
@@ -926,13 +932,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             false => TxnType::Auts,
         };
         let return_url = item.router_data.request.router_return_url.clone();
-        let notification_url = Some(
-            Url::parse(&item.router_data.request.get_webhook_url()?).change_context(
-                IntegrationError::RequestEncodingFailed {
-                    context: Default::default(),
+        // NotificationURL is optional (Direct API); a MIT answers synchronously with RESPONSE.
+        let notification_url = item
+            .router_data
+            .request
+            .webhook_url
+            .as_deref()
+            .map(Url::parse)
+            .transpose()
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Pass webhook_url as an absolute URL for NotificationURL".to_owned(),
+                    ),
+                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
+                    additional_context: None,
                 },
-            )?,
-        );
+            })?;
         let payment_method_data = match (
             &item.router_data.request.mandate_reference,
             get_verification_mandate_id(&item.router_data.request.mandate_reference),
@@ -1492,6 +1508,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             cc_year: raw_card_data.get_expiry_year_4_digit(),
             original_scheme_id: Secret::new(network_transaction_id),
             merchant_initiated: 1,
+            mps_token_status: MPS_TOKEN_STATUS_STORED_CARD,
         })))
     }
 }
@@ -1833,7 +1850,11 @@ pub enum FiuuSetupMandateResponse {
 /// "Zero Dollar Verification Response").
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FiuuZeroAuthResponse {
-    #[serde(rename = "VerificationID")]
+    /// Documented ans{1..20}; the sandbox sends a JSON integer.
+    #[serde(
+        rename = "VerificationID",
+        deserialize_with = "deserialize_verification_id"
+    )]
     pub verification_id: String,
     /// 00 success, 11 failed verification.
     pub status: FiuuDirectTxnStatus,
@@ -1852,6 +1873,16 @@ pub struct FiuuZeroAuthResponse {
     /// Present only when the verification needs a 3DS redirect.
     #[serde(rename = "TxnData")]
     pub txn_data: Option<TxnData>,
+}
+
+fn deserialize_verification_id<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+    match Value::deserialize(d)? {
+        Value::String(s) => Ok(s),
+        Value::Number(n) => Ok(n.to_string()),
+        other => Err(serde::de::Error::custom(format!(
+            "VerificationID: unexpected {other}"
+        ))),
+    }
 }
 
 impl FiuuZeroAuthResponse {
@@ -2037,19 +2068,24 @@ pub struct TxnData {
     pub request_method: FiuuRequestMethod,
 }
 
-/// `RequestMethod` [GET/POST] of a Fiuu redirect.
+/// `RequestMethod` of a Fiuu `TxnData`: GET/POST on REDIRECT/POPUP, `""` on RESPONSE (live sandbox).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum FiuuRequestMethod {
     Get,
     Post,
+    /// RESPONSE bodies carry `"RequestMethod": ""`; never rendered as a redirect form.
+    #[serde(rename = "")]
+    Empty,
 }
 
 impl From<FiuuRequestMethod> for Method {
     fn from(m: FiuuRequestMethod) -> Self {
         match m {
             FiuuRequestMethod::Get => Self::Get,
-            FiuuRequestMethod::Post => Self::Post,
+            // Empty only occurs on RESPONSE, where no form is built; POST matches the
+            // FiuuAuthnTxnData default (`map_or(Method::Post, ..)`).
+            FiuuRequestMethod::Post | FiuuRequestMethod::Empty => Self::Post,
         }
     }
 }
@@ -2536,22 +2572,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: None,
                 },
             })?;
-        // The final refund status (00/11) only arrives via notify_url.
-        let webhook_url = item.router_data.request.webhook_url.as_deref().ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "webhook_url",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Pass webhook_url; Fiuu sends the final refund status to notify_url"
-                            .to_owned(),
-                    ),
-                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                    additional_context: None,
-                },
-            },
-        )?;
-        let notify_url =
-            Url::parse(webhook_url).change_context(IntegrationError::InvalidDataFormat {
+        // notify_url is optional (Fiuu refund API); without it RSync settles a pending refund.
+        let notify_url = item
+            .router_data
+            .request
+            .webhook_url
+            .as_deref()
+            .map(Url::parse)
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "webhook_url",
                 context: IntegrationErrorContext {
                     suggested_action: Some("Pass webhook_url as an absolute URL".to_owned()),
@@ -2572,7 +2601,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 RefundType::Partial,
                 txn_amount.get_amount_as_string()
             ))?,
-            notify_url: Some(notify_url),
+            notify_url,
         })
     }
 }

@@ -348,7 +348,6 @@
   "PaymentService/Refund": {
     "refund_full_amount": {
       "grpc_req": {
-        "webhook_url": "https://example.com/webhook",
         "refund_amount": {
           "currency": "MYR"
         }
@@ -356,7 +355,6 @@
     },
     "refund_partial_amount": {
       "grpc_req": {
-        "webhook_url": "https://example.com/webhook",
         "refund_amount": {
           "currency": "MYR"
         }
