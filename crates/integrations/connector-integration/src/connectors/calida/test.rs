@@ -148,7 +148,7 @@ mod tests {
                     access_token: None,
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
                     money: authorization_data().money,
-                    order_tax_money: None,
+                    order_tax_amount: None,
                     surcharge_money: None,
                     email: Some(
                         Email::try_from("test@example.com".to_string())
@@ -181,7 +181,7 @@ mod tests {
                     request_incremental_authorization: Some(false),
                     metadata: None,
                     merchant_order_id: None,
-                    shipping_money: None,
+                    shipping_cost: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
                     all_keys_required: None,
@@ -346,7 +346,7 @@ mod tests {
                     access_token: None,
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
                     money: authorization_data().money,
-                    order_tax_money: None,
+                    order_tax_amount: None,
                     surcharge_money: None,
                     email: Some(
                         Email::try_from("test@example.com".to_string())
@@ -379,7 +379,7 @@ mod tests {
                     request_incremental_authorization: Some(false),
                     metadata: None,
                     merchant_order_id: None,
-                    shipping_money: None,
+                    shipping_cost: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
                     all_keys_required: None,
@@ -530,7 +530,7 @@ mod tests {
                     currency_conversion_data: None,
                     access_token: None,
                     money: authorization_data().money,
-                    order_tax_money: None,
+                    order_tax_amount: None,
                     surcharge_money: None,
                     email: None,
                     customer_name: None,
@@ -555,7 +555,7 @@ mod tests {
                     request_incremental_authorization: Some(false),
                     metadata: None,
                     merchant_order_id: None,
-                    shipping_money: None,
+                    shipping_cost: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
                     all_keys_required: None,

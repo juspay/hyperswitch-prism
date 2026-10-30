@@ -1,5 +1,5 @@
 use common_enums::ProductType;
-use common_utils::{ext_traits::ConfigExt, Email, Money};
+use common_utils::{ext_traits::ConfigExt, Email, MinorUnit, Money};
 use hyperswitch_masking::{PeekInterface, Secret, SerializableSecret};
 
 use crate::{
@@ -482,19 +482,18 @@ pub struct RedirectionResponse {
     pub return_url_with_query_params: String,
 }
 
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
 pub struct OrderDetailsWithAmount {
     /// Name of the product that is being purchased
     pub product_name: String,
     /// The quantity of the product to be purchased
     pub quantity: u16,
-    #[serde(rename = "amount")]
     /// the amount per quantity of product
-    pub money: Money,
+    pub amount: MinorUnit,
     /// tax rate applicable to the product
     pub tax_rate: Option<f64>,
     /// total tax amount applicable to the product
-    pub total_tax_money: Option<Money>,
+    pub total_tax_amount: Option<MinorUnit>,
     // Does the order includes shipping
     pub requires_shipping: Option<bool>,
     /// The image URL of the product
@@ -521,12 +520,10 @@ pub struct OrderDetailsWithAmount {
     pub upc: Option<String>,
     /// commodity code of the product
     pub commodity_code: Option<String>,
-    #[serde(rename = "total_amount")]
     /// total amount of the product
-    pub total_money: Option<Money>,
-    #[serde(rename = "unit_discount_amount")]
+    pub total_amount: Option<MinorUnit>,
     /// discount amount on the unit
-    pub unit_discount_money: Option<Money>,
+    pub unit_discount_amount: Option<MinorUnit>,
     // discount name applied to this item
     pub discount_name: Option<String>,
     // discount percentage applied to this item
@@ -535,40 +532,6 @@ pub struct OrderDetailsWithAmount {
     pub discount_type: Option<String>,
     /// The image URL of the product
     pub product_link: Option<String>,
-}
-
-impl Default for OrderDetailsWithAmount {
-    fn default() -> Self {
-        Self {
-            product_name: Default::default(),
-            quantity: Default::default(),
-            money: common_utils::types::MoneyBoundary::from_minor_unit(
-                common_utils::MinorUnit::default(),
-                Default::default(),
-            ),
-            tax_rate: Default::default(),
-            total_tax_money: Default::default(),
-            requires_shipping: Default::default(),
-            product_img_link: Default::default(),
-            product_id: Default::default(),
-            category: Default::default(),
-            sub_category: Default::default(),
-            brand: Default::default(),
-            description: Default::default(),
-            unit_of_measure: Default::default(),
-            product_type: Default::default(),
-            product_tax_code: Default::default(),
-            sku: Default::default(),
-            upc: Default::default(),
-            commodity_code: Default::default(),
-            total_money: Default::default(),
-            unit_discount_money: Default::default(),
-            discount_name: Default::default(),
-            discount_percentage: Default::default(),
-            discount_type: Default::default(),
-            product_link: Default::default(),
-        }
-    }
 }
 
 impl SerializableSecret for OrderDetailsWithAmount {}
@@ -599,10 +562,8 @@ impl OrderDetailsWithAmount {
     }
 
     /// Line total: the explicit `total_amount` when present, else the unit `amount`.
-    pub fn get_total_amount(&self) -> Money {
-        self.total_money
-            .clone()
-            .unwrap_or_else(|| self.money.clone())
+    pub fn get_total_amount(&self) -> MinorUnit {
+        self.total_amount.unwrap_or(self.amount)
     }
 
     /// Product type (`item_type`/`type` on most connector line items).
@@ -623,19 +584,42 @@ impl OrderDetailsWithAmount {
     }
 
     /// Unit price (`amount` is per-quantity, `unit_price` on most connector line items).
-    pub fn get_unit_amount(&self) -> Money {
-        self.money.clone()
+    pub fn get_unit_amount(&self) -> MinorUnit {
+        self.amount
     }
 
     /// Discount amount on the unit, in minor units (`discount_amount` on most connector
     /// line items).
-    pub fn get_optional_unit_discount_amount(&self) -> Option<Money> {
-        self.unit_discount_money.clone()
+    pub fn get_optional_unit_discount_amount(&self) -> Option<MinorUnit> {
+        self.unit_discount_amount
     }
 
     /// Total tax amount for the line, in minor units (`tax_amount` on most connector
     /// line items).
-    pub fn get_optional_total_tax_amount(&self) -> Option<Money> {
-        self.total_tax_money.clone()
+    pub fn get_optional_total_tax_amount(&self) -> Option<MinorUnit> {
+        self.total_tax_amount
+    }
+
+    /// Uses the enclosing payment's currency for legacy scalar line-item amounts.
+    pub fn get_unit_money(&self, payment: &Money) -> Money {
+        common_utils::types::MoneyBoundary::from_minor_unit(self.amount, payment.currency())
+    }
+
+    pub fn get_total_money(&self, payment: &Money) -> Option<Money> {
+        self.total_amount.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+        })
+    }
+
+    pub fn get_total_tax_money(&self, payment: &Money) -> Option<Money> {
+        self.total_tax_amount.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+        })
+    }
+
+    pub fn get_unit_discount_money(&self, payment: &Money) -> Option<Money> {
+        self.unit_discount_amount.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+        })
     }
 }

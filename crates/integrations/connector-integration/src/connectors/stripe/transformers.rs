@@ -372,14 +372,17 @@ pub struct StripeLineItemsData {
     pub line_items: Option<HashMap<String, String>>,
 }
 
-fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<StripeLineItemsData> {
+fn create_stripe_line_items_data(
+    l2_l3_data: Option<&L2L3Data>,
+    payment: &common_utils::types::Money,
+) -> Option<StripeLineItemsData> {
     l2_l3_data.map(|data| {
         // Stripe takes tax either at order level or at line-item level, never both.
         let (line_items, order_tax_amount) = data.get_order_details().map_or(
-            (None, data.get_order_tax_amount().map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money))),
+            (None, data.get_order_tax_amount(payment).map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money))),
             |order_details| {
                 if order_details.is_empty() {
-                    return (None, data.get_order_tax_amount().map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money)));
+                    return (None, data.get_order_tax_amount(payment).map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money)));
                 }
                 let mut items_map = HashMap::new();
                 let mut has_line_item_tax = false;
@@ -391,7 +394,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][unit_cost]"),
-                        common_utils::types::ConnectorMinorUnitForConnector.convert(&order_item.money).get_amount_as_i64().to_string(),
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&order_item.get_unit_money(payment)).get_amount_as_i64().to_string(),
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][quantity]"),
@@ -403,11 +406,11 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                             product_code.clone(),
                         );
                     }
-                    if let Some(tax_amount) = order_item.total_tax_money.as_ref() {
+                    if let Some(tax_amount) = order_item.get_total_tax_money(payment) {
                         has_line_item_tax = true;
                         items_map.insert(
                             format!("amount_details[line_items][{index}][tax][total_tax_amount]"),
-                            common_utils::types::ConnectorMinorUnitForConnector.convert(tax_amount).get_amount_as_i64().to_string(),
+                            common_utils::types::ConnectorMinorUnitForConnector.convert(&tax_amount).get_amount_as_i64().to_string(),
                         );
                     }
                     if let Some(unit_of_measure) = order_item.unit_of_measure.as_ref() {
@@ -416,10 +419,10 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                             unit_of_measure.clone(),
                         );
                     }
-                    if let Some(line_discount) = order_item.unit_discount_money.as_ref() {
+                    if let Some(line_discount) = order_item.get_unit_discount_money(payment) {
                         items_map.insert(
                             format!("amount_details[line_items][{index}][discount_amount]"),
-                            common_utils::types::ConnectorMinorUnitForConnector.convert(line_discount).get_amount_as_i64().to_string(),
+                            common_utils::types::ConnectorMinorUnitForConnector.convert(&line_discount).get_amount_as_i64().to_string(),
                         );
                     }
                     if let Some(commodity_code) = order_item.commodity_code.as_ref() {
@@ -433,7 +436,7 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
                 let order_tax = if has_line_item_tax {
                     None
                 } else {
-                    data.get_order_tax_amount().map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money))
+                    data.get_order_tax_amount(payment).map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money))
                 };
                 (Some(items_map), order_tax)
             },
@@ -446,9 +449,9 @@ fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<Stripe
             order_reference: data.get_merchant_order_reference_id(),
             shipping_from_postal_code: data.get_shipping_origin_zip(),
             shipping_to_postal_code: data.get_shipping_zip(),
-            shipping_amount: data.get_shipping_cost().map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money)),
+            shipping_amount: data.get_shipping_cost(payment).map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money)),
             order_tax_amount,
-            discount_amount: data.get_discount_amount().map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money)),
+            discount_amount: data.get_discount_amount(payment).map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money)),
             line_items,
         }
     })
@@ -3106,6 +3109,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             charges: charges_in,
             line_items: create_stripe_line_items_data(
                 item.resource_common_data.l2_l3_data.as_deref(),
+                &item.request.money,
             ),
             moto: is_moto,
             on_behalf_of,
@@ -7092,6 +7096,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             charges: charges_in,
             line_items: create_stripe_line_items_data(
                 item.resource_common_data.l2_l3_data.as_deref(),
+                &item.request.money,
             ),
             moto: is_moto,
             on_behalf_of,
@@ -7561,7 +7566,9 @@ mod error_on_requires_action_tests {
         ))
         .ok()?;
         Some(PaymentIntentRequest {
-            amount: ConnectorMinorUnitForConnector.convert(&order_detail.money),
+            amount: ConnectorMinorUnitForConnector.convert(&order_detail.get_unit_money(
+                &common_utils::types::Money::zero(common_enums::Currency::USD),
+            )),
             currency: "USD".to_string(),
             statement_descriptor_suffix: None,
             statement_descriptor: None,

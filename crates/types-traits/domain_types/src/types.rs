@@ -3833,9 +3833,9 @@ pub struct AuthorizationRequest {
     pub merchant_transaction_id: Option<String>,
     // Amount Information
     pub amount: Option<grpc_payment_types::Money>,
-    pub order_tax_amount: Option<grpc_payment_types::Money>,
+    pub order_tax_amount: Option<i64>,
     pub surcharge_amount: Option<grpc_payment_types::Money>,
-    pub shipping_cost: Option<grpc_payment_types::Money>,
+    pub shipping_cost: Option<i64>,
     // Payment Method and Capture Settings
     pub payment_method: Option<grpc_payment_types::PaymentMethod>,
     pub capture_method: grpc_payment_types::CaptureMethod,
@@ -3944,8 +3944,8 @@ pub struct SetupRecurringRequest {
     pub off_session: Option<bool>,
     pub order_category: Option<String>,
     pub order_id: Option<String>,
-    pub order_tax_amount: Option<grpc_payment_types::Money>,
-    pub shipping_cost: Option<grpc_payment_types::Money>,
+    pub order_tax_amount: Option<i64>,
+    pub shipping_cost: Option<i64>,
     pub merchant_order_id: Option<String>,
     pub connector_testing_data: Option<Secret<String>>,
     pub l2_l3_data: Option<grpc_payment_types::L2l3Data>,
@@ -3972,7 +3972,6 @@ pub struct SetupRecurringRequest {
 /// ============================================================================
 impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationRequest {
     fn from(req: grpc_payment_types::PaymentServiceAuthorizeRequest) -> Self {
-        let currency = req.amount.as_ref().map(|amount| amount.currency);
         let tokenization_strategy = req
             .tokenization_strategy
             .map(|_| req.tokenization_strategy());
@@ -3983,21 +3982,9 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
         Self {
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
-            order_tax_amount: req
-                .order_tax_amount
-                .zip(currency)
-                .map(|(minor_amount, currency)| grpc_payment_types::Money {
-                    minor_amount,
-                    currency,
-                }),
+            order_tax_amount: req.order_tax_amount,
             surcharge_amount: req.surcharge_amount,
-            shipping_cost: req
-                .shipping_cost
-                .zip(currency)
-                .map(|(minor_amount, currency)| grpc_payment_types::Money {
-                    minor_amount,
-                    currency,
-                }),
+            shipping_cost: req.shipping_cost,
             payment_method: req.payment_method.clone(),
             capture_method: req.capture_method(),
             customer: req.customer.clone(),
@@ -4058,7 +4045,6 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
 
 impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for AuthorizationRequest {
     fn from(req: grpc_payment_types::PaymentServiceProxyAuthorizeRequest) -> Self {
-        let currency = req.amount.as_ref().map(|amount| amount.currency);
         // Convert ProxyCardDetails to PaymentMethod with CardProxy variant
         let payment_method =
             req.card_proxy
@@ -4076,13 +4062,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             amount: req.amount,
             order_tax_amount: None,
             surcharge_amount: None,
-            shipping_cost: req
-                .shipping_cost
-                .zip(currency)
-                .map(|(minor_amount, currency)| grpc_payment_types::Money {
-                    minor_amount,
-                    currency,
-                }),
+            shipping_cost: req.shipping_cost,
             payment_method,
             capture_method: req.capture_method(),
             customer: req.customer.clone(),
@@ -4143,7 +4123,6 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
 
 impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecurringRequest {
     fn from(req: grpc_payment_types::PaymentServiceSetupRecurringRequest) -> Self {
-        let currency = req.amount.as_ref().map(|amount| amount.currency);
         let mit_category = match req.mit_category() {
             grpc_payment_types::MitCategory::Unspecified => None,
             other => Some(common_enums::MitCategory::foreign_from(other)),
@@ -4177,20 +4156,8 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             enable_partial_authorization: req.enable_partial_authorization,
             order_category: req.order_category,
             order_id: req.order_id,
-            order_tax_amount: req
-                .order_tax_amount
-                .zip(currency)
-                .map(|(minor_amount, currency)| grpc_payment_types::Money {
-                    minor_amount,
-                    currency,
-                }),
-            shipping_cost: req
-                .shipping_cost
-                .zip(currency)
-                .map(|(minor_amount, currency)| grpc_payment_types::Money {
-                    minor_amount,
-                    currency,
-                }),
+            order_tax_amount: req.order_tax_amount,
+            shipping_cost: req.shipping_cost,
             merchant_order_id: req.merchant_order_id,
             connector_testing_data: req.connector_testing_data,
             l2_l3_data: req.l2_l3_data,
@@ -5667,10 +5634,7 @@ impl<
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
 
-        let shipping_cost = value
-            .shipping_cost
-            .map(crate::money::from_proto_money)
-            .transpose()?;
+        let shipping_cost = value.shipping_cost.map(common_utils::MinorUnit::new);
         // Connector testing data should be sent as a separate field (for adyen) (to be implemented)
         // For now, set to None as Hyperswitch needs to be updated to send this data properly
         let connector_testing_data: Option<Secret<serde_json::Value>> = None;
@@ -5775,15 +5739,12 @@ impl<
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
-            order_tax_money: value
-                .order_tax_amount
-                .map(crate::money::from_proto_money)
-                .transpose()?,
+            order_tax_amount: value.order_tax_amount.map(common_utils::MinorUnit::new),
             surcharge_money: value
                 .surcharge_amount
                 .map(crate::money::from_proto_money)
                 .transpose()?,
-            shipping_money: shipping_cost,
+            shipping_cost,
             merchant_account_id,
             integrity_object: None,
             integrity_specifications: value
@@ -5992,10 +5953,7 @@ impl<
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
             money: Some(crate::money::from_proto_money(amount)?),
-            shipping_money: value
-                .shipping_cost
-                .map(crate::money::from_proto_money)
-                .transpose()?,
+            shipping_cost: value.shipping_cost.map(common_utils::MinorUnit::new),
             customer_id: value
                 .customer
                 .as_ref()
@@ -6448,7 +6406,7 @@ impl
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        (item, currency): (
+        (item, _currency): (
             grpc_api_types::payments::OrderDetailsWithAmount,
             common_enums::Currency,
         ),
@@ -6466,17 +6424,11 @@ impl
                     },
                 },
             )?,
-            money: common_utils::types::MoneyBoundary::from_minor_unit(
-                common_utils::types::MinorUnit::new(item.amount),
-                currency,
-            ),
+            amount: common_utils::types::MinorUnit::new(item.amount),
             tax_rate: item.tax_rate,
-            total_tax_money: item.total_tax_amount.map(|amount| {
-                common_utils::types::MoneyBoundary::from_minor_unit(
-                    common_utils::types::MinorUnit::new(amount),
-                    currency,
-                )
-            }),
+            total_tax_amount: item
+                .total_tax_amount
+                .map(common_utils::types::MinorUnit::new),
             requires_shipping: item.requires_shipping,
             product_img_link: item.product_img_link,
             product_id: item.product_id,
@@ -6495,18 +6447,10 @@ impl
             commodity_code: item.commodity_code,
             sku: item.sku,
             upc: item.upc,
-            unit_discount_money: item.unit_discount_amount.map(|amount| {
-                common_utils::types::MoneyBoundary::from_minor_unit(
-                    common_utils::types::MinorUnit::new(amount),
-                    currency,
-                )
-            }),
-            total_money: item.total_amount.map(|amount| {
-                common_utils::types::MoneyBoundary::from_minor_unit(
-                    common_utils::types::MinorUnit::new(amount),
-                    currency,
-                )
-            }),
+            unit_discount_amount: item
+                .unit_discount_amount
+                .map(common_utils::types::MinorUnit::new),
+            total_amount: item.total_amount.map(common_utils::types::MinorUnit::new),
             discount_name: item.discount_name,
             discount_percentage: item.discount_percentage,
             discount_type: item.discount_type,
@@ -13121,8 +13065,8 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     currency: common_enums::Currency::USD,
                     country: None,
                     order_details: None,
-                    order_tax_money: None,
-                    shipping_money: None,
+                    order_tax_amount: None,
+                    shipping_cost: None,
                     payment_method_type: None,
                     customer,
                     webhook_url: auth_ctx.webhook_url,
@@ -13169,18 +13113,10 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     country,
                     order_details: None,
                     customer,
-                    order_tax_money: payment_ctx.order_tax_amount.map(|amount| {
-                        common_utils::types::MoneyBoundary::from_minor_unit(
-                            common_utils::types::MinorUnit::new(amount),
-                            money.currency(),
-                        )
-                    }),
-                    shipping_money: payment_ctx.shipping_cost.map(|amount| {
-                        common_utils::types::MoneyBoundary::from_minor_unit(
-                            common_utils::types::MinorUnit::new(amount),
-                            money.currency(),
-                        )
-                    }),
+                    order_tax_amount: payment_ctx
+                        .order_tax_amount
+                        .map(common_utils::MinorUnit::new),
+                    shipping_cost: payment_ctx.shipping_cost.map(common_utils::MinorUnit::new),
                     payment_method_type,
                     permissions,
                     webhook_url: None,
@@ -14136,12 +14072,7 @@ impl<
                 .transpose()?,
             integrity_object: None,
             money: Some(amount.clone()),
-            shipping_money: value.shipping_cost.map(|shipping_cost| {
-                common_utils::types::MoneyBoundary::from_minor_unit(
-                    common_utils::types::MinorUnit::new(shipping_cost),
-                    amount.currency(),
-                )
-            }),
+            shipping_cost: value.shipping_cost.map(common_utils::MinorUnit::new),
             customer_id: value
                 .customer
                 .as_ref()
@@ -14358,24 +14289,11 @@ impl ForeignTryFrom<(&grpc_api_types::payments::OrderInfo, common_enums::Currenc
             }),
             order_details,
             merchant_order_reference_id: value.merchant_order_reference_id.clone(),
-            discount_money: value.discount_amount.map(|amount| {
-                common_utils::types::MoneyBoundary::from_minor_unit(
-                    common_utils::types::MinorUnit::new(amount),
-                    currency,
-                )
-            }),
-            shipping_money: value.shipping_cost.map(|amount| {
-                common_utils::types::MoneyBoundary::from_minor_unit(
-                    common_utils::types::MinorUnit::new(amount),
-                    currency,
-                )
-            }),
-            duty_money: value.duty_amount.map(|amount| {
-                common_utils::types::MoneyBoundary::from_minor_unit(
-                    common_utils::types::MinorUnit::new(amount),
-                    currency,
-                )
-            }),
+            discount_amount: value
+                .discount_amount
+                .map(common_utils::types::MinorUnit::new),
+            shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
+            duty_amount: value.duty_amount.map(common_utils::types::MinorUnit::new),
             order_commodity_code: value.order_commodity_code.clone(),
         })
     }
@@ -14384,7 +14302,7 @@ impl ForeignTryFrom<(&grpc_api_types::payments::OrderInfo, common_enums::Currenc
 impl ForeignTryFrom<(&grpc_api_types::payments::TaxInfo, common_enums::Currency)> for TaxInfo {
     type Error = IntegrationError;
     fn foreign_try_from(
-        (value, currency): (&grpc_api_types::payments::TaxInfo, common_enums::Currency),
+        (value, _currency): (&grpc_api_types::payments::TaxInfo, common_enums::Currency),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let tax_status = match value.tax_status() {
             grpc_api_types::payments::TaxStatus::Unspecified => None,
@@ -14398,24 +14316,15 @@ impl ForeignTryFrom<(&grpc_api_types::payments::TaxInfo, common_enums::Currency)
             customer_tax_registration_id: value.customer_tax_registration_id.clone(),
             merchant_tax_registration_id: value.merchant_tax_registration_id.clone(),
             merchant_vat_registration_id: value.merchant_vat_registration_id.clone(),
-            shipping_amount_tax_money: value.shipping_amount_tax.map(|amount| {
-                common_utils::types::MoneyBoundary::from_minor_unit(
-                    common_utils::types::MinorUnit::new(amount),
-                    currency,
-                )
-            }),
-            order_tax_money: value.order_tax_amount.map(|amount| {
-                common_utils::types::MoneyBoundary::from_minor_unit(
-                    common_utils::types::MinorUnit::new(amount),
-                    currency,
-                )
-            }),
-            value_added_tax_money: value.value_added_tax_amount.map(|amount| {
-                common_utils::types::MoneyBoundary::from_minor_unit(
-                    common_utils::types::MinorUnit::new(amount),
-                    currency,
-                )
-            }),
+            shipping_amount_tax: value
+                .shipping_amount_tax
+                .map(common_utils::types::MinorUnit::new),
+            order_tax_amount: value
+                .order_tax_amount
+                .map(common_utils::types::MinorUnit::new),
+            value_added_tax_amount: value
+                .value_added_tax_amount
+                .map(common_utils::types::MinorUnit::new),
             value_added_tax_percent: value.value_added_tax_percent,
             vat_invoice_reference_number: value.vat_invoice_reference_number.clone(),
         })
@@ -17526,12 +17435,7 @@ impl<
                 }),
                 None => None,
             },
-            shipping_money: value.shipping_cost.map(|shipping_cost| {
-                common_utils::types::MoneyBoundary::from_minor_unit(
-                    common_utils::types::MinorUnit::new(shipping_cost),
-                    amount.currency(),
-                )
-            }),
+            shipping_cost: value.shipping_cost.map(common_utils::MinorUnit::new),
             payment_channel,
             mit_category,
             billing_descriptor,

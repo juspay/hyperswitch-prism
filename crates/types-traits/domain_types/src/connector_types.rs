@@ -1815,7 +1815,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
     /// ```
     pub money: Money,
-    pub order_tax_money: Option<Money>,
+    pub order_tax_amount: Option<MinorUnit>,
     pub surcharge_money: Option<Money>,
     pub email: Option<Email>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
@@ -1855,7 +1855,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// if the connector provides support to accept multiple reference ids.
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_id: Option<String>,
-    pub shipping_money: Option<Money>,
+    pub shipping_cost: Option<MinorUnit>,
     pub merchant_account_id: Option<String>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
     /// When true, an amount mismatch between request and connector response is not an
@@ -1922,6 +1922,18 @@ pub fn is_customer_initiated_mandate(
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
+    pub fn get_shipping_money(&self) -> Option<Money> {
+        self.shipping_cost.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, self.money.currency())
+        })
+    }
+
+    pub fn get_order_tax_money(&self) -> Option<Money> {
+        self.order_tax_amount.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, self.money.currency())
+        })
+    }
+
     /// Returns true if payment should be automatically captured, false for manual capture.
     ///
     /// Maps capture methods to boolean intent:
@@ -2651,8 +2663,8 @@ pub struct ClientAuthenticationTokenRequestData {
     pub country: Option<common_enums::CountryAlpha2>,
     pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
     pub customer: Option<CustomerInfo>,
-    pub order_tax_money: Option<Money>,
-    pub shipping_money: Option<Money>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
     /// The specific payment method type for which the session token is being generated
     pub payment_method_type: Option<PaymentMethodType>,
     pub webhook_url: Option<String>,
@@ -4012,7 +4024,7 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub merchant_order_id: Option<String>,
     pub money: Option<Money>,
-    pub shipping_money: Option<Money>,
+    pub shipping_cost: Option<MinorUnit>,
     pub customer_id: Option<CustomerId>,
     pub integrity_object: Option<SetupMandateIntegrityObject>,
     pub payment_channel: Option<PaymentChannel>,
@@ -4040,6 +4052,15 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
+    pub fn get_shipping_money(&self) -> Option<Money> {
+        self.shipping_cost.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(
+                amount,
+                self.money.as_ref().map_or(self.currency, Money::currency),
+            )
+        })
+    }
+
     pub fn is_auto_capture(&self) -> bool {
         !matches!(
             self.capture_method,
@@ -4128,7 +4149,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     /// enclosing request (and its RouterDataV2 clones) small on the async stack.
     pub split_settlement: Option<Box<SplitSettlement>>,
     pub recurring_mandate_payment_data: Option<router_data::RecurringMandatePaymentData>,
-    pub shipping_money: Option<Money>,
+    pub shipping_cost: Option<MinorUnit>,
     pub payment_channel: Option<PaymentChannel>,
     pub mit_category: Option<common_enums::MitCategory>,
     pub enable_partial_authorization: Option<bool>,
@@ -4155,6 +4176,12 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
+    pub fn get_shipping_money(&self) -> Option<Money> {
+        self.shipping_cost.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, self.money.currency())
+        })
+    }
+
     pub fn get_connector_testing_data(&self) -> Option<SecretSerdeValue> {
         self.connector_testing_data.clone()
     }
@@ -5556,9 +5583,9 @@ pub struct OrderInfo {
     pub order_date: Option<time::PrimitiveDateTime>,
     pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
     pub merchant_order_reference_id: Option<String>,
-    pub discount_money: Option<Money>,
-    pub shipping_money: Option<Money>,
-    pub duty_money: Option<Money>,
+    pub discount_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
     pub order_commodity_code: Option<String>,
 }
 
@@ -5568,12 +5595,54 @@ pub struct TaxInfo {
     pub customer_tax_registration_id: Option<Secret<String>>,
     pub merchant_tax_registration_id: Option<Secret<String>>,
     pub merchant_vat_registration_id: Option<Secret<String>>,
-    pub shipping_amount_tax_money: Option<Money>,
-    pub order_tax_money: Option<Money>,
-    pub value_added_tax_money: Option<Money>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub value_added_tax_amount: Option<MinorUnit>,
     /// A percentage between 0 and 100 — 2.5 means 2.5%.
     pub value_added_tax_percent: Option<f64>,
     pub vat_invoice_reference_number: Option<String>,
+}
+
+impl OrderInfo {
+    pub fn get_discount_money(&self, payment: &Money) -> Option<Money> {
+        self.discount_amount.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+        })
+    }
+
+    pub fn get_shipping_money(&self, payment: &Money) -> Option<Money> {
+        self.shipping_cost.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+        })
+    }
+
+    pub fn get_duty_money(&self, payment: &Money) -> Option<Money> {
+        self.duty_amount.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+        })
+    }
+}
+
+impl TaxInfo {
+    pub fn get_order_tax_money(&self, payment: &Money) -> Option<Money> {
+        self.order_tax_amount.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+        })
+    }
+}
+
+impl ClientAuthenticationTokenRequestData {
+    pub fn get_order_tax_money(&self) -> Option<Money> {
+        self.order_tax_amount.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, self.money.currency())
+        })
+    }
+
+    pub fn get_shipping_money(&self) -> Option<Money> {
+        self.shipping_cost.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, self.money.currency())
+        })
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -5735,22 +5804,31 @@ impl L2L3Data {
             .and_then(|order| order.merchant_order_reference_id.clone())
     }
 
-    pub fn get_discount_amount(&self) -> Option<Money> {
+    pub fn get_discount_amount(&self, payment: &Money) -> Option<Money> {
         self.order_info
             .as_ref()
-            .and_then(|order| order.discount_money.clone())
+            .and_then(|data| data.discount_amount)
+            .map(|amount| {
+                common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+            })
     }
 
-    pub fn get_shipping_cost(&self) -> Option<Money> {
+    pub fn get_shipping_cost(&self, payment: &Money) -> Option<Money> {
         self.order_info
             .as_ref()
-            .and_then(|order| order.shipping_money.clone())
+            .and_then(|data| data.shipping_cost)
+            .map(|amount| {
+                common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+            })
     }
 
-    pub fn get_duty_amount(&self) -> Option<Money> {
+    pub fn get_duty_amount(&self, payment: &Money) -> Option<Money> {
         self.order_info
             .as_ref()
-            .and_then(|order| order.duty_money.clone())
+            .and_then(|data| data.duty_amount)
+            .map(|amount| {
+                common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+            })
     }
 
     pub fn get_order_commodity_code(&self) -> Option<String> {
@@ -5759,10 +5837,13 @@ impl L2L3Data {
             .and_then(|order| order.order_commodity_code.clone())
     }
 
-    pub fn get_value_added_tax_amount(&self) -> Option<Money> {
+    pub fn get_value_added_tax_amount(&self, payment: &Money) -> Option<Money> {
         self.tax_info
             .as_ref()
-            .and_then(|tax| tax.value_added_tax_money.clone())
+            .and_then(|data| data.value_added_tax_amount)
+            .map(|amount| {
+                common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+            })
     }
 
     pub fn get_value_added_tax_percent(&self) -> Option<f64> {
@@ -5799,16 +5880,22 @@ impl L2L3Data {
             .and_then(|tax| tax.merchant_vat_registration_id.clone())
     }
 
-    pub fn get_shipping_amount_tax(&self) -> Option<Money> {
+    pub fn get_shipping_amount_tax(&self, payment: &Money) -> Option<Money> {
         self.tax_info
             .as_ref()
-            .and_then(|tax| tax.shipping_amount_tax_money.clone())
+            .and_then(|data| data.shipping_amount_tax)
+            .map(|amount| {
+                common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+            })
     }
 
-    pub fn get_order_tax_amount(&self) -> Option<Money> {
+    pub fn get_order_tax_amount(&self, payment: &Money) -> Option<Money> {
         self.tax_info
             .as_ref()
-            .and_then(|tax| tax.order_tax_money.clone())
+            .and_then(|data| data.order_tax_amount)
+            .map(|amount| {
+                common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+            })
     }
 
     pub fn get_customer_id(&self) -> Option<CustomerId> {

@@ -56,7 +56,10 @@ const JPMORGAN_VAT_PERCENT_MULTIPLIER: f64 = 100.0;
 // Four digits with two implied decimals allow at most 99.99%, encoded as "9999".
 const JPMORGAN_MAX_VAT_PERCENTAGE: f64 = 99.99;
 
-fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineItem {
+fn build_line_item(
+    detail: &OrderDetailsWithAmount,
+    payment: &common_utils::types::Money,
+) -> requests::JpmorganLineItem {
     let line_item_description_text = detail
         .description
         .clone()
@@ -66,7 +69,7 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
     let merchant_product_identifier = detail.product_id.clone().or_else(|| detail.sku.clone());
 
     let transaction_discount_amount = detail
-        .unit_discount_money
+        .get_unit_discount_money(payment)
         .as_ref()
         .and_then(|unit_discount| {
             common_utils::types::ConnectorMinorUnitForConnector
@@ -76,7 +79,7 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
         .filter(|discount| discount.get_amount_as_i64() > 0);
 
     let line_item_taxes = detail
-        .total_tax_money
+        .get_total_tax_money(payment)
         .as_ref()
         .filter(|tax| {
             common_utils::types::ConnectorMinorUnitForConnector
@@ -103,10 +106,11 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
         line_item_unit_quantity: (detail.quantity > 0).then(|| detail.quantity.to_string()),
         line_item_unit_of_measure_code: detail.unit_of_measure.clone(),
         unit_price_amount: Some(
-            common_utils::types::ConnectorMinorUnitForConnector.convert(&detail.money),
+            common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&detail.get_unit_money(payment)),
         ),
         tax_inclusive_line_item_total_amount: detail
-            .total_money
+            .get_total_money(payment)
             .as_ref()
             .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money)),
         transaction_discount_amount,
@@ -118,6 +122,7 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
 
 fn build_level3(
     l2_l3_data: &L2L3Data,
+    payment: &common_utils::types::Money,
     fallback_shipping_cost: Option<ConnectorMinorUnit>,
 ) -> Option<requests::JpmorganLevel3> {
     let order_details = l2_l3_data.get_order_details()?;
@@ -134,23 +139,26 @@ fn build_level3(
         return None;
     }
 
-    let line_items = order_details.iter().map(build_line_item).collect();
+    let line_items = order_details
+        .iter()
+        .map(|detail| build_line_item(detail, payment))
+        .collect();
 
     let total_shipping_amount = l2_l3_data
-        .get_shipping_cost()
+        .get_shipping_cost(payment)
         .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money))
         .or(fallback_shipping_cost);
     let duty_amount = l2_l3_data
-        .get_duty_amount()
+        .get_duty_amount(payment)
         .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money));
     let value_added_tax_amount = l2_l3_data
-        .get_value_added_tax_amount()
+        .get_value_added_tax_amount(payment)
         .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money));
     let total_transaction_discount_amount = l2_l3_data
-        .get_discount_amount()
+        .get_discount_amount(payment)
         .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money));
     let shipping_value_added_tax_amount = l2_l3_data
-        .get_shipping_amount_tax()
+        .get_shipping_amount_tax(payment)
         .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money));
     let value_added_tax_invoice_reference_number = l2_l3_data
         .get_vat_invoice_reference_number()
@@ -192,6 +200,7 @@ fn build_level3(
 
 fn build_retail_addenda(
     l2_l3_data: Option<&L2L3Data>,
+    payment: &common_utils::types::Money,
     fallback_order_tax_amount: Option<ConnectorMinorUnit>,
     fallback_shipping_cost: Option<ConnectorMinorUnit>,
 ) -> Option<requests::JpmorganRetailAddenda> {
@@ -224,7 +233,7 @@ fn build_retail_addenda(
     });
 
     let tax_amount = l2_l3_data
-        .get_order_tax_amount()
+        .get_order_tax_amount(payment)
         .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money))
         .or(fallback_order_tax_amount)
         .filter(|tax_amount| tax_amount.get_amount_as_i64() > 0);
@@ -241,7 +250,7 @@ fn build_retail_addenda(
         .get_order_commodity_code()
         .filter(|code| !code.trim().is_empty());
 
-    let level3 = build_level3(l2_l3_data, fallback_shipping_cost);
+    let level3 = build_level3(l2_l3_data, payment, fallback_shipping_cost);
 
     let addenda = requests::JpmorganRetailAddenda {
         purchase_order_number,
@@ -320,20 +329,17 @@ fn authorize_level2_data<T: PaymentMethodDataTypes>(
     let l2_l3_data = router_data.resource_common_data.l2_l3_data.as_deref();
     let retail_addenda = build_retail_addenda(
         l2_l3_data,
+        &router_data.request.money,
         router_data
             .request
-            .order_tax_money
+            .get_order_tax_money()
             .as_ref()
-            .map(|order_tax_amount| {
-                common_utils::types::ConnectorMinorUnitForConnector.convert(order_tax_amount)
-            }),
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money)),
         router_data
             .request
-            .shipping_money
+            .get_shipping_money()
             .as_ref()
-            .map(|shipping_cost| {
-                common_utils::types::ConnectorMinorUnitForConnector.convert(shipping_cost)
-            }),
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money)),
     );
     let ship_to = build_ship_to(l2_l3_data, &router_data.resource_common_data.address);
     (retail_addenda, ship_to)

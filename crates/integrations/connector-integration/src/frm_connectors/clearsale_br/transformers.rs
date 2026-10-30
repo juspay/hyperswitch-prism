@@ -1640,6 +1640,7 @@ pub(crate) fn build_clear_sale_payment(
 }
 
 pub(crate) fn build_clear_sale_items(
+    payment: &common_utils::types::Money,
     order_details: Option<&Vec<OrderDetailsWithAmount>>,
     order_is_gift: Option<bool>,
 ) -> Result<Vec<ClearSaleItem>, Error> {
@@ -1652,7 +1653,9 @@ pub(crate) fn build_clear_sale_items(
                 name: detail.product_name.clone(),
                 code: detail.sku.clone().or(detail.product_id.clone()),
                 bar_code: detail.upc.clone(),
-                value: Some(super::ClearSaleBrAmountConvertor::convert(&detail.money)?),
+                value: Some(super::ClearSaleBrAmountConvertor::convert(
+                    &detail.get_unit_money(payment),
+                )?),
                 // Line quantity, not money — the wire field is ClearSale's `amount`.
                 amount: Some(detail.quantity),
                 category_id: None,
@@ -2146,7 +2149,7 @@ pub(crate) fn order_from_common(
         Some(billing.primary_document.clone()),
         money.currency(),
     )?];
-    let items = build_clear_sale_items(order_details, feature_data.is_gift)?;
+    let items = build_clear_sale_items(&money, order_details, feature_data.is_gift)?;
     let billing_country = billing_address
         .address
         .as_ref()

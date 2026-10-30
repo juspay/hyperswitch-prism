@@ -1792,7 +1792,7 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
         .iter()
         .map(|line| {
             let line_total = common_utils::types::ConnectorMinorUnitForConnector
-                .convert(&line.money)
+                .convert(&line.get_unit_money(&request.money))
                 .checked_mul(line.quantity)
                 .ok_or_else(|| {
                     invalid_format(
@@ -1815,17 +1815,21 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
                 amount: line_total,
                 quantity: line.quantity,
                 description,
-                tax_amount: line.total_tax_money.as_ref().map(|money| {
-                    common_utils::types::ConnectorMinorUnitForConnector.convert(money)
-                }),
+                tax_amount: line
+                    .get_total_tax_money(&request.money)
+                    .as_ref()
+                    .map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+                    }),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
     // A zero tax is the gRPC default for "no tax" and is not sent.
     let total_tax_amount = l2_l3
         .and_then(|data| data.tax_info.as_ref())
-        .and_then(|tax| tax.order_tax_money.as_ref())
-        .or(request.order_tax_money.as_ref())
+        .and_then(|tax| tax.get_order_tax_money(&request.money))
+        .or_else(|| request.get_order_tax_money())
+        .as_ref()
         .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
         .filter(|amount| amount.get_amount_as_i64() > 0);
     if positions.is_empty() && total_tax_amount.is_none() {

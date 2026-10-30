@@ -1101,7 +1101,9 @@ mod transformer_tests {
     #[test]
     fn test_capture_request_serialization() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproCaptureRequest {
-            amount: ConnectorMinorUnitForConnector.convert(&order_detail(2500)?.money),
+            amount: ConnectorMinorUnitForConnector.convert(&order_detail(2500)?.get_unit_money(
+                &common_utils::types::Money::zero(common_enums::Currency::EUR),
+            )),
         };
         let json: serde_json::Value = serde_json::to_value(&req)?;
         ensure_eq!(
@@ -1117,7 +1119,9 @@ mod transformer_tests {
     #[test]
     fn test_void_request_serialization() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproVoidRequest {
-            amount: ConnectorMinorUnitForConnector.convert(&order_detail(1000)?.money),
+            amount: ConnectorMinorUnitForConnector.convert(&order_detail(1000)?.get_unit_money(
+                &common_utils::types::Money::zero(common_enums::Currency::EUR),
+            )),
         };
         let json: serde_json::Value = serde_json::to_value(&req)?;
         ensure_eq!(json.get("amount"), Some(&serde_json::json!(1000)));
@@ -1129,7 +1133,9 @@ mod transformer_tests {
     #[test]
     fn test_refund_request_serialization_with_reason() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproRefundRequest {
-            amount: ConnectorMinorUnitForConnector.convert(&order_detail(500)?.money),
+            amount: ConnectorMinorUnitForConnector.convert(&order_detail(500)?.get_unit_money(
+                &common_utils::types::Money::zero(common_enums::Currency::EUR),
+            )),
             merchant_refund_reference: "ref_500".to_string(),
             refund_reason: Some(PproRefundReason::Fraud),
         };
@@ -1145,7 +1151,9 @@ mod transformer_tests {
     #[test]
     fn test_refund_request_serialization_no_reason() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproRefundRequest {
-            amount: ConnectorMinorUnitForConnector.convert(&order_detail(300)?.money),
+            amount: ConnectorMinorUnitForConnector.convert(&order_detail(300)?.get_unit_money(
+                &common_utils::types::Money::zero(common_enums::Currency::EUR),
+            )),
             merchant_refund_reference: "ref_300".to_string(),
             refund_reason: None,
         };
@@ -1606,7 +1614,7 @@ mod satispay_request_tests {
                     SatispayData {},
                 )),
                 money: authorization.money,
-                order_tax_money: None,
+                order_tax_amount: None,
                 surcharge_money: None,
                 email: None,
                 customer_name: None,
@@ -1633,7 +1641,7 @@ mod satispay_request_tests {
                 request_incremental_authorization: Some(false),
                 metadata: None,
                 merchant_order_id: None,
-                shipping_money: None,
+                shipping_cost: None,
                 merchant_account_id: None,
                 merchant_config_currency: None,
                 all_keys_required: None,

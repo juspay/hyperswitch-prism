@@ -4962,8 +4962,10 @@ mod tests {
             let element = GlobalpaymentsRealexAmount {
                 currency,
                 value: format_amount(
-                    common_utils::types::ConnectorMinorUnitForConnector
-                        .convert(&order_detail(1001, currency).money),
+                    common_utils::types::ConnectorMinorUnitForConnector.convert(
+                        &order_detail(1001, currency)
+                            .get_unit_money(&common_utils::types::Money::zero(currency)),
+                    ),
                     currency,
                 )
                 .expect("amount"),
@@ -4975,8 +4977,10 @@ mod tests {
                     "<amount currency=\"{}\">{}</amount>",
                     currency,
                     format_amount(
-                        common_utils::types::ConnectorMinorUnitForConnector
-                            .convert(&order_detail(1001, currency).money),
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(
+                            &order_detail(1001, currency)
+                                .get_unit_money(&common_utils::types::Money::zero(currency))
+                        ),
                         currency
                     )
                     .expect("amount")
@@ -4996,8 +5000,10 @@ mod tests {
         // that the gateway wants it.
         assert_eq!(
             format_amount(
-                common_utils::types::ConnectorMinorUnitForConnector
-                    .convert(&order_detail(1000, Currency::JPY).money),
+                common_utils::types::ConnectorMinorUnitForConnector.convert(
+                    &order_detail(1000, Currency::JPY)
+                        .get_unit_money(&common_utils::types::Money::zero(Currency::JPY))
+                ),
                 Currency::JPY
             )
             .expect("jpy"),
@@ -5007,8 +5013,10 @@ mod tests {
         // Every other currency, zero-exponent ones included, is passed through untouched.
         assert_eq!(
             format_amount(
-                common_utils::types::ConnectorMinorUnitForConnector
-                    .convert(&order_detail(1001, Currency::EUR).money),
+                common_utils::types::ConnectorMinorUnitForConnector.convert(
+                    &order_detail(1001, Currency::EUR)
+                        .get_unit_money(&common_utils::types::Money::zero(Currency::EUR))
+                ),
                 Currency::EUR
             )
             .expect("eur"),
@@ -5016,8 +5024,10 @@ mod tests {
         );
         assert_eq!(
             format_amount(
-                common_utils::types::ConnectorMinorUnitForConnector
-                    .convert(&order_detail(1000, Currency::KRW).money),
+                common_utils::types::ConnectorMinorUnitForConnector.convert(
+                    &order_detail(1000, Currency::KRW)
+                        .get_unit_money(&common_utils::types::Money::zero(Currency::KRW))
+                ),
                 Currency::KRW
             )
             .expect("krw"),
@@ -5028,15 +5038,19 @@ mod tests {
         // refused before the request is built.
         assert!(format_amount(ConnectorMinorUnit::zero(), Currency::EUR).is_err());
         assert!(format_amount(
-            common_utils::types::ConnectorMinorUnitForConnector
-                .convert(&order_detail(-1, Currency::EUR).money),
+            common_utils::types::ConnectorMinorUnitForConnector.convert(
+                &order_detail(-1, Currency::EUR)
+                    .get_unit_money(&common_utils::types::Money::zero(Currency::EUR))
+            ),
             Currency::EUR
         )
         .is_err());
         // The JPY multiply is checked, not wrapping.
         assert!(format_amount(
-            common_utils::types::ConnectorMinorUnitForConnector
-                .convert(&order_detail(i64::MAX, Currency::JPY).money),
+            common_utils::types::ConnectorMinorUnitForConnector.convert(
+                &order_detail(i64::MAX, Currency::JPY)
+                    .get_unit_money(&common_utils::types::Money::zero(Currency::JPY))
+            ),
             Currency::JPY
         )
         .is_err());

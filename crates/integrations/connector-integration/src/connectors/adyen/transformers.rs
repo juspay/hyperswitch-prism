@@ -8231,10 +8231,12 @@ fn get_line_items<
             .enumerate()
             .map(|(i, data)| LineItem {
                 amount_including_tax: Some(
-                    common_utils::types::ConnectorMinorUnitForConnector.convert(&data.money),
+                    common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&data.get_unit_money(&item.router_data.request.money)),
                 ),
                 amount_excluding_tax: Some(
-                    common_utils::types::ConnectorMinorUnitForConnector.convert(&data.money),
+                    common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&data.get_unit_money(&item.router_data.request.money)),
                 ),
                 description: Some(data.product_name.clone()),
                 id: Some(format!("Items #{i}")),

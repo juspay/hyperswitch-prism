@@ -1109,7 +1109,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
         )?;
         let shipping_details = build_shipping_details(&router_data.resource_common_data);
-        let items = build_items(&router_data.resource_common_data.order_details);
+        let items = build_items(
+            &router_data.resource_common_data.order_details,
+            &router_data.request.money,
+        );
         let partner_tx_id = router_data
             .resource_common_data
             .connector_request_reference_id
@@ -1134,6 +1137,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 fn build_items(
     order_details: &Option<Vec<domain_types::payment_address::OrderDetailsWithAmount>>,
+    payment: &common_utils::types::Money,
 ) -> Option<Vec<GrabpayItem>> {
     let items = order_details
         .as_ref()?
@@ -1142,7 +1146,8 @@ fn build_items(
         .map(|detail| GrabpayItem {
             item_name: detail.product_name.clone(),
             quantity: detail.quantity,
-            price: common_utils::types::ConnectorMinorUnitForConnector.convert(&detail.money),
+            price: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&detail.get_unit_money(payment)),
             category: detail.category.clone(),
             item_category: detail.sub_category.clone(),
             image_url: detail.product_img_link.clone(),

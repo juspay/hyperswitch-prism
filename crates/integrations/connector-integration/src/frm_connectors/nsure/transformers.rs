@@ -621,6 +621,7 @@ fn nsure_payment_method(
 /// from `connector_feature_data` because prism has no notion of nSure's
 /// vertical taxonomy.
 fn nsure_cart(
+    payment: &common_utils::types::Money,
     order_details: Option<&Vec<OrderDetailsWithAmount>>,
     total: &NsureAmount,
     feature_data: &NsureFeatureData,
@@ -650,7 +651,9 @@ fn nsure_cart(
                     // Pending confirmation from nSure; quantity is 1 in every
                     // request exercised so far, where both readings agree.
                     selling_price: NsureAmount {
-                        value_in_currency: super::NsureAmountConvertor::convert(&detail.money)?,
+                        value_in_currency: super::NsureAmountConvertor::convert(
+                            &detail.get_unit_money(payment),
+                        )?,
                         currency: total.currency,
                     },
                     sku: detail.sku.clone().or_else(|| detail.product_id.clone()),
@@ -758,7 +761,12 @@ impl<
             value_in_currency: super::NsureAmountConvertor::convert(&req.money)?,
             currency,
         };
-        let cart = nsure_cart(req.order_details.as_ref(), &paid_amount, &feature_data)?;
+        let cart = nsure_cart(
+            &req.money,
+            req.order_details.as_ref(),
+            &paid_amount,
+            &feature_data,
+        )?;
 
         let billing_info = nsure_billing_info(
             req.address
