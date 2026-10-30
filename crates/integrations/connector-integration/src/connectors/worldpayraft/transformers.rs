@@ -22,8 +22,8 @@ use domain_types::{
     errors,
     payment_method_data::{
         ApplePayPaymentData, Card, CardDetailsForNetworkTransactionId, CardWithNoCvc,
-        DefaultPCIHolder, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
-        RawCardNumber, WalletData,
+        DefaultPCIHolder, GpayTokenizationData, NetworkTokenData, PaymentMethodData,
+        PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -87,7 +87,7 @@ pub enum WorldpayraftEcommerceIndicator {
     #[serde(rename = "03")]
     Installment,
     #[serde(untagged)]
-    Wallet(String),
+    Cryptogram(String),
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -478,7 +478,7 @@ impl WorldpayraftPosData {
                 pos_environment: None,
             },
             ecommerce_data: WorldpayraftEcommerceData {
-                ecommerce_indicator: WorldpayraftEcommerceIndicator::Wallet(
+                ecommerce_indicator: WorldpayraftEcommerceIndicator::Cryptogram(
                     wallet.ecommerce_indicator.clone(),
                 ),
             },
@@ -915,6 +915,9 @@ impl WorldpayraftMandateMetadata {
                 resolve_card_network(card.card_network.clone(), card.card_number.peek()),
                 card.get_expiry_date_as_yymm().ok(),
             ),
+            PaymentMethodData::NetworkToken(token) => {
+                (token.card_network.clone(), network_token_expiry(token).ok())
+            }
             _ => (None, None),
         };
         metadata.connector_metadata.card_network =
@@ -1009,12 +1012,13 @@ impl WorldpayraftMandateMetadata {
     }
 }
 
-/// PANs retain their holder type; no-CVC cards always contain validated PCI data.
+/// Card numbers and network tokens retain their validated PCI types.
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum WorldpayraftAuthorizePan<T: PaymentMethodDataTypes> {
     Card(RawCardNumber<T>),
     CardNumber(cards::CardNumber),
+    NetworkToken(cards::NetworkToken),
 }
 
 #[derive(Debug, Serialize)]
@@ -1272,26 +1276,7 @@ impl TryFrom<&WalletData> for WorldpayraftWalletData {
                 },
             }
         })?;
-        // Use the wallet's ECI when present; RAFT specifies brand defaults otherwise.
-        let ecommerce_indicator = match eci.filter(|value| !value.is_empty()) {
-            Some(value) if value.len() <= 2 && value.bytes().all(|byte| byte.is_ascii_digit()) => {
-                format!("{value:0>2}")
-            }
-            Some(_) => {
-                return Err(errors::IntegrationError::InvalidDataFormat {
-                    field_name: "wallet.eci_indicator",
-                    context: errors::IntegrationErrorContext {
-                        additional_context: Some(
-                            "Worldpay RAFT ECI must contain one or two digits".to_string(),
-                        ),
-                        ..Default::default()
-                    },
-                }
-                .into())
-            }
-            None if network == CardNetwork::AmericanExpress => "20".to_string(),
-            None => "05".to_string(),
-        };
+        let ecommerce_indicator = required_ecommerce_indicator(eci, "wallet.eci_indicator")?;
         let card = CardWithNoCvc {
             card_number: card_number.clone(),
             card_exp_year: expiry_year.clone(),
@@ -1325,6 +1310,25 @@ fn wallet_decryption_required(wallet_name: &str) -> error_stack::Report<errors::
     .into()
 }
 
+fn required_ecommerce_indicator(
+    eci: Option<&str>,
+    field_name: &'static str,
+) -> Result<String, error_stack::Report<errors::IntegrationError>> {
+    let value = eci
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| errors::IntegrationError::MissingRequiredField {
+            field_name,
+            context: errors::IntegrationErrorContext {
+                additional_context: Some(
+                    "Worldpay RAFT requires an ECI when sending a payment cryptogram".to_string(),
+                ),
+                ..Default::default()
+            },
+        })?;
+
+    Ok(value.to_string())
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<&PaymentMethodData<T>> for CardFields<T>
 {
@@ -1335,12 +1339,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card) => Self::try_from(card),
             PaymentMethodData::CardWithNoCvc(card) => Self::try_from(card),
             PaymentMethodData::CardDetailsForNetworkTransactionId(card) => Self::try_from(card),
+            PaymentMethodData::NetworkToken(token) => Self::try_from(token),
             _ => Err(error_stack::report!(
                 errors::IntegrationError::NotImplemented(
-                    "Only card payment methods are supported for Worldpay RAFT".to_string(),
+                    "Only card and network token payment methods are supported for Worldpay RAFT"
+                        .to_string(),
                     errors::IntegrationErrorContext {
                         additional_context: Some(
-                            "Worldpay RAFT authorization requires a card PAN and expiry; use Card, CardWithNoCvc, or CardDetailsForNetworkTransactionId".to_string(),
+                            "Worldpay RAFT authorization requires a card PAN or network token and its expiry".to_string(),
                         ),
                         ..Default::default()
                     },
@@ -1348,6 +1354,31 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )),
         }
     }
+}
+
+fn network_token_expiry(
+    token: &NetworkTokenData,
+) -> Result<Secret<String>, error_stack::Report<errors::IntegrationError>> {
+    let year = token.get_token_expiry_year_2_digit()?;
+    let token_month = token.get_network_token_expiry_month();
+    let invalid_month = || errors::IntegrationError::InvalidDataFormat {
+        field_name: "payment_method_data.network_token.token_exp_month",
+        context: errors::IntegrationErrorContext {
+            additional_context: Some("Expected a month from 01 through 12".to_string()),
+            ..Default::default()
+        },
+    };
+    let month = token_month
+        .peek()
+        .parse::<u8>()
+        .change_context(invalid_month())?;
+    let month =
+        cards::validate::CardExpirationMonth::try_from(month).change_context(invalid_month())?;
+    Ok(Secret::new(format!(
+        "{}{}",
+        year.peek(),
+        month.two_digits()
+    )))
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1398,6 +1429,37 @@ impl<T: PaymentMethodDataTypes> TryFrom<&CardDetailsForNetworkTransactionId<T>> 
     }
 }
 
+impl<T: PaymentMethodDataTypes> TryFrom<&NetworkTokenData> for CardFields<T> {
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(token: &NetworkTokenData) -> Result<Self, Self::Error> {
+        let network = token.card_network.clone().ok_or_else(missing_field_err(
+            "payment_method_data.network_token.card_network",
+        ))?;
+        let is_debit = is_debit_card_type(token.card_type.as_deref());
+        if is_debit {
+            return Err(errors::IntegrationError::NotSupported {
+                message: "Debit network tokens are not supported by Worldpay RAFT credit flows"
+                    .to_string(),
+                connector: "worldpayraft",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Debit network tokens require the debit preauth or purchase path, which Worldpay RAFT does not support for tokens".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
+        Ok(Self {
+            pan: WorldpayraftAuthorizePan::NetworkToken(token.token_number.clone()),
+            expiration_date: network_token_expiry(token)?,
+            is_debit,
+            network: Some(network),
+        })
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         WorldpayraftRouterData<
@@ -1442,18 +1504,42 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let request = &router_data.request;
+        let network_token = match &request.payment_method_data {
+            PaymentMethodData::NetworkToken(token) => Some(token),
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardWithNoCvc(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::PaymentMethodToken(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::MobilePayment(_) => None,
+        };
         let wallet = match &request.payment_method_data {
             PaymentMethodData::Wallet(wallet) => Some(WorldpayraftWalletData::try_from(wallet)?),
             _ => None,
         };
-        let card = match &wallet {
-            Some(wallet) => CardFields {
+        let card = match (wallet.as_ref(), network_token) {
+            (Some(wallet), _) => CardFields {
                 pan: WorldpayraftAuthorizePan::CardNumber(wallet.card_number.clone()),
                 expiration_date: wallet.expiration_date.clone(),
                 network: Some(wallet.network.clone()),
                 is_debit: false,
             },
-            None => CardFields::try_from(&request.payment_method_data)?,
+            (None, Some(token)) => CardFields::try_from(token)?,
+            (None, None) => CardFields::try_from(&request.payment_method_data)?,
         };
         let is_debit = card.is_debit;
         let is_auto_capture = request.is_auto_capture();
@@ -1479,6 +1565,40 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let metadata = mandate_metadata.connector_metadata;
         let network_transaction_id = mandate_metadata.network_transaction_id;
         let kind = WorldpayraftPaymentKind::for_authorize(request, metadata.is_stored_credential);
+        let network_token_cryptogram = match (network_token, kind) {
+            (Some(_), WorldpayraftPaymentKind::Mit) => {
+                if !matches!(mandate, Some(MandateReferenceId::NetworkTokenWithNTI(_))) {
+                    return Err(missing_field_err(
+                        "mandate_reference.network_token_with_nti",
+                    )());
+                }
+                if network_transaction_id
+                    .as_deref()
+                    .is_none_or(|id| id.trim().is_empty())
+                {
+                    return Err(missing_field_err(
+                        "mandate_reference.network_transaction_id",
+                    )());
+                }
+                None
+            }
+            (Some(token), _) => Some(
+                token
+                    .token_cryptogram
+                    .as_ref()
+                    .filter(|cryptogram| !cryptogram.peek().trim().is_empty())
+                    .ok_or_else(missing_field_err(
+                        "payment_method_data.network_token.token_cryptogram",
+                    ))?
+                    .clone(),
+            ),
+            (None, _) => None,
+        };
+        if matches!(mandate, Some(MandateReferenceId::NetworkTokenWithNTI(_)))
+            && network_token.is_none()
+        {
+            return Err(missing_field_err("payment_method_data.network_token")());
+        }
         if wallet.is_some() && kind != WorldpayraftPaymentKind::OneOff {
             return Err(errors::IntegrationError::NotSupported {
                 message:
@@ -1526,6 +1646,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 request.enable_partial_authorization,
             )
         };
+        if let Some(token) = network_token.filter(|_| kind != WorldpayraftPaymentKind::Mit) {
+            pos.terminal_data.entry_mode = WorldpayraftEntryMode::Ecommerce;
+            pos.ecommerce_data.ecommerce_indicator =
+                WorldpayraftEcommerceIndicator::Cryptogram(required_ecommerce_indicator(
+                    token.eci.as_deref(),
+                    "payment_method_data.network_token.eci",
+                )?);
+        }
         let brand_specific_data = if !is_debit && kind == WorldpayraftPaymentKind::Mit {
             WorldpayraftBrandSpecificData::for_mit(
                 network.as_ref(),
@@ -1595,7 +1723,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             terminal_data: pos.terminal_data,
             ecommerce_data: WorldpayraftAuthorizeEcommerceData {
                 ecommerce_data: pos.ecommerce_data,
-                cryptogram: wallet.map(|wallet| wallet.cryptogram),
+                cryptogram: wallet
+                    .map(|wallet| wallet.cryptogram)
+                    .or(network_token_cryptogram),
             },
             proc_flags_indicators: pos.proc_flags,
             brand_specific_data,
@@ -2605,14 +2735,35 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             request.connector_feature_data.as_ref(),
             Some(&request.mandate_reference),
         ))?;
-        // MIT needs only PAN/expiry or a Worldpay token. CardFields never reads CVV,
-        // including when a caller supplies the full Card variant.
+        // MITs use the credential and its expiry, without a CIT CVV or cryptogram.
+        let is_network_token = matches!(
+            &request.payment_method_data,
+            PaymentMethodData::NetworkToken(_)
+        );
+        if is_network_token
+            != matches!(
+                &request.mandate_reference,
+                MandateReferenceId::NetworkTokenWithNTI(_)
+            )
+        {
+            return Err(errors::IntegrationError::InvalidDataFormat {
+                field_name: "mandate_reference",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "NetworkToken payment methods require NetworkTokenWithNTI, and NetworkTokenWithNTI requires a NetworkToken payment method".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
         let card = match &request.payment_method_data {
             PaymentMethodData::Card(_)
             | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Some(CardFields::try_from(&request.payment_method_data)?)
             }
+            PaymentMethodData::NetworkToken(token) => Some(CardFields::try_from(token)?),
             _ => None,
         };
         let network = card
@@ -2663,14 +2814,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(errors::IntegrationError::NotImplemented(
-                    "Network tokens are not supported for Worldpay RAFT RepeatPayment".to_string(),
-                    errors::IntegrationErrorContext::default(),
+                let token =
+                    card.ok_or_else(missing_field_err("payment_method_data.network_token"))?;
+                (
+                    WorldpayraftCardInfo {
+                        pan: Some(token.pan),
+                        expiration_date: Some(token.expiration_date),
+                    },
+                    None,
                 )
-                .into())
             }
         };
         let network_transaction_id = metadata.network_transaction_id;
+        if is_network_token
+            && network_transaction_id
+                .as_deref()
+                .is_none_or(|id| id.trim().is_empty())
+        {
+            return Err(missing_field_err(
+                "mandate_reference.network_transaction_id",
+            )());
+        }
         validate_stored_card_network(
             network.as_ref(),
             request.mit_category.as_ref(),

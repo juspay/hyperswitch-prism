@@ -178,6 +178,7 @@ pub enum ConnectorEnum {
     GlobalpaymentsRealex,
     GlobalpaymentsHeartland,
     Payhere,
+    Betterpayment,
     Ecommpay,
 }
 
@@ -580,6 +581,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Paydotcom => Ok(Self::Paydotcom),
             grpc_api_types::payments::Connector::ElavonPg => Ok(Self::ElavonPg),
             grpc_api_types::payments::Connector::Payhere => Ok(Self::Payhere),
+            grpc_api_types::payments::Connector::Betterpayment => Ok(Self::Betterpayment),
             grpc_api_types::payments::Connector::Ecommpay => Ok(Self::Ecommpay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -3943,6 +3945,9 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
+    /// Category of the order/service (proto `order_category`), for connectors that
+    /// require it on the mandate-setup order.
+    pub order_category: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -5478,7 +5483,7 @@ pub struct TaxInfo {
     pub vat_invoice_reference_number: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CustomerInfo {
     pub customer_id: Option<CustomerId>,
     pub customer_email: Option<common_utils::pii::Email>,
@@ -6558,6 +6563,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Paydotcom(_) => Ok(Self::Payment(ConnectorEnum::Paydotcom)),
             AuthType::ElavonPg(_) => Ok(Self::Payment(ConnectorEnum::ElavonPg)),
             AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
+            AuthType::Betterpayment(_) => Ok(Self::Payment(ConnectorEnum::Betterpayment)),
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),

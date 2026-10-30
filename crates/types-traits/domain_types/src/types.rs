@@ -476,6 +476,7 @@ pub struct Connectors {
     pub elavon_pg: ConnectorParams,
     pub globalpayments_realex: ConnectorParams,
     pub payhere: ConnectorParams,
+    pub betterpayment: ConnectorParams,
     pub ecommpay: ConnectorParams,
 }
 
@@ -879,6 +880,9 @@ impl Connectors {
             ConnectorEnum::Payhere => {
                 patched.payhere.apply(params_patch);
             }
+            ConnectorEnum::Betterpayment => {
+                patched.betterpayment.apply(params_patch);
+            }
             ConnectorEnum::Ecommpay => {
                 patched.ecommpay.apply(params_patch);
             }
@@ -889,7 +893,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, ppro, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, ecommpay",
+                             Supported connectors: stripe, ppro, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, ecommpay, betterpayment",
                             connector
                         )),
                         ..Default::default()
@@ -6021,6 +6025,7 @@ impl<
             payment_channel,
             enable_partial_authorization: value.enable_partial_authorization,
             locale: value.locale.clone(),
+            order_category: value.order_category.clone(),
             mit_category: value.mit_category,
             connector_testing_data,
             split_payments: value
@@ -13991,12 +13996,38 @@ impl<
 
         let setup_future_usage = value.setup_future_usage();
 
+        // The mandate type (and its amount) comes from setup_mandate_details when the
+        // caller sends it; customer acceptance stays sourced from the request itself.
+        // Only mandate_type is converted here: the embedded customer_acceptance and
+        // update_mandate_id are not parsed on this path, so they cannot fail SetupRecurring.
+        //
+        // This field was previously hardcoded `None` for every connector, so a malformed
+        // mandate_type was silently ignored. It is converted leniently here for that reason:
+        // a conversion failure falls back to `None` and is logged, so no SetupRecurring that
+        // succeeded before can start failing on this path. A connector that requires the
+        // mandate amount validates it itself and raises its own field-specific error.
+        let mandate_type = match foreign_mandate_data_type(
+            value
+                .setup_mandate_details
+                .as_ref()
+                .and_then(|details| details.mandate_type.clone()),
+        ) {
+            Ok(mandate_type) => mandate_type,
+            Err(error) => {
+                tracing::warn!(
+                    ?error,
+                    "SetupRecurring: setup_mandate_details.mandate_type could not be converted; \
+                     treating it as absent"
+                );
+                None
+            }
+        };
         let setup_mandate_details = MandateData {
             update_mandate_id: None,
             customer_acceptance: Some(mandates::CustomerAcceptance::foreign_try_from(
                 customer_acceptance.clone(),
             )?),
-            mandate_type: None,
+            mandate_type,
         };
 
         let billing_descriptor =
@@ -14092,6 +14123,7 @@ impl<
             payment_channel,
             enable_partial_authorization: value.enable_partial_authorization,
             locale: value.locale.clone(),
+            order_category: value.order_category.clone(),
             connector_testing_data: value.connector_testing_data.and_then(|s| {
                 serde_json::from_str(&s.expose())
                     .ok()
@@ -14613,11 +14645,26 @@ impl ForeignTryFrom<grpc_api_types::payments::SetupMandateDetails> for MandateDa
         value: grpc_api_types::payments::SetupMandateDetails,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         // Map the mandate_type from grpc type to domain type
-        #[allow(deprecated)]
-        let mandate_type = match value
-            .mandate_type
-            .and_then(|grpc_mandate_type| grpc_mandate_type.mandate_type)
-        {
+        let mandate_type = foreign_mandate_data_type(value.mandate_type)?;
+
+        Ok(Self {
+            update_mandate_id: value.update_mandate_id,
+            customer_acceptance: value
+                .customer_acceptance
+                .map(mandates::CustomerAcceptance::foreign_try_from)
+                .transpose()?,
+            mandate_type,
+        })
+    }
+}
+
+/// Converts a grpc `MandateType` into the domain `MandateDataType`.
+fn foreign_mandate_data_type(
+    mandate_type: Option<grpc_api_types::payments::MandateType>,
+) -> Result<Option<mandates::MandateDataType>, error_stack::Report<IntegrationError>> {
+    #[allow(deprecated)]
+    let mandate_type =
+        match mandate_type.and_then(|grpc_mandate_type| grpc_mandate_type.mandate_type) {
             Some(grpc_api_types::payments::mandate_type::MandateType::SingleUse(amount_data)) => {
                 Some(mandates::MandateDataType::SingleUse(
                     mandates::MandateAmountData::foreign_try_from(amount_data)?,
@@ -14630,16 +14677,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SetupMandateDetails> for MandateDa
             }
             None => None,
         };
-
-        Ok(Self {
-            update_mandate_id: value.update_mandate_id,
-            customer_acceptance: value
-                .customer_acceptance
-                .map(mandates::CustomerAcceptance::foreign_try_from)
-                .transpose()?,
-            mandate_type,
-        })
-    }
+    Ok(mandate_type)
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::FutureUsage> for common_enums::FutureUsage {
