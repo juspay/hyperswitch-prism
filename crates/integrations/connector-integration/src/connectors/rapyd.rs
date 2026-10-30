@@ -1,4 +1,3 @@
-mod test;
 pub mod transformers;
 
 use base64::Engine;
