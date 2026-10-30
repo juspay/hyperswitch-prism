@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use common_enums::{AttemptStatus, CountryAlpha2, Currency, PostCaptureVoidStatus, RefundStatus};
+use common_enums::{
+    AttemptStatus, CountryAlpha2, Currency, PaymentMethodType, PostCaptureVoidStatus, RefundStatus,
+};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::jose::JoseConfig,
@@ -314,8 +316,22 @@ pub struct PacoShippingAddress {
 /// PACO accepts a short state value only. Do not fall back to the deprecated
 /// state-name field: sending a full subdivision code or name can make the
 /// request invalid.
-fn select_paco_billing_state(state_code_iso: Option<Secret<String>>) -> Option<Secret<String>> {
+pub(super) fn select_paco_billing_state(
+    state_code_iso: Option<Secret<String>>,
+) -> Option<Secret<String>> {
     state_code_iso.filter(|state| state.peek().chars().count() <= 3)
+}
+
+pub(super) fn connector_response_from_approval_code(
+    approval_code: Option<String>,
+    payment_method_type: Option<PaymentMethodType>,
+) -> Option<ConnectorResponseData> {
+    approval_code.map(|code| {
+        ConnectorResponseData::with_auth_code(
+            code,
+            payment_method_type.unwrap_or(PaymentMethodType::Card),
+        )
+    })
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1576,6 +1592,8 @@ pub struct PacoPriorPaymentResponseDetails {
     pub response_code: Option<String>,
     #[serde(default)]
     pub response_description: Option<String>,
+    #[serde(default)]
+    pub approval_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1698,7 +1716,10 @@ impl TwocTwopPacoNonUiResponse {
                 invoice_no2c2p: data.invoice_no2c2p.clone(),
                 order_no: data.order_no.clone(),
                 controller_internal_id: None,
-                approval_code: None,
+                approval_code: data
+                    .psp_response
+                    .as_ref()
+                    .and_then(|response| response.approval_code.clone()),
                 payment_status_info: data.payment_status_info.clone(),
                 prior_payment_response_details: data.psp_response.clone(),
                 payment_page: None,
@@ -1727,12 +1748,14 @@ where
             router_data,
             http_code,
         } = item;
-        let result = response.merged_result();
+        let result = response.flat_data_block();
         let api_response = response.api_response.clone();
-        let approval_code = result.and_then(|block| block.approval_code.clone());
+        let approval_code = result
+            .as_ref()
+            .and_then(|block| block.approval_code.clone());
 
         let (status, redirection_data, connector_txn_id, connector_response_reference_id, prior) =
-            match result {
+            match result.as_ref() {
                 Some(block) => {
                     let info = block
                         .payment_status_info
@@ -1843,12 +1866,10 @@ where
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 raw_connector_status,
-                connector_response: approval_code.and_then(|code| {
-                    router_data
-                        .resource_common_data
-                        .payment_method_type
-                        .map(|pmt| ConnectorResponseData::with_auth_code(code, pmt))
-                }),
+                connector_response: connector_response_from_approval_code(
+                    approval_code,
+                    router_data.resource_common_data.payment_method_type,
+                ),
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2333,12 +2354,10 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 raw_connector_status,
-                connector_response: approval_code.and_then(|code| {
-                    router_data
-                        .resource_common_data
-                        .payment_method_type
-                        .map(|pmt| ConnectorResponseData::with_auth_code(code, pmt))
-                }),
+                connector_response: connector_response_from_approval_code(
+                    approval_code,
+                    router_data.resource_common_data.payment_method_type,
+                ),
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {

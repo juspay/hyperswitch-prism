@@ -113,32 +113,35 @@ fn fetch_payment_instrument<
                         month: Secret::new(expiry_month),
                         year: Secret::new(expiry_year),
                     },
-                    card_number: card.card_number
+                    card_number: card.card_number,
                 },
                 cvc: card.card_cvc,
                 card_holder_name: billing_address
                     .and_then(|address| address.get_optional_full_name())
                     .map(crate::utils::normalize_cardholder_name),
                 billing_address: billing_address
-      .and_then(|addr| addr.address.clone())
-      .and_then(|address| {
-          let state = address.get_optional_state();
-          match (address.line1, address.city, address.zip, address.country) {
-              (Some(address1), Some(city), Some(postal_code), Some(country_code)) => {
-                  Some(BillingAddress {
-                      address1,
-                      address2: address.line2,
-                      address3: address.line3,
-                      city,
-                      state,
-                                    postal_code,
-                                    country_code
-})
-                            }
-                            _ => None
-}
-                    })
-}))
+                    .and_then(|addr| addr.address.clone())
+                    .and_then(|address| {
+                        let state = address.get_optional_state();
+                        match (address.line1, address.city, address.zip, address.country) {
+                            (
+                                Some(address1),
+                                Some(city),
+                                Some(postal_code),
+                                Some(country_code),
+                            ) => Some(BillingAddress {
+                                address1,
+                                address2: address.line2,
+                                address3: address.line3,
+                                city,
+                                state,
+                                postal_code,
+                                country_code,
+                            }),
+                            _ => None,
+                        }
+                    }),
+            }))
         }
         PaymentMethodData::CardDetailsForNetworkTransactionId(raw_card_details) => {
             let exp_month_str = raw_card_details.card_exp_month.peek().to_string();

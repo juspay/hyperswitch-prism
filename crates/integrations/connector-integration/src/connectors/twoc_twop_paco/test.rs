@@ -340,3 +340,101 @@ mod void_pc {
         }
     }
 }
+
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
+mod state_and_approval_code {
+    use domain_types::router_data::AdditionalPaymentMethodConnectorResponse;
+    use hyperswitch_masking::{PeekInterface, Secret};
+    use serde_json::json;
+
+    use crate::connectors::twoc_twop_paco::transformers::{
+        connector_response_from_approval_code, select_paco_billing_state,
+        TwocTwopPacoInquiryResponse, TwocTwopPacoNonUiResponse,
+    };
+
+    #[test]
+    fn paco_accepts_state_code_up_to_three_characters() {
+        let state = select_paco_billing_state(Some(Secret::new("CA".to_string()))).unwrap();
+
+        assert_eq!(state.peek(), "CA");
+    }
+
+    #[test]
+    fn paco_drops_state_code_longer_than_three_characters() {
+        assert!(select_paco_billing_state(Some(Secret::new("US-CA".to_string()))).is_none());
+    }
+
+    #[test]
+    fn paco_does_not_use_legacy_state_without_an_iso_code() {
+        assert!(select_paco_billing_state(None).is_none());
+    }
+
+    #[test]
+    fn authorize_response_uses_payment_result_approval_code() {
+        let response: TwocTwopPacoNonUiResponse = serde_json::from_value(json!({
+            "data": {
+                "paymentResult": {
+                    "approvalCode": "552236",
+                    "paymentStatusInfo": {
+                        "paymentStatus": "A",
+                        "paymentStep": "PA"
+                    }
+                }
+            }
+        }))
+        .unwrap();
+
+        assert_eq!(
+            response
+                .flat_data_block()
+                .and_then(|result| result.approval_code)
+                .as_deref(),
+            Some("552236")
+        );
+    }
+
+    #[test]
+    fn authorize_flat_response_falls_back_to_psp_approval_code() {
+        let response: TwocTwopPacoNonUiResponse = serde_json::from_value(json!({
+            "data": {
+                "paymentStatusInfo": {
+                    "paymentStatus": "A",
+                    "paymentStep": "PA"
+                },
+                "pspResponse": {
+                    "approvalCode": "552236"
+                }
+            }
+        }))
+        .unwrap();
+
+        assert_eq!(
+            response
+                .flat_data_block()
+                .and_then(|result| result.approval_code)
+                .as_deref(),
+            Some("552236")
+        );
+    }
+
+    #[test]
+    fn psync_approval_code_is_kept_when_payment_method_type_is_missing() {
+        let response: TwocTwopPacoInquiryResponse = serde_json::from_value(json!({
+            "data": {
+                "approvalCode": "552236"
+            }
+        }))
+        .unwrap();
+        let approval_code = response.data.and_then(|data| data.approval_code);
+        let connector_response =
+            connector_response_from_approval_code(approval_code, None).unwrap();
+
+        match connector_response.additional_payment_method_data {
+            Some(AdditionalPaymentMethodConnectorResponse::Card { auth_code, .. }) => {
+                assert_eq!(auth_code.as_deref(), Some("552236"));
+            }
+            other => panic!("expected card connector response, got {other:?}"),
+        }
+    }
+}
