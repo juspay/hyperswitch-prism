@@ -97,6 +97,7 @@ pub struct SurchargeCalculateRequest {
 
 #[derive(Debug, Clone)]
 pub struct SurchargeRefundInitRequest {
+    pub merchant_surcharge_refund_id: Option<String>,
     pub connector_surcharge_id: String,
     pub amount: MinorUnit,
     pub currency: Currency,
@@ -113,6 +114,7 @@ pub struct SurchargeRefundInitResponse {
 
 #[derive(Debug, Clone)]
 pub struct SurchargeRefundCompleteRequest {
+    pub merchant_surcharge_refund_id: Option<String>,
     pub connector_surcharge_refund_id: String,
 }
 

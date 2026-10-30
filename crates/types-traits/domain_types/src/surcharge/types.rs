@@ -20,10 +20,16 @@ use crate::{
 use common_utils::{metadata::MaskedMetadata, types::MinorUnit};
 use error_stack::ResultExt;
 
-fn missing_refund_field(field_name: &'static str) -> error_stack::Report<IntegrationError> {
+fn missing_refund_field(
+    field_name: &'static str,
+    additional_context: &'static str,
+) -> error_stack::Report<IntegrationError> {
     error_stack::report!(IntegrationError::MissingRequiredField {
         field_name,
-        context: IntegrationErrorContext::default(),
+        context: IntegrationErrorContext {
+            additional_context: Some(additional_context.to_owned()),
+            ..Default::default()
+        },
     })
 }
 
@@ -90,21 +96,41 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceSurchargeRefundIn
         value: grpc_api_types::surcharge::SurchargeServiceSurchargeRefundInitRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         if value.connector_surcharge_id.trim().is_empty() {
-            return Err(missing_refund_field("connector_surcharge_id"));
+            return Err(missing_refund_field(
+                "connector_surcharge_id",
+                "connector_surcharge_id must be non-empty",
+            ));
         }
-        let amount = value.amount.ok_or_else(|| missing_refund_field("amount"))?;
+        let amount = value.amount.ok_or_else(|| {
+            missing_refund_field(
+                "amount",
+                "amount is required for surcharge refund initiation",
+            )
+        })?;
         if amount.minor_amount <= 0 {
             return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "amount must be greater than zero for surcharge refund initiation"
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
             }));
         }
         let currency = grpc_api_types::payments::Currency::try_from(amount.currency)
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "currency",
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "currency must be valid for surcharge refund initiation".to_owned(),
+                    ),
+                    ..Default::default()
+                },
             })?;
         Ok(Self {
+            merchant_surcharge_refund_id: value.merchant_surcharge_refund_id,
             connector_surcharge_id: value.connector_surcharge_id,
             amount: MinorUnit::new(amount.minor_amount),
             currency: common_enums::Currency::foreign_try_from(currency)?,
@@ -120,9 +146,13 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceSurchargeRefundCo
         value: grpc_api_types::surcharge::SurchargeServiceSurchargeRefundCompleteRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         if value.connector_surcharge_refund_id.trim().is_empty() {
-            return Err(missing_refund_field("connector_surcharge_refund_id"));
+            return Err(missing_refund_field(
+                "connector_surcharge_refund_id",
+                "connector_surcharge_refund_id must be non-empty",
+            ));
         }
         Ok(Self {
+            merchant_surcharge_refund_id: value.merchant_surcharge_refund_id,
             connector_surcharge_refund_id: value.connector_surcharge_refund_id,
         })
     }
@@ -165,7 +195,7 @@ pub fn generate_surcharge_refund_init_response(
     grpc_api_types::surcharge::SurchargeServiceSurchargeRefundInitResponse,
     error_stack::Report<ConnectorError>,
 > {
-    let reference = Some(data.resource_common_data.connector_request_reference_id);
+    let reference = data.request.merchant_surcharge_refund_id.clone();
     match data.response {
         Ok(response) => {
             let currency = response.currency.unwrap_or(data.request.currency);
@@ -212,7 +242,7 @@ pub fn generate_surcharge_refund_complete_response(
     grpc_api_types::surcharge::SurchargeServiceSurchargeRefundCompleteResponse,
     error_stack::Report<ConnectorError>,
 > {
-    let reference = Some(data.resource_common_data.connector_request_reference_id);
+    let reference = data.request.merchant_surcharge_refund_id.clone();
     match data.response {
         Ok(response) => Ok(
             grpc_api_types::surcharge::SurchargeServiceSurchargeRefundCompleteResponse {
