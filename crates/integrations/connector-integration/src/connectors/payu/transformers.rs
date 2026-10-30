@@ -982,18 +982,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .unwrap_or_else(|| item.router_data.resource_common_data.payment_id.clone());
 
         // Convert amount back using AmountConvertor framework if available
-        let response_amount = if let Some(_amount_str) = response.amount {
-            // For now, we'll use the request amount since convert_back has complex requirements
-            // This will be improved in the full implementation
-            item.router_data.request.money.amount()
-        } else {
-            item.router_data.request.money.amount() // Use request amount if response doesn't have it
-        };
-
         // Create integrity object for response validation
         let _integrity_object = Some(AuthoriseIntegrityObject {
-            amount: response_amount,
-            currency: item.router_data.request.currency,
+            money: item.router_data.request.money.clone(),
         });
 
         // This is a success response - determine type based on response format

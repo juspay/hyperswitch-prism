@@ -1,7 +1,7 @@
 use crate::connectors::flywire::FlywireRouterData;
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::{pii::Email, types::MinorUnit};
+use common_utils::{pii::Email, types::ConnectorMinorUnit};
 use domain_types::{
     connector_flow::{Authenticate, Authorize, PSync, Refund},
     connector_types::{
@@ -121,7 +121,7 @@ pub struct FlywireRecipientField {
 #[derive(Debug, Serialize)]
 pub struct FlywireItem {
     pub id: &'static str,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -229,7 +229,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
             items: vec![FlywireItem {
                 id: CHECKOUT_SESSION_ITEM_ID,
-                amount: router_data.request.money.amount(),
+                amount: common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&router_data.request.money),
             }],
             payor_id,
             external_reference: payment_ref,
@@ -446,9 +447,9 @@ pub struct FlywirePayment {
     pub payment_id: String,
     pub status: FlywirePaymentStatus,
     pub status_detail: Option<String>,
-    pub amount_from: Option<MinorUnit>,
+    pub amount_from: Option<ConnectorMinorUnit>,
     pub currency_from: Option<String>,
-    pub amount_to: Option<MinorUnit>,
+    pub amount_to: Option<ConnectorMinorUnit>,
     pub currency_to: Option<String>,
     pub external_reference: Option<String>,
     pub payor_id: Option<String>,
@@ -587,7 +588,7 @@ pub struct FlywireConfirmResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FlywireConfirmChargeInfo {
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub currency: Option<String>,
 }
 
@@ -615,8 +616,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // to enable round-trip integrity (catches prism/UCS-side tampering,
         // NOT Flywire-side settlement drift — that is caught by PSync).
         let response_integrity_object = Some(AuthoriseIntegrityObject {
-            amount: item.router_data.request.money.amount(),
-            currency: item.router_data.request.currency,
+            money: item.router_data.request.money.clone(),
         });
 
         // HTTP 200 from /confirm means Flywire accepted the form. The payment is
@@ -663,7 +663,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 #[derive(Debug, Serialize)]
 pub struct FlywireRefundRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub external_reference: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notifications_url: Option<String>,
@@ -676,7 +676,7 @@ pub struct FlywireRefundResponse {
     pub payment_id: Option<String>,
     pub bundle_id: Option<String>,
     pub status: FlywireRefundStatus,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub currency: Option<String>,
     pub external_reference: Option<String>,
     pub notifications_url: Option<String>,
@@ -740,7 +740,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         Ok(Self {
-            amount: router_data.request.refund_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.refund_money),
             external_reference: router_data
                 .resource_common_data
                 .connector_request_reference_id

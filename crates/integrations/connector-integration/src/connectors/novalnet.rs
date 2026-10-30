@@ -916,7 +916,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             amount: utils::convert_amount_for_webhook(
                 self.amount_converter,
                 &utils::convert_back_amount_to_money_for_webhook(
-                    &common_utils::types::MinorUnitForConnector,
+                    &common_utils::types::ConnectorMinorUnitForConnector,
                     amount.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
                     currency.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
                 )?,

@@ -7,7 +7,7 @@ use common_utils::{
     events,
     ext_traits::{deserialize_xml_to_struct, BytesExt},
     request::RequestContent,
-    types::MinorUnit,
+    types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -379,7 +379,7 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: MinorUnit
+        amount_converter: ConnectorMinorUnit
     ],
     member_functions: {
         fn preprocess_response_bytes<F, FCD, Req, Res>(

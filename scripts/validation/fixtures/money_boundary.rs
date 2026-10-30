@@ -24,7 +24,10 @@ pub fn domain_boundary(amount: MinorUnit, currency: Currency) -> Money {
 pub fn connector_pass(money: &Money) {
     let _zero = Money::zero(money.currency());
     let _one_minor_unit = Money::one_minor_unit(money.currency());
-    let amount = ConnectorMinorUnitForConnector.convert(money).unwrap();
+    let amount: common_utils::types::ConnectorMinorUnit =
+        ConnectorMinorUnitForConnector.convert(money);
+    let _fallible_amount =
+        AmountConvertor::convert(&ConnectorMinorUnitForConnector, money).unwrap();
     let _restored = ConnectorMinorUnitForConnector
         .convert_back(amount, money.currency())
         .unwrap();
@@ -84,9 +87,9 @@ pub fn private_constructor(source: &Money, currency: Currency) -> Money {
 }
 
 #[cfg(feature = "private_fields")]
-pub fn private_fields(source: &Money, currency: Currency) -> Money {
+pub fn private_fields(currency: Currency) -> Money {
     Money {
-        amount: source.amount(),
+        amount: Default::default(),
         currency,
     }
 }
@@ -141,6 +144,13 @@ pub struct DomainMinorUnitPayload {
 #[cfg(feature = "domain_minor_converter")]
 pub fn domain_minor_converter(money: &Money) {
     let _ = common_utils::types::MinorUnitForConnector.convert(money);
+}
+
+#[cfg(feature = "inferred_domain_minor_unit")]
+pub fn inferred_domain_minor_unit(
+    request: &domain_types::payouts::payouts_types::PayoutStageRequest,
+) {
+    let _ = request.amount.get_amount_as_i64();
 }
 
 #[cfg(feature = "money_amount")]

@@ -747,7 +747,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert minor_amount {} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.money.amount().get_amount_as_i64(),
+                        common_utils::types::ConnectorMinorUnitForConnector
+                            .convert(&request.money)
+                            .get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -777,7 +779,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 /// [`PaymentsPreAuthenticateData`] is a narrower struct, so three things differ:
 ///
 /// * `payment_method_data` and `currency` are `Option` here and must be unwrapped;
-/// * `amount` is a single `MinorUnit` (there is no separate `minor_amount`);
+/// * `amount` is a single `ConnectorMinorUnit` (there is no separate `minor_amount`);
 /// * `is_auto_capture()` returns a `Result` (it rejects `ManualMultiple`/`Scheduled`) rather than
 ///   a bare `bool`.
 ///
@@ -848,7 +850,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert amount {} {} into Ilixium's transaction.amount \
                          (minor units, digits only, sent as a JSON string).",
-                        request.money.amount().get_amount_as_i64(),
+                        common_utils::types::ConnectorMinorUnitForConnector
+                            .convert(&request.money)
+                            .get_amount_as_i64(),
                         currency
                     )),
                 },
@@ -1066,7 +1070,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert minor_amount_to_capture {} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.capture_money.amount().get_amount_as_i64(),
+                        common_utils::types::ConnectorMinorUnitForConnector
+                            .convert(&request.capture_money)
+                            .get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -1204,7 +1210,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert void amount {} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        minor_amount.amount().get_amount_as_i64(),
+                        common_utils::types::ConnectorMinorUnitForConnector
+                            .convert(minor_amount)
+                            .get_amount_as_i64(),
                         currency
                     )),
                 },
@@ -1419,7 +1427,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert minor_refund_amount {} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.refund_money.amount().get_amount_as_i64(),
+                        common_utils::types::ConnectorMinorUnitForConnector
+                            .convert(&request.refund_money)
+                            .get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -3757,10 +3767,11 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
             });
         }
 
-        let refund_amount = request
-            .refund_money
-            .as_ref()
-            .map(|money| money.amount().get_amount_as_i64());
+        let refund_amount = request.refund_money.as_ref().map(|money| {
+            common_utils::types::ConnectorMinorUnitForConnector
+                .convert(money)
+                .get_amount_as_i64()
+        });
 
         let Some(matched) = response.match_refund_operation(
             &merchant_ref,

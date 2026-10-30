@@ -1,5 +1,5 @@
 use common_utils::{
-    ext_traits::OptionExt, pii::Email, request::Method, types::MinorUnit, FloatMajorUnit,
+    ext_traits::OptionExt, pii::Email, request::Method, types::ConnectorMinorUnit, FloatMajorUnit,
     StringMajorUnit,
 };
 use domain_types::{
@@ -463,7 +463,7 @@ pub struct RapydApplePayDecryptedData {
     /// ISO-4217 numeric currency code (e.g. "978" for EUR), per Apple/Rapyd.
     #[serde(serialize_with = "serialize_currency_as_numeric")]
     currency_code: common_enums::Currency,
-    transaction_amount: MinorUnit,
+    transaction_amount: ConnectorMinorUnit,
     payment_data_type: RapydApplePayPaymentDataType,
     payment_data: RapydApplePayCryptogram,
 }
@@ -555,7 +555,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(IntegrationError::AmountConversionFailed {
                 context: crate::utils::amount_conversion_ctx(
                     "rapyd authorize",
-                    &item.router_data.request.money.amount(),
+                    &common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.money),
                     &item.router_data.request.currency,
                 ),
             })?;
@@ -745,10 +746,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                                 .clone(),
                                             application_expiration_date,
                                             currency_code: item.router_data.request.currency,
-                                            transaction_amount: item
+                                            transaction_amount: common_utils::types::ConnectorMinorUnitForConnector.convert(&item
                                                 .router_data
                                                 .request
-                                                .money.amount(),
+                                                .money),
                                             payment_data_type:
                                                 RapydApplePayPaymentDataType::ThreeDSecure,
                                             payment_data: RapydApplePayCryptogram {
@@ -996,7 +997,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(IntegrationError::AmountConversionFailed {
                 context: crate::utils::amount_conversion_ctx(
                     "rapyd capture",
-                    &item.router_data.request.capture_money.amount(),
+                    &common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.capture_money),
                     &item.router_data.request.currency,
                 ),
             })?;
@@ -1031,7 +1033,8 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(IntegrationError::AmountConversionFailed {
                 context: crate::utils::amount_conversion_ctx(
                     "rapyd refund",
-                    &item.router_data.request.refund_money.amount(),
+                    &common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.refund_money),
                     &item.router_data.request.currency,
                 ),
             })?;
@@ -1509,7 +1512,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 field_name: "minor_amount",
                 context: Default::default(),
             })?;
-        let minor_amount = money.amount();
+        let minor_amount = common_utils::types::ConnectorMinorUnitForConnector.convert(money);
         // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
         let amount = if minor_amount.get_amount_as_i64() == 0 {
             StringMajorUnit::zero()
@@ -1818,7 +1821,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data;
         let request = &router_data.request;
 
-        let amount = if request.money.amount().get_amount_as_i64() == 0 {
+        let amount = if common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&request.money)
+            .get_amount_as_i64()
+            == 0
+        {
             StringMajorUnit::zero()
         } else {
             item.connector
@@ -1827,7 +1834,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: crate::utils::amount_conversion_ctx(
                         "rapyd repeat payment",
-                        &request.money.amount(),
+                        &common_utils::types::ConnectorMinorUnitForConnector
+                            .convert(&request.money),
                         &request.currency,
                     ),
                 })?

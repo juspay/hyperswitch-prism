@@ -10,7 +10,7 @@ use common_utils::{
     errors::{ParsingError, ReportSwitchExt},
     ext_traits::ValueExt,
     request::MultipartData,
-    types::{AmountConvertor, MinorUnit, Money},
+    types::{AmountConvertor, ConnectorMinorUnit, Money},
     CustomResult,
 };
 use domain_types::{
@@ -411,11 +411,11 @@ pub(crate) fn safe_base64_decode(base64_data: String) -> Result<Vec<u8>, Error> 
 
 pub fn deserialize_zero_minor_amount_as_none<'de, D>(
     deserializer: D,
-) -> Result<Option<MinorUnit>, D::Error>
+) -> Result<Option<ConnectorMinorUnit>, D::Error>
 where
     D: serde::de::Deserializer<'de>,
 {
-    let amount = Option::<MinorUnit>::deserialize(deserializer)?;
+    let amount = Option::<ConnectorMinorUnit>::deserialize(deserializer)?;
     match amount {
         Some(value) if value.get_amount_as_i64() == 0 => Ok(None),
         _ => Ok(amount),
@@ -586,11 +586,12 @@ pub trait MultipleCaptureSyncResponse {
     fn get_connector_reference_id(&self) -> Option<String> {
         None
     }
-    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, Report<ParsingError>>;
+    fn get_amount_captured(&self) -> Result<Option<ConnectorMinorUnit>, Report<ParsingError>>;
 }
 
 pub(crate) fn construct_captures_response_hashmap<T>(
     capture_sync_response_list: Vec<T>,
+    currency: common_enums::Currency,
 ) -> CustomResult<HashMap<String, CaptureSyncResponse>, ConnectorError>
 where
     T: MultipleCaptureSyncResponse,
@@ -606,13 +607,21 @@ where
                     status: capture_sync_response.get_capture_attempt_status(),
                     connector_response_reference_id: capture_sync_response
                         .get_connector_reference_id(),
-                    amount: capture_sync_response
+                    money: capture_sync_response
                         .get_amount_captured()
+                        .and_then(|amount| {
+                            amount
+                                .map(|amount| {
+                                    common_utils::types::ConnectorMinorUnitForConnector
+                                        .convert_back(amount, currency)
+                                })
+                                .transpose()
+                        })
                         .change_context(
                             ConnectorError::response_handling_failed_http_status_unknown(),
                         )
                         .attach_printable(
-                            "failed to convert back captured response amount to minor unit",
+                            "failed to convert captured response amount to domain money",
                         )?,
                 },
             );

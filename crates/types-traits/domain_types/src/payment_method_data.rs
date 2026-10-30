@@ -2224,7 +2224,8 @@ pub struct WalletDetails {
     /// Name registered on the wallet account
     pub wallet_holder_name: Option<String>,
     /// Current wallet balance in minor currency units (for stored value wallets)
-    pub balance: Option<common_utils::types::MinorUnit>,
+    #[serde(rename = "balance")]
+    pub balance_money: Option<common_utils::types::Money>,
     /// Product or program identifier under which the wallet exists
     pub product_id: Option<String>,
     /// Payment method items stored in this wallet (for container/hybrid wallets)

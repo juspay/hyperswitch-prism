@@ -1,5 +1,5 @@
 use common_enums::{self, AttemptStatus};
-use common_utils::{consts, request::Method, types::MinorUnit, CustomerId};
+use common_utils::{consts, request::Method, types::ConnectorMinorUnit, CustomerId};
 use domain_types::{
     connector_flow::{Authorize, PSync, ServerAuthenticationToken},
     connector_types::{
@@ -84,7 +84,7 @@ pub mod webhook_headers {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentsRequest {
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: common_enums::Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     open_banking_u_k: Option<OpenBankingUk>,
@@ -234,7 +234,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 }?;
 
-                let amount = item.router_data.request.money.amount();
+                let amount = common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.money);
                 let internal_reference = item
                     .router_data
                     .resource_common_data
@@ -425,7 +426,7 @@ impl TryFrom<&ConnectorSpecificConfig> for VoltAuthType {
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentsResponse {
     id: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: common_enums::Currency,
     status: VoltPaymentStatus,
     payment_initiation_flow: VoltPaymentInitiationFlow,
@@ -541,7 +542,7 @@ pub struct VoltPsyncResponse {
     status: VoltPaymentStatus,
     id: String,
     merchant_internal_reference: Option<String>,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: common_enums::Currency,
 }
 
@@ -674,7 +675,7 @@ impl From<VoltWebhookPaymentStatus> for AttemptStatus {
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltRefundRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub external_reference: String,
 }
 
@@ -687,7 +688,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         item: VoltRouterData<RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>, T>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.refund_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.refund_money),
             external_reference: item.router_data.request.refund_id.clone(),
         })
     }

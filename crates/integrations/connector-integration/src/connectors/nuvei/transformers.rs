@@ -1617,7 +1617,7 @@ impl TransactionType {
     /// SequentialAutomatic); otherwise they would silently become a Sale.
     fn get_from_capture_method(
         capture_method: Option<common_enums::CaptureMethod>,
-        minor_amount: common_utils::types::MinorUnit,
+        minor_amount: common_utils::types::ConnectorMinorUnit,
     ) -> Result<Self, Report<IntegrationError>> {
         match capture_method {
             Some(
@@ -1633,7 +1633,7 @@ impl TransactionType {
             }
             .into()),
             Some(common_enums::CaptureMethod::Manual) => Ok(Self::Auth),
-            _ if minor_amount == common_utils::types::MinorUnit::zero() => Ok(Self::Auth),
+            _ if minor_amount == common_utils::types::ConnectorMinorUnit::zero() => Ok(Self::Auth),
             _ => Ok(Self::Sale),
         }
     }
@@ -2555,7 +2555,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Determine transaction type based on capture method (Auth for manual or amount 0)
         let transaction_type = TransactionType::get_from_capture_method(
             request.capture_method,
-            request.money.amount(),
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
         )?;
 
         // Build urlDetails from router_return_url if available
@@ -2622,7 +2622,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &router_data.request;
 
         let status = get_nuvei_payment_status(
-            Some(request.money.amount().get_amount_as_i64()),
+            Some(
+                common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&request.money)
+                    .get_amount_as_i64(),
+            ),
             response.transaction_type.as_ref(),
             response.transaction_status.as_ref(),
             &response.status,
@@ -3379,8 +3383,10 @@ fn build_nuvei_three_ds_payment_request<
     let client_unique_id = get_valid_client_unique_id(&client_request_id)?;
 
     let amount = NuveiAmountConvertor::convert(money)?;
-    let transaction_type =
-        TransactionType::get_from_capture_method(capture_method, money.amount())?;
+    let transaction_type = TransactionType::get_from_capture_method(
+        capture_method,
+        common_utils::types::ConnectorMinorUnitForConnector.convert(money),
+    )?;
 
     // dynamicDescriptor.merchantPhone is at most 13 characters
     let dynamic_descriptor = get_dynamic_descriptor(billing_descriptor)?;
@@ -3649,7 +3655,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // APPROVED+Sale -> Charged, +Auth -> Authorized; DECLINED/ERROR+Auth3D ->
         // AuthenticationFailed
         let status = get_nuvei_payment_status(
-            Some(request.money.amount().get_amount_as_i64()),
+            Some(
+                common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&request.money)
+                    .get_amount_as_i64(),
+            ),
             response.transaction_type.as_ref(),
             response.transaction_status.as_ref(),
             &response.status,
@@ -3939,7 +3949,11 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
         }
 
         let status = get_nuvei_payment_status(
-            Some(request.money.amount().get_amount_as_i64()),
+            Some(
+                common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&request.money)
+                    .get_amount_as_i64(),
+            ),
             response.transaction_type.as_ref(),
             response.transaction_status.as_ref(),
             &response.status,
@@ -3997,7 +4011,11 @@ impl TryFrom<ResponseRouterData<NuveiCaptureResponse, Self>>
                 .resource_common_data
                 .capturable_money
                 .as_ref()
-                .map(|money| money.amount().get_amount_as_i64()),
+                .map(|money| {
+                    common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(money)
+                        .get_amount_as_i64()
+                }),
             response.transaction_type.as_ref(),
             response.transaction_status.as_ref(),
             &response.status,
@@ -4449,11 +4467,11 @@ impl TryFrom<ResponseRouterData<NuveiVoidResponse, Self>>
         // APPROVED+Void -> Voided; APPROVED without transactionType -> Pending;
         // DECLINED/ERROR+Void -> VoidFailed
         let status = get_nuvei_payment_status(
-            router_data
-                .request
-                .money
-                .as_ref()
-                .map(|money| money.amount().get_amount_as_i64()),
+            router_data.request.money.as_ref().map(|money| {
+                common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(money)
+                    .get_amount_as_i64()
+            }),
             response.transaction_type.as_ref(),
             response.transaction_status.as_ref(),
             &response.status,
@@ -5067,7 +5085,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .money
             .clone()
             .unwrap_or_else(|| common_utils::types::Money::zero(currency));
-        let minor_amount = money.amount();
+        let minor_amount = common_utils::types::ConnectorMinorUnitForConnector.convert(&money);
         let amount = NuveiAmountConvertor::convert(&money)?;
 
         let l2_l3_data = resource.l2_l3_data.as_deref();
@@ -5153,7 +5171,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 request
                     .money
                     .as_ref()
-                    .map(|money| money.amount().get_amount_as_i64())
+                    .map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector
+                            .convert(money)
+                            .get_amount_as_i64()
+                    })
                     .unwrap_or(0),
             ),
             response.transaction_type.as_ref(),
@@ -5525,7 +5547,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Auth for manual capture or amount 0, else Sale
         let transaction_type = TransactionType::get_from_capture_method(
             request.capture_method,
-            request.money.amount(),
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
         )?;
 
         // Checksum: merchantId + merchantSiteId + clientRequestId + amount + currency + timeStamp + merchantSecretKey
@@ -5582,7 +5604,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &router_data.request;
 
         let status = get_nuvei_payment_status(
-            Some(request.money.amount().get_amount_as_i64()),
+            Some(
+                common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&request.money)
+                    .get_amount_as_i64(),
+            ),
             response.transaction_type.as_ref(),
             response.transaction_status.as_ref(),
             &response.status,

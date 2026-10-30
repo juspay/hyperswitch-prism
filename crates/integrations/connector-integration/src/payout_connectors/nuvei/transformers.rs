@@ -103,7 +103,7 @@ fn nuvei_context(
 }
 
 fn convert_payout_amount(
-    amount: common_utils::types::MinorUnit,
+    money: &common_utils::types::Money,
     destination_currency: common_enums::Currency,
 ) -> Result<StringMajorUnit, Report<IntegrationError>> {
     StringMajorUnitForConnector
@@ -113,8 +113,10 @@ fn convert_payout_amount(
                 clippy::disallowed_types,
                 reason = "Temporary payout currency contract: nuvei-transfer-amount; see PR #2642"
             )]
-            let legacy_money =
-                common_utils::types::MoneyBoundary::from_minor_unit(amount, destination_currency);
+            let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
+                money.amount(),
+                destination_currency,
+            );
             legacy_money
         })
         .change_context(IntegrationError::InvalidDataFormat {
@@ -150,7 +152,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })),
         }?;
         let request = &data.request;
-        let amount = convert_payout_amount(request.money.amount(), request.destination_currency)?;
+        let amount = convert_payout_amount(&request.money, request.destination_currency)?;
         let currency = request.destination_currency.to_string();
         let time_stamp = NuveiAuthType::get_timestamp();
         let reference = match &data.resource_common_data.connector_request_reference_id {
@@ -338,6 +340,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NuveiPayoutResponse, 
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+    use domain_types::{payment_method_data::DefaultPCIHolder, utils::ForeignTryFrom};
 
     fn response(
         status: NuveiPaymentStatus,
@@ -356,13 +359,21 @@ mod tests {
 
     #[test]
     fn payout_amount_uses_destination_currency_units() {
+        let request = PayoutTransferRequest::<DefaultPCIHolder>::foreign_try_from(
+            grpc_api_types::payouts::PayoutServiceTransferRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: 1234,
+                    currency: grpc_api_types::payments::Currency::Usd.into(),
+                }),
+                destination_currency: grpc_api_types::payments::Currency::Jpy.into(),
+                ..Default::default()
+            },
+        )
+        .expect("valid payout fixture");
         assert_eq!(
-            convert_payout_amount(
-                common_utils::types::MinorUnit::new(1234),
-                common_enums::Currency::JPY,
-            )
-            .expect("JPY amount should convert")
-            .get_amount_as_string(),
+            convert_payout_amount(&request.money, request.destination_currency,)
+                .expect("JPY amount should convert")
+                .get_amount_as_string(),
             "1234"
         );
     }

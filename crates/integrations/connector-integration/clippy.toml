@@ -15,6 +15,7 @@ disallowed-types = [
 ]
 
 disallowed-methods = [
+    { path = "ucs_common_utils::types::MinorUnit::get_amount_as_i64", reason = "Domain minor units must not be extracted in L3, including values inferred from legacy domain fields" },
     { path = "ucs_common_utils::types::Money::amount", reason = "Pass whole Money to the connector amount converter instead of extracting domain minor units" },
     { path = "ucs_common_utils::types::MoneyBoundary::from_minor_unit", reason = "Pass existing domain Money to convert; use convert_back only for connector responses" },
     { path = "uuid::Uuid::new_v4", reason = "use common_utils::fp_utils::generate_uuid_v4 — one auditable entropy source" },

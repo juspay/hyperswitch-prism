@@ -400,7 +400,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-macros::create_amount_converter_wrapper!(connector_name: Flywire, amount_type: MinorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Flywire, amount_type: ConnectorMinorUnit);
 
 macros::create_all_prerequisites!(
     connector_name: Flywire,

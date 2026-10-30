@@ -140,8 +140,7 @@ pub struct SurchargeCalculateIntegrityObject {
 #[derive(Debug, Clone)]
 pub struct SurchargeCalculateResponse {
     pub connector_response_reference_id: Option<String>,
-    pub surcharge_amount: MinorUnit,
+    pub surcharge_money: Money,
     pub surcharge_rate_percent: f64,
     pub connector_surcharge_id: String,
-    pub currency: Currency,
 }

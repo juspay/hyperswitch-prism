@@ -43,6 +43,7 @@ proto_trait = []
 domain_mapper = []
 domain_minor_unit = []
 domain_minor_converter = []
+inferred_domain_minor_unit = []
 money_amount = []
 EOF
 
@@ -102,4 +103,5 @@ check proto_trait E0599
 check domain_mapper E0603
 check domain_minor_unit clippy::disallowed_types
 check domain_minor_converter clippy::disallowed_types
+check inferred_domain_minor_unit clippy::disallowed_methods
 check money_amount clippy::disallowed_methods

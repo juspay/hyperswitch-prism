@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use common_enums::{self, CaptureMethod, Currency};
-use common_utils::{pii::IpAddress, types::SemanticVersion, Email, MinorUnit};
+use common_utils::{pii::IpAddress, types::SemanticVersion, Email, MinorUnit, Money};
 use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use serde::Serialize;
@@ -391,10 +391,9 @@ impl<T: PaymentMethodDataTypes> ConnectorCustomerData<T> {
 }
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct AuthoriseIntegrityObject {
-    /// Authorise amount
-    pub amount: MinorUnit,
-    /// Authorise currency
-    pub currency: Currency,
+    /// Authorise amount and currency.
+    #[serde(flatten)]
+    pub money: Money,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -405,30 +404,37 @@ pub struct CreateOrderIntegrityObject {
     pub currency: Currency,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SetupMandateIntegrityObject {
-    /// Authorise amount
-    pub amount: Option<MinorUnit>,
-    /// Authorise currency
+    pub money: Option<Money>,
+    /// Retained when setup has a currency but no money.
     pub currency: Currency,
+}
+
+impl Serialize for SetupMandateIntegrityObject {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("SetupMandateIntegrityObject", 2)?;
+        state.serialize_field("amount", &self.money.as_ref().map(Money::amount))?;
+        state.serialize_field("currency", &self.currency)?;
+        state.end()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RepeatPaymentIntegrityObject {
-    /// Payment amount
-    pub amount: MinorUnit,
-    /// Payment currency
-    pub currency: Currency,
+    /// Payment amount and currency.
+    #[serde(flatten)]
+    pub money: Money,
     /// Mandate reference
     pub mandate_reference: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PaymentSynIntegrityObject {
-    /// Authorise amount
-    pub amount: MinorUnit,
-    /// Authorise currency
-    pub currency: Currency,
+    /// Payment amount and currency.
+    #[serde(flatten)]
+    pub money: Money,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -441,16 +447,34 @@ pub struct PaymentVoidPostCaptureIntegrityObject {
     pub connector_transaction_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RefundIntegrityObject {
-    pub refund_amount: MinorUnit,
-    pub currency: Currency,
+    pub refund_money: Money,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+impl Serialize for RefundIntegrityObject {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("RefundIntegrityObject", 2)?;
+        state.serialize_field("refund_amount", &self.refund_money.amount())?;
+        state.serialize_field("currency", &self.refund_money.currency())?;
+        state.end()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct CaptureIntegrityObject {
-    pub amount_to_capture: MinorUnit,
-    pub currency: Currency,
+    pub capture_money: Money,
+}
+
+impl Serialize for CaptureIntegrityObject {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("CaptureIntegrityObject", 2)?;
+        state.serialize_field("amount_to_capture", &self.capture_money.amount())?;
+        state.serialize_field("currency", &self.capture_money.currency())?;
+        state.end()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

@@ -160,7 +160,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ClientAuthenticationToken flow implemented via macro_connector_implementation! below
 
-macros::create_amount_converter_wrapper!(connector_name: Billwerk, amount_type: MinorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Billwerk, amount_type: ConnectorMinorUnit);
 
 use super::macros;
 use domain_types::errors::ConnectorError;

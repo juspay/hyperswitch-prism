@@ -307,7 +307,9 @@ fn validate_currency(
 fn build_amount(
     money: &common_utils::types::Money,
 ) -> Result<StringTwoDecimalUnit, error_stack::Report<IntegrationError>> {
-    let minor = money.amount().get_amount_as_i64();
+    let minor = common_utils::types::ConnectorMinorUnitForConnector
+        .convert(money)
+        .get_amount_as_i64();
     let currency = money.currency();
     let amount = StringTwoDecimalUnitForConnector
         .convert(money)

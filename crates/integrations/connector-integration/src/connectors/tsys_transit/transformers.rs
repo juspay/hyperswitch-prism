@@ -3,7 +3,7 @@ use common_enums::{
 };
 use common_utils::{
     collect_missing_value_keys,
-    types::{AmountConvertor, MinorUnit, StringMajorUnit},
+    types::{AmountConvertor, StringMajorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -1342,7 +1342,12 @@ fn build_tsys_product_details(
         let has_discount = detail
             .unit_discount_money
             .as_ref()
-            .map(|money| money.amount().get_amount_as_i64() > 0)
+            .map(|money| {
+                common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(money)
+                    .get_amount_as_i64()
+                    > 0
+            })
             .unwrap_or(false);
         let stackable = if has_discount {
             TsysTransitYesNo::Yes
@@ -2624,8 +2629,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let integrity_amount = amount_captured
             .as_ref()
             .or(amount_capturable.as_ref())
-            .map(|money| money.amount())
-            .unwrap_or(router_data.request.money.amount());
+            .cloned()
+            .unwrap_or_else(|| router_data.request.money.clone());
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2642,8 +2647,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // request build and response handling, not connector-side drift.
             request: PaymentsAuthorizeData {
                 integrity_object: Some(AuthoriseIntegrityObject {
-                    amount: integrity_amount,
-                    currency: router_data.request.currency, // currency is not echoed in Auth/Sale Response TSYS responses
+                    money: integrity_amount,
                 }),
                 ..router_data.request.clone()
             },
@@ -2767,9 +2771,10 @@ fn parse_ambiguous_transaction_amount(
     } else {
         let minor_amount = amount
             .parse::<i64>()
-            .map(MinorUnit::new)
             .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })?;
-        common_utils::types::MinorUnitForConnector
+        let minor_amount = serde_json::from_value(serde_json::json!(minor_amount))
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })?;
+        common_utils::types::ConnectorMinorUnitForConnector
             .convert_back(minor_amount, currency)
             .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })
     }
@@ -2841,6 +2846,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .then_some(transaction_amount.as_ref())
             .flatten();
 
+            // Keep the echoed currency check even when TSYS omits the amount.
+            let integrity_money = match amount_captured.or(amount_capturable) {
+                Some(money) => money.clone(),
+                None => common_utils::types::ConnectorMinorUnitForConnector
+                    .convert_back(
+                        common_utils::types::ConnectorMinorUnitForConnector
+                            .convert(&router_data.request.money),
+                        transaction_details
+                            .currency_code
+                            .unwrap_or(router_data.request.money.currency()),
+                    )
+                    .change_context(crate::utils::response_handling_fail_for_connector(
+                        item.http_code,
+                        "tsys_transit",
+                    ))?,
+            };
+
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
@@ -2851,13 +2873,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 response: Ok(payments_response_data),
                 request: PaymentsSyncData {
                     integrity_object: Some(PaymentSynIntegrityObject {
-                        amount: amount_captured
-                            .or(amount_capturable)
-                            .map(|money| money.amount())
-                            .unwrap_or(router_data.request.money.amount()),
-                        currency: transaction_details
-                            .currency_code
-                            .unwrap_or(router_data.request.money.currency()),
+                        money: integrity_money,
                     }),
                     ..router_data.request.clone()
                 },
@@ -3033,8 +3049,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let integrity_amount = amount_captured
             .as_ref()
-            .map(|money| money.amount())
-            .unwrap_or(router_data.request.capture_money.amount());
+            .cloned()
+            .unwrap_or_else(|| router_data.request.capture_money.clone());
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -3048,8 +3064,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // rationale as Authorize above.
             request: PaymentsCaptureData {
                 integrity_object: Some(CaptureIntegrityObject {
-                    amount_to_capture: integrity_amount,
-                    currency: router_data.request.currency, // currency is not echoed in CaptureResponse TSYS responses
+                    capture_money: integrity_amount,
                 }),
                 ..router_data.request.clone()
             },
@@ -3196,10 +3211,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // echoes the request's own refund amount/currency.
             request: RefundsData {
                 integrity_object: Some(RefundIntegrityObject {
-                    refund_amount: refund_amount
-                        .map(|money| money.amount())
-                        .unwrap_or(router_data.request.refund_money.amount()),
-                    currency: router_data.request.currency, // Not returned in ReturnResponse, so echo request's own currency
+                    refund_money: refund_amount
+                        .unwrap_or_else(|| router_data.request.refund_money.clone()),
                 }),
                 ..router_data.request.clone()
             },
@@ -4038,11 +4051,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // integrity object echoes the request's own amount/currency.
             request: SetupMandateRequestData {
                 integrity_object: Some(SetupMandateIntegrityObject {
-                    amount: router_data
-                        .request
-                        .money
-                        .as_ref()
-                        .map(|money| money.amount()),
+                    money: router_data.request.money.clone(),
                     currency: router_data.request.currency,
                 }),
                 ..router_data.request.clone()
@@ -4308,8 +4317,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let integrity_amount = amount_captured
             .as_ref()
-            .map(|money| money.amount())
-            .unwrap_or(router_data.request.money.amount());
+            .cloned()
+            .unwrap_or_else(|| router_data.request.money.clone());
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -4324,8 +4333,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // rationale as Authorize above.
             request: RepeatPaymentData {
                 integrity_object: Some(RepeatPaymentIntegrityObject {
-                    amount: integrity_amount,
-                    currency: router_data.request.currency, // Not echoed in RepeatPaymentResponse TSYS responses
+                    money: integrity_amount,
                     mandate_reference, // Not returned by TSYS, echo the request's own mandate_reference for integrity check.
                 }),
                 ..router_data.request.clone()

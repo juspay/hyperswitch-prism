@@ -428,9 +428,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .money
             .as_ref()
-            .map(|money| money.amount())
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
         {
-            Some(amount) if amount > common_utils::types::MinorUnit::zero() => {
+            Some(amount) if amount > common_utils::types::ConnectorMinorUnit::zero() => {
                 Err(IntegrationError::FlowNotSupported {
                     flow: "Setup mandate with non zero amount".to_string(),
                     connector: "Payload".to_string(),

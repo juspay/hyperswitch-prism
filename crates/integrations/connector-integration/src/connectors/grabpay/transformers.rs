@@ -1,7 +1,7 @@
 use base64::Engine;
 use common_enums::{AttemptStatus, CountryAlpha2, Currency, RefundStatus};
 use common_utils::{
-    consts::BASE64_ENGINE_URL_SAFE_NO_PAD, pii::SecretSerdeValue, types::MinorUnit,
+    consts::BASE64_ENGINE_URL_SAFE_NO_PAD, pii::SecretSerdeValue, types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -128,7 +128,7 @@ pub struct GrabpayAuthenticateRequest {
     #[serde(rename = "partnerTxID")]
     pub partner_tx_id: String,
     pub currency: Currency,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(rename = "merchantID")]
@@ -145,7 +145,7 @@ pub struct GrabpayItem {
     #[serde(rename = "itemName")]
     pub item_name: String,
     pub quantity: u16,
-    pub price: MinorUnit,
+    pub price: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
     #[serde(rename = "itemCategory", skip_serializing_if = "Option::is_none")]
@@ -249,7 +249,7 @@ pub struct GrabpayRefundRequest {
     pub partner_group_tx_id: String,
     #[serde(rename = "partnerTxID")]
     pub partner_tx_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     #[serde(rename = "merchantID")]
     pub merchant_id: String,
@@ -962,7 +962,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             partner_group_tx_id: router_data.request.connector_transaction_id,
             partner_tx_id,
-            amount: router_data.request.refund_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.refund_money),
             currency: router_data.request.currency,
             merchant_id: auth.merchant_id.peek().to_string(),
             origin_tx_id,
@@ -1121,7 +1122,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             partner_group_tx_id: partner_tx_id.clone(),
             partner_tx_id,
             currency,
-            amount: router_data.request.money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.money),
             description: router_data.resource_common_data.description,
             merchant_id: auth.merchant_id.peek().to_string(),
             shipping_details,
@@ -1140,7 +1142,7 @@ fn build_items(
         .map(|detail| GrabpayItem {
             item_name: detail.product_name.clone(),
             quantity: detail.quantity,
-            price: detail.money.amount(),
+            price: common_utils::types::ConnectorMinorUnitForConnector.convert(&detail.money),
             category: detail.category.clone(),
             item_category: detail.sub_category.clone(),
             image_url: detail.product_img_link.clone(),

@@ -676,7 +676,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-macros::create_amount_converter_wrapper!(connector_name: Ppro, amount_type: MinorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Ppro, amount_type: ConnectorMinorUnit);
 
 macros::create_all_prerequisites!(
     connector_name: Ppro,

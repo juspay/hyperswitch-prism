@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use base64::Engine;
 use common_enums::{AttemptStatus, CaptureMethod};
 use common_utils::consts::NO_ERROR_MESSAGE;
-use common_utils::{fp_utils::when, pii::SecretSerdeValue, types::MinorUnit};
+use common_utils::{fp_utils::when, pii::SecretSerdeValue, types::ConnectorMinorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, Refund, RepeatPayment,
@@ -65,25 +65,29 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
 
     let merchant_product_identifier = detail.product_id.clone().or_else(|| detail.sku.clone());
 
-    let quantity = i64::from(detail.quantity);
     let transaction_discount_amount = detail
         .unit_discount_money
         .as_ref()
         .and_then(|unit_discount| {
-            unit_discount
-                .amount()
-                .get_amount_as_i64()
-                .checked_mul(quantity)
+            common_utils::types::ConnectorMinorUnitForConnector
+                .convert(unit_discount)
+                .checked_mul(detail.quantity)
         })
-        .filter(|discount| *discount > 0)
-        .map(MinorUnit::new);
+        .filter(|discount| discount.get_amount_as_i64() > 0);
 
     let line_item_taxes = detail
         .total_tax_money
         .as_ref()
-        .filter(|tax| tax.amount().get_amount_as_i64() > 0)
+        .filter(|tax| {
+            common_utils::types::ConnectorMinorUnitForConnector
+                .convert(tax)
+                .get_amount_as_i64()
+                > 0
+        })
         .map(|tax| requests::JpmorganLineItemTax {
-            line_item_tax_amount: Some(tax.amount()),
+            line_item_tax_amount: Some(
+                common_utils::types::ConnectorMinorUnitForConnector.convert(tax),
+            ),
             tax_percent: detail
                 .tax_rate
                 .filter(|rate| *rate >= 0.0 && rate.is_finite())
@@ -98,11 +102,13 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
         item_comodity_code: detail.commodity_code.clone(),
         line_item_unit_quantity: (detail.quantity > 0).then(|| detail.quantity.to_string()),
         line_item_unit_of_measure_code: detail.unit_of_measure.clone(),
-        unit_price_amount: Some(detail.money.amount()),
+        unit_price_amount: Some(
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&detail.money),
+        ),
         tax_inclusive_line_item_total_amount: detail
             .total_money
             .as_ref()
-            .map(|money| money.amount()),
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money)),
         transaction_discount_amount,
         line_item_tax_indicator: Some(!line_item_taxes.is_empty()),
         line_item_discount_indicator: Some(transaction_discount_amount.is_some()),
@@ -112,7 +118,7 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
 
 fn build_level3(
     l2_l3_data: &L2L3Data,
-    fallback_shipping_cost: Option<MinorUnit>,
+    fallback_shipping_cost: Option<ConnectorMinorUnit>,
 ) -> Option<requests::JpmorganLevel3> {
     let order_details = l2_l3_data.get_order_details()?;
     if order_details.is_empty() {
@@ -130,11 +136,22 @@ fn build_level3(
 
     let line_items = order_details.iter().map(build_line_item).collect();
 
-    let total_shipping_amount = l2_l3_data.get_shipping_cost().or(fallback_shipping_cost);
-    let duty_amount = l2_l3_data.get_duty_amount();
-    let value_added_tax_amount = l2_l3_data.get_value_added_tax_amount();
-    let total_transaction_discount_amount = l2_l3_data.get_discount_amount();
-    let shipping_value_added_tax_amount = l2_l3_data.get_shipping_amount_tax();
+    let total_shipping_amount = l2_l3_data
+        .get_shipping_cost()
+        .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money))
+        .or(fallback_shipping_cost);
+    let duty_amount = l2_l3_data
+        .get_duty_amount()
+        .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money));
+    let value_added_tax_amount = l2_l3_data
+        .get_value_added_tax_amount()
+        .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money));
+    let total_transaction_discount_amount = l2_l3_data
+        .get_discount_amount()
+        .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money));
+    let shipping_value_added_tax_amount = l2_l3_data
+        .get_shipping_amount_tax()
+        .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money));
     let value_added_tax_invoice_reference_number = l2_l3_data
         .get_vat_invoice_reference_number()
         .filter(|reference| !reference.trim().is_empty());
@@ -175,8 +192,8 @@ fn build_level3(
 
 fn build_retail_addenda(
     l2_l3_data: Option<&L2L3Data>,
-    fallback_order_tax_amount: Option<MinorUnit>,
-    fallback_shipping_cost: Option<MinorUnit>,
+    fallback_order_tax_amount: Option<ConnectorMinorUnit>,
+    fallback_shipping_cost: Option<ConnectorMinorUnit>,
 ) -> Option<requests::JpmorganRetailAddenda> {
     let l2_l3_data = l2_l3_data?;
 
@@ -208,6 +225,7 @@ fn build_retail_addenda(
 
     let tax_amount = l2_l3_data
         .get_order_tax_amount()
+        .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money))
         .or(fallback_order_tax_amount)
         .filter(|tax_amount| tax_amount.get_amount_as_i64() > 0);
 
@@ -306,12 +324,16 @@ fn authorize_level2_data<T: PaymentMethodDataTypes>(
             .request
             .order_tax_money
             .as_ref()
-            .map(|order_tax_amount| order_tax_amount.amount()),
+            .map(|order_tax_amount| {
+                common_utils::types::ConnectorMinorUnitForConnector.convert(order_tax_amount)
+            }),
         router_data
             .request
             .shipping_money
             .as_ref()
-            .map(|shipping_cost| shipping_cost.amount()),
+            .map(|shipping_cost| {
+                common_utils::types::ConnectorMinorUnitForConnector.convert(shipping_cost)
+            }),
     );
     let ship_to = build_ship_to(l2_l3_data, &router_data.resource_common_data.address);
     (retail_addenda, ship_to)
@@ -2041,7 +2063,7 @@ fn get_partial_authorization_amounts(
         Some(CaptureMethod::Manual) | Some(CaptureMethod::ManualMultiple) => {
             (None, response.amount)
         }
-        _ => (response.amount, Some(MinorUnit::zero())),
+        _ => (response.amount, Some(ConnectorMinorUnit::zero())),
     };
 
     let amount_authorized = enable_partial_authorization
@@ -2049,7 +2071,7 @@ fn get_partial_authorization_amounts(
         .and(response.amount);
     let to_money = |amount| {
         utils::response_amount_to_money(
-            &common_utils::types::MinorUnitForConnector,
+            &common_utils::types::ConnectorMinorUnitForConnector,
             amount,
             currency,
             http_code,
@@ -2468,12 +2490,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = request
             .money
             .as_ref()
-            .map(|money| money.amount())
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
             .ok_or_else(|| IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: context.clone(),
             })?;
-        if amount != MinorUnit::zero() {
+        if amount != ConnectorMinorUnit::zero() {
             return Err(IntegrationError::NotSupported {
                 message: "Nonzero setup amount".to_owned(),
                 connector: "jpmorgan",

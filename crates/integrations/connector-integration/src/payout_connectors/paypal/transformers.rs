@@ -271,8 +271,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
             PayoutTransferResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let minor_amount = item.request.money.amount();
-        if minor_amount <= common_utils::types::MinorUnit::zero() {
+        let minor_amount =
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&item.request.money);
+        if minor_amount <= common_utils::types::ConnectorMinorUnit::zero() {
             return Err(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
                 context: IntegrationErrorContext {
@@ -297,7 +298,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
                     reason = "Temporary payout currency contract: paypal-transfer; see PR #2642"
                 )]
                 let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
-                    minor_amount,
+                    item.request.money.amount(),
                     item.request.destination_currency,
                 );
                 legacy_money

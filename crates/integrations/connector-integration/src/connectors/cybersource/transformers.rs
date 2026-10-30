@@ -1688,7 +1688,12 @@ fn build_l2_l3_order_data<
         .and_then(|tax| tax.order_tax_money.as_ref());
     let purchase_order_number = l2_l3_data.and_then(L2L3Data::get_merchant_order_reference_id);
     // `taxable` is required by Cybersource when tax is charged on the order.
-    let taxable = order_tax_amount.map(|tax| tax.amount().get_amount_as_i64() > 0);
+    let taxable = order_tax_amount.map(|tax| {
+        common_utils::types::ConnectorMinorUnitForConnector
+            .convert(tax)
+            .get_amount_as_i64()
+            > 0
+    });
     let invoice_details =
         (purchase_order_number.is_some() || taxable.is_some()).then_some(InvoiceDetails {
             purchase_order_number,
@@ -6404,15 +6409,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 .clone()
                         })
                         .map(|original_amount| {
-                            (original_amount.amount(), original_amount.currency())
+                            (original_amount.clone(), original_amount.currency())
                         });
 
                     let original_authorized_amount = match original_authorized_amount {
-                        Some((original_amount, original_currency)) => {
+                        Some((original_amount, _original_currency)) => {
                             Some(domain_types::utils::get_amount_as_string(
                                 &common_enums::CurrencyUnit::Base,
-                                original_amount,
-                                original_currency,
+                                &original_amount,
                             )?)
                         }
                         None => None,
@@ -6467,8 +6471,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 .and_then(|recurring_mandate_payment_data| {
                                     recurring_mandate_payment_data
                                         .original_payment_authorized_money
-                                        .as_ref()
-                                        .map(|money| money.amount())
+                                        .clone()
                                 });
 
                             let original_currency = item
@@ -6487,8 +6490,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     };
                     let original_authorized_amount = match original_amount.zip(original_currency) {
-                        Some((original_amount, original_currency)) => {
-                            Some(to_currency_base_unit(original_amount, original_currency)?)
+                        Some((original_amount, _original_currency)) => {
+                            Some(to_currency_base_unit(&original_amount)?)
                         }
                         None => None,
                     };
@@ -6545,8 +6548,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 .and_then(|recurring_mandate_payment_data| {
                                     recurring_mandate_payment_data
                                         .original_payment_authorized_money
-                                        .as_ref()
-                                        .map(|money| money.amount())
+                                        .clone()
                                 });
 
                             let original_currency = item
@@ -6565,8 +6567,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     };
                     let original_authorized_amount = match original_amount.zip(original_currency) {
-                        Some((original_amount, original_currency)) => {
-                            Some(to_currency_base_unit(original_amount, original_currency)?)
+                        Some((original_amount, _original_currency)) => {
+                            Some(to_currency_base_unit(&original_amount)?)
                         }
                         None => None,
                     };

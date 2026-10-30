@@ -2,7 +2,7 @@
 
 use std::fmt::Debug;
 
-use common_utils::types::MinorUnit;
+use common_utils::types::ConnectorMinorUnit;
 use domain_types::{
     connector_flow::{
         PayoutCreate, PayoutCreateRecipient, PayoutEnrollDisburseAccount, PayoutGet,
@@ -95,7 +95,7 @@ const STRIPE_EXTERNAL_ACCOUNT_OBJECT_BANK: &str = "bank_account";
 
 #[derive(Clone, Debug, Serialize)]
 pub struct StripeConnectPayoutCreateRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     pub destination: String,
     pub transfer_group: Option<String>,
@@ -215,7 +215,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
 
 #[derive(Clone, Debug, Serialize)]
 pub struct StripeConnectPayoutFulfillRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
 }
 

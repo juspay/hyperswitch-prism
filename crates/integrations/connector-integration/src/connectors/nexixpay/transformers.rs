@@ -1366,7 +1366,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         });
 
         // Add actionType logic for zero-amount payments
-        let action_type = if item.request.money.amount() == common_utils::types::MinorUnit::zero() {
+        let action_type = if common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.request.money)
+            == common_utils::types::ConnectorMinorUnit::zero()
+        {
             Some(NexixpayPaymentRequestActionType::Verify)
         } else {
             None
@@ -1783,7 +1786,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         "Ensure the request carries a valid minor-unit amount and a currency \
                          supported by Nexi XPay. Nexi `/orders/hpp` expects \
                          `paymentSession.amount` as a string of minor units (e.g. cents), so \
-                         the source `MinorUnit` must be representable as an integer string."
+                         the source `ConnectorMinorUnit` must be representable as an integer string."
                             .to_owned(),
                     ),
                     doc_url: Some("https://developer.nexi.it/en/api/post-orders-hpp".to_owned()),
@@ -1791,7 +1794,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         "Failed to encode amount={:?} currency={:?} as a Nexi \
                          `paymentSession.amount` (string minor-units) for the /orders/hpp \
                          ClientAuthenticationToken flow.",
-                        router_data.request.money.amount(),
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&router_data.request.money),
                         router_data.request.currency,
                     )),
                 },

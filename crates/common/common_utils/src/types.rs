@@ -135,11 +135,18 @@ impl AmountConvertor for MinorUnitForConnector {
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct ConnectorMinorUnitForConnector;
 
+impl ConnectorMinorUnitForConnector {
+    /// Preserves the integer minor-unit value without currency scaling.
+    pub fn convert(&self, money: &Money) -> ConnectorMinorUnit {
+        ConnectorMinorUnit(money.amount.get_amount_as_i64())
+    }
+}
+
 impl AmountConvertor for ConnectorMinorUnitForConnector {
     type Output = ConnectorMinorUnit;
 
     fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        Ok(ConnectorMinorUnit(money.amount.get_amount_as_i64()))
+        Ok(Self::convert(self, money))
     }
 
     fn convert_back(
@@ -320,11 +327,51 @@ impl ConnectorMinorUnit {
     pub fn zero() -> Self {
         Self(0)
     }
+
+    /// Multiplies a converted connector amount without overflowing.
+    pub fn checked_mul(self, quantity: u16) -> Option<Self> {
+        self.0.checked_mul(i64::from(quantity)).map(Self)
+    }
+
+    /// Checks a connector amount against an integer minor-unit threshold.
+    pub fn is_greater_than(&self, value: i64) -> bool {
+        self.0 > value
+    }
 }
 
 impl Display for ConnectorMinorUnit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl Add for ConnectorMinorUnit {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl Sub for ConnectorMinorUnit {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl Mul<u16> for ConnectorMinorUnit {
+    type Output = Self;
+
+    fn mul(self, quantity: u16) -> Self::Output {
+        Self(self.0 * i64::from(quantity))
+    }
+}
+
+impl Sum for ConnectorMinorUnit {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self::zero(), |total, amount| total + amount)
     }
 }
 

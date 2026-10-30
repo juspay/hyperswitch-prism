@@ -2280,14 +2280,16 @@ pub enum CaptureSyncResponse {
         resource_id: ResponseId,
         status: common_enums::AttemptStatus,
         connector_response_reference_id: Option<String>,
-        amount: Option<MinorUnit>,
+        #[serde(rename = "amount")]
+        money: Option<Money>,
     },
     Error {
         code: String,
         message: String,
         reason: Option<String>,
         status_code: u16,
-        amount: Option<MinorUnit>,
+        #[serde(rename = "amount")]
+        money: Option<Money>,
     },
 }
 
@@ -4836,7 +4838,8 @@ pub struct StripeSplitPaymentData {
     pub charge_type: common_enums::PaymentChargeType,
 
     /// Platform fees to be collected on the payment
-    pub application_fees: Option<MinorUnit>,
+    #[serde(rename = "application_fees")]
+    pub application_fee_money: Option<Money>,
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
@@ -4866,7 +4869,8 @@ pub struct StripeSplitResponseData {
     pub charge_type: common_enums::PaymentChargeType,
 
     /// Platform fees collected on the payment
-    pub application_fees: Option<MinorUnit>,
+    #[serde(rename = "application_fees")]
+    pub application_fee_money: Option<Money>,
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
@@ -4896,7 +4900,8 @@ pub struct AdyenSplitData {
 /// Data for the split items
 pub struct AdyenSplitItem {
     /// The amount of the split item
-    pub amount: Option<MinorUnit>,
+    #[serde(rename = "amount")]
+    pub money: Option<Money>,
     /// Defines type of split item
     pub split_type: common_enums::AdyenSplitType,
     /// The unique identifier of the account to which the split amount is allocated.
@@ -5020,15 +5025,14 @@ pub struct RecurringMandatePaymentData {
 }
 
 pub trait RecurringMandateData {
-    fn get_original_payment_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_original_payment_amount(&self) -> Result<Money, Error>;
     fn get_original_payment_currency(&self) -> Result<Currency, Error>;
 }
 
 impl RecurringMandateData for RecurringMandatePaymentData {
-    fn get_original_payment_amount(&self) -> Result<MinorUnit, Error> {
+    fn get_original_payment_amount(&self) -> Result<Money, Error> {
         self.original_payment_authorized_money
-            .as_ref()
-            .map(|money| money.amount())
+            .clone()
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
     }
     fn get_original_payment_currency(&self) -> Result<Currency, Error> {
@@ -5731,22 +5735,22 @@ impl L2L3Data {
             .and_then(|order| order.merchant_order_reference_id.clone())
     }
 
-    pub fn get_discount_amount(&self) -> Option<MinorUnit> {
+    pub fn get_discount_amount(&self) -> Option<Money> {
         self.order_info
             .as_ref()
-            .and_then(|order| order.discount_money.as_ref().map(|money| money.amount()))
+            .and_then(|order| order.discount_money.clone())
     }
 
-    pub fn get_shipping_cost(&self) -> Option<MinorUnit> {
+    pub fn get_shipping_cost(&self) -> Option<Money> {
         self.order_info
             .as_ref()
-            .and_then(|order| order.shipping_money.as_ref().map(|money| money.amount()))
+            .and_then(|order| order.shipping_money.clone())
     }
 
-    pub fn get_duty_amount(&self) -> Option<MinorUnit> {
+    pub fn get_duty_amount(&self) -> Option<Money> {
         self.order_info
             .as_ref()
-            .and_then(|order| order.duty_money.as_ref().map(|money| money.amount()))
+            .and_then(|order| order.duty_money.clone())
     }
 
     pub fn get_order_commodity_code(&self) -> Option<String> {
@@ -5755,12 +5759,10 @@ impl L2L3Data {
             .and_then(|order| order.order_commodity_code.clone())
     }
 
-    pub fn get_value_added_tax_amount(&self) -> Option<MinorUnit> {
-        self.tax_info.as_ref().and_then(|tax| {
-            tax.value_added_tax_money
-                .as_ref()
-                .map(|money| money.amount())
-        })
+    pub fn get_value_added_tax_amount(&self) -> Option<Money> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.value_added_tax_money.clone())
     }
 
     pub fn get_value_added_tax_percent(&self) -> Option<f64> {
@@ -5797,18 +5799,16 @@ impl L2L3Data {
             .and_then(|tax| tax.merchant_vat_registration_id.clone())
     }
 
-    pub fn get_shipping_amount_tax(&self) -> Option<MinorUnit> {
-        self.tax_info.as_ref().and_then(|tax| {
-            tax.shipping_amount_tax_money
-                .as_ref()
-                .map(|money| money.amount())
-        })
-    }
-
-    pub fn get_order_tax_amount(&self) -> Option<MinorUnit> {
+    pub fn get_shipping_amount_tax(&self) -> Option<Money> {
         self.tax_info
             .as_ref()
-            .and_then(|tax| tax.order_tax_money.as_ref().map(|money| money.amount()))
+            .and_then(|tax| tax.shipping_amount_tax_money.clone())
+    }
+
+    pub fn get_order_tax_amount(&self) -> Option<Money> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.order_tax_money.clone())
     }
 
     pub fn get_customer_id(&self) -> Option<CustomerId> {
@@ -6223,7 +6223,7 @@ pub struct GpayTransactionInfo {
     /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
     /// The total price
-    pub total_price: MinorUnit,
+    pub total_price: common_utils::types::ConnectorMinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -6446,7 +6446,7 @@ pub struct AmountInfo {
     #[serde(rename = "type")]
     pub total_type: Option<String>,
     /// The total amount
-    pub amount: MinorUnit,
+    pub amount: common_utils::types::ConnectorMinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -6471,7 +6471,7 @@ pub struct PaypalTransactionInfo {
     /// Currency code
     pub currency_code: Currency,
     /// Total price
-    pub total_price: MinorUnit,
+    pub total_price: common_utils::types::ConnectorMinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
