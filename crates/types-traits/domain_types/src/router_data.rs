@@ -1155,6 +1155,12 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    Betterpayment {
+        api_key: Secret<String>,
+        api_password: Secret<String>,
+        webhook_key: Option<Secret<String>>,
+        base_url: Option<String>,
+    },
     Reddot {
         mid: Secret<String>,
         secret: Secret<String>,
@@ -1615,6 +1621,11 @@ impl ConnectorSpecificConfig {
                 app_secret,
                 merchant_secret,
                 base_url
+            },
+            Betterpayment {
+                api_key,
+                api_password,
+                webhook_key
             },
             Reddot {
                 mid,
@@ -2165,6 +2176,11 @@ impl ConnectorSpecificConfig {
                     app_secret,
                     merchant_secret,
                     base_url
+                },
+                Betterpayment {
+                    api_key,
+                    api_password,
+                    webhook_key
                 },
                 Reddot {
                     mid,
@@ -2923,6 +2939,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 app_secret: payhere.app_secret.ok_or_else(err)?,
                 merchant_secret: payhere.merchant_secret.ok_or_else(err)?,
                 base_url: payhere.base_url,
+            }),
+            AuthType::Betterpayment(betterpayment) => Ok(Self::Betterpayment {
+                api_key: betterpayment.api_key.ok_or_else(err)?,
+                api_password: betterpayment.api_password.ok_or_else(err)?,
+                webhook_key: betterpayment.webhook_key,
+                base_url: betterpayment.base_url,
             }),
             AuthType::Reddot(reddot) => Ok(Self::Reddot {
                 mid: reddot.mid.ok_or_else(err)?,
@@ -4348,6 +4370,25 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         merchant_id: key1.clone(),
                         app_secret: api_secret.clone(),
                         merchant_secret: key2.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Betterpayment => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Betterpayment {
+                        api_key: api_key.clone(),
+                        api_password: key1.clone(),
+                        webhook_key: Some(api_secret.clone()),
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Betterpayment {
+                        api_key: api_key.clone(),
+                        api_password: key1.clone(),
+                        webhook_key: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
