@@ -12752,7 +12752,7 @@ impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceSubmitEvidenceReques
                 .customer_email_address
                 .map(|email| Secret::new(email.expose())),
             customer_name: value.customer_name.map(ExposeInterface::expose),
-            customer_purchase_ip: value.customer_purchase_ip,
+            customer_purchase_ip: value.customer_purchase_ip.map(ExposeInterface::expose),
             customer_signature: None,
             customer_signature_file_type: None,
             customer_signature_provider_file_id: None,

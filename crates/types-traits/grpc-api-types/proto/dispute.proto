@@ -40,7 +40,7 @@ message DisputeServiceSubmitEvidenceRequest {
   optional string cancellation_rebuttal = 10;
   optional SecretString customer_email_address = 11;
   optional SecretString customer_name = 12;
-  optional string customer_purchase_ip = 13;
+  optional SecretString customer_purchase_ip = 13;
   optional string product_description = 14;
   optional string refund_policy_disclosure = 15;
   optional string refund_refusal_explanation = 16;

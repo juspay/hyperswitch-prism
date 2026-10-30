@@ -411,7 +411,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PayoutMethodEligibilityResponse: ["connectorMetadata"],
   ConnectorError: ["rawConnectorResponse", "rawConnectorRequest"],
   SurchargeServiceCalculateRequest: ["postalCode"],
-  DisputeServiceSubmitEvidenceRequest: ["customerEmailAddress", "customerName"],
+  DisputeServiceSubmitEvidenceRequest: ["customerEmailAddress", "customerName", "customerPurchaseIp"],
   DisputeServiceSubmitEvidenceResponse: ["rawConnectorRequest", "typedConnectorRequest"],
   DisputeServiceDefendResponse: ["rawConnectorRequest", "typedConnectorRequest"],
   DisputeServiceAcceptResponse: ["rawConnectorRequest", "typedConnectorRequest"],
