@@ -1,7 +1,8 @@
 {
   "_comment": [
     "Connectors CI does not certify against a live sandbox, because there are no credentials for them in CI.",
-    "TODO: remove a connector from this list as soon as its credentials are added, so that it starts being certified."
+    "TODO: remove a connector from this list as soon as its credentials are added, so that it starts being certified.",
+    "Per-flow alpha: a connector certified in CI whose listed suites/scenarios ship without live sandbox proof. Shape <connector> -> <suite> -> {<scenario> | \"*\": <reason>}. The harness skips each listed scenario with an ALPHA: reason so every other flow of the connector stays certified; check_connector_specs validates the entries. Remove an entry once the flow is proven live."
   ],
   "connectors": {
     "absa_sanlam": {},
@@ -140,5 +141,21 @@
     "worldpayxml": {},
     "xendit": {},
     "zift": {}
+  },
+  "alpha_flows": {
+    "checkout": {
+      "PaymentService/Authorize": {
+        "threeds_manual_capture_credit_card": "3DS (Checkout-hosted authentication): the sandbox processing channel has no 3DS processor configured, so every POST /payments with 3ds.enabled=true answers 422 no_processor_configured_for_card_scheme for Visa and Mastercard (probed directly against the sandbox on 2026-10-21, also without UCS). External 3DS (checkout_external_3ds) is certified. Remove once 3DS is enabled on the sandbox channel.",
+        "checkout_google_pay_decrypted_pan_only_3ds": "Google Pay PAN_ONLY with 3DS: same sandbox gap as threeds_manual_capture_credit_card (422 no_processor_configured_for_card_scheme when 3ds.enabled=true). The PAN_ONLY no-3DS path (checkout_google_pay_decrypted_pan_only) is certified.",
+        "no3ds_auto_capture_google_pay_encrypted": "Google Pay PSP-decryption: needs a real device-minted ECv2 token signed for this merchant; the scenario carries a placeholder token that Checkout refuses (token_data_invalid). Google Pay Hyperswitch-decryption is certified."
+      },
+      "PaymentMethodService/Tokenize": {
+        "checkout_tokenize_apple_pay_wire": "Apple Pay PSP-decryption: POST /tokens needs a real device-minted Apple Pay token for a merchant identity registered with Checkout; the placeholder token is refused with 422 token_data_invalid. Apple Pay Hyperswitch-decryption is certified.",
+        "checkout_tokenize_google_pay_wire": "Google Pay PSP-decryption: POST /tokens needs a real device-minted Google Pay token; there is none for this sandbox account."
+      },
+      "EventService/HandleEvent": {
+        "*": "Webhooks: no Checkout-delivered webhook can reach a CI runner and the CI credentials carry no webhook signing secret, so source verification cannot be certified. Parsing and HMAC-SHA256 verification of the vendor-documented payloads were checked locally against a run-generated secret."
+      }
+    }
   }
 }

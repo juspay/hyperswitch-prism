@@ -110,6 +110,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `PaysafePaymentMethodDetails::get_account_id` (domain_types/router_data.rs).
     config.type_attribute(".types.PaysafePaymentMethodDetails", "#[serde(default)]");
 
+    // Webhook / redirect verification secrets are plain `string` on the wire (changing
+    // them to `SecretString` would break every caller's encoding), so they cannot be
+    // `Secret<String>` in Rust via extern_path. Route their serde serialization through
+    // `Secret<String>` instead: plain serializers still see the value, while
+    // `hyperswitch_masking::masked_serialize` (request_body golden log, span events,
+    // Kafka API events) masks it. A plain-string proto field defeats the masker.
+    for path in [
+        ".types.WebhookSecrets.secret",
+        ".types.RedirectResponseSecrets.secret",
+    ] {
+        config.field_attribute(
+            path,
+            "#[serde(serialize_with = \"crate::masked_serde::secret_string\")]",
+        );
+    }
+    for path in [
+        ".types.WebhookSecrets.additional_secret",
+        ".types.RedirectResponseSecrets.additional_secret",
+    ] {
+        config.field_attribute(
+            path,
+            "#[serde(serialize_with = \"crate::masked_serde::optional_secret_string\")]",
+        );
+    }
+
     // Use compile_protos_with_config which handles everything internally
     // including string enum support, serde derives, and descriptor set writing
     bridge_generator.compile_protos_with_config(

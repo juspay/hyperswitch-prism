@@ -521,6 +521,74 @@ fn main() {
     }
 
     // -----------------------------------------------------------------------
+    // Phase 2c: per-flow alpha entries
+    // -----------------------------------------------------------------------
+    // `alpha_connectors.json` `alpha_flows` marks single suites/scenarios of a
+    // certified connector alpha (skipped by the harness with an `ALPHA:` reason).
+    // Every entry must name a declared suite and carry a non-empty reason, and a
+    // connector already alpha as a whole must not also list flows.
+    println!();
+    println!("{}", "=".repeat(80));
+    println!("PHASE 2C — PER-FLOW ALPHA ENTRIES");
+    println!("{}", "=".repeat(80));
+    println!();
+
+    let mut alpha_flow_errors: Vec<String> = Vec::new();
+    let alpha_path = specs_root.join("alpha_connectors.json");
+    if let Ok(content) = fs::read_to_string(&alpha_path) {
+        match serde_json::from_str::<serde_json::Value>(&content) {
+            Err(e) => alpha_flow_errors.push(format!("alpha_connectors.json does not parse: {e}")),
+            Ok(alpha) => {
+                let whole = alpha.get("connectors").and_then(|c| c.as_object());
+                if let Some(flows) = alpha.get("alpha_flows").and_then(|f| f.as_object()) {
+                    for (connector, suites) in flows {
+                        if whole.is_some_and(|w| w.contains_key(connector)) {
+                            alpha_flow_errors.push(format!(
+                                "{connector}: listed in both `connectors` and `alpha_flows`"
+                            ));
+                        }
+                        let declared: Vec<String> =
+                            fs::read_to_string(specs_root.join(connector).join("specs.json"))
+                                .ok()
+                                .and_then(|c| serde_json::from_str::<ConnectorSpecs>(&c).ok())
+                                .map(|s| s.supported_suites)
+                                .unwrap_or_default();
+                        let Some(suites) = suites.as_object() else {
+                            alpha_flow_errors.push(format!("{connector}: entry is not an object"));
+                            continue;
+                        };
+                        for (suite, scenarios) in suites {
+                            if !declared.iter().any(|s| s == suite) {
+                                alpha_flow_errors.push(format!(
+                                    "{connector}: alpha suite {suite} is not in supported_suites"
+                                ));
+                            }
+                            let Some(scenarios) = scenarios.as_object() else {
+                                alpha_flow_errors
+                                    .push(format!("{connector}: {suite} entry is not an object"));
+                                continue;
+                            };
+                            for (scenario, reason) in scenarios {
+                                if reason.as_str().map(str::trim).unwrap_or("").is_empty() {
+                                    alpha_flow_errors.push(format!(
+                                        "{connector}: {suite}/{scenario} has no reason"
+                                    ));
+                                } else {
+                                    println!("[ALPHA] {connector}  {suite}/{scenario}");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for e in &alpha_flow_errors {
+        println!("[FAIL] {e}");
+    }
+    let has_alpha_flow_errors = !alpha_flow_errors.is_empty();
+
+    // -----------------------------------------------------------------------
     // Phase 3: testable suite report (suite list derived from scenario_api.rs)
     // -----------------------------------------------------------------------
     println!();
@@ -744,6 +812,7 @@ fn main() {
         || has_unverifiable
         || has_webhook_errors
         || has_unknown_flows
+        || has_alpha_flow_errors
     {
         let mut reasons = Vec::new();
         if !phase1_ok {
@@ -775,6 +844,12 @@ fn main() {
             reasons.push(format!(
                 "{} connector(s) declare webhook support without webhook_payload.json",
                 webhook_errors.len()
+            ));
+        }
+        if has_alpha_flow_errors {
+            reasons.push(format!(
+                "{} invalid per-flow alpha entr(ies) in alpha_connectors.json",
+                alpha_flow_errors.len()
             ));
         }
         eprintln!("ERROR: {}", reasons.join("; "));

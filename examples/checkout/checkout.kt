@@ -11,6 +11,7 @@ import types.Payment.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.DisputeClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
@@ -18,10 +19,12 @@ import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.CardNetwork
+import payments.CountryAlpha2
 import payments.Currency
 import payments.FutureUsage
 import payments.HttpMethod
 import payments.PaymentMethodType
+import payments.TransactionStatus
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -29,7 +32,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.CheckoutConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "dispute_accept", "dispute_defend", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -64,11 +67,31 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
+        customerBuilder.apply {  // Customer Information.
+            emailBuilder.value = "customer.probe@example.com"
+        }
         addressBuilder.apply {  // Address Information.
+            shippingAddressBuilder.apply {
+                firstNameBuilder.value = "Jane"
+                line1Builder.value = "123 Main St"
+                cityBuilder.value = "Seattle"
+                zipCodeBuilder.value = "98101"
+                countryAlpha2Code = CountryAlpha2.US
+            }
             billingAddressBuilder.apply {
+                phoneNumberBuilder.value = "4155552671"
+                phoneCountryCode = "+1"
             }
         }
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
+        authenticationDataBuilder.apply {
+            eci = "05"  // Electronic Commerce Indicator (ECI) from 3DS.
+            cavv = "AAABAWFlmQAAAABjRWWZEEFgFz8="  // Cardholder Authentication Verification Value (CAVV).
+            messageVersion = "2.2.0"  // 3DS Message Version (e.g., "2.1.0", "2.2.0").
+            dsTransactionId = "97267598-fae6-48f2-8083-c23433990361"  // Directory Server Transaction ID (DS Trans ID).
+            transStatus = TransactionStatus.TRANSACTION_STATUS_SUCCESS  // Transaction status from authentication/verification process.
+            createdAt = 1704067200L  // Authentication timestamp (Unix epoch seconds, UTC) when the 3DS authentication was performed. Used by connectors (e.g. Cybersource) that send an authenticationDate in their request.
+        }
         returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
     }.build()
 }
@@ -233,6 +256,31 @@ fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
     if (response.status.name == "FAILED")
         throw RuntimeException("Capture failed: ${response.error.unifiedDetails.message}")
     println("Done: ${response.status.name}")
+}
+
+// Flow: DisputeService.Accept
+fun disputeAccept(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = DisputeClient(config)
+    val request = DisputeServiceAcceptRequest.newBuilder().apply {
+        merchantDisputeId = "probe_dispute_001"  // Identification.
+        connectorTransactionId = "probe_txn_001"
+        disputeId = "probe_dispute_id_001"
+    }.build()
+    val response = client.accept(request)
+    println("Dispute status: ${response.disputeStatus.name}")
+}
+
+// Flow: DisputeService.Defend
+fun disputeDefend(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = DisputeClient(config)
+    val request = DisputeServiceDefendRequest.newBuilder().apply {
+        merchantDisputeId = "probe_dispute_001"  // Identification.
+        connectorTransactionId = "probe_txn_001"
+        disputeId = "probe_dispute_id_001"
+        reasonCode = "probe_reason"  // Defend Details.
+    }.build()
+    val response = client.defend(request)
+    println("Dispute status: ${response.disputeStatus.name}")
 }
 
 // Flow: PaymentService.Get
@@ -510,6 +558,8 @@ fun main(args: Array<String>) {
         "processGetPayment" -> processGetPayment(txnId)
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
+        "disputeAccept" -> disputeAccept(txnId)
+        "disputeDefend" -> disputeDefend(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
         "parseEvent" -> parseEvent(txnId)
@@ -522,6 +572,6 @@ fun main(args: Array<String>) {
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "tokenSetupRecurring" -> tokenSetupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenSetupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, disputeAccept, disputeDefend, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenSetupRecurring, void")
     }
 }

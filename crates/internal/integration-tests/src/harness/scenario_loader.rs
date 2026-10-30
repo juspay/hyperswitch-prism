@@ -431,12 +431,58 @@ pub fn scenario_unsupported_reason(
             source,
         }
     })?;
-    Ok(spec
+    let declared = spec
         .unsupported_scenarios
         .get(suite)
         .and_then(|scenarios| scenarios.get(scenario))
         .map(|reason| reason.trim().to_string())
-        .filter(|reason| !reason.is_empty()))
+        .filter(|reason| !reason.is_empty());
+    match declared {
+        Some(reason) => Ok(Some(reason)),
+        None => scenario_alpha_reason(connector, suite, scenario),
+    }
+}
+
+/// Why this scenario is alpha for this connector, if it is.
+///
+/// `alpha_connectors.json` `connectors` marks a whole connector alpha (CI does
+/// not certify it at all). `alpha_flows` marks single flows of an otherwise
+/// certified connector alpha: the code ships, but the flow has no live sandbox
+/// proof yet (no device-minted wallet token, no 3DS processor on the sandbox
+/// account, no delivered webhook). Shape:
+/// `{"alpha_flows": {"<connector>": {"<suite>": {"<scenario>" | "*": "<reason>"}}}}`;
+/// `"*"` covers every scenario of the suite. The scenario is skipped like an
+/// unsupported one, with the reason prefixed `ALPHA:`, so certification keeps
+/// running every other flow of the connector.
+pub fn scenario_alpha_reason(
+    connector: &str,
+    suite: &str,
+    scenario: &str,
+) -> Result<Option<String>, ScenarioError> {
+    let path = connector_specs_root().join(ALPHA_CONNECTORS_FILE);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let content = fs::read_to_string(&path).map_err(|source| ScenarioError::ConnectorSpecRead {
+        path: path.clone(),
+        source,
+    })?;
+    let parsed = serde_json::from_str::<Value>(&content).map_err(|source| {
+        ScenarioError::ConnectorSpecParse {
+            path: path.clone(),
+            source,
+        }
+    })?;
+    let suite_entry = parsed
+        .get("alpha_flows")
+        .and_then(|flows| flows.get(connector))
+        .and_then(|suites| suites.get(suite));
+    Ok(suite_entry
+        .and_then(|entry| entry.get(scenario).or_else(|| entry.get("*")))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|reason| !reason.is_empty())
+        .map(|reason| format!("ALPHA: {reason}")))
 }
 
 /// The `payment_method` oneof variant a scenario populates, if it names one.

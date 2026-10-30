@@ -5,13 +5,18 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PaymentMethodToken, RepeatPayment, SetupMandate, Void},
+    connector_flow::{
+        Accept, Authorize, Capture, DefendDispute, PaymentMethodToken, RepeatPayment, SetupMandate,
+        SubmitEvidence, Void,
+    },
     connector_types::{
+        AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
         MandateReference, MandateReferenceId, PartnerMerchantIdentifierDetails, PaymentFlowData,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RecipientAccount, RecipientBankAccount, RecipientDetails, RefundFlowData, RefundSyncData,
         RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        SubmitEvidenceData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
@@ -22,11 +27,12 @@ use domain_types::{
         ErrorResponse,
     },
     router_data_v2::RouterDataV2,
+    router_request_types::AuthenticationData,
     router_response_types::RedirectForm,
     utils,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_with::skip_serializing_none;
@@ -70,6 +76,9 @@ pub struct CardSource<
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<CheckoutPhoneDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_holder: Option<CheckoutAccountHolderDetails>,
 }
 
@@ -153,6 +162,7 @@ pub struct AchBankDebitSource {
     pub account_number: Secret<String>,
     #[serde(rename = "bank_code")]
     pub routing_number: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_holder: Option<AchAccountHolder>,
 }
 
@@ -187,7 +197,12 @@ pub struct CheckoutRawCardDetails<
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_holder: Option<CheckoutAccountHolderDetails>,
+    /// `true` when the card details are stored outside Checkout.com and replayed against a
+    /// network transaction id (NTID MIT); omitted on a customer-initiated payment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stored: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -215,6 +230,10 @@ pub struct DecryptedWalletToken {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     pub billing_address: Option<CheckoutAddress>,
+    /// `true` when the network token is stored outside Checkout.com and replayed against a
+    /// network transaction id (NTID MIT).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stored: Option<bool>,
 }
 
 /// Payment source for Visa Token Service (vts) and Mastercard Digital Enablement Service (mdes)
@@ -504,8 +523,141 @@ fn build_checkout_sender(
 #[skip_serializing_none]
 #[derive(Debug, Default, Serialize)]
 pub struct CheckoutShipping {
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub email: Option<common_utils::pii::Email>,
     pub address: Option<CheckoutAddress>,
+    pub phone: Option<CheckoutPhoneDetails>,
     pub from_address_zip: Option<String>,
+}
+
+impl CheckoutAddress {
+    fn is_empty(&self) -> bool {
+        self.address_line1.is_none()
+            && self.address_line2.is_none()
+            && self.city.is_none()
+            && self.state.is_none()
+            && self.zip.is_none()
+            && self.country.is_none()
+    }
+}
+
+impl From<&domain_types::payment_address::AddressDetails> for CheckoutAddress {
+    fn from(details: &domain_types::payment_address::AddressDetails) -> Self {
+        Self {
+            address_line1: details.line1.clone(),
+            address_line2: details.line2.clone(),
+            city: details.city.clone(),
+            state: details.state.clone(),
+            zip: details.zip.clone(),
+            country: details.country,
+        }
+    }
+}
+
+/// `{country_code, number}` from a phone, or `None` when it carries no number.
+fn build_phone(
+    phone: Option<&domain_types::payment_address::PhoneDetails>,
+) -> Option<CheckoutPhoneDetails> {
+    phone.and_then(|phone| {
+        phone.number.clone().map(|number| CheckoutPhoneDetails {
+            country_code: phone.country_code.clone(),
+            number: Some(number),
+        })
+    })
+}
+
+/// `source.billing_address` from the payment-method billing address. Shared by Authorize,
+/// RepeatPayment and SetupMandate.
+fn build_billing_address(common: &PaymentFlowData) -> Option<CheckoutAddress> {
+    Some(CheckoutAddress {
+        city: common.get_optional_billing_city(),
+        address_line1: common.get_optional_billing_line1(),
+        address_line2: common.get_optional_billing_line2(),
+        state: common.get_optional_billing_state(),
+        zip: common.get_optional_billing_zip(),
+        country: common.get_optional_billing_country(),
+    })
+}
+
+/// `source.phone` from the payment-method billing phone.
+fn build_source_phone(common: &PaymentFlowData) -> Option<CheckoutPhoneDetails> {
+    build_phone(
+        common
+            .get_optional_billing()
+            .and_then(|billing| billing.phone.as_ref()),
+    )
+}
+
+/// The request `shipping` object.
+///
+/// Address details come from the Level 2/3 shipping details when present, else from the
+/// payment's shipping address; name, email and phone come from the shipping address. Returns
+/// `None` when no field is set, so an empty `"shipping": {"address": {}}` is never sent.
+fn build_shipping(common: &PaymentFlowData) -> Option<CheckoutShipping> {
+    let shipping = common.get_optional_shipping();
+    let details = common
+        .l2_l3_data
+        .as_ref()
+        .and_then(|l2l3| l2l3.shipping_details.as_ref())
+        .or_else(|| shipping.and_then(|address| address.address.as_ref()));
+    let address = details
+        .map(CheckoutAddress::from)
+        .filter(|address| !address.is_empty());
+    let first_name = details.and_then(|details| details.first_name.clone());
+    let last_name = details.and_then(|details| details.last_name.clone());
+    let from_address_zip = details
+        .and_then(|details| details.origin_zip.clone())
+        .map(ExposeInterface::expose);
+    let email = shipping.and_then(|address| address.email.clone());
+    let phone = build_phone(shipping.and_then(|address| address.phone.as_ref()));
+
+    let is_empty = address.is_none()
+        && first_name.is_none()
+        && last_name.is_none()
+        && from_address_zip.is_none()
+        && email.is_none()
+        && phone.is_none();
+    (!is_empty).then_some(CheckoutShipping {
+        first_name,
+        last_name,
+        email,
+        address,
+        phone,
+        from_address_zip,
+    })
+}
+
+/// The request `customer` object: the Level 2/3 customer when present, else `{email, name}` from
+/// the payment when either is set.
+fn build_customer(
+    l2l3_data: Option<&domain_types::connector_types::L2L3Data>,
+    email: Option<common_utils::pii::Email>,
+    name: Option<Secret<String>>,
+) -> Option<CheckoutCustomer> {
+    match l2l3_data.filter(|l2l3| l2l3.customer_info.is_some()) {
+        Some(l2l3) => {
+            let phone_number = l2l3.get_customer_phone_number();
+            let phone_country_code = l2l3.get_customer_phone_country_code();
+            Some(CheckoutCustomer {
+                name: l2l3.get_customer_name(),
+                email: l2l3.get_customer_email(),
+                phone: (phone_number.is_some() || phone_country_code.is_some()).then_some(
+                    CheckoutPhoneDetails {
+                        country_code: phone_country_code,
+                        number: phone_number,
+                    },
+                ),
+                tax_number: l2l3.get_customer_tax_registration_id(),
+            })
+        }
+        None => (email.is_some() || name.is_some()).then_some(CheckoutCustomer {
+            name,
+            email,
+            phone: None,
+            tax_number: None,
+        }),
+    }
 }
 
 #[skip_serializing_none]
@@ -593,15 +745,234 @@ pub enum CheckoutChallengeIndicator {
     NoChallengeRequested,
 }
 
+/// The `3ds` object of `POST /payments`.
+///
+/// One struct covers the three shapes Checkout documents, and `skip_serializing_none` keeps each
+/// shape free of the keys it does not use (no `null`s on the wire):
+/// * integrated 3DS (`3dsRequestEnabled`): `enabled`, `force_3ds`, `challenge_indicator`;
+/// * external 3DS from a third-party MPI (`3dsRequestThirdParty`): `enabled` (must be `true`),
+///   `eci`, `cryptogram`, `xid`, `version`, `status`, `authentication_date`;
+/// * no 3DS: `{"enabled": false}` only.
+///
+/// Built only by [`build_checkout_three_ds`].
+#[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct CheckoutThreeDS {
     enabled: bool,
-    force_3ds: bool,
+    force_3ds: Option<bool>,
     eci: Option<String>,
     cryptogram: Option<Secret<String>>,
     xid: Option<String>,
     version: Option<String>,
-    challenge_indicator: CheckoutChallengeIndicator,
+    status: Option<CheckoutThreeDsStatus>,
+    authentication_date: Option<String>,
+    challenge_indicator: Option<CheckoutChallengeIndicator>,
+}
+
+/// `3ds.status` of `3dsRequestThirdParty`: the ARes/RReq `transStatus` of an external
+/// authentication. Only the two outcomes that may be imported as authenticated exist here — every
+/// other `trans_status` is refused before the request is built (see [`build_checkout_three_ds`]).
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+pub enum CheckoutThreeDsStatus {
+    /// Authenticated.
+    Y,
+    /// Attempted: not authenticated, but proof of the attempt is provided.
+    A,
+}
+
+/// ECIs a fully authenticated external 3DS result may carry (Mastercard 02, Visa/Amex/others 05).
+const ECI_AUTHENTICATED: [&str; 2] = ["02", "05"];
+/// ECIs an attempted external 3DS result may carry (Mastercard 01, Visa/Amex/others 06).
+const ECI_ATTEMPTED: [&str; 2] = ["01", "06"];
+const CHECKOUT_PAYMENTS_DOC_URL: &str =
+    "https://api-reference.checkout.com/#operation/requestAPaymentOrPayout";
+
+/// Left-pads a one-digit ECI ("5" -> "05") so it compares against the two-digit tables.
+fn normalize_eci(eci: &str) -> String {
+    let eci = eci.trim();
+    if eci.len() == 1 {
+        format!("0{eci}")
+    } else {
+        eci.to_string()
+    }
+}
+
+/// Decides whether an external 3DS result may be imported as `3dsRequestThirdParty`.
+///
+/// Checkout applies the supplied CAVV/ECI as proof of authentication (and the liability shift that
+/// comes with it), so the outcome must be corroborated by the ECI for every `trans_status` that is
+/// accepted:
+///
+/// | `trans_status` | accepted ECI | `3ds.status` |
+/// |---|---|---|
+/// | `Y` (Success)     | 02, 05         | `Y` |
+/// | `A` (NotVerified) | 01, 06         | `A` |
+/// | absent            | 01, 02, 05, 06 | omitted |
+///
+/// Both `cavv` and `eci` must be present. Every other `trans_status` (`N`, `U`, `R`, `C`, `D`,
+/// `I`) and every non-corroborating ECI is refused before any HTTP call.
+fn validate_external_three_ds(
+    authentication_data: &AuthenticationData,
+) -> Result<
+    (String, Secret<String>, Option<CheckoutThreeDsStatus>),
+    error_stack::Report<IntegrationError>,
+> {
+    let eci = authentication_data.eci.as_deref().map(normalize_eci);
+    let refuse = || {
+        error_stack::report!(IntegrationError::NotSupported {
+            message: "external 3DS result that is not an authenticated or attempted outcome"
+                .to_owned(),
+            connector: "checkout",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Send only an authenticated (trans_status Y with ECI 02/05) or attempted \
+                     (trans_status A with ECI 01/06) external 3DS result, with both cavv and eci \
+                     set; otherwise authorize without authentication_data"
+                        .to_owned(),
+                ),
+                additional_context: Some(format!(
+                    "trans_status={:?}, eci={:?}, cavv_present={}",
+                    authentication_data.trans_status,
+                    eci,
+                    authentication_data.cavv.is_some()
+                )),
+                doc_url: Some(CHECKOUT_PAYMENTS_DOC_URL.to_owned()),
+            },
+        })
+    };
+    let (Some(eci), Some(cavv)) = (eci.clone(), authentication_data.cavv.clone()) else {
+        return Err(refuse());
+    };
+    let eci_ref = eci.as_str();
+    let status = match authentication_data.trans_status {
+        Some(common_enums::TransactionStatus::Success) if ECI_AUTHENTICATED.contains(&eci_ref) => {
+            Some(CheckoutThreeDsStatus::Y)
+        }
+        Some(common_enums::TransactionStatus::NotVerified) if ECI_ATTEMPTED.contains(&eci_ref) => {
+            Some(CheckoutThreeDsStatus::A)
+        }
+        None if ECI_AUTHENTICATED.contains(&eci_ref) || ECI_ATTEMPTED.contains(&eci_ref) => None,
+        Some(common_enums::TransactionStatus::Success)
+        | Some(common_enums::TransactionStatus::NotVerified)
+        | Some(common_enums::TransactionStatus::Failure)
+        | Some(common_enums::TransactionStatus::VerificationNotPerformed)
+        | Some(common_enums::TransactionStatus::Rejected)
+        | Some(common_enums::TransactionStatus::ChallengeRequired)
+        | Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication)
+        | Some(common_enums::TransactionStatus::InformationOnly)
+        | Some(common_enums::TransactionStatus::SecurePaymentConfirmationRequired)
+        | None => return Err(refuse()),
+    };
+    Ok((eci, cavv, status))
+}
+
+/// Builds the `3ds` object for Authorize and SetupMandate.
+///
+/// * `authentication_data` present -> external 3DS (`3dsRequestThirdParty`): `enabled: true` (the
+///   schema allows only `true`), `eci`, `cryptogram` = CAVV, `xid` = DS transaction id, `version`,
+///   `status`, `authentication_date`. Refused unless [`validate_external_three_ds`] accepts it.
+/// * else `ThreeDs` -> integrated 3DS: `enabled: true, force_3ds: true` and a challenge
+///   indicator (`challenge_requested_mandate` when the payment sets up a mandate).
+/// * else `NoThreeDs` -> `{"enabled": false}`.
+pub fn build_checkout_three_ds(
+    auth_type: common_enums::AuthenticationType,
+    authentication_data: Option<&AuthenticationData>,
+    is_mandate: bool,
+) -> Result<CheckoutThreeDS, error_stack::Report<IntegrationError>> {
+    if let Some(auth) = authentication_data {
+        let (eci, cavv, status) = validate_external_three_ds(auth)?;
+        let authentication_date = auth
+            .created_at
+            .map(|created_at| {
+                created_at
+                    .assume_utc()
+                    .format(&time::format_description::well_known::Rfc3339)
+            })
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "authentication_data.created_at",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send a valid authentication timestamp or omit it".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Checkout 3ds.authentication_date is an ISO 8601 timestamp".to_owned(),
+                    ),
+                    doc_url: Some(CHECKOUT_PAYMENTS_DOC_URL.to_owned()),
+                },
+            })?;
+        return Ok(CheckoutThreeDS {
+            enabled: true,
+            force_3ds: None,
+            eci: Some(eci),
+            cryptogram: Some(cavv),
+            xid: auth.ds_trans_id.clone(),
+            version: auth.message_version.as_ref().map(ToString::to_string),
+            status,
+            authentication_date,
+            challenge_indicator: None,
+        });
+    }
+    Ok(match auth_type {
+        common_enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
+            enabled: true,
+            force_3ds: Some(true),
+            eci: None,
+            cryptogram: None,
+            xid: None,
+            version: None,
+            status: None,
+            authentication_date: None,
+            challenge_indicator: Some(if is_mandate {
+                CheckoutChallengeIndicator::ChallengeRequestedMandate
+            } else {
+                CheckoutChallengeIndicator::ChallengeRequested
+            }),
+        },
+        common_enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
+            enabled: false,
+            force_3ds: None,
+            eci: None,
+            cryptogram: None,
+            xid: None,
+            version: None,
+            status: None,
+            authentication_date: None,
+            challenge_indicator: None,
+        },
+    })
+}
+
+/// Scope of a `Cko-Idempotency-Key`.
+///
+/// Checkout caches a `2xx` per key for 72 hours and replays it for any later request carrying the
+/// same key. The key is derived from `connector_request_reference_id`, which a caller may reuse
+/// across the actions of one payment, so each action gets its own prefix: without it a capture
+/// sent with the authorization's key would be answered with the authorization's cached response.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckoutIdempotencyScope {
+    Payment,
+    Capture,
+    Void,
+    Refund,
+}
+
+impl CheckoutIdempotencyScope {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Payment => "payment",
+            Self::Capture => "capture",
+            Self::Void => "void",
+            Self::Refund => "refund",
+        }
+    }
+
+    /// `<scope>_<reference>`, or `None` when the reference is empty — the header is then omitted
+    /// rather than sent empty or with a fresh UUID (a fresh UUID would defeat retry safety).
+    pub fn idempotency_key(self, connector_request_reference_id: &str) -> Option<String> {
+        let reference = connector_request_reference_id.trim();
+        (!reference.is_empty()).then(|| format!("{}_{reference}", self.as_str()))
+    }
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for CheckoutAuthType {
@@ -809,6 +1180,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             cvv: None,
                             billing_address,
                             account_holder: None,
+                            stored: None,
                         })),
                     }
                 }
@@ -864,9 +1236,41 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[serde(tag = "type", content = "token_data")]
-pub enum CheckoutTokenRequest {
+pub enum CheckoutWalletTokenRequest {
     Googlepay(CheckoutGooglePayData),
     Applepay(Box<CheckoutApplePayData>),
+}
+
+/// `01_CardTokenRequest` of `POST /tokens`, authenticated with the public key. Card fields sit
+/// at the top level (no `token_data`). The vendor documents the `card` type as intended for
+/// testing; production card capture goes through Frames.
+#[derive(Debug, Serialize)]
+pub struct CheckoutCardTokenRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    #[serde(rename = "type")]
+    pub token_type: CheckoutSourceTypes,
+    pub number: RawCardNumber<T>,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<CheckoutAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<CheckoutPhoneDetails>,
+}
+
+/// Request body for `POST /tokens`: a wallet payload (`type` + `token_data`) or a card.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum CheckoutTokenRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    Wallet(CheckoutWalletTokenRequest),
+    Card(Box<CheckoutCardTokenRequest<T>>),
 }
 
 /// Google Pay `PaymentData.paymentMethodData.tokenizationData.token`, parsed out of the opaque
@@ -915,7 +1319,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for CheckoutTokenRequest
+    > for CheckoutTokenRequest<T>
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
@@ -931,11 +1335,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         match &item.router_data.request.payment_method_data {
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                WalletData::GooglePay(_) => Ok(Self::Googlepay(
-                    wallet_data.get_wallet_token_as_json("Google Pay".to_string())?,
-                )),
-                WalletData::ApplePay(_) => Ok(Self::Applepay(Box::new(
-                    wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?,
+                WalletData::GooglePay(_) => {
+                    Ok(Self::Wallet(CheckoutWalletTokenRequest::Googlepay(
+                        wallet_data.get_wallet_token_as_json("Google Pay".to_string())?,
+                    )))
+                }
+                WalletData::ApplePay(_) => Ok(Self::Wallet(CheckoutWalletTokenRequest::Applepay(
+                    Box::new(wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?),
                 ))),
                 _ => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
@@ -950,11 +1356,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
                 .into()),
             },
+            PaymentMethodData::Card(card) => Ok(Self::Card(Box::new(CheckoutCardTokenRequest {
+                token_type: CheckoutSourceTypes::Card,
+                number: card.card_number.clone(),
+                expiry_month: card.card_exp_month.clone(),
+                expiry_year: card.get_expiry_year_4_digit(),
+                name: card.card_holder_name.clone(),
+                cvv: Some(card.card_cvc.clone()).filter(|cvc| !cvc.peek().is_empty()),
+                billing_address: build_billing_address(&item.router_data.resource_common_data),
+                phone: build_source_phone(&item.router_data.resource_common_data),
+            }))),
             _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
                 IntegrationErrorContext {
                     additional_context: Some(
-                        "Checkout's Tokenize flow only accepts wallet payment method data"
+                        "Checkout's Tokenize flow accepts card, Apple Pay and Google Pay"
                             .to_owned(),
                     ),
                     ..Default::default()
@@ -1018,6 +1434,43 @@ fn build_metadata(
     }
 }
 
+/// Checkout's boolean `capture` for a capture method, shared by every `POST /payments` builder
+/// (Authorize, SetupMandate, RepeatPayment).
+///
+/// An absent capture method is the enum default (Automatic), which is also Checkout's default
+/// (`capture: true`). SequentialAutomatic is automatic capture (domain_types `is_auto_capture`),
+/// and `get_attempt_status_cap` reads the response the same way, so the wire flag and the
+/// reported status cannot disagree. Checkout has no scheduled capture: Scheduled is refused
+/// before any HTTP call, on every payment method, instead of being discovered after
+/// `POST /payments` may already have moved money.
+fn checkout_capture_flag(
+    capture_method: Option<common_enums::CaptureMethod>,
+) -> Result<bool, error_stack::Report<IntegrationError>> {
+    match capture_method.unwrap_or_default() {
+        common_enums::CaptureMethod::Automatic
+        | common_enums::CaptureMethod::SequentialAutomatic => Ok(true),
+        common_enums::CaptureMethod::Manual | common_enums::CaptureMethod::ManualMultiple => {
+            Ok(false)
+        }
+        common_enums::CaptureMethod::Scheduled => {
+            Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "capture_method Scheduled".to_owned(),
+                connector: "checkout",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use capture_method Automatic or Manual; Checkout has no scheduled capture"
+                            .to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Checkout POST /payments takes a boolean `capture` flag only".to_owned(),
+                    ),
+                    doc_url: Some(CHECKOUT_PAYMENTS_DOC_URL.to_owned()),
+                },
+            }))
+        }
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         CheckoutRouterData<
@@ -1043,10 +1496,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let capture = matches!(
-            item.router_data.request.capture_method,
-            Some(common_enums::CaptureMethod::Automatic)
-        );
+        let capture = checkout_capture_flag(item.router_data.request.capture_method)?;
 
         let payment_type = if matches!(
             item.router_data.request.payment_channel,
@@ -1072,42 +1522,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             CheckoutPaymentType::Regular
         };
 
-        let (challenge_indicator, store_for_future_use) =
-            if item.router_data.request.is_mandate_payment() {
-                (
-                    CheckoutChallengeIndicator::ChallengeRequestedMandate,
-                    Some(true),
-                )
-            } else {
-                (CheckoutChallengeIndicator::ChallengeRequested, None)
-            };
+        let store_for_future_use = item
+            .router_data
+            .request
+            .is_mandate_payment()
+            .then_some(true);
 
-        let billing_details = Some(CheckoutAddress {
-            city: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_city(),
-            address_line1: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_line1(),
-            address_line2: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_line2(),
-            state: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_state(),
-            zip: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_zip(),
-            country: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_country(),
-        });
+        let billing_details = build_billing_address(&item.router_data.resource_common_data);
 
         let (source_var, previous_payment_id, merchant_initiated, store_for_future_use) =
             match item.router_data.request.payment_method_data.clone() {
@@ -1121,6 +1542,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         expiry_year: ccard.card_exp_year.clone(),
                         cvv: Some(ccard.card_cvc),
                         billing_address: billing_details,
+                        phone: build_source_phone(&item.router_data.resource_common_data),
                         account_holder: Some(CheckoutAccountHolderDetails {
                             first_name,
                             last_name,
@@ -1237,41 +1659,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )),
             }?;
 
-        let authentication_data = item.router_data.request.authentication_data.as_ref();
-
-        let three_ds = if let Some(auth) = authentication_data {
-            // External 3DS passthrough: merchant already authenticated, send proof without asking Checkout to re-run 3DS
-            CheckoutThreeDS {
-                enabled: false,
-                force_3ds: false,
-                eci: auth.eci.clone(),
-                cryptogram: auth.cavv.clone(),
-                xid: auth.threeds_server_transaction_id.clone(),
-                version: auth.message_version.clone().map(|v| v.to_string()),
-                challenge_indicator: CheckoutChallengeIndicator::NoPreference,
-            }
-        } else {
-            match item.router_data.resource_common_data.auth_type {
-                common_enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
-                    enabled: true,
-                    force_3ds: true,
-                    eci: None,
-                    cryptogram: None,
-                    xid: None,
-                    version: None,
-                    challenge_indicator,
-                },
-                common_enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
-                    enabled: false,
-                    force_3ds: false,
-                    eci: None,
-                    cryptogram: None,
-                    xid: None,
-                    version: None,
-                    challenge_indicator: CheckoutChallengeIndicator::NoPreference,
-                },
-            }
-        };
+        let three_ds = build_checkout_three_ds(
+            item.router_data.resource_common_data.auth_type,
+            item.router_data.request.authentication_data.as_ref(),
+            item.router_data.request.is_mandate_payment(),
+        )?;
 
         let return_url = ReturnUrl {
             success_url: item
@@ -1299,19 +1691,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref(),
         );
 
-        let (customer, mut processing, shipping, items) = if let Some(l2l3_data) =
-            &item.router_data.resource_common_data.l2_l3_data
-        {
+        let l2l3_data = item.router_data.resource_common_data.l2_l3_data.as_deref();
+        let customer = build_customer(
+            l2l3_data,
+            item.router_data.request.email.clone(),
+            item.router_data.request.get_optional_customer_name(),
+        );
+        let shipping = build_shipping(&item.router_data.resource_common_data);
+        let (mut processing, items) = if let Some(l2l3_data) = l2l3_data {
             (
-                l2l3_data.customer_info.as_ref().map(|_| CheckoutCustomer {
-                    name: l2l3_data.get_customer_name(),
-                    email: l2l3_data.get_customer_email(),
-                    phone: Some(CheckoutPhoneDetails {
-                        country_code: l2l3_data.get_customer_phone_country_code(),
-                        number: l2l3_data.get_customer_phone_number(),
-                    }),
-                    tax_number: l2l3_data.get_customer_tax_registration_id(),
-                }),
                 l2l3_data.order_info.as_ref().map(|_| CheckoutProcessing {
                     order_id: l2l3_data.get_merchant_order_reference_id(),
                     scheme_transaction_link_id: None,
@@ -1321,17 +1709,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     shipping_amount: l2l3_data.get_shipping_cost(),
                     shipping_tax_amount: l2l3_data.get_shipping_amount_tax(),
                     aft: None,
-                }),
-                Some(CheckoutShipping {
-                    address: Some(CheckoutAddress {
-                        country: l2l3_data.get_shipping_country(),
-                        address_line1: l2l3_data.get_shipping_address_line1(),
-                        address_line2: l2l3_data.get_shipping_address_line2(),
-                        city: l2l3_data.get_shipping_city(),
-                        state: l2l3_data.get_shipping_state(),
-                        zip: l2l3_data.get_shipping_zip(),
-                    }),
-                    from_address_zip: l2l3_data.get_shipping_origin_zip().map(|zip| zip.expose()),
                 }),
                 l2l3_data.get_order_details().map(|details| {
                     details
@@ -1352,7 +1729,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }),
             )
         } else {
-            (None, None, None, None)
+            (None, None)
         };
 
         if let Some(link_id) = item.router_data.request.mandate_id.as_ref().and_then(|m| {
@@ -1506,37 +1883,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let capture = matches!(
-            item.router_data.request.capture_method,
-            Some(common_enums::CaptureMethod::Automatic)
-        );
+        // Shared with Authorize/SetupMandate: Scheduled is refused here, before any arm builds a
+        // request or POST /payments is made; SequentialAutomatic sends `capture: true`.
+        let capture = checkout_capture_flag(item.router_data.request.capture_method)?;
 
-        let billing_details = Some(CheckoutAddress {
-            city: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_city(),
-            address_line1: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_line1(),
-            address_line2: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_line2(),
-            state: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_state(),
-            zip: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_zip(),
-            country: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_country(),
-        });
+        let billing_details = build_billing_address(&item.router_data.resource_common_data);
 
         let (
             source_var,
@@ -1546,9 +1897,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             store_for_future_use,
         ) = match &item.router_data.request.mandate_reference {
             MandateReferenceId::ConnectorMandateId(mandate_data) => {
+                // G-RepeatPayment-01: `source {type: id}` cannot be built without the `src_` id
+                // the SetupMandate response returned, so refuse before any request exists rather
+                // than sending `"id": null`.
+                let source_id = mandate_data.get_connector_mandate_id().ok_or_else(|| {
+                    IntegrationError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Send the Checkout source id (src_...) returned by the mandate \
+                                 setup payment as connector_mandate_id"
+                                    .to_owned(),
+                            ),
+                            doc_url: Some(CHECKOUT_PAYMENTS_DOC_URL.to_owned()),
+                            additional_context: Some(
+                                "A Checkout merchant-initiated payment against a stored \
+                                 instrument needs source.id"
+                                    .to_owned(),
+                            ),
+                        },
+                    }
+                })?;
                 let mandate_source = PaymentSource::MandatePayment(MandateSource {
                     source_type: CheckoutSourceTypes::SourceId,
-                    source_id: mandate_data.get_connector_mandate_id(),
+                    source_id: Some(source_id),
                     billing_address: billing_details,
                 });
                 let previous_id = mandate_data.get_connector_mandate_request_reference_id();
@@ -1585,6 +1957,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 first_name,
                                 last_name,
                             }),
+                            stored: Some(true),
                         });
                         let p_type = match item.router_data.request.mit_category {
                             Some(common_enums::MitCategory::Installment) => {
@@ -1645,6 +2018,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 expiry_month: exp_month,
                                 expiry_year: expiry_year_4_digit,
                                 billing_address: billing_details,
+                                stored: Some(true),
                             });
 
                         Ok((
@@ -1731,15 +2105,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         }?;
 
-        let three_ds = CheckoutThreeDS {
-            enabled: false,
-            force_3ds: false,
-            eci: None,
-            cryptogram: None,
-            xid: None,
-            version: None,
-            challenge_indicator: CheckoutChallengeIndicator::NoPreference,
-        };
+        // A merchant-initiated payment is exempt from SCA: always `{"enabled": false}`.
+        let three_ds =
+            build_checkout_three_ds(common_enums::AuthenticationType::NoThreeDs, None, true)?;
 
         let return_url = ReturnUrl {
             success_url: item
@@ -1768,19 +2136,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref(),
         );
 
-        let (customer, mut processing, shipping, items) = if let Some(l2l3_data) =
-            &item.router_data.resource_common_data.l2_l3_data
-        {
+        let l2l3_data = item.router_data.resource_common_data.l2_l3_data.as_deref();
+        let customer = build_customer(
+            l2l3_data,
+            item.router_data.request.email.clone(),
+            item.router_data
+                .request
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.customer_name.clone()),
+        );
+        let shipping = build_shipping(&item.router_data.resource_common_data);
+        let (mut processing, items) = if let Some(l2l3_data) = l2l3_data {
             (
-                l2l3_data.customer_info.as_ref().map(|_| CheckoutCustomer {
-                    name: l2l3_data.get_customer_name(),
-                    email: l2l3_data.get_customer_email(),
-                    phone: Some(CheckoutPhoneDetails {
-                        country_code: l2l3_data.get_customer_phone_country_code(),
-                        number: l2l3_data.get_customer_phone_number(),
-                    }),
-                    tax_number: l2l3_data.get_customer_tax_registration_id(),
-                }),
                 l2l3_data.order_info.as_ref().map(|_| CheckoutProcessing {
                     order_id: l2l3_data.get_merchant_order_reference_id(),
                     scheme_transaction_link_id: None,
@@ -1790,17 +2158,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     shipping_amount: l2l3_data.get_shipping_cost(),
                     shipping_tax_amount: l2l3_data.get_shipping_amount_tax(),
                     aft: None,
-                }),
-                Some(CheckoutShipping {
-                    address: Some(CheckoutAddress {
-                        country: l2l3_data.get_shipping_country(),
-                        address_line1: l2l3_data.get_shipping_address_line1(),
-                        address_line2: l2l3_data.get_shipping_address_line2(),
-                        city: l2l3_data.get_shipping_city(),
-                        state: l2l3_data.get_shipping_state(),
-                        zip: l2l3_data.get_shipping_zip(),
-                    }),
-                    from_address_zip: l2l3_data.get_shipping_origin_zip().map(|zip| zip.expose()),
                 }),
                 l2l3_data.get_order_details().map(|details| {
                     details
@@ -1821,7 +2178,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }),
             )
         } else {
-            (None, None, None, None)
+            (None, None)
         };
 
         if let Some(link_id) = match &item.router_data.request.mandate_reference {
@@ -1971,6 +2328,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        // SetupMandate always sends capture:true for its $0 verification, but its response
+        // handler cannot represent Scheduled: refuse it before the call, on every payment-method
+        // arm, so Checkout never stores a src_ the response path would then lose (G-SetupMandate-02).
+        checkout_capture_flag(item.router_data.request.capture_method)?;
         let payment_type = if matches!(
             item.router_data.request.payment_channel,
             Some(
@@ -1993,32 +2354,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let billing_details = Some(CheckoutAddress {
-            city: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_city(),
-            address_line1: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_line1(),
-            address_line2: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_line2(),
-            state: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_state(),
-            zip: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_zip(),
-            country: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_country(),
-        });
+        let billing_details = build_billing_address(&item.router_data.resource_common_data);
 
         let (
             source_var,
@@ -2037,6 +2373,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     expiry_year: ccard.card_exp_year.clone(),
                     cvv: Some(ccard.card_cvc),
                     billing_address: billing_details,
+                    phone: build_source_phone(&item.router_data.resource_common_data),
                     account_holder: Some(CheckoutAccountHolderDetails {
                         first_name,
                         last_name,
@@ -2120,33 +2457,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )),
         }?;
 
-        let authentication_data = item.router_data.request.authentication_data.as_ref();
-
-        let three_ds = match item.router_data.resource_common_data.auth_type {
-            common_enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
-                enabled: true,
-                force_3ds: true,
-                eci: authentication_data.and_then(|auth| auth.eci.clone()),
-                cryptogram: authentication_data.and_then(|auth| auth.cavv.clone()),
-                xid: authentication_data
-                    .and_then(|auth| auth.threeds_server_transaction_id.clone()),
-                version: authentication_data.and_then(|auth| {
-                    auth.message_version
-                        .clone()
-                        .map(|version| version.to_string())
-                }),
-                challenge_indicator: CheckoutChallengeIndicator::ChallengeRequestedMandate,
-            },
-            common_enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
-                enabled: false,
-                force_3ds: false,
-                eci: None,
-                cryptogram: None,
-                xid: None,
-                version: None,
-                challenge_indicator: CheckoutChallengeIndicator::NoPreference,
-            },
-        };
+        // Runs after the source match, so the external-3DS outcome guard (trans_status x ECI,
+        // see `validate_external_three_ds`) refuses on every accepted arm — card, decrypted
+        // Google Pay / Apple Pay, Checkout token and ACH — before any request is built.
+        let three_ds = build_checkout_three_ds(
+            item.router_data.resource_common_data.auth_type,
+            item.router_data.request.authentication_data.as_ref(),
+            true,
+        )?;
 
         let return_url = ReturnUrl {
             success_url: item
@@ -2175,19 +2493,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref(),
         );
 
-        let (customer, mut processing, shipping, items) = if let Some(l2l3_data) =
-            &item.router_data.resource_common_data.l2_l3_data
-        {
+        let l2l3_data = item.router_data.resource_common_data.l2_l3_data.as_deref();
+        let customer = build_customer(
+            l2l3_data,
+            item.router_data.request.email.clone(),
+            item.router_data
+                .request
+                .customer_name
+                .clone()
+                .map(Secret::new),
+        );
+        let shipping = build_shipping(&item.router_data.resource_common_data);
+        let (mut processing, items) = if let Some(l2l3_data) = l2l3_data {
             (
-                l2l3_data.customer_info.as_ref().map(|_| CheckoutCustomer {
-                    name: l2l3_data.get_customer_name(),
-                    email: l2l3_data.get_customer_email(),
-                    phone: Some(CheckoutPhoneDetails {
-                        country_code: l2l3_data.get_customer_phone_country_code(),
-                        number: l2l3_data.get_customer_phone_number(),
-                    }),
-                    tax_number: l2l3_data.get_customer_tax_registration_id(),
-                }),
                 l2l3_data.order_info.as_ref().map(|_| CheckoutProcessing {
                     order_id: l2l3_data.get_merchant_order_reference_id(),
                     scheme_transaction_link_id: None,
@@ -2197,17 +2515,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     shipping_amount: l2l3_data.get_shipping_cost(),
                     shipping_tax_amount: l2l3_data.get_shipping_amount_tax(),
                     aft: None,
-                }),
-                Some(CheckoutShipping {
-                    address: Some(CheckoutAddress {
-                        country: l2l3_data.get_shipping_country(),
-                        address_line1: l2l3_data.get_shipping_address_line1(),
-                        address_line2: l2l3_data.get_shipping_address_line2(),
-                        city: l2l3_data.get_shipping_city(),
-                        state: l2l3_data.get_shipping_state(),
-                        zip: l2l3_data.get_shipping_zip(),
-                    }),
-                    from_address_zip: l2l3_data.get_shipping_origin_zip().map(|zip| zip.expose()),
                 }),
                 l2l3_data.get_order_details().map(|details| {
                     details
@@ -2228,7 +2535,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }),
             )
         } else {
-            (None, None, None, None)
+            (None, None)
         };
 
         let is_account_funding_transaction = item
@@ -2360,8 +2667,44 @@ pub enum CheckoutPaymentStatus {
     Refunded,
     Canceled,
     Expired,
+    Paid,
     #[serde(other)]
     Unknown,
+}
+
+/// The `ErrorResponse` for a `2xx` payment body whose status maps to `Failure` (`Declined`,
+/// `Expired`, `Canceled`). Shared by Authorize, PSync, SetupMandate and RepeatPayment.
+///
+/// Carries both scheme codes a retry engine needs: the Mastercard Merchant Advice Code
+/// (`processing.partner_merchant_advice_code`) as `network_advice_code`, and the raw scheme
+/// response code (`processing.partner_response_code`) as `network_decline_code`.
+fn build_declined_payment_error(response: &PaymentsResponse, http_code: u16) -> ErrorResponse {
+    let processing = response.processing.as_ref();
+    ErrorResponse {
+        status_code: http_code,
+        code: response
+            .response_code
+            .clone()
+            .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+        message: response
+            .response_summary
+            .clone()
+            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+        reason: response.response_summary.clone(),
+        attempt_status: Some(domain_types::router_data::FlowStatus::Payment(
+            common_enums::AttemptStatus::Failure,
+        )),
+        connector_transaction_id: Some(response.id.clone()),
+        network_advice_code: processing
+            .and_then(|processing| processing.partner_merchant_advice_code.clone()),
+        network_decline_code: processing
+            .and_then(|processing| processing.partner_response_code.clone()),
+        network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
+    }
 }
 
 fn get_attempt_status_cap(
@@ -2370,15 +2713,20 @@ fn get_attempt_status_cap(
     let (status, capture_method) = item;
     match status {
         CheckoutPaymentStatus::Authorized => {
-            if capture_method == Some(common_enums::CaptureMethod::Automatic)
-                || capture_method.is_none()
-            {
+            if matches!(
+                capture_method,
+                None | Some(
+                    common_enums::CaptureMethod::Automatic
+                        | common_enums::CaptureMethod::SequentialAutomatic
+                )
+            ) {
                 common_enums::AttemptStatus::Charged
             } else {
                 common_enums::AttemptStatus::Authorized
             }
         }
         CheckoutPaymentStatus::Captured
+        | CheckoutPaymentStatus::Paid
         | CheckoutPaymentStatus::PartiallyRefunded
         | CheckoutPaymentStatus::Refunded
         | CheckoutPaymentStatus::CardVerified => common_enums::AttemptStatus::Charged,
@@ -2407,6 +2755,7 @@ fn get_attempt_status_intent(
             }
         }
         CheckoutPaymentStatus::Captured
+        | CheckoutPaymentStatus::Paid
         | CheckoutPaymentStatus::PartiallyRefunded
         | CheckoutPaymentStatus::Refunded
         | CheckoutPaymentStatus::CardVerified => common_enums::AttemptStatus::Charged,
@@ -2438,6 +2787,7 @@ fn get_attempt_status_bal(
             }
         }
         CheckoutPaymentStatus::Captured
+        | CheckoutPaymentStatus::Paid
         | CheckoutPaymentStatus::PartiallyRefunded
         | CheckoutPaymentStatus::Refunded => common_enums::AttemptStatus::Charged,
         CheckoutPaymentStatus::PartiallyCaptured => common_enums::AttemptStatus::PartialCharged,
@@ -2608,46 +2958,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             router_data: item.router_data.router_data,
             http_code: item.http_code,
         };
+        // Same reading of capture_method as the request's `capture` flag: absent = Automatic.
         let status = get_attempt_status_cap((
-            item.response.status,
-            item.router_data.request.capture_method,
+            item.response.status.clone(),
+            Some(item.router_data.request.capture_method.unwrap_or_default()),
         ));
 
         if status == common_enums::AttemptStatus::Failure {
-            let network_advice_code = item
-                .response
-                .processing
-                .as_ref()
-                .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
-                .cloned();
-            let network_decline_code = item
-                .response
-                .processing
-                .as_ref()
-                .and_then(|processing| processing.partner_response_code.as_ref())
-                .cloned();
-            let error_response = ErrorResponse {
-                status_code: item.http_code,
-                code: item
-                    .response
-                    .response_code
-                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
-                    .response_summary
-                    .clone()
-                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                reason: item.response.response_summary,
-                attempt_status: None,
-                connector_transaction_id: Some(item.response.id.clone()),
-                network_advice_code,
-                network_decline_code,
-                network_error_message: None,
-                typed_connector_response: None,
-                raw_connector_response: None,
-                raw_connector_request: None,
-                typed_connector_request: None,
-            };
+            let error_response = build_declined_payment_error(&item.response, item.http_code);
 
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -2774,46 +3092,13 @@ impl<
             http_code: item.http_code,
         };
         let status = get_attempt_status_cap((
-            item.response.status,
+            item.response.status.clone(),
             item.router_data.request.capture_method,
         ));
 
         match status {
             common_enums::AttemptStatus::Failure => {
-                let network_advice_code = item
-                    .response
-                    .processing
-                    .as_ref()
-                    .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
-                    .cloned();
-                let network_decline_code = item
-                    .response
-                    .processing
-                    .as_ref()
-                    .and_then(|processing| processing.partner_response_code.as_ref())
-                    .cloned();
-                let error_response = ErrorResponse {
-                    status_code: item.http_code,
-                    code: item
-                        .response
-                        .response_code
-                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                    message: item
-                        .response
-                        .response_summary
-                        .clone()
-                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                    reason: item.response.response_summary,
-                    attempt_status: None,
-                    connector_transaction_id: Some(item.response.id.clone()),
-                    network_advice_code,
-                    network_decline_code,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                };
+                let error_response = build_declined_payment_error(&item.response, item.http_code);
 
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
@@ -2940,53 +3225,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.router_data.request.capture_method.unwrap_or_default(),
             item.http_code,
         )?;
+        let status = get_attempt_status_cap((
+            item.response.status.clone(),
+            item.router_data.request.capture_method,
+        ));
+        // A 2xx `Declined` $0 verification is a hard failure: same error shape as Authorize, so the
+        // Merchant Advice Code is the only advice code and the scheme code is the decline code.
+        let error_response = (status == common_enums::AttemptStatus::Failure)
+            .then(|| build_declined_payment_error(&item.response, item.http_code));
         let redirection_data = item
             .response
             .links
             .redirect
             .map(|href| RedirectForm::from((href.redirection_url, Method::Get)));
-        let status = get_attempt_status_cap((
-            item.response.status,
-            item.router_data.request.capture_method,
-        ));
-        let network_advice_code = item
-            .response
-            .processing
-            .as_ref()
-            .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
-            .cloned();
-        let network_decline_code = item
-            .response
-            .processing
-            .as_ref()
-            .and_then(|processing| processing.partner_response_code.as_ref())
-            .cloned();
-        let error_response = if status == common_enums::AttemptStatus::Failure {
-            Some(ErrorResponse {
-                status_code: item.http_code,
-                code: item
-                    .response
-                    .response_code
-                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
-                    .response_summary
-                    .clone()
-                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                reason: item.response.response_summary,
-                attempt_status: None,
-                connector_transaction_id: Some(item.response.id.clone()),
-                network_advice_code,
-                network_decline_code,
-                network_error_message: None,
-                typed_connector_response: None,
-                raw_connector_response: None,
-                raw_connector_request: None,
-                typed_connector_request: None,
-            })
-        } else {
-            None
-        };
 
         let mandate_reference = item
             .response
@@ -3049,68 +3300,54 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
             .response
             .links
             .redirect
-            .map(|href| RedirectForm::from((href.redirection_url, Method::Get)));
+            .as_ref()
+            .map(|href| RedirectForm::from((href.redirection_url.clone(), Method::Get)));
 
-        let checkout_meta = match item.router_data.request.capture_method {
-            Some(common_enums::CaptureMethod::Automatic)
-            | Some(common_enums::CaptureMethod::SequentialAutomatic) => CheckoutMeta {
-                psync_flow: CheckoutPaymentIntent::Capture,
+        // Authorize writes {psync_flow} from the capture method and an accepted Capture
+        // overwrites it with Capture. Checkout keeps reporting `Authorized` until the
+        // asynchronous capture settles, so the flow the connector recorded is the authority
+        // (HS parity, HP-30); the capture method is read only when nothing usable was stored.
+        let stored_meta = item
+            .router_data
+            .request
+            .connector_feature_data
+            .as_ref()
+            .and_then(|data| serde_json::from_value::<CheckoutMeta>(data.peek().clone()).ok());
+        let checkout_meta = match stored_meta {
+            Some(meta) => meta,
+            None => match item.router_data.request.capture_method {
+                // The same capture rule every `POST /payments` builder sends, so the synced
+                // status reads the capture flag the payment was created with.
+                Some(capture_method) => match checkout_capture_flag(Some(capture_method)) {
+                    Ok(true) => CheckoutMeta {
+                        psync_flow: CheckoutPaymentIntent::Capture,
+                    },
+                    Ok(false) => CheckoutMeta {
+                        psync_flow: CheckoutPaymentIntent::Authorize,
+                    },
+                    // Scheduled: refused before any call, so no Checkout payment can carry it.
+                    Err(_) => {
+                        return Err(crate::utils::unexpected_response_fail(
+                            item.http_code,
+                            "checkout: unexpected response for this operation; retry with idempotency keys and check connector status.",
+                        )
+                        .into());
+                    }
+                },
+                None => {
+                    return Err(ConnectorError::response_handling_failed_with_context(
+                        item.http_code,
+                        Some("Checkout PSync: capture_method absent on payment intent".to_string()),
+                    )
+                    .into());
+                }
             },
-            Some(common_enums::CaptureMethod::Manual)
-            | Some(common_enums::CaptureMethod::ManualMultiple) => CheckoutMeta {
-                psync_flow: CheckoutPaymentIntent::Authorize,
-            },
-            Some(common_enums::CaptureMethod::Scheduled) => {
-                return Err(
-                    crate::utils::unexpected_response_fail(item.http_code, "checkout: unexpected response for this operation; retry with idempotency keys and check connector status.")
-                        .into(),
-                );
-            }
-            None => {
-                return Err(ConnectorError::response_handling_failed_with_context(
-                    item.http_code,
-                    Some("Checkout PSync: capture_method absent on payment intent".to_string()),
-                )
-                .into());
-            }
         };
 
-        let status = get_attempt_status_intent((item.response.status, checkout_meta.psync_flow));
+        let status =
+            get_attempt_status_intent((item.response.status.clone(), checkout_meta.psync_flow));
         let error_response = if status == common_enums::AttemptStatus::Failure {
-            let network_advice_code = item
-                .response
-                .processing
-                .as_ref()
-                .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
-                .cloned();
-            let network_decline_code = item
-                .response
-                .processing
-                .as_ref()
-                .and_then(|processing| processing.partner_response_code.as_ref())
-                .cloned();
-            Some(ErrorResponse {
-                status_code: item.http_code,
-                code: item
-                    .response
-                    .response_code
-                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
-                    .response_summary
-                    .clone()
-                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                reason: item.response.response_summary,
-                attempt_status: None,
-                connector_transaction_id: Some(item.response.id.clone()),
-                network_advice_code,
-                network_decline_code,
-                network_error_message: None,
-                typed_connector_response: None,
-                raw_connector_response: None,
-                raw_connector_request: None,
-                typed_connector_request: None,
-            })
+            Some(build_declined_payment_error(&item.response, item.http_code))
         } else {
             None
         };
@@ -3177,12 +3414,16 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponseEnum, Self>>
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsResponseEnum, Self>) -> Result<Self, Self::Error> {
         let capture_sync_response_list = match item.response {
+            // GET /payments/{id}: the single-payment sync mapping (status, mandate, errors).
             PaymentsResponseEnum::PaymentResponse(payments_response) => {
-                // for webhook consumption flow
-                construct_captures_response_hashmap(vec![payments_response])?
+                return Self::try_from(ResponseRouterData {
+                    response: *payments_response,
+                    router_data: item.router_data,
+                    http_code: item.http_code,
+                });
             }
+            // GET /payments/{id}/actions (MultipleCaptureSync): one entry per action.
             PaymentsResponseEnum::ActionResponse(action_list) => {
-                // for captures sync
                 construct_captures_response_hashmap(action_list)?
             }
         };
@@ -3207,11 +3448,17 @@ pub struct PaymentVoidResponse {
     scheme_id: Option<String>,
 }
 
+/// Status for a `2xx` from `POST /payments/{id}/voids`.
+///
+/// 202 = void accepted; 200 = "Payment is already voided" (Checkout's idempotent success for a
+/// repeated void). Both mean the authorization is voided. Any other 2xx is undocumented for
+/// `/voids` and stays `Pending` until PSync confirms — never `VoidFailed`, which would report a
+/// failure the connector did not state. Non-2xx responses go through `build_error_response`.
 fn http_code_to_attempt_status_for_void_flow(http_code: u16) -> common_enums::AttemptStatus {
-    if http_code == 202 {
+    if matches!(http_code, 200 | 202) {
         common_enums::AttemptStatus::Voided
     } else {
-        common_enums::AttemptStatus::VoidFailed
+        common_enums::AttemptStatus::Pending
     }
 }
 
@@ -3224,13 +3471,18 @@ impl<F> TryFrom<ResponseRouterData<PaymentVoidResponse, Self>>
         let response = &item.response;
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(response.action_id.clone()),
+                // Keep the payment id (pay_...) as the transaction id so later PSync/Refund calls
+                // still address the payment; the void's own action id (act_...) is reported as
+                // the connector response reference.
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.router_data.request.connector_transaction_id.clone(),
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
-                network_txn_id: item.response.scheme_id.clone(),
+                network_txn_id: response.scheme_id.clone(),
                 network_txn_link_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(response.action_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
@@ -3262,6 +3514,547 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             reference: item.router_data.request.connector_transaction_id.clone(),
+        })
+    }
+}
+
+/// Body of `POST /disputes/{dispute_id}/accept`: the endpoint takes no fields, so this
+/// serialises to `{}`.
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutDisputeEmptyRequest {}
+
+/// Body of a dispute action answered by `204 No Content`. The macro JSON bridge parses the empty
+/// body as `{}`, which this empty struct accepts.
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct CheckoutDisputeActionResponse {}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        CheckoutRouterData<
+            RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+            T,
+        >,
+    > for CheckoutDisputeEmptyRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        _item: CheckoutRouterData<
+            RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {})
+    }
+}
+
+/// `204` from `POST /disputes/{id}/accept` is Checkout's only documented success and means the
+/// dispute is accepted. Any other `2xx` is undocumented for this endpoint, so it is reported as
+/// an error rather than claiming an acceptance the connector did not state. Non-`2xx` responses
+/// (404 dispute not found, 422 dispute already actioned) go through `build_error_response`.
+impl TryFrom<ResponseRouterData<CheckoutDisputeActionResponse, Self>>
+    for RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<CheckoutDisputeActionResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response: _,
+            router_data,
+            http_code,
+        } = item;
+        let response = if http_code == 204 {
+            Ok(DisputeResponseData {
+                connector_dispute_id: router_data.request.connector_dispute_id.clone(),
+                dispute_status: common_enums::DisputeStatus::DisputeAccepted,
+                connector_dispute_status: None,
+                status_code: http_code,
+            })
+        } else {
+            Err(ErrorResponse {
+                status_code: http_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: Some(format!(
+                    "Checkout answered dispute accept with undocumented HTTP {http_code}; only 204 confirms acceptance"
+                )),
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        };
+        Ok(Self {
+            response,
+            ..router_data
+        })
+    }
+}
+
+const CHECKOUT_DISPUTE_EVIDENCE_DOC_URL: &str =
+    "https://www.checkout.com/docs/payments/process-disputes/disputes-api";
+
+/// Body of `PUT /disputes/{dispute_id}/evidence` (Checkout `ProvideEvidenceRequest`).
+///
+/// Every `*_file` field is a Checkout file id (`file_...`) obtained from `POST /files` with
+/// `purpose: dispute_evidence`; UCS has no file-upload flow, so the caller uploads the file and
+/// passes the id as the matching `*_provider_file_id`. `*_text` fields are free text (max 500
+/// characters per the vendor schema).
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct CheckoutEvidenceRequest {
+    pub proof_of_delivery_or_service_file: Option<String>,
+    pub invoice_or_receipt_file: Option<String>,
+    pub invoice_showing_distinct_transactions_file: Option<String>,
+    pub customer_communication_file: Option<String>,
+    pub refund_or_cancellation_policy_file: Option<String>,
+    pub recurring_transaction_agreement_file: Option<String>,
+    pub additional_evidence_file: Option<String>,
+    pub refund_or_cancellation_policy_text: Option<String>,
+    pub additional_evidence_text: Option<String>,
+}
+
+/// `Some` only for a non-empty string, so an empty id or text is never put on the wire.
+fn non_empty_evidence(value: &Option<String>) -> Option<String> {
+    value.as_ref().filter(|value| !value.is_empty()).cloned()
+}
+
+/// Checkout has one evidence field per category. An input with no Checkout field of its own
+/// (`fallback`) fills the closest category when the `primary` input is absent; when both are
+/// supplied the request is refused rather than silently dropping one of them.
+fn pick_evidence(
+    primary: (&'static str, &Option<String>),
+    fallback: (&'static str, &Option<String>),
+    checkout_field: &'static str,
+) -> Result<Option<String>, error_stack::Report<IntegrationError>> {
+    let (primary_name, primary_value) = primary;
+    let (fallback_name, fallback_value) = fallback;
+    match (
+        non_empty_evidence(primary_value),
+        non_empty_evidence(fallback_value),
+    ) {
+        (Some(_), Some(_)) => Err(error_stack::report!(IntegrationError::NotSupported {
+            message: format!(
+                "Both {primary_name} and {fallback_name} map to Checkout evidence field \
+                 {checkout_field}; {fallback_name} would be dropped"
+            ),
+            connector: "checkout",
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!(
+                    "Send only one of {primary_name} / {fallback_name}, or merge them into a \
+                     single document before upload"
+                )),
+                doc_url: Some(CHECKOUT_DISPUTE_EVIDENCE_DOC_URL.to_owned()),
+                additional_context: Some(format!(
+                    "Checkout accepts a single {checkout_field} per evidence submission"
+                )),
+            },
+        })),
+        (primary_value, fallback_value) => Ok(primary_value.or(fallback_value)),
+    }
+}
+
+/// Checkout's `additional_evidence_text` limit (characters), per the vendor schema.
+const CHECKOUT_EVIDENCE_TEXT_MAX_CHARS: usize = 500;
+
+/// Checkout has one free-text field with no slot for the other text evidence, so each of those
+/// inputs is appended to `uncategorized_text` as a labelled line; past the vendor limit the
+/// request is refused rather than truncating or dropping evidence.
+fn additional_evidence_text(
+    request: &SubmitEvidenceData,
+) -> Result<Option<String>, error_stack::Report<IntegrationError>> {
+    let customer_email_address = request
+        .customer_email_address
+        .as_ref()
+        .map(|email| email.peek().clone());
+    let labelled = [
+        ("product_description", &request.product_description),
+        ("service_date", &request.service_date),
+        ("shipping_date", &request.shipping_date),
+        ("shipping_carrier", &request.shipping_carrier),
+        (
+            "shipping_tracking_number",
+            &request.shipping_tracking_number,
+        ),
+        ("shipping_address", &request.shipping_address),
+        ("billing_address", &request.billing_address),
+        ("customer_name", &request.customer_name),
+        ("customer_email_address", &customer_email_address),
+        ("customer_purchase_ip", &request.customer_purchase_ip),
+        ("access_activity_log", &request.access_activity_log),
+        (
+            "refund_refusal_explanation",
+            &request.refund_refusal_explanation,
+        ),
+        ("cancellation_rebuttal", &request.cancellation_rebuttal),
+    ];
+    let lines: Vec<String> = non_empty_evidence(&request.uncategorized_text)
+        .into_iter()
+        .chain(labelled.iter().filter_map(|(label, value)| {
+            non_empty_evidence(value).map(|value| format!("{label}: {value}"))
+        }))
+        .collect();
+    if lines.is_empty() {
+        return Ok(None);
+    }
+    let text = lines.join("\n");
+    let length = text.chars().count();
+    if length > CHECKOUT_EVIDENCE_TEXT_MAX_CHARS {
+        return Err(error_stack::report!(IntegrationError::NotSupported {
+            message: format!(
+                "Text evidence is {length} characters once combined; Checkout's \
+                 additional_evidence_text accepts at most {CHECKOUT_EVIDENCE_TEXT_MAX_CHARS}"
+            ),
+            connector: "checkout",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Shorten the text evidence, or upload the longer content as a file and send \
+                     its provider file id"
+                        .to_owned(),
+                ),
+                doc_url: Some(CHECKOUT_DISPUTE_EVIDENCE_DOC_URL.to_owned()),
+                additional_context: Some(
+                    "uncategorized_text and every text field without a Checkout field of its own \
+                     share additional_evidence_text"
+                        .to_owned(),
+                ),
+            },
+        }));
+    }
+    Ok(Some(text))
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        CheckoutRouterData<
+            RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+            T,
+        >,
+    > for CheckoutEvidenceRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: CheckoutRouterData<
+            RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+
+        // Raw evidence bytes cannot be sent: Checkout only accepts `file_...` ids from
+        // `POST /files`, which UCS does not call. Refuse rather than silently submit evidence
+        // that is missing a document the caller provided.
+        let file_inputs = [
+            (
+                "cancellation_policy",
+                &request.cancellation_policy,
+                &request.cancellation_policy_provider_file_id,
+            ),
+            (
+                "customer_communication",
+                &request.customer_communication,
+                &request.customer_communication_provider_file_id,
+            ),
+            (
+                "customer_signature",
+                &request.customer_signature,
+                &request.customer_signature_provider_file_id,
+            ),
+            (
+                "receipt",
+                &request.receipt,
+                &request.receipt_provider_file_id,
+            ),
+            (
+                "refund_policy",
+                &request.refund_policy,
+                &request.refund_policy_provider_file_id,
+            ),
+            (
+                "service_documentation",
+                &request.service_documentation,
+                &request.service_documentation_provider_file_id,
+            ),
+            (
+                "shipping_documentation",
+                &request.shipping_documentation,
+                &request.shipping_documentation_provider_file_id,
+            ),
+            (
+                "invoice_showing_distinct_transactions",
+                &request.invoice_showing_distinct_transactions,
+                &request.invoice_showing_distinct_transactions_provider_file_id,
+            ),
+            (
+                "recurring_transaction_agreement",
+                &request.recurring_transaction_agreement,
+                &request.recurring_transaction_agreement_provider_file_id,
+            ),
+            (
+                "uncategorized_file",
+                &request.uncategorized_file,
+                &request.uncategorized_file_provider_file_id,
+            ),
+        ];
+        let bytes_without_file_id: Vec<&str> = file_inputs
+            .iter()
+            .filter(|(_, bytes, file_id)| {
+                bytes.as_ref().is_some_and(|bytes| !bytes.is_empty())
+                    && non_empty_evidence(file_id).is_none()
+            })
+            .map(|(name, _, _)| *name)
+            .collect();
+        if !bytes_without_file_id.is_empty() {
+            return Err(error_stack::report!(IntegrationError::NotSupported {
+                message: format!(
+                    "Raw evidence file bytes ({}) without a Checkout file id",
+                    bytes_without_file_id.join(", ")
+                ),
+                connector: "checkout",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Upload the file via Checkout POST /files (purpose dispute_evidence) and \
+                         pass the returned file_ id as the matching *_provider_file_id"
+                            .to_owned(),
+                    ),
+                    doc_url: Some(CHECKOUT_DISPUTE_EVIDENCE_DOC_URL.to_owned()),
+                    additional_context: Some(
+                        "Checkout dispute evidence accepts only file ids, never file contents"
+                            .to_owned(),
+                    ),
+                },
+            }));
+        }
+
+        // Every supplied evidence id reaches the body or is refused: service_documentation,
+        // cancellation_policy and customer_signature have no Checkout field of their own and
+        // fill the closest category when it is free (pick_evidence refuses a collision). Text
+        // evidence without its own field is folded into additional_evidence_text.
+        let evidence = Self {
+            proof_of_delivery_or_service_file: pick_evidence(
+                (
+                    "shipping_documentation_provider_file_id",
+                    &request.shipping_documentation_provider_file_id,
+                ),
+                (
+                    "service_documentation_provider_file_id",
+                    &request.service_documentation_provider_file_id,
+                ),
+                "proof_of_delivery_or_service_file",
+            )?,
+            invoice_or_receipt_file: non_empty_evidence(&request.receipt_provider_file_id),
+            invoice_showing_distinct_transactions_file: non_empty_evidence(
+                &request.invoice_showing_distinct_transactions_provider_file_id,
+            ),
+            customer_communication_file: non_empty_evidence(
+                &request.customer_communication_provider_file_id,
+            ),
+            refund_or_cancellation_policy_file: pick_evidence(
+                (
+                    "refund_policy_provider_file_id",
+                    &request.refund_policy_provider_file_id,
+                ),
+                (
+                    "cancellation_policy_provider_file_id",
+                    &request.cancellation_policy_provider_file_id,
+                ),
+                "refund_or_cancellation_policy_file",
+            )?,
+            recurring_transaction_agreement_file: non_empty_evidence(
+                &request.recurring_transaction_agreement_provider_file_id,
+            ),
+            additional_evidence_file: pick_evidence(
+                (
+                    "uncategorized_file_provider_file_id",
+                    &request.uncategorized_file_provider_file_id,
+                ),
+                (
+                    "customer_signature_provider_file_id",
+                    &request.customer_signature_provider_file_id,
+                ),
+                "additional_evidence_file",
+            )?,
+            refund_or_cancellation_policy_text: pick_evidence(
+                (
+                    "refund_policy_disclosure",
+                    &request.refund_policy_disclosure,
+                ),
+                (
+                    "cancellation_policy_disclosure",
+                    &request.cancellation_policy_disclosure,
+                ),
+                "refund_or_cancellation_policy_text",
+            )?,
+            additional_evidence_text: additional_evidence_text(request)?,
+        };
+
+        // Checkout answers `422 no_evidence_provided` to an empty body; refuse before the call.
+        let has_evidence = [
+            &evidence.proof_of_delivery_or_service_file,
+            &evidence.invoice_or_receipt_file,
+            &evidence.invoice_showing_distinct_transactions_file,
+            &evidence.customer_communication_file,
+            &evidence.refund_or_cancellation_policy_file,
+            &evidence.recurring_transaction_agreement_file,
+            &evidence.additional_evidence_file,
+            &evidence.refund_or_cancellation_policy_text,
+            &evidence.additional_evidence_text,
+        ]
+        .iter()
+        .any(|field| field.is_some());
+        if !has_evidence {
+            return Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "evidence",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide at least one of shipping_documentation, \
+                         service_documentation, receipt, invoice_showing_distinct_transactions, \
+                         customer_communication, refund_policy, cancellation_policy, \
+                         recurring_transaction_agreement, uncategorized_file or \
+                         customer_signature provider file ids, or refund_policy_disclosure / \
+                         cancellation_policy_disclosure / uncategorized_text"
+                                .to_owned(),
+                        ),
+                        doc_url: Some(CHECKOUT_DISPUTE_EVIDENCE_DOC_URL.to_owned()),
+                        additional_context: Some(
+                            "Checkout rejects an evidence request with no evidence \
+                         (422 no_evidence_provided)"
+                                .to_owned(),
+                        ),
+                    },
+                }
+            ));
+        }
+
+        Ok(evidence)
+    }
+}
+
+/// `204` from `PUT /disputes/{id}/evidence` is Checkout's only documented success and means the
+/// evidence is attached, so the dispute is being challenged. Any other `2xx` is undocumented for
+/// this endpoint and is reported as an error. Non-`2xx` responses (404 dispute not found,
+/// 422 `no_evidence_provided` / `dispute_already_*`) go through `build_error_response`.
+impl TryFrom<ResponseRouterData<CheckoutDisputeActionResponse, Self>>
+    for RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<CheckoutDisputeActionResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response: _,
+            router_data,
+            http_code,
+        } = item;
+        let response = if http_code == 204 {
+            Ok(DisputeResponseData {
+                connector_dispute_id: router_data.request.connector_dispute_id.clone(),
+                dispute_status: common_enums::DisputeStatus::DisputeChallenged,
+                connector_dispute_status: None,
+                status_code: http_code,
+            })
+        } else {
+            Err(ErrorResponse {
+                status_code: http_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: Some(format!(
+                    "Checkout answered dispute evidence with undocumented HTTP {http_code}; only 204 confirms the evidence was attached"
+                )),
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        };
+        Ok(Self {
+            response,
+            ..router_data
+        })
+    }
+}
+
+/// Body of `POST /disputes/{dispute_id}/evidence` (submit the attached evidence to the scheme):
+/// the endpoint takes no fields, so `defense_reason_code` has nowhere to go and the body is `{}`.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        CheckoutRouterData<
+            RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
+            T,
+        >,
+    > for CheckoutDisputeEmptyRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        _item: CheckoutRouterData<
+            RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {})
+    }
+}
+
+/// `204` from `POST /disputes/{id}/evidence` is Checkout's only documented success and means the
+/// attached evidence was submitted to the scheme, so the dispute is challenged. Any other `2xx`
+/// is undocumented for this endpoint and is reported as an error. Non-`2xx` responses
+/// (404 dispute not found, 422 `dispute_already_*` / no evidence attached) go through
+/// `build_error_response`.
+impl TryFrom<ResponseRouterData<CheckoutDisputeActionResponse, Self>>
+    for RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<CheckoutDisputeActionResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response: _,
+            router_data,
+            http_code,
+        } = item;
+        let response = if http_code == 204 {
+            Ok(DisputeResponseData {
+                connector_dispute_id: router_data.request.connector_dispute_id.clone(),
+                dispute_status: common_enums::DisputeStatus::DisputeChallenged,
+                connector_dispute_status: None,
+                status_code: http_code,
+            })
+        } else {
+            Err(ErrorResponse {
+                status_code: http_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: Some(format!(
+                    "Checkout answered dispute evidence submission with undocumented HTTP {http_code}; only 204 confirms the evidence was submitted"
+                )),
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        };
+        Ok(Self {
+            response,
+            ..router_data
         })
     }
 }
@@ -3335,7 +4128,10 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
         let connector_meta = serde_json::json!(CheckoutMeta {
             psync_flow: CheckoutPaymentIntent::Capture
         });
-        let (status, amount_captured) = if item.http_code == 202 {
+        // 202 = capture accepted; 200 = "Payment is already captured" (Checkout's idempotent
+        // success for a repeated capture). Both mean the funds are captured. Any other 2xx is
+        // undocumented for /captures and stays Pending until PSync confirms.
+        let (status, amount_captured) = if matches!(item.http_code, 200 | 202) {
             (
                 common_enums::AttemptStatus::Charged,
                 Some(common_utils::types::Money {
@@ -3420,20 +4216,19 @@ pub struct RefundResponse {
     reference: Option<String>,
 }
 
-fn http_code_to_refund_status(http_code: u16) -> common_enums::RefundStatus {
-    if http_code == 202 {
-        common_enums::RefundStatus::Success
-    } else {
-        common_enums::RefundStatus::Failure
-    }
-}
-
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
-        let refund_status = http_code_to_refund_status(item.http_code);
+        // Checkout refunds are asynchronous: "The response does not confirm success." Both the
+        // 202 (refund accepted) and the 200 (payment already refunded) answers carry only an
+        // `action_id`, so the refund stays Pending here; the final outcome comes from RSync
+        // (`GET /payments/{id}/actions`, Refund action `approved`) or the `payment_refunded` /
+        // `payment_refund_declined` webhooks. Mapping 202 to Success would report a refund the
+        // issuer can still decline (sandbox amount 3738). Non-2xx answers take the error path.
+        // This intentionally diverges from Hyperswitch, which maps 202 to Success.
+        let refund_status = common_enums::RefundStatus::Pending;
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.action_id.clone(),
@@ -3559,18 +4354,29 @@ impl<F> TryFrom<ResponseRouterData<RSyncResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RSyncResponse, Self>) -> Result<Self, Self::Error> {
         let refund_action_id = item.router_data.request.connector_refund_id.clone();
-        let action_response = item
+        // Refunds are asynchronous: until Checkout lists the refund action (only
+        // `payment_refund_pending` seen so far), the refund is still in flight, so
+        // an absent action is Pending rather than a response-handling failure.
+        let refund_status = match item
             .response
             .iter()
-            .find(|&x| x.action_id.clone() == refund_action_id)
-            .ok_or(crate::utils::response_handling_fail_for_connector(
-                item.http_code,
-                "checkout",
-            ))?;
-        let refund_status = common_enums::RefundStatus::from(action_response);
+            .find(|action| action.action_id == refund_action_id)
+        {
+            Some(action) => common_enums::RefundStatus::from(action),
+            None => {
+                // Checkout has no "refund not found" answer here, so a wrong or stale refund
+                // id would look the same as an in-flight refund; log it so it can be traced.
+                tracing::warn!(
+                    connector_refund_id = %refund_action_id,
+                    actions_listed = item.response.len(),
+                    "Checkout refund action not listed on the payment yet; reporting Pending"
+                );
+                common_enums::RefundStatus::Pending
+            }
+        };
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: action_response.action_id.clone(),
+                connector_refund_id: refund_action_id,
                 refund_status,
                 status_code: item.http_code,
                 acquirer_reference_number: None,
@@ -3704,6 +4510,14 @@ pub enum CheckoutWebhookEventType {
     PaymentCanceled,
     PaymentCaptureDeclined,
     PaymentVoided,
+    PaymentPending,
+    PaymentCapturePending,
+    PaymentRetryScheduled,
+    PaymentExpired,
+    PaymentVoidDeclined,
+    PaymentRefundPending,
+    CardVerified,
+    CardVerificationDeclined,
     DisputeReceived,
     DisputeExpired,
     DisputeAccepted,
@@ -3711,6 +4525,8 @@ pub enum CheckoutWebhookEventType {
     DisputeEvidenceSubmitted,
     DisputeEvidenceAcknowledgedByScheme,
     DisputeEvidenceRequired,
+    DisputeArbitrationEvidenceSubmitted,
+    DisputeArbitrationSentToScheme,
     DisputeArbitrationLost,
     DisputeArbitrationWon,
     DisputeWon,
@@ -3738,6 +4554,9 @@ pub struct CheckoutWebhookData {
     pub response_code: Option<String>,
     pub response_summary: Option<String>,
     pub auth_code: Option<String>,
+    /// Scheme transaction identifier (network transaction id) carried by
+    /// `payment_approved` / `payment_declined` / `card_verified` events.
+    pub scheme_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3745,8 +4564,9 @@ pub struct CheckoutWebhookBody {
     #[serde(rename = "type")]
     pub transaction_type: CheckoutWebhookEventType,
     pub data: CheckoutWebhookData,
-    #[serde(rename = "_links")]
-    pub links: Links,
+    /// Not read; optional so a body without `_links` still decodes.
+    #[serde(rename = "_links", default)]
+    pub links: Option<Links>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -3759,6 +4579,8 @@ pub enum CheckoutDisputeTransactionType {
     DisputeEvidenceSubmitted,
     DisputeEvidenceAcknowledgedByScheme,
     DisputeEvidenceRequired,
+    DisputeArbitrationEvidenceSubmitted,
+    DisputeArbitrationSentToScheme,
     DisputeArbitrationLost,
     DisputeArbitrationWon,
     DisputeWon,
@@ -3774,6 +4596,9 @@ pub struct CheckoutDisputeWebhookData {
     pub amount: Option<MinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub reason_code: Option<String>,
+    /// Dispute category (e.g. `fraudulent`), surfaced as the dispute message.
+    pub category: Option<String>,
+    pub evidence_required_by: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3786,7 +4611,9 @@ pub struct CheckoutDisputeWebhookBody {
 pub fn is_refund_event(event_code: &CheckoutWebhookEventType) -> bool {
     matches!(
         event_code,
-        CheckoutWebhookEventType::PaymentRefunded | CheckoutWebhookEventType::PaymentRefundDeclined
+        CheckoutWebhookEventType::PaymentRefunded
+            | CheckoutWebhookEventType::PaymentRefundDeclined
+            | CheckoutWebhookEventType::PaymentRefundPending
     )
 }
 
@@ -3800,6 +4627,8 @@ pub fn is_chargeback_event(event_code: &CheckoutWebhookEventType) -> bool {
             | CheckoutWebhookEventType::DisputeEvidenceSubmitted
             | CheckoutWebhookEventType::DisputeEvidenceAcknowledgedByScheme
             | CheckoutWebhookEventType::DisputeEvidenceRequired
+            | CheckoutWebhookEventType::DisputeArbitrationEvidenceSubmitted
+            | CheckoutWebhookEventType::DisputeArbitrationSentToScheme
             | CheckoutWebhookEventType::DisputeArbitrationLost
             | CheckoutWebhookEventType::DisputeArbitrationWon
             | CheckoutWebhookEventType::DisputeWon
@@ -3824,17 +4653,25 @@ impl From<CheckoutWebhookEventType> for domain_types::connector_types::EventType
             CheckoutWebhookEventType::PaymentCanceled => Self::PaymentIntentCancelFailure,
             CheckoutWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentCaptureFailure,
             CheckoutWebhookEventType::PaymentVoided => Self::PaymentIntentCancelled,
+            CheckoutWebhookEventType::PaymentVoidDeclined => Self::PaymentIntentCancelFailure,
+            CheckoutWebhookEventType::PaymentPending => Self::PaymentActionRequired,
+            CheckoutWebhookEventType::PaymentCapturePending
+            | CheckoutWebhookEventType::PaymentRetryScheduled => Self::PaymentIntentProcessing,
+            CheckoutWebhookEventType::PaymentExpired => Self::PaymentIntentExpired,
+            CheckoutWebhookEventType::CardVerified => Self::PaymentIntentSuccess,
+            CheckoutWebhookEventType::CardVerificationDeclined => Self::PaymentIntentFailure,
             CheckoutWebhookEventType::PaymentRefunded => Self::RefundSuccess,
             CheckoutWebhookEventType::PaymentRefundDeclined => Self::RefundFailure,
+            CheckoutWebhookEventType::PaymentRefundPending => Self::RefundProcessing,
             CheckoutWebhookEventType::DisputeReceived
             | CheckoutWebhookEventType::DisputeEvidenceRequired => Self::DisputeOpened,
             CheckoutWebhookEventType::DisputeExpired => Self::DisputeExpired,
             CheckoutWebhookEventType::DisputeAccepted => Self::DisputeAccepted,
             CheckoutWebhookEventType::DisputeCanceled => Self::DisputeCancelled,
             CheckoutWebhookEventType::DisputeEvidenceSubmitted
-            | CheckoutWebhookEventType::DisputeEvidenceAcknowledgedByScheme => {
-                Self::DisputeChallenged
-            }
+            | CheckoutWebhookEventType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutWebhookEventType::DisputeArbitrationEvidenceSubmitted
+            | CheckoutWebhookEventType::DisputeArbitrationSentToScheme => Self::DisputeChallenged,
             CheckoutWebhookEventType::DisputeWon
             | CheckoutWebhookEventType::DisputeArbitrationWon => Self::DisputeWon,
             CheckoutWebhookEventType::DisputeLost
@@ -3849,10 +4686,14 @@ impl TryFrom<CheckoutWebhookEventType> for common_enums::AttemptStatus {
     fn try_from(event: CheckoutWebhookEventType) -> Result<Self, Self::Error> {
         match event {
             CheckoutWebhookEventType::PaymentApproved => Ok(Self::Authorized),
-            CheckoutWebhookEventType::PaymentCaptured => Ok(Self::Charged),
+            CheckoutWebhookEventType::PaymentCaptured | CheckoutWebhookEventType::CardVerified => {
+                Ok(Self::Charged)
+            }
             CheckoutWebhookEventType::PaymentDeclined
             | CheckoutWebhookEventType::PaymentCanceled
-            | CheckoutWebhookEventType::PaymentCaptureDeclined => Ok(Self::Failure),
+            | CheckoutWebhookEventType::PaymentCaptureDeclined
+            | CheckoutWebhookEventType::PaymentExpired
+            | CheckoutWebhookEventType::CardVerificationDeclined => Ok(Self::Failure),
             CheckoutWebhookEventType::AuthenticationExpired
             | CheckoutWebhookEventType::AuthenticationFailed
             | CheckoutWebhookEventType::PaymentAuthenticationFailed => {
@@ -3860,9 +4701,29 @@ impl TryFrom<CheckoutWebhookEventType> for common_enums::AttemptStatus {
             }
             CheckoutWebhookEventType::AuthenticationStarted
             | CheckoutWebhookEventType::AuthenticationApproved
-            | CheckoutWebhookEventType::AuthenticationAttempted => Ok(Self::AuthenticationPending),
+            | CheckoutWebhookEventType::AuthenticationAttempted
+            | CheckoutWebhookEventType::PaymentPending => Ok(Self::AuthenticationPending),
+            CheckoutWebhookEventType::PaymentCapturePending
+            | CheckoutWebhookEventType::PaymentRetryScheduled => Ok(Self::Pending),
             CheckoutWebhookEventType::PaymentVoided => Ok(Self::Voided),
-            _ => Err(error_stack::report!(
+            CheckoutWebhookEventType::PaymentVoidDeclined => Ok(Self::VoidFailed),
+            CheckoutWebhookEventType::PaymentRefunded
+            | CheckoutWebhookEventType::PaymentRefundDeclined
+            | CheckoutWebhookEventType::PaymentRefundPending
+            | CheckoutWebhookEventType::DisputeReceived
+            | CheckoutWebhookEventType::DisputeExpired
+            | CheckoutWebhookEventType::DisputeAccepted
+            | CheckoutWebhookEventType::DisputeCanceled
+            | CheckoutWebhookEventType::DisputeEvidenceSubmitted
+            | CheckoutWebhookEventType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutWebhookEventType::DisputeEvidenceRequired
+            | CheckoutWebhookEventType::DisputeArbitrationEvidenceSubmitted
+            | CheckoutWebhookEventType::DisputeArbitrationSentToScheme
+            | CheckoutWebhookEventType::DisputeArbitrationLost
+            | CheckoutWebhookEventType::DisputeArbitrationWon
+            | CheckoutWebhookEventType::DisputeWon
+            | CheckoutWebhookEventType::DisputeLost
+            | CheckoutWebhookEventType::Unknown => Err(error_stack::report!(
                 domain_types::errors::WebhookError::WebhookEventTypeNotFound
             )),
         }
@@ -3875,7 +4736,40 @@ impl TryFrom<CheckoutWebhookEventType> for common_enums::RefundStatus {
         match event {
             CheckoutWebhookEventType::PaymentRefunded => Ok(Self::Success),
             CheckoutWebhookEventType::PaymentRefundDeclined => Ok(Self::Failure),
-            _ => Err(error_stack::report!(
+            CheckoutWebhookEventType::PaymentRefundPending => Ok(Self::Pending),
+            CheckoutWebhookEventType::AuthenticationStarted
+            | CheckoutWebhookEventType::AuthenticationApproved
+            | CheckoutWebhookEventType::AuthenticationAttempted
+            | CheckoutWebhookEventType::AuthenticationExpired
+            | CheckoutWebhookEventType::AuthenticationFailed
+            | CheckoutWebhookEventType::PaymentApproved
+            | CheckoutWebhookEventType::PaymentCaptured
+            | CheckoutWebhookEventType::PaymentDeclined
+            | CheckoutWebhookEventType::PaymentAuthenticationFailed
+            | CheckoutWebhookEventType::PaymentCanceled
+            | CheckoutWebhookEventType::PaymentCaptureDeclined
+            | CheckoutWebhookEventType::PaymentVoided
+            | CheckoutWebhookEventType::PaymentPending
+            | CheckoutWebhookEventType::PaymentCapturePending
+            | CheckoutWebhookEventType::PaymentRetryScheduled
+            | CheckoutWebhookEventType::PaymentExpired
+            | CheckoutWebhookEventType::PaymentVoidDeclined
+            | CheckoutWebhookEventType::CardVerified
+            | CheckoutWebhookEventType::CardVerificationDeclined
+            | CheckoutWebhookEventType::DisputeReceived
+            | CheckoutWebhookEventType::DisputeExpired
+            | CheckoutWebhookEventType::DisputeAccepted
+            | CheckoutWebhookEventType::DisputeCanceled
+            | CheckoutWebhookEventType::DisputeEvidenceSubmitted
+            | CheckoutWebhookEventType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutWebhookEventType::DisputeEvidenceRequired
+            | CheckoutWebhookEventType::DisputeArbitrationEvidenceSubmitted
+            | CheckoutWebhookEventType::DisputeArbitrationSentToScheme
+            | CheckoutWebhookEventType::DisputeArbitrationLost
+            | CheckoutWebhookEventType::DisputeArbitrationWon
+            | CheckoutWebhookEventType::DisputeWon
+            | CheckoutWebhookEventType::DisputeLost
+            | CheckoutWebhookEventType::Unknown => Err(error_stack::report!(
                 domain_types::errors::WebhookError::WebhookEventTypeNotFound
             )),
         }
@@ -3917,6 +4811,11 @@ impl TryFrom<CheckoutDisputeTransactionType>
             CheckoutDisputeTransactionType::DisputeLost => Ok((
                 common_enums::DisputeStatus::DisputeLost,
                 common_enums::DisputeStage::Dispute,
+            )),
+            CheckoutDisputeTransactionType::DisputeArbitrationEvidenceSubmitted
+            | CheckoutDisputeTransactionType::DisputeArbitrationSentToScheme => Ok((
+                common_enums::DisputeStatus::DisputeChallenged,
+                common_enums::DisputeStage::PreArbitration,
             )),
             CheckoutDisputeTransactionType::DisputeArbitrationWon => Ok((
                 common_enums::DisputeStatus::DisputeWon,

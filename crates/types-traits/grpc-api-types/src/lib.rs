@@ -33,3 +33,29 @@ pub mod auto_populate {
     include!(concat!(env!("OUT_DIR"), "/auto_populate_generated.rs"));
     pub use generated::*;
 }
+
+/// serde `serialize_with` helpers for proto `string` fields that carry secrets
+/// (see build.rs). Serializing through `Secret<String>` keeps the value for normal
+/// serializers and masks it under `hyperswitch_masking::masked_serialize`.
+pub mod masked_serde {
+    use hyperswitch_masking::Secret;
+    use serde::Serialize;
+
+    #[allow(clippy::ptr_arg)]
+    pub fn secret_string<S: serde::Serializer>(
+        value: &String,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        Secret::<String>::new(value.clone()).serialize(serializer)
+    }
+
+    pub fn optional_secret_string<S: serde::Serializer>(
+        value: &Option<String>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        value
+            .clone()
+            .map(Secret::<String>::new)
+            .serialize(serializer)
+    }
+}

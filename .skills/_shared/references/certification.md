@@ -145,6 +145,26 @@ certified.
 }
 ```
 
+**Per-flow alpha (`alpha_flows`).** When most of a connector is proven live but a few flows
+cannot be (no device-minted wallet token, no 3DS processor on the sandbox account, no
+delivered webhook), do **not** list the whole connector. List only those flows:
+
+```json
+{
+  "alpha_flows": {
+    "<name>": {
+      "<suite>": { "<scenario>": "why it cannot be proven yet", "*": "covers every scenario of the suite" }
+    }
+  }
+}
+```
+
+The harness (`scenario_unsupported_reason` → `scenario_alpha_reason`) skips each listed
+scenario with an `ALPHA:` reason, so `is_alpha()` stays false and every other flow keeps being
+certified. `check_connector_specs` Phase 2C fails on an entry whose suite is not in the
+connector's `supported_suites`, an empty reason, or a connector listed in both `connectors` and
+`alpha_flows`. A flow that passes live must not be listed.
+
 **What listing does:** `certify-connectors.sh`'s `is_alpha()` skips the connector (no
 credentials in CI, nothing to certify), and `verify-new-connectors.sh` records it as
 *unproven* instead of running its scenarios.

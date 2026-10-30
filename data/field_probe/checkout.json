@@ -24,10 +24,31 @@
             }
           },
           "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "customer.probe@example.com"
+          },
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
           },
           "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "AAABAWFlmQAAAABjRWWZEEFgFz8=",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "97267598-fae6-48f2-8083-c23433990361",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS",
+            "created_at": 1704067200
+          },
           "return_url": "https://example.com/return"
         },
         "sample": {
@@ -35,10 +56,11 @@
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_secret",
+            "cko-idempotency-key": "payment_probe_txn_001",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"ach\",\"account_type\":\"savings\",\"country\":\"US\",\"account_number\":\"000123456789\",\"bank_code\":\"110000000\",\"account_holder\":{\"type\":\"individual\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
+          "body": "{\"source\":{\"type\":\"ach\",\"account_type\":\"savings\",\"country\":\"US\",\"account_number\":\"000123456789\",\"bank_code\":\"110000000\",\"account_holder\":{\"type\":\"individual\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":true,\"eci\":\"05\",\"cryptogram\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"xid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"2.2.0\",\"status\":\"Y\",\"authentication_date\":\"2020-01-01T00:00:00+00:00\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false,\"customer\":{\"email\":\"customer.probe@example.com\"},\"shipping\":{\"first_name\":\"Jane\",\"address\":{\"address_line1\":\"123 Main St\",\"city\":\"Seattle\",\"zip\":\"98101\",\"country\":\"US\"}}}"
         }
       },
       "AchBankTransfer": {
@@ -101,10 +123,31 @@
             }
           },
           "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "customer.probe@example.com"
+          },
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
           },
           "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "AAABAWFlmQAAAABjRWWZEEFgFz8=",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "97267598-fae6-48f2-8083-c23433990361",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS",
+            "created_at": 1704067200
+          },
           "return_url": "https://example.com/return"
         },
         "sample": {
@@ -112,10 +155,11 @@
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_secret",
+            "cko-idempotency-key": "payment_probe_txn_001",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"token\":\"4111111111111111\",\"type\":\"network_token\",\"token_type\":\"applepay\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"eci\":\"05\",\"cryptogram\":\"AAAAAA==\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
+          "body": "{\"source\":{\"token\":\"4111111111111111\",\"type\":\"network_token\",\"token_type\":\"applepay\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"eci\":\"05\",\"cryptogram\":\"AAAAAA==\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":true,\"eci\":\"05\",\"cryptogram\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"xid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"2.2.0\",\"status\":\"Y\",\"authentication_date\":\"2020-01-01T00:00:00+00:00\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false,\"customer\":{\"email\":\"customer.probe@example.com\"},\"shipping\":{\"first_name\":\"Jane\",\"address\":{\"address_line1\":\"123 Main St\",\"city\":\"Seattle\",\"zip\":\"98101\",\"country\":\"US\"}}}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -188,10 +232,31 @@
             }
           },
           "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "customer.probe@example.com"
+          },
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
           },
           "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "AAABAWFlmQAAAABjRWWZEEFgFz8=",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "97267598-fae6-48f2-8083-c23433990361",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS",
+            "created_at": 1704067200
+          },
           "return_url": "https://example.com/return"
         },
         "sample": {
@@ -199,10 +264,11 @@
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_secret",
+            "cko-idempotency-key": "payment_probe_txn_001",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"card\",\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"737\",\"billing_address\":{},\"account_holder\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
+          "body": "{\"source\":{\"type\":\"card\",\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"737\",\"billing_address\":{},\"phone\":{\"country_code\":\"+1\",\"number\":\"4155552671\"},\"account_holder\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":true,\"eci\":\"05\",\"cryptogram\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"xid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"2.2.0\",\"status\":\"Y\",\"authentication_date\":\"2020-01-01T00:00:00+00:00\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false,\"customer\":{\"email\":\"customer.probe@example.com\"},\"shipping\":{\"first_name\":\"Jane\",\"address\":{\"address_line1\":\"123 Main St\",\"city\":\"Seattle\",\"zip\":\"98101\",\"country\":\"US\"}}}"
         }
       },
       "CashappQr": {
@@ -309,10 +375,31 @@
             }
           },
           "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "customer.probe@example.com"
+          },
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
           },
           "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "AAABAWFlmQAAAABjRWWZEEFgFz8=",
+            "message_version": "2.2.0",
+            "ds_transaction_id": "97267598-fae6-48f2-8083-c23433990361",
+            "trans_status": "TRANSACTION_STATUS_SUCCESS",
+            "created_at": 1704067200
+          },
           "return_url": "https://example.com/return"
         },
         "sample": {
@@ -320,10 +407,11 @@
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_secret",
+            "cko-idempotency-key": "payment_probe_txn_001",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"network_token\",\"token\":\"4111111111111111\",\"token_type\":\"googlepay\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"eci\":\"05\",\"cryptogram\":\"AAAAAA==\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
+          "body": "{\"source\":{\"type\":\"network_token\",\"token\":\"4111111111111111\",\"token_type\":\"googlepay\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"eci\":\"05\",\"cryptogram\":\"AAAAAA==\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":true,\"eci\":\"05\",\"cryptogram\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"xid\":\"00000000-0000-0000-0000-000000000000\",\"version\":\"2.2.0\",\"status\":\"Y\",\"authentication_date\":\"2020-01-01T00:00:00+00:00\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false,\"customer\":{\"email\":\"customer.probe@example.com\"},\"shipping\":{\"first_name\":\"Jane\",\"address\":{\"address_line1\":\"123 Main St\",\"city\":\"Seattle\",\"zip\":\"98101\",\"country\":\"US\"}}}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -615,6 +703,7 @@
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_secret",
+            "cko-idempotency-key": "capture_probe_capture_001",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -660,14 +749,43 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: accept_dispute flow for checkout"
+        "status": "supported",
+        "proto_request": {
+          "merchant_dispute_id": "probe_dispute_001",
+          "connector_transaction_id": "probe_txn_001",
+          "dispute_id": "probe_dispute_id_001"
+        },
+        "sample": {
+          "url": "https://api.sandbox.checkout.com/disputes/probe_dispute_id_001/accept",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_secret",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{}"
+        }
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: defend_dispute flow for checkout"
+        "status": "supported",
+        "proto_request": {
+          "merchant_dispute_id": "probe_dispute_001",
+          "connector_transaction_id": "probe_txn_001",
+          "dispute_id": "probe_dispute_id_001",
+          "reason_code": "probe_reason"
+        },
+        "sample": {
+          "url": "https://api.sandbox.checkout.com/disputes/probe_dispute_id_001/evidence",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_secret",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{}"
+        }
       }
     },
     "dispute_get": {
@@ -677,8 +795,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: submit_evidence flow for checkout"
+        "status": "not_supported",
+        "error": "Raw evidence file bytes (service_documentation) without a Checkout file id is not supported by checkout. Checkout dispute evidence accepts only file ids, never file contents"
       }
     },
     "eligibility": {
@@ -801,10 +919,11 @@
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_secret",
+            "cko-idempotency-key": "payment_probe_proxy_txn_001",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"card\",\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"{{$card_cvc}}\",\"billing_address\":{},\"account_holder\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_proxy_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
+          "body": "{\"source\":{\"type\":\"card\",\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"{{$card_cvc}}\",\"billing_address\":{},\"account_holder\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_proxy_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
         }
       }
     },
@@ -840,10 +959,11 @@
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_secret",
+            "cko-idempotency-key": "payment_probe_proxy_mandate_001",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"card\",\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"{{$card_cvc}}\",\"billing_address\":{},\"account_holder\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":0,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":null,\"failure_url\":null,\"capture\":true,\"reference\":\"probe_proxy_mandate_001\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":false,\"store_for_future_use\":true}"
+          "body": "{\"source\":{\"type\":\"card\",\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"{{$card_cvc}}\",\"billing_address\":{},\"account_holder\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":0,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false},\"success_url\":null,\"failure_url\":null,\"capture\":true,\"reference\":\"probe_proxy_mandate_001\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":false,\"store_for_future_use\":true}"
         }
       }
     },
@@ -880,7 +1000,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"id\",\"id\":\"probe-mandate-123\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/recurring-return?status=success\",\"failure_url\":\"https://example.com/recurring-return?status=failure\",\"capture\":true,\"reference\":\"\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":true}"
+          "body": "{\"source\":{\"type\":\"id\",\"id\":\"probe-mandate-123\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false},\"success_url\":\"https://example.com/recurring-return?status=success\",\"failure_url\":\"https://example.com/recurring-return?status=failure\",\"capture\":true,\"reference\":\"\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":true}"
         }
       }
     },
@@ -913,6 +1033,7 @@
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_secret",
+            "cko-idempotency-key": "refund_probe_refund_001",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -982,10 +1103,11 @@
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_secret",
+            "cko-idempotency-key": "payment_probe_mandate_001",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"card\",\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"737\",\"billing_address\":{},\"account_holder\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":0,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/mandate-return?status=success\",\"failure_url\":\"https://example.com/mandate-return?status=failure\",\"capture\":true,\"reference\":\"probe_mandate_001\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":false,\"store_for_future_use\":true}"
+          "body": "{\"source\":{\"type\":\"card\",\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"737\",\"billing_address\":{},\"account_holder\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"amount\":0,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false},\"success_url\":\"https://example.com/mandate-return?status=success\",\"failure_url\":\"https://example.com/mandate-return?status=failure\",\"capture\":true,\"reference\":\"probe_mandate_001\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":false,\"store_for_future_use\":true}"
         }
       }
     },
@@ -1010,10 +1132,11 @@
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_secret",
+            "cko-idempotency-key": "payment_probe_tokenized_txn_001",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"token\",\"token\":\"pm_1AbcXyzStripeTestToken\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_tokenized_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
+          "body": "{\"source\":{\"type\":\"token\",\"token\":\"pm_1AbcXyzStripeTestToken\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_tokenized_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
         }
       }
     },
@@ -1057,10 +1180,11 @@
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_secret",
+            "cko-idempotency-key": "payment_probe_tokenized_mandate_001",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"token\",\"token\":\"pm_1AbcXyzStripeTestToken\",\"billing_address\":{}},\"amount\":0,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":null,\"failure_url\":null,\"capture\":true,\"reference\":\"probe_tokenized_mandate_001\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":false,\"store_for_future_use\":true}"
+          "body": "{\"source\":{\"type\":\"token\",\"token\":\"pm_1AbcXyzStripeTestToken\",\"billing_address\":{}},\"amount\":0,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false},\"success_url\":null,\"failure_url\":null,\"capture\":true,\"reference\":\"probe_tokenized_mandate_001\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":false,\"store_for_future_use\":true}"
         }
       }
     },
@@ -1081,6 +1205,7 @@
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_secret",
+            "cko-idempotency-key": "void_probe_void_001",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },

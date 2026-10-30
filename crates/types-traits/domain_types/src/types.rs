@@ -15094,7 +15094,13 @@ pub fn generate_defend_dispute_response(
     match defend_dispute_response {
         Ok(response) => Ok(DisputeServiceDefendResponse {
             dispute_id: response.connector_dispute_id,
-            dispute_status: response.dispute_status as i32,
+            // `common_enums::DisputeStatus` starts at 0 (DisputeOpened) while the proto
+            // enum reserves 0 for UNSPECIFIED, so a raw `as i32` cast is off by one
+            // (DisputeChallenged would reach the wire as DISPUTE_CANCELLED).
+            dispute_status: grpc_api_types::payments::DisputeStatus::foreign_from(
+                response.dispute_status,
+            )
+            .into(),
             connector_status_code: None,
             error: None,
             merchant_dispute_id: None,
@@ -15110,7 +15116,9 @@ pub fn generate_defend_dispute_response(
                 .connector_transaction_id
                 .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            dispute_status: common_enums::DisputeStatus::DisputeLost as i32,
+            // A failed defend call says nothing about the dispute outcome; report it as
+            // unspecified, as the Accept and SubmitEvidence error paths do.
+            dispute_status: grpc_api_types::payments::DisputeStatus::default().into(),
             connector_status_code: None,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,

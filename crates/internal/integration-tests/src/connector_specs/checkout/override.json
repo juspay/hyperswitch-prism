@@ -2,6 +2,552 @@
   "PaymentService/Authorize": {
     "no3ds_auto_capture_google_pay_encrypted": {
       "grpc_req": {}
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4734868958733862"
+            }
+          }
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.code": {
+          "equals": "200N7"
+        }
+      }
+    },
+    "no3ds_auto_capture_apple_pay_decrypted_cit": {
+      "grpc_req": {
+        "customer_acceptance": {
+          "acceptance_type": "OFFLINE"
+        }
+      }
+    },
+    "no3ds_auto_capture_google_pay_decrypted_cit": {
+      "grpc_req": {
+        "customer_acceptance": {
+          "acceptance_type": "OFFLINE"
+        }
+      }
+    },
+    "checkout_shipping_details": {
+      "extends": "no3ds_manual_capture_credit_card",
+      "grpc_req": {
+        "address": {
+          "shipping_address": {
+            "first_name": {
+              "value": "Ship"
+            },
+            "last_name": {
+              "value": "Tomatrix"
+            },
+            "line1": {
+              "value": "1 Main St"
+            },
+            "city": {
+              "value": "Oakland"
+            },
+            "zip_code": {
+              "value": "94607"
+            }
+          }
+        }
+      },
+      "assert": {
+        "raw_connector_request.value": {
+          "contains": "1 Main St"
+        }
+      }
+    },
+    "checkout_idempotency_header": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "assert": {
+        "connector_transaction_id": null,
+        "raw_connector_request.value": {
+          "contains": "Cko-Idempotency-Key"
+        }
+      }
+    },
+    "checkout_billing_phone": {
+      "extends": "no3ds_manual_capture_credit_card",
+      "grpc_req": {
+        "address": {
+          "billing_address": {
+            "phone_number": {
+              "value": "4155552671"
+            },
+            "phone_country_code": "+1"
+          }
+        }
+      },
+      "assert": {
+        "connector_transaction_id": null,
+        "raw_connector_request.value": {
+          "contains": "4155552671"
+        }
+      }
+    },
+    "checkout_avs_cvv_payment_checks": {
+      "extends": "no3ds_manual_capture_credit_card",
+      "grpc_req": {
+        "address": {
+          "billing_address": {
+            "line1": {
+              "value": "Test_Y"
+            },
+            "zip_code": {
+              "value": "94607"
+            }
+          }
+        }
+      },
+      "assert": {
+        "connector_transaction_id": null,
+        "connector_response.additional_payment_method_data.card.payment_checks": {
+          "must_exist": true
+        }
+      }
+    },
+    "checkout_dynamic_descriptor": {
+      "extends": "no3ds_manual_capture_credit_card",
+      "grpc_req": {
+        "billing_descriptor": {
+          "name": {
+            "value": "SUPERHEROES.COM"
+          },
+          "city": {
+            "value": "GOTHAM"
+          },
+          "reference": "ORD-123A"
+        }
+      },
+      "assert": {
+        "connector_transaction_id": null,
+        "raw_connector_request.value": {
+          "contains": "SUPERHEROES.COM"
+        }
+      }
+    },
+    "checkout_issuer_decline_codes": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4544249167673670"
+            }
+          }
+        }
+      },
+      "assert": {
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.code": {
+          "equals": "20051"
+        },
+        "status": {
+          "one_of": [
+            "FAILURE",
+            "AUTHORIZATION_FAILED"
+          ]
+        },
+        "error.issuer_details.network_details.decline_code": {
+          "equals": "51"
+        }
+      }
+    },
+    "checkout_capture_method_scheduled_refused": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "grpc_req": {
+        "capture_method": "SCHEDULED"
+      },
+      "assert": {
+        "status": null,
+        "error": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "checkout_apple_pay_encrypted_refused": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "grpc_req": {
+        "payment_method": {
+          "card": null,
+          "apple_pay_sdk": {
+            "payment_data": {
+              "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoiUjFKQlEwVXRVRXhCUTBWSVQweEVSVkl0VGs5VUxVRXRSRVZXU1VORkxWUlBTMFZPIiwic2lnbmF0dXJlIjoiUjFKQlEwVXRVRXhCUTBWSVQweEVSVkk9IiwiaGVhZGVyIjp7ImVwaGVtZXJhbFB1YmxpY0tleSI6IlIxSkJRMFV0VUV4QlEwVklUMHhFUlZJPSIsInB1YmxpY0tleUhhc2giOiJ0cVlWK3RtRzlhTWgrbC9LNmNpY1VuUHFrYjFnVWlMalNUTTlnRXo2TmwwPSIsInRyYW5zYWN0aW9uSWQiOiIzY2VlODk2NzkxMzBhNGIyNjE3Yzc2MTE4YTFjNjJmZDQwMGNkNDViNDlkYzA5MTZkNWI5NTFiNTYwY2QxN2I0In19"
+            },
+            "payment_method": {
+              "display_name": "Visa 1111",
+              "network": "Visa",
+              "type": "debit"
+            },
+            "transaction_identifier": "3cee89679130a4b2617c76118a1c62fd400cd45b49dc0916d5b951b560cd17b4"
+          }
+        }
+      },
+      "assert": {
+        "status": null,
+        "error": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "checkout_google_pay_decrypted_pan_only": {
+      "extends": "no3ds_auto_capture_google_pay_decrypted",
+      "grpc_req": {
+        "payment_method": {
+          "google_pay_sdk": {
+            "description": "Visa 4242",
+            "info": {
+              "card_details": "4242"
+            },
+            "tokenization_data": {
+              "decrypted_data": {
+                "cryptogram": null,
+                "eci_indicator": null,
+                "application_primary_account_number": {
+                  "value": "4242424242424242"
+                }
+              }
+            }
+          }
+        },
+        "description": "No3DS auto capture Google Pay (decrypted PAN_ONLY, no cryptogram/eci)"
+      },
+      "assert": {
+        "redirection_data": {
+          "must_not_exist": true
+        },
+        "raw_connector_request.value": {
+          "contains": "\"type\":\"card\""
+        }
+      }
+    },
+    "checkout_external_3ds": {
+      "extends": "no3ds_manual_capture_credit_card",
+      "grpc_req": {
+        "authentication_data": {
+          "eci": "05",
+          "cavv": "AAABAWFlmQAAAABjRWWZEEFgFz8=",
+          "ds_transaction_id": "f25084f0-5b16-4c0a-ae5d-b24808a95e4b",
+          "message_version": "2.2.0",
+          "trans_status": "TRANSACTION_STATUS_SUCCESS"
+        }
+      },
+      "assert": {
+        "connector_transaction_id": null,
+        "raw_connector_request.value": {
+          "contains": "\"status\":\"Y\""
+        }
+      }
+    },
+    "checkout_external_3ds_failed_refused": {
+      "extends": "no3ds_manual_capture_credit_card",
+      "grpc_req": {
+        "authentication_data": {
+          "eci": "07",
+          "cavv": "AAABAWFlmQAAAABjRWWZEEFgFz8=",
+          "ds_transaction_id": "f25084f0-5b16-4c0a-ae5d-b24808a95e4b",
+          "message_version": "2.2.0",
+          "trans_status": "TRANSACTION_STATUS_FAILURE"
+        }
+      },
+      "assert": {
+        "status": null,
+        "error": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "checkout_google_pay_decrypted_pan_only_3ds": {
+      "extends": "no3ds_auto_capture_google_pay_decrypted",
+      "grpc_req": {
+        "payment_method": {
+          "google_pay_sdk": {
+            "description": "Visa 4242",
+            "info": {
+              "card_details": "4242"
+            },
+            "tokenization_data": {
+              "decrypted_data": {
+                "cryptogram": null,
+                "eci_indicator": null,
+                "application_primary_account_number": {
+                  "value": "4242424242424242"
+                }
+              }
+            }
+          }
+        },
+        "auth_type": "THREE_DS",
+        "description": "3DS auto capture Google Pay (decrypted PAN_ONLY, no cryptogram/eci)"
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHENTICATION_PENDING"
+          ]
+        },
+        "redirection_data": {
+          "must_exist": true
+        },
+        "raw_connector_request.value": {
+          "contains": "\"type\":\"card\""
+        }
+      }
+    },
+    "sequential_automatic_capture_flag": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "grpc_req": {
+        "capture_method": "SEQUENTIAL_AUTOMATIC",
+        "description": "No3DS sequential automatic capture card payment (credit)"
+      },
+      "assert": {
+        "connector_transaction_id": null,
+        "status": {
+          "equals": "CHARGED"
+        },
+        "raw_connector_request.value": {
+          "contains": "\"capture\":true"
+        }
+      }
+    },
+    "checkout_merchant_advice_code": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 8105
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5105105105105100"
+            },
+            "card_cvc": {
+              "value": "100"
+            }
+          }
+        },
+        "capture_method": "MANUAL"
+      },
+      "assert": {
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "status": {
+          "one_of": [
+            "FAILURE",
+            "AUTHORIZATION_FAILED"
+          ]
+        },
+        "error.connector_details.code": {
+          "equals": "20179"
+        },
+        "error.issuer_details.network_details.advice_code": {
+          "equals": "01"
+        },
+        "error.issuer_details.network_details.decline_code": {
+          "equals": "79"
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "event_status": null
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "event_status": null
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "event_status": null
+      }
+    },
+    "invalid_signature": {
+      "assert": {
+        "event_status": null
+      }
+    }
+  },
+  "PaymentMethodService/Tokenize": {
+    "checkout_tokenize_apple_pay_wire": {
+      "extends": "tokenize_credit_card",
+      "grpc_req": {
+        "payment_method": {
+          "card": null,
+          "apple_pay_sdk": {
+            "payment_data": {
+              "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoiUjFKQlEwVXRVRXhCUTBWSVQweEVSVkl0VGs5VUxVRXRSRVZXU1VORkxWUlBTMFZPIiwic2lnbmF0dXJlIjoiUjFKQlEwVXRVRXhCUTBWSVQweEVSVkk9IiwiaGVhZGVyIjp7ImVwaGVtZXJhbFB1YmxpY0tleSI6IlIxSkJRMFV0VUV4QlEwVklUMHhFUlZJPSIsInB1YmxpY0tleUhhc2giOiJ0cVlWK3RtRzlhTWgrbC9LNmNpY1VuUHFrYjFnVWlMalNUTTlnRXo2TmwwPSIsInRyYW5zYWN0aW9uSWQiOiIzY2VlODk2NzkxMzBhNGIyNjE3Yzc2MTE4YTFjNjJmZDQwMGNkNDViNDlkYzA5MTZkNWI5NTFiNTYwY2QxN2I0In19"
+            },
+            "payment_method": {
+              "display_name": "Visa 1111",
+              "network": "Visa",
+              "type": "debit"
+            },
+            "transaction_identifier": "3cee89679130a4b2617c76118a1c62fd400cd45b49dc0916d5b951b560cd17b4"
+          }
+        }
+      },
+      "assert": {
+        "payment_method_token": null,
+        "error": null,
+        "raw_connector_request.value": {
+          "contains": "\"type\":\"applepay\""
+        },
+        "error.connector_details.code": {
+          "equals": "token_data_invalid"
+        }
+      }
+    },
+    "checkout_tokenize_google_pay_wire": {
+      "extends": "tokenize_google_pay_encrypted",
+      "grpc_req": {
+        "payment_method": {
+          "google_pay_sdk": {
+            "tokenization_data": {
+              "encrypted_data": {
+                "token": "{\"protocolVersion\":\"ECv1\",\"signature\":\"TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ\",\"signedMessage\":\"{\\\"encryptedMessage\\\":\\\"ZW5jcnlwdGVkTWVzc2FnZQ==\\\",\\\"ephemeralPublicKey\\\":\\\"ZXBoZW1lcmFsUHVibGljS2V5\\\",\\\"tag\\\":\\\"c2lnbmF0dXJl\\\"}\"}"
+              }
+            }
+          }
+        }
+      },
+      "assert": {
+        "payment_method_token": null,
+        "error": null,
+        "raw_connector_request.value": {
+          "contains": "\"type\":\"googlepay\""
+        },
+        "error.connector_details.code": {
+          "equals": "token_data_invalid"
+        }
+      }
+    }
+  },
+  "PaymentService/Get": {
+    "multiple_capture_sync_actions": {
+      "extends": "sync_payment",
+      "grpc_req": {
+        "sync_type": "MULTIPLE_CAPTURE_SYNC"
+      },
+      "assert": {
+        "status": null,
+        "raw_connector_request.value": {
+          "contains": "/actions"
+        }
+      }
+    },
+    "manual_capture_sync_after_capture_feature_data": {
+      "extends": "sync_payment",
+      "grpc_req": {
+        "capture_method": "MANUAL"
+      },
+      "assert": {
+        "status": {
+          "equals": "CHARGED"
+        }
+      }
+    }
+  },
+  "PaymentService/Capture": {
+    "multiple_capture_distinct_idempotency_key": {
+      "extends": "capture_full_amount",
+      "grpc_req": {
+        "capture_method": "MANUAL_MULTIPLE",
+        "multiple_capture_data": {
+          "capture_sequence": 1,
+          "capture_reference": "auto_generate"
+        }
+      },
+      "assert": {
+        "connector_transaction_id": null,
+        "status": {
+          "one_of": [
+            "CHARGED",
+            "PENDING",
+            "PARTIAL_CHARGED"
+          ]
+        },
+        "raw_connector_request.value": {
+          "contains": "Cko-Idempotency-Key"
+        }
+      }
+    },
+    "single_capture_idempotency_key_from_merchant_capture_id": {
+      "extends": "capture_full_amount",
+      "assert": {
+        "connector_transaction_id": null,
+        "raw_connector_request.value": {
+          "contains": "capture_mci_"
+        }
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "scheduled_capture_refused": {
+      "extends": "setup_recurring",
+      "grpc_req": {
+        "capture_method": "SCHEDULED"
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "must_not_exist": true
+        }
+      }
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "sequential_automatic_capture_flag": {
+      "extends": "recurring_charge",
+      "grpc_req": {
+        "capture_method": "SEQUENTIAL_AUTOMATIC"
+      },
+      "assert": {
+        "raw_connector_request.value": {
+          "contains": "\"capture\":true"
+        }
+      }
+    },
+    "scheduled_capture_refused": {
+      "extends": "recurring_charge",
+      "grpc_req": {
+        "capture_method": "SCHEDULED"
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        }
+      }
     }
   }
 }

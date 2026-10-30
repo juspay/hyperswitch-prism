@@ -8,12 +8,13 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import DisputeClient
 from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "dispute_accept", "dispute_defend", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -47,10 +48,31 @@ def _build_authorize_request(capture_method: str):
             ),
         ),
         capture_method=payment_pb2.CaptureMethod.Value(capture_method),  # Method for capturing the payment.
+        customer=common_types_pb2.Customer(  # Customer Information.
+            email=payment_methods_pb2.SecretString(value="customer.probe@example.com"),
+        ),
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=common_types_pb2.Address(),
+            shipping_address=common_types_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="Jane"),
+                line1=payment_methods_pb2.SecretString(value="123 Main St"),
+                city=payment_methods_pb2.SecretString(value="Seattle"),
+                zip_code=payment_methods_pb2.SecretString(value="98101"),
+                country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
+            ),
+            billing_address=common_types_pb2.Address(
+                phone_number=payment_methods_pb2.SecretString(value="4155552671"),
+                phone_country_code="+1",
+            ),
         ),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
+        authentication_data=payment_pb2.AuthenticationData(
+            eci="05",  # Electronic Commerce Indicator (ECI) from 3DS.
+            cavv="AAABAWFlmQAAAABjRWWZEEFgFz8=",  # Cardholder Authentication Verification Value (CAVV).
+            message_version="2.2.0",  # 3DS Message Version (e.g., "2.1.0", "2.2.0").
+            ds_transaction_id="97267598-fae6-48f2-8083-c23433990361",  # Directory Server Transaction ID (DS Trans ID).
+            trans_status=payment_pb2.TransactionStatus.Value("TRANSACTION_STATUS_SUCCESS"),  # Transaction status from authentication/verification process.
+            created_at=1704067200,  # Authentication timestamp (Unix epoch seconds, UTC) when the 3DS authentication was performed. Used by connectors (e.g. Cybersource) that send an authenticationDate in their request.
+        ),
         return_url="https://example.com/return",  # URLs for Redirection and Webhooks.
     )
 
@@ -62,6 +84,21 @@ def _build_capture_request(connector_transaction_id: str):
             minor_amount=1000,
             currency=common_types_pb2.Currency.Value("USD"),
         ),
+    )
+
+def _build_dispute_accept_request():
+    return payment_pb2.DisputeServiceAcceptRequest(
+        merchant_dispute_id="probe_dispute_001",  # Identification.
+        connector_transaction_id="probe_txn_001",
+        dispute_id="probe_dispute_id_001",
+    )
+
+def _build_dispute_defend_request():
+    return payment_pb2.DisputeServiceDefendRequest(
+        merchant_dispute_id="probe_dispute_001",  # Identification.
+        connector_transaction_id="probe_txn_001",
+        dispute_id="probe_dispute_id_001",
+        reason_code="probe_reason",  # Defend Details.
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -387,6 +424,24 @@ async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.C
     capture_response = await payment_client.capture(_build_capture_request("probe_connector_txn_001"))
 
     return {"status": capture_response.status}
+
+
+async def process_dispute_accept(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: DisputeService.Accept"""
+    dispute_client = DisputeClient(config)
+
+    dispute_response = await dispute_client.accept(_build_dispute_accept_request())
+
+    return {"status": dispute_response.status}
+
+
+async def process_dispute_defend(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: DisputeService.Defend"""
+    dispute_client = DisputeClient(config)
+
+    dispute_response = await dispute_client.defend(_build_dispute_defend_request())
+
+    return {"status": dispute_response.status}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
