@@ -3298,7 +3298,7 @@ def render_consolidated_kotlin(
         if grpc_req and grpc_req not in grpc_req_types:
             grpc_req_types.append(grpc_req)
     dispute_proto_import = (
-        "import types.Dispute.*"
+        "import types.Dispute.*\n"
         if any(req.startswith("DisputeService") for req in grpc_req_types)
         else ""
     )
@@ -3552,8 +3552,7 @@ def render_consolidated_kotlin(
 package examples.{connector_name}
 
 import types.Payment.*
-{dispute_proto_import}
-import types.Events.*
+{dispute_proto_import}import types.Events.*
 import types.PaymentMethods.*
 {imports}
 import payments.ConnectorConfig
