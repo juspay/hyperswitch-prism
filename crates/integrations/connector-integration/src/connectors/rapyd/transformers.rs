@@ -546,21 +546,19 @@ pub enum RapydRecurrenceType {
 /// Decides Rapyd's wallet `recurrence_type` purpose from the caller's
 /// future-usage intent. Saving a wallet for recurring use requires
 /// `payment_method.fields.recurrence_type = "recurring"` on the initial
-/// payment. Off-session usage means recurring unless the caller explicitly
-/// selects a different MIT category; one-time and customer-present
-/// (OnSession) wallets stay unmarked.
+/// payment. Off-session usage is recurring when the caller selects the
+/// recurring or subscription category, or does not select a category;
+/// one-time and customer-present (OnSession) wallets stay unmarked.
 pub fn is_recurring_wallet_intent(
     setup_future_usage: Option<common_enums::FutureUsage>,
     mit_category: Option<common_enums::MitCategory>,
 ) -> bool {
     match setup_future_usage {
         None | Some(common_enums::FutureUsage::OnSession) => false,
-        Some(common_enums::FutureUsage::OffSession) => !matches!(
+        Some(common_enums::FutureUsage::OffSession) => matches!(
             mit_category,
-            Some(
-                common_enums::MitCategory::Installment
-                    | common_enums::MitCategory::Unscheduled
-                    | common_enums::MitCategory::Resubmission
+            None | Some(
+                common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription
             )
         ),
     }
