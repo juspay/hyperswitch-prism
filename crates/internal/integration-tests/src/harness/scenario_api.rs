@@ -1702,7 +1702,7 @@ pub fn build_grpcurl_request_from_payload(
         |config| Ok(Some(config)),
     )?;
 
-    let request_id = format!("{suite}_{scenario}_req");
+    let request_id = format!("{suite}_{scenario}_{}_req", Uuid::new_v4().simple());
     let connector_request_reference_id =
         connector_request_reference_id_for(connector, suite, scenario, grpc_req);
     let suite_spec = load_suite_spec(suite).ok();

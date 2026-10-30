@@ -756,6 +756,7 @@ enum Connector {
   GLOBALPAYMENTS_REALEX = 152;
   ECOMMPAY = 153;
   CLEARSALE_BR = 154;
+  BETTERPAYMENT = 155;
 }
 
 // Payment method types
@@ -1364,6 +1365,10 @@ message RedirectForm {
     // attach the connector-built `events` postMessage listener.
     HostedIframeData hosted_iframe = 7;
 
+    // QR-code data for QR-initiated payment methods, distinct from
+    // intent-initiated flows (which continue to populate `uri` above).
+    QrData qr_data = 11;
+
     // A standalone script snippet (e.g. a device-data-collection script), when
     // the connector returns script content instead of a full HTML document.
     ScriptData script = 8;
@@ -1474,6 +1479,30 @@ message NmiData {
 
   // URL to redirect to after 3DS completion
   string continue_redirection_url = 5;
+}
+
+// Represents QR-code data for QR-initiated payment methods.
+message QrData {
+  // Raw QR payload string intended to be rendered into a QR code
+  // client-side (e.g. a `upi://pay?...` intent string or some payload
+  // required for a wallet).
+  optional string payload = 1;
+
+  // Base64-encoded QR image bytes, already rendered server-side by the
+  // connector.
+  optional string image_base64 = 2;
+
+  // Hosted URL to a QR image, when the connector serves the image itself
+  // rather than returning bytes or a raw payload.
+  optional string image_url = 3;
+
+  // Browser-fallback URL if the payer's app/wallet can't act on the QR
+  // content directly.
+  optional string fallback_url = 4;
+
+  // Absolute expiry time (unix timestamp, in seconds) for this QR code, as
+  // sent by the gateway, if present.
+  optional int64 expires_at = 5;
 }
 
 // Details of an HTTP request, typically for incoming webhooks
@@ -5996,6 +6025,17 @@ message PayhereConfig {
   optional string base_url = 50;
 }
 
+message BetterpaymentConfig {
+  // Betterpayment API key, used as the HTTP Basic Authentication username.
+  SecretString api_key = 1;
+  // Betterpayment API password, used as the HTTP Basic Authentication password.
+  SecretString api_password = 2;
+  // Betterpayment outgoing key, used only for webhook HMAC verification, not API authentication.
+  SecretString webhook_key = 3;
+  // Optional override for the Betterpayment API base URL.
+  optional string base_url = 50;
+}
+
 // Ecommpay Gate API v2. There is no authentication header: every request is signed in the
 // body (`general.signature`), so both values below come from the Ecommpay dashboard
 // (Project settings) and are supplied by the merchant.
@@ -6365,6 +6405,8 @@ message ConnectorSpecificConfig {
     EcommpayConfig ecommpay = 164;
     // CLEARSALE_BR = 154
     ClearsaleBrConfig clearsale_br = 165;
+    // BETTERPAYMENT = 155
+    BetterpaymentConfig betterpayment = 166;
   }
 }
 

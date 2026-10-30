@@ -55,6 +55,8 @@ pub fn decode_dot(s: &str) -> String {
 pub const X_TENANT_ID: &str = "x-tenant-id";
 /// Header key for request ID
 pub const X_REQUEST_ID: &str = "x-request-id";
+/// Response header containing the summed outgoing API overhead for a composite request.
+pub const X_OUTGOING_API_OVERHEAD: &str = "x-outgoingapi-overhead";
 
 /// HTTP/2 PING interval (seconds) the gRPC server sends on idle client connections.
 pub const GRPC_HTTP2_KEEPALIVE_INTERVAL_SECS: u64 = 30;
