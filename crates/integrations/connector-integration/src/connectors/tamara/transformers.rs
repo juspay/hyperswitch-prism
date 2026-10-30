@@ -1428,12 +1428,33 @@ pub struct TamaraWebhookData {
     pub refund_id: Option<String>,
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum TamaraWebhookDataOrArray {
+    Data(TamaraWebhookData),
+    Array(Vec<serde::de::IgnoredAny>),
+}
+
+fn deserialize_tamara_webhook_data<'de, D>(
+    deserializer: D,
+) -> Result<Option<TamaraWebhookData>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    match Option::<TamaraWebhookDataOrArray>::deserialize(deserializer)? {
+        None => Ok(None),
+        Some(TamaraWebhookDataOrArray::Data(data)) => Ok(Some(data)),
+        Some(TamaraWebhookDataOrArray::Array(_)) => Ok(None),
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TamaraWebhookEventType {
     pub order_id: String,
     pub order_reference_id: Option<String>,
     pub order_number: Option<String>,
     pub event_type: TamaraWebhookEvent,
+    #[serde(default, deserialize_with = "deserialize_tamara_webhook_data")]
     pub data: Option<TamaraWebhookData>,
 }
 
