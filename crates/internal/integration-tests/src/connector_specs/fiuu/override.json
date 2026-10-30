@@ -426,29 +426,6 @@
         "webhook_url": "https://example.com/webhook"
       }
     },
-    "PaymentService/SetupRecurring": {
-      "grpc_req": {
-        "payment_method": {
-          "card": {
-            "card_number": {
-              "value": "4111111111111111"
-            },
-            "card_exp_month": {
-              "value": "12"
-            },
-            "card_exp_year": {
-              "value": "2050"
-            },
-            "card_cvc": {
-              "value": "123"
-            }
-          }
-        },
-        "amount": {
-          "currency": "MYR"
-        }
-      }
-    },
     "setup_recurring_with_webhook": {
       "grpc_req": {
         "payment_method": {
@@ -508,13 +485,6 @@
         }
       }
     },
-    "RecurringPaymentService/Charge": {
-      "grpc_req": {
-        "amount": {
-          "currency": "MYR"
-        }
-      }
-    },
     "recurring_charge_low_amount": {
       "grpc_req": {
         "amount": {
@@ -532,9 +502,6 @@
   },
   "RefundService/Get": {
     "refund_sync": {
-      "grpc_req": {}
-    },
-    "RefundService/Get": {
       "grpc_req": {}
     },
     "refund_sync_with_reason": {

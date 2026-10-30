@@ -65,7 +65,27 @@ const GOOGLEPAY_API_VERSION: u8 = 2;
 const FIUU_DIRECT_API_DOC_URL: &str = "https://fiuu.com/developer/";
 
 /// `mpstokenstatus=4`: merchant is passing a stored card number (Fiuu Direct Server API).
-const MPS_TOKEN_STATUS_STORED_CARD: i32 = 4;
+/// `mpstokenstatus` of the Fiuu Direct Server API (v1.7.7 "Payment Request Parameters").
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(into = "u8")]
+pub enum MpsTokenStatus {
+    /// 1: request a new PG token.
+    Tokenize,
+    /// 3: the merchant stores the card; not tokenized by the PG.
+    MerchantStored,
+    /// 4: the merchant passes a stored card number/token (MIT / NTID).
+    StoredCard,
+}
+
+impl From<MpsTokenStatus> for u8 {
+    fn from(value: MpsTokenStatus) -> Self {
+        match value {
+            MpsTokenStatus::Tokenize => 1,
+            MpsTokenStatus::MerchantStored => 3,
+            MpsTokenStatus::StoredCard => 4,
+        }
+    }
+}
 
 pub struct FiuuAuthType {
     pub(super) merchant_id: Secret<String>,
@@ -113,16 +133,10 @@ impl TryFrom<Option<CaptureMethod>> for TxnType {
             // Fiuu TxnType is SALS or AUTS only (Fiuu Direct Server API).
             Some(CaptureMethod::ManualMultiple) | Some(CaptureMethod::Scheduled) => {
                 Err(IntegrationError::CaptureMethodNotSupported {
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Use capture_method AUTOMATIC (TxnType SALS) or MANUAL (TxnType AUTS)"
-                                .to_owned(),
-                        ),
-                        doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                        additional_context: Some(
-                            "Fiuu Direct API supports TxnType SALS and AUTS only".to_owned(),
-                        ),
-                    },
+                    context: fiuu_error_context(
+                        "Use capture_method AUTOMATIC (TxnType SALS) or MANUAL (TxnType AUTS)",
+                        Some("Fiuu Direct API supports TxnType SALS and AUTS only"),
+                    ),
                 }
                 .into())
             }
@@ -315,10 +329,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
-        let billing_name = item
-            .router_data
-            .resource_common_data
-            .get_billing_full_name()?;
+        // HS sends the card holder name (hyperswitch `fiuu/transformers.rs:262-265`); billing name
+        // is the fallback for a mandate MIT that carries no card.
+        let billing_name = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(card) => card.card_holder_name.clone(),
+            _ => None,
+        }
+        .map_or_else(
+            || {
+                item.router_data
+                    .resource_common_data
+                    .get_billing_full_name()
+            },
+            Ok,
+        )?;
 
         // Mirror the Direct path (hyperswitch `fiuu/transformers.rs:268-269`), which falls back to
         // the request email when the billing address carries none. Without this a recurring payment
@@ -452,7 +476,7 @@ pub struct FiuuCardData<
     cc_month: Secret<String>,
     cc_year: Secret<String>,
     #[serde(rename = "mpstokenstatus")]
-    mps_token_status: Option<i32>,
+    mps_token_status: Option<MpsTokenStatus>,
     #[serde(flatten)]
     three_ds_auth: Option<FiuuThreeDsAuthData>,
 }
@@ -470,9 +494,9 @@ pub struct FiuuCardWithNTI {
     /// 1 = merchant initiated (Fiuu Direct Server API).
     #[serde(rename = "MerchantInitiated")]
     merchant_initiated: i32,
-    /// `MPS_TOKEN_STATUS_STORED_CARD`; without it the sandbox declines the NTID MIT with 11 CC_82.
+    /// `MpsTokenStatus::StoredCard`; without it the sandbox declines the NTID MIT with 11 CC_82.
     #[serde(rename = "mpstokenstatus")]
-    mps_token_status: i32,
+    mps_token_status: MpsTokenStatus,
 }
 
 /// Direct API MIT on a card verified by Zero Dollar Verification (Fiuu Direct Server API): `OriginalTranID`
@@ -494,7 +518,7 @@ pub struct FiuuCardWithOriginalTxn<
     merchant_initiated: i32,
     /// 4 = merchant is passing a stored card number for payment (Fiuu Direct Server API).
     #[serde(rename = "mpstokenstatus")]
-    mps_token_status: i32,
+    mps_token_status: MpsTokenStatus,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -611,15 +635,10 @@ pub fn calculate_hmac_sha256_signature(
     let signature = crypto::HmacSha256
         .sign_message(key.peek().as_bytes(), message.as_bytes())
         .change_context(IntegrationError::RequestEncodingFailed {
-            context: IntegrationErrorContext {
-                suggested_action: Some(
-                    "Verify the Fiuu verify_key configured for this merchant".to_owned(),
-                ),
-                doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                additional_context: Some(
-                    "HMAC-SHA256 request signature could not be computed".to_owned(),
-                ),
-            },
+            context: fiuu_error_context(
+                "Verify the Fiuu verify_key configured for this merchant",
+                Some("HMAC-SHA256 request signature could not be computed"),
+            ),
         })?;
     Ok(Secret::new(hex::encode(signature)))
 }
@@ -660,17 +679,10 @@ impl TryFrom<&AuthenticationData> for FiuuThreeDsAuthData {
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "authentication_data.cavv",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Pass the CAVV obtained from the 3DS server in authentication_data.cavv"
-                            .to_owned(),
-                    ),
-                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                    additional_context: Some(
-                        "Fiuu Direct API requires Cryptogram when external 3DS data is supplied"
-                            .to_owned(),
-                    ),
-                },
+                context: fiuu_error_context(
+                    "Pass the CAVV obtained from the 3DS server in authentication_data.cavv",
+                    Some("Fiuu Direct API requires Cryptogram when external 3DS data is supplied"),
+                ),
             })?;
         Ok(Self {
             eci: auth.eci.clone(),
@@ -758,30 +770,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             true => 0,
         };
         // Status finality comes from the notification, so it is required.
-        let webhook_url =
-            item.router_data
-                .request
-                .webhook_url
-                .as_deref()
-                .ok_or(IntegrationError::MissingRequiredField {
+        let webhook_url = item.router_data.request.webhook_url.as_deref().ok_or(
+            IntegrationError::MissingRequiredField {
                 field_name: "webhook_url",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Pass webhook_url; Fiuu sends the final payment status to NotificationURL"
-                            .to_owned(),
-                    ),
-                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                    additional_context: None,
-                },
-            })?;
+                context: fiuu_error_context(
+                    "Pass webhook_url; Fiuu sends the final payment status to NotificationURL",
+                    None,
+                ),
+            },
+        )?;
         let notification_url = Some(Url::parse(webhook_url).change_context(
             IntegrationError::InvalidDataFormat {
                 field_name: "webhook_url",
-                context: IntegrationErrorContext {
-                    suggested_action: Some("Pass webhook_url as an absolute URL".to_owned()),
-                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                    additional_context: None,
-                },
+                context: fiuu_error_context("Pass webhook_url as an absolute URL", None),
             },
         )?);
         let customer_details = get_authorize_customer_details(&item.router_data);
@@ -943,13 +944,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .map(Url::parse)
             .transpose()
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Pass webhook_url as an absolute URL for NotificationURL".to_owned(),
-                    ),
-                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                    additional_context: None,
-                },
+                context: fiuu_error_context(
+                    "Pass webhook_url as an absolute URL for NotificationURL",
+                    None,
+                ),
             })?;
         let payment_method_data = match (
             &item.router_data.request.mandate_reference,
@@ -1076,7 +1074,7 @@ pub struct FiuuZeroAuthRequest<
     #[serde(rename = "CC_YEAR")]
     cc_year: Secret<String>,
     #[serde(rename = "mpstokenstatus")]
-    mps_token_status: i32,
+    mps_token_status: MpsTokenStatus,
     #[serde(rename = "non_3DS")]
     non_3ds: i32,
     #[serde(rename = "ReturnURL", skip_serializing_if = "Option::is_none")]
@@ -1109,26 +1107,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         // cc_verification verifies a card; any other method is refused
         // before a request is built.
-        let card =
-            match item.request.payment_method_data {
-                PaymentMethodData::Card(ref card) => card,
-                _ => return Err(IntegrationError::NotSupported {
+        let card = match item.request.payment_method_data {
+            PaymentMethodData::Card(ref card) => card,
+            _ => {
+                return Err(IntegrationError::NotSupported {
                     message: "Zero-amount SetupMandate for a non-card payment method".to_owned(),
                     connector: "Fiuu",
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Use a card, or pass an amount greater than zero for wallet mandates"
-                                .to_owned(),
-                        ),
-                        doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                        additional_context: Some(
-                            "Fiuu Zero Dollar Verification (cc_verification.php) is card-only"
-                                .to_owned(),
-                        ),
-                    },
+                    context: fiuu_error_context(
+                        "Use a card, or pass an amount greater than zero for wallet mandates",
+                        Some("Fiuu Zero Dollar Verification (cc_verification.php) is card-only"),
+                    ),
                 }
-                .into()),
-            };
+                .into())
+            }
+        };
         let auth = FiuuAuthType::try_from(&item.connector_config)?;
         let txn_currency = item.request.currency;
         let reference_no = item
@@ -1154,7 +1146,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             cc_month: card.get_card_expiry_month_2_digit()?,
             cc_year: card.get_expiry_year_4_digit(),
             // 1 = request a new PG token.
-            mps_token_status: 1,
+            mps_token_status: MpsTokenStatus::Tokenize,
             non_3ds,
             return_url: item.request.router_return_url.clone(),
             notify_url: item.request.webhook_url.clone(),
@@ -1241,24 +1233,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let txn_currency = item.router_data.request.currency;
         // Direct path only: FiuuSetupMandateRequest routes an absent/zero amount to
         // Zero Dollar Verification, so a missing amount here is a caller bug, not a 0.00 charge.
-        let money =
-            item.router_data
-                .request
-                .amount
-                .as_ref()
-                .ok_or(IntegrationError::MissingRequiredField {
+        let money = item.router_data.request.amount.as_ref().ok_or(
+            IntegrationError::MissingRequiredField {
                 field_name: "amount",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Pass an amount greater than zero, or omit it for zero-dollar verification"
-                            .to_owned(),
-                    ),
-                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                    additional_context: Some(
-                        "Fiuu Direct API SetupMandate requires a non-zero TxnAmount".to_owned(),
-                    ),
-                },
-            })?;
+                context: fiuu_error_context(
+                    "Pass an amount greater than zero, or omit it for zero-dollar verification",
+                    Some("Fiuu Direct API SetupMandate requires a non-zero TxnAmount"),
+                ),
+            },
+        )?;
         let amount = item
             .connector
             .amount_converter
@@ -1288,7 +1271,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let notification_url = Some(
             Url::parse(&item.router_data.request.get_webhook_url()?).change_context(
                 IntegrationError::RequestEncodingFailed {
-                    context: Default::default(),
+                    context: fiuu_error_context(
+                        "Pass webhook_url as an absolute URL for NotificationURL",
+                        None,
+                    ),
                 },
             )?,
         );
@@ -1327,7 +1313,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         cc_cvv2: card.card_cvc.clone(),
                         cc_month: card.get_card_expiry_month_2_digit()?,
                         cc_year: card.get_expiry_year_4_digit(),
-                        mps_token_status: Some(1),
+                        mps_token_status: Some(MpsTokenStatus::Tokenize),
                         three_ds_auth: None,
                     },
                 )))
@@ -1454,22 +1440,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             {
                 return Err(IntegrationError::MissingRequiredField {
                     field_name: "email",
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Pass customer email or billing email for a CIT mandate payment"
-                                .to_owned(),
-                        ),
-                        doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                        additional_context: Some(
-                            "Fiuu requires CustEmail with mpstokenstatus=1".to_owned(),
-                        ),
-                    },
+                    context: fiuu_error_context(
+                        "Pass customer email or billing email for a CIT mandate payment",
+                        Some("Fiuu requires CustEmail with mpstokenstatus=1"),
+                    ),
                 }
                 .into());
             }
-            Some(1)
+            Some(MpsTokenStatus::Tokenize)
         } else {
-            Some(3)
+            Some(MpsTokenStatus::MerchantStored)
         };
         // External 3DS values make this an authenticated non_3DS=1 payment.
         let three_ds_auth = item
@@ -1512,7 +1492,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             cc_year: raw_card_data.get_expiry_year_4_digit(),
             original_scheme_id: Secret::new(network_transaction_id),
             merchant_initiated: 1,
-            mps_token_status: MPS_TOKEN_STATUS_STORED_CARD,
+            mps_token_status: MpsTokenStatus::StoredCard,
         })))
     }
 }
@@ -1550,7 +1530,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 cc_year,
                 original_tran_id: Secret::new(original_tran_id),
                 merchant_initiated: 1,
-                mps_token_status: 4,
+                mps_token_status: MpsTokenStatus::StoredCard,
             },
         )))
     }
@@ -1859,13 +1839,23 @@ pub struct FiuuZeroAuthResponse {
     /// Documented ans{1..20}; the sandbox sends a JSON integer.
     #[serde(
         rename = "VerificationID",
-        deserialize_with = "deserialize_verification_id"
+        deserialize_with = "deserialize_string_or_number"
     )]
     pub verification_id: String,
+    #[serde(rename = "MerchantID")]
+    pub merchant_id: Option<Secret<String>>,
+    #[serde(rename = "ReferenceNo")]
+    pub reference_no: Option<String>,
+    #[serde(rename = "TxnCurrency")]
+    pub txn_currency: Option<String>,
     /// 00 success, 11 failed verification.
     pub status: FiuuDirectTxnStatus,
+    pub appcode: Option<String>,
     #[serde(rename = "schemeTranID")]
     pub scheme_tran_id: Option<Secret<String>>,
+    /// PG token issued for `mpstokenstatus=1` (live sandbox returns `TK_...`).
+    pub token: Option<Secret<String>>,
+    pub skey: Option<Secret<String>>,
     #[serde(rename = "ProcessorCCVResponse")]
     pub processor_ccv_response: Option<String>,
     #[serde(rename = "ProcessorResponseCode")]
@@ -1881,22 +1871,77 @@ pub struct FiuuZeroAuthResponse {
     pub txn_data: Option<TxnData>,
 }
 
-fn deserialize_verification_id<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+/// Fiuu sends some ids and codes as a JSON number or a string (HS
+/// `deserialize_string_from_number_or_string`).
+fn deserialize_string_or_number<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<String, D::Error> {
     match Value::deserialize(d)? {
         Value::String(s) => Ok(s),
         Value::Number(n) => Ok(n.to_string()),
         other => Err(serde::de::Error::custom(format!(
-            "VerificationID: unexpected {other}"
+            "expected a string or number, got {other}"
         ))),
     }
 }
 
+fn deserialize_optional_string_or_number<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Option<String>, D::Error> {
+    match Option::<Value>::deserialize(d)? {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(s)) => Ok(Some(s)),
+        Some(Value::Number(n)) => Ok(Some(n.to_string())),
+        Some(other) => Err(serde::de::Error::custom(format!(
+            "expected a string or number, got {other}"
+        ))),
+    }
+}
+
+fn deserialize_optional_secret_string_or_number<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Option<Secret<String>>, D::Error> {
+    deserialize_optional_string_or_number(d).map(|value| value.map(Secret::new))
+}
+
 impl FiuuZeroAuthResponse {
+    /// `skey = HMAC_SHA256(VerificationID.MerchantID.ReferenceNo.TxnCurrency.status.appcode.
+    /// schemeTranID, secret_key)` (Fiuu Standalone Card API, Zero Dollar Verification).
+    fn verify_skey(&self, secret_key: &Secret<String>) -> bool {
+        let Some(signature) = self
+            .skey
+            .as_ref()
+            .and_then(|skey| hex::decode(skey.peek()).ok())
+        else {
+            return false;
+        };
+        let message = format!(
+            "{}{}{}{}00{}{}",
+            self.verification_id,
+            self.merchant_id
+                .as_ref()
+                .map(PeekInterface::peek)
+                .map(String::as_str)
+                .unwrap_or_default(),
+            self.reference_no.as_deref().unwrap_or_default(),
+            self.txn_currency.as_deref().unwrap_or_default(),
+            self.appcode.as_deref().unwrap_or_default(),
+            self.scheme_tran_id
+                .as_ref()
+                .map(PeekInterface::peek)
+                .map(String::as_str)
+                .unwrap_or_default(),
+        );
+        crypto::HmacSha256
+            .verify_signature(secret_key.peek().as_bytes(), &signature, message.as_bytes())
+            .unwrap_or(false)
+    }
+
     /// The verification's scheme/CVV fields share the Direct `extraP` meaning, so they reuse
     /// its network-id and payment-checks mapping.
     fn as_extra_parameters(&self) -> ExtraParameters {
         ExtraParameters {
-            token: None,
+            token: self.token.clone(),
             scheme_transaction_id: self.scheme_tran_id.clone(),
             processor_response_code: self.processor_response_code.clone(),
             processor_cvv_response: self.processor_ccv_response.clone(),
@@ -1974,7 +2019,33 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiuuSetupMandateRespo
             });
         }
         let status = match data.status {
-            FiuuDirectTxnStatus::Success => common_enums::AttemptStatus::Charged,
+            FiuuDirectTxnStatus::Success => {
+                // A verified card becomes a reusable mandate: trust it only with a valid skey.
+                let auth =
+                    FiuuAuthType::try_from(&router_data.connector_config)
+                        .change_context(ConnectorError::ResponseHandlingFailed {
+                        context: ResponseTransformationErrorContext {
+                            http_status_code: Some(http_code),
+                            additional_context: Some(
+                                "fiuu: connector config unavailable for cc_verification skey check"
+                                    .to_owned(),
+                            ),
+                        },
+                    })?;
+                if !data.verify_skey(&auth.secret_key) {
+                    return Err(ConnectorError::ResponseHandlingFailed {
+                        context: ResponseTransformationErrorContext {
+                            http_status_code: Some(http_code),
+                            additional_context: Some(
+                                "fiuu: cc_verification skey verification failed; verification result not trusted"
+                                    .to_owned(),
+                            ),
+                        },
+                    }
+                    .into());
+                }
+                common_enums::AttemptStatus::Charged
+            }
             FiuuDirectTxnStatus::Failure => common_enums::AttemptStatus::Failure,
             FiuuDirectTxnStatus::Pending => common_enums::AttemptStatus::Pending,
             // Undocumented status is inconclusive: keep it non-terminal.
@@ -2012,10 +2083,13 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiuuSetupMandateRespo
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(data.verification_id.clone()),
                 redirection_data: None,
-                // Direct MIT takes `OriginalTranID=verificationID_<id>` for a mandate set up by
-                // Zero Dollar Verification.
+                // The PG token makes the mandate chargeable through the Recurring API like a CIT
+                // token; without one, Direct MIT takes `OriginalTranID=verificationID_<id>`.
                 mandate_reference: Some(Box::new(MandateReference {
-                    connector_mandate_id: Some(format!("verificationID_{}", data.verification_id)),
+                    connector_mandate_id: Some(data.token.as_ref().map_or_else(
+                        || format!("verificationID_{}", data.verification_id),
+                        |token| token.peek().to_owned(),
+                    )),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
                     mandate_metadata: None,
@@ -2075,7 +2149,7 @@ pub struct TxnData {
 }
 
 /// `RequestMethod` of a Fiuu `TxnData`: GET/POST on REDIRECT/POPUP, `""` on RESPONSE (live sandbox).
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum FiuuRequestMethod {
     Get,
@@ -2083,6 +2157,21 @@ pub enum FiuuRequestMethod {
     /// RESPONSE bodies carry `"RequestMethod": ""`; never rendered as a redirect form.
     #[serde(rename = "")]
     Empty,
+}
+
+/// Case-insensitive; like HS (`fiuu/transformers.rs:925-929`) any value other than POST is GET,
+/// so an unexpected method never fails the whole response.
+impl<'de> Deserialize<'de> for FiuuRequestMethod {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let method = String::deserialize(d)?;
+        Ok(if method.is_empty() {
+            Self::Empty
+        } else if method.eq_ignore_ascii_case("POST") {
+            Self::Post
+        } else {
+            Self::Get
+        })
+    }
 }
 
 impl From<FiuuRequestMethod> for Method {
@@ -2139,24 +2228,64 @@ pub enum FiuuDirectTxnStatus {
 /// payloads that carry only `token` still parse.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExtraParameters {
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_secret_string_or_number"
+    )]
     pub token: Option<Secret<String>>,
-    #[serde(rename = "SchemeTransactionID")]
+    #[serde(
+        rename = "SchemeTransactionID",
+        default,
+        deserialize_with = "deserialize_optional_secret_string_or_number"
+    )]
     pub scheme_transaction_id: Option<Secret<String>>,
-    #[serde(rename = "ProcessorResponseCode")]
+    #[serde(
+        rename = "ProcessorResponseCode",
+        default,
+        deserialize_with = "deserialize_optional_string_or_number"
+    )]
     pub processor_response_code: Option<String>,
-    #[serde(rename = "ProcessorCVVResponse")]
+    #[serde(
+        rename = "ProcessorCVVResponse",
+        default,
+        deserialize_with = "deserialize_optional_string_or_number"
+    )]
     pub processor_cvv_response: Option<String>,
-    #[serde(rename = "MerchantAdviceCode")]
+    #[serde(
+        rename = "MerchantAdviceCode",
+        default,
+        deserialize_with = "deserialize_optional_string_or_number"
+    )]
     pub merchant_advice_code: Option<String>,
-    #[serde(rename = "AvsResponse")]
+    #[serde(
+        rename = "AvsResponse",
+        default,
+        deserialize_with = "deserialize_optional_string_or_number"
+    )]
     pub avs_response: Option<String>,
-    #[serde(rename = "AvsStreet")]
+    #[serde(
+        rename = "AvsStreet",
+        default,
+        deserialize_with = "deserialize_optional_string_or_number"
+    )]
     pub avs_street: Option<String>,
-    #[serde(rename = "AvsZip")]
+    #[serde(
+        rename = "AvsZip",
+        default,
+        deserialize_with = "deserialize_optional_string_or_number"
+    )]
     pub avs_zip: Option<String>,
-    #[serde(rename = "ECI")]
+    #[serde(
+        rename = "ECI",
+        default,
+        deserialize_with = "deserialize_optional_string_or_number"
+    )]
     pub eci: Option<String>,
-    #[serde(rename = "ccbrand")]
+    #[serde(
+        rename = "ccbrand",
+        default,
+        deserialize_with = "deserialize_optional_string_or_number"
+    )]
     pub cc_brand: Option<String>,
 }
 
@@ -2550,15 +2679,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .amount_converter
             .convert(&item.router_data.request.refund_amount)
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Pass refund_amount in a currency Fiuu supports".to_owned(),
-                    ),
-                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                    additional_context: Some(
-                        "refund Amount is sent in major units (e.g. 5.00)".to_owned(),
-                    ),
-                },
+                context: fiuu_error_context(
+                    "Pass refund_amount in a currency Fiuu supports",
+                    Some("refund Amount is sent in major units (e.g. 5.00)"),
+                ),
             })?;
         let txn_amount = amount;
         // RefID is mandatory (Fiuu API Spec for Merchant, "Advanced Full/Partial Refund").
@@ -2569,14 +2693,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "refund_id",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Pass refund_id; Fiuu requires a unique merchant RefID per refund"
-                            .to_owned(),
-                    ),
-                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                    additional_context: None,
-                },
+                context: fiuu_error_context(
+                    "Pass refund_id; Fiuu requires a unique merchant RefID per refund",
+                    None,
+                ),
             })?;
         // notify_url is optional (Fiuu refund API); without it RSync settles a pending refund.
         let notify_url = item
@@ -2588,11 +2708,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .transpose()
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "webhook_url",
-                context: IntegrationErrorContext {
-                    suggested_action: Some("Pass webhook_url as an absolute URL".to_owned()),
-                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                    additional_context: None,
-                },
+                context: fiuu_error_context("Pass webhook_url as an absolute URL", None),
             })?;
         let txn_id = item.router_data.request.connector_transaction_id.clone();
         let secret_key = auth.secret_key.peek().to_string();
@@ -2815,16 +2931,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(IntegrationError::MissingConnectorTransactionID {
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Pass the Fiuu TxnID returned by Authorize as connector_transaction_id"
-                            .to_owned(),
-                    ),
-                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                    additional_context: Some(
-                        "gate-query txID is required to requery the payment".to_owned(),
-                    ),
-                },
+                context: fiuu_error_context(
+                    "Pass the Fiuu TxnID returned by Authorize as connector_transaction_id",
+                    Some("gate-query txID is required to requery the payment"),
+                ),
             })?;
         let merchant_id = auth.merchant_id.peek().to_string();
         let verify_key = auth.verify_key.peek().to_string();
@@ -2989,10 +3099,15 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                 })
             }
             FiuuPaymentResponse::FiuuWebhooksPaymentResponse(response) => {
-                let status = common_enums::AttemptStatus::try_from(FiuuWebhookStatus {
-                    capture_method: router_data.request.capture_method,
-                    status: response.status,
-                })?;
+                // Undocumented status: keep the attempt's prior status (HS parity).
+                let status = if response.status == FiuuPaymentWebhookStatus::Unknown {
+                    router_data.resource_common_data.status
+                } else {
+                    common_enums::AttemptStatus::try_from(FiuuWebhookStatus {
+                        capture_method: router_data.request.capture_method,
+                        status: response.status,
+                    })?
+                };
                 let txn_id = response.tran_id;
                 let extra_parameters = response.extra_parameters.as_ref().and_then(|extra_p| {
                     serde_json::from_str::<ExtraParameters>(&extra_p.clone().expose()).ok()
@@ -3231,16 +3346,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ResponseId::ConnectorTransactionId(tid) => tid,
             _ => {
                 return Err(IntegrationError::MissingConnectorTransactionID {
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Pass the Fiuu TxnID returned by Authorize as connector_transaction_id"
-                                .to_owned(),
-                        ),
-                        doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                        additional_context: Some(
-                            "capstxn tranID is required to capture an AUTS transaction".to_owned(),
-                        ),
-                    },
+                    context: fiuu_error_context(
+                        "Pass the Fiuu TxnID returned by Authorize as connector_transaction_id",
+                        Some("capstxn tranID is required to capture an AUTS transaction"),
+                    ),
                 }
                 .into());
             }
@@ -3458,16 +3567,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let txn_id = item.router_data.request.connector_transaction_id.clone();
         if txn_id.is_empty() {
             return Err(IntegrationError::MissingConnectorTransactionID {
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Pass the Fiuu TxnID returned by Authorize as connector_transaction_id"
-                            .to_owned(),
-                    ),
-                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                    additional_context: Some(
-                        "reversal txnID is required to void a transaction".to_owned(),
-                    ),
-                },
+                context: fiuu_error_context(
+                    "Pass the Fiuu TxnID returned by Authorize as connector_transaction_id",
+                    Some("reversal txnID is required to void a transaction"),
+                ),
             }
             .into());
         }
@@ -3617,16 +3720,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Refund Status Inquiry by TxnID"); refuse before building the request.
         if txn_id.is_empty() {
             return Err(IntegrationError::MissingConnectorTransactionID {
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Pass the Fiuu TxnID returned by Authorize as connector_transaction_id"
-                            .to_owned(),
-                    ),
-                    doc_url: Some(FIUU_DIRECT_API_DOC_URL.to_owned()),
-                    additional_context: Some(
-                        "q_by_txn TxnID is required to sync a refund".to_owned(),
-                    ),
-                },
+                context: fiuu_error_context(
+                    "Pass the Fiuu TxnID returned by Authorize as connector_transaction_id",
+                    Some("q_by_txn TxnID is required to sync a refund"),
+                ),
             }
             .into());
         }
@@ -3654,7 +3751,7 @@ pub enum FiuuRefundSyncResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct RefundData {
-    #[serde(rename = "RefundID")]
+    #[serde(rename = "RefundID", deserialize_with = "deserialize_string_or_number")]
     refund_id: String,
     status: RefundStatus,
 }
@@ -3735,9 +3832,13 @@ impl<F> TryFrom<ResponseRouterData<FiuuRefundSyncResponse, Self>>
             FiuuRefundSyncResponse::Webhook(fiuu_webhooks_refund_response) => Ok(Self {
                 response: Ok(RefundsResponseData {
                     connector_refund_id: fiuu_webhooks_refund_response.refund_id,
-                    refund_status: common_enums::RefundStatus::from(
-                        fiuu_webhooks_refund_response.status.clone(),
-                    ),
+                    // Undocumented status: keep the refund's prior status (HS parity).
+                    refund_status: match fiuu_webhooks_refund_response.status {
+                        FiuuRefundsWebhookStatus::Unknown => {
+                            router_data.resource_common_data.status
+                        }
+                        status => common_enums::RefundStatus::from(status),
+                    },
                     status_code: item.http_code,
                     acquirer_reference_number: None,
                 }),
@@ -3844,9 +3945,9 @@ pub struct FiuuWebhooksRefundResponse {
     pub merchant_id: Secret<String>,
     #[serde(rename = "RefID")]
     pub ref_id: String,
-    #[serde(rename = "RefundID")]
+    #[serde(rename = "RefundID", deserialize_with = "deserialize_string_or_number")]
     pub refund_id: String,
-    #[serde(rename = "TxnID")]
+    #[serde(rename = "TxnID", deserialize_with = "deserialize_string_or_number")]
     pub txn_id: String,
     pub amount: StringMajorUnit,
     pub status: FiuuRefundsWebhookStatus,
