@@ -748,15 +748,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // `payment_method_options` is card-only (wallets carry their own
         // authentication).
         let capture = Some(item.router_data.request.is_auto_capture());
+        // The payment method data is the discriminator: the shared flow data
+        // reports `Card` for customer-present network token requests.
         let is_card = matches!(
-            item.router_data.resource_common_data.payment_method,
-            common_enums::PaymentMethod::Card
+            item.router_data.request.payment_method_data,
+            PaymentMethodData::Card(_)
         );
         // Customer-present external network tokens are authenticated by
         // their fresh TAVV cryptogram; cards carry the hosted flag or
         // external 3DS fields, and wallets carry their own authentication.
-        // The payment method data is the discriminator: the shared flow data
-        // reports `Card` for customer-present network token requests.
         let is_network_token = matches!(
             item.router_data.request.payment_method_data,
             PaymentMethodData::NetworkToken(_)
