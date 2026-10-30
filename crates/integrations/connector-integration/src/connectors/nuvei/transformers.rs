@@ -1240,6 +1240,7 @@ impl From<bool> for NuveiPartialApprovalFlag {
 /// items[] from l2_l3_data.order_info.order_details (hyperswitch `get_l2_l3_items`).
 pub(super) fn get_l2_l3_items(
     l2_l3_data: Option<&domain_types::connector_types::L2L3Data>,
+    payment: &common_utils::types::Money,
 ) -> Result<Option<Vec<NuveiItem>>, Report<IntegrationError>> {
     l2_l3_data
         .and_then(|data| data.get_order_details())
@@ -1250,16 +1251,16 @@ pub(super) fn get_l2_l3_items(
                     Ok(NuveiItem {
                         name: order.product_name.clone(),
                         item_type: NuveiItemType::from(order.product_type.as_ref()),
-                        price: NuveiAmountConvertor::convert(&order.money)?,
+                        price: NuveiAmountConvertor::convert(&order.get_unit_money(payment))?,
                         quantity: order.quantity.to_string(),
                         group_id: order.product_id.clone(),
                         discount: order
-                            .unit_discount_money
+                            .get_unit_discount_money(payment)
                             .as_ref()
                             .map(NuveiAmountConvertor::convert)
                             .transpose()?,
                         tax: order
-                            .total_tax_money
+                            .get_total_tax_money(payment)
                             .as_ref()
                             .map(NuveiAmountConvertor::convert)
                             .transpose()?,
@@ -1275,6 +1276,7 @@ pub(super) fn get_l2_l3_items(
 /// amountDetails from l2_l3_data (hyperswitch `get_amount_details`).
 pub(super) fn get_amount_details(
     l2_l3_data: Option<&domain_types::connector_types::L2L3Data>,
+    payment: &common_utils::types::Money,
 ) -> Result<Option<NuveiAmountDetails>, Report<IntegrationError>> {
     let convert = NuveiAmountConvertor::convert;
     l2_l3_data
@@ -1283,25 +1285,29 @@ pub(super) fn get_amount_details(
                 total_tax: data
                     .tax_info
                     .as_ref()
-                    .and_then(|tax| tax.order_tax_money.as_ref())
+                    .and_then(|tax| tax.get_order_tax_money(payment))
+                    .as_ref()
                     .map(convert)
                     .transpose()?,
                 total_shipping: data
                     .order_info
                     .as_ref()
-                    .and_then(|order| order.shipping_money.as_ref())
+                    .and_then(|order| order.get_shipping_money(payment))
+                    .as_ref()
                     .map(convert)
                     .transpose()?,
                 total_handling: data
                     .order_info
                     .as_ref()
-                    .and_then(|order| order.duty_money.as_ref())
+                    .and_then(|order| order.get_duty_money(payment))
+                    .as_ref()
                     .map(convert)
                     .transpose()?,
                 total_discount: data
                     .order_info
                     .as_ref()
-                    .and_then(|order| order.discount_money.as_ref())
+                    .and_then(|order| order.get_discount_money(payment))
+                    .as_ref()
                     .map(convert)
                     .transpose()?,
             })
@@ -2549,8 +2555,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = NuveiAmountConvertor::convert(&request.money)?;
 
         let l2_l3_data = resource.l2_l3_data.as_deref();
-        let items = get_l2_l3_items(l2_l3_data)?;
-        let amount_details = get_amount_details(l2_l3_data)?;
+        let items = get_l2_l3_items(l2_l3_data, &request.money)?;
+        let amount_details = get_amount_details(l2_l3_data, &request.money)?;
 
         // Determine transaction type based on capture method (Auth for manual or amount 0)
         let transaction_type = TransactionType::get_from_capture_method(
@@ -3384,8 +3390,8 @@ fn build_nuvei_three_ds_payment_request<
 
     // dynamicDescriptor.merchantPhone is at most 13 characters
     let dynamic_descriptor = get_dynamic_descriptor(billing_descriptor)?;
-    let items = get_l2_l3_items(l2_l3_data)?;
-    let amount_details = get_amount_details(l2_l3_data)?;
+    let items = get_l2_l3_items(l2_l3_data, money)?;
+    let amount_details = get_amount_details(l2_l3_data, money)?;
 
     // CIT (stores the card for future MIT) when this leg charges: isRebilling
     // "0" + userTokenId, and the rebill parameters on the 3DS request.
@@ -5071,8 +5077,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = NuveiAmountConvertor::convert(&money)?;
 
         let l2_l3_data = resource.l2_l3_data.as_deref();
-        let items = get_l2_l3_items(l2_l3_data)?;
-        let amount_details = get_amount_details(l2_l3_data)?;
+        let items = get_l2_l3_items(l2_l3_data, &money)?;
+        let amount_details = get_amount_details(l2_l3_data, &money)?;
 
         // Auth for manual capture or amount 0, else Sale
         let transaction_type =

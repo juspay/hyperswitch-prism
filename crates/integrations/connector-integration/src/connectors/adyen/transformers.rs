@@ -8215,8 +8215,8 @@ fn get_line_items<
             .iter()
             .enumerate()
             .map(|(i, data)| LineItem {
-                amount_including_tax: Some(data.money.amount()),
-                amount_excluding_tax: Some(data.money.amount()),
+                amount_including_tax: Some(data.amount),
+                amount_excluding_tax: Some(data.amount),
                 description: Some(data.product_name.clone()),
                 id: Some(format!("Items #{i}")),
                 tax_amount: None,

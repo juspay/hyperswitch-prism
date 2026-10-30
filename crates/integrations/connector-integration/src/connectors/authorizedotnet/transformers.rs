@@ -1324,14 +1324,20 @@ fn create_regular_transaction_request<
                         name: detail.product_name.clone(),
                         description: detail.description.clone(),
                         quantity: detail.quantity,
-                        unit_price: to_major_unit(&detail.money)?,
+                        unit_price: to_major_unit(
+                            &detail.get_unit_money(&item.router_data.request.money),
+                        )?,
                         unit_of_measure: detail.unit_of_measure.clone(),
                         tax_amount: detail
-                            .total_tax_money
+                            .get_total_tax_money(&item.router_data.request.money)
                             .as_ref()
                             .map(to_major_unit)
                             .transpose()?,
-                        total_amount: detail.total_money.as_ref().map(to_major_unit).transpose()?,
+                        total_amount: detail
+                            .get_total_money(&item.router_data.request.money)
+                            .as_ref()
+                            .map(to_major_unit)
+                            .transpose()?,
                         commodity_code: detail.commodity_code.clone(),
                     })
                 })
@@ -1344,15 +1350,18 @@ fn create_regular_transaction_request<
     let tax = item
         .router_data
         .request
-        .order_tax_money
+        .get_order_tax_money()
+        .or_else(|| {
+            tax_info.and_then(|info| info.get_order_tax_money(&item.router_data.request.money))
+        })
         .as_ref()
-        .or_else(|| tax_info.and_then(|info| info.order_tax_money.as_ref()))
         .map(to_major_unit)
         .transpose()?
         .map(|amount| ExtendedAmount { amount });
 
     let duty = order_info
-        .and_then(|info| info.duty_money.as_ref())
+        .and_then(|info| info.get_duty_money(&item.router_data.request.money))
+        .as_ref()
         .map(to_major_unit)
         .transpose()?
         .map(|amount| ExtendedAmount { amount });
@@ -1361,9 +1370,11 @@ fn create_regular_transaction_request<
     let shipping = item
         .router_data
         .request
-        .shipping_money
+        .get_shipping_money()
+        .or_else(|| {
+            order_info.and_then(|info| info.get_shipping_money(&item.router_data.request.money))
+        })
         .as_ref()
-        .or_else(|| order_info.and_then(|info| info.shipping_money.as_ref()))
         .map(to_major_unit)
         .transpose()?
         .map(|amount| ExtendedAmount { amount });

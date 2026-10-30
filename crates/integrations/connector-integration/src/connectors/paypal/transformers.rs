@@ -152,7 +152,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 &item
                     .router_data
                     .request
-                    .shipping_money
+                    .get_shipping_money()
                     .clone()
                     .unwrap_or_else(|| {
                         common_utils::types::Money::zero(item.router_data.request.currency)
@@ -219,7 +219,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 &item
                     .router_data
                     .request
-                    .shipping_money
+                    .get_shipping_money()
                     .clone()
                     .unwrap_or_else(|| {
                         common_utils::types::Money::zero(item.router_data.request.currency)

@@ -67,23 +67,18 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
 
     let quantity = i64::from(detail.quantity);
     let transaction_discount_amount = detail
-        .unit_discount_money
+        .unit_discount_amount
         .as_ref()
-        .and_then(|unit_discount| {
-            unit_discount
-                .amount()
-                .get_amount_as_i64()
-                .checked_mul(quantity)
-        })
+        .and_then(|unit_discount| unit_discount.get_amount_as_i64().checked_mul(quantity))
         .filter(|discount| *discount > 0)
         .map(MinorUnit::new);
 
     let line_item_taxes = detail
-        .total_tax_money
+        .total_tax_amount
         .as_ref()
-        .filter(|tax| tax.amount().get_amount_as_i64() > 0)
+        .filter(|tax| tax.get_amount_as_i64() > 0)
         .map(|tax| requests::JpmorganLineItemTax {
-            line_item_tax_amount: Some(tax.amount()),
+            line_item_tax_amount: Some(*tax),
             tax_percent: detail
                 .tax_rate
                 .filter(|rate| *rate >= 0.0 && rate.is_finite())
@@ -98,11 +93,8 @@ fn build_line_item(detail: &OrderDetailsWithAmount) -> requests::JpmorganLineIte
         item_comodity_code: detail.commodity_code.clone(),
         line_item_unit_quantity: (detail.quantity > 0).then(|| detail.quantity.to_string()),
         line_item_unit_of_measure_code: detail.unit_of_measure.clone(),
-        unit_price_amount: Some(detail.money.amount()),
-        tax_inclusive_line_item_total_amount: detail
-            .total_money
-            .as_ref()
-            .map(|money| money.amount()),
+        unit_price_amount: Some(detail.amount),
+        tax_inclusive_line_item_total_amount: detail.total_amount,
         transaction_discount_amount,
         line_item_tax_indicator: Some(!line_item_taxes.is_empty()),
         line_item_discount_indicator: Some(transaction_discount_amount.is_some()),
@@ -302,16 +294,8 @@ fn authorize_level2_data<T: PaymentMethodDataTypes>(
     let l2_l3_data = router_data.resource_common_data.l2_l3_data.as_deref();
     let retail_addenda = build_retail_addenda(
         l2_l3_data,
-        router_data
-            .request
-            .order_tax_money
-            .as_ref()
-            .map(|order_tax_amount| order_tax_amount.amount()),
-        router_data
-            .request
-            .shipping_money
-            .as_ref()
-            .map(|shipping_cost| shipping_cost.amount()),
+        router_data.request.order_tax_amount,
+        router_data.request.shipping_cost,
     );
     let ship_to = build_ship_to(l2_l3_data, &router_data.resource_common_data.address);
     (retail_addenda, ship_to)

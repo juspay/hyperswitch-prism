@@ -211,7 +211,7 @@ impl<
                 let order_amount = item
                     .connector
                     .amount_converter
-                    .convert(&details.money)
+                    .convert(&details.get_unit_money(&item.router_data.request.money))
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?;

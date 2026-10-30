@@ -1264,6 +1264,7 @@ fn format_country_alpha3(country: common_enums::CountryAlpha2) -> String {
 
 fn build_tsys_product_details(
     detail: &domain_types::payment_address::OrderDetailsWithAmount,
+    payment: &common_utils::types::Money,
     card_network: Option<&CardNetwork>,
     payment_channel: &Option<PaymentChannel>,
 ) -> Result<Option<TsysTransitProductDetails>, Report<IntegrationError>> {
@@ -1298,18 +1299,18 @@ fn build_tsys_product_details(
             .unwrap_or_else(|| sanitize_alphanumeric_space(&detail.product_name, 20));
 
         let product_name = truncate_chars(&detail.product_name, 50);
-        let price = super::TsysTransitAmountConvertor::convert(&detail.money)?;
+        let price = super::TsysTransitAmountConvertor::convert(&detail.get_unit_money(payment))?;
         let quantity = u32::from(detail.quantity);
         let measurement_unit = detail.unit_of_measure.clone();
         let unit_discount_amount = detail
-            .unit_discount_money
+            .get_unit_discount_money(payment)
             .as_ref()
             .map(super::TsysTransitAmountConvertor::convert)
             .transpose()?;
         let product_tax_name = detail.product_tax_code.clone();
 
         let product_tax_amount = detail
-            .total_tax_money
+            .get_total_tax_money(payment)
             .as_ref()
             .map(super::TsysTransitAmountConvertor::convert)
             .transpose()?;
@@ -1340,9 +1341,9 @@ fn build_tsys_product_details(
             .map(|discount_type| sanitize_alphanumeric_space(&discount_type, 20));
         let priority = 1;
         let has_discount = detail
-            .unit_discount_money
+            .unit_discount_amount
             .as_ref()
-            .map(|money| money.amount().get_amount_as_i64() > 0)
+            .map(|amount| amount.get_amount_as_i64() > 0)
             .unwrap_or(false);
         let stackable = if has_discount {
             TsysTransitYesNo::Yes
@@ -1632,20 +1633,27 @@ fn compute_commercial_card_context<
     let product_details: Option<Vec<TsysTransitProductDetails>> = order_details
         .iter()
         .map(|detail| {
-            build_tsys_product_details(detail, card_network, &router_data.request.payment_channel)
+            build_tsys_product_details(
+                detail,
+                &router_data.request.money,
+                card_network,
+                &router_data.request.payment_channel,
+            )
         })
         .collect::<Result<Vec<Option<TsysTransitProductDetails>>, Report<IntegrationError>>>()
         .ok()
         .and_then(|items| items.into_iter().collect());
     let shipping_charges = l2_l3_data
         .and_then(|data| data.order_info.as_ref())
-        .and_then(|order| order.shipping_money.as_ref())
-        .or(router_data.request.shipping_money.as_ref())
+        .and_then(|order| order.get_shipping_money(&router_data.request.money))
+        .or_else(|| router_data.request.get_shipping_money())
+        .as_ref()
         .map(super::TsysTransitAmountConvertor::convert)
         .transpose()?;
     let duty_charges = l2_l3_data
         .and_then(|data| data.order_info.as_ref())
-        .and_then(|order| order.duty_money.as_ref())
+        .and_then(|order| order.get_duty_money(&router_data.request.money))
+        .as_ref()
         .map(super::TsysTransitAmountConvertor::convert)
         .transpose()?;
     let derived_tax_rate = order_details
@@ -1657,9 +1665,10 @@ fn compute_commercial_card_context<
         .filter(|value| !value.is_empty());
     let order_tax_money = l2_l3_data
         .and_then(|data| data.tax_info.as_ref())
-        .and_then(|tax| tax.order_tax_money.as_ref())
-        .or(router_data.request.order_tax_money.as_ref());
+        .and_then(|tax| tax.get_order_tax_money(&router_data.request.money))
+        .or_else(|| router_data.request.get_order_tax_money());
     let sales_tax = order_tax_money
+        .as_ref()
         .map(super::TsysTransitAmountConvertor::convert)
         .transpose()?;
     let tax_amount = sales_tax.clone();
@@ -4082,7 +4091,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
     PaymentsAuthorizeData {
         payment_method_data: req.payment_method_data.clone(),
         money: req.money.clone(),
-        order_tax_money: None,
+        order_tax_amount: None,
         surcharge_money: None,
         email: req.email.clone(),
         customer_document_details: None,
@@ -4114,7 +4123,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         split_payments: req.split_payments.clone(),
         split_settlement: req.split_settlement.clone(),
         merchant_order_id: req.merchant_order_id.clone(),
-        shipping_money: req.shipping_money.clone(),
+        shipping_cost: req.shipping_cost,
         merchant_account_id: req.merchant_account_id.as_ref().map(|s| s.peek().clone()),
         integrity_object: None,
         integrity_specifications: req.integrity_specifications,

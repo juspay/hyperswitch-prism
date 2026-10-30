@@ -1959,7 +1959,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .iter()
                 .map(|detail| {
                     Ok::<_, Self::Error>(KountItem {
-                        price: super::KountAmountConvertor::convert(&detail.money)?,
+                        price: super::KountAmountConvertor::convert(
+                            &detail.get_unit_money(&req.money),
+                        )?,
                         name: detail.product_name.clone(),
                         quantity: detail.quantity,
                         description: detail.description.clone(),

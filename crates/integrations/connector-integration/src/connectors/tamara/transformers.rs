@@ -794,7 +794,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .convert(
                 &router_data
                     .request
-                    .shipping_money
+                    .get_shipping_money()
                     .clone()
                     .unwrap_or_else(|| common_utils::types::Money::zero(currency)),
             )
@@ -810,7 +810,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .convert(
                 &router_data
                     .request
-                    .order_tax_money
+                    .get_order_tax_money()
                     .clone()
                     .unwrap_or_else(|| common_utils::types::Money::zero(currency)),
             )
@@ -881,22 +881,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             reference_id: data.get_product_id()?,
                             sku: data.get_sku()?,
                             total_amount: to_tamara_amount(
-                                data.get_total_amount(),
+                                data.get_total_money(&router_data.request.money).unwrap_or_else(|| data.get_unit_money(&router_data.request.money)),
                                 "Failed to convert line item total amount from minor to major units",
                             )?,
                             item_type: data.get_product_type()?,
                             item_url: data.get_optional_product_link(),
                             image_url: data.get_optional_product_img_link(),
                             unit_price: to_tamara_amount(
-                                data.get_unit_amount(),
+                                data.get_unit_money(&router_data.request.money),
                                 "Failed to convert line item unit price from minor to major units",
                             )?,
                             discount_amount: optional_amount(
-                                data.get_optional_unit_discount_amount(),
+                                data.get_unit_discount_money(&router_data.request.money),
                                 "Failed to convert line item discount amount from minor to major units",
                             )?,
                             tax_amount: optional_amount(
-                                data.get_optional_total_tax_amount(),
+                                data.get_total_tax_money(&router_data.request.money),
                                 "Failed to convert line item tax amount from minor to major units",
                             )?,
                         })

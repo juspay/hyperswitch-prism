@@ -1662,6 +1662,8 @@ fn build_l2_l3_order_data<
             order_details
                 .into_iter()
                 .map(|detail| {
+                    let unit_money = detail.get_unit_money(&item.router_data.request.money);
+                    let tax_money = detail.get_total_tax_money(&item.router_data.request.money);
                     Ok(LineItem {
                         product_name: detail.product_name,
                         // Cybersource's productCode is a product category (it
@@ -1669,9 +1671,8 @@ fn build_l2_l3_order_data<
                         product_code: detail.category,
                         product_sku: detail.sku,
                         quantity: detail.quantity,
-                        unit_price: convert(&detail.money, "order_details.amount")?,
-                        tax_amount: detail
-                            .total_tax_money
+                        unit_price: convert(&unit_money, "order_details.amount")?,
+                        tax_amount: tax_money
                             .as_ref()
                             .map(|tax| convert(tax, "order_details.total_tax_amount"))
                             .transpose()?,
@@ -1685,10 +1686,12 @@ fn build_l2_l3_order_data<
 
     let order_tax_amount = l2_l3_data
         .and_then(|data| data.tax_info.as_ref())
-        .and_then(|tax| tax.order_tax_money.as_ref());
+        .and_then(|tax| tax.get_order_tax_money(&item.router_data.request.money));
     let purchase_order_number = l2_l3_data.and_then(L2L3Data::get_merchant_order_reference_id);
     // `taxable` is required by Cybersource when tax is charged on the order.
-    let taxable = order_tax_amount.map(|tax| tax.amount().get_amount_as_i64() > 0);
+    let taxable = order_tax_amount
+        .as_ref()
+        .map(|tax| tax.amount().get_amount_as_i64() > 0);
     let invoice_details =
         (purchase_order_number.is_some() || taxable.is_some()).then_some(InvoiceDetails {
             purchase_order_number,
@@ -1699,21 +1702,25 @@ fn build_l2_l3_order_data<
         line_items,
         invoice_details,
         tax_amount: order_tax_amount
+            .as_ref()
             .map(|tax| convert(tax, "tax_info.order_tax_amount"))
             .transpose()?,
         discount_amount: l2_l3_data
             .and_then(|data| data.order_info.as_ref())
-            .and_then(|order| order.discount_money.as_ref())
+            .and_then(|order| order.get_discount_money(&item.router_data.request.money))
+            .as_ref()
             .map(|discount| convert(discount, "order_info.discount_amount"))
             .transpose()?,
         duty_amount: l2_l3_data
             .and_then(|data| data.order_info.as_ref())
-            .and_then(|order| order.duty_money.as_ref())
+            .and_then(|order| order.get_duty_money(&item.router_data.request.money))
+            .as_ref()
             .map(|duty| convert(duty, "order_info.duty_amount"))
             .transpose()?,
         freight_amount: l2_l3_data
             .and_then(|data| data.order_info.as_ref())
-            .and_then(|order| order.shipping_money.as_ref())
+            .and_then(|order| order.get_shipping_money(&item.router_data.request.money))
+            .as_ref()
             .map(|freight| convert(freight, "order_info.shipping_cost"))
             .transpose()?,
     })
