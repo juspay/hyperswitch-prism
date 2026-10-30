@@ -493,7 +493,6 @@ pub struct OrderDetailsWithAmount {
     pub money: Money,
     /// tax rate applicable to the product
     pub tax_rate: Option<f64>,
-    #[serde(rename = "total_tax_amount")]
     /// total tax amount applicable to the product
     pub total_tax_money: Option<Money>,
     // Does the order includes shipping
