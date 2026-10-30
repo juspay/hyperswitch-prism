@@ -316,13 +316,11 @@ pub struct PacoShippingAddress {
 /// PACO accepts a short state value only. Do not fall back to the deprecated
 /// state-name field: sending a full subdivision code or name can make the
 /// request invalid.
-pub(super) fn select_paco_billing_state(
-    state_code_iso: Option<Secret<String>>,
-) -> Option<Secret<String>> {
+fn select_paco_billing_state(state_code_iso: Option<Secret<String>>) -> Option<Secret<String>> {
     state_code_iso.filter(|state| state.peek().chars().count() <= 3)
 }
 
-pub(super) fn connector_response_from_approval_code(
+fn connector_response_from_approval_code(
     approval_code: Option<String>,
     payment_method_type: Option<PaymentMethodType>,
 ) -> Option<ConnectorResponseData> {

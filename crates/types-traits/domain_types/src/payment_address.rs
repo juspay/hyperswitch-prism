@@ -11,9 +11,6 @@ use common_enums::ProductType;
 use common_utils::{ext_traits::ConfigExt, Email, MinorUnit};
 use hyperswitch_masking::{PeekInterface, Secret, SerializableSecret};
 
-#[cfg(test)]
-mod test;
-
 #[derive(Clone, Default, Debug)]
 pub struct PaymentAddress {
     shipping: Option<Address>,
