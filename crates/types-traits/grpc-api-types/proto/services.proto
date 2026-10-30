@@ -5,7 +5,7 @@
 //
 // Overview:
 //   This file exposes the main gRPC service interfaces for the Unified Connector
-//   Service (UCS) API. DisputeService is defined in dispute.proto.
+//   Service (UCS) API. Dispute request/response messages are defined in dispute.proto.
 //
 //   You import payment.proto for all shared message types and enumerations.
 //
@@ -61,7 +61,7 @@
 //
 // Related Files:
 //   - payment.proto         — All shared message and enum definitions
-//   - dispute.proto         — DisputeService and its request/response messages
+//   - dispute.proto         — Dispute request/response messages
 //   - payment_methods.proto — Payment method data types
 
 syntax = "proto3";
@@ -69,6 +69,7 @@ syntax = "proto3";
 package types;
 
 import "payment.proto";
+import "dispute.proto";
 import "events.proto";
 import "payouts.proto";
 import "surcharge.proto";
@@ -212,6 +213,30 @@ service RefundService {
   // Void/reverse a refund before processor settlement.
   rpc VoidPostRefund(RefundServiceVoidPostRefundRequest)
       returns (RefundResponse);
+}
+
+// ============================================================================
+// DISPUTE SERVICE — Manages chargeback lifecycle, evidence submission,
+//                    and defense against fraudulent transaction claims.
+// ============================================================================
+
+// Service for dispute-specific operations.
+service DisputeService {
+  // Upload evidence to dispute customer chargeback. Provides documentation
+  // like receipts and delivery proof to contest fraudulent transaction claims.
+  rpc SubmitEvidence(DisputeServiceSubmitEvidenceRequest) returns (DisputeServiceSubmitEvidenceResponse);
+
+  // Retrieve dispute status and evidence submission state. Tracks dispute
+  // progress through bank review process for informed decision-making.
+  rpc Get(DisputeServiceGetRequest) returns (DisputeResponse);
+
+  // Submit defense with reason code for dispute. Presents formal argument
+  // against customer's chargeback claim with supporting documentation.
+  rpc Defend(DisputeServiceDefendRequest) returns (DisputeServiceDefendResponse);
+
+  // Concede dispute and accepts chargeback loss. Acknowledges liability
+  // and stops dispute defense process when evidence is insufficient.
+  rpc Accept(DisputeServiceAcceptRequest) returns (DisputeServiceAcceptResponse);
 }
 
 // ============================================================================

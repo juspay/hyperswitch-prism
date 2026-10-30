@@ -12703,6 +12703,28 @@ impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceAcceptRequest> for A
     }
 }
 
+// Dispute connectors currently accept address evidence as a single text field.
+// Preserve the existing free-text value in line1 while also accepting callers
+// that populate the shared structured Address message.
+fn dispute_address_to_text(address: grpc_payment_types::Address) -> Option<String> {
+    let parts = [
+        address.line1,
+        address.line2,
+        address.line3,
+        address.city,
+        address.state,
+        address.zip_code,
+    ];
+    let text = parts
+        .into_iter()
+        .flatten()
+        .map(ExposeInterface::expose)
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(", ");
+    (!text.is_empty()).then_some(text)
+}
+
 impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceSubmitEvidenceRequest>
     for SubmitEvidenceData
 {
@@ -12717,7 +12739,7 @@ impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceSubmitEvidenceReques
             connector_dispute_id: value.dispute_id,
             integrity_object: None,
             access_activity_log: value.access_activity_log,
-            billing_address: value.billing_address,
+            billing_address: value.billing_address.and_then(dispute_address_to_text),
             cancellation_policy: None,
             cancellation_policy_file_type: None,
             cancellation_policy_provider_file_id: None,
@@ -12729,7 +12751,7 @@ impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceSubmitEvidenceReques
             customer_email_address: value
                 .customer_email_address
                 .map(|email| Secret::new(email.expose())),
-            customer_name: value.customer_name,
+            customer_name: value.customer_name.map(ExposeInterface::expose),
             customer_purchase_ip: value.customer_purchase_ip,
             customer_signature: None,
             customer_signature_file_type: None,
@@ -12747,7 +12769,7 @@ impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceSubmitEvidenceReques
             service_documentation: None,
             service_documentation_file_type: None,
             service_documentation_provider_file_id: None,
-            shipping_address: value.shipping_address,
+            shipping_address: value.shipping_address.and_then(dispute_address_to_text),
             shipping_carrier: value.shipping_carrier,
             shipping_date: value.shipping_date.map(|date| date.to_string()),
             shipping_documentation: None,

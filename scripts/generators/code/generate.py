@@ -46,7 +46,7 @@ PROTO_EXCLUDES = {
 
 # Auto-discover all public proto files.
 _all_proto_files = sorted(p.name for p in PROTO_DIR.glob("*.proto") if p.name not in PROTO_EXCLUDES)
-# Keep the central services first, followed by the standalone DisputeService.
+# Keep the central services first; dispute.proto supplies its message types.
 # The parser gives duplicate RPC names (such as Get) to the first service seen.
 PROTO_FILES = [f for f in _all_proto_files if f not in {"services.proto", "dispute.proto"}] + ["services.proto", "dispute.proto"]
 
