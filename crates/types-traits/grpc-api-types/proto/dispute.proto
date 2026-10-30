@@ -77,8 +77,6 @@ message DisputeServiceGetRequest {
   // Identification
   optional string merchant_dispute_id = 1;
   string connector_dispute_id = 3;
-  reserved 2;
-  reserved "dispute_id";
 }
 
 // Request message for defending a dispute
