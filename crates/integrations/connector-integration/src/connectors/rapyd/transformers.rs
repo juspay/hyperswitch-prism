@@ -32,7 +32,6 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Debug;
-use strum::VariantNames;
 use url::Url;
 
 use crate::types::ResponseRouterData;
@@ -106,35 +105,25 @@ where
     serializer.serialize_str(currency.iso_4217())
 }
 
-/// Parse a wallet's card-network string into `CardNetwork`. Apple sends
-/// `"Visa"`, `"MasterCard"` and `"Amex"`, Google sends `"VISA"`, so the
-/// comparison ignores case, spaces, hyphens and underscores.
+/// Parse a wallet's card-network string into `CardNetwork`. The enum's serde
+/// aliases cover the upper-case names, so Apple's `"MasterCard"` and `"Amex"`
+/// resolve once upper-cased; Apple's `"ChinaUnionPay"` is the international
+/// name for `UnionPay`.
 fn parse_card_network(
     network: &str,
 ) -> Result<common_enums::CardNetwork, error_stack::Report<IntegrationError>> {
-    let normalized: String = network
-        .chars()
-        .filter(|character| character.is_ascii_alphanumeric())
-        .collect::<String>()
-        .to_ascii_lowercase();
-    // Apple abbreviates American Express as "Amex" and spells UnionPay's
-    // international name as "ChinaUnionPay".
-    let normalized = match normalized.as_str() {
-        "amex" => "americanexpress",
-        "chinaunionpay" => "unionpay",
-        other => other,
+    let upper_cased = network.to_ascii_uppercase();
+    let alias = match upper_cased.as_str() {
+        "CHINAUNIONPAY" => "UNIONPAY",
+        _ => upper_cased.as_str(),
     };
-    common_enums::CardNetwork::VARIANTS
-        .iter()
-        .find(|variant| variant.to_ascii_lowercase() == normalized)
-        .and_then(|variant| variant.parse::<common_enums::CardNetwork>().ok())
-        .ok_or_else(|| {
-            error_stack::Report::new(IntegrationError::NotSupported {
-                message: format!("rapyd wallet card network: {network}"),
-                connector: "rapyd",
-                context: Default::default(),
-            })
-        })
+    serde_json::from_value(serde_json::Value::String(alias.to_string())).change_context(
+        IntegrationError::NotSupported {
+            message: format!("rapyd wallet card network: {network}"),
+            connector: "rapyd",
+            context: Default::default(),
+        },
+    )
 }
 
 /// Rapyd `payment_method.type` identifier. Rapyd's types are country-prefixed
@@ -1220,6 +1209,29 @@ pub struct Status {
     pub operation_id: Option<String>,
 }
 
+impl Status {
+    /// Build the error response for a rejected request. Rapyd reports the
+    /// machine code in `error_code`, the outcome in `status` and the
+    /// human-readable text in `message`, matching the connector-level handler.
+    fn to_error_response(&self, status_code: u16) -> ErrorResponse {
+        ErrorResponse {
+            code: self.error_code.clone(),
+            message: self.status.clone().unwrap_or_default(),
+            reason: self.message.clone(),
+            status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum NextAction {
     #[serde(rename = "3d_verification")]
@@ -1390,30 +1402,11 @@ impl<F, T> TryFrom<ResponseRouterData<RefundResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         let Some(data) = item.response.data else {
-            // No refund object means Rapyd rejected the request. Inventing a
-            // refund id from the error code would make a later RSync query a
-            // refund that never existed.
+            // Rapyd reports a rejected refund without a `data` object. Never
+            // reuse the error code as a refund id: RSync would query a refund
+            // that never existed.
             return Ok(Self {
-                response: Err(ErrorResponse {
-                    code: item.response.status.error_code.clone(),
-                    status_code: item.http_code,
-                    message: item
-                        .response
-                        .status
-                        .status
-                        .clone()
-                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: item.response.status.message.clone(),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                }),
+                response: Err(item.response.status.to_error_response(item.http_code)),
                 ..item.router_data
             });
         };
@@ -1721,23 +1714,11 @@ impl TryFrom<ResponseRouterData<RapydCreateOrderResponse, Self>>
 
                 // Extract checkout_id for use in resource_common_data
                 let checkout_id = data.id.clone();
-                // The hosted checkout URL is the whole point of this flow, so
-                // return it with the order id instead of dropping it.
-                let session_data = data.redirect_url.map(|redirect_url| {
-                    ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
-                        ConnectorSpecificClientAuthenticationResponse::Rapyd(
-                            RapydClientAuthenticationResponseDomain {
-                                checkout_id: checkout_id.clone(),
-                                redirect_url,
-                            },
-                        ),
-                    ))
-                });
 
                 Ok(Self {
                     response: Ok(PaymentCreateOrderResponse {
                         connector_order_id: checkout_id.clone(),
-                        session_data,
+                        session_data: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status,
@@ -2057,7 +2038,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             .request
                             .amount
                             .as_ref()
-                            .is_some_and(|amount| amount.amount.get_amount_as_i64() == 0);
+                            .is_some_and(|amount| amount.amount == MinorUnit::new(0));
                         let terminal_status = match attempt_status {
                             common_enums::AttemptStatus::Authorized if is_zero_amount => {
                                 common_enums::AttemptStatus::Charged
