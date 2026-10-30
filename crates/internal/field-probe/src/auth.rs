@@ -607,7 +607,8 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Worldpayvantiv => ConnectorSpecificConfig::Worldpayvantiv {
             user: u(),
             password: p(),
-            merchant_id: m(),
+            merchant_id: Some(m()),
+            merchant_id_by_currency: None,
             base_url: None,
             report_group: None,
             merchant_config_currency: None,
