@@ -28,7 +28,13 @@ const scenario = {
 for (const connector of connectors) {
   test.describe(connector.id, () => {
     test.use({ connector, scenario });
-    test(scenario.title, async ({ connector, merchant, payments, report }) => {
+    test(scenario.title, async ({
+      connector,
+      merchant,
+      payments,
+      report,
+      expected,
+    }) => {
       const billingAddress = createAddress();
       const shippingAddress = createAddress({ line1: "2" });
       const customer = createCustomer();
@@ -54,7 +60,7 @@ for (const connector of connectors) {
       // Setup provides an isolated merchant, API key, connector account, and routing.
       // 1. POST /payments: create and confirm together, with automatic capture.
       const payment = await report.step("Create and confirm payment", async () => {
-        const response = await payments.createPayment({
+        const response = await payments.createPayment("initial-payment", {
           profile_id: merchant.profileId,
           amount: 6000,
           currency: "USD",
@@ -79,7 +85,7 @@ for (const connector of connectors) {
           return_url: returnUrl,
         });
 
-        const expectedConfirmation = {
+        const expectedConfirmation = expected("confirmation-fields", {
           status: "succeeded",
           error_code: null,
           error_message: null,
@@ -112,7 +118,7 @@ for (const connector of connectors) {
           description,
           metadata,
           merchant_order_reference_id: orderReference,
-        };
+        });
         // Report only the selected fields, never the complete payment response.
         await report.check(
           "Confirmation fields",
@@ -134,13 +140,13 @@ for (const connector of connectors) {
               browser_info: response.browser_info,
               order_details: response.order_details,
             },
-            expected: {
+            expected: expected("customer-and-order-details", {
               billing: { address: billingAddress, phone, email },
               shipping: { address: shippingAddress, phone, email },
               customer,
               browser_info: browserInfo,
               order_details: orderDetails,
-            },
+            }),
           },
           ({ actual, expected }) => expect(actual).toMatchObject(expected),
         );

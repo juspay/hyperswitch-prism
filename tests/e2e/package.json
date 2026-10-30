@@ -6,9 +6,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && npm run test:framework",
     "list": "playwright test --list --reporter=list",
     "test": "playwright test",
+    "test:framework": "tsx --test framework/*.test.ts",
     "test:s3": "bash scripts/test-with-s3-credentials.sh",
     "stack:up": "tsx stack/stack.mjs up",
     "stack:down": "tsx stack/stack.mjs down"

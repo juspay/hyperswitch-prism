@@ -79,7 +79,7 @@ Each file contains one complete shared scenario. Read it top to bottom to see th
 
 ```ts
 const payment = await report.step("Create and confirm payment", async () => {
-  const response = await payments.createPayment({
+  const response = await payments.createPayment("initial-payment", {
     profile_id: merchant.profileId,
     amount: 6000,
     currency: "USD",
@@ -185,7 +185,7 @@ SDK-driven journeys can share these same payment groupings. Make SDK execution e
 Empty specs and `.gitkeep` directories are extension placeholders, not implemented coverage. Add one shared spec per journey; connectors inherit it through the registry.
 
 
-Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, and `report`.
+Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. Before implementing connector differences, follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md). The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, `expected`, and `report`.
 
 Scenarios belong to the shared superset under `scenarios/`. Connectors automatically inherit all registered scenarios. Keep connector differences in `connectors/`; do not copy scenarios into connector directories.
 
@@ -201,7 +201,18 @@ Connector overrides are ordinary data, keyed by shared scenario ID:
 overrides: {
   "scenario-id": {
     requests: {
-      createPayment: { metadata: { order_type: "standard" } },
+      createPayment: {
+        "initial-payment": {
+          reason: "Connector sandbox requires this request value",
+          patch: { metadata: { order_type: "standard" } },
+        },
+      },
+    },
+    expectations: {
+      "confirmation-fields": {
+        reason: "Connector has a documented exact sandbox value",
+        patch: { connector_reference_kind: "synthetic-reference" },
+      },
     },
   },
 },
@@ -210,7 +221,7 @@ exclude: {
 },
 ```
 
-Operations apply their request overrides automatically. Overrides replace complete top-level fields; nested objects are not implicitly merged. Shared expected outcomes remain in the spec and cannot be replaced by connector configuration. Cards, credentials, and connector metadata do not justify a separate connector-specific lifecycle. Features needing extra setup should use a shared setup helper and explicit scenario requirements when introduced.
+Operations apply request overrides by stable call ID. They omit configured paths first and then recursively patch objects; arrays, scalar values, and `null` replace the shared value. Specs resolve exact-value expectation differences by stable check ID. Unused overrides, duplicate call-ID consumption, bad omit paths, and empty reasons fail the test. Overrides cannot provide executable code or change the journey. See [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md) for the complete contract.
 
 `create-confirm` means a single create request with `confirm:true`; `create-then-confirm` means separate requests. `automatic` and `manual` describe capture mode. The filename identifies the scenario; its code states the full journey.
 

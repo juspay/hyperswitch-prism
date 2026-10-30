@@ -4,10 +4,11 @@ import { setupMerchant, type TestMerchant } from "./merchant-setup.js";
 import { PaymentOperations } from "./payment-operations.js";
 import { UcsAudit } from "./ucs-audit.js";
 import { Report } from "./report.js";
+import { ScenarioOverrideResolver } from "./scenario-overrides.js";
 import type {
   ConnectorDefinition,
+  JsonObject,
   Scenario,
-  ScenarioOverrides,
 } from "./types.js";
 
 type ScenarioFixtures = {
@@ -19,12 +20,13 @@ type ScenarioFixtures = {
   >;
   payments: PaymentOperations;
   report: Pick<Report, "step" | "check">;
+  expected: <T extends JsonObject>(checkId: string, base: T) => T;
 };
 
 type InternalFixtures = {
   _hs: HyperswitchClient;
   _merchant: TestMerchant;
-  _overrides: ScenarioOverrides;
+  _overrides: ScenarioOverrideResolver;
   _audit: UcsAudit;
 };
 
@@ -57,13 +59,22 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
       });
       info.annotations.push({ type: "Verifies", description: scenario.verifies });
       const overrides = connector.overrides?.[scenario.id] ?? {};
-      if (Object.keys(overrides.requests ?? {}).length) {
+      if (
+        Object.keys(overrides.requests ?? {}).length
+        || Object.keys(overrides.expectations ?? {}).length
+      ) {
         info.annotations.push({
-          type: "Connector request overrides",
-          description: Object.keys(overrides.requests!).join(", "),
+          type: "Connector overrides",
+          description: [
+            ...Object.keys(overrides.requests ?? {}).map((name) => `request:${name}`),
+            ...Object.keys(overrides.expectations ?? {}).map((name) =>
+              `expectation:${name}`),
+          ].join(", "),
         });
       }
-      await use(overrides);
+      const resolver = new ScenarioOverrideResolver(overrides);
+      await use(resolver);
+      resolver.assertAllConsumed();
     },
     { auto: true },
   ],
@@ -100,6 +111,9 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
   },
   payments: async ({ _hs, _merchant, _overrides }, use) => {
     await use(new PaymentOperations(_hs, _merchant, _overrides));
+  },
+  expected: async ({ _overrides }, use) => {
+    await use((checkId, base) => _overrides.expected(checkId, base));
   },
 });
 

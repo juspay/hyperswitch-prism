@@ -1,8 +1,9 @@
 import { test } from "@playwright/test";
 import { HyperswitchClient, stringField } from "./hyperswitch-client.js";
 import type { TestMerchant } from "./merchant-setup.js";
-import type { Json, ScenarioOverrides } from "./types.js";
+import type { Json, JsonObject } from "./types.js";
 import { readRecordedPayment } from "./payment-records.js";
+import type { ScenarioOverrideResolver } from "./scenario-overrides.js";
 
 export type PaymentResponse = Json & { payment_id: string; status: string };
 
@@ -12,15 +13,18 @@ export class PaymentOperations {
   constructor(
     private readonly hs: HyperswitchClient,
     private readonly merchant: TestMerchant,
-    private readonly overrides: ScenarioOverrides,
+    private readonly overrides: ScenarioOverrideResolver,
   ) {}
 
-  async createPayment(request: Json): Promise<PaymentResponse> {
+  async createPayment(
+    callId: string,
+    request: JsonObject,
+  ): Promise<PaymentResponse> {
     const response = await this.hs.call(
       "POST",
       "/payments",
       this.merchant.apiKey,
-      { ...request, ...this.overrides.requests?.createPayment },
+      this.overrides.request("createPayment", callId, request),
     );
     return paymentResponse(response);
   }

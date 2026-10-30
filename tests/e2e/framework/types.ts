@@ -12,9 +12,22 @@ export type CardData = {
   card_cvc: string;
 };
 
+export type RequestOverride = {
+  reason: string;
+  omit?: readonly (readonly string[])[];
+  patch?: JsonObject;
+};
+
+export type ExpectationOverride = {
+  reason: string;
+  patch: JsonObject;
+};
+
 export type ScenarioOverrides = {
-  // Request differences only; the shared scenario owns its expected behavior.
-  requests?: { createPayment?: JsonObject };
+  requests?: {
+    createPayment?: Record<string, RequestOverride>;
+  };
+  expectations?: Record<string, ExpectationOverride>;
 };
 
 export type ConnectorDefinition = {
