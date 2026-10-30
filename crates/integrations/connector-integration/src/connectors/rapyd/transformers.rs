@@ -2038,7 +2038,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             .request
                             .amount
                             .as_ref()
-                            .is_some_and(|amount| amount.amount == MinorUnit::new(0));
+                            .is_some_and(|amount| amount.amount == MinorUnit::zero());
                         let terminal_status = match attempt_status {
                             common_enums::AttemptStatus::Authorized if is_zero_amount => {
                                 common_enums::AttemptStatus::Charged
