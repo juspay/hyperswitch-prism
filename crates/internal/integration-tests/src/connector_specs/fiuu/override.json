@@ -14,16 +14,16 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4111111111111111"
+              "value": "5567630009904309"
             },
             "card_exp_month": {
               "value": "12"
             },
             "card_exp_year": {
-              "value": "2050"
+              "value": "2049"
             },
             "card_cvc": {
-              "value": "123"
+              "value": "433"
             }
           }
         },
@@ -39,16 +39,16 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4111111111111111"
+              "value": "5567630009904309"
             },
             "card_exp_month": {
               "value": "12"
             },
             "card_exp_year": {
-              "value": "2050"
+              "value": "2049"
             },
             "card_cvc": {
-              "value": "123"
+              "value": "433"
             }
           }
         },
@@ -64,16 +64,16 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4111111111111111"
+              "value": "5567630009904309"
             },
             "card_exp_month": {
               "value": "12"
             },
             "card_exp_year": {
-              "value": "2050"
+              "value": "2049"
             },
             "card_cvc": {
-              "value": "123"
+              "value": "433"
             }
           }
         },
@@ -89,16 +89,16 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4111111111111111"
+              "value": "5567630009904309"
             },
             "card_exp_month": {
               "value": "12"
             },
             "card_exp_year": {
-              "value": "2050"
+              "value": "2049"
             },
             "card_cvc": {
-              "value": "123"
+              "value": "433"
             }
           }
         },
@@ -114,16 +114,16 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4111111111111111"
+              "value": "4229989999000012"
             },
             "card_exp_month": {
               "value": "12"
             },
             "card_exp_year": {
-              "value": "2050"
+              "value": "2031"
             },
             "card_cvc": {
-              "value": "123"
+              "value": "871"
             }
           }
         },
@@ -140,13 +140,54 @@
           "currency": "MYR"
         },
         "return_url": "https://example.com/return",
-        "webhook_url": "https://example.com/webhook"
+        "webhook_url": "https://example.com/webhook",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4000000000000002"
+            },
+            "card_exp_month": {
+              "value": "01"
+            },
+            "card_exp_year": {
+              "value": "2035"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      },
+      "assert": {
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "CVV"
+        }
       }
     },
     "no3ds_auto_capture_apple_pay_decrypted": {
       "grpc_req": {
         "amount": {
           "currency": "MYR"
+        },
+        "payment_method": {
+          "apple_pay_sdk": {
+            "payment_data": {
+              "decrypted_data": {
+                "application_primary_account_number": {
+                  "value": "5567630009904309"
+                },
+                "application_expiration_month": {
+                  "value": "12"
+                },
+                "application_expiration_year": {
+                  "value": "2049"
+                }
+              }
+            }
+          }
         },
         "return_url": "https://example.com/return",
         "webhook_url": "https://example.com/webhook"
@@ -156,6 +197,23 @@
       "grpc_req": {
         "amount": {
           "currency": "MYR"
+        },
+        "payment_method": {
+          "google_pay_sdk": {
+            "tokenization_data": {
+              "decrypted_data": {
+                "application_primary_account_number": {
+                  "value": "5567630009904309"
+                },
+                "card_exp_month": {
+                  "value": "12"
+                },
+                "card_exp_year": {
+                  "value": "2049"
+                }
+              }
+            }
+          }
         },
         "return_url": "https://example.com/return",
         "webhook_url": "https://example.com/webhook"
@@ -184,16 +242,16 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4111111111111111"
+              "value": "5567630009904309"
             },
             "card_exp_month": {
               "value": "12"
             },
             "card_exp_year": {
-              "value": "2050"
+              "value": "2049"
             },
             "card_cvc": {
-              "value": "123"
+              "value": "433"
             }
           }
         },
@@ -350,22 +408,24 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4111111111111111"
+              "value": "5567630009904309"
             },
             "card_exp_month": {
               "value": "12"
             },
             "card_exp_year": {
-              "value": "2050"
+              "value": "2049"
             },
             "card_cvc": {
-              "value": "123"
+              "value": "433"
             }
           }
         },
         "amount": {
           "currency": "MYR"
-        }
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
       }
     },
     "PaymentService/SetupRecurring": {
@@ -396,22 +456,24 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4111111111111111"
+              "value": "5567630009904309"
             },
             "card_exp_month": {
               "value": "12"
             },
             "card_exp_year": {
-              "value": "2050"
+              "value": "2049"
             },
             "card_cvc": {
-              "value": "123"
+              "value": "433"
             }
           }
         },
         "amount": {
           "currency": "MYR"
-        }
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
       }
     },
     "setup_recurring_with_order_context": {
@@ -419,22 +481,24 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4111111111111111"
+              "value": "5567630009904309"
             },
             "card_exp_month": {
               "value": "12"
             },
             "card_exp_year": {
-              "value": "2050"
+              "value": "2049"
             },
             "card_cvc": {
-              "value": "123"
+              "value": "433"
             }
           }
         },
         "amount": {
           "currency": "MYR"
-        }
+        },
+        "return_url": "https://example.com/return",
+        "webhook_url": "https://example.com/webhook"
       }
     }
   },
@@ -653,6 +717,57 @@
       "assert": {
         "event_type": {
           "equals": "WEBHOOK_REFUND_FAILURE"
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/Authenticate": {
+    "threeds_card_authenticate": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4229989999000012"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2031"
+            },
+            "card_cvc": {
+              "value": "871"
+            }
+          }
+        },
+        "amount": {
+          "currency": "MYR"
+        },
+        "return_url": "https://example.com/return"
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PostAuthenticate": {
+    "threeds_card_post_authenticate": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4229989999000012"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2031"
+            },
+            "card_cvc": {
+              "value": "871"
+            }
+          }
+        },
+        "amount": {
+          "currency": "MYR"
         }
       }
     }
