@@ -6,3 +6,6 @@ pub mod otel_metrics;
 pub mod service;
 pub mod shared_metrics;
 pub use service::*;
+
+#[cfg(feature = "injector-client")]
+mod vault_proxy_response;

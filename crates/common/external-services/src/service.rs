@@ -1108,18 +1108,22 @@ where
                             )?;
 
                         // Convert injector response to connector service Response format
-                        let actual_response = injector_response
-                            .response
-                            .get("response")
-                            .cloned()
-                            .unwrap_or(injector_response.response.clone());
-
-                        let response_bytes =
-                            serde_json::to_vec(&actual_response).map_err(|_| {
-                                ConnectorFlowError::from(
-                                    ConnectorError::response_handling_failed_http_status_unknown(),
-                                )
-                            })?;
+                        let is_xml_request = request.headers.iter().any(|(key, value)| {
+                            key.eq_ignore_ascii_case("content-type")
+                                && crate::vault_proxy_response::is_xml_media_type(match value {
+                                    Maskable::Normal(value) => value.as_str(),
+                                    Maskable::Masked(value) => value.peek().as_str(),
+                                })
+                        });
+                        let response_bytes = crate::vault_proxy_response::body_bytes(
+                            &injector_response.response,
+                            is_xml_request,
+                        )
+                        .map_err(|_| {
+                            ConnectorFlowError::from(
+                                ConnectorError::response_handling_failed_http_status_unknown(),
+                            )
+                        })?;
 
                         // Extract the actual connector status_code from the wrapper if present,
                         // otherwise fall back to the injector-level status_code
@@ -1131,7 +1135,11 @@ where
                             .unwrap_or(injector_response.status_code);
 
                         // Convert headers from HashMap<String, String> to reqwest::HeaderMap if present
-                        let headers = injector_response.headers.map(|h| {
+                        let headers = crate::vault_proxy_response::destination_headers(
+                            &injector_response.response,
+                        )
+                        .or(injector_response.headers)
+                        .map(|h| {
                             let mut header_map = reqwest::header::HeaderMap::new();
                             for (key, value) in h {
                                 if let (Ok(header_name), Ok(header_value)) = (
