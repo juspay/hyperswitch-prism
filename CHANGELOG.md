@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.30.1
+
+### Features
+
+- **connector:** [Nexixpay] add 9 flows (ThreeDS, IncomingWebhook, PSync, Capture, Void, ...) ([#2601](https://github.com/juspay/connector-service/pull/2601)) ([`e8105aa`](https://github.com/juspay/connector-service/commit/e8105aababe560fdde15efdbe67397a462b59feb))
+
+### Bug Fixes
+
+- **connector:**
+  - Worldpay RAFT partial-approval handling and Mastercard TLID lifecycle metadata ([#2652](https://github.com/juspay/connector-service/pull/2652)) ([`d87626e`](https://github.com/juspay/connector-service/commit/d87626e343743d80bd4e03c053b73fe7e772c653))
+  - [Ilixium] send billing province as ISO 3166-2 code ([#2651](https://github.com/juspay/connector-service/pull/2651)) ([`025f91d`](https://github.com/juspay/connector-service/commit/025f91dc761f45b258569de5b0df6f6480c4698f))
+
+**Full Changelog:** [`2026.10.30.0...2026.10.30.1`](https://github.com/juspay/connector-service/compare/2026.10.30.0...2026.10.30.1)
+
+- - -
+
 ## 2026.10.30.0
 
 ### Features
