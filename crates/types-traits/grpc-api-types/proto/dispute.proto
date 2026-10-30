@@ -76,7 +76,7 @@ message DisputeServiceSubmitEvidenceResponse {
 message DisputeServiceGetRequest {
   // Identification
   optional string merchant_dispute_id = 1;
-  string connector_dispute_id = 3;
+  string connector_dispute_id = 2;
 }
 
 // Request message for defending a dispute
