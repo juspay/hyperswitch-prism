@@ -1019,8 +1019,7 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "reason": "customer_request",
-          "webhook_url": "https://example.com/webhook"
+          "reason": "customer_request"
         },
         "sample": {
           "url": "https://sandbox-api.fiuu.com/RMS/API/refundAPI/index.php",

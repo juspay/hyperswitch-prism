@@ -325,7 +325,6 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
             currency: Currency::Usd.into(),
         }),
         reason: Some("customer_request".to_string()), // Reason for the refund.
-        webhook_url: Some("https://example.com/webhook".to_string()), // URL for webhook notifications.
         ..Default::default()
     }
 }

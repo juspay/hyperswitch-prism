@@ -108,7 +108,6 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
             currency = Currency.USD
         }
         reason = "customer_request"  // Reason for the refund.
-        webhookUrl = "https://example.com/webhook"  // URL for webhook notifications.
     }.build()
 }
 

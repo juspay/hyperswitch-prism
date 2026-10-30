@@ -233,8 +233,7 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
             "minorAmount": 1000,
             "currency": Currency.USD
         },
-        "reason": "customer_request",  // Reason for the refund.
-        "webhookUrl": "https://example.com/webhook"  // URL for webhook notifications.
+        "reason": "customer_request"  // Reason for the refund.
     };
 }
 

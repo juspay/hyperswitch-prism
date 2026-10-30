@@ -216,7 +216,6 @@ def _build_refund_request(connector_transaction_id: str):
             currency=common_types_pb2.Currency.Value("USD"),
         ),
         reason="customer_request",  # Reason for the refund.
-        webhook_url="https://example.com/webhook",  # URL for webhook notifications.
     )
 
 def _build_refund_get_request():
