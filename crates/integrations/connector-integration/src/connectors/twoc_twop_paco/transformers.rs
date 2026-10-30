@@ -952,7 +952,8 @@ where
             bill_addr_post_code: common.get_optional_billing_zip(),
             bill_addr_state: select_paco_billing_state(
                 common.get_optional_billing_state_code_iso(),
-            ),
+            )
+            .or_else(|| select_paco_billing_state(common.get_optional_billing_state())),
         });
 
     let paco_shipping_address = common
