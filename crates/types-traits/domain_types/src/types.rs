@@ -12707,6 +12707,18 @@ impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceAcceptRequest> for A
 // Preserve the existing free-text value in line1 while also accepting callers
 // that populate the shared structured Address message.
 fn dispute_address_to_text(address: grpc_payment_types::Address) -> Option<String> {
+    let name = [address.first_name, address.last_name]
+        .into_iter()
+        .flatten()
+        .map(ExposeInterface::expose)
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let country = address
+        .country_alpha2_code
+        .and_then(|code| grpc_payment_types::CountryAlpha2::try_from(code).ok())
+        .filter(|country| *country != grpc_payment_types::CountryAlpha2::Unspecified)
+        .map(|country| country.as_str_name().to_owned());
     let parts = [
         address.line1,
         address.line2,
@@ -12715,13 +12727,17 @@ fn dispute_address_to_text(address: grpc_payment_types::Address) -> Option<Strin
         address.state,
         address.zip_code,
     ];
-    let text = parts
+    let mut parts = parts
         .into_iter()
         .flatten()
         .map(ExposeInterface::expose)
         .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join(", ");
+        .collect::<Vec<_>>();
+    if !name.is_empty() {
+        parts.insert(0, name);
+    }
+    parts.extend(country);
+    let text = parts.join(", ");
     (!text.is_empty()).then_some(text)
 }
 
