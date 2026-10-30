@@ -85,14 +85,14 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         ), // Method for capturing the payment.
         customer: Some(Customer {
             // Customer Information.
-            email: Some(Secret::new("customer.probe@example.com".to_string())), // Customer's email address.
+            email: Some(Secret::new("customer.probe@example.com".to_string())),
             ..Default::default()
         }),
         address: Some(PaymentAddress {
             // Address Information.
             shipping_address: Some(Address {
-                first_name: Some(Secret::new("Jane".to_string())), // Personal Information.
-                line1: Some(Secret::new("123 Main St".to_string())), // Address Details.
+                first_name: Some(Secret::new("Jane".to_string())),
+                line1: Some(Secret::new("123 Main St".to_string())),
                 city: Some(Secret::new("Seattle".to_string())),
                 zip_code: Some(Secret::new("98101".to_string())),
                 country_alpha2_code: Some(CountryAlpha2::Us.into()),

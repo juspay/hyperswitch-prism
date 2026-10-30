@@ -68,12 +68,12 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
         customerBuilder.apply {  // Customer Information.
-            emailBuilder.value = "customer.probe@example.com"  // Customer's email address.
+            emailBuilder.value = "customer.probe@example.com"
         }
         addressBuilder.apply {  // Address Information.
             shippingAddressBuilder.apply {
-                firstNameBuilder.value = "Jane"  // Personal Information.
-                line1Builder.value = "123 Main St"  // Address Details.
+                firstNameBuilder.value = "Jane"
+                line1Builder.value = "123 Main St"
                 cityBuilder.value = "Seattle"
                 zipCodeBuilder.value = "98101"
                 countryAlpha2Code = CountryAlpha2.US

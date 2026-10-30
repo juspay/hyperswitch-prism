@@ -42,12 +42,12 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         },
         "captureMethod": captureMethod,  // Method for capturing the payment.
         "customer": {  // Customer Information.
-            "email": {"value": "customer.probe@example.com"}  // Customer's email address.
+            "email": {"value": "customer.probe@example.com"}
         },
         "address": {  // Address Information.
             "shippingAddress": {
-                "firstName": {"value": "Jane"},  // Personal Information.
-                "line1": {"value": "123 Main St"},  // Address Details.
+                "firstName": {"value": "Jane"},
+                "line1": {"value": "123 Main St"},
                 "city": {"value": "Seattle"},
                 "zipCode": {"value": "98101"},
                 "countryAlpha2Code": CountryAlpha2.US
