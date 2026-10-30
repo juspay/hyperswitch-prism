@@ -10,7 +10,6 @@
 # banning it would force allow-attributes onto legitimate signing code.
 disallowed-types = [
     { path = "ucs_common_utils::types::MinorUnit", reason = "Domain minor units must not enter connector payloads; convert Money into ConnectorMinorUnit" },
-    { path = "ucs_common_utils::types::MinorUnitForConnector", reason = "Use ConnectorMinorUnitForConnector for integer connector amounts" },
     { path = "ucs_common_utils::types::MoneyBoundary", reason = "Raw money construction belongs at the domain boundary, not in connector code" },
 ]
 

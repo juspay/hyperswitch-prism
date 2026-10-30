@@ -110,24 +110,6 @@ impl AmountConvertor for FloatMajorUnitForConnector {
     }
 }
 
-/// Connector required amount type
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
-pub struct MinorUnitForConnector;
-
-impl AmountConvertor for MinorUnitForConnector {
-    type Output = MinorUnit;
-    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        Ok(money.amount)
-    }
-    fn convert_back(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money::new(amount, currency))
-    }
-}
-
 /// Converts domain minor units to and from connector-side integer minor units.
 ///
 /// Both representations use the currency's minor denomination, so this converter

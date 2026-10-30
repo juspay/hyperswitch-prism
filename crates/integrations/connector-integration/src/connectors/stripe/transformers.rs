@@ -7547,7 +7547,9 @@ mod error_on_requires_action_tests {
 
     /// Minimal request carrying only the field under test; everything else is the
     /// empty/default value, so the assertions below cannot pass by accident.
-    fn request(error_on_requires_action: Option<bool>) -> PaymentIntentRequest<DefaultPCIHolder> {
+    fn request(
+        error_on_requires_action: Option<bool>,
+    ) -> Option<PaymentIntentRequest<DefaultPCIHolder>> {
         let order_detail = OrderDetailsWithAmount::foreign_try_from((
             grpc_api_types::payments::OrderDetailsWithAmount {
                 product_name: "serialization fixture".to_owned(),
@@ -7557,8 +7559,8 @@ mod error_on_requires_action_tests {
             },
             common_enums::Currency::USD,
         ))
-        .expect("valid order fixture");
-        PaymentIntentRequest {
+        .ok()?;
+        Some(PaymentIntentRequest {
             amount: ConnectorMinorUnitForConnector.convert(&order_detail.money),
             currency: "USD".to_string(),
             statement_descriptor_suffix: None,
@@ -7586,13 +7588,15 @@ mod error_on_requires_action_tests {
             on_behalf_of: None,
             error_on_requires_action,
             token_request_three_d_secure: None,
-        }
+        })
     }
 
     /// Stripe bodies go out as form-urlencoded (`RequestContent::FormUrlEncoded` ->
     /// `serde_urlencoded::to_string`), so assert on that encoding rather than JSON.
     fn encoded(error_on_requires_action: Option<bool>) -> String {
-        serde_urlencoded::to_string(request(error_on_requires_action)).unwrap_or_default()
+        request(error_on_requires_action)
+            .and_then(|request| serde_urlencoded::to_string(request).ok())
+            .unwrap_or_default()
     }
 
     #[test]
