@@ -41,6 +41,9 @@ boundary_type_alias = []
 boundary_reexport = []
 proto_trait = []
 domain_mapper = []
+domain_minor_unit = []
+domain_minor_converter = []
+money_amount = []
 EOF
 
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$root/target}"
@@ -97,3 +100,6 @@ check boundary_type_alias clippy::disallowed_methods,clippy::disallowed_types
 check boundary_reexport clippy::disallowed_methods,clippy::disallowed_types
 check proto_trait E0599
 check domain_mapper E0603
+check domain_minor_unit clippy::disallowed_types
+check domain_minor_converter clippy::disallowed_types
+check money_amount clippy::disallowed_methods
