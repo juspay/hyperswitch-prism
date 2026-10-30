@@ -90,10 +90,12 @@ pub enum CheckoutErrorFlow {
 /// `attempt_status` for a non-2xx Checkout response.
 ///
 /// `409` is "conflict with another request being processed" for the same `Cko-Idempotency-Key`:
-/// the original request is still in flight and may succeed, so it is never terminal. Any other
+/// the original request is still in flight and may succeed, so it is never terminal; on a capture
+/// or void it reports the operation as initiated rather than moving the attempt backwards. A `429`
+/// is a rate limit, not a refusal, so it is left to the caller (`None`) on every flow. Any other
 /// `4xx` is a refusal of this request. A `5xx` leaves the outcome unknown: a payment stays
 /// `Pending`; a capture or void is left to the caller (`None`) so an authorised payment is not
-/// stamped failed. A `429` capture is likewise not a refusal.
+/// stamped failed.
 fn checkout_error_attempt_status(
     flow: CheckoutErrorFlow,
     status_code: u16,
@@ -101,18 +103,20 @@ fn checkout_error_attempt_status(
     match flow {
         CheckoutErrorFlow::Payment => match status_code {
             409 => Some(common_enums::AttemptStatus::Pending),
+            429 => None,
             400..=499 => Some(common_enums::AttemptStatus::Failure),
             500..=599 => Some(common_enums::AttemptStatus::Pending),
             _ => None,
         },
         CheckoutErrorFlow::Capture => match status_code {
-            409 => Some(common_enums::AttemptStatus::Pending),
+            409 => Some(common_enums::AttemptStatus::CaptureInitiated),
             429 => None,
             400..=499 => Some(common_enums::AttemptStatus::CaptureFailed),
             _ => None,
         },
         CheckoutErrorFlow::Void => match status_code {
             409 => Some(common_enums::AttemptStatus::VoidInitiated),
+            429 => None,
             400..=499 => Some(common_enums::AttemptStatus::VoidFailed),
             _ => None,
         },

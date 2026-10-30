@@ -3660,6 +3660,76 @@ fn pick_evidence(
     }
 }
 
+/// Checkout's `additional_evidence_text` limit (characters), per the vendor schema.
+const CHECKOUT_EVIDENCE_TEXT_MAX_CHARS: usize = 500;
+
+/// Checkout has one free-text field with no slot for the other text evidence, so each of those
+/// inputs is appended to `uncategorized_text` as a labelled line; past the vendor limit the
+/// request is refused rather than truncating or dropping evidence.
+fn additional_evidence_text(
+    request: &SubmitEvidenceData,
+) -> Result<Option<String>, error_stack::Report<IntegrationError>> {
+    let customer_email_address = request
+        .customer_email_address
+        .as_ref()
+        .map(|email| email.peek().clone());
+    let labelled = [
+        ("product_description", &request.product_description),
+        ("service_date", &request.service_date),
+        ("shipping_date", &request.shipping_date),
+        ("shipping_carrier", &request.shipping_carrier),
+        (
+            "shipping_tracking_number",
+            &request.shipping_tracking_number,
+        ),
+        ("shipping_address", &request.shipping_address),
+        ("billing_address", &request.billing_address),
+        ("customer_name", &request.customer_name),
+        ("customer_email_address", &customer_email_address),
+        ("customer_purchase_ip", &request.customer_purchase_ip),
+        ("access_activity_log", &request.access_activity_log),
+        (
+            "refund_refusal_explanation",
+            &request.refund_refusal_explanation,
+        ),
+        ("cancellation_rebuttal", &request.cancellation_rebuttal),
+    ];
+    let lines: Vec<String> = non_empty_evidence(&request.uncategorized_text)
+        .into_iter()
+        .chain(labelled.iter().filter_map(|(label, value)| {
+            non_empty_evidence(value).map(|value| format!("{label}: {value}"))
+        }))
+        .collect();
+    if lines.is_empty() {
+        return Ok(None);
+    }
+    let text = lines.join("\n");
+    let length = text.chars().count();
+    if length > CHECKOUT_EVIDENCE_TEXT_MAX_CHARS {
+        return Err(error_stack::report!(IntegrationError::NotSupported {
+            message: format!(
+                "Text evidence is {length} characters once combined; Checkout's \
+                 additional_evidence_text accepts at most {CHECKOUT_EVIDENCE_TEXT_MAX_CHARS}"
+            ),
+            connector: "checkout",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Shorten the text evidence, or upload the longer content as a file and send \
+                     its provider file id"
+                        .to_owned(),
+                ),
+                doc_url: Some(CHECKOUT_DISPUTE_EVIDENCE_DOC_URL.to_owned()),
+                additional_context: Some(
+                    "uncategorized_text and every text field without a Checkout field of its own \
+                     share additional_evidence_text"
+                        .to_owned(),
+                ),
+            },
+        }));
+    }
+    Ok(Some(text))
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         CheckoutRouterData<
@@ -3764,7 +3834,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Every supplied evidence id reaches the body or is refused: service_documentation,
         // cancellation_policy and customer_signature have no Checkout field of their own and
-        // fill the closest category when it is free (pick_evidence refuses a collision).
+        // fill the closest category when it is free (pick_evidence refuses a collision). Text
+        // evidence without its own field is folded into additional_evidence_text.
         let evidence = Self {
             proof_of_delivery_or_service_file: pick_evidence(
                 (
@@ -3820,7 +3891,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ),
                 "refund_or_cancellation_policy_text",
             )?,
-            additional_evidence_text: non_empty_evidence(&request.uncategorized_text),
+            additional_evidence_text: additional_evidence_text(request)?,
         };
 
         // Checkout answers `422 no_evidence_provided` to an empty body; refuse before the call.
@@ -4286,12 +4357,23 @@ impl<F> TryFrom<ResponseRouterData<RSyncResponse, Self>>
         // Refunds are asynchronous: until Checkout lists the refund action (only
         // `payment_refund_pending` seen so far), the refund is still in flight, so
         // an absent action is Pending rather than a response-handling failure.
-        let refund_status = item
+        let refund_status = match item
             .response
             .iter()
             .find(|action| action.action_id == refund_action_id)
-            .map(common_enums::RefundStatus::from)
-            .unwrap_or(common_enums::RefundStatus::Pending);
+        {
+            Some(action) => common_enums::RefundStatus::from(action),
+            None => {
+                // Checkout has no "refund not found" answer here, so a wrong or stale refund
+                // id would look the same as an in-flight refund; log it so it can be traced.
+                tracing::warn!(
+                    connector_refund_id = %refund_action_id,
+                    actions_listed = item.response.len(),
+                    "Checkout refund action not listed on the payment yet; reporting Pending"
+                );
+                common_enums::RefundStatus::Pending
+            }
+        };
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: refund_action_id,
