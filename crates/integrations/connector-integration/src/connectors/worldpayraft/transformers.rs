@@ -516,7 +516,7 @@ impl WorldpayraftPosData {
                 CardNetwork::Mastercard | CardNetwork::Maestro
             )
             .then_some(WorldpayraftProcFlags {
-                return_tran_link_id: Some(WorldpayraftReturnTranLinkId::Mastercard),
+                return_tran_link_id: Some(WorldpayraftReturnTranLinkId::M),
                 ..Default::default()
             }),
         }
@@ -581,8 +581,7 @@ impl WorldpayraftPosData {
             // or RecurringBillPay flags, and request TLID for Mastercard/Maestro.
             proc_flags: (estimated_auth || request_tlid).then_some(WorldpayraftProcFlags {
                 estimated_auth: estimated_auth.then_some(WorldpayraftFlag::Yes),
-                return_tran_link_id: request_tlid
-                    .then_some(WorldpayraftReturnTranLinkId::Mastercard),
+                return_tran_link_id: request_tlid.then_some(WorldpayraftReturnTranLinkId::M),
                 ..Default::default()
             }),
         }
@@ -663,7 +662,7 @@ pub struct WorldpayraftProcFlags {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum WorldpayraftReturnTranLinkId {
     #[serde(rename = "M")]
-    Mastercard,
+    M,
 }
 
 /// Only flags supported by the creditcompletion request schema (0601).
@@ -2619,7 +2618,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Some(CardNetwork::Mastercard | CardNetwork::Maestro)
                 ))
             .then_some(WorldpayraftProcFlags {
-                return_tran_link_id: Some(WorldpayraftReturnTranLinkId::Mastercard),
+                return_tran_link_id: Some(WorldpayraftReturnTranLinkId::M),
                 ..Default::default()
             }),
             reference_trace_numbers: WorldpayraftRefundTraceNumbers {
