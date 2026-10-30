@@ -308,7 +308,7 @@ default_impl_verify_webhook_source_v2!(
         D24,
         Betterpayment,
         Reddot,
-            Ecommpay,
+        Ecommpay,
     ],
 );
 // PayPal has its own implementation in paypal.rs

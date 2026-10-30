@@ -6058,7 +6058,7 @@ message ReddotConfig {
   // Required true/false string (case-insensitive); invalid values are rejected.
   // When true (CyberSource-acquired MID), bill_to_* fields are sent to RDP.
   string acquirer_cybersource = 3;
-  optional string base_url = 51;
+  optional string base_url = 50;
 }
 
 // ConnectorSpecificConfig message with oneof containing all connector

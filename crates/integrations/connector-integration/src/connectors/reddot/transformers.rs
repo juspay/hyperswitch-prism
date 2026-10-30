@@ -57,7 +57,17 @@ fn generate_reddot_order_id(
     if reference.is_empty() {
         return Err(IntegrationError::MissingRequiredField {
             field_name: "connector_request_reference_id",
-            context: errors::IntegrationErrorContext::default(),
+            context: errors::IntegrationErrorContext {
+                additional_context: Some(
+                    "A payment reference is required to derive a stable RedDot order ID"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Provide a non-empty connector_request_reference_id for this payment attempt"
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
         }
         .into());
     }
@@ -65,20 +75,16 @@ fn generate_reddot_order_id(
     // Domain separation and a length-prefixed MID avoid ambiguous inputs.
     let mut hasher = Sha256::new();
     hasher.update(b"reddot-order-v1\0");
-    let mid_len =
-        u64::try_from(mid.len()).change_context(IntegrationError::RequestEncodingFailed {
-            context: errors::IntegrationErrorContext::default(),
-        })?;
+    // Supported targets have at most 64-bit usize; this preserves the hash format.
+    #[allow(clippy::as_conversions)]
+    let mid_len = mid.len() as u64;
     hasher.update(mid_len.to_be_bytes());
     hasher.update(mid.as_bytes());
     hasher.update(reference.as_bytes());
-    let digest = hasher.finalize();
-    let truncated = digest
-        .get(..RDP_ORDER_ID_GENERATED_LEN / 2)
-        .ok_or_else(|| IntegrationError::RequestEncodingFailed {
-            context: errors::IntegrationErrorContext::default(),
-        })?;
-    Ok(hex::encode(truncated))
+    let mut order_id = hex::encode(hasher.finalize());
+    // Hex output is ASCII, so truncating to the gateway limit is always safe.
+    order_id.truncate(RDP_ORDER_ID_GENERATED_LEN);
+    Ok(order_id)
 }
 
 /// Read the order ID sent at authorize from `connector_feature_data` for
@@ -119,7 +125,11 @@ fn resolve_reddot_order_id(
         .ok_or_else(|| {
             IntegrationError::InvalidDataFormat {
                 field_name: "connector_feature_data.reddot_order_id",
-                context: errors::IntegrationErrorContext::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some("The stored RedDot order ID must be a non-empty string of at most 20 characters".to_string()),
+                    suggested_action: Some("Pass the original authorization connector_metadata as connector_feature_data".to_string()),
+                    ..Default::default()
+                },
             }
             .into()
         })
@@ -261,16 +271,16 @@ pub struct ReddotAuthorizeRequest<
 }
 
 /// Payment signature input, in the exact concatenation order mandated by RDP.
-struct PaymentSignatureInput<'a> {
-    mid: &'a str,
-    order_id: &'a str,
-    payment_type: &'a str,
-    amount: &'a str,
-    ccy: &'a str,
-    card_no: &'a str,
-    exp_date: &'a str,
-    cvv2: &'a str,
-    secret_key: &'a str,
+pub(super) struct PaymentSignatureInput<'a> {
+    pub(super) mid: &'a str,
+    pub(super) order_id: &'a str,
+    pub(super) payment_type: &'a str,
+    pub(super) amount: &'a str,
+    pub(super) ccy: &'a str,
+    pub(super) card_no: &'a str,
+    pub(super) exp_date: &'a str,
+    pub(super) cvv2: &'a str,
+    pub(super) secret_key: &'a str,
 }
 
 /// RDP payment signature for `/service/payment-api`: SHA-512 hex over
@@ -279,7 +289,9 @@ struct PaymentSignatureInput<'a> {
 ///
 /// `amount`, `exp_date` and `card_no`/`cvv2` contributions MUST use the exact
 /// values sent in the outgoing JSON body.
-fn compute_payment_signature(input: PaymentSignatureInput<'_>) -> Result<String, IntegrationError> {
+pub(super) fn compute_payment_signature(
+    input: PaymentSignatureInput<'_>,
+) -> Result<String, IntegrationError> {
     use sha2::{Digest, Sha512};
 
     let card_details_ctx = |field: &str| errors::IntegrationErrorContext {
@@ -440,7 +452,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let redirect_url = router_data.request.get_router_return_url()?;
         let notify_url = router_data.request.get_webhook_url()?;
         let payer_email = router_data.request.get_email()?;
-        let ccy = router_data.request.currency.to_string();
+        let ccy = router_data.request.amount.currency.to_string();
         // Retries of one payment attempt reuse the same order ID. Keep the
         // full caller reference separately in merchant_reference.
         let order_id = generate_reddot_order_id(
@@ -461,7 +473,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .card_holder_name
                     .clone()
                     .map(|name| name.peek().clone())
-                    .filter(|name| !name.is_empty() && !name.eq_ignore_ascii_case("name"))
+                    .filter(|name| !name.trim().is_empty())
                     .or_else(|| {
                         router_data
                             .request
@@ -473,7 +485,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .map(Secret::new)
                     .ok_or_else(|| IntegrationError::MissingRequiredField {
                         field_name: "card_holder_name or customer_name",
-                        context: errors::IntegrationErrorContext::default(),
+                        context: errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "RedDot requires a payer name for card authorization".to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide the cardholder name or customer name".to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     })?;
                 let exp_month = card_data.get_card_expiry_month_2_digit()?;
                 let exp_year = card_data.get_expiry_year_4_digit();
@@ -516,7 +536,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_type: RDP_PAYMENT_TYPE_SALE.to_string(),
                     order_id,
                     amount,
-                    ccy: router_data.request.currency,
+                    ccy: router_data.request.amount.currency,
                     card_no: card_data.card_number.clone(),
                     exp_date,
                     cvv2: card_data.card_cvc.clone(),
@@ -684,9 +704,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }),
                 )
             }
-            // All codes other than 0 and -01 are authentication failures.
+            // Initiation rejections occur before customer authentication.
             error_code => {
-                let attempt_status = AttemptStatus::AuthenticationFailed;
+                let attempt_status = AttemptStatus::Failure;
                 let response_msg = response.response_msg;
                 (
                     attempt_status,
@@ -891,10 +911,31 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
             _ => None,
         };
 
-        let (status, minor_amount_captured, payment_response) = match response
-            .response_code
-            .as_str()
+        // An enquiry-level error without a transaction record cannot establish
+        // a new payment state. Preserve the current status and surface the error.
+        if !matches!(response.response_code.as_str(), "0" | "-01")
+            && response.transaction_id.as_deref().is_none_or(str::is_empty)
         {
+            return Ok(Self {
+                response: Err(ErrorResponse {
+                    code: response.response_code,
+                    status_code: http_code,
+                    message: response.response_msg.clone().unwrap_or_default(),
+                    reason: response.response_msg,
+                    attempt_status: None,
+                    raw_connector_response: raw_connector_response.clone(),
+                    ..ErrorResponse::default()
+                }),
+                resource_common_data: PaymentFlowData {
+                    raw_connector_status,
+                    raw_connector_response,
+                    ..router_data.resource_common_data
+                },
+                ..router_data
+            });
+        }
+
+        let (status, amount_captured, payment_response) = match response.response_code.as_str() {
             // Payment successful (final). Every transaction this integration
             // creates is transaction_type == "S" (sale / auto-capture), so a
             // successful result means the funds are captured → Charged.
@@ -907,41 +948,16 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
                 })?;
                 // Carry the amount/currency reported by RDP as the captured
                 // amount (authorized_amount / authorized_ccy).
-                let minor_amount_captured = match (
-                    response.authorized_amount,
-                    response.authorized_ccy,
-                ) {
-                    (Some(authorized_amount), Some(authorized_ccy)) => {
-                        let currency = Currency::from_str(&authorized_ccy)
-                                .map_err(|_| {
-                                    ConnectorError::response_handling_failed_with_context(
-                                        http_code,
-                                        Some(format!(
-                                            "reddot: PSync success response has unknown authorized_ccy: {authorized_ccy}"
-                                        )),
-                                    )
-                                })?;
-                        Some(
-                                ReddotAmountConvertor::convert_back(
-                                    authorized_amount,
-                                    currency,
-                                )
-                                .change_context(
-                                    ConnectorError::response_handling_failed_with_context(
-                                        http_code,
-                                        Some(
-                                            "reddot: failed to parse authorized_amount from PSync success response"
-                                                .to_string(),
-                                        ),
-                                    ),
-                                )?,
-                            )
-                    }
-                    _ => None,
-                };
+                let captured_amount =
+                    integrity_object
+                        .as_ref()
+                        .map(|integrity| common_utils::types::Money {
+                            amount: integrity.amount,
+                            currency: integrity.currency,
+                        });
                 (
                     AttemptStatus::Charged,
-                    minor_amount_captured,
+                    captured_amount,
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(transaction_id),
                         redirection_data: None,
@@ -1012,7 +1028,6 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
             }
         };
 
-        let amount_captured = minor_amount_captured;
         Ok(Self {
             response: payment_response,
             request: PaymentsSyncData {
@@ -1184,7 +1199,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let amount_str = amount.get_amount_as_string();
-        let ccy = router_data.request.currency.to_string();
+        let ccy = router_data.request.refund_amount.currency.to_string();
         // RDP `order_number` must equal the exact order_id RDP recorded at
         // authorize. It is persisted in connector_metadata["reddot_order_id"]
         // and handed back here through connector_feature_data.
@@ -1217,7 +1232,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             order_number,
             transaction_id,
             amount,
-            currency: router_data.request.currency,
+            currency: router_data.request.refund_amount.currency,
             signature: Secret::new(signature),
         })
     }
@@ -1259,9 +1274,14 @@ impl TryFrom<ResponseRouterData<ReddotRefundResponse, Self>>
             _ => common_enums::RefundStatus::Pending,
         };
 
-        // Merchant API enquiry explicitly accepts the refund_id echoed by RDP.
-        // Do not substitute the caller reference when the gateway omits it.
-        let connector_refund_id = item.response.refund_id.clone().unwrap_or_default();
+        // RDP accepts the refund_id we sent as the enquiry transaction_id.
+        // Preserve that known lookup key when the optional echo is omitted.
+        let connector_refund_id = item
+            .response
+            .refund_id
+            .clone()
+            .filter(|id| !id.is_empty())
+            .unwrap_or_else(|| item.router_data.request.refund_id.clone());
 
         // Echo the refund amount/currency into the refund integrity object
         // when RDP returns both (mirrors maya's refund transform).
@@ -1347,7 +1367,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         if transaction_id.is_empty() {
             return Err(IntegrationError::MissingRequiredField {
                 field_name: "connector_refund_id",
-                context: errors::IntegrationErrorContext::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Refund enquiry requires the refund ID used when creating the refund"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Pass connector_refund_id from the refund response".to_string(),
+                    ),
+                    ..Default::default()
+                },
             }
             .into());
         }
@@ -1422,7 +1451,11 @@ fn required_refund_reference(id: &str) -> Result<&str, error_stack::Report<Integ
     if id.is_empty() {
         Err(IntegrationError::MissingRequiredField {
             field_name: "merchant_refund_id",
-            context: errors::IntegrationErrorContext::default(),
+            context: errors::IntegrationErrorContext {
+                additional_context: Some("RedDot requires a unique reference for each refund".to_string()),
+                suggested_action: Some("Provide a non-empty merchant_refund_id and reuse it when retrying the same refund".to_string()),
+                ..Default::default()
+            },
         }
         .into())
     } else {

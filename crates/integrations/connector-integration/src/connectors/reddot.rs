@@ -1,5 +1,8 @@
 pub mod transformers;
 
+#[cfg(test)]
+mod test;
+
 use std::fmt::Debug;
 
 use common_enums::{AttemptStatus, CurrencyUnit};
@@ -577,7 +580,7 @@ macros::macro_connector_implementation!(
             &self,
             _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            Ok(vec![("Content-Type".to_string(), "application/json".to_string().into())])
+            Ok(vec![])
         }
         fn get_url(
             &self,
