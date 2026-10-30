@@ -105,12 +105,19 @@ where
     serializer.serialize_str(currency.iso_4217())
 }
 
-/// Parse a wallet's card-network string (Apple sends `"Visa"`, Google `"VISA"`)
-/// into `CardNetwork`. Serde aliases cover the casing differences.
+/// Parse a wallet's card-network string into `CardNetwork`. The enum's serde
+/// aliases cover the upper-case names, so Apple's `"MasterCard"` and `"Amex"`
+/// resolve once upper-cased; Apple's `"ChinaUnionPay"` is the international
+/// name for `UnionPay`.
 fn parse_card_network(
     network: &str,
 ) -> Result<common_enums::CardNetwork, error_stack::Report<IntegrationError>> {
-    serde_json::from_value(serde_json::Value::String(network.to_string())).change_context(
+    let upper_cased = network.to_ascii_uppercase();
+    let alias = match upper_cased.as_str() {
+        "CHINAUNIONPAY" => "UNIONPAY",
+        _ => upper_cased.as_str(),
+    };
+    serde_json::from_value(serde_json::Value::String(alias.to_string())).change_context(
         IntegrationError::NotSupported {
             message: format!("rapyd wallet card network: {network}"),
             connector: "rapyd",
@@ -813,11 +820,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             number: ccard.card_number.to_owned(),
                             expiration_month: ccard.card_exp_month.to_owned(),
                             expiration_year: ccard.card_exp_year.to_owned(),
-                            name: item
-                                .router_data
-                                .resource_common_data
-                                .get_optional_billing_full_name()
-                                .to_owned()
+                            name: ccard
+                                .card_holder_name
+                                .clone()
+                                .or_else(|| {
+                                    item.router_data
+                                        .resource_common_data
+                                        .get_optional_billing_full_name()
+                                })
                                 .unwrap_or(Secret::new("".to_string())),
                             cvv: ccard.card_cvc.to_owned(),
                         })),
@@ -1199,6 +1209,29 @@ pub struct Status {
     pub operation_id: Option<String>,
 }
 
+impl Status {
+    /// Build the error response for a rejected request. Rapyd reports the
+    /// machine code in `error_code`, the outcome in `status` and the
+    /// human-readable text in `message`, matching the connector-level handler.
+    fn to_error_response(&self, status_code: u16) -> ErrorResponse {
+        ErrorResponse {
+            code: self.error_code.clone(),
+            message: self.status.clone().unwrap_or_default(),
+            reason: self.message.clone(),
+            status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum NextAction {
     #[serde(rename = "3d_verification")]
@@ -1332,6 +1365,7 @@ pub enum RefundStatus {
     Error,
     Rejected,
     #[default]
+    #[serde(other)]
     Pending,
 }
 
@@ -1367,17 +1401,19 @@ impl<F, T> TryFrom<ResponseRouterData<RefundResponse, Self>>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
-        let (connector_refund_id, refund_status) = match item.response.data {
-            Some(data) => (data.id, common_enums::RefundStatus::from(data.status)),
-            None => (
-                item.response.status.error_code,
-                common_enums::RefundStatus::Failure,
-            ),
+        let Some(data) = item.response.data else {
+            // Rapyd reports a rejected refund without a `data` object. Never
+            // reuse the error code as a refund id: RSync would query a refund
+            // that never existed.
+            return Ok(Self {
+                response: Err(item.response.status.to_error_response(item.http_code)),
+                ..item.router_data
+            });
         };
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id,
-                refund_status,
+                connector_refund_id: data.id,
+                refund_status: common_enums::RefundStatus::from(data.status),
                 status_code: item.http_code,
                 acquirer_reference_number: None,
             }),
@@ -1777,32 +1813,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Rapyd rejects mandate-setup calls with no amount and silently
         // defaulting here would charge an arbitrary value in the caller's
         // currency (e.g. ¥100 vs $1.00). Require the caller to pass an
-        // explicit verification amount — zero-amount is allowed if the
-        // Rapyd account supports zero-auth.
+        // explicit verification amount.
         let minor_amount = request.amount.as_ref().map(|money| money.amount).ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "minor_amount",
                 context: Default::default(),
             },
         )?;
-        // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
-        let amount = if minor_amount.get_amount_as_i64() == 0 {
-            StringMajorUnit::zero()
-        } else {
-            item.connector
-                .amount_converter
-                .convert(&common_utils::types::Money {
-                    amount: minor_amount,
-                    currency: request.currency,
-                })
-                .change_context(IntegrationError::AmountConversionFailed {
-                    context: crate::utils::amount_conversion_ctx(
-                        "rapyd setup mandate",
-                        &minor_amount,
-                        &request.currency,
+        // A setup mandate is a zero-value verification. A funded request
+        // belongs in Authorize with `setup_future_usage`, where the capture
+        // flow applies.
+        if minor_amount != MinorUnit::zero() {
+            return Err(IntegrationError::NotSupported {
+                message: "Nonzero setup amount".to_owned(),
+                connector: "rapyd",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use a zero-amount SetupMandate, or Authorize to save a payment method while charging."
+                            .to_owned(),
                     ),
-                })?
-        };
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
+        // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
+        let amount = StringMajorUnit::zero();
 
         let payment_method = match &request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
@@ -1994,13 +2030,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 mandate_metadata: None,
                             })
                         });
-                        // Promote Authorized → Charged so a zero-amount
-                        // verification reaches a terminal state.
+                        // Setup mandate is a zero-value verification, so the
+                        // authorization is its terminal success state.
                         let terminal_status = match attempt_status {
                             common_enums::AttemptStatus::Authorized => {
                                 common_enums::AttemptStatus::Charged
                             }
-                            other => other,
+                            status => status,
                         };
                         (
                             terminal_status,
@@ -2219,26 +2255,46 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             typed_connector_request: None,
                         }),
                     ),
-                    _ => (
-                        attempt_status,
-                        Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(data.id.clone()),
-                            redirection_data: None,
-                            // MIT replay does not mint a new mandate — the
-                            // `connector_customer` + `card_*` from SetupMandate
-                            // stay valid. `data.id` is a one-shot payment id
-                            // and must never be stored as a mandate.
-                            mandate_reference: None,
-                            connector_metadata: None,
-                            network_txn_id: None,
-                            network_txn_link_id: None,
-                            connector_response_reference_id: data.merchant_reference_id.to_owned(),
-                            incremental_authorization_allowed: None,
-                            status_code: item.http_code,
-                            splits: None,
-                            payment_account_reference: None,
-                        }),
-                    ),
+                    _ => {
+                        // A repeat charge can still require 3DS; surface the
+                        // redirect before the caller reports the pending state.
+                        let redirection_data = data
+                            .redirect_url
+                            .as_ref()
+                            .filter(|url| !url.is_empty())
+                            .map(|url| {
+                                Url::parse(url).change_context(
+                                    crate::utils::response_handling_fail_for_connector(
+                                        item.http_code,
+                                        "rapyd",
+                                    ),
+                                )
+                            })
+                            .transpose()?
+                            .map(|url| RedirectForm::from((url, Method::Get)));
+                        (
+                            attempt_status,
+                            Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: ResponseId::ConnectorTransactionId(data.id.clone()),
+                                redirection_data: redirection_data.map(Box::new),
+                                // MIT replay does not mint a new mandate — the
+                                // `connector_customer` + `card_*` from SetupMandate
+                                // stay valid. `data.id` is a one-shot payment id
+                                // and must never be stored as a mandate.
+                                mandate_reference: None,
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                network_txn_link_id: None,
+                                connector_response_reference_id: data
+                                    .merchant_reference_id
+                                    .to_owned(),
+                                incremental_authorization_allowed: None,
+                                status_code: item.http_code,
+                                splits: None,
+                                payment_account_reference: None,
+                            }),
+                        )
+                    }
                 }
             }
             None => (
