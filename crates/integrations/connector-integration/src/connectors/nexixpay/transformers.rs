@@ -612,8 +612,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             };
 
         // A zero-amount payment is a card verification.
-        let action_type = (item.request.money.amount() == common_utils::types::MinorUnit::zero())
-            .then_some(NexixpayPaymentRequestActionType::Verify);
+        let action_type = (common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.request.money)
+            == common_utils::types::ConnectorMinorUnit::zero())
+        .then_some(NexixpayPaymentRequestActionType::Verify);
 
         Ok(Self {
             operation_id,
@@ -795,7 +797,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // G-ThreeDS-11: this Nexi flow is not recurring, and VERIFY on /orders/googlepay is
         // undocumented, so stored-credential setup and zero-amount verification fail closed.
-        let is_zero_amount = item.request.money.amount() == common_utils::types::MinorUnit::zero();
+        let is_zero_amount = common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.request.money)
+            == common_utils::types::ConnectorMinorUnit::zero();
         if item.request.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
             || is_zero_amount
         {
@@ -1062,8 +1066,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpayPaymentsRespo
 
         // A zero-amount verification answers AUTHORIZED; nothing remains to capture, so
         // it is terminal (Hyperswitch CompleteAuthorize special case).
-        let status = if item.router_data.request.money.amount()
-            == common_utils::types::MinorUnit::zero()
+        let status = if common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.router_data.request.money)
+            == common_utils::types::ConnectorMinorUnit::zero()
             && operation.operation_result == NexixpayPaymentStatus::Authorized
         {
             AttemptStatus::Charged
@@ -2222,8 +2227,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         });
 
         // A zero-amount init is a card verification.
-        let action_type = (item.request.money.amount() == common_utils::types::MinorUnit::zero())
-            .then_some(NexixpayPaymentRequestActionType::Verify);
+        let action_type = (common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.request.money)
+            == common_utils::types::ConnectorMinorUnit::zero())
+        .then_some(NexixpayPaymentRequestActionType::Verify);
 
         Ok(Self {
             order,
@@ -2671,7 +2678,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         "Ensure the request carries a valid minor-unit amount and a currency \
                          supported by Nexi XPay. Nexi `/orders/hpp` expects \
                          `paymentSession.amount` as a string of minor units (e.g. cents), so \
-                         the source `MinorUnit` must be representable as an integer string."
+                         the source `ConnectorMinorUnit` must be representable as an integer string."
                             .to_owned(),
                     ),
                     doc_url: Some("https://developer.nexi.it/en/api/post-orders-hpp".to_owned()),
@@ -2679,7 +2686,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         "Failed to encode amount={:?} currency={:?} as a Nexi \
                          `paymentSession.amount` (string minor-units) for the /orders/hpp \
                          ClientAuthenticationToken flow.",
-                        router_data.request.money.amount(),
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&router_data.request.money),
                         router_data.request.money.currency(),
                     )),
                 },
@@ -2920,8 +2927,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // VERIFY only on a zero-amount setup (card verification, no funds move);
         // Nexi rejects PAY with amount 0 (spec ### SetupMandate, UD-04).
-        let action_type = (money.amount() == common_utils::types::MinorUnit::zero())
-            .then_some(NexixpayPaymentRequestActionType::Verify);
+        let action_type = (common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+            == common_utils::types::ConnectorMinorUnit::zero())
+        .then_some(NexixpayPaymentRequestActionType::Verify);
 
         Ok(Self {
             order,

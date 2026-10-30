@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::types::ConnectorMinorUnit;
 use domain_types::payment_method_data::{PaymentMethodDataTypes, RawCardNumber};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ pub struct JpmorganTokenRequest {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganPaymentsRequest<T: PaymentMethodDataTypes> {
     pub capture_method: CapMethod,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     pub merchant: JpmorganMerchant,
     pub payment_method_type: JpmorganPaymentMethodType<T>,
@@ -55,7 +55,7 @@ pub struct JpmorganRetailAddenda {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_date: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tax_amount: Option<MinorUnit>,
+    pub tax_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_taxable: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -94,9 +94,9 @@ pub enum JpmorganTaxableIndicator {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganLevel3 {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_shipping_amount: Option<MinorUnit>,
+    pub total_shipping_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub duty_amount: Option<MinorUnit>,
+    pub duty_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ship_to_address_postal_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -104,16 +104,16 @@ pub struct JpmorganLevel3 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ship_from_address_postal_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_transaction_discount_amount: Option<MinorUnit>,
+    pub total_transaction_discount_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub value_added_tax_amount: Option<MinorUnit>,
+    pub value_added_tax_amount: Option<ConnectorMinorUnit>,
     /// A percentage scaled by 100 and sent as a string: JPMorgan implies two
     /// decimal places and allows four digits, so `"250"` is 2.5%.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value_added_tax_percent: Option<String>,
     /// Visa only — not applicable to Mastercard.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub shipping_value_added_tax_amount: Option<MinorUnit>,
+    pub shipping_value_added_tax_amount: Option<ConnectorMinorUnit>,
     /// A percentage scaled by 100 and sent as a string, matching
     /// JPMorgan's example where `"1000"` is 10.00%.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -143,11 +143,11 @@ pub struct JpmorganLineItem {
     )]
     pub line_item_unit_of_measure_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub unit_price_amount: Option<MinorUnit>,
+    pub unit_price_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tax_inclusive_line_item_total_amount: Option<MinorUnit>,
+    pub tax_inclusive_line_item_total_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub transaction_discount_amount: Option<MinorUnit>,
+    pub transaction_discount_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line_item_tax_indicator: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -160,7 +160,7 @@ pub struct JpmorganLineItem {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganLineItemTax {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub line_item_tax_amount: Option<MinorUnit>,
+    pub line_item_tax_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_percent: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -320,7 +320,7 @@ pub enum CapMethod {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCaptureRequest {
     pub capture_method: CapMethod,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
 }
 
@@ -345,7 +345,7 @@ pub struct JpmorganVoidPcRequest {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganRefundRequest {
     pub merchant: JpmorganMerchantRefund,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     pub payment_method_type: JpmorganRefundPaymentMethodType,
 }
@@ -465,7 +465,7 @@ pub struct JpmorganSetupMandateRequest<T: PaymentMethodDataTypes> {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganRepeatPaymentRequest<T: PaymentMethodDataTypes> {
     pub capture_method: CapMethod,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     pub merchant: JpmorganMerchant,
     pub payment_method_type: JpmorganRepeatPaymentMethodType<T>,

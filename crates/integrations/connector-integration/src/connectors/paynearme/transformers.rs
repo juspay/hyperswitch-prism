@@ -897,7 +897,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         if request
             .money
             .as_ref()
-            .map(|money| money.amount())
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
             .is_some_and(|amount| amount.get_amount_as_i64() != 0)
         {
             return Err(not_supported("SetupMandate with a non-zero amount"));
@@ -1087,7 +1087,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let currency = require_usd(request.currency)?;
         let (refund_amount, refund_currency) =
-            if request.refund_money.amount() == request.payment_money.amount() {
+            if common_utils::types::ConnectorMinorUnitForConnector.convert(&request.refund_money)
+                == common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&request.payment_money)
+            {
                 (None, None)
             } else {
                 (

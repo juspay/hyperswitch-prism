@@ -1207,7 +1207,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-macros::create_amount_converter_wrapper!(connector_name: Grabpay, amount_type: MinorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Grabpay, amount_type: ConnectorMinorUnit);
 
 crate::connectors::macros::macro_connector_payout_implementation!(
     connector: Grabpay,

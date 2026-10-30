@@ -1,6 +1,6 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, CountryAlpha2, Currency, RefundStatus};
-use common_utils::{pii::Email, types::MinorUnit};
+use common_utils::{pii::Email, types::ConnectorMinorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, CreateConnectorCustomer, CreateOrder, GetConnectorCustomer, PSync, RSync, Refund,
@@ -165,7 +165,7 @@ pub enum GlomopayWebhookEventType {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GlomopayWebhookFeeDetail {
     pub currency: Option<Currency>,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -179,9 +179,9 @@ pub struct GlomopayWebhookFees {
 pub struct GlomopayWebhookPaymentData {
     pub id: String,
     pub payin_id: Option<String>,
-    pub requested_amount: Option<MinorUnit>,
+    pub requested_amount: Option<ConnectorMinorUnit>,
     pub requested_currency: Option<Currency>,
-    pub payment_amount: Option<MinorUnit>,
+    pub payment_amount: Option<ConnectorMinorUnit>,
     pub payment_currency: Option<Currency>,
     pub fees: Option<GlomopayWebhookFees>,
     pub error_code: Option<String>,
@@ -278,7 +278,7 @@ pub enum GlomopayRefundWebhookEventType {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GlomopayRefundWebhookFeeDetail {
     pub currency: Option<Currency>,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -291,7 +291,7 @@ pub struct GlomopayRefundWebhookFees {
 pub struct GlomopayRefundWebhookData {
     pub id: String,
     pub payment_id: Option<String>,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub currency: Option<Currency>,
     pub fees: Option<GlomopayRefundWebhookFees>,
     pub error_code: Option<String>,
@@ -547,7 +547,7 @@ impl TryFrom<ResponseRouterData<GlomopayCreateCustomerResponse, Self>>
 pub struct GlomopayCreateOrderRequest {
     pub customer_id: String,
     pub currency: Currency,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub product: GlomopayProduct,
     pub request_id: String,
 }
@@ -926,7 +926,7 @@ pub struct GlomopayPaymentSyncItem {
     // transaction values in the mandatory-sync integrity check, so we
     // must surface them from the connector response rather than
     // echoing the request context.
-    pub requested_amount: Option<MinorUnit>,
+    pub requested_amount: Option<ConnectorMinorUnit>,
     pub requested_currency: Option<Currency>,
     pub error_code: Option<String>,
     pub error_description: Option<String>,
@@ -996,8 +996,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     (
                         Some(amount.clone()),
                         Some(PaymentSynIntegrityObject {
-                            amount: amount.amount(),
-                            currency,
+                            money: amount.clone(),
                         }),
                     )
                 }
@@ -1073,7 +1072,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 pub struct GlomopayRefundRequest {
     pub payment_id: String,
     pub reason: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub request_id: String,
 }
 
@@ -1081,7 +1080,7 @@ pub struct GlomopayRefundRequest {
 pub struct GlomopayRefundResponse {
     pub id: String,
     pub status: GlomopayRefundStatus,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1154,7 +1153,7 @@ impl TryFrom<ResponseRouterData<GlomopayRefundResponse, Self>>
 pub struct GlomopayRefundSyncItem {
     pub id: String,
     pub status: GlomopayRefundStatus,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub utr: Option<String>,
 }
 

@@ -249,7 +249,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "authorize",
-                    &request.money.amount(),
+                    &common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
                     &request.currency,
                 ),
             })?;
@@ -350,7 +350,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "capture",
-                    &request.capture_money.amount(),
+                    &common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&request.capture_money),
                     &request.currency,
                 ),
             })?;
@@ -363,9 +364,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .money
             .as_ref()
-            .map(|m| m.amount());
+            .map(|m| common_utils::types::ConnectorMinorUnitForConnector.convert(m));
         let is_partial = match authorized {
-            Some(auth_amount) => request.capture_money.amount() < auth_amount,
+            Some(auth_amount) => {
+                common_utils::types::ConnectorMinorUnitForConnector.convert(&request.capture_money)
+                    < auth_amount
+            }
             None => false,
         };
         let transaction_hint = if is_partial {
@@ -494,7 +498,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "refund",
-                    &request.refund_money.amount(),
+                    &common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&request.refund_money),
                     &request.currency,
                 ),
             })?;
@@ -623,7 +628,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "repeat_payment",
-                    &request.money.amount(),
+                    &common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
                     &request.currency,
                 ),
             })?;
@@ -854,9 +859,13 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
             .resource_common_data
             .money
             .as_ref()
-            .map(|m| m.amount());
+            .map(|m| common_utils::types::ConnectorMinorUnitForConnector.convert(m));
         let is_partial = match authorized {
-            Some(auth_amount) => item.router_data.request.capture_money.amount() < auth_amount,
+            Some(auth_amount) => {
+                common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.capture_money)
+                    < auth_amount
+            }
             None => false,
         };
         let success_status = if is_partial {

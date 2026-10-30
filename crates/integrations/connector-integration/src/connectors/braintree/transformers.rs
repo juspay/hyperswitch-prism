@@ -5,7 +5,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     ext_traits::XmlExt,
     pii,
-    types::{MinorUnit, StringMajorUnit},
+    types::{ConnectorMinorUnit, StringMajorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -2093,7 +2093,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                     total: AmountInfo {
                                         label: payment_request_data.label,
                                         total_type: None,
-                                        amount: item.router_data.request.money.amount(),
+                                        amount: common_utils::types::ConnectorMinorUnitForConnector.convert(&item.router_data.request.money),
                                     },
                                     merchant_capabilities: Some(
                                         payment_request_data.merchant_capabilities,
@@ -2160,7 +2160,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                         ))?,
                                         currency_code: item.router_data.request.currency,
                                         total_price_status: GooglePayPriceStatus::Final.to_string(),
-                                        total_price: item.router_data.request.money.amount(),
+                                        total_price: common_utils::types::ConnectorMinorUnitForConnector.convert(&item.router_data.request.money),
                                     },
                                     secrets: Some(SecretInfoToInitiateSdk {
                                         display: res.data.create_client_token.client_token.clone(),
@@ -2204,7 +2204,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                 transaction_info: Some(PaypalTransactionInfo {
                                     flow: PaypalFlow::Checkout.into(),
                                     currency_code: item.router_data.request.currency,
-                                    total_price: item.router_data.request.money.amount(),
+                                    total_price: common_utils::types::ConnectorMinorUnitForConnector.convert(&item.router_data.request.money),
                                 }),
                             },
                         ))
@@ -2722,7 +2722,7 @@ pub struct Notification {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BraintreeDisputeData {
-    pub amount_disputed: MinorUnit,
+    pub amount_disputed: ConnectorMinorUnit,
     pub amount_won: Option<String>,
     pub case_number: Option<String>,
     pub chargeback_protection_level: Option<String>,
@@ -2885,7 +2885,7 @@ pub(super) fn build_webhook_dispute_response(
             amount: domain_types::utils::convert_amount_for_webhook(
                 &common_utils::types::StringMinorUnitForConnector,
                 &domain_types::utils::convert_back_amount_to_money_for_webhook(
-                    &common_utils::types::MinorUnitForConnector,
+                    &common_utils::types::ConnectorMinorUnitForConnector,
                     dispute_data.amount_disputed,
                     dispute_data.currency_iso_code,
                 )?,

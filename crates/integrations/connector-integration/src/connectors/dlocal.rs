@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::{FloatMajorUnit, MinorUnit},
+    types::{ConnectorMinorUnit, FloatMajorUnit},
 };
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
@@ -558,7 +558,7 @@ macros::macro_connector_implementation!(
                     context: Default::default(),
                 })?;
 
-            if req.request.money.amount() == MinorUnit::new(0) {
+            if common_utils::types::ConnectorMinorUnitForConnector.convert(&req.request.money) == ConnectorMinorUnit::zero() {
                 Ok(format!(
                     "{}enrollments/{connector_transaction_id}",
                     self.connector_base_url_payments(req),

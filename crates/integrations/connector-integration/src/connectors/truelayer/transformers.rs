@@ -1,6 +1,6 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use common_enums::{self, AttemptStatus, CountryAlpha2, Currency};
-use common_utils::{consts, pii, request::Method, types::MinorUnit};
+use common_utils::{consts, pii, request::Method, types::ConnectorMinorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, RSync, Refund, ServerAuthenticationToken, VerifyWebhookSource, Void,
@@ -227,7 +227,7 @@ impl TryFrom<&TruelayerAuthType> for TruelayerMetadata {
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct TruelayerPaymentsRequestData {
-    amount_in_minor: MinorUnit,
+    amount_in_minor: ConnectorMinorUnit,
     currency: Currency,
     hosted_page: HostedPage,
     payment_method: PaymentMethod,
@@ -392,7 +392,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ..
             }) => {
                 let currency = item.router_data.request.currency;
-                let amount_in_minor = item.router_data.request.money.amount();
+                let amount_in_minor = common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.money);
 
                 let hosted_page = HostedPage {
                     return_uri: item.router_data.request.router_return_url.clone().ok_or(
@@ -636,7 +637,7 @@ pub enum TruelayerPSyncResponseData {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TruelayerPSyncResponse {
     id: String,
-    amount_in_minor: MinorUnit,
+    amount_in_minor: ConnectorMinorUnit,
     currency: Currency,
     user: Option<UserIdResponse>,
     status: TruelayerPaymentStatus,
@@ -1519,7 +1520,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct TruelayerRefundRequest {
-    amount_in_minor: MinorUnit,
+    amount_in_minor: ConnectorMinorUnit,
     reference: String,
 }
 
@@ -1553,7 +1554,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .collect::<String>();
 
         Ok(Self {
-            amount_in_minor: item.router_data.request.refund_money.amount(),
+            amount_in_minor: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.refund_money),
             reference,
         })
     }
@@ -1598,7 +1600,7 @@ pub enum TruelayerRsyncResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TruelayerRsyncResponseData {
     id: String,
-    amount_in_minor: MinorUnit,
+    amount_in_minor: ConnectorMinorUnit,
     currency: Currency,
     reference: String,
     status: TruelayerRefundStatus,

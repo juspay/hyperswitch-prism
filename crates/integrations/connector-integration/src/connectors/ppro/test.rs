@@ -933,8 +933,21 @@ mod tests {
 #[cfg(test)]
 mod transformer_tests {
     use super::super::transformers::*;
-    use common_utils::MinorUnit;
+    use common_utils::ConnectorMinorUnitForConnector;
     use domain_types::router_response_types::RedirectForm;
+    use domain_types::{payment_address::OrderDetailsWithAmount, utils::ForeignTryFrom};
+
+    fn order_detail(amount: i64) -> Result<OrderDetailsWithAmount, Box<dyn std::error::Error>> {
+        Ok(OrderDetailsWithAmount::foreign_try_from((
+            grpc_api_types::payments::OrderDetailsWithAmount {
+                product_name: "serialization fixture".to_owned(),
+                quantity: 1,
+                amount,
+                ..Default::default()
+            },
+            common_enums::Currency::EUR,
+        ))?)
+    }
 
     macro_rules! ensure_eq {
         ($left:expr, $right:expr $(,)?) => {{
@@ -1088,7 +1101,9 @@ mod transformer_tests {
     #[test]
     fn test_capture_request_serialization() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproCaptureRequest {
-            amount: MinorUnit::new(2500),
+            amount: ConnectorMinorUnitForConnector.convert(&order_detail(2500)?.get_unit_money(
+                &common_utils::types::Money::zero(common_enums::Currency::EUR),
+            )),
         };
         let json: serde_json::Value = serde_json::to_value(&req)?;
         ensure_eq!(
@@ -1104,7 +1119,9 @@ mod transformer_tests {
     #[test]
     fn test_void_request_serialization() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproVoidRequest {
-            amount: MinorUnit::new(1000),
+            amount: ConnectorMinorUnitForConnector.convert(&order_detail(1000)?.get_unit_money(
+                &common_utils::types::Money::zero(common_enums::Currency::EUR),
+            )),
         };
         let json: serde_json::Value = serde_json::to_value(&req)?;
         ensure_eq!(json.get("amount"), Some(&serde_json::json!(1000)));
@@ -1116,7 +1133,9 @@ mod transformer_tests {
     #[test]
     fn test_refund_request_serialization_with_reason() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproRefundRequest {
-            amount: MinorUnit::new(500),
+            amount: ConnectorMinorUnitForConnector.convert(&order_detail(500)?.get_unit_money(
+                &common_utils::types::Money::zero(common_enums::Currency::EUR),
+            )),
             merchant_refund_reference: "ref_500".to_string(),
             refund_reason: Some(PproRefundReason::Fraud),
         };
@@ -1132,7 +1151,9 @@ mod transformer_tests {
     #[test]
     fn test_refund_request_serialization_no_reason() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproRefundRequest {
-            amount: MinorUnit::new(300),
+            amount: ConnectorMinorUnitForConnector.convert(&order_detail(300)?.get_unit_money(
+                &common_utils::types::Money::zero(common_enums::Currency::EUR),
+            )),
             merchant_refund_reference: "ref_300".to_string(),
             refund_reason: None,
         };

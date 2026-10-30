@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 
 use common_enums::{Currency, PayoutStatus};
 use common_utils::errors::CustomResult;
-use common_utils::types::MinorUnit;
+use common_utils::types::ConnectorMinorUnit;
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer, ServerAuthenticationToken},
     connector_types::{
@@ -217,7 +217,7 @@ pub struct TruelayerErrorResponse {
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TruelayerPayoutRequest {
     merchant_account_id: Secret<String>,
-    amount_in_minor: MinorUnit,
+    amount_in_minor: ConnectorMinorUnit,
     currency: Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     metadata: Option<TruelayerPayoutRequestMetadata>,
@@ -333,7 +333,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
         Ok(Self {
             merchant_account_id: metadata.merchant_account_id,
             amount_in_minor: domain_types::utils::convert_amount(
-                &common_utils::types::MinorUnitForConnector,
+                &common_utils::types::ConnectorMinorUnitForConnector,
                 &req.request.money,
             )?,
             currency: req.request.destination_currency,
@@ -407,7 +407,7 @@ pub enum TruelayerPayoutSyncType {
 pub struct TruelayerPayoutSyncResponse {
     id: String,
     merchant_account_id: Secret<String>,
-    amount_in_minor: MinorUnit,
+    amount_in_minor: ConnectorMinorUnit,
     currency: Currency,
     beneficiary: TruelayerBeneficiary,
     scheme_id: Option<String>,

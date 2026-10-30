@@ -1089,8 +1089,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .money
             .as_ref()
-            .map(|money| money.amount())
-            .is_some_and(|amount| amount > common_utils::types::MinorUnit::zero())
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
+            .is_some_and(|amount| amount > common_utils::types::ConnectorMinorUnit::zero())
         {
             return Err(IntegrationError::FlowNotSupported {
                 flow: "Setup Mandate with non zero amount".to_string(),

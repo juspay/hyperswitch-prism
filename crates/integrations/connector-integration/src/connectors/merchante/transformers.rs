@@ -946,8 +946,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = MerchanteAuthType::try_from(&router_data.connector_config)?;
 
         // Full refund when refund_amount == payment_amount; partial otherwise.
-        let is_full_refund =
-            router_data.request.refund_money.amount() == router_data.request.payment_money.amount();
+        let is_full_refund = common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&router_data.request.refund_money)
+            == common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.payment_money);
 
         let amount = if is_full_refund {
             None

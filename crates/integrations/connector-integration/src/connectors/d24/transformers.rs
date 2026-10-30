@@ -1165,9 +1165,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let mut status = AttemptStatus::from(response.status);
         if status == AttemptStatus::Charged
-            && settled_amount
-                .as_ref()
-                .is_some_and(|settled| settled.amount() < item.router_data.request.money.amount())
+            && settled_amount.as_ref().is_some_and(|settled| {
+                common_utils::types::ConnectorMinorUnitForConnector.convert(settled)
+                    < common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.money)
+            })
         {
             status = AttemptStatus::PartialCharged;
         }

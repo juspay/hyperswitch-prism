@@ -110,7 +110,7 @@ pub struct PproConsumer {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Amount {
     pub currency: String,
-    pub value: common_utils::MinorUnit,
+    pub value: common_utils::ConnectorMinorUnit,
 }
 
 impl<F, T>
@@ -168,9 +168,8 @@ where
 
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
-            value: common_utils::MinorUnit::new(
-                router_data.request.money.amount().get_amount_as_i64(),
-            ),
+            value: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.money),
         };
 
         let authentication_settings = match router_data.request.payment_method_type {
@@ -383,7 +382,7 @@ pub enum PproAgreementStatus {
 pub struct PproPaymentsResponse {
     pub id: String,
     pub status: PproPaymentStatus,
-    pub amount: Option<common_utils::MinorUnit>,
+    pub amount: Option<common_utils::ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     /// The consumer's payment instrument, resolved by PPRO during authentication and
@@ -406,7 +405,7 @@ pub struct PproPaymentsResponse {
 #[serde(rename_all = "camelCase")]
 pub struct PproAuthorizationEntry {
     pub id: String,
-    pub amount: common_utils::MinorUnit,
+    pub amount: common_utils::ConnectorMinorUnit,
     pub status: PproAuthorizationStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_payment_charge_reference: Option<String>,
@@ -425,7 +424,7 @@ pub enum PproAuthorizationStatus {
 #[serde(rename_all = "camelCase")]
 pub struct PproCaptureEntry {
     pub id: String,
-    pub amount: common_utils::MinorUnit,
+    pub amount: common_utils::ConnectorMinorUnit,
     pub status: PproCaptureStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_capture_reference: Option<String>,
@@ -476,7 +475,7 @@ pub struct PproRefundResponse {
 #[serde(rename_all = "camelCase")]
 pub struct PproRefundEntry {
     pub id: String,
-    pub amount: common_utils::MinorUnit,
+    pub amount: common_utils::ConnectorMinorUnit,
     pub status: PproRefundStatus,
 }
 
@@ -528,7 +527,7 @@ pub struct PproAuthDetailsResponse {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PproCaptureRequest {
-    pub amount: common_utils::MinorUnit,
+    pub amount: common_utils::ConnectorMinorUnit,
 }
 
 impl<T>
@@ -549,7 +548,8 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.capture_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.capture_money),
         })
     }
 }
@@ -557,7 +557,7 @@ where
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PproVoidRequest {
-    pub amount: common_utils::MinorUnit,
+    pub amount: common_utils::ConnectorMinorUnit,
 }
 
 impl<T>
@@ -581,12 +581,12 @@ where
             .router_data
             .request
             .money
-            .map(|amount| amount.amount())
+            .map(|amount| common_utils::types::ConnectorMinorUnitForConnector.convert(&amount))
             .or(item
                 .router_data
                 .resource_common_data
                 .authorized_money
-                .map(|amount| amount.amount()))
+                .map(|amount| common_utils::types::ConnectorMinorUnitForConnector.convert(&amount)))
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "amount or amount_authorized.amount",
                 context: Default::default(),
@@ -599,7 +599,7 @@ where
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PproRefundRequest {
-    pub amount: common_utils::MinorUnit,
+    pub amount: common_utils::ConnectorMinorUnit,
     pub merchant_refund_reference: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_reason: Option<PproRefundReason>,
@@ -620,7 +620,8 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.refund_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.refund_money),
             merchant_refund_reference: item.router_data.request.refund_id.clone(),
             refund_reason: item
                 .router_data
@@ -1323,15 +1324,12 @@ where
 
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
-            value: common_utils::MinorUnit::new(
-                router_data
-                    .request
-                    .money
-                    .as_ref()
-                    .map(|money| money.amount())
-                    .map(|a| a.get_amount_as_i64())
-                    .unwrap_or(0),
-            ),
+            value: router_data
+                .request
+                .money
+                .as_ref()
+                .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
+                .unwrap_or_else(common_utils::ConnectorMinorUnit::zero),
         };
 
         let authentication_settings =
@@ -1726,9 +1724,8 @@ where
         let router_data = item.router_data;
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
-            value: common_utils::MinorUnit::new(
-                router_data.request.money.amount().get_amount_as_i64(),
-            ),
+            value: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.money),
         };
 
         let initiator = if router_data.request.off_session.unwrap_or(true) {

@@ -1633,7 +1633,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ));
         }
 
-        // Convert amount from MinorUnit to StringMinorUnit if present
+        // Convert amount from ConnectorMinorUnit to StringMinorUnit if present
         let amount = item
             .request
             .money

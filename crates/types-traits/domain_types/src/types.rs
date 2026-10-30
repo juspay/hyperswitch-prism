@@ -5754,7 +5754,12 @@ impl<
             all_keys_required: None, // Field not available in new proto structure
             split_payments: value
                 .split_payments
-                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .map(|split| {
+                    connector_types::SplitPaymentsDetails::foreign_try_from((
+                        split,
+                        merchant_config_currency,
+                    ))
+                })
                 .transpose()?,
             enable_overcapture: None,
             setup_mandate_details: value
@@ -5877,6 +5882,8 @@ impl<
             })
         })?;
 
+        let currency = common_enums::Currency::foreign_try_from(amount.currency())?;
+
         let setup_future_usage = optional_future_usage(value.setup_future_usage)?;
 
         let customer_acceptance = value.customer_acceptance.clone();
@@ -5970,7 +5977,9 @@ impl<
             split_payments: value
                 .split_payments
                 .clone()
-                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .map(|split| {
+                    connector_types::SplitPaymentsDetails::foreign_try_from((split, currency))
+                })
                 .transpose()?,
             authentication_data: value
                 .authentication_data
@@ -8102,20 +8111,22 @@ impl TryFrom<&AuthoriseIntegrityObject> for grpc_api_types::payments::Money {
 
     fn try_from(integrity_obj: &AuthoriseIntegrityObject) -> Result<Self, Self::Error> {
         Ok(Self {
-            minor_amount: integrity_obj.amount.get_amount_as_i64(),
-            currency: grpc_api_types::payments::Currency::foreign_try_from(integrity_obj.currency)
-                .change_context(ConnectorError::ResponseHandlingFailed {
-                    context: ResponseTransformationErrorContext {
-                        http_status_code: None,
-                        additional_context: Some(
-                            "Failed to convert currency to gRPC Currency type".to_string(),
-                        ),
-                    },
-                })
-                .attach_printable(format!(
-                    "source currency for integrity object: {:?}",
-                    integrity_obj.currency
-                ))? as i32,
+            minor_amount: integrity_obj.money.amount().get_amount_as_i64(),
+            currency: grpc_api_types::payments::Currency::foreign_try_from(
+                integrity_obj.money.currency(),
+            )
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(
+                        "Failed to convert currency to gRPC Currency type".to_string(),
+                    ),
+                },
+            })
+            .attach_printable(format!(
+                "source currency for integrity object: {:?}",
+                integrity_obj.money.currency()
+            ))? as i32,
         })
     }
 }
@@ -8960,6 +8971,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             context: IntegrationErrorContext::default(),
         })?;
         let amount = crate::money::from_proto_money(amount)?;
+        let currency = amount.currency();
         // An empty id from the caller means "no connector transaction id yet". Keep that as
         // `NoResponseId` so connector-level checks (`validate_psync_reference_id`,
         // `get_connector_transaction_id`) reject the sync instead of building a request URL
@@ -9013,7 +9025,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             all_keys_required: None, // Field not available in new proto structure
             split_payments: value
                 .split_payments
-                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .map(|split| {
+                    connector_types::SplitPaymentsDetails::foreign_try_from((split, currency))
+                })
                 .transpose()?,
             setup_future_usage,
             mandate_reference: value
@@ -9888,14 +9902,7 @@ pub fn generate_payment_sync_response(
                         .request
                         .integrity_object
                         .as_ref()
-                        .map(|integrity_object| {
-                            connector_money_to_grpc(
-                                &common_utils::types::MoneyBoundary::from_minor_unit(
-                                    integrity_object.amount,
-                                    integrity_object.currency,
-                                ),
-                            )
-                        })
+                        .map(|integrity_object| connector_money_to_grpc(&integrity_object.money))
                         .transpose()?,
                     payment_method_type: None,
                     capture_method: None,
@@ -10044,14 +10051,7 @@ pub fn generate_payment_sync_response(
                         .request
                         .integrity_object
                         .as_ref()
-                        .map(|integrity_object| {
-                            connector_money_to_grpc(
-                                &common_utils::types::MoneyBoundary::from_minor_unit(
-                                    integrity_object.amount,
-                                    integrity_object.currency,
-                                ),
-                            )
-                        })
+                        .map(|integrity_object| connector_money_to_grpc(&integrity_object.money))
                         .transpose()?,
                     payment_method_type: None,
                     capture_method: None,
@@ -10173,14 +10173,7 @@ pub fn generate_payment_sync_response(
                     .request
                     .integrity_object
                     .as_ref()
-                    .map(|integrity_object| {
-                        connector_money_to_grpc(
-                            &common_utils::types::MoneyBoundary::from_minor_unit(
-                                integrity_object.amount,
-                                integrity_object.currency,
-                            ),
-                        )
-                    })
+                    .map(|integrity_object| connector_money_to_grpc(&integrity_object.money))
                     .transpose()?,
                 payment_method_type: None,
                 capture_method: None,
@@ -10248,7 +10241,18 @@ impl ForeignTryFrom<grpc_api_types::payments::RefundServiceGetRequest> for Refun
             integrity_object: None,
             split_refunds: value
                 .split_refunds
-                .map(connector_types::SplitRefundsDetails::foreign_try_from)
+                .map(|split| {
+                    connector_types::SplitRefundsDetails::foreign_try_from((
+                        split,
+                        common_enums::Currency::foreign_try_from(
+                            value
+                                .refund_amount
+                                .as_ref()
+                                .map(|money| money.currency())
+                                .unwrap_or_default(),
+                        )?,
+                    ))
+                })
                 .transpose()?,
             connector_feature_data: value
                 .connector_feature_data
@@ -11385,7 +11389,12 @@ impl ForeignTryFrom<PaymentServiceVoidRequest> for PaymentVoidData {
             merchant_order_id: value.merchant_order_id,
             split_payments: value
                 .split_payments
-                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .map(|split| {
+                    connector_types::SplitPaymentsDetails::foreign_try_from((
+                        split,
+                        currency.unwrap_or(common_enums::Currency::Unspecified),
+                    ))
+                })
                 .transpose()?,
         })
     }
@@ -12186,14 +12195,27 @@ impl ForeignTryFrom<grpc_api_types::payments::StripeSplitRefundData>
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::AdyenSplitItem> for connector_types::AdyenSplitItem {
+impl
+    ForeignTryFrom<(
+        grpc_api_types::payments::AdyenSplitItem,
+        common_enums::Currency,
+    )> for connector_types::AdyenSplitItem
+{
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::AdyenSplitItem,
+        (value, currency): (
+            grpc_api_types::payments::AdyenSplitItem,
+            common_enums::Currency,
+        ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            amount: value.amount.map(common_utils::types::MinorUnit::new),
+            money: value.amount.map(|amount| {
+                common_utils::types::MoneyBoundary::from_minor_unit(
+                    common_utils::types::MinorUnit::new(amount),
+                    currency,
+                )
+            }),
             split_type: common_enums::AdyenSplitType::foreign_try_from(
                 grpc_api_types::payments::AdyenSplitType::try_from(value.split_type)
                     .unwrap_or_default(),
@@ -12205,52 +12227,75 @@ impl ForeignTryFrom<grpc_api_types::payments::AdyenSplitItem> for connector_type
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::AdyenSplitData> for connector_types::AdyenSplitData {
+impl
+    ForeignTryFrom<(
+        grpc_api_types::payments::AdyenSplitData,
+        common_enums::Currency,
+    )> for connector_types::AdyenSplitData
+{
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::AdyenSplitData,
+        (value, currency): (
+            grpc_api_types::payments::AdyenSplitData,
+            common_enums::Currency,
+        ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             store: value.store,
             split_items: value
                 .split_items
                 .into_iter()
-                .map(connector_types::AdyenSplitItem::foreign_try_from)
+                .map(|item| connector_types::AdyenSplitItem::foreign_try_from((item, currency)))
                 .collect::<Result<Vec<_>, _>>()?,
         })
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::StripeSplitPaymentData>
-    for connector_types::StripeSplitPaymentData
+impl
+    ForeignTryFrom<(
+        grpc_api_types::payments::StripeSplitPaymentData,
+        common_enums::Currency,
+    )> for connector_types::StripeSplitPaymentData
 {
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::StripeSplitPaymentData,
+        (value, currency): (
+            grpc_api_types::payments::StripeSplitPaymentData,
+            common_enums::Currency,
+        ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             charge_type: common_enums::PaymentChargeType::foreign_try_from(
                 grpc_api_types::payments::PaymentChargeType::try_from(value.charge_type)
                     .unwrap_or_default(),
             )?,
-            application_fees: value
-                .application_fees
-                .map(common_utils::types::MinorUnit::new),
+            application_fee_money: value.application_fees.map(|amount| {
+                common_utils::types::MoneyBoundary::from_minor_unit(
+                    common_utils::types::MinorUnit::new(amount),
+                    currency,
+                )
+            }),
             transfer_account_id: value.transfer_account_id,
             on_behalf_of: value.on_behalf_of,
         })
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::SplitPaymentsDetails>
-    for connector_types::SplitPaymentsDetails
+impl
+    ForeignTryFrom<(
+        grpc_api_types::payments::SplitPaymentsDetails,
+        common_enums::Currency,
+    )> for connector_types::SplitPaymentsDetails
 {
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::SplitPaymentsDetails,
+        (value, currency): (
+            grpc_api_types::payments::SplitPaymentsDetails,
+            common_enums::Currency,
+        ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         match value.split_payment_type {
             Some(
@@ -12258,14 +12303,14 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitPaymentsDetails>
                     s,
                 ),
             ) => Ok(connector_types::SplitPaymentsDetails::StripeSplitPayment(
-                connector_types::StripeSplitPaymentData::foreign_try_from(s)?,
+                connector_types::StripeSplitPaymentData::foreign_try_from((s, currency))?,
             )),
             Some(
                 grpc_api_types::payments::split_payments_details::SplitPaymentType::AdyenSplitPayment(
                     a,
                 ),
             ) => Ok(connector_types::SplitPaymentsDetails::AdyenSplitPayment(
-                connector_types::AdyenSplitData::foreign_try_from(a)?,
+                connector_types::AdyenSplitData::foreign_try_from((a, currency))?,
             )),
             None => Err(IntegrationError::MissingRequiredField {
                 field_name: "split_payments_request",
@@ -12276,13 +12321,19 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitPaymentsDetails>
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::SplitRefundsDetails>
-    for connector_types::SplitRefundsDetails
+impl
+    ForeignTryFrom<(
+        grpc_api_types::payments::SplitRefundsDetails,
+        common_enums::Currency,
+    )> for connector_types::SplitRefundsDetails
 {
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::SplitRefundsDetails,
+        (value, currency): (
+            grpc_api_types::payments::SplitRefundsDetails,
+            common_enums::Currency,
+        ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         match value.split_refund_type {
             Some(
@@ -12297,7 +12348,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitRefundsDetails>
                     a,
                 ),
             ) => Ok(connector_types::SplitRefundsDetails::AdyenSplitRefund(
-                connector_types::AdyenSplitData::foreign_try_from(a)?,
+                connector_types::AdyenSplitData::foreign_try_from((a, currency))?,
             )),
             None => Err(IntegrationError::MissingRequiredField {
                 field_name: "split_refunds_request",
@@ -12541,7 +12592,7 @@ impl ForeignFrom<common_enums::PaymentChargeType> for grpc_api_types::payments::
 impl ForeignFrom<connector_types::AdyenSplitItem> for grpc_api_types::payments::AdyenSplitItem {
     fn foreign_from(item: connector_types::AdyenSplitItem) -> Self {
         Self {
-            amount: item.amount.map(|a| a.get_amount_as_i64()),
+            amount: item.money.map(|money| money.amount().get_amount_as_i64()),
             split_type: grpc_api_types::payments::AdyenSplitType::foreign_from(item.split_type)
                 as i32,
             account: item.account,
@@ -12572,7 +12623,9 @@ impl ForeignFrom<connector_types::StripeSplitResponseData>
             charge_id: data.charge_id,
             charge_type: grpc_api_types::payments::PaymentChargeType::foreign_from(data.charge_type)
                 as i32,
-            application_fees: data.application_fees.map(|a| a.get_amount_as_i64()),
+            application_fees: data
+                .application_fee_money
+                .map(|money| money.amount().get_amount_as_i64()),
             transfer_account_id: data.transfer_account_id,
             on_behalf_of: data.on_behalf_of,
         }
@@ -12671,7 +12724,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
             integrity_object: None,
             split_refunds: value
                 .split_refunds
-                .map(connector_types::SplitRefundsDetails::foreign_try_from)
+                .map(|split| {
+                    connector_types::SplitRefundsDetails::foreign_try_from((split, currency))
+                })
                 .transpose()?,
             connector_order_id: value.connector_order_id,
             payment_method_data: value
@@ -13157,7 +13212,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
                 .transpose()?,
             split_payments: value
                 .split_payments
-                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .map(|split| {
+                    connector_types::SplitPaymentsDetails::foreign_try_from((
+                        split,
+                        amount.currency(),
+                    ))
+                })
                 .transpose()?,
         })
     }
@@ -14042,7 +14102,12 @@ impl<
             split_payments: value
                 .split_payments
                 .clone()
-                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .map(|split| {
+                    connector_types::SplitPaymentsDetails::foreign_try_from((
+                        split,
+                        amount.currency(),
+                    ))
+                })
                 .transpose()?,
             authentication_data: value
                 .authentication_data
@@ -15966,7 +16031,18 @@ impl ForeignTryFrom<PaymentServiceAuthorizeRequest> for ConnectorCustomerData {
             description: None,
             split_payments: value
                 .split_payments
-                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .map(|split| {
+                    connector_types::SplitPaymentsDetails::foreign_try_from((
+                        split,
+                        common_enums::Currency::foreign_try_from(
+                            value
+                                .amount
+                                .as_ref()
+                                .map(|money| money.currency())
+                                .unwrap_or_default(),
+                        )?,
+                    ))
+                })
                 .transpose()?,
             phone: None,
             preprocessing_id: None,
@@ -16190,7 +16266,9 @@ impl<
                 .map(IntegritySpecifications::from),
             split_payments: value
                 .split_payments
-                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .map(|split| {
+                    connector_types::SplitPaymentsDetails::foreign_try_from((split, currency))
+                })
                 .transpose()?,
             connector_feature_data: value
                 .connector_feature_data
@@ -16919,7 +16997,12 @@ impl ForeignTryFrom<grpc_api_types::payments::CustomerServiceCreateRequest>
             description: None, // description field not available in this proto
             split_payments: value
                 .split_payments
-                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .map(|split| {
+                    connector_types::SplitPaymentsDetails::foreign_try_from((
+                        split,
+                        common_enums::Currency::Unspecified,
+                    ))
+                })
                 .transpose()?,
             phone: None,
             preprocessing_id: None,
@@ -17337,7 +17420,12 @@ impl<
             off_session: value.off_session,
             split_payments: value
                 .split_payments
-                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .map(|split| {
+                    connector_types::SplitPaymentsDetails::foreign_try_from((
+                        split,
+                        amount.currency(),
+                    ))
+                })
                 .transpose()?,
             recurring_mandate_payment_data: match value.original_payment_authorized_amount {
                 Some(money) => Some(RecurringMandatePaymentData {
@@ -17550,12 +17638,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                             .integrity_object
                             .as_ref()
                             .map(|integrity_object| {
-                                connector_money_to_grpc(
-                                    &common_utils::types::MoneyBoundary::from_minor_unit(
-                                        integrity_object.amount,
-                                        integrity_object.currency,
-                                    ),
-                                )
+                                connector_money_to_grpc(&integrity_object.money)
                             })
                             .transpose()?,
                         incremental_authorization_allowed,
@@ -17642,14 +17725,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                         .request
                         .integrity_object
                         .as_ref()
-                        .map(|integrity_object| {
-                            connector_money_to_grpc(
-                                &common_utils::types::MoneyBoundary::from_minor_unit(
-                                    integrity_object.amount,
-                                    integrity_object.currency,
-                                ),
-                            )
-                        })
+                        .map(|integrity_object| connector_money_to_grpc(&integrity_object.money))
                         .transpose()?,
                     incremental_authorization_allowed: None,
                     splits: None,
@@ -22561,7 +22637,7 @@ impl ForeignFrom<payment_method_data::PaymentMethodDetails>
                                 grpc_api_types::payments::WalletStatus::foreign_from(status).into()
                             }),
                             wallet_holder_name: wallet.wallet_holder_name,
-                            balance: wallet.balance.map(|b| b.get_amount_as_i64()),
+                            balance: wallet.balance_money.map(|money| money.amount().get_amount_as_i64()),
                             product_id: wallet.product_id,
                             items: wallet
                                 .items

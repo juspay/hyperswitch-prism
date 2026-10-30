@@ -160,7 +160,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== MACRO-BASED CONNECTOR IMPLEMENTATION =====
 // Define connector struct and bridges for all flows
-macros::create_amount_converter_wrapper!(connector_name: Shift4, amount_type: MinorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Shift4, amount_type: ConnectorMinorUnit);
 
 macros::create_all_prerequisites!(
     connector_name: Shift4,

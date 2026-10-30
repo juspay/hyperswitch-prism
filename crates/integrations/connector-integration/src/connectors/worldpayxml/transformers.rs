@@ -1602,7 +1602,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .money
             .as_ref()
-            .map(|money| money.amount())
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
             .is_some_and(|amount| amount.get_amount_as_i64() > 0)
         {
             return Err(IntegrationError::FlowNotSupported {
