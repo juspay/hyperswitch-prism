@@ -5,45 +5,51 @@ use std::fmt::Debug;
 use super::macros;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::WebhookError;
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PostAuthenticate, PreAuthenticate,
         RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SetupMandateRequestData,
+        ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets, EventContext, EventType,
+        PaymentFlowData, PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ResponseId, SetupMandateRequestData,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
 };
-use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface};
+use error_stack::{Report, ResultExt};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
-    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
-    decode::BodyDecoding, verification::SourceVerification,
+    api::ConnectorCommon,
+    connector_integration_v2::ConnectorIntegrationV2,
+    connector_types::{self, AuthenticationStep, RedirectState},
+    decode::BodyDecoding,
+    verification::SourceVerification,
 };
 use serde::Serialize;
 use transformers as nexixpay;
 use transformers::{
-    NexixpayCaptureRequest, NexixpayCaptureResponse, NexixpayClientAuthRequest,
-    NexixpayClientAuthResponse, NexixpayMandatePaymentRequest, NexixpayPaymentsRequest,
-    NexixpayPaymentsResponse, NexixpayPostAuthenticateRequest, NexixpayPostAuthenticateResponse,
-    NexixpayPreAuthenticateRequest, NexixpayPreAuthenticateResponse, NexixpayRSyncResponse,
-    NexixpayRefundRequest, NexixpayRefundResponse, NexixpayRepeatPaymentResponse,
-    NexixpaySetupMandateRequest, NexixpaySetupMandateResponse, NexixpaySyncResponse,
-    NexixpayVoidRequest, NexixpayVoidResponse,
+    NexixpayAuthorizeRequest, NexixpayAuthorizeResponse, NexixpayCaptureRequest,
+    NexixpayCaptureResponse, NexixpayClientAuthRequest, NexixpayClientAuthResponse,
+    NexixpayMandatePaymentRequest, NexixpayPostAuthenticateRequest,
+    NexixpayPostAuthenticateResponse, NexixpayPreAuthenticateRequest,
+    NexixpayPreAuthenticateResponse, NexixpayRSyncResponse, NexixpayRefundRequest,
+    NexixpayRefundResponse, NexixpayRepeatPaymentResponse, NexixpaySetupMandateRequest,
+    NexixpaySetupMandateResponse, NexixpaySyncResponse, NexixpayVoidRequest, NexixpayVoidResponse,
 };
 
 pub(crate) mod headers {
@@ -60,8 +66,8 @@ macros::create_all_prerequisites!(
     api: [
         (
             flow: Authorize,
-            request_body: NexixpayPaymentsRequest,
-            response_body: NexixpayPaymentsResponse,
+            request_body: NexixpayAuthorizeRequest,
+            response_body: NexixpayAuthorizeResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
@@ -125,31 +131,6 @@ macros::create_all_prerequisites!(
     ],
     amount_converters: [],
     member_functions: {
-        /// Helper function to extract operationId from connector_feature_data
-        /// Used in PostAuthenticate flow to get the operationId from PreAuthenticate
-        pub fn extract_operation_id_from_metadata<F, Req, Res>(
-            req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
-        ) -> CustomResult<String, IntegrationError> {
-            let metadata_obj = req
-                .resource_common_data
-                .connector_feature_data
-                .as_ref()
-                .and_then(|metadata| metadata.peek().as_object())
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "connector_feature_data",
-                context: Default::default()
-                })?;
-
-            metadata_obj
-                .get("operationId")
-                .and_then(|value| value.as_str())
-                .map(|s| s.to_string())
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "connector_feature_data.operationId",
-                context: Default::default()
-                }.into())
-        }
-
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
@@ -272,6 +253,151 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Nexixpay<T>
 {
+    /// Always reports the notification as unverified (`Ok(false)`), by design.
+    ///
+    /// Nexi signs nothing. The only authenticity proof XPay documents is that the body's
+    /// `securityToken` matches the per-transaction token Nexi returned when the order was
+    /// initialised through HPP / Build / PayByLink / googlepay ("Only if there is a match can
+    /// the notification be considered valid", spec: Webhook Authentication). The S2S 3steps
+    /// flow returns no such token, and this trait receives no per-transaction state, so there
+    /// is nothing trustworthy to compare against. Comparing to a static configured secret is
+    /// not an authenticity check: a forged body carrying that value would verify.
+    ///
+    /// Failing closed keeps the event parsed and mapped while Hyperswitch treats it as
+    /// unverified and confirms the payment/refund state through PSync / RSync.
+    fn verify_webhook_source(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, Report<WebhookError>> {
+        Ok(false)
+    }
+
+    fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
+        let notification = nexixpay::parse_nexixpay_webhook(&request.body)?;
+        nexixpay::get_nexixpay_webhook_event_type(&notification.operation)
+            .ok_or_else(|| WebhookError::WebhookEventTypeNotFound.into())
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
+        let notification = nexixpay::parse_nexixpay_webhook(&request.body)?;
+        let operation = notification.operation;
+        Ok(
+            match nexixpay::get_nexixpay_webhook_event_type(&operation) {
+                // orderId is the connector_transaction_id of every Nexi payment flow.
+                Some(event) if event.is_payment_event() => {
+                    Some(WebhookResourceReference::Payment(PaymentWebhookReference {
+                        connector_transaction_id: Some(operation.order_id),
+                        merchant_transaction_id: None,
+                        connector_preprocessing_id: None,
+                    }))
+                }
+                // The refund's operationId is the connector_refund_id returned by Refund.
+                Some(event) if event.is_refund_event() => {
+                    Some(WebhookResourceReference::Refund(RefundWebhookReference {
+                        connector_refund_id: Some(operation.operation_id),
+                        merchant_refund_id: None,
+                        connector_transaction_id: Some(operation.order_id),
+                        merchant_transaction_id: None,
+                    }))
+                }
+                Some(_) | None => None,
+            },
+        )
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
+        let notification = nexixpay::parse_nexixpay_webhook(&request.body)?;
+        let operation = notification.operation;
+        match nexixpay::get_nexixpay_webhook_event_type(&operation) {
+            Some(event) if event.is_payment_event() => {}
+            Some(_) | None => return Err(WebhookError::WebhookEventTypeNotFound.into()),
+        }
+        // The notification's operation has the shape of GET /operations, so it maps onto the
+        // attempt status as PSync does -- except for PENDING, which a notification must not
+        // report as AuthenticationPending: see `get_webhook_attempt_status`.
+        let status = nexixpay::get_webhook_attempt_status(&operation, AttemptStatus::Pending);
+        let (error_code, error_message, error_reason) = if status == AttemptStatus::Failure {
+            let result = operation.operation_result.to_string();
+            (
+                Some(consts::NO_ERROR_CODE.to_string()),
+                Some(result.clone()),
+                Some(result),
+            )
+        } else {
+            (None, None, None)
+        };
+        Ok(WebhookDetailsResponse {
+            resource_id: Some(ResponseId::ConnectorTransactionId(
+                operation.order_id.clone(),
+            )),
+            status,
+            connector_response_reference_id: Some(operation.order_id),
+            connector_request_reference_id: None,
+            mandate_reference: None,
+            error_code,
+            error_message,
+            error_reason,
+            raw_connector_response: None,
+            status_code: 200,
+            response_headers: None,
+            amount_captured: None,
+            network_txn_id: None,
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
+        let notification = nexixpay::parse_nexixpay_webhook(&request.body)?;
+        let operation = notification.operation;
+        match nexixpay::get_nexixpay_webhook_event_type(&operation) {
+            Some(event) if event.is_refund_event() => {}
+            Some(_) | None => return Err(WebhookError::WebhookEventTypeNotFound.into()),
+        }
+        let status = nexixpay::get_nexixpay_webhook_refund_status(&operation.operation_result)
+            .ok_or(WebhookError::WebhookEventTypeNotFound)?;
+        let (error_code, error_message) = if status == RefundStatus::Failure {
+            (
+                Some(consts::NO_ERROR_CODE.to_string()),
+                Some(operation.operation_result.to_string()),
+            )
+        } else {
+            (None, None)
+        };
+        Ok(RefundWebhookDetailsResponse {
+            connector_refund_id: Some(operation.operation_id),
+            merchant_transaction_id: None,
+            status,
+            connector_response_reference_id: Some(operation.order_id),
+            error_code,
+            error_message,
+            raw_connector_response: None,
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+
+    /// The documented XPay notification example (spec: Webhook Payload Structure).
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"eventId":"554ccc00-28fb-4344-a3fa-4bb8d1999bd5","eventTime":"2022-09-01T01:20:00.001Z","securityToken":"2f0ea5059b41414ca3744fe672327d85","operation":{"orderId":"btid2384983","operationId":"3470744","channel":"ECOMMERCE","operationType":"CAPTURE","operationResult":"EXECUTED","operationTime":"2022-09-01T01:20:00.001Z","paymentMethod":"CARD","paymentCircuit":"VISA","paymentInstrumentInfo":"***6152","paymentEndToEndId":"e723hedsdew","cancelledOperationId":"","operationAmount":"3545","operationCurrency":"EUR","additionalData":{"authorizationCode":"647189","cardCountry":"ITA","threeDS":"FULL_SECURE","schemaTID":"MCS01198U"}}}"#
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Nexixpay<T>
@@ -290,6 +416,42 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Nexixpay<T>
 {
+    /// Nexi card 3DS is two server-to-server legs around a browser ACS step:
+    /// PreAuthenticate (`/orders/3steps/init`) -> [cardholder at the ACS] ->
+    /// PostAuthenticate (`/orders/3steps/validation`) -> Authorize
+    /// (`/orders/3steps/payment`, the only charging call). Nexi has no S2S Authenticate
+    /// call, so that step is never returned.
+    ///
+    /// Termination: the PostAuthenticate-completed arm comes first and returns
+    /// Authorize, so after PostAuthenticate the loop always ends; PreAuthenticate is
+    /// returned only from (InitialRequest, None), so it runs at most once; a
+    /// frictionless init (no threeDSAuthUrl, so no redirect and no break) falls through
+    /// to Authorize.
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: common_enums::PaymentMethod,
+        redirect_state: RedirectState,
+        completed_step: Option<AuthenticationStep>,
+    ) -> AuthenticationStep {
+        if auth_type != common_enums::AuthenticationType::ThreeDs
+            || payment_method != common_enums::PaymentMethod::Card
+        {
+            return AuthenticationStep::Authorize;
+        }
+        match (redirect_state, completed_step) {
+            (_, Some(AuthenticationStep::PostAuthenticate)) => AuthenticationStep::Authorize,
+            (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
+            (RedirectState::InitialRequest, Some(AuthenticationStep::PreAuthenticate)) => {
+                AuthenticationStep::Authorize
+            }
+            (
+                RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams,
+                None | Some(AuthenticationStep::PreAuthenticate),
+            ) => AuthenticationStep::PostAuthenticate,
+            _ => AuthenticationStep::Authorize,
+        }
+    }
 }
 
 // ===== CONNECTOR CUSTOMER TRAIT IMPLEMENTATIONS =====
@@ -298,8 +460,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Nexixpay,
-    curl_request: Json(NexixpayPaymentsRequest<T>),
-    curl_response: NexixpayPaymentsResponse,
+    curl_request: Json(NexixpayAuthorizeRequest<T>),
+    curl_response: NexixpayAuthorizeResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsAuthorizeData<T>,
@@ -318,7 +480,15 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/orders/3steps/payment", self.connector_base_url_payments(req)))
+            // One Authorize flow serves both Nexi charging endpoints, chosen by payment
+            // method: Google Pay (PSP decryption) or the 3-step card payment.
+            match &req.request.payment_method_data {
+                PaymentMethodData::Wallet(WalletData::GooglePay(_)) => Ok(format!(
+                    "{}/orders/googlepay",
+                    self.connector_base_url_payments(req)
+                )),
+                _ => Ok(format!("{}/orders/3steps/payment", self.connector_base_url_payments(req))),
+            }
         }
     }
 );
@@ -347,21 +517,18 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let operation_id = if let Some(metadata) = req.resource_common_data.connector_feature_data.as_ref() {
-                // Try to use dynamic selection based on psync_flow
-                nexixpay::get_payment_id(
-                    Some(metadata.peek().clone()),
-                    None // Use psync_flow from metadata
-                ).unwrap_or_else(|_| {
-                    // Fallback to connector_transaction_id if dynamic selection fails
-                    req.request.get_connector_transaction_id()
-                        .unwrap_or_else(|_| "unknown".to_string())
-                })
-            } else {
-                // No metadata available, use connector_transaction_id
-                req.request.get_connector_transaction_id()
-                    .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?
-            };
+            // GET /operations/{operationId} addresses a Nexi operation, never the orderId:
+            // psyncFlow in connector_feature_data selects the authorization, capture or
+            // cancel operationId (Hyperswitch get_payment_id). Absent feature data or a
+            // missing id fails closed; there is no connector_transaction_id fallback, since
+            // /operations/{orderId} is a guaranteed 404.
+            let operation_id = nexixpay::get_payment_id(
+                req.resource_common_data
+                    .connector_feature_data
+                    .as_ref()
+                    .map(|metadata| metadata.peek().clone()),
+                None,
+            )?;
             Ok(format!("{}/operations/{}", self.connector_base_url_payments(req), operation_id))
         }
     }
@@ -398,19 +565,28 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let operation_id = if let Some(metadata) = req.resource_common_data.connector_feature_data.as_ref() {
-                // Try to get authorization operation ID from metadata
-                nexixpay::get_payment_id(
-                    Some(metadata.peek().clone()),
-                    Some(nexixpay::NexixpayPaymentIntent::Authorize)
-                ).unwrap_or_else(|_| {
-                    // Fallback to connector_transaction_id if dynamic selection fails
-                    req.request.connector_transaction_id.clone()
-                })
-            } else {
-                // No metadata available, use connector_transaction_id
-                req.request.connector_transaction_id.clone()
-            };
+            // Void is an online reversal: POST /operations/{operationId}/refunds on the
+            // authorization operation, whose operationId only connector_feature_data carries.
+            // connector_transaction_id is the Nexi orderId, which this endpoint cannot
+            // address, so there is no fallback: absent feature data or a missing
+            // authorizationOperationId fails closed before any HTTP call (Hyperswitch
+            // MissingRequiredField parity).
+            let metadata = req
+                .resource_common_data
+                .connector_feature_data
+                .as_ref()
+                .map(|metadata| metadata.peek().clone())
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "connector_feature_data.authorizationOperationId",
+                    context: nexixpay::nexi_ctx(
+                        "Pass back the connector_feature_data returned by the Nexixpay Authorize call unchanged; it carries the authorization operationId.",
+                        "Nexi voids address POST /operations/{authorizationOperationId}/refunds; the orderId in connector_transaction_id cannot be used.",
+                    ),
+                })?;
+            let operation_id = nexixpay::get_payment_id(
+                Some(metadata),
+                Some(nexixpay::NexixpayPaymentIntent::Authorize),
+            )?;
             Ok(format!("{}/operations/{}/refunds", self.connector_base_url_payments(req), operation_id))
         }
     }
@@ -447,21 +623,27 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let operation_id = if let Some(metadata) = req.resource_common_data.connector_feature_data.as_ref() {
-                // Try to get authorization operation ID from metadata
-                nexixpay::get_payment_id(
-                    Some(metadata.peek().clone()),
-                    Some(nexixpay::NexixpayPaymentIntent::Authorize)
-                ).unwrap_or_else(|_| {
-                    // Fallback to connector_transaction_id if dynamic selection fails
-                    req.request.get_connector_transaction_id()
-                        .unwrap_or_else(|_| "unknown".to_string())
-                })
-            } else {
-                // No metadata available, use connector_transaction_id
-                req.request.get_connector_transaction_id()
-                    .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?
-            };
+            // POST /operations/{operationId}/captures confirms the authorization operation,
+            // whose operationId only connector_feature_data carries. connector_transaction_id
+            // is the Nexi orderId, which this endpoint cannot address, so there is no
+            // fallback: absent feature data or a missing authorizationOperationId fails
+            // closed before any HTTP call (Hyperswitch MissingRequiredField parity).
+            let metadata = req
+                .resource_common_data
+                .connector_feature_data
+                .as_ref()
+                .map(|metadata| metadata.peek().clone())
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "connector_feature_data.authorizationOperationId",
+                    context: nexixpay::nexi_ctx(
+                        "Pass back the connector_feature_data returned by the Nexixpay Authorize call unchanged; it carries the authorization operationId.",
+                        "Nexi captures address POST /operations/{authorizationOperationId}/captures; the orderId in connector_transaction_id cannot be used.",
+                    ),
+                })?;
+            let operation_id = nexixpay::get_payment_id(
+                Some(metadata),
+                Some(nexixpay::NexixpayPaymentIntent::Authorize),
+            )?;
             Ok(format!("{}/operations/{}/captures", self.connector_base_url_payments(req), operation_id))
         }
     }
@@ -496,19 +678,29 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let operation_id = if let Some(metadata) = req.request.connector_feature_data.clone() {
-                // Try to get capture operation ID from metadata
-                nexixpay::get_payment_id(
-                    Some(metadata.expose()),
-                    Some(nexixpay::NexixpayPaymentIntent::Capture)
-                ).unwrap_or_else(|_| {
-                    // Fallback to connector_transaction_id if dynamic selection fails
-                    req.request.connector_transaction_id.clone()
-                })
-            } else {
-                // No metadata available, use connector_transaction_id
-                req.request.connector_transaction_id.clone()
-            };
+            // Refunds address POST /operations/{captureOperationId}/refunds. On explicit
+            // terminals that is the Capture operation; on implicit (auto-captured) ones the
+            // payment operation, which the Authorize response mapper records as
+            // captureOperationId. connector_transaction_id is the Nexi orderId, which this
+            // endpoint cannot address, so there is no fallback: absent feature data or a
+            // missing captureOperationId fails closed before any HTTP call (Hyperswitch
+            // MissingRequiredField parity).
+            let metadata = req
+                .request
+                .connector_feature_data
+                .as_ref()
+                .map(|metadata| metadata.peek().clone())
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "connector_feature_data.captureOperationId",
+                    context: nexixpay::nexi_ctx(
+                        "Pass back the connector_feature_data returned by the Nexixpay Authorize or Capture call unchanged; it carries the capture operationId.",
+                        "Nexi refunds address POST /operations/{captureOperationId}/refunds; the orderId in connector_transaction_id cannot be used.",
+                    ),
+                })?;
+            let operation_id = nexixpay::get_payment_id(
+                Some(metadata),
+                Some(nexixpay::NexixpayPaymentIntent::Capture),
+            )?;
             Ok(format!("{}/operations/{}/refunds", self.connector_base_url_refunds(req), operation_id))
         }
     }
@@ -538,7 +730,20 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
+            // GET /operations/ with an empty id addresses a different resource, so an empty
+            // connector_refund_id fails closed before any HTTP call (Hyperswitch
+            // get_connector_refund_id parity).
             let connector_refund_id = &req.request.connector_refund_id;
+            if connector_refund_id.trim().is_empty() {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "connector_refund_id",
+                    context: nexixpay::nexi_ctx(
+                        "Pass the connector_refund_id returned by the Nexixpay Refund call (the refund operationId).",
+                        "Nexi refund sync addresses GET /operations/{operationId}; an empty operationId cannot identify the refund.",
+                    ),
+                }
+                .into());
+            }
             Ok(format!("{}/operations/{}", self.connector_base_url_refunds(req), connector_refund_id))
         }
     }
@@ -745,11 +950,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = nexixpay::NexixpayAuthType::try_from(auth_type).change_context(
             IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: nexixpay::nexi_ctx(
+                    "Send x-connector-config with a Nexixpay entry carrying api_key.",
+                    "Nexi requires the X-Api-Key header on every call.",
+                ),
             },
         )?;
         Ok(vec![
-            (headers::X_API_KEY.to_string(), auth.api_key.expose().into()),
+            (headers::X_API_KEY.to_string(), auth.api_key.into_masked()),
             (
                 headers::CORRELATION_ID.to_string(),
                 common_utils::fp_utils::generate_uuid_v4().into(),
@@ -763,6 +971,37 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
+        // Nexi answers 401 and 404 with an empty body; Hyperswitch fabricates canonical
+        // errors for those, and treats any other empty body as NO_ERROR_CODE.
+        let empty_body_error = |message: &str, reason: Option<String>| ErrorResponse {
+            status_code: res.status_code,
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: message.to_string(),
+            reason,
+            attempt_status: None,
+            connector_transaction_id: None,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+        };
+        match res.status_code {
+            401 => {
+                return Ok(empty_body_error(
+                    "UNAUTHORIZED",
+                    Some("UNAUTHORIZED".to_string()),
+                ))
+            }
+            404 => return Ok(empty_body_error("NOT FOUND", Some("NOT FOUND".to_string()))),
+            _ if res.response.is_empty() => {
+                return Ok(empty_body_error(consts::NO_ERROR_MESSAGE, None))
+            }
+            _ => {}
+        }
+
         let response: nexixpay::NexixpayErrorResponse = res
             .response
             .parse_struct("NexixpayErrorResponse")

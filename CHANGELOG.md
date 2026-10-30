@@ -19,6 +19,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.10.30.0
+
+### Features
+
+- **connector:**
+  - [JPMorgan] Add support for partial auth, statement descriptor and issuer details ([#2598](https://github.com/juspay/connector-service/pull/2598)) ([`6d53d6d`](https://github.com/juspay/connector-service/commit/6d53d6dbd77f30f943b13b9218f82d8aef1f0983))
+  - [PPRO] add Satispay Intent and QR support ([#2018](https://github.com/juspay/connector-service/pull/2018)) ([`4c7a094`](https://github.com/juspay/connector-service/commit/4c7a094f35b25c19f678028f87b42369dcb54d25))
+  - [Noon] add 10 flows (Authorize, PSync, Capture, Void, Refund, RSync, ...) ([#2577](https://github.com/juspay/connector-service/pull/2577)) ([`190232b`](https://github.com/juspay/connector-service/commit/190232ba063e17349267b352104fc5323e373eef))
+  - Add Worldpay raft network token cit and mit flow ([#2635](https://github.com/juspay/connector-service/pull/2635)) ([`1cabb5c`](https://github.com/juspay/connector-service/commit/1cabb5c6fbfa61ccbe3ab65ae4ee29bc2135ab38))
+  - Tamara riskdata ([#2582](https://github.com/juspay/connector-service/pull/2582)) ([`5b10ef5`](https://github.com/juspay/connector-service/commit/5b10ef5a617e7a1993e78509164a195f2a599251))
+  - Add Betterpayment Wero integration ([#2465](https://github.com/juspay/connector-service/pull/2465)) ([`fe20bb1`](https://github.com/juspay/connector-service/commit/fe20bb134077acc2f0148a4705b6bc64485cd5d0))
+- **observability:** Expose outgoing API overhead for composite calls ([#2594](https://github.com/juspay/connector-service/pull/2594)) ([`86921ee`](https://github.com/juspay/connector-service/commit/86921eeb10500e905bd41f57921e9e05fe81efd3))
+
+### Bug Fixes
+
+- **fiservcommercehub:** Classify oversized RSA payloads as invalid input ([#2580](https://github.com/juspay/connector-service/pull/2580)) ([`225ed26`](https://github.com/juspay/connector-service/commit/225ed26a32c5753963c218a047a33ea29e7a02da))
+- **santander:** Prefer ISPB for Pix payouts and map error statuses ([#2646](https://github.com/juspay/connector-service/pull/2646)) ([`8da24b3`](https://github.com/juspay/connector-service/commit/8da24b335781d591d7f662cf1728f3f1a7385f40))
+- **test:** Keep certification diagnostics local ([#2638](https://github.com/juspay/connector-service/pull/2638)) ([`95bd04d`](https://github.com/juspay/connector-service/commit/95bd04d98172822718bc42c8a96b8b5b6fa7a8d1))
+
+### Refactors
+
+- **psync:** Require explicit reference validation ([#2641](https://github.com/juspay/connector-service/pull/2641)) ([`0dcb463`](https://github.com/juspay/connector-service/commit/0dcb463f7199de188b7c61f36bf2e9424d9a4c47))
+
+**Full Changelog:** [`2026.10.29.0...2026.10.30.0`](https://github.com/juspay/connector-service/compare/2026.10.29.0...2026.10.30.0)
+
+- - -
+
 ## 2026.10.29.0
 
 ### Refactors
