@@ -222,7 +222,7 @@ enabled = false
 # --- Superposition: where policy comes from ---------------------------------
 # source = "file" (default): the baked config/superposition.toml, watched for
 # changes. source = "remote": the same provider over a remote workspace, polled
-# every polling_interval seconds, with the baked file as the provider's init-time
+# every polling_interval_milliseconds, with the baked file as the provider's init-time
 # fallback. Boot never fails because of Superposition: a remote source without
 # endpoint/token/org/workspace, or an unreachable workspace, is reported and the
 # baked file serves policy.
@@ -233,10 +233,8 @@ endpoint = ""                   # e.g. http://superposition.<ns>.svc.cluster.loc
 token = ""                      # secret: CS__SUPERPOSITION__TOKEN from the k8s secret
 org_id = "hyperswitch"
 workspace_id = ""               # the prism workspace
-polling_interval = 15           # seconds
-# polling_interval_milliseconds = 15000  # optional: milliseconds, wins over polling_interval when set
-# request_timeout = 60          # parity with hyperswitch; the provider only logs it today
-# request_timeout_milliseconds = 60000   # optional: milliseconds, wins over request_timeout when set
+polling_interval_milliseconds = 15000   # milliseconds
+# request_timeout_milliseconds = 60000  # milliseconds; bounds each poll (default: no timeout)
 # backup_file_path = ""         # default: the baked config/superposition.toml
 
 # --- Déjà record/replay ---------------------------------------------------------

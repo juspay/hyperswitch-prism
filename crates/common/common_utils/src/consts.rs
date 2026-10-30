@@ -236,9 +236,6 @@ pub const CONFIG_KEY_CONNECTOR_SECONDARY_BASE_URL: &str = "connector_secondary_b
 pub const CONFIG_KEY_CONNECTOR_THIRD_BASE_URL: &str = "connector_third_base_url";
 /// Config key for connector bank redirects base URL
 pub const CONFIG_KEY_CONNECTOR_BASE_URL_BANK_REDIRECTS: &str = "connector_base_url_bank_redirects";
-/// Converts the seconds-based Superposition `polling_interval` and `request_timeout` to the
-/// milliseconds the provider works in
-pub const MILLISECONDS_PER_SECOND: u64 = 1_000;
 
 // =============================================================================
 // Environment and Configuration

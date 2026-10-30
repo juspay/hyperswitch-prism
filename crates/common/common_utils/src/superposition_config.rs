@@ -18,7 +18,6 @@ use crate::consts::{
     CONFIG_KEY_CONNECTOR_BASE_URL, CONFIG_KEY_CONNECTOR_BASE_URL_BANK_REDIRECTS,
     CONFIG_KEY_CONNECTOR_DISPUTE_BASE_URL, CONFIG_KEY_CONNECTOR_SECONDARY_BASE_URL,
     CONFIG_KEY_CONNECTOR_THIRD_BASE_URL, DIMENSION_CONNECTOR, DIMENSION_ENVIRONMENT,
-    MILLISECONDS_PER_SECOND,
 };
 use crate::fp_utils::when;
 
@@ -50,8 +49,10 @@ pub enum SuperpositionConfigError {
 /// prism must boot file-first wherever no workspace exists yet.
 ///
 /// Env overrides: `CS__SUPERPOSITION__{SOURCE,ENDPOINT,TOKEN,ORG_ID,WORKSPACE_ID,
-/// POLLING_INTERVAL,POLLING_INTERVAL_MILLISECONDS,REQUEST_TIMEOUT,
-/// REQUEST_TIMEOUT_MILLISECONDS,BACKUP_FILE_PATH}`.
+/// POLLING_INTERVAL_MILLISECONDS,REQUEST_TIMEOUT_MILLISECONDS,BACKUP_FILE_PATH}`.
+///
+/// The seconds-based `polling_interval` / `request_timeout` keys are no longer read.
+/// Unknown keys are ignored, so a config that still sets them boots on the defaults.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct SuperpositionClientConfig {
@@ -63,16 +64,9 @@ pub struct SuperpositionClientConfig {
     pub token: Secret<String>,
     pub org_id: String,
     pub workspace_id: String,
-    /// Seconds between polls of the remote workspace.
-    pub polling_interval: u64,
-    /// Request timeout in seconds for the poll. Kept for parity with hyperswitch; the
-    /// provider only logs it today.
-    pub request_timeout: Option<u64>,
-    /// Milliseconds between polls of the remote workspace. Takes precedence over
-    /// `polling_interval` when set.
-    pub polling_interval_milliseconds: Option<u64>,
-    /// Request timeout in milliseconds for the poll. Takes precedence over `request_timeout`
-    /// when set.
+    /// Milliseconds between polls of the remote workspace.
+    pub polling_interval_milliseconds: u64,
+    /// Timeout in milliseconds on each poll of the remote workspace (None = no timeout).
     pub request_timeout_milliseconds: Option<u64>,
     /// Fallback the provider loads if the remote source fails at init. Consulted at init
     /// ONLY — after a successful init a failed poll keeps the last good snapshot. Defaults
@@ -88,9 +82,7 @@ impl Default for SuperpositionClientConfig {
             token: Secret::new(String::new()),
             org_id: String::new(),
             workspace_id: String::new(),
-            polling_interval: 15,
-            request_timeout: None,
-            polling_interval_milliseconds: None,
+            polling_interval_milliseconds: 15_000,
             request_timeout_milliseconds: None,
             backup_file_path: None,
         }
@@ -98,24 +90,6 @@ impl Default for SuperpositionClientConfig {
 }
 
 impl SuperpositionClientConfig {
-    /// Poll interval in milliseconds. `polling_interval_milliseconds` wins when set,
-    /// otherwise `polling_interval` (seconds) is converted.
-    pub fn effective_polling_interval_milliseconds(&self) -> u64 {
-        self.polling_interval_milliseconds.unwrap_or_else(|| {
-            self.polling_interval
-                .saturating_mul(MILLISECONDS_PER_SECOND)
-        })
-    }
-
-    /// Request timeout in milliseconds. `request_timeout_milliseconds` wins when set,
-    /// otherwise `request_timeout` (seconds) is converted.
-    pub fn effective_request_timeout_milliseconds(&self) -> Option<u64> {
-        self.request_timeout_milliseconds.or_else(|| {
-            self.request_timeout
-                .map(|seconds| seconds.saturating_mul(MILLISECONDS_PER_SECOND))
-        })
-    }
-
     /// Do the settings describe a workspace at all (endpoint, token, org, workspace)?
     /// hyperswitch's check, field for field. Only meaningful for a remote source. Prism's
     /// loader treats a failure as "remote source off" — reported, then served from the
@@ -197,8 +171,7 @@ impl SuperpositionConfig {
     ///
     /// `source = "remote"` → the workspace as primary with the backup file (default: the
     /// baked file at `baked_path`) as the provider's init-time fallback, polled every
-    /// `polling_interval` seconds (`polling_interval_milliseconds` when set) —
-    /// hyperswitch's `SuperpositionClient::new` shape. If
+    /// `polling_interval_milliseconds` — hyperswitch's `SuperpositionClient::new` shape. If
     /// even that cannot initialise (remote unreachable AND fallback unreadable), boot
     /// continues on the baked file alone, loudly: prism's contract is fail-open.
     ///
@@ -236,15 +209,12 @@ impl SuperpositionConfig {
                     None
                 }
             };
-            let polling_strategy =
-                PollingStrategy::new(settings.effective_polling_interval_milliseconds());
-            let strategy =
-                RefreshStrategy::Polling(match settings.effective_request_timeout_milliseconds() {
-                    Some(timeout_milliseconds) => {
-                        polling_strategy.with_timeout(timeout_milliseconds)
-                    }
-                    None => polling_strategy,
-                });
+            let polling_strategy = PollingStrategy::new(settings.polling_interval_milliseconds);
+            let polling_strategy = match settings.request_timeout_milliseconds {
+                Some(timeout_milliseconds) => polling_strategy.with_timeout(timeout_milliseconds),
+                None => polling_strategy,
+            };
+            let strategy = RefreshStrategy::Polling(polling_strategy);
             match Self::with_sources(
                 Box::new(primary),
                 fallback,
@@ -660,7 +630,7 @@ mod tests {
     fn settings_default_is_the_file_source_with_hyperswitch_polling_interval() {
         let settings = SuperpositionClientConfig::default();
         assert_eq!(settings.source, SuperpositionSource::File);
-        assert_eq!(settings.polling_interval, 15);
+        assert_eq!(settings.polling_interval_milliseconds, 15_000);
         assert!(settings.backup_file_path.is_none());
     }
 
