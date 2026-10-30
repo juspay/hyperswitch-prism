@@ -1813,32 +1813,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Rapyd rejects mandate-setup calls with no amount and silently
         // defaulting here would charge an arbitrary value in the caller's
         // currency (e.g. ¥100 vs $1.00). Require the caller to pass an
-        // explicit verification amount — zero-amount is allowed if the
-        // Rapyd account supports zero-auth.
+        // explicit verification amount.
         let minor_amount = request.amount.as_ref().map(|money| money.amount).ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "minor_amount",
                 context: Default::default(),
             },
         )?;
-        // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
-        let amount = if minor_amount.get_amount_as_i64() == 0 {
-            StringMajorUnit::zero()
-        } else {
-            item.connector
-                .amount_converter
-                .convert(&common_utils::types::Money {
-                    amount: minor_amount,
-                    currency: request.currency,
-                })
-                .change_context(IntegrationError::AmountConversionFailed {
-                    context: crate::utils::amount_conversion_ctx(
-                        "rapyd setup mandate",
-                        &minor_amount,
-                        &request.currency,
+        // A setup mandate is a zero-value verification. A funded request
+        // belongs in Authorize with `setup_future_usage`, where the capture
+        // flow applies.
+        if minor_amount != MinorUnit::zero() {
+            return Err(IntegrationError::NotSupported {
+                message: "Nonzero setup amount".to_owned(),
+                connector: "rapyd",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use a zero-amount SetupMandate, or Authorize to save a payment method while charging."
+                            .to_owned(),
                     ),
-                })?
-        };
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
+        // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
+        let amount = StringMajorUnit::zero();
 
         let payment_method = match &request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
@@ -2030,17 +2030,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 mandate_metadata: None,
                             })
                         });
-                        // A zero-amount verification reaches a terminal
-                        // state; a funded authorization must stay
-                        // Authorized until it is captured.
-                        let is_zero_amount = item
-                            .router_data
-                            .request
-                            .amount
-                            .as_ref()
-                            .is_some_and(|amount| amount.amount == MinorUnit::zero());
+                        // Setup mandate is a zero-value verification, so the
+                        // authorization is its terminal success state.
                         let terminal_status = match attempt_status {
-                            common_enums::AttemptStatus::Authorized if is_zero_amount => {
+                            common_enums::AttemptStatus::Authorized => {
                                 common_enums::AttemptStatus::Charged
                             }
                             status => status,
