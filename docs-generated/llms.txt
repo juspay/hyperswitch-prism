@@ -346,8 +346,8 @@ examples_python: examples/fiservemea/fiservemea.py
 connector_id: fiuu
 doc: docs/connectors/fiuu.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: ApplePayDecrypted, Card, GooglePay, OnlineBankingFpx
-flows: authorize, capture, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+payment_methods: ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted, OnlineBankingFpx
+flows: authenticate, authorize, capture, get, handle_event, parse_event, post_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/fiuu/fiuu.py
 
 ## Flywire

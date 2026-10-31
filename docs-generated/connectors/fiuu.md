@@ -135,7 +135,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L224) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L123) · [Rust](../../examples/fiuu/fiuu.rs#L295)
+**Examples:** [Python](../../examples/fiuu/fiuu.py#L263) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L123) · [Rust](../../examples/fiuu/fiuu.rs#L347)
 
 ### Card Payment (Authorize + Capture)
 
@@ -149,35 +149,37 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L243) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L139) · [Rust](../../examples/fiuu/fiuu.rs#L311)
+**Examples:** [Python](../../examples/fiuu/fiuu.py#L282) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L139) · [Rust](../../examples/fiuu/fiuu.rs#L363)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L268) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L161) · [Rust](../../examples/fiuu/fiuu.rs#L334)
+**Examples:** [Python](../../examples/fiuu/fiuu.py#L307) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L161) · [Rust](../../examples/fiuu/fiuu.rs#L386)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L293) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L183) · [Rust](../../examples/fiuu/fiuu.rs#L357)
+**Examples:** [Python](../../examples/fiuu/fiuu.py#L332) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L183) · [Rust](../../examples/fiuu/fiuu.rs#L409)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L315) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L202) · [Rust](../../examples/fiuu/fiuu.rs#L376)
+**Examples:** [Python](../../examples/fiuu/fiuu.py#L354) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L202) · [Rust](../../examples/fiuu/fiuu.rs#L428)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
+| [PaymentMethodAuthenticationService.Authenticate](#paymentmethodauthenticationserviceauthenticate) | Authentication | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 | [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
+| [PaymentMethodAuthenticationService.PostAuthenticate](#paymentmethodauthenticationservicepostauthenticate) | Authentication | `PaymentMethodAuthenticationServicePostAuthenticateRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
@@ -203,12 +205,12 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 |----------------|:---------:|
 | Card | ✓ |
 | Bancontact | x |
-| Apple Pay | ⚠ |
+| Apple Pay | ✓ |
 | Apple Pay Dec | ✓ |
-| Apple Pay SDK | ⚠ |
+| Apple Pay SDK | x |
 | Google Pay | ✓ |
-| Google Pay Dec | ? |
-| Google Pay SDK | ⚠ |
+| Google Pay Dec | ✓ |
+| Google Pay SDK | x |
 | PayPal SDK | ⚠ |
 | Amazon Pay | ⚠ |
 | Cash App | ⚠ |
@@ -340,7 +342,25 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L363) · [Kotlin](../../examples/fiuu/fiuu.kt#L220) · [Rust](../../examples/fiuu/fiuu.rs)
+##### Apple Pay
+
+```python
+"payment_method": {
+  "apple_pay_sdk": {
+    "payment_data": {
+      "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+    },
+    "payment_method": {
+      "display_name": "Visa 1111",
+      "network": "Visa",
+      "type": "debit"
+    },
+    "transaction_identifier": "probe_txn_id"
+  }
+}
+```
+
+**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L414) · [Kotlin](../../examples/fiuu/fiuu.kt#L247) · [Rust](../../examples/fiuu/fiuu.rs)
 
 #### PaymentService.Capture
 
@@ -351,7 +371,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L372) · [Kotlin](../../examples/fiuu/fiuu.kt#L232) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L423) · [Kotlin](../../examples/fiuu/fiuu.kt#L259) · [Rust](../../examples/fiuu/fiuu.rs)
 
 #### PaymentService.Get
 
@@ -362,7 +382,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L381) · [Kotlin](../../examples/fiuu/fiuu.kt#L242) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L432) · [Kotlin](../../examples/fiuu/fiuu.kt#L269) · [Rust](../../examples/fiuu/fiuu.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -373,7 +393,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L408) · [Kotlin](../../examples/fiuu/fiuu.kt#L281) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L468) · [Kotlin](../../examples/fiuu/fiuu.kt#L334) · [Rust](../../examples/fiuu/fiuu.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -384,7 +404,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L417) · [Kotlin](../../examples/fiuu/fiuu.kt#L311) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L477) · [Kotlin](../../examples/fiuu/fiuu.kt#L364) · [Rust](../../examples/fiuu/fiuu.rs)
 
 #### PaymentService.Refund
 
@@ -395,7 +415,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L435) · [Kotlin](../../examples/fiuu/fiuu.kt#L381) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L495) · [Kotlin](../../examples/fiuu/fiuu.kt#L433) · [Rust](../../examples/fiuu/fiuu.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -406,7 +426,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L453) · [Kotlin](../../examples/fiuu/fiuu.kt#L403) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L513) · [Kotlin](../../examples/fiuu/fiuu.kt#L455) · [Rust](../../examples/fiuu/fiuu.rs)
 
 #### PaymentService.Void
 
@@ -417,7 +437,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts) · [Kotlin](../../examples/fiuu/fiuu.kt#L443) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts) · [Kotlin](../../examples/fiuu/fiuu.kt#L494) · [Rust](../../examples/fiuu/fiuu.rs)
 
 ### Refunds
 
@@ -430,7 +450,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L444) · [Kotlin](../../examples/fiuu/fiuu.kt#L391) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L504) · [Kotlin](../../examples/fiuu/fiuu.kt#L443) · [Rust](../../examples/fiuu/fiuu.rs)
 
 ### Mandates
 
@@ -443,4 +463,28 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L426) · [Kotlin](../../examples/fiuu/fiuu.kt#L344) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L486) · [Kotlin](../../examples/fiuu/fiuu.kt#L396) · [Rust](../../examples/fiuu/fiuu.rs)
+
+### Authentication
+
+#### PaymentMethodAuthenticationService.Authenticate
+
+Execute 3DS challenge or frictionless verification. Authenticates customer via bank challenge or behind-the-scenes verification for fraud prevention.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
+| **Response** | `PaymentMethodAuthenticationServiceAuthenticateResponse` |
+
+**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L405) · [Kotlin](../../examples/fiuu/fiuu.kt#L220) · [Rust](../../examples/fiuu/fiuu.rs)
+
+#### PaymentMethodAuthenticationService.PostAuthenticate
+
+Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentMethodAuthenticationServicePostAuthenticateRequest` |
+| **Response** | `PaymentMethodAuthenticationServicePostAuthenticateResponse` |
+
+**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L459) · [Kotlin](../../examples/fiuu/fiuu.kt#L308) · [Rust](../../examples/fiuu/fiuu.rs)
