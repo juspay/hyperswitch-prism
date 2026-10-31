@@ -357,6 +357,19 @@ pub struct NexinetsPreAuthOrDebitResponse {
     redirect_url: Option<Url>,
 }
 
+impl NexinetsPreAuthOrDebitResponse {
+    pub fn status(&self) -> NexinetsPaymentStatus {
+        self.transactions
+            .first()
+            .map(|transaction| transaction.status.clone())
+            .unwrap_or(NexinetsPaymentStatus::Pending)
+    }
+
+    pub fn transaction_type(&self) -> NexinetsTransactionType {
+        self.transaction_type.clone()
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsTransaction {

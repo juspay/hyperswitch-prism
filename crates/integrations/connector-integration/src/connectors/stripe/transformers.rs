@@ -5701,6 +5701,17 @@ pub enum PaymentSyncResponse {
     SetupMandateResponse(SetupMandateResponse),
 }
 
+impl PaymentSyncResponse {
+    pub fn status(&self) -> StripePaymentStatus {
+        match self {
+            Self::PaymentIntentSyncResponse(response) => {
+                response.payment_intent_fields.status.clone()
+            }
+            Self::SetupMandateResponse(response) => response.status.clone(),
+        }
+    }
+}
+
 impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<PaymentSyncResponse, StripeRouterData<Self, PM>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
@@ -5731,6 +5742,12 @@ impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsAuthorizeResponse(PaymentIntentResponse);
+
+impl PaymentsAuthorizeResponse {
+    pub fn status(&self) -> StripePaymentStatus {
+        self.0.status.clone()
+    }
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<PaymentsAuthorizeResponse, StripeRouterData<Self, T>>>
@@ -5781,6 +5798,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsCaptureResponse(PaymentIntentResponse);
+
+impl PaymentsCaptureResponse {
+    pub fn status(&self) -> StripePaymentStatus {
+        self.0.status.clone()
+    }
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<PaymentsCaptureResponse, StripeRouterData<Self, T>>>
@@ -5838,6 +5861,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsVoidResponse(PaymentIntentResponse);
+
+impl PaymentsVoidResponse {
+    pub fn status(&self) -> StripePaymentStatus {
+        self.0.status.clone()
+    }
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<PaymentsVoidResponse, StripeRouterData<Self, T>>>

@@ -1,6 +1,25 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+/// Connectors whose modification endpoints acknowledge async processing and
+/// report the terminal outcome via webhook or sync.
+pub const ASYNC_ACK_STATUS_MAPPING_CONNECTORS: &[&str] = &[
+    // Capture, and Void acknowledge processing; terminal outcomes arrive via webhooks.
+    "Adyen",
+    // Refund creation returns an identifier and Pending; the terminal outcome arrives via webhook.
+    "Volt",
+    // Refund creation returns an identifier and Pending; RSync or a webhook provides the outcome.
+    "Truelayer",
+    // Authorize and Refund return asynchronous acknowledgements; webhooks provide final outcomes.
+    "Trustly",
+    // Refund reports whether the request was accepted; RSync provides the terminal outcome.
+    "Easebuzz",
+    // Capture acknowledges an asynchronous transfer; PSync provides the terminal outcome.
+    "Finix",
+    // Capture and Refund return operation acknowledgements; sync flows provide final outcomes.
+    "Nexixpay",
+];
+
 /// Currency related errors.
 #[derive(Debug, thiserror::Error)]
 pub enum CurrencyError {
