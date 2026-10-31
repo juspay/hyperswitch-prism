@@ -2,6 +2,37 @@
 target/
 **/target/
 
+# Version-control metadata is not part of the build input
+.git/
+
+# Local environment files and credential material
+**/.env
+**/.env.*
+!**/.env.example
+**/cred*.json
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.jks
+
+# Local logs, database extracts, and generated investigation artifacts
+**/*.log
+**/*.jsonl
+**/*.sql
+**/temp.*
+/*.csv
+/*.json
+/*.md
+/*.txt
+
+# Only the supported runtime configuration files enter the build context
+config/*
+!config/development.toml
+!config/production.toml
+!config/sandbox.toml
+!config/superposition.toml
+
 # sccache cache
 .sccache/
 sccache/
