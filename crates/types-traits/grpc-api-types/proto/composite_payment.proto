@@ -160,6 +160,9 @@ message CompositeAuthorizeRequest {
 
   // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 66;
+
+  // Details about the sender of funds for account-funded transactions.
+  optional SenderDetails sender_details = 67;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -896,6 +899,9 @@ message CompositeVerifyRedirectResponseRequest {
 
   // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 62;
+
+  // Details about the sender of funds for account-funded transactions.
+  optional SenderDetails sender_details = 63;
 }
 
 // Response message for composite verify redirect response flow.
