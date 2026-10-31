@@ -3694,6 +3694,8 @@ impl ForeignTryFrom<grpc_api_types::payments::RequestDetails> for RequestDetails
     }
 }
 
+// Reads the deprecated plain-string fields as a fallback for clients not yet on `*_v2`.
+#[allow(deprecated)]
 impl ForeignTryFrom<grpc_api_types::payments::WebhookSecrets> for ConnectorWebhookSecrets {
     type Error = WebhookError;
 
@@ -3701,8 +3703,14 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookSecrets> for ConnectorWebho
         value: grpc_api_types::payments::WebhookSecrets,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            secret: value.secret.into(),
-            additional_secret: value.additional_secret.map(Secret::new),
+            secret: value
+                .secret_v2
+                .map(|secret| secret.expose())
+                .unwrap_or(value.secret)
+                .into(),
+            additional_secret: value
+                .additional_secret_v2
+                .or_else(|| value.additional_secret.map(Secret::new)),
         })
     }
 }
@@ -3739,6 +3747,8 @@ impl ForeignTryFrom<grpc_api_types::payments::EventContext> for EventContext {
     }
 }
 
+// Reads the deprecated plain-string fields as a fallback for clients not yet on `*_v2`.
+#[allow(deprecated)]
 impl ForeignTryFrom<grpc_api_types::payments::RedirectResponseSecrets>
     for ConnectorRedirectResponseSecrets
 {
@@ -3748,8 +3758,14 @@ impl ForeignTryFrom<grpc_api_types::payments::RedirectResponseSecrets>
         value: grpc_api_types::payments::RedirectResponseSecrets,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            secret: value.secret.into(),
-            additional_secret: value.additional_secret.map(Secret::new),
+            secret: value
+                .secret_v2
+                .map(|secret| secret.expose())
+                .unwrap_or(value.secret)
+                .into(),
+            additional_secret: value
+                .additional_secret_v2
+                .or_else(|| value.additional_secret.map(Secret::new)),
         })
     }
 }

@@ -1527,19 +1527,35 @@ message RequestDetails {
 // Secrets used for verifying connector webhooks.
 message WebhookSecrets {
   // Primary secret for webhook verification.
-  string secret = 1;
+  // Deprecated: plain string, not masked in request logs. Use `secret_v2`.
+  string secret = 1 [deprecated = true];
 
   // Additional secret, if required by the connector.
-  optional string additional_secret = 2;
+  // Deprecated: plain string, not masked in request logs. Use `additional_secret_v2`.
+  optional string additional_secret = 2 [deprecated = true];
+
+  // Primary secret for webhook verification. Takes precedence over `secret`.
+  optional SecretString secret_v2 = 3;
+
+  // Additional secret, if required by the connector. Takes precedence over `additional_secret`.
+  optional SecretString additional_secret_v2 = 4;
 }
 
 // Secrets used for source verification.
 message RedirectResponseSecrets {
   // Primary secret for source verification.
-  string secret = 1;
+  // Deprecated: plain string, not masked in request logs. Use `secret_v2`.
+  string secret = 1 [deprecated = true];
 
   // Additional secret, if required by the connector.
-  optional string additional_secret = 2;
+  // Deprecated: plain string, not masked in request logs. Use `additional_secret_v2`.
+  optional string additional_secret = 2 [deprecated = true];
+
+  // Primary secret for source verification. Takes precedence over `secret`.
+  optional SecretString secret_v2 = 3;
+
+  // Additional secret, if required by the connector. Takes precedence over `additional_secret`.
+  optional SecretString additional_secret_v2 = 4;
 }
 
 // Request for notifying connectors about events
