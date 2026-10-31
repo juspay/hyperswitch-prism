@@ -5304,7 +5304,10 @@ message WellsfargoConfig {
 message WorldpayvantivConfig {
   SecretString user = 1;
   SecretString password = 2;
+  // Single merchant ID used for every currency. Set this or merchant_id_by_currency.
   SecretString merchant_id = 3;
+  // Merchant IDs keyed by ISO 4217 currency code, e.g. USD, CAD. Used when merchant_id is not set.
+  map<string, SecretString> merchant_id_by_currency = 4;
   optional string base_url = 50;
   optional string report_group = 51;
   optional string merchant_config_currency = 52;
