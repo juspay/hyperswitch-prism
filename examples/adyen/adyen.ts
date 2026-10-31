@@ -102,7 +102,7 @@ function _buildDisputeAcceptRequest(): types.IDisputeServiceAcceptRequest {
     return {
         "merchantDisputeId": "probe_dispute_001",  // Identification.
         "connectorTransactionId": "probe_txn_001",
-        "disputeId": "probe_dispute_id_001"
+        "connectorDisputeId": "probe_dispute_id_001"
     };
 }
 
@@ -110,7 +110,7 @@ function _buildDisputeDefendRequest(): types.IDisputeServiceDefendRequest {
     return {
         "merchantDisputeId": "probe_dispute_001",  // Identification.
         "connectorTransactionId": "probe_txn_001",
-        "disputeId": "probe_dispute_id_001",
+        "connectorDisputeId": "probe_dispute_id_001",
         "reasonCode": "probe_reason"  // Defend Details.
     };
 }
@@ -119,7 +119,7 @@ function _buildDisputeSubmitEvidenceRequest(): types.IDisputeServiceSubmitEviden
     return {
         "merchantDisputeId": "probe_dispute_001",  // Identification.
         "connectorTransactionId": "probe_txn_001",
-        "disputeId": "probe_dispute_id_001",
+        "connectorDisputeId": "probe_dispute_id_001",
         "evidenceDocuments": [  // Collection of evidence documents.
             {
                 "evidenceType": EvidenceType.SERVICE_DOCUMENTATION,  // Type of the evidence.

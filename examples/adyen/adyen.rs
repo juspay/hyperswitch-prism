@@ -150,7 +150,7 @@ pub fn build_dispute_accept_request() -> DisputeServiceAcceptRequest {
     DisputeServiceAcceptRequest {
         merchant_dispute_id: Some("probe_dispute_001".to_string()), // Identification.
         connector_transaction_id: "probe_txn_001".to_string(),
-        dispute_id: "probe_dispute_id_001".to_string(),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
     }
 }
 
@@ -158,7 +158,7 @@ pub fn build_dispute_defend_request() -> DisputeServiceDefendRequest {
     DisputeServiceDefendRequest {
         merchant_dispute_id: Some("probe_dispute_001".to_string()), // Identification.
         connector_transaction_id: "probe_txn_001".to_string(),
-        dispute_id: "probe_dispute_id_001".to_string(),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
         reason_code: Some("probe_reason".to_string()), // Defend Details.
     }
 }
@@ -167,7 +167,7 @@ pub fn build_dispute_submit_evidence_request() -> DisputeServiceSubmitEvidenceRe
     DisputeServiceSubmitEvidenceRequest {
         merchant_dispute_id: Some("probe_dispute_001".to_string()), // Identification.
         connector_transaction_id: Some("probe_txn_001".to_string()),
-        dispute_id: "probe_dispute_id_001".to_string(),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
         // evidence_documents: [{"evidence_type": "SERVICE_DOCUMENTATION", "file_content": "probe evidence content", "file_mime_type": "application/pdf"}]  // Collection of evidence documents.
         ..Default::default()
     }

@@ -3557,6 +3557,8 @@ message DisputeResponse {
   // Raw Request for debugging
   optional SecretString raw_connector_request = 18;
   optional SecretString typed_connector_request = 20;
+  optional SecretString raw_connector_response = 22;
+  optional SecretString typed_connector_response = 23;
 
   // Another reference for the connector's transaction, returned in the connector's response.
   optional string connector_reference_id = 19;
