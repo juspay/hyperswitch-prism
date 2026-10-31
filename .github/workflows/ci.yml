@@ -1147,6 +1147,7 @@ jobs:
         run: python3 scripts/generators/code/generate.py --lang rust
 
       - name: Restore SDK binaries cache
+        id: sdk-cache-restore
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -1160,7 +1161,14 @@ jobs:
             target/*/*/grpc-smoke-test
             target/*/*/smoke-test-webhook
           key: ${{ needs.sdk-build.outputs.cache-key }}
-          fail-on-cache-miss: true
+
+      - name: Build SDK binaries when cache is unavailable
+        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: |
+          cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi -p hyperswitch-smoke-test -p uniffi-bindgen \
+            --profile release-fast --target x86_64-unknown-linux-gnu
 
       - name: Create connector credentials
         shell: bash
