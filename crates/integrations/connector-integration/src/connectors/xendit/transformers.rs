@@ -353,7 +353,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 amount: item
                     .connector
                     .amount_converter
-                    .convert(&item.router_data.request.amount)
+                    .convert(&item.router_data.request.money)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })
@@ -535,7 +535,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             ))?;
 
         let response_integrity_object = Some(AuthoriseIntegrityObject {
-            amount: response_amount.amount,
+            amount: response_amount.amount(),
             currency: response.currency,
         });
 
@@ -660,7 +660,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = XenditAmountConvertor::convert(&item.router_data.request.amount_to_capture)
+        let amount = XenditAmountConvertor::convert(&item.router_data.request.capture_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -767,7 +767,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = XenditAmountConvertor::convert(&item.router_data.request.refund_amount)
+        let amount = XenditAmountConvertor::convert(&item.router_data.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -821,7 +821,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 
         let response_integrity_object = {
             Some(RefundIntegrityObject {
-                refund_amount: response_amount.amount,
+                refund_amount: response_amount.amount(),
                 currency: response.currency,
             })
         };

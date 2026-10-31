@@ -9,7 +9,7 @@ use common_enums::{
     RefundStatus, TicketRefundability,
 };
 use common_utils::{
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
     Email,
 };
 use domain_types::{
@@ -769,7 +769,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .into())
             }
         }
-        let amount = router_data.request.amount.amount;
         let currency = router_data.request.currency;
         let order_ref = router_data
             .resource_common_data
@@ -782,7 +781,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .unwrap_or_default();
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&common_utils::types::Money { amount, currency })
+            .convert(&router_data.request.money)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -792,15 +791,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             })?;
         let shipping_amount = converter
-            .convert(&common_utils::types::Money {
-                amount: router_data
+            .convert(
+                &router_data
                     .request
-                    .shipping_cost
-                    .as_ref()
-                    .map(|money| money.amount)
-                    .unwrap_or(MinorUnit(0)),
-                currency,
-            })
+                    .get_shipping_money()
+                    .clone()
+                    .unwrap_or_else(|| common_utils::types::Money::zero(currency)),
+            )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -810,15 +807,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             })?;
         let tax_amount = converter
-            .convert(&common_utils::types::Money {
-                amount: router_data
+            .convert(
+                &router_data
                     .request
-                    .order_tax_amount
-                    .as_ref()
-                    .map(|money| money.amount)
-                    .unwrap_or(MinorUnit(0)),
-                currency,
-            })
+                    .get_order_tax_money()
+                    .clone()
+                    .unwrap_or_else(|| common_utils::types::Money::zero(currency)),
+            )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -856,12 +851,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .resource_common_data
             .get_optional_shipping_or_billing_country_string();
 
-        let to_tamara_amount = |value: MinorUnit, context: &'static str| {
+        let to_tamara_amount = |value: common_utils::types::Money, context: &'static str| {
             converter
-                .convert(&common_utils::types::Money {
-                    amount: value,
-                    currency,
-                })
+                .convert(&value)
                 .map(|amount| TamaraAmount { amount, currency })
                 .change_context(errors::IntegrationError::RequestEncodingFailed {
                     context: errors::IntegrationErrorContext {
@@ -870,7 +862,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 })
         };
-        let optional_amount = |value: Option<MinorUnit>, context: &'static str| {
+        let optional_amount = |value: Option<common_utils::types::Money>, context: &'static str| {
             value.map(|v| to_tamara_amount(v, context)).transpose()
         };
 
@@ -889,22 +881,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             reference_id: data.get_product_id()?,
                             sku: data.get_sku()?,
                             total_amount: to_tamara_amount(
-                                data.get_total_amount(),
+                                data.get_total_money(&router_data.request.money).unwrap_or_else(|| data.get_unit_money(&router_data.request.money)),
                                 "Failed to convert line item total amount from minor to major units",
                             )?,
                             item_type: data.get_product_type()?,
                             item_url: data.get_optional_product_link(),
                             image_url: data.get_optional_product_img_link(),
                             unit_price: to_tamara_amount(
-                                data.get_unit_amount(),
+                                data.get_unit_money(&router_data.request.money),
                                 "Failed to convert line item unit price from minor to major units",
                             )?,
                             discount_amount: optional_amount(
-                                data.get_optional_unit_discount_amount(),
+                                data.get_unit_discount_money(&router_data.request.money),
                                 "Failed to convert line item discount amount from minor to major units",
                             )?,
                             tax_amount: optional_amount(
-                                data.get_optional_total_tax_amount(),
+                                data.get_total_tax_money(&router_data.request.money),
                                 "Failed to convert line item tax amount from minor to major units",
                             )?,
                         })
@@ -1147,7 +1139,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&item.router_data.request.amount_to_capture)
+            .convert(&item.router_data.request.capture_money)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1240,7 +1232,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let amount = router_data
             .request
-            .amount
+            .money
             .as_ref()
             .ok_or(error_stack::report!(
                 errors::IntegrationError::MissingRequiredField {
@@ -1261,19 +1253,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         ))?;
         let converter = FloatMajorUnitForConnector;
-        let amount = converter
-            .convert(&common_utils::types::Money {
-                amount: amount.amount,
-                currency,
-            })
-            .change_context(errors::IntegrationError::RequestEncodingFailed {
+        let amount = converter.convert(amount).change_context(
+            errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
                         "Failed to convert void amount from minor to major units".to_string(),
                     ),
                     ..Default::default()
                 },
-            })?;
+            },
+        )?;
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
         })
@@ -1357,7 +1346,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ))?;
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&item.router_data.request.refund_amount)
+            .convert(&item.router_data.request.refund_money)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1556,7 +1545,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let email = customer.get_email()?;
         let phone_number = customer.get_phone_number()?;
         let converter = FloatMajorUnitForConnector;
-        let amount = converter.convert(&data.amount).change_context(
+        let amount = converter.convert(&data.money).change_context(
             errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1570,7 +1559,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             order: TamaraEligibilityOrder {
                 amount,
-                currency: data.amount.currency,
+                currency: data.money.currency(),
             },
             customer: TamaraEligibilityCustomer {
                 phone_number,

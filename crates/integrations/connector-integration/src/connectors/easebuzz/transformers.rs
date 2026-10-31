@@ -188,7 +188,7 @@ impl
         )?;
 
         let amount_str = StringMajorUnitForConnector
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: Some(
@@ -702,7 +702,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount_to_capture)
+            .convert(&router_data.request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: Some(
@@ -966,7 +966,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let refund_amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.refund_amount)
+            .convert(&router_data.request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: Some(
@@ -1202,7 +1202,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: Some(

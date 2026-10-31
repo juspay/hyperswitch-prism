@@ -1,7 +1,7 @@
 use common_enums::{AttemptStatus, CaptureMethod, CardNetwork, Currency};
 use common_utils::{
     pii::SecretSerdeValue,
-    types::{AmountConvertor, MinorUnit, StringTwoDecimalUnit, StringTwoDecimalUnitForConnector},
+    types::{AmountConvertor, StringTwoDecimalUnit, StringTwoDecimalUnitForConnector},
 };
 use domain_types::{
     connector_flow::{Authorize, PSync},
@@ -305,15 +305,12 @@ fn validate_currency(
 /// unable to tell a negative amount from an over-long one from a currency that cannot be
 /// expressed with two decimals at all.
 fn build_amount(
-    minor_amount: MinorUnit,
-    currency: Currency,
+    money: &common_utils::types::Money,
 ) -> Result<StringTwoDecimalUnit, error_stack::Report<IntegrationError>> {
-    let minor = minor_amount.get_amount_as_i64();
+    let minor = money.amount().get_amount_as_i64();
+    let currency = money.currency();
     let amount = StringTwoDecimalUnitForConnector
-        .convert(&common_utils::types::Money {
-            amount: minor_amount,
-            currency,
-        })
+        .convert(money)
         .map_err(|_| {
             invalid_amount(format!(
                 "{currency} has more than two decimal places, so {minor} minor units cannot be \
@@ -841,7 +838,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 order_id: build_order_id(&common.connector_request_reference_id)?,
                 // Currency is deliberately absent: Orbital derives it from the
                 // Merchant ID setup and has no field to receive it.
-                amount: build_amount(request.amount.amount, request.currency)?,
+                amount: build_amount(&request.money)?,
                 industry_type: INDUSTRY_TYPE_ECOMMERCE.to_string(),
                 retry_trace: build_retry_trace(&common.connector_request_reference_id),
             },

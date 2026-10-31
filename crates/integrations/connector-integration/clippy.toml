@@ -8,7 +8,12 @@
 # Deliberately NOT listed: `ring::rand::SystemRandom` — PKCS#1 v1.5 signing
 # uses it for blinding only (the signature output is deterministic), and
 # banning it would force allow-attributes onto legitimate signing code.
+disallowed-types = [
+    { path = "ucs_common_utils::types::MoneyBoundary", reason = "Raw money construction belongs at the domain boundary, not in connector code" },
+]
+
 disallowed-methods = [
+    { path = "ucs_common_utils::types::MoneyBoundary::from_minor_unit", reason = "Pass existing domain Money to convert; use convert_back only for connector responses" },
     { path = "uuid::Uuid::new_v4", reason = "use common_utils::fp_utils::generate_uuid_v4 — one auditable entropy source" },
     { path = "uuid::Uuid::now_v7", reason = "use common_utils::fp_utils::generate_uuid_v7 — one auditable entropy source" },
     { path = "std::time::SystemTime::now", reason = "use common_utils::date_time (now / now_unix_millis) — one clock source" },

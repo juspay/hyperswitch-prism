@@ -88,10 +88,7 @@ impl
             SurchargeCalculateResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = super::InterPaymentsAmountConvertor::convert(&common_utils::types::Money {
-            amount: req.request.amount,
-            currency: req.request.currency,
-        })?;
+        let amount = super::InterPaymentsAmountConvertor::convert(&req.request.money)?;
 
         let region = req.request.postal_code.clone();
 
@@ -163,15 +160,15 @@ impl TryFrom<ResponseRouterData<InterPaymentsSurchargeResponse, Self>>
                 connector_surcharge_id: item.response.s_tx_id.clone(),
                 surcharge_amount: super::InterPaymentsAmountConvertor::convert_back(
                     item.response.transaction_fee,
-                    item.router_data.request.currency,
+                    item.router_data.request.money.currency(),
                 )
                 .change_context(utils::response_handling_fail_for_connector(
                     item.http_code,
                     "interpayments",
                 ))?
-                .amount,
+                .amount(),
                 surcharge_rate_percent: item.response.transaction_fee_percent,
-                currency: item.router_data.request.currency,
+                currency: item.router_data.request.money.currency(),
             })
         } else {
             Err(ErrorResponse {

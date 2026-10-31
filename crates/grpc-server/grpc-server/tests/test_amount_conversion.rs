@@ -13,37 +13,37 @@ mod tests {
         let amount = MinorUnit::new(12345);
 
         // Test zero decimal currency (JPY)
-        let result = converter.convert(&common_utils::types::Money {
+        let result = converter.convert(&common_utils::types::MoneyBoundary::from_minor_unit(
             amount,
-            currency: Currency::JPY,
-        });
+            Currency::JPY,
+        ));
         assert!(result.is_ok(), "JPY conversion should succeed");
         let converted = result.unwrap();
         assert_eq!(converted.get_amount_as_string(), "12345");
 
         // Test two decimal currency (USD)
-        let result = converter.convert(&common_utils::types::Money {
+        let result = converter.convert(&common_utils::types::MoneyBoundary::from_minor_unit(
             amount,
-            currency: Currency::USD,
-        });
+            Currency::USD,
+        ));
         assert!(result.is_ok(), "USD conversion should succeed");
         let converted = result.unwrap();
         assert_eq!(converted.get_amount_as_string(), "123.45");
 
         // Test three decimal currency (BHD)
-        let result = converter.convert(&common_utils::types::Money {
+        let result = converter.convert(&common_utils::types::MoneyBoundary::from_minor_unit(
             amount,
-            currency: Currency::BHD,
-        });
+            Currency::BHD,
+        ));
         assert!(result.is_ok(), "BHD conversion should succeed");
         let converted = result.unwrap();
         assert_eq!(converted.get_amount_as_string(), "12.345");
 
         // Test four decimal currency (CLF)
-        let result = converter.convert(&common_utils::types::Money {
+        let result = converter.convert(&common_utils::types::MoneyBoundary::from_minor_unit(
             amount,
-            currency: Currency::CLF,
-        });
+            Currency::CLF,
+        ));
         assert!(result.is_ok(), "CLF conversion should succeed");
         let converted = result.unwrap();
         assert_eq!(converted.get_amount_as_string(), "1.2345");
@@ -74,7 +74,9 @@ mod tests {
         let mut failed_currencies = Vec::new();
 
         for currency in currencies {
-            let result = converter.convert(&common_utils::types::Money { amount, currency });
+            let result = converter.convert(&common_utils::types::MoneyBoundary::from_minor_unit(
+                amount, currency,
+            ));
             if result.is_err() {
                 failed_currencies.push(currency);
             }
@@ -106,7 +108,9 @@ mod tests {
         let mut failed_test_cases = Vec::new();
 
         for (amount, currency, expected) in test_cases {
-            let result = converter.convert(&common_utils::types::Money { amount, currency });
+            let result = converter.convert(&common_utils::types::MoneyBoundary::from_minor_unit(
+                amount, currency,
+            ));
             match result {
                 Ok(converted) => {
                     let actual = converted.get_amount_as_string();

@@ -271,7 +271,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
             PayoutTransferResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let minor_amount = item.request.amount;
+        let minor_amount = item.request.money.amount();
         if minor_amount <= common_utils::types::MinorUnit::zero() {
             return Err(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
@@ -290,13 +290,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
         }
 
         let amount = PayoutAmount {
-            value: domain_utils::convert_amount(
-                &StringMajorUnitForConnector,
-                &common_utils::types::Money {
-                    amount: minor_amount,
-                    currency: item.request.destination_currency,
-                },
-            )?,
+            value: domain_utils::convert_amount(&StringMajorUnitForConnector, &{
+                #[expect(
+                    clippy::disallowed_methods,
+                    clippy::disallowed_types,
+                    reason = "Temporary payout currency contract: paypal-transfer; see PR #2642"
+                )]
+                let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
+                    minor_amount,
+                    item.request.destination_currency,
+                );
+                legacy_money
+            })?,
             currency: item.request.destination_currency,
         };
 

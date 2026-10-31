@@ -262,7 +262,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_in_minor_units = wrapper
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -498,7 +498,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_in_minor_units = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -1464,7 +1464,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_in_minor_units = wrapper
             .connector
             .amount_converter
-            .convert(&router_data.request.amount_to_capture)
+            .convert(&router_data.request.capture_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -1546,7 +1546,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_in_minor_units = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount_to_capture)
+            .convert(&router_data.request.capture_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -1761,7 +1761,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_in_minor_units = wrapper
             .connector
             .amount_converter
-            .convert(&router_data.request.refund_amount)
+            .convert(&router_data.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -1829,7 +1829,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_in_minor_units = item
             .connector
             .amount_converter
-            .convert(&router_data.request.refund_amount)
+            .convert(&router_data.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(

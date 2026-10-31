@@ -51,10 +51,7 @@ impl AmountConvertor for StringMinorUnitForConnector {
         amount: Self::Output,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money {
-            amount: amount.to_minor_unit_as_i64()?,
-            currency,
-        })
+        Ok(Money::new(amount.to_minor_unit_as_i64()?, currency))
     }
 }
 
@@ -72,10 +69,7 @@ impl AmountConvertor for StringMajorUnitForCore {
         amount: StringMajorUnit,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money {
-            amount: amount.to_minor_unit_as_i64(currency)?,
-            currency,
-        })
+        Ok(Money::new(amount.to_minor_unit_as_i64(currency)?, currency))
     }
 }
 
@@ -94,10 +88,7 @@ impl AmountConvertor for StringMajorUnitForConnector {
         amount: StringMajorUnit,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money {
-            amount: amount.to_minor_unit_as_i64(currency)?,
-            currency,
-        })
+        Ok(Money::new(amount.to_minor_unit_as_i64(currency)?, currency))
     }
 }
 
@@ -115,10 +106,7 @@ impl AmountConvertor for FloatMajorUnitForConnector {
         amount: FloatMajorUnit,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money {
-            amount: amount.to_minor_unit_as_i64(currency)?,
-            currency,
-        })
+        Ok(Money::new(amount.to_minor_unit_as_i64(currency)?, currency))
     }
 }
 
@@ -136,7 +124,7 @@ impl AmountConvertor for MinorUnitForConnector {
         amount: MinorUnit,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money { amount, currency })
+        Ok(Money::new(amount, currency))
     }
 }
 
@@ -159,10 +147,10 @@ impl AmountConvertor for ConnectorMinorUnitForConnector {
         amount: Self::Output,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money {
-            amount: MinorUnit::new(amount.get_amount_as_i64()),
+        Ok(Money::new(
+            MinorUnit::new(amount.get_amount_as_i64()),
             currency,
-        })
+        ))
     }
 }
 
@@ -599,20 +587,76 @@ impl AmountConvertor for StringTwoDecimalUnitForConnector {
         amount: Self::Output,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money {
-            amount: amount.to_minor_unit_as_i64(currency)?,
-            currency,
-        })
+        Ok(Money::new(amount.to_minor_unit_as_i64(currency)?, currency))
     }
 }
 
-#[derive(
-    Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, ToSchema,
-)]
-
+/// Domain amount and currency. Other crates can read these fields through methods,
+/// but cannot build or mutate this value with a struct literal.
+///
+/// ```compile_fail
+/// use ucs_common_utils::types::Money;
+/// let _ = Money { amount: Default::default(), currency: Default::default() };
+/// ```
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, ToSchema)]
 pub struct Money {
-    pub amount: MinorUnit,
-    pub currency: enums::Currency,
+    amount: MinorUnit,
+    currency: enums::Currency,
+}
+
+impl Money {
+    /// Construct money from an existing domain minor unit.
+    fn new(amount: MinorUnit, currency: enums::Currency) -> Self {
+        Self { amount, currency }
+    }
+
+    /// Creates a zero amount in the supplied currency.
+    pub fn zero(currency: enums::Currency) -> Self {
+        Self::new(MinorUnit::zero(), currency)
+    }
+
+    /// Creates one minor unit, not one major currency unit.
+    pub fn one_minor_unit(currency: enums::Currency) -> Self {
+        Self::new(MinorUnit::new(1), currency)
+    }
+
+    pub fn amount(&self) -> MinorUnit {
+        self.amount
+    }
+
+    pub fn currency(&self) -> enums::Currency {
+        self.currency
+    }
+}
+
+/// Raw construction for domain mapping and legacy ingress only.
+/// Connector code must receive `Money`, use a fixed-value factory, or use an amount
+/// converter's `convert_back` for connector responses.
+pub struct MoneyBoundary;
+
+impl MoneyBoundary {
+    pub fn from_minor_unit(amount: MinorUnit, currency: enums::Currency) -> Money {
+        Money::new(amount, currency)
+    }
+}
+
+#[cfg(test)]
+mod money_boundary_tests {
+    use super::Money;
+
+    #[test]
+    fn money_wire_shape_stays_flat() -> Result<(), Box<dyn std::error::Error>> {
+        let money = Money::new(super::MinorUnit::new(123), common_enums::Currency::USD);
+        let value = serde_json::to_value(&money)?;
+        if value != serde_json::json!({ "amount": 123, "currency": "USD" }) {
+            return Err(format!("unexpected Money JSON: {value}").into());
+        }
+        let restored: Money = serde_json::from_value(value)?;
+        if restored != money {
+            return Err("Money must round-trip without changing its value".into());
+        }
+        Ok(())
+    }
 }
 
 /// A type representing a range of time for filtering, including a mandatory start time and an optional end time.

@@ -1,7 +1,7 @@
 #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
 
 use common_enums::{CountryAlpha2, Currency, RefundStatus};
-use common_utils::types::{AmountConvertor, MinorUnit, Money, StringMajorUnitForConnector};
+use common_utils::types::{AmountConvertor, StringMajorUnitForConnector};
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync},
     connector_types::{
@@ -13,6 +13,8 @@ use domain_types::{
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
+    types::AuthorizationRequest,
+    utils::ForeignTryFrom,
 };
 use hyperswitch_masking::Secret;
 use interfaces::{api::ConnectorCommon, connector_types::IncomingWebhook};
@@ -33,11 +35,30 @@ fn config() -> ConnectorSpecificConfig {
 #[test]
 fn payment_and_refund_amounts_are_major_unit_strings() {
     for (minor, expected) in [(1, "0.01"), (1000, "10.00"), (1590, "15.90")] {
+        let authorization = PaymentsAuthorizeData::<DefaultPCIHolder>::foreign_try_from((
+            AuthorizationRequest::from(grpc_api_types::payments::PaymentServiceAuthorizeRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: minor,
+                    currency: grpc_api_types::payments::Currency::Eur.into(),
+                }),
+                payment_method: Some(grpc_api_types::payments::PaymentMethod {
+                    payment_method: Some(
+                        grpc_api_types::payments::payment_method::PaymentMethod::Wero(
+                            Default::default(),
+                        ),
+                    ),
+                }),
+                ..Default::default()
+            }),
+            domain_types::payment_method_data::PaymentMethodData::Wallet(
+                domain_types::payment_method_data::WalletData::Wero(
+                    domain_types::payment_method_data::WeroData {},
+                ),
+            ),
+        ))
+        .expect("valid authorization fixture");
         let amount = StringMajorUnitForConnector
-            .convert(&Money {
-                amount: MinorUnit::new(minor),
-                currency: Currency::EUR,
-            })
+            .convert(&authorization.money)
             .expect("convert EUR amount");
         let payment = BetterpaymentAuthorizeRequest {
             payment_type: BetterpaymentPaymentType::Wero,
@@ -260,7 +281,7 @@ fn captured_wero_form_postback_decodes_and_routes() {
     assert_eq!(response.status, common_enums::AttemptStatus::Failure);
     assert_eq!(response.error_message.as_deref(), Some("CONSENT DENIED"));
     assert_eq!(response.raw_connector_response.as_deref(), Some(raw));
-    assert!(response.amount_captured.is_none());
+    assert!(response.captured_money.is_none());
 }
 
 #[test]
@@ -304,7 +325,7 @@ fn charged_form_webhook_without_currency_does_not_guess_captured_amount() {
         .process_payment_webhook(request, None, None, None)
         .expect("completed form");
     assert_eq!(response.status, common_enums::AttemptStatus::Charged);
-    assert!(response.amount_captured.is_none());
+    assert!(response.captured_money.is_none());
 }
 
 #[test]
@@ -366,9 +387,9 @@ fn payment_flow() -> PaymentFlowData {
         address: Default::default(),
         auth_type: Default::default(),
         connector_feature_data: None,
-        amount_captured: None,
-        amount_capturable: None,
-        amount: None,
+        captured_money: None,
+        capturable_money: None,
+        money: None,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -389,7 +410,7 @@ fn payment_flow() -> PaymentFlowData {
         connector_response: None,
         recurring_mandate_payment_data: None,
         order_details: None,
-        amount_authorized: None,
+        authorized_money: None,
         l2_l3_data: None,
         merchant_request_id: None,
         sender_payment_instrument_id: None,
@@ -406,9 +427,9 @@ fn authorize_request() -> PaymentsAuthorizeData<DefaultPCIHolder> {
                 domain_types::payment_method_data::WeroData {},
             ),
         ),
-        amount: Default::default(),
+        money: common_utils::types::Money::zero(Currency::EUR),
         order_tax_amount: None,
-        surcharge_amount: None,
+        surcharge_money: None,
         email: None,
         customer_document_details: None,
         customer_date_of_birth: None,

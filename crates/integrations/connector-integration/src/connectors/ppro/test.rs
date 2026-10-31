@@ -1444,7 +1444,6 @@ mod transformer_tests {
 mod satispay_request_tests {
     use std::marker::PhantomData;
 
-    use common_utils::types::{MinorUnit, Money};
     use domain_types::{
         connector_flow::Authorize,
         connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData},
@@ -1452,7 +1451,8 @@ mod satispay_request_tests {
         payment_method_data::{DefaultPCIHolder, PaymentMethodData, SatispayData, WalletData},
         router_data::{ConnectorSpecificConfig, ErrorResponse},
         router_data_v2::RouterDataV2,
-        types::{ConnectorParams, Connectors},
+        types::{AuthorizationRequest, ConnectorParams, Connectors},
+        utils::ForeignTryFrom,
     };
     use hyperswitch_masking::Secret;
 
@@ -1483,16 +1483,35 @@ mod satispay_request_tests {
         }};
     }
 
-    fn base_router_data(
-        payment_method_type: common_enums::PaymentMethodType,
-        router_return_url: Option<String>,
-    ) -> RouterDataV2<
+    type AuthorizeRouterData = RouterDataV2<
         Authorize,
         PaymentFlowData,
         PaymentsAuthorizeData<DefaultPCIHolder>,
         PaymentsResponseData,
-    > {
-        RouterDataV2 {
+    >;
+
+    fn base_router_data(
+        payment_method_type: common_enums::PaymentMethodType,
+        router_return_url: Option<String>,
+    ) -> Result<AuthorizeRouterData, Box<dyn std::error::Error>> {
+        let authorization = PaymentsAuthorizeData::<DefaultPCIHolder>::foreign_try_from((
+            AuthorizationRequest::from(grpc_api_types::payments::PaymentServiceAuthorizeRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: 1000,
+                    currency: grpc_api_types::payments::Currency::Eur.into(),
+                }),
+                payment_method: Some(grpc_api_types::payments::PaymentMethod {
+                    payment_method: Some(
+                        grpc_api_types::payments::payment_method::PaymentMethod::Satispay(
+                            Default::default(),
+                        ),
+                    ),
+                }),
+                ..Default::default()
+            }),
+            PaymentMethodData::Wallet(WalletData::Satispay(SatispayData {})),
+        ))?;
+        Ok(RouterDataV2 {
             flow: PhantomData::<Authorize>,
             resource_common_data: PaymentFlowData {
                 raw_connector_status: None,
@@ -1523,9 +1542,9 @@ mod satispay_request_tests {
                 ),
                 auth_type: common_enums::AuthenticationType::NoThreeDs,
                 connector_feature_data: None,
-                amount_captured: None,
-                amount_capturable: None,
-                amount_authorized: None,
+                captured_money: None,
+                capturable_money: None,
+                authorized_money: None,
                 access_token: None,
                 session_token: None,
                 reference_id: None,
@@ -1548,7 +1567,7 @@ mod satispay_request_tests {
                 connector_response_headers: None,
                 raw_connector_response: None,
                 raw_connector_request: None,
-                amount: None,
+                money: None,
                 connector_response: None,
                 typed_connector_response: None,
                 typed_connector_request: None,
@@ -1573,12 +1592,9 @@ mod satispay_request_tests {
                 payment_method_data: PaymentMethodData::Wallet(WalletData::Satispay(
                     SatispayData {},
                 )),
-                amount: Money {
-                    amount: MinorUnit::new(1000),
-                    currency: common_enums::Currency::EUR,
-                },
+                money: authorization.money,
                 order_tax_amount: None,
-                surcharge_amount: None,
+                surcharge_money: None,
                 email: None,
                 customer_name: None,
                 customer_date_of_birth: None,
@@ -1636,14 +1652,14 @@ mod satispay_request_tests {
                 enable_avs_check: None,
             },
             response: Err(ErrorResponse::default()),
-        }
+        })
     }
 
     fn build_request(
         payment_method_type: common_enums::PaymentMethodType,
         router_return_url: Option<String>,
     ) -> Result<PproPaymentsRequest, Box<dyn std::error::Error>> {
-        let router_data = base_router_data(payment_method_type, router_return_url);
+        let router_data = base_router_data(payment_method_type, router_return_url)?;
         let ppro_router_data = PproRouterData {
             connector: (*Ppro::<DefaultPCIHolder>::new()).clone(),
             router_data,
@@ -1752,20 +1768,21 @@ mod satispay_request_tests {
     /// PPRO requires a consumer country for every payment method: a request with no
     /// billing country must be rejected regardless of the payment method.
     #[test]
-    fn test_missing_billing_country_is_rejected() {
+    fn test_missing_billing_country_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
         let mut router_data = base_router_data(
             common_enums::PaymentMethodType::SatispayIntent,
             Some("https://example.com/return".to_string()),
-        );
+        )?;
         router_data.resource_common_data.address = PaymentAddress::new(None, None, None, None);
         let ppro_router_data = PproRouterData {
             connector: (*Ppro::<DefaultPCIHolder>::new()).clone(),
             router_data,
         };
         let result = PproPaymentsRequest::try_from(ppro_router_data);
-        assert!(
+        ensure!(
             result.is_err(),
             "request without a billing country should be rejected"
         );
+        Ok(())
     }
 }

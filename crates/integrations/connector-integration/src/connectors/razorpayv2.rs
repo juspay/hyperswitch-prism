@@ -218,7 +218,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let connector_router_data: razorpayv2::RazorpayV2RouterData<&PaymentCreateOrderData, T> =
             razorpayv2::RazorpayV2RouterData::try_from((
-                req.request.amount.amount,
+                req.request.money.amount(),
                 &req.request,
                 Some(
                     req.resource_common_data
@@ -395,7 +395,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone();
         let converted_amount = self
             .amount_converter
-            .convert(&req.request.amount)
+            .convert(&req.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -872,7 +872,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converted_amount = self
             .amount_converter
-            .convert(&req.request.refund_amount)
+            .convert(&req.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

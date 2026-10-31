@@ -291,7 +291,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
         let common = &router_data.resource_common_data;
 
-        let amount = CitigateAmountConvertor::convert(&router_data.request.amount)?;
+        let amount = CitigateAmountConvertor::convert(&router_data.request.money)?;
 
         let firstname = common.get_billing_first_name()?;
         let surname = common.get_billing_last_name()?;
@@ -1214,10 +1214,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &router_data.request;
         let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
 
-        let amount = if request.refund_amount.amount == request.payment_amount.amount {
+        let amount = if request.refund_money.amount() == request.payment_money.amount() {
             None
         } else {
-            Some(CitigateAmountConvertor::convert(&request.refund_amount)?)
+            Some(CitigateAmountConvertor::convert(&request.refund_money)?)
         };
 
         Ok(Self {

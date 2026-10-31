@@ -1453,7 +1453,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let request = Self {
             source: source_var,
-            amount: item.router_data.request.amount.amount,
+            amount: item.router_data.request.money.amount(),
             currency: item.router_data.request.currency.to_string(),
             processing_channel_id,
             three_ds,
@@ -1918,7 +1918,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let request = Self {
             source: source_var,
-            amount: item.router_data.request.amount.amount,
+            amount: item.router_data.request.money.amount(),
             currency: item.router_data.request.currency.to_string(),
             processing_channel_id,
             three_ds,
@@ -2747,9 +2747,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response: additional_information,
-                amount_authorized,
-                amount_captured,
-                amount_capturable,
+                authorized_money: amount_authorized,
+                captured_money: amount_captured,
+                capturable_money: amount_capturable,
                 ..item.router_data.resource_common_data
             },
             response: Ok(payments_response_data),
@@ -2912,9 +2912,9 @@ impl<
                     resource_common_data: PaymentFlowData {
                         status,
                         connector_response: additional_information,
-                        amount_authorized,
-                        amount_captured,
-                        amount_capturable,
+                        authorized_money: amount_authorized,
+                        captured_money: amount_captured,
+                        capturable_money: amount_capturable,
                         ..item.router_data.resource_common_data
                     },
                     response: Ok(payments_response_data),
@@ -3310,7 +3310,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_ref()
             .map(|multiple_capture_data| multiple_capture_data.capture_reference.clone());
         Ok(Self {
-            amount: Some(item.router_data.request.amount_to_capture.amount.to_owned()),
+            amount: Some(item.router_data.request.capture_money.amount().to_owned()),
             capture_type: Some(capture_type),
             processing_channel_id,
             reference, // hyperswitch's reference for this capture
@@ -3338,10 +3338,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
         let (status, amount_captured) = if item.http_code == 202 {
             (
                 common_enums::AttemptStatus::Charged,
-                Some(common_utils::types::Money {
-                    amount: item.router_data.request.amount_to_capture.amount,
-                    currency: item.router_data.request.currency,
-                }),
+                Some(item.router_data.request.capture_money.clone()),
             )
         } else {
             (common_enums::AttemptStatus::Pending, None)
@@ -3380,7 +3377,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
             }),
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
+                captured_money: amount_captured,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -3408,7 +3405,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     ) -> Result<Self, Self::Error> {
         let reference = item.router_data.request.refund_id.clone();
         Ok(Self {
-            amount: Some(item.router_data.request.refund_amount.amount.to_owned()),
+            amount: Some(item.router_data.request.refund_money.amount().to_owned()),
             reference,
         })
     }

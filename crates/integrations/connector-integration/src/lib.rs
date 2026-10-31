@@ -1,4 +1,9 @@
 #![allow(clippy::result_large_err)]
+// Future: restore forbid once the temporary payout currency exceptions are resolved.
+// #![forbid(clippy::disallowed_methods, clippy::disallowed_types)]
+// Temporary: deny permits the scoped payout expectations tracked in PR #2642.
+#![deny(clippy::disallowed_methods, clippy::disallowed_types)]
+#![forbid(unfulfilled_lint_expectations)]
 
 pub mod authenticator_connectors;
 pub mod common_macros;

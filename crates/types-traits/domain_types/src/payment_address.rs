@@ -1,5 +1,5 @@
 use common_enums::ProductType;
-use common_utils::{ext_traits::ConfigExt, Email, MinorUnit};
+use common_utils::{ext_traits::ConfigExt, Email, MinorUnit, Money};
 use hyperswitch_masking::{PeekInterface, Secret, SerializableSecret};
 
 use crate::{
@@ -561,8 +561,7 @@ impl OrderDetailsWithAmount {
             .ok_or_else(missing_field_err("order_details[].sku"))
     }
 
-    /// Line total in minor units: the explicit `total_amount` when present, else the unit
-    /// `amount`.
+    /// Line total: the explicit `total_amount` when present, else the unit `amount`.
     pub fn get_total_amount(&self) -> MinorUnit {
         self.total_amount.unwrap_or(self.amount)
     }
@@ -584,8 +583,7 @@ impl OrderDetailsWithAmount {
         self.product_img_link.clone()
     }
 
-    /// Unit price in minor units (`amount` is per-quantity, `unit_price` on most connector
-    /// line items).
+    /// Unit price (`amount` is per-quantity, `unit_price` on most connector line items).
     pub fn get_unit_amount(&self) -> MinorUnit {
         self.amount
     }
@@ -600,5 +598,28 @@ impl OrderDetailsWithAmount {
     /// line items).
     pub fn get_optional_total_tax_amount(&self) -> Option<MinorUnit> {
         self.total_tax_amount
+    }
+
+    /// Uses the enclosing payment's currency for legacy scalar line-item amounts.
+    pub fn get_unit_money(&self, payment: &Money) -> Money {
+        common_utils::types::MoneyBoundary::from_minor_unit(self.amount, payment.currency())
+    }
+
+    pub fn get_total_money(&self, payment: &Money) -> Option<Money> {
+        self.total_amount.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+        })
+    }
+
+    pub fn get_total_tax_money(&self, payment: &Money) -> Option<Money> {
+        self.total_tax_amount.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+        })
+    }
+
+    pub fn get_unit_discount_money(&self, payment: &Money) -> Option<Money> {
+        self.unit_discount_amount.map(|amount| {
+            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
+        })
     }
 }

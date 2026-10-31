@@ -1257,7 +1257,7 @@ impl TryFrom<&MandateAmountData> for KountRecurring {
         // independent of the connector's main amount converter. Omit a 0 value so
         // we never emit a bogus "0" to Kount.
         let minor_unit_amount = |money: &common_utils::types::Money| {
-            let amount = money.amount.get_amount_as_i64();
+            let amount = money.amount().get_amount_as_i64();
             (amount != 0).then(|| amount.to_string())
         };
         // Shared MandateAmountData carries dates as PrimitiveDateTime; Kount's
@@ -1266,10 +1266,10 @@ impl TryFrom<&MandateAmountData> for KountRecurring {
             start_date: mandate.start_date.map(format_kount_date).transpose()?,
             end_date: mandate.end_date.map(format_kount_date).transpose()?,
             initial_billing_amount: mandate
-                .initial_billing_amount
+                .initial_billing_money
                 .as_ref()
                 .and_then(minor_unit_amount),
-            period_billing_amount: minor_unit_amount(&mandate.amount),
+            period_billing_amount: minor_unit_amount(&mandate.money),
             period: mandate.frequency.clone(),
             external_subscription_id: mandate.external_subscription_id.clone(),
             status: mandate.status.as_ref().map(kount_recurring_status),
@@ -1943,7 +1943,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             creation_date_time: account_created_at,
         });
 
-        let currency = req.amount.currency;
+        let currency = req.money.currency();
 
         // Subscription / recurring context, applied to every line item when the
         // order carries mandate info.
@@ -1959,10 +1959,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .iter()
                 .map(|detail| {
                     Ok::<_, Self::Error>(KountItem {
-                        price: super::KountAmountConvertor::convert(&common_utils::types::Money {
-                            amount: detail.amount,
-                            currency,
-                        })?,
+                        price: super::KountAmountConvertor::convert(
+                            &detail.get_unit_money(&req.money),
+                        )?,
                         name: detail.product_name.clone(),
                         quantity: detail.quantity,
                         description: detail.description.clone(),
@@ -2102,10 +2101,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         });
 
-        let amount = super::KountAmountConvertor::convert(&common_utils::types::Money {
-            amount: req.amount.amount,
-            currency,
-        })?;
+        let amount = super::KountAmountConvertor::convert(&req.money)?;
         let transactions = vec![KountTransaction {
             subtotal: amount.clone(),
             order_total: amount,
@@ -2534,8 +2530,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_status: req
                 .payment_status
                 .and_then(KountPaymentStatus::from_attempt_status),
-            order_total: super::KountAmountConvertor::convert(&req.amount)?,
-            currency: req.amount.currency.to_string(),
+            order_total: super::KountAmountConvertor::convert(&req.money)?,
+            currency: req.money.currency().to_string(),
             frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
             merchant_category_code,
             merchant,
@@ -2669,8 +2665,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .or_else(|| req.merchant_refund_id.clone()),
             refund_reason: req.refund_reason.clone(),
-            refund_amount: super::KountAmountConvertor::convert(&req.amount)?,
-            currency: req.amount.currency.to_string(),
+            refund_amount: super::KountAmountConvertor::convert(&req.money)?,
+            currency: req.money.currency().to_string(),
             frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
             merchant_category_code,
             merchant,

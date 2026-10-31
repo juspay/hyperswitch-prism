@@ -104,8 +104,7 @@ pub struct PayoutCreateRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_payout_id: Option<String>,
     pub connector_quote_id: Option<String>,
     pub connector_payout_id: Option<String>,
-    pub amount: common_utils::types::MinorUnit,
-    pub source_currency: common_enums::Currency,
+    pub money: common_utils::types::Money,
     pub destination_currency: common_enums::Currency,
     pub priority: Option<common_enums::PayoutPriority>,
     pub connector_payout_method_id: Option<String>,
@@ -135,8 +134,7 @@ pub struct PayoutTransferRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_payout_id: Option<String>,
     pub connector_quote_id: Option<String>,
     pub connector_payout_id: Option<String>,
-    pub amount: common_utils::types::MinorUnit,
-    pub source_currency: common_enums::Currency,
+    pub money: common_utils::types::Money,
     pub destination_currency: common_enums::Currency,
     pub priority: Option<common_enums::PayoutPriority>,
     pub connector_payout_method_id: Option<String>,
@@ -721,7 +719,7 @@ pub struct PayoutEnrollDisburseAccountResponse {
 #[derive(Debug, Clone)]
 pub struct PayoutEligibilityRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_payout_id: Option<String>,
-    pub amount: common_utils::types::Money,
+    pub money: common_utils::types::Money,
     pub destination_currency: common_enums::Currency,
     pub payout_method_data: Option<PayoutMethodData<T>>,
     pub source_bank_data: Option<Bank>,

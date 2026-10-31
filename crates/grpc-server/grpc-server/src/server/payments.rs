@@ -2768,10 +2768,10 @@ impl PaymentMethod {
             payment_method_data: dummy_pm_data, // unused by authenticator path
             metadata: request.metadata.clone(),
             connector_feature_data,
-            amount: common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(0),
-                currency: common_enums::Currency::USD,
-            }, // unused by authenticator path
+            money: common_utils::types::MoneyBoundary::from_minor_unit(
+                common_utils::types::MinorUnit::new(0),
+                common_enums::Currency::USD,
+            ), // unused by authenticator path
             currency: common_enums::Currency::USD, // unused by authenticator path
             browser_info: None,
             capture_method: None,

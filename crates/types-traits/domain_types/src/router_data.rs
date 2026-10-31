@@ -4940,13 +4940,13 @@ pub struct PazeDynamicData {
 #[derive(Debug, Default, Clone)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<common_enums::enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
-    pub original_payment_authorized_amount: Option<Money>,
+    pub original_payment_authorized_money: Option<Money>,
     pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl RecurringMandatePaymentData {
     pub fn get_original_payment_amount(&self) -> Result<Money, Error> {
-        self.original_payment_authorized_amount
+        self.original_payment_authorized_money
             .clone()
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
     }

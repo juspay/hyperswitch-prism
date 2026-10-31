@@ -780,7 +780,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             gateway,
             currency: item.request.currency,
-            amount: item.request.amount.amount,
+            amount: item.request.money.amount(),
             description: item.resource_common_data.get_description()?,
             payment_options,
             customer,
@@ -882,7 +882,7 @@ impl<T: PaymentMethodDataTypes>
                 .clone(),
             gateway,
             currency: item.request.currency,
-            amount: item.request.amount.amount,
+            amount: item.request.money.amount(),
             description: item.resource_common_data.get_description()?,
             payment_options,
             customer,
@@ -1064,7 +1064,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let item = &wrapper.router_data;
         Ok(Self {
             currency: item.request.currency,
-            amount: item.request.refund_amount.amount,
+            amount: item.request.refund_money.amount(),
         })
     }
 }
@@ -1080,7 +1080,7 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             currency: item.request.currency,
-            amount: item.request.refund_amount.amount,
+            amount: item.request.refund_money.amount(),
         })
     }
 }

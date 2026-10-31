@@ -12,7 +12,7 @@ use crate::{
         extract_connector_request_reference_id, extract_merchant_id_from_metadata, ForeignTryFrom,
     },
 };
-use common_utils::{metadata::MaskedMetadata, types::MinorUnit};
+use common_utils::metadata::MaskedMetadata;
 use error_stack::ResultExt;
 impl
     ForeignTryFrom<(
@@ -67,20 +67,6 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceCalculateRequest>
             })
         })?;
 
-        let currency = {
-            let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "currency",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "Invalid currency in surcharge request".to_owned(),
-                        ),
-                        ..Default::default()
-                    },
-                })?;
-            common_enums::Currency::foreign_try_from(curr)?
-        };
-
         let country = value
             .country
             .map(|country| {
@@ -116,8 +102,7 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceCalculateRequest>
         })?;
 
         Ok(Self {
-            amount: MinorUnit::new(amount.minor_amount),
-            currency,
+            money: crate::money::from_proto_money(amount)?,
             previous_connector_surcharge_id: value.previous_connector_surcharge_id,
             surcharge_strategy,
             card_bin: value.card_bin,
