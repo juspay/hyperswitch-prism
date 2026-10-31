@@ -117,6 +117,12 @@ const FLOWS = {
   // surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
   surcharge_calculate                        : { request: "SurchargeServiceCalculateRequest", response: "SurchargeServiceCalculateResponse" },
 
+  // surcharge_refund_complete: SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund.
+  surcharge_refund_complete                  : { request: "SurchargeServiceSurchargeRefundCompleteRequest", response: "SurchargeServiceSurchargeRefundCompleteResponse" },
+
+  // surcharge_refund_init: SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund.
+  surcharge_refund_init                      : { request: "SurchargeServiceSurchargeRefundInitRequest", response: "SurchargeServiceSurchargeRefundInitResponse" },
+
   // token_authorize: PaymentService.TokenAuthorize — Authorize using a connector-issued payment method token.
   token_authorize                            : { request: "PaymentServiceTokenAuthorizeRequest", response: "PaymentServiceAuthorizeResponse" },
 

@@ -50,6 +50,8 @@ use grpc_api_types::frm::{
 };
 use grpc_api_types::surcharge::{
     SurchargeServiceCalculateRequest,
+    SurchargeServiceSurchargeRefundCompleteRequest,
+    SurchargeServiceSurchargeRefundInitRequest,
 };
 
 use crate::handlers::payments::{
@@ -91,6 +93,8 @@ use crate::handlers::payments::{
     setup_recurring_req_handler, setup_recurring_res_handler,
     submit_evidence_req_handler, submit_evidence_res_handler,
     surcharge_calculate_req_handler, surcharge_calculate_res_handler,
+    surcharge_refund_complete_req_handler, surcharge_refund_complete_res_handler,
+    surcharge_refund_init_req_handler, surcharge_refund_init_res_handler,
     token_authorize_req_handler, token_authorize_res_handler,
     token_setup_recurring_req_handler, token_setup_recurring_res_handler,
     tokenize_req_handler, tokenize_res_handler,
@@ -173,6 +177,10 @@ define_ffi_flow!(setup_recurring, PaymentServiceSetupRecurringRequest, setup_rec
 define_ffi_flow!(submit_evidence, DisputeServiceSubmitEvidenceRequest, submit_evidence_req_handler, submit_evidence_res_handler);
 // surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
 define_ffi_flow!(surcharge_calculate, SurchargeServiceCalculateRequest, surcharge_calculate_req_handler, surcharge_calculate_res_handler);
+// surcharge_refund_complete: SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund.
+define_ffi_flow!(surcharge_refund_complete, SurchargeServiceSurchargeRefundCompleteRequest, surcharge_refund_complete_req_handler, surcharge_refund_complete_res_handler);
+// surcharge_refund_init: SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund.
+define_ffi_flow!(surcharge_refund_init, SurchargeServiceSurchargeRefundInitRequest, surcharge_refund_init_req_handler, surcharge_refund_init_res_handler);
 // token_authorize: PaymentService.TokenAuthorize — Authorize using a connector-issued payment method token.
 define_ffi_flow!(token_authorize, PaymentServiceTokenAuthorizeRequest, token_authorize_req_handler, token_authorize_res_handler);
 // token_setup_recurring: PaymentService.TokenSetupRecurring — Setup a recurring mandate using a connector token.

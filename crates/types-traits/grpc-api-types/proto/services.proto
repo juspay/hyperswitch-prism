@@ -367,6 +367,10 @@ service PayoutService {
 service SurchargeService {
   // Calculate surcharge fees for a payment amount before processing.
   rpc Calculate(SurchargeServiceCalculateRequest) returns (SurchargeServiceCalculateResponse);
+  // Initiate a full or partial surcharge refund.
+  rpc SurchargeRefundInit(SurchargeServiceSurchargeRefundInitRequest) returns (SurchargeServiceSurchargeRefundInitResponse);
+  // Complete a previously initiated surcharge refund.
+  rpc SurchargeRefundComplete(SurchargeServiceSurchargeRefundCompleteRequest) returns (SurchargeServiceSurchargeRefundCompleteResponse);
 }
 
 // ============================================================================
@@ -384,4 +388,3 @@ service FraudAndRiskManagementService {
   // and post-transaction signals to refine risk models and detect chargeback fraud.
   rpc PostRiskCheck(FrmServicePostRiskCheckRequest) returns (FrmServicePostRiskCheckResponse);
 }
-

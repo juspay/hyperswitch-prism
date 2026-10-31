@@ -658,6 +658,9 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   DisputeServiceSubmitEvidenceResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   DisputeServiceDefendResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   DisputeServiceAcceptResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  SurchargeServiceSurchargeRefundInitRequest: { "amount": "Money" },
+  SurchargeServiceSurchargeRefundInitResponse: { "refundAmount": "Money", "originalTransactionFee": "Money", "previouslyRefundedTransactionFees": "Money", "error": "ErrorInfo" },
+  SurchargeServiceSurchargeRefundCompleteResponse: { "error": "ErrorInfo" },
 };
 
 function _wrapSecretStrings(obj: unknown, msgName: string): unknown {
@@ -1039,6 +1042,16 @@ export class GrpcSurchargeClient {
   async calculate(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "surcharge/calculate",
       req, types.SurchargeServiceCalculateRequest, types.SurchargeServiceCalculateResponse);
+  }
+  /** SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund. */
+  async surchargeRefundInit(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "surcharge/surcharge_refund_init",
+      req, types.SurchargeServiceSurchargeRefundInitRequest, types.SurchargeServiceSurchargeRefundInitResponse);
+  }
+  /** SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund. */
+  async surchargeRefundComplete(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "surcharge/surcharge_refund_complete",
+      req, types.SurchargeServiceSurchargeRefundCompleteRequest, types.SurchargeServiceSurchargeRefundCompleteResponse);
   }
 }
 
