@@ -307,6 +307,7 @@ default_impl_verify_webhook_source_v2!(
         Travelhub,
         D24,
         Betterpayment,
+        Reddot,
         Ecommpay,
     ],
 );
@@ -500,7 +501,8 @@ default_impl_recharge_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
+    Reddot,
 );
 
 // ============================================================================
@@ -742,7 +744,8 @@ default_impl_create_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
+    Reddot,
 );
 
 default_impl_get_payment_method_v2!(
@@ -862,7 +865,8 @@ default_impl_get_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
+    Reddot,
 );
 
 default_impl_payment_method_eligibility_v2!(
@@ -980,6 +984,7 @@ default_impl_payment_method_eligibility_v2!(
         Maya,
         Travelhub,
         Betterpayment,
+        Reddot,
         Ecommpay,
     ],
 );
@@ -1165,5 +1170,6 @@ default_impl_refresh_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
+    Reddot,
 );
