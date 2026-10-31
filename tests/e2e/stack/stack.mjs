@@ -1,0 +1,202 @@
+import { spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { connectors } from "../connectors/index.js";
+
+const e2eRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const runtime = resolve(e2eRoot, ".runtime");
+const composeFile = resolve(e2eRoot, "stack/compose.yml");
+const versionsFile = resolve(runtime, "versions.json");
+const action = process.argv[2];
+const hsImage =
+  process.env.HS_IMAGE ??
+  "docker.juspay.io/juspaydotin/hyperswitch-router@sha256:273e72877a1c94f843d8a87b591023bf44700d2454f0eba5edcb97fc0b876079";
+const ucsImage =
+  process.env.UCS_IMAGE ?? "docker.io/juspaydotin/hyperswitch-prism@sha256:56bbd606a8c75d4014eba6e3bbc88a8ba0433aca29949361979037e61dccb367";
+const ucsEnvironment = process.env.UCS_ENVIRONMENT ?? "development";
+const ucsConnectors = [
+  ...new Set(connectors.map((connector) => connector.id)),
+].join(",");
+
+if (!new Set(["up", "down"]).has(action)) {
+  throw new Error("Use stack.mjs up|down");
+}
+if (action === "up" && !["development", "sandbox"].includes(ucsEnvironment)) {
+  throw new Error(
+    "UCS_ENVIRONMENT must be development or sandbox for E2E tests",
+  );
+}
+if (action === "up" && !ucsConnectors) {
+  throw new Error("Register at least one E2E connector before starting the stack");
+}
+
+function run(command, args, options = {}) {
+  const result = spawnSync(command, args, { stdio: "inherit", ...options });
+  if (result.error) throw result.error;
+  if (result.status !== 0)
+    throw new Error(`${command} exited ${result.status}`);
+}
+
+function output(command, args) {
+  const result = spawnSync(command, args, { encoding: "utf8" });
+  if (result.status !== 0)
+    throw new Error(`${command} exited ${result.status}`);
+  return result.stdout.trim();
+}
+
+async function sourceCheckout() {
+  if (process.env.HS_SOURCE_DIR) return resolve(process.env.HS_SOURCE_DIR);
+
+  if (action === "down" && existsSync(versionsFile)) {
+    return JSON.parse(readFileSync(versionsFile, "utf8")).hsSourceDir;
+  }
+  if (action === "down")
+    throw new Error("No local E2E stack has been prepared");
+
+  run("docker", ["pull", hsImage]);
+  const version = output("docker", [
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "--entrypoint",
+    "/local/bin/router",
+    hsImage,
+    "--version",
+  ]);
+  const reportedRef =
+    process.env.HS_REF ?? version.match(/-[0-9a-f]{7,40}-/)?.[0].slice(1, -1);
+  if (!reportedRef) {
+    throw new Error(
+      "Cannot identify the Hyperswitch image revision; set HS_REF or HS_SOURCE_DIR",
+    );
+  }
+
+  const cached = readdirSync(runtime)
+    .map((name) => name.match(/^hyperswitch-([0-9a-f]{40})$/)?.[1])
+    .filter((sha) => sha?.startsWith(reportedRef));
+  let commit = /^[0-9a-f]{40}$/.test(reportedRef) ? reportedRef : undefined;
+  if (!commit && cached.length === 1) commit = cached[0];
+
+  if (!commit) {
+    const response = await fetch(
+      `https://api.github.com/repos/juspay/hyperswitch/commits/${encodeURIComponent(reportedRef)}`,
+      { signal: AbortSignal.timeout(30_000) },
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Cannot resolve the Hyperswitch source revision (HTTP ${response.status})`,
+      );
+    }
+    commit = (await response.json()).sha;
+  }
+  if (!/^[0-9a-f]{40}$/.test(commit)) throw new Error("Invalid HS revision");
+
+  const checkout = resolve(runtime, `hyperswitch-${commit}`);
+  if (!existsSync(checkout)) {
+    const pending = mkdtempSync(resolve(runtime, `hyperswitch-${commit}-`));
+    run("git", ["init", "--quiet", pending]);
+    run("git", [
+      "-C",
+      pending,
+      "remote",
+      "add",
+      "origin",
+      "https://github.com/juspay/hyperswitch.git",
+    ]);
+    run("git", [
+      "-C",
+      pending,
+      "fetch",
+      "--depth",
+      "1",
+      "--filter=blob:none",
+      "origin",
+      commit,
+    ]);
+    run("git", [
+      "-C",
+      pending,
+      "sparse-checkout",
+      "set",
+      "config",
+      "files",
+      "migrations",
+      "scripts",
+    ]);
+    run("git", ["-C", pending, "checkout", "--detach", "FETCH_HEAD"]);
+    renameSync(pending, checkout);
+  }
+  if (output("git", ["-C", checkout, "rev-parse", "HEAD"]) !== commit) {
+    throw new Error(
+      "Cached Hyperswitch checkout does not match the image revision",
+    );
+  }
+  return checkout;
+}
+
+mkdirSync(runtime, { recursive: true });
+const checkout = await sourceCheckout();
+if (!checkout || !existsSync(resolve(checkout, "docker-compose.yml"))) {
+  throw new Error("The matching Hyperswitch source checkout is unavailable");
+}
+
+const dieselConfig = resolve(runtime, "diesel.toml");
+if (action === "up") {
+  run("docker", ["pull", ucsImage]);
+  writeFileSync(
+    dieselConfig,
+    '[migrations_directory]\ndir = "/app/migrations"\n',
+  );
+  writeFileSync(
+    versionsFile,
+    JSON.stringify(
+      { hsImage, ucsImage, ucsEnvironment, ucsConnectors, hsSourceDir: checkout },
+      null,
+      2,
+    ),
+  );
+}
+
+const compose = [
+  "compose",
+  "--project-name",
+  "ucs-e2e",
+  "--project-directory",
+  checkout,
+  "-f",
+  resolve(checkout, "docker-compose.yml"),
+  "-f",
+  composeFile,
+];
+const env = {
+  ...process.env,
+  HS_IMAGE: hsImage,
+  UCS_IMAGE: ucsImage,
+  UCS_ENVIRONMENT: ucsEnvironment,
+  E2E_UCS_CONNECTORS: ucsConnectors,
+  E2E_STACK_DIR: resolve(e2eRoot, "stack"),
+  E2E_DIESEL_CONFIG: dieselConfig,
+};
+
+if (action === "up") run("docker", [...compose, "build", "ucs"], { env });
+
+run(
+  "docker",
+  [
+    ...compose,
+    ...(action === "up"
+      ? ["up", "-d", "--wait", "--wait-timeout", "600", "hyperswitch-server"]
+      : ["down", "--remove-orphans"]),
+  ],
+  { env },
+);
