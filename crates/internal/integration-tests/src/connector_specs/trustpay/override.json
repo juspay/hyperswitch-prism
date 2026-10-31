@@ -25,6 +25,12 @@
             "value": "test@example.com"
           }
         }
+      },
+      "assert": {
+        "status": {
+          "equals": "FAILURE"
+        },
+        "error.connector_details.message": null
       }
     },
     "no3ds_manual_capture_credit_card": {
@@ -38,8 +44,7 @@
       "assert": {
         "status": {
           "one_of": [
-            "AUTHORIZED",
-            "CHARGED"
+            "AUTHORIZED"
           ]
         }
       }
@@ -55,8 +60,7 @@
       "assert": {
         "status": {
           "one_of": [
-            "AUTHORIZED",
-            "CHARGED"
+            "AUTHORIZED"
           ]
         }
       }
@@ -74,8 +78,7 @@
           "one_of": [
             "AUTHENTICATION_PENDING",
             "PENDING",
-            "AUTHORIZED",
-            "CHARGED"
+            "AUTHORIZED"
           ]
         }
       }
@@ -156,6 +159,13 @@
         },
         "browser_info": {
           "language": "en-US"
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHORIZED"
+          ]
         }
       }
     },
@@ -282,5 +292,25 @@
         }
       }
     }
+  },
+  "PaymentService/Refund": {
+    "refund_full_amount": {"pre_request_http": {"timeout_secs": 65}},
+    "refund_partial_amount": {"pre_request_http": {"timeout_secs": 65}},
+    "refund_with_reason": {"pre_request_http": {"timeout_secs": 65}}
+  },
+  "PaymentService/CreateOrder": {
+    "create_order_with_payment_method_type": {
+      "assert": {
+        "status": {"one_of": ["AUTHENTICATION_PENDING"]},
+        "session_token": null,
+        "session_data": {"must_exist": true}
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {"assert": {"event_status": null, "event_content.payments_response.status": {"one_of": ["CHARGED"]}}},
+    "payment_failed": {"assert": {"event_status": null, "event_content.payments_response.status": {"one_of": ["AUTHORIZATION_FAILED"]}}},
+    "refund_succeeded": {"assert": {"event_status": null, "event_content.refunds_response.status": {"one_of": ["REFUND_SUCCESS"]}}},
+    "invalid_signature": {"assert": {"event_status": null, "event_content.payments_response.status": {"one_of": ["CHARGED"]}}}
   }
 }

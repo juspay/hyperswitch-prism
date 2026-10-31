@@ -855,5 +855,27 @@
     "https://github.com/Novalnet-AG/magento2-payment-integration-novalnet/blob/23c724a8704ab40b150e87eb3f746a95a97e1d8b/Helper/Data.php#L1095",
     "https://github.com/Novalnet-AG/shopware-6-payment-integration-novalnet/blob/8a3a4f0c85a4dafede852e080c2cd0423f6790e2/src/Helper/NovalnetHelper.php",
     "https://raw.githubusercontent.com/Novalnet-AG/oxideshop7-payment-integration-novalnet/master/Core/NovalnetUtil.php"
+  ],
+  "Trustpay": [
+    "https://doc.finby.eu/",
+    "https://doc.finby.eu/#cards-purchase",
+    "https://doc.finby.eu/#codes-acq-result",
+    "https://doc.finby.eu/#codes-result",
+    "https://doc.finby.eu/#creating-sign",
+    "https://doc.finby.eu/#payment-types",
+    "https://doc.finby.eu/#preauth-capture",
+    "https://doc.finby.eu/#test-cards",
+    "https://doc.finby.eu/#wire-notification",
+    "https://doc.finby.eu/aapi",
+    "https://doc.finby.eu/aapi/",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-3DS-data",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-3ds-instance-status",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-ChallengeIndicator",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-browser-data",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-common-payment-statuses",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-result-code",
+    "https://doc.finby.eu/aapi/#tpgw-s2s-urls",
+    "https://docs.finby.com/docs/",
+    "https://docs.finby.com/llms.txt"
   ]
 }
