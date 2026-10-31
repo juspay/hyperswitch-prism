@@ -2239,7 +2239,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5195,7 +5195,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5744,7 +5744,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.25.0",
+ "strum 0.26.3",
  "thiserror 2.0.18",
 ]
 
@@ -6042,7 +6042,7 @@ version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
- "heck 0.4.1",
+ "heck 0.5.0",
  "itertools 0.14.0",
  "log",
  "multimap",
@@ -6243,7 +6243,7 @@ dependencies = [
  "once_cell",
  "socket2 0.6.3",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -6784,7 +6784,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7487,9 +7487,6 @@ name = "strum"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
-dependencies = [
- "strum_macros 0.25.3",
-]
 
 [[package]]
 name = "strum"
@@ -7534,9 +7531,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "superposition_core"
-version = "0.116.0"
+version = "0.118.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e780565fc6f86d37dd034461f78bb3759d4aa0c622cc6dc5960a6e40b1660caa"
+checksum = "c80b82118971128e6da0edfe58b04522b31e1046ee1ae192e5d4fc3ebdaed780"
 dependencies = [
  "bigdecimal",
  "blake3",
@@ -7555,9 +7552,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_derives"
-version = "0.116.0"
+version = "0.118.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e794835b098ec8677f2004b7252cdf3ea73c110e1b28afbd99ac9092657b46d0"
+checksum = "1efc2a4c201597b70ccf1fdf4ba3ec1f7518e95a99f55d033fd29c5453720625"
 dependencies = [
  "proc-macro-crate",
  "quote",
@@ -7566,9 +7563,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_provider"
-version = "0.116.0"
+version = "0.118.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45b877bf8fa5882cd96775d7f587834ccde3d219f50df7819abddc2510001981"
+checksum = "8cc376cefdfff66b202b77d6c37e126abd7b2948460a28090db262d245eef211"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -7591,9 +7588,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_sdk"
-version = "0.116.0"
+version = "0.118.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c898b9823da19b0bd226510cb81416214d0d9087cadd9ef4f59c853b2b38e14"
+checksum = "82172c3361f0d3b5914939fd2cd220d4348566c4a3b9b2f405e876e2d906dd27"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.6",
@@ -7609,9 +7606,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_types"
-version = "0.116.0"
+version = "0.118.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3372446c445a958859c6eda19f25f888d50d3c9f00427591ef032ffd64af89f"
+checksum = "b755c3781c619c3f65608342c45424a407549504b896ba8a637be855beacccf0"
 dependencies = [
  "bigdecimal",
  "chrono",
@@ -7830,7 +7827,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9251,7 +9248,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
