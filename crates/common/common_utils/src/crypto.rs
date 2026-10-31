@@ -137,6 +137,14 @@ pub trait VerifySignature {
     ) -> CustomResult<bool, errors::CryptoError>;
 }
 
+/// Compares two cryptographic values without leaking content through timing.
+///
+/// Length is intentionally checked first because OpenSSL's comparison API
+/// requires equal-length inputs. Cryptographic signature lengths are public.
+pub fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
+    left.len() == right.len() && openssl::memcmp::eq(left, right)
+}
+
 /// Trait for cryptographically encoding a message
 pub trait EncodeMessage {
     /// Takes in a secret and the message and encodes it, returning bytes
@@ -495,7 +503,8 @@ impl VerifySignature for Sha512 {
         Ok(hashed_digest_into_bytes == signature)
     }
 }
-/// MD5 hash function
+/// MD5 for legacy connector protocols that require this exact digest.
+/// Do not use it for new signature schemes or password hashing.
 #[derive(Debug)]
 pub struct Md5;
 
@@ -516,7 +525,7 @@ impl VerifySignature for Md5 {
         let hashed_digest = Self
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
-        Ok(hashed_digest == signature)
+        Ok(constant_time_eq(&hashed_digest, signature))
     }
 }
 
@@ -1059,5 +1068,10 @@ mod crypto_tests {
             .expect("Wrong signature verification result");
 
         assert!(!wrong_verified);
+
+        let same_length_wrong_signature = [0u8; 16];
+        assert!(!super::Md5
+            .verify_signature(secret, &same_length_wrong_signature, data)
+            .expect("Same-length wrong signature verification result"));
     }
 }
