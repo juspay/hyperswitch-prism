@@ -284,6 +284,34 @@ pub fn merge_configs(override_val: &Value, base_val: &Value) -> Value {
     }
 }
 
+/// WebhookSecrets / RedirectResponseSecrets carry secrets as plain proto strings,
+/// which masked_serialize cannot see; mask them by path in any logged request JSON.
+fn mask_plain_proto_secrets(body: &mut Value) {
+    for parent in ["webhook_secrets", "redirect_response_secrets"] {
+        for key in ["secret", "additional_secret"] {
+            if let Some(value) = body.get_mut(parent).and_then(|p| p.get_mut(key)) {
+                if value.is_string() {
+                    *value = Value::String("*** masked ***".to_string());
+                }
+            }
+        }
+    }
+}
+
+/// The gRPC request as it is recorded on the GrpcRequest event (request_data).
+fn masked_grpc_request<T: serde::Serialize>(request: &T) -> Option<MaskedSerdeValue> {
+    let mut body = hyperswitch_masking::masked_serialize(request)
+        .inspect_err(|e| {
+            tracing::error!(
+                context = "grpc_request",
+                "Failed to mask serialize data: {e:?}"
+            )
+        })
+        .ok()?;
+    mask_plain_proto_secrets(&mut body);
+    MaskedSerdeValue::from_masked_optional(&body, "grpc_request")
+}
+
 pub fn log_before_initialization<T>(
     request_data: &RequestData<T>,
     service_name: &str,
@@ -302,7 +330,11 @@ where
     let current_span = tracing::Span::current();
     let masked_body = hyperswitch_masking::masked_serialize(&request_data.payload)
         .map_err(|e| tracing::error!("Masked serialization error: {:?}", e))
-        .ok();
+        .ok()
+        .map(|mut body| {
+            mask_plain_proto_secrets(&mut body);
+            body
+        });
     let connector_name = connector.get_connector_name();
     current_span.record("service_name", service_name);
     match masked_body.as_ref() {
@@ -427,8 +459,7 @@ where
 {
     let current_span = tracing::Span::current();
     let start_time = tokio::time::Instant::now();
-    let masked_request_data =
-        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    let masked_request_data = masked_grpc_request(request.get_ref());
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
@@ -497,8 +528,7 @@ where
 {
     let current_span = tracing::Span::current();
     let start_time = tokio::time::Instant::now();
-    let masked_request_data =
-        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    let masked_request_data = masked_grpc_request(request.get_ref());
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
