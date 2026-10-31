@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::panic)]
@@ -132,6 +133,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
                 line3: Some("Harrison Street".to_string().into()),
                 city: Some("San Fransico".to_string().into()),
                 state: Some("California".to_string().into()),
+                state_details: None,
                 zip_code: Some("94122".to_string().into()),
                 country_alpha2_code: Some(grpc_api_types::payments::CountryAlpha2::De.into()),
             }),

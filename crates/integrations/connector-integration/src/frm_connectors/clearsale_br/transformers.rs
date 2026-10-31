@@ -14,7 +14,7 @@ use domain_types::{
         PostRiskCheckResponse, PreRiskCheckRequest, PreRiskCheckResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_address::OrderDetailsWithAmount,
+    payment_address::{OrderDetailsWithAmount, State},
     payment_method_data::{
         BankTransferData, Card, CardWithNoCvc, CustomerDocumentDetails, DefaultPCIHolder,
         DocumentKind, PaymentMethodData, PaymentMethodDataTypes, VoucherData, WalletData,
@@ -1161,7 +1161,12 @@ pub(crate) fn build_clear_sale_address(
     };
     let county = required_value(n_county, address_details.and_then(|d| d.line2.as_ref()))?;
     let city = required_value(n_city, address_details.and_then(|d| d.city.as_ref()))?;
-    let state_raw = required_value(n_state, address_details.and_then(|d| d.state.as_ref()))?;
+    let state_raw = required_value(
+        n_state,
+        address_details
+            .and_then(|d| d.state.as_ref())
+            .map(State::as_secret),
+    )?;
     let zipcode = required_value(n_zipcode, address_details.and_then(|d| d.zip.as_ref()))?;
     // Spec §5.1: `state` is the 2-char UF. `"Acre"` must go on the wire as `AC`.
     let state = clearsale_state_uf(label, state_raw.peek())?;

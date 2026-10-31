@@ -187,7 +187,11 @@ impl requests::RedsysEmvThreeDsRequestData {
                     let state = address_details
                         .state
                         .clone()
-                        .map(|state| domain_types::utils::convert_spain_state_to_code(state.peek()))
+                        .map(|state| {
+                            domain_types::utils::convert_spain_state_to_code(
+                                state.into_secret().peek(),
+                            )
+                        })
                         .transpose();
 
                     match state {
@@ -223,7 +227,11 @@ impl requests::RedsysEmvThreeDsRequestData {
                     let state = address_details
                         .state
                         .clone()
-                        .map(|state| domain_types::utils::convert_spain_state_to_code(state.peek()))
+                        .map(|state| {
+                            domain_types::utils::convert_spain_state_to_code(
+                                state.into_secret().peek(),
+                            )
+                        })
                         .transpose();
 
                     match state {

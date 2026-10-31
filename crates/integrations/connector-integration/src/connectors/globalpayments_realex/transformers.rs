@@ -4069,7 +4069,7 @@ fn build_billing_address(
             .zip
             .clone()
             .ok_or_else(|| missing("billing.address.zip"))?,
-        state: details.state.clone(),
+        state: details.get_optional_state(),
         country: format!("{:03}", CountryAlpha2::to_numeric(country)),
     })
 }

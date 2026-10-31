@@ -705,7 +705,7 @@ fn get_worldpayxml_billing_address(
             address3: addr.line3.clone(),
             postal_code,
             city,
-            state: addr.state.clone(),
+            state: addr.get_optional_state(),
             country_code,
             telephone_number,
         },

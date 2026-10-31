@@ -6126,7 +6126,7 @@ pub fn get_address_info(
                     country: a.get_country()?.to_owned(),
                     house_number_or_name: a.get_line1()?.to_owned(),
                     postal_code: a.get_zip()?.to_owned(),
-                    state_or_province: a.state.clone(),
+                    state_or_province: a.get_optional_state(),
                     street: a.line2.clone(),
                 })
             },

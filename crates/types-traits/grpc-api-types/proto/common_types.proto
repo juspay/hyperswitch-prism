@@ -218,7 +218,7 @@ message Address {
   optional SecretString line2 = 4;
   optional SecretString line3 = 5;
   optional SecretString city = 6;
-  optional SecretString state = 7;
+  optional SecretString state = 7 [deprecated = true];
   optional SecretString zip_code = 8;
   optional CountryAlpha2 country_alpha2_code = 9;
   // Postal code of the shipping origin, separate from the destination postal code
@@ -228,6 +228,18 @@ message Address {
   optional SecretString email = 10;
   optional SecretString phone_number = 11;
   optional string phone_country_code = 12;
+
+  // Preferred representation for new clients. When both `state_details` and
+  // the deprecated `state` field are supplied, `state_details` takes precedence.
+  oneof state_details {
+    // Full state/province name as supplied by the caller.
+    SecretString state_name = 15;
+    // ISO 3166-2 subdivision code. Both the canonical `CC-SUBDIVISION` form
+    // (for example, `US-CA`) and a bare subdivision component (`CA`) are
+    // accepted. Canonical values are checked against `country_alpha2_code`
+    // when present and normalized to the bare subdivision component.
+    SecretString state_code_iso = 16;
+  }
 }
 
 message Customer {

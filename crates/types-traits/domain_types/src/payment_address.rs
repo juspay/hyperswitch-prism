@@ -1,11 +1,15 @@
+use crate::{
+    errors::{IntegrationError, IntegrationErrorContext},
+    state_codes::convert_state_to_code,
+    utils::{
+        convert_canada_state_to_code, convert_us_state_to_code, missing_field_err, Error,
+        ForeignTryFrom,
+    },
+};
+
 use common_enums::ProductType;
 use common_utils::{ext_traits::ConfigExt, Email, MinorUnit};
 use hyperswitch_masking::{PeekInterface, Secret, SerializableSecret};
-
-use crate::{
-    state_codes::convert_state_to_code,
-    utils::{convert_canada_state_to_code, convert_us_state_to_code, missing_field_err, Error},
-};
 
 #[derive(Clone, Default, Debug)]
 pub struct PaymentAddress {
@@ -183,6 +187,103 @@ impl Address {
 
 // used by customers also, could be moved outside
 /// Address details
+#[derive(Clone, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq)]
+pub enum State {
+    StateValue(Secret<String>),
+    StateCode(Secret<String>),
+}
+
+fn invalid_state_code(context: &'static str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::InvalidDataFormat {
+        field_name: "address.state_code_iso",
+        context: IntegrationErrorContext {
+            additional_context: Some(context.to_string()),
+            ..Default::default()
+        },
+    })
+}
+
+fn normalize_state_code_iso(
+    state_code_iso: Secret<String>,
+    country: Option<common_enums::CountryAlpha2>,
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    let state_code = state_code_iso.peek();
+    let normalized_code = match state_code.split_once('-') {
+        Some((country_prefix, subdivision_code))
+            if !country_prefix.is_empty()
+                && !subdivision_code.is_empty()
+                && !subdivision_code.contains('-') =>
+        {
+            if country
+                .is_some_and(|country| !country_prefix.eq_ignore_ascii_case(&country.to_string()))
+            {
+                return Err(invalid_state_code(
+                    "The ISO 3166-2 state-code country prefix must match country_alpha2_code",
+                ));
+            }
+            subdivision_code
+        }
+        Some(_) => {
+            return Err(invalid_state_code(
+                "Expected an ISO 3166-2 code in CC-SUBDIVISION format",
+            ));
+        }
+        None => state_code.as_str(),
+    };
+
+    if normalized_code.is_empty()
+        || normalized_code.len() > 3
+        || !normalized_code
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric())
+    {
+        return Err(invalid_state_code(
+            "The ISO 3166-2 subdivision component must contain one to three alphanumeric characters",
+        ));
+    }
+
+    Ok(Secret::new(normalized_code.to_ascii_uppercase()))
+}
+
+impl
+    ForeignTryFrom<(
+        grpc_api_types::payments::address::StateDetails,
+        Option<common_enums::CountryAlpha2>,
+    )> for State
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, country): (
+            grpc_api_types::payments::address::StateDetails,
+            Option<common_enums::CountryAlpha2>,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_api_types::payments::address::StateDetails::StateName(state_name) => {
+                Ok(Self::StateValue(state_name))
+            }
+            grpc_api_types::payments::address::StateDetails::StateCodeIso(state_code_iso) => {
+                normalize_state_code_iso(state_code_iso, country).map(Self::StateCode)
+            }
+        }
+    }
+}
+
+impl State {
+    pub fn as_secret(&self) -> &Secret<String> {
+        match self {
+            Self::StateValue(value) | Self::StateCode(value) => value,
+        }
+    }
+
+    pub fn into_secret(self) -> Secret<String> {
+        match self {
+            Self::StateValue(value) | Self::StateCode(value) => value,
+        }
+    }
+}
+
 #[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
@@ -205,7 +306,8 @@ pub struct AddressDetails {
     pub zip: Option<Secret<String>>,
 
     /// The address state
-    pub state: Option<Secret<String>>,
+    /// State/province name or ISO 3166-2 subdivision code.
+    pub state: Option<State>,
 
     /// The first name for the address
     pub first_name: Option<Secret<String>>,
@@ -307,6 +409,7 @@ impl AddressDetails {
     pub fn get_state(&self) -> Result<&Secret<String>, Error> {
         self.state
             .as_ref()
+            .map(State::as_secret)
             .ok_or_else(missing_field_err("address.state"))
     }
 
@@ -364,11 +467,25 @@ impl AddressDetails {
     pub fn get_optional_country(&self) -> Option<common_enums::CountryAlpha2> {
         self.country
     }
+    /// Returns the supplied state representation, regardless of whether it is
+    /// a state name or an ISO subdivision code.
     pub fn get_optional_state(&self) -> Option<Secret<String>> {
-        self.state.clone()
+        self.state.as_ref().map(|state| state.as_secret().clone())
+    }
+
+    /// Returns only an ISO subdivision code. A state name is intentionally not
+    /// converted here because conversion depends on the connector's needs.
+    pub fn get_optional_state_code_iso(&self) -> Option<Secret<String>> {
+        self.state.as_ref().and_then(|state| match state {
+            State::StateValue(_) => None,
+            State::StateCode(value) => Some(value.clone()),
+        })
     }
 
     pub fn to_state_code(&self) -> Result<Secret<String>, Error> {
+        if let Some(State::StateCode(state_code)) = self.state.as_ref() {
+            return Ok(state_code.clone());
+        }
         let country = self.get_country()?;
         let state = self.get_state()?;
         match country {
@@ -387,11 +504,14 @@ impl AddressDetails {
     pub fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error> {
         self.state
             .as_ref()
-            .map(|state| {
-                if state.peek().len() == 2 {
-                    Ok(state.to_owned())
-                } else {
-                    self.to_state_code()
+            .map(|state| match state {
+                State::StateCode(value) => Ok(value.clone()),
+                State::StateValue(value) => {
+                    if value.peek().len() == 2 {
+                        Ok(value.clone())
+                    } else {
+                        self.to_state_code()
+                    }
                 }
             })
             .transpose()

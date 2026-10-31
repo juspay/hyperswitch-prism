@@ -14,7 +14,7 @@ use domain_types::{
         ResponseId,
     },
     errors,
-    payment_address::AddressDetails,
+    payment_address::{AddressDetails, State},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -3859,7 +3859,7 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
 /// the accented "Québec"). A 1–3 char alphanumeric result is an ISO 3166-2 subdivision code and
 /// gets the country prefix; anything else is sent as the merchant supplied it.
 fn to_iso_3166_2_province(billing: &AddressDetails) -> Option<Secret<String>> {
-    let raw = billing.state.as_ref()?.peek().trim();
+    let raw = billing.state.as_ref()?.as_secret().peek().trim();
     let Some(country) = billing.country else {
         return Some(Secret::new(raw.to_string()));
     };
@@ -3870,7 +3870,7 @@ fn to_iso_3166_2_province(billing: &AddressDetails) -> Option<Secret<String>> {
         .and_then(|_| raw.get(prefix.len()..))
         .unwrap_or(raw);
     let code = AddressDetails {
-        state: Some(Secret::new(local.to_string())),
+        state: Some(State::StateValue(Secret::new(local.to_string()))),
         ..billing.clone()
     }
     .to_state_code_as_optional()

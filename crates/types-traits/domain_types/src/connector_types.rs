@@ -1030,7 +1030,7 @@ impl PaymentFlowData {
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_details| shipping_details.state)
+                .and_then(|shipping_details| shipping_details.get_optional_state())
         })
     }
 
@@ -1237,7 +1237,7 @@ impl PaymentFlowData {
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.state)
+                    .and_then(|billing_details| billing_details.get_optional_state())
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.state",
@@ -1345,8 +1345,15 @@ impl PaymentFlowData {
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.state)
+                    .and_then(|billing_details| billing_details.get_optional_state())
             })
+    }
+
+    pub fn get_optional_billing_state_code_iso(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.address.as_ref())
+            .and_then(|billing_details| billing_details.get_optional_state_code_iso())
     }
 
     pub fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
@@ -2821,7 +2828,7 @@ impl ServerSessionAuthenticationTokenRequestData {
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_details| shipping_details.state)
+                .and_then(|shipping_details| shipping_details.get_optional_state())
         })
     }
 
@@ -5574,7 +5581,7 @@ impl L2L3Data {
     pub fn get_shipping_state(&self) -> Option<Secret<String>> {
         self.shipping_details
             .as_ref()
-            .and_then(|address| address.state.clone())
+            .and_then(|address| address.get_optional_state())
     }
 
     pub fn get_shipping_origin_zip(&self) -> Option<Secret<String>> {

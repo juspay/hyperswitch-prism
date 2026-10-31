@@ -625,7 +625,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let addr_line2 = billing.and_then(|addr| addr.get_optional_line2());
         let addr_zip = billing.and_then(|addr| addr.get_optional_zip());
         let addr_city = billing.and_then(|addr| addr.get_optional_city());
-        let addr_state = billing.and_then(|addr| addr.state.clone());
+        let addr_state = billing.and_then(|addr| addr.get_optional_state());
         let addr_country = billing
             .and_then(|addr| addr.get_optional_country())
             .ok_or_else(|| {

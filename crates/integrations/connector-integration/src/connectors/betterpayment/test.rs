@@ -8,7 +8,7 @@ use domain_types::{
         EventType, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsResponseData, RequestDetails, ResponseId,
     },
-    payment_address::{Address, AddressDetails, PhoneDetails},
+    payment_address::{Address, AddressDetails, PhoneDetails, State},
     payment_method_data::DefaultPCIHolder,
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -77,7 +77,7 @@ fn billing_maps_optional_contact_and_address_fields() {
             city: Some(Secret::new("Berlin".to_owned())),
             zip: Some(Secret::new("10178".to_owned())),
             country: Some(CountryAlpha2::DE),
-            state: Some(Secret::new("Berlin".to_owned())),
+            state: Some(State::StateValue(Secret::new("Berlin".to_owned()))),
             first_name: Some(Secret::new("Jane".to_owned())),
             last_name: Some(Secret::new("Doe".to_owned())),
             ..Default::default()

@@ -236,7 +236,10 @@ fn tamara_location(address: &AddressDetails) -> Option<String> {
         address.line2.as_ref().map(|line| line.peek().clone()),
         address.line3.as_ref().map(|line| line.peek().clone()),
         address.city.as_ref().map(|city| city.peek().clone()),
-        address.state.as_ref().map(|state| state.peek().clone()),
+        address
+            .state
+            .as_ref()
+            .map(|state| state.as_secret().peek().clone()),
         address.zip.as_ref().map(|zip| zip.peek().clone()),
         address.country.map(|country| country.to_string()),
     ];

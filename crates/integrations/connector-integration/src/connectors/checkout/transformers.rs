@@ -459,7 +459,7 @@ fn build_checkout_recipient(
                     .ok_or_else(utils::missing_field_err("recipient_details.address.city"))?,
             ),
             state: CheckoutAftStateParams {
-                state: address.state.clone(),
+                state: address.get_optional_state(),
                 country,
                 field_name: "recipient_details.address.state",
             }

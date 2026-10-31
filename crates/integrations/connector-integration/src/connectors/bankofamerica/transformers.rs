@@ -285,7 +285,7 @@ fn build_bill_to(
                     addr.state.clone().map(|state| {
                         Secret::new(format!(
                             "{:.width$}",
-                            state.expose(),
+                            state.into_secret().expose(),
                             width = MAX_STATE_LENGTH
                         ))
                     })

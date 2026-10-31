@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::panic)]
@@ -145,6 +146,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             line1: Some(format!("{random_street_num} Main St").into()),
             city: Some("San Francisco".to_string().into()),
             state: Some("CA".to_string().into()),
+            state_details: None,
             zip_code: Some(format!("{random_zip_suffix}").into()),
             country_alpha2_code: Some(i32::from(CountryAlpha2::Us)),
             ..Default::default()
