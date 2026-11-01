@@ -251,7 +251,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn get_webhook_integrity_checks(&self) -> Vec<connector_types::WebhookIntegrityCheck> {
         use connector_types::WebhookIntegrityCheck;
-        vec![WebhookIntegrityCheck::ConnectorTransactionId, WebhookIntegrityCheck::Amount, WebhookIntegrityCheck::Currency]
+        vec![
+            WebhookIntegrityCheck::ConnectorTransactionId,
+            WebhookIntegrityCheck::Amount,
+            WebhookIntegrityCheck::Currency,
+        ]
     }
 
     fn get_webhook_amount(
@@ -267,7 +271,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
         match transformers::parse_nuvei_webhook(&request.body)? {
             transformers::NuveiWebhook::PaymentDmn(notification) => {
-                if transformers::is_payout_dmn(&notification) || notification.has_conflicting_status() {
+                if transformers::is_payout_dmn(&notification)
+                    || notification.has_conflicting_status()
+                {
                     return Err(WebhookError::WebhookEventTypeNotFound.into());
                 }
                 match (
@@ -343,7 +349,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_webhook_raw_connector_status(
         &self,
         request: RequestDetails,
-    ) -> Result<Option<domain_types::connector_types::RawConnectorStatus>, Report<WebhookError>> {
+    ) -> Result<Option<domain_types::connector_types::RawConnectorStatus>, Report<WebhookError>>
+    {
         match transformers::parse_nuvei_webhook(&request.body)? {
             transformers::NuveiWebhook::PaymentDmn(notification) => {
                 Ok(Some(notification.raw_connector_status()))

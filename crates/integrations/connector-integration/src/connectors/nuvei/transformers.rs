@@ -1080,8 +1080,10 @@ pub(super) fn get_nuvei_payment_status(
     status: &NuveiPaymentStatus,
 ) -> AttemptStatus {
     // Conflicting request failure and transaction approval is inconclusive; reconcile by sync.
-    if matches!(status, NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed)
-        && transaction_status == Some(&NuveiTransactionStatus::Approved)
+    if matches!(
+        status,
+        NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed
+    ) && transaction_status == Some(&NuveiTransactionStatus::Approved)
     {
         return AttemptStatus::Pending;
     }
@@ -1669,15 +1671,18 @@ fn merge_nuvei_capture_ticket(
         );
     }
     // The ticket is issued at capture, independently of booking/auth time.
-    reservation_details.insert("issueDate".to_owned(), serde_json::Value::String(
-        common_utils::date_time::now()
-            .format(time::macros::format_description!(
-                "[year]-[month]-[day] [hour]:[minute]:[second]"
-            ))
-            .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
-            })?,
-    ));
+    reservation_details.insert(
+        "issueDate".to_owned(),
+        serde_json::Value::String(
+            common_utils::date_time::now()
+                .format(time::macros::format_description!(
+                    "[year]-[month]-[day] [hour]:[minute]:[second]"
+                ))
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?,
+        ),
+    );
     Ok(Some(pii::SecretSerdeValue::new(value)))
 }
 
@@ -3792,11 +3797,16 @@ pub(super) fn process_nuvei_redirect(
         get_nuvei_redirection_response(&callback)
     {
         meta.as_object_mut()
-            .ok_or_else(|| nuvei_missing_field(
-                "connector_feature_data",
-                "Pass the metadata returned with the Nuvei challenge",
-            ))?
-            .insert("nuvei_challenge_cres".to_owned(), serde_json::Value::String(cres.peek().clone()));
+            .ok_or_else(|| {
+                nuvei_missing_field(
+                    "connector_feature_data",
+                    "Pass the metadata returned with the Nuvei challenge",
+                )
+            })?
+            .insert(
+                "nuvei_challenge_cres".to_owned(),
+                serde_json::Value::String(cres.peek().clone()),
+            );
     }
     Ok(domain_types::connector_types::RedirectDetailsResponse {
         resource_id: None,
@@ -3975,8 +3985,10 @@ fn get_nuvei_transaction_id(
 /// initPayment status: APPROVED (InitAuth3D) only authenticates, so it maps to
 /// AuthenticationPending, never Authorized.
 fn get_nuvei_pre_authenticate_status(response: &NuveiPaymentsResponse) -> AttemptStatus {
-    if matches!(response.status, NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed)
-        && response.transaction_status == Some(NuveiTransactionStatus::Approved)
+    if matches!(
+        response.status,
+        NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed
+    ) && response.transaction_status == Some(NuveiTransactionStatus::Approved)
     {
         return AttemptStatus::Pending;
     }
@@ -4181,8 +4193,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: "THREE_DS_NOT_SUPPORTED".to_owned(),
-                    message: "Nuvei does not support 3Ds for this card."
-                        .to_owned(),
+                    message: "Nuvei does not support 3Ds for this card.".to_owned(),
                     status_code: item.http_code,
                     attempt_status: Some(FlowStatus::Payment(AttemptStatus::AuthenticationFailed)),
                     ..Default::default()
@@ -7353,10 +7364,16 @@ fn normalized_nuvei_dmn_response(
     }
     if let Some(details) = value.as_object_mut() {
         if !card.is_empty() {
-            details.insert("paymentOption".to_owned(), serde_json::json!({"card": card}));
+            details.insert(
+                "paymentOption".to_owned(),
+                serde_json::json!({"card": card}),
+            );
         }
         if let Some(product_id) = &notification.product_id {
-            details.insert("productDetails".to_owned(), serde_json::json!({"productId": product_id}));
+            details.insert(
+                "productDetails".to_owned(),
+                serde_json::json!({"productId": product_id}),
+            );
         }
     }
     // Authentication/card attributes absent from the DMN are not invented.
@@ -8041,30 +8058,55 @@ mod tests {
             .unwrap()
             .unwrap();
         assert!(without_metadata.peek()["airlines"]["reservationDetails"]["issueDate"].is_string());
-        assert_eq!(without_metadata.peek()["airlines"]["reservationDetails"]["pnrCode"], "PNR123");
-        assert!(without_metadata.peek()["airlines"]["reservationDetails"].get("ticketNumber").is_none());
-        for metadata in [serde_json::json!({}), serde_json::json!({"reference_id":""})] {
+        assert_eq!(
+            without_metadata.peek()["airlines"]["reservationDetails"]["pnrCode"],
+            "PNR123"
+        );
+        assert!(without_metadata.peek()["airlines"]["reservationDetails"]
+            .get("ticketNumber")
+            .is_none());
+        for metadata in [
+            serde_json::json!({}),
+            serde_json::json!({"reference_id":""}),
+        ] {
             let metadata = super::pii::SecretSerdeValue::new(metadata);
-            let merged = super::merge_nuvei_capture_ticket(Some(addendums.clone()), Some(&metadata))
-                .unwrap()
-                .unwrap();
+            let merged =
+                super::merge_nuvei_capture_ticket(Some(addendums.clone()), Some(&metadata))
+                    .unwrap()
+                    .unwrap();
             assert!(merged.peek()["airlines"]["reservationDetails"]["issueDate"].is_string());
-            assert!(merged.peek()["airlines"]["reservationDetails"].get("ticketNumber").is_none());
+            assert!(merged.peek()["airlines"]["reservationDetails"]
+                .get("ticketNumber")
+                .is_none());
         }
     }
 
     #[test]
     fn airline_stopovers_follow_journey_boundaries_and_preserve_explicit_values() {
-        let segment = |journey_no, stopover: Option<&str>| domain_types::connector_types::AirlineSegment {
-            journey_no,
-            stopover_code: stopover.map(str::to_owned),
-            ..Default::default()
-        };
+        let segment =
+            |journey_no, stopover: Option<&str>| domain_types::connector_types::AirlineSegment {
+                journey_no,
+                stopover_code: stopover.map(str::to_owned),
+                ..Default::default()
+            };
         for (segments, expected) in [
             (vec![segment(None, None)], vec!["O"]),
-            (vec![segment(None, None), segment(None, None)], vec!["X", "O"]),
-            (vec![segment(Some(1), None), segment(Some(1), None), segment(Some(2), None)], vec!["X", "O", "O"]),
-            (vec![segment(Some(1), Some("O")), segment(Some(1), None)], vec!["O", "O"]),
+            (
+                vec![segment(None, None), segment(None, None)],
+                vec!["X", "O"],
+            ),
+            (
+                vec![
+                    segment(Some(1), None),
+                    segment(Some(1), None),
+                    segment(Some(2), None),
+                ],
+                vec!["X", "O", "O"],
+            ),
+            (
+                vec![segment(Some(1), Some("O")), segment(Some(1), None)],
+                vec!["O", "O"],
+            ),
         ] {
             let domain = domain_types::connector_types::DomainData {
                 airline_data: Some(domain_types::connector_types::AirlineData {
@@ -8073,9 +8115,16 @@ mod tests {
                 }),
                 ..Default::default()
             };
-            let addendums = super::get_nuvei_airline_addendums(Some(&domain)).unwrap().unwrap();
-            let legs = addendums.peek()["airlines"]["reservationDetails"]["flightLegDetails"].as_array().unwrap();
-            let codes: Vec<_> = legs.iter().map(|leg| leg["stopOverCode"].as_str().unwrap()).collect();
+            let addendums = super::get_nuvei_airline_addendums(Some(&domain))
+                .unwrap()
+                .unwrap();
+            let legs = addendums.peek()["airlines"]["reservationDetails"]["flightLegDetails"]
+                .as_array()
+                .unwrap();
+            let codes: Vec<_> = legs
+                .iter()
+                .map(|leg| leg["stopOverCode"].as_str().unwrap())
+                .collect();
             assert_eq!(codes, expected);
         }
     }
@@ -8085,7 +8134,9 @@ mod tests {
         let addendums = super::pii::SecretSerdeValue::new(serde_json::json!({
             "airlines": {"reservationDetails": {"issueDate": "2000-01-01 00:00:00", "ticketNumber": "existing-ticket"}}
         }));
-        let captured = super::merge_nuvei_capture_ticket(Some(addendums), None).unwrap().unwrap();
+        let captured = super::merge_nuvei_capture_ticket(Some(addendums), None)
+            .unwrap()
+            .unwrap();
         let reservation = &captured.peek()["airlines"]["reservationDetails"];
         assert_ne!(reservation["issueDate"], "2000-01-01 00:00:00");
         assert_eq!(reservation["ticketNumber"], "existing-ticket");
@@ -8102,7 +8153,8 @@ mod tests {
         failed.ppp_status = super::DmnApiTransactionStatus::Fail;
         failed.err_code = Some("-1100".to_owned());
         failed.reason = Some("Issuer data is not available".to_owned());
-        let expected = super::build_nuvei_error_response(&failed.to_payments_response(), 200, None).unwrap();
+        let expected =
+            super::build_nuvei_error_response(&failed.to_payments_response(), 200, None).unwrap();
         let status = failed.raw_connector_status();
         assert_eq!(status.code.as_deref(), Some(expected.code.as_str()));
         assert_eq!(status.message.as_deref(), Some(expected.message.as_str()));
@@ -8116,15 +8168,27 @@ mod tests {
         else {
             panic!("Expected payment DMN");
         };
-        assert_eq!(notification.merchant_reference().as_deref(), Some("merchant-txn"));
+        assert_eq!(
+            notification.merchant_reference().as_deref(),
+            Some("merchant-txn")
+        );
         let details = super::build_payment_webhook_details(&notification, body).unwrap();
-        assert_eq!(details.connector_request_reference_id.as_deref(), Some("merchant-txn"));
+        assert_eq!(
+            details.connector_request_reference_id.as_deref(),
+            Some("merchant-txn")
+        );
         let wire: serde_json::Value =
             serde_json::from_str(&details.raw_connector_response.unwrap()).unwrap();
         assert_eq!(wire["clientUniqueId"], "merchant-txn");
         assert_eq!(wire["transactionDetails"]["transactionId"], "auth-id");
-        assert_eq!(wire["transactionDetails"]["gwErrorReason"], "Issuer data is not available");
-        assert_eq!(details.status, common_enums::AttemptStatus::AuthorizationFailed);
+        assert_eq!(
+            wire["transactionDetails"]["gwErrorReason"],
+            "Issuer data is not available"
+        );
+        assert_eq!(
+            details.status,
+            common_enums::AttemptStatus::AuthorizationFailed
+        );
     }
 
     #[test]
@@ -8133,7 +8197,10 @@ mod tests {
             let mut notification = dmn(Some("APPROVED"));
             notification.merchant_unique_id = merchant_reference.map(str::to_owned);
             notification.client_unique_id = Some("fallback-txn".to_owned());
-            assert_eq!(notification.merchant_reference().as_deref(), Some("fallback-txn"));
+            assert_eq!(
+                notification.merchant_reference().as_deref(),
+                Some("fallback-txn")
+            );
         }
     }
 
@@ -8747,11 +8814,18 @@ mod tests {
     }
     #[test]
     fn webhook_money_uses_reported_currency_and_its_minor_units() {
-        for (currency, total, minor) in [("EUR", "160.00", 16000), ("JPY", "160", 160), ("KWD", "1.234", 1234)] {
+        for (currency, total, minor) in [
+            ("EUR", "160.00", 16000),
+            ("JPY", "160", 160),
+            ("KWD", "1.234", 1234),
+        ] {
             let mut notification = dmn(Some("APPROVED"));
             notification.currency = currency.to_owned();
             notification.total_amount = total.to_owned();
-            assert_eq!(notification.money().unwrap().amount.get_amount_as_i64(), minor);
+            assert_eq!(
+                notification.money().unwrap().amount.get_amount_as_i64(),
+                minor
+            );
         }
         let mut notification = dmn(Some("APPROVED"));
         notification.total_amount = "not-an-amount".to_owned();
@@ -8768,8 +8842,13 @@ mod tests {
         notification.transaction_id = Some("settlement-id".to_owned());
         notification.merchant_unique_id = Some("merchant-txn".to_owned());
         let details = super::build_payment_webhook_details(&notification, b"").unwrap();
-        assert_eq!(details.connector_response_reference_id.as_deref(), Some("merchant-txn"));
-        assert_eq!(details.connector_request_reference_id.as_deref(), Some("merchant-txn"));
+        assert_eq!(
+            details.connector_response_reference_id.as_deref(),
+            Some("merchant-txn")
+        );
+        assert_eq!(
+            details.connector_request_reference_id.as_deref(),
+            Some("merchant-txn")
+        );
     }
-
 }

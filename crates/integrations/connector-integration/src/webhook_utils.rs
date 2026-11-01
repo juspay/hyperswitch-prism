@@ -1,6 +1,8 @@
 use domain_types::{
-    connector_types::EventContext, errors::WebhookError,
-    payment_method_data::PaymentMethodDataTypes, router_data::ConnectorSpecificConfig,
+    connector_types::EventContext,
+    errors::WebhookError,
+    payment_method_data::PaymentMethodDataTypes,
+    router_data::ConnectorSpecificConfig,
     utils::{ForeignFrom, ForeignTryFrom},
 };
 use error_stack::ResultExt;
@@ -99,7 +101,9 @@ pub fn process_webhook_event<
     });
 
     let amount = match event_content.content.as_ref() {
-        Some(grpc_api_types::payments::event_content::Content::PaymentsResponse(response)) => response.amount,
+        Some(grpc_api_types::payments::event_content::Content::PaymentsResponse(response)) => {
+            response.amount
+        }
         _ => None,
     };
 
@@ -157,7 +161,9 @@ pub fn get_payments_webhook_content<
         )
         .attach_printable("Failed to process payment webhook from connector")?;
 
-    let webhook_amount = connector_data.connector.get_webhook_amount(request_details.clone())?;
+    let webhook_amount = connector_data
+        .connector
+        .get_webhook_amount(request_details.clone())?;
     let raw_connector_status = connector_data
         .connector
         .get_webhook_raw_connector_status(request_details)?;
@@ -167,8 +173,10 @@ pub fn get_payments_webhook_content<
     if let Some(amount) = webhook_amount.as_ref() {
         response.amount = Some(grpc_api_types::payments::Money {
             minor_amount: amount.amount.get_amount_as_i64(),
-            currency: i32::from(grpc_api_types::payments::Currency::foreign_try_from(amount.currency)
-                .change_context(WebhookError::WebhookProcessingFailed)?),
+            currency: i32::from(
+                grpc_api_types::payments::Currency::foreign_try_from(amount.currency)
+                    .change_context(WebhookError::WebhookProcessingFailed)?,
+            ),
         });
     }
 

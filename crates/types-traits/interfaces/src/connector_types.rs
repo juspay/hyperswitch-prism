@@ -686,7 +686,10 @@ pub trait IncomingWebhook {
     fn get_webhook_raw_connector_status(
         &self,
         _request: RequestDetails,
-    ) -> Result<Option<domain_types::connector_types::RawConnectorStatus>, error_stack::Report<WebhookError>> {
+    ) -> Result<
+        Option<domain_types::connector_types::RawConnectorStatus>,
+        error_stack::Report<WebhookError>,
+    > {
         Ok(None)
     }
 
