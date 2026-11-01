@@ -1175,7 +1175,7 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
         ),
         Error,
     > {
-        if request.setup_future_usage != Some(common_enums::FutureUsage::OffSession) {
+        if !request.is_customer_initiated_mandate_payment() {
             let account_on_file = if request.is_stored_credential == Some(true) {
                 requests::JpmorganAccountOnFile::Stored
             } else {
@@ -1309,7 +1309,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             .into());
         }
-        if router_data.request.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+        if router_data.request.is_customer_initiated_mandate_payment()
             && router_data.request.is_stored_credential != Some(true)
             && !Self::supports_initial_storage(&router_data.request.payment_method_data)
         {
@@ -1431,6 +1431,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
                 let capture_method = map_capture_method(router_data.request.capture_method)?;
 
+                let authentication = requests::JpmorganCard::<T>::card_authentication(
+                    router_data.request.authentication_data.as_ref(),
+                    router_data.resource_common_data.auth_type,
+                    card_data.card_network.as_ref(),
+                )?;
+
                 let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
 
                 let merchant = requests::JpmorganMerchant::try_from(&auth)?;
@@ -1471,7 +1477,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     expiry,
                     account_number_type: Some(requests::JpmorganAccountNumberType::Pan),
                     wallet_provider: None,
-                    authentication: None,
+                    authentication,
                     merchant_sales_channel_name:
                         map_payment_channel_to_jpmorgan_merchant_sales_channel_name(
                             router_data.request.payment_channel.as_ref(),

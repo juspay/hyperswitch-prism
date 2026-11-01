@@ -346,6 +346,7 @@ fn authorize_data() -> AuthorizeData {
             customer: Default::default(),
             business_country: Default::default(),
             enable_avs_check: Default::default(),
+            is_stored_credential: Default::default(),
         },
         response: Err(ErrorResponse::default()),
     };
