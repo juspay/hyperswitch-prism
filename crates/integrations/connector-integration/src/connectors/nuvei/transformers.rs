@@ -18,15 +18,16 @@ use domain_types::{
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        BankDebitData, BankRedirectData, BankTransferData, NetworkTokenData, PaymentMethodData,
-        PaymentMethodDataTypes, RawCardNumber,
+        ApplePayPaymentData, BankDebitData, BankRedirectData, BankTransferData,
+        GpayTokenizationData, NetworkTokenData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, WalletData,
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ConnectorSpecificConfig,
         FlowStatus,
     },
     router_data_v2::RouterDataV2,
-    router_request_types::{AuthenticationData, BrowserInformation},
+    router_request_types::{AuthenticationData, AuthoriseIntegrityObject, BrowserInformation},
     router_response_types::RedirectForm,
 };
 use error_stack::{Report, ResultExt};
@@ -136,12 +137,29 @@ pub struct NuveiSessionTokenResponse {
 }
 
 // URL Details for redirect URLs
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiUrlDetails {
-    pub success_url: String,
-    pub failure_url: String,
-    pub pending_url: String,
+    pub success_url: Option<String>,
+    pub failure_url: Option<String>,
+    pub pending_url: Option<String>,
+    pub notification_url: Option<String>,
+}
+
+fn build_nuvei_url_details(
+    return_url: Option<&str>,
+    webhook_url: Option<&str>,
+) -> Option<NuveiUrlDetails> {
+    if return_url.is_none() && webhook_url.is_none() {
+        return None;
+    }
+    Some(NuveiUrlDetails {
+        success_url: return_url.map(str::to_owned),
+        failure_url: return_url.map(str::to_owned),
+        pending_url: return_url.map(str::to_owned),
+        notification_url: webhook_url.map(str::to_owned),
+    })
 }
 
 // Payment Request
@@ -174,6 +192,8 @@ pub struct NuveiPaymentRequest<
     pub is_moto: Option<bool>,
     pub time_stamp: common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss>,
     pub checksum: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub addendums: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Serialize)]
@@ -198,6 +218,156 @@ pub enum NuveiCardPaymentOption<
 > {
     Raw(NuveiCard<T>),
     NetworkToken(NuveiNetworkTokenCard),
+    Wallet(NuveiWalletCard),
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiWalletCard {
+    card_number: cards::CardNumber,
+    expiration_month: Secret<String>,
+    expiration_year: Secret<String>,
+    brand: String,
+    last4_digits: String,
+    external_token: NuveiWalletExternalToken,
+    three_d: Option<Box<NuveiCardThreeD>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NuveiWalletExternalToken {
+    external_token_provider: &'static str,
+    cryptogram: Option<Secret<String>>,
+    eci_provider: Option<String>,
+}
+
+/// A token cryptogram plus the wallet's authenticated assurance permits the decoupled path.
+/// Google Pay can also carry a cryptogram while Nuvei performs additional authentication.
+pub(super) fn nuvei_wallet_is_authenticated(wallet: &WalletData) -> bool {
+    match wallet {
+        WalletData::GooglePay(data) => {
+            matches!(&data.tokenization_data, GpayTokenizationData::Decrypted(token) if token.cryptogram.as_ref().is_some_and(|value| !value.peek().is_empty()))
+                && data
+                    .info
+                    .assurance_details
+                    .as_ref()
+                    .is_some_and(|details| details.card_holder_authenticated)
+        }
+        WalletData::ApplePay(data) => {
+            matches!(&data.payment_data, ApplePayPaymentData::Decrypted(token) if !token.payment_data.online_payment_cryptogram.peek().is_empty())
+        }
+        _ => false,
+    }
+}
+
+fn build_nuvei_wallet_card(
+    wallet: &WalletData,
+) -> Result<NuveiWalletCard, Report<IntegrationError>> {
+    let (pan, month, year, cryptogram, eci, provider, brand) = match wallet {
+        WalletData::GooglePay(data) => {
+            let GpayTokenizationData::Decrypted(token) = &data.tokenization_data else {
+                return Err(nuvei_authorize_not_implemented(
+                    "Encrypted Google Pay",
+                    "Decrypt Google Pay in txns before calling Prism",
+                )
+                .into());
+            };
+            (
+                token.application_primary_account_number.clone(),
+                token.card_exp_month.clone(),
+                token.get_four_digit_expiry_year().change_context(
+                    IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    },
+                )?,
+                token.cryptogram.clone(),
+                token.eci_indicator.clone(),
+                "GooglePay",
+                data.info.card_network.clone(),
+            )
+        }
+        WalletData::ApplePay(data) => {
+            let ApplePayPaymentData::Decrypted(token) = &data.payment_data else {
+                return Err(nuvei_authorize_not_implemented(
+                    "Encrypted Apple Pay",
+                    "Decrypt Apple Pay in txns before calling Prism",
+                )
+                .into());
+            };
+            (
+                token.application_primary_account_number.clone(),
+                token.application_expiration_month.clone(),
+                token.application_expiration_year.clone(),
+                Some(token.payment_data.online_payment_cryptogram.clone()),
+                token.payment_data.eci_indicator.clone(),
+                "ApplePay",
+                data.payment_method.network.clone(),
+            )
+        }
+        _ => {
+            return Err(nuvei_authorize_not_implemented(
+                "Wallet",
+                "Use decrypted Google Pay or Apple Pay",
+            )
+            .into())
+        }
+    };
+    Ok(NuveiWalletCard {
+        last4_digits: pan.get_last4(),
+        card_number: pan,
+        expiration_month: month,
+        expiration_year: year,
+        brand: brand.to_uppercase(),
+        external_token: NuveiWalletExternalToken {
+            external_token_provider: provider,
+            cryptogram,
+            eci_provider: eci,
+        },
+        three_d: None,
+    })
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    NuveiCardPaymentOption<T>
+{
+    fn with_three_d(mut self, three_d: Option<Box<NuveiCardThreeD>>) -> Self {
+        match &mut self {
+            Self::Raw(card) => card.three_d = three_d,
+            Self::Wallet(card) => card.three_d = three_d,
+            Self::NetworkToken(_) => {}
+        }
+        self
+    }
+}
+
+fn get_nuvei_payment_card<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    data: Option<&PaymentMethodData<T>>,
+    resource: &PaymentFlowData,
+    flow: &str,
+) -> Result<NuveiCardPaymentOption<T>, Report<IntegrationError>> {
+    match data {
+        Some(PaymentMethodData::Card(card)) => Ok(NuveiCardPaymentOption::Raw(NuveiCard {
+            card_number: card.card_number.clone(),
+            card_holder_name: get_nuvei_card_holder_name(card, resource),
+            expiration_month: card.card_exp_month.clone(),
+            expiration_year: card.card_exp_year.clone(),
+            cvv: card.card_cvc.clone(),
+            three_d: None,
+        })),
+        Some(PaymentMethodData::Wallet(wallet)) => Ok(NuveiCardPaymentOption::Wallet(
+            build_nuvei_wallet_card(wallet)?,
+        )),
+        Some(_) => Err(nuvei_three_ds_not_implemented("This payment method", flow).into()),
+        None => Err(nuvei_missing_field(
+            "payment_method_data",
+            "Send a card or decrypted wallet for Nuvei 3DS",
+        )
+        .into()),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -223,6 +393,7 @@ pub struct NuveiCard<
 #[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiCardThreeD {
+    pub version: Option<String>,
     pub method_completion_ind: Option<NuveiMethodCompletion>,
     pub browser_details: Option<NuveiBrowserDetails>,
     #[serde(rename = "notificationURL")]
@@ -283,8 +454,75 @@ pub struct NuveiV2AdditionalParams {
 /// threeD.v2AdditionalParams.challengeWindowSize.
 #[derive(Debug, Clone, Serialize)]
 pub enum NuveiChallengeWindowSize {
+    #[serde(rename = "01")]
+    Size250x400,
+    #[serde(rename = "02")]
+    Size390x400,
+    #[serde(rename = "03")]
+    Size500x600,
+    #[serde(rename = "04")]
+    Size600x400,
     #[serde(rename = "05")]
     FullScreen,
+}
+
+fn get_nuvei_challenge_window_size(
+    value: Option<&str>,
+    dimensions: Option<(u32, u32)>,
+) -> Result<NuveiChallengeWindowSize, Report<IntegrationError>> {
+    match value {
+        Some("01") => Ok(NuveiChallengeWindowSize::Size250x400),
+        Some("02") => Ok(NuveiChallengeWindowSize::Size390x400),
+        Some("03") => Ok(NuveiChallengeWindowSize::Size500x600),
+        Some("04") => Ok(NuveiChallengeWindowSize::Size600x400),
+        Some("05" | "FULL_SCREEN") => Ok(NuveiChallengeWindowSize::FullScreen),
+        None => Ok(match dimensions {
+            Some((250, 400)) => NuveiChallengeWindowSize::Size250x400,
+            Some((390, 400)) => NuveiChallengeWindowSize::Size390x400,
+            Some((500, 600)) => NuveiChallengeWindowSize::Size500x600,
+            Some((600, 400)) => NuveiChallengeWindowSize::Size600x400,
+            _ => NuveiChallengeWindowSize::FullScreen,
+        }),
+        Some(_) => Err(IntegrationError::InvalidDataFormat {
+            field_name: "browser_info.challenge_window_size",
+            context: nuvei_error_context(
+                "Send an EMV 3DS challenge window code from 01 through 05",
+                "Nuvei challenge window size is invalid",
+            ),
+        }
+        .into()),
+    }
+}
+
+fn require_nuvei_three_ds_version(
+    version: Option<String>,
+) -> Result<String, Report<IntegrationError>> {
+    version
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| {
+            nuvei_missing_field(
+                "connector_feature_data.three_ds_version",
+                "Pass the negotiated 3DS version returned by initPayment in connector_feature_data",
+            )
+            .into()
+        })
+}
+
+// Older txns requests supplied only return_url for both browser callbacks.
+// An explicit challenge notification URL takes precedence over that legacy URL.
+fn resolve_nuvei_challenge_notification_url(
+    notification_url: Option<String>,
+    return_url: Option<&str>,
+) -> Result<String, Report<IntegrationError>> {
+    notification_url
+        .or_else(|| return_url.map(str::to_owned))
+        .ok_or_else(|| {
+            nuvei_missing_field(
+                "continue_redirection_url",
+                "Send continue_redirection_url or return_url for the 3DS challenge callback",
+            )
+            .into()
+        })
 }
 
 /// threeD.v2AdditionalParams.challengePreference.
@@ -302,6 +540,36 @@ pub struct NuveiExternalMpi {
     pub cavv: Secret<String>,
     #[serde(rename = "dsTransID")]
     pub ds_trans_id: Option<String>,
+}
+
+fn build_nuvei_external_mpi(
+    data: &AuthenticationData,
+) -> Result<NuveiExternalMpi, Report<IntegrationError>> {
+    let eci = data
+        .eci
+        .clone()
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| nuvei_missing_field("authentication_data.eci", "Send external MPI ECI"))?;
+    let cavv = data
+        .cavv
+        .clone()
+        .filter(|value| !value.peek().is_empty())
+        .ok_or_else(|| nuvei_missing_field("authentication_data.cavv", "Send external MPI CAVV"))?;
+    let ds_trans_id = data
+        .ds_trans_id
+        .clone()
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            nuvei_missing_field(
+                "authentication_data.ds_trans_id",
+                "Send external MPI directory-server transaction ID",
+            )
+        })?;
+    Ok(NuveiExternalMpi {
+        eci: Some(eci),
+        cavv,
+        ds_trans_id: Some(ds_trans_id),
+    })
 }
 
 /// card object used when paying with a network token: no PAN/CVV/holder name,
@@ -714,6 +982,7 @@ pub struct NuveiResponsePaymentOption {
 pub struct NuveiResponseCard {
     pub avs_code: Option<String>,
     pub cvv2_reply: Option<String>,
+    #[serde(alias = "cardBrand")]
     pub brand: Option<String>,
     pub card_type: Option<String>,
     pub issuer_country: Option<String>,
@@ -810,6 +1079,13 @@ pub(super) fn get_nuvei_payment_status(
     transaction_status: Option<&NuveiTransactionStatus>,
     status: &NuveiPaymentStatus,
 ) -> AttemptStatus {
+    // Conflicting request failure and transaction approval is inconclusive; reconcile by sync.
+    if matches!(status, NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed)
+        && transaction_status == Some(&NuveiTransactionStatus::Approved)
+    {
+        return AttemptStatus::Pending;
+    }
+
     // Zero-amount authorization (card verification)
     if amount == Some(0) && transaction_type == Some(&NuveiTransactionType::Auth) {
         return match transaction_status {
@@ -827,9 +1103,8 @@ pub(super) fn get_nuvei_payment_status(
 
     match transaction_status {
         Some(NuveiTransactionStatus::Approved) => match transaction_type {
-            Some(NuveiTransactionType::InitAuth3D) | Some(NuveiTransactionType::Auth) => {
-                AttemptStatus::Authorized
-            }
+            Some(NuveiTransactionType::Auth) => AttemptStatus::Authorized,
+            Some(NuveiTransactionType::InitAuth3D) => AttemptStatus::AuthenticationPending,
             Some(NuveiTransactionType::Sale) | Some(NuveiTransactionType::Settle) => {
                 AttemptStatus::Charged
             }
@@ -870,9 +1145,10 @@ pub(super) fn build_nuvei_error_response(
     attempt_status: Option<FlowStatus>,
 ) -> Option<domain_types::router_data::ErrorResponse> {
     let (code, message) = match response.status {
-        NuveiPaymentStatus::Error => (response.err_code, response.reason.clone()),
+        NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed => {
+            (response.err_code, response.reason.clone())
+        }
         NuveiPaymentStatus::Success
-        | NuveiPaymentStatus::Failed
         | NuveiPaymentStatus::Processing
         | NuveiPaymentStatus::Unknown => {
             let is_failure = matches!(
@@ -886,30 +1162,73 @@ pub(super) fn build_nuvei_error_response(
         }
     };
 
-    let message = message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
-    let gw_reason =
-        response
-            .gw_error_reason
-            .clone()
-            .map(|reason| match response.gw_extended_error_code {
+    let transaction_status = match response.status {
+        NuveiPaymentStatus::Error => Some("ERROR"),
+        NuveiPaymentStatus::Failed => Some("FAILED"),
+        _ => nuvei_transaction_status_text(response.transaction_status.as_ref()),
+    };
+    let message = message
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            response
+                .gw_error_reason
+                .clone()
+                .filter(|value| !value.trim().is_empty())
+        })
+        .or_else(|| {
+            response
+                .payment_method_error_reason
+                .clone()
+                .filter(|value| !value.trim().is_empty())
+        })
+        .or_else(|| {
+            response
+                .reason
+                .clone()
+                .filter(|value| !value.trim().is_empty())
+        })
+        .or_else(|| transaction_status.map(str::to_owned))
+        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
+    let gw_reason = response
+        .gw_error_reason
+        .clone()
+        .filter(|reason| !reason.trim().is_empty())
+        .map(
+            |reason| match response.gw_extended_error_code.filter(|code| *code != 0) {
                 Some(extended_code) => format!("{reason} (gwExtendedErrorCode {extended_code})"),
                 None => reason,
-            });
+            },
+        );
     let reason = response
         .payment_method_error_reason
         .clone()
+        .filter(|reason| !reason.trim().is_empty())
         .or(gw_reason)
         .unwrap_or_else(|| message.clone());
 
     Some(domain_types::router_data::ErrorResponse {
         code: code
             .map(|code| code.to_string())
+            .or_else(|| {
+                response
+                    .payment_method_error_code
+                    .clone()
+                    .filter(|code| !code.trim().is_empty() && code != "0")
+            })
+            .or_else(|| transaction_status.map(str::to_owned))
             .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
         message,
         reason: Some(reason),
         status_code: http_code,
         attempt_status,
-        connector_transaction_id: response.transaction_id.clone(),
+        connector_transaction_id: if matches!(
+            response.transaction_type,
+            Some(NuveiTransactionType::Auth3D | NuveiTransactionType::InitAuth3D)
+        ) {
+            None
+        } else {
+            response.transaction_id.clone()
+        },
         // Only the issuer's own codes belong here: gwErrorCode is a Nuvei gateway code and is
         // already reported in `code`, and downstream retry logic reads these as network codes.
         network_decline_code: response.issuer_decline_code.clone(),
@@ -920,6 +1239,99 @@ pub(super) fn build_nuvei_error_response(
         raw_connector_request: None,
         typed_connector_request: None,
     })
+}
+
+fn nuvei_transaction_status_text(status: Option<&NuveiTransactionStatus>) -> Option<&'static str> {
+    status.map(|status| match status {
+        NuveiTransactionStatus::Approved => "APPROVED",
+        NuveiTransactionStatus::Declined => "DECLINED",
+        NuveiTransactionStatus::Error => "ERROR",
+        NuveiTransactionStatus::Redirect => "REDIRECT",
+        NuveiTransactionStatus::Pending => "PENDING",
+        NuveiTransactionStatus::Processing => "PROCESSING",
+        NuveiTransactionStatus::Unknown => "UNKNOWN",
+    })
+}
+
+fn nuvei_raw_connector_status(
+    response: &NuveiPaymentsResponse,
+) -> domain_types::connector_types::RawConnectorStatus {
+    if let Some(error) = build_nuvei_error_response(response, 200, None) {
+        return domain_types::connector_types::RawConnectorStatus {
+            code: Some(error.code),
+            message: Some(error.message),
+            reason: error.reason,
+        };
+    }
+    let status = nuvei_transaction_status_text(response.transaction_status.as_ref()).unwrap_or(
+        match response.status {
+            NuveiPaymentStatus::Success => "SUCCESS",
+            NuveiPaymentStatus::Failed => "FAILED",
+            NuveiPaymentStatus::Error => "ERROR",
+            NuveiPaymentStatus::Processing => "PROCESSING",
+            NuveiPaymentStatus::Unknown => "UNKNOWN",
+        },
+    );
+    domain_types::connector_types::RawConnectorStatus {
+        code: Some(status.to_owned()),
+        message: Some(status.to_owned()),
+        reason: response
+            .reason
+            .clone()
+            .filter(|reason| !reason.trim().is_empty()),
+    }
+}
+
+fn nuvei_payment_response_status(
+    response: &NuveiPaymentsResponse,
+    amount: Option<i64>,
+) -> AttemptStatus {
+    let status = get_nuvei_payment_status(
+        amount,
+        response.transaction_type.as_ref(),
+        response.transaction_status.as_ref(),
+        &response.status,
+    );
+    if matches!(
+        status,
+        AttemptStatus::Charged | AttemptStatus::Authorized | AttemptStatus::Voided
+    ) && build_nuvei_error_response(response, 200, None).is_some()
+    {
+        AttemptStatus::Pending
+    } else {
+        status
+    }
+}
+
+fn get_nuvei_refund_status(response: &NuveiPaymentsResponse) -> common_enums::RefundStatus {
+    use common_enums::RefundStatus;
+    if response.transaction_status == Some(NuveiTransactionStatus::Approved)
+        && build_nuvei_error_response(response, 200, None).is_some()
+    {
+        return RefundStatus::Pending;
+    }
+    if matches!(
+        response.status,
+        NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed
+    ) {
+        return match response.transaction_status {
+            Some(
+                NuveiTransactionStatus::Approved
+                | NuveiTransactionStatus::Pending
+                | NuveiTransactionStatus::Processing
+                | NuveiTransactionStatus::Redirect
+                | NuveiTransactionStatus::Unknown,
+            ) => RefundStatus::Pending,
+            _ => RefundStatus::Failure,
+        };
+    }
+    match response.transaction_status {
+        Some(NuveiTransactionStatus::Approved) => RefundStatus::Success,
+        Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => {
+            RefundStatus::Failure
+        }
+        _ => RefundStatus::Pending,
+    }
 }
 
 /// Non-default error context for Nuvei request-side refusals.
@@ -1065,12 +1477,19 @@ pub struct NuveiMetaMandateReference {
 pub struct NuveiMeta {
     pub session_token: Secret<String>,
     #[serde(default)]
+    pub browser_ip_address: Option<Secret<String, pii::IpAddress>>,
+    #[serde(default)]
+    pub webhook_url: Option<String>,
+    #[serde(default)]
     pub related_transaction_id: Option<String>,
     #[serde(default)]
     pub three_ds_leg: Option<NuveiThreeDsLeg>,
     /// initPayment `paymentOption.card.threeD.v2supported` (PreAuthenticate leg).
     #[serde(default)]
     pub v2supported: Option<String>,
+    /// Negotiated version returned by initPayment; never guessed.
+    #[serde(default)]
+    pub three_ds_version: Option<String>,
     #[serde(default)]
     pub mandate_reference: Option<NuveiMetaMandateReference>,
     #[serde(default)]
@@ -1108,6 +1527,182 @@ pub(super) fn resolve_session_token(
             nuvei_missing_field(
                 "session_token",
                 "Call MerchantAuthenticationService/CreateServerSessionAuthenticationToken first and pass its session_token",
+            )
+            .into()
+        })
+}
+
+// Airline data is supplied explicitly through domain_data on each request.
+fn get_nuvei_airline_addendums(
+    domain: Option<&domain_types::connector_types::DomainData>,
+) -> Result<Option<pii::SecretSerdeValue>, Report<IntegrationError>> {
+    let Some(data) = domain.and_then(|domain| domain.airline_data.as_ref()) else {
+        return Ok(None);
+    };
+    let reservation_system = "IBS";
+    let passengers: Vec<_> = data.passengers.iter().map(|passenger| {
+        let customer = passenger.customer.as_ref();
+        serde_json::json!({
+            "title": customer.and_then(|customer| customer.salutation.clone()),
+            "firstName": customer.and_then(|customer| customer.first_name.as_ref()).map(|name| name.peek()),
+            "lastName": customer.and_then(|customer| customer.last_name.as_ref()).map(|name| name.peek()),
+            "passengerName": customer.and_then(|customer| customer.get_full_name()).map(|name| name.expose()),
+            "dateOfBirth": passenger.date_of_birth.as_ref().map(|date| format!("{date} 00:00:00")),
+        })
+    }).collect();
+    let legs: Vec<_> = data.flight_segments.iter().enumerate().map(|(index, segment)| {
+        let departure = segment.departure.as_ref();
+        let arrival = segment.arrival.as_ref();
+        serde_json::json!({
+            "airlineCode": segment.marketing_carrier_code.as_ref().or(data.airline_code.as_ref()),
+            "flightNumber": segment.flight_number.as_deref().map(|number| {
+                let carrier = segment.marketing_carrier_code.as_ref().or(data.airline_code.as_ref());
+                match carrier {
+                    Some(carrier) if !number.starts_with(carrier.as_str()) => format!("{carrier} {number}"),
+                    _ => number.to_owned(),
+                }
+            }),
+            "departureDate": departure.and_then(|location| location.date_time.as_deref()).map(nuvei_airline_date),
+            "arrivalDate": arrival.and_then(|location| location.date_time.as_deref()).map(nuvei_airline_date),
+            "departureCountry": departure.and_then(|location| location.country_code.as_ref()),
+            "departureCity": departure.and_then(|location| location.city_name.as_ref()),
+            "departureAirport": departure.and_then(|location| location.airport_code.as_ref()),
+            "destinationCountry": arrival.and_then(|location| location.country_code.as_ref()),
+            "destinationCity": arrival.and_then(|location| location.city_name.as_ref()),
+            "destinationAirport": arrival.and_then(|location| location.airport_code.as_ref()),
+            "stopOverCode": segment.stopover_code.as_deref().unwrap_or_else(|| {
+                if data.flight_segments[index + 1..].iter().any(|next| next.journey_no == segment.journey_no) {
+                    "X"
+                } else {
+                    "O"
+                }
+            }),
+        })
+    }).collect();
+    let mut value = serde_json::json!({"airlines": {"reservationDetails": {
+        "pnrCode": data.pnr_code.as_ref().or(data.booking_reference.as_ref()),
+        "bookingSystemUniqueId": data.booking_system_unique_id.as_ref().or(data.pnr_code.as_ref()),
+        "computerizedReservationSystem": reservation_system,
+        "ticketNumber": data.ticket_number,
+        "documentType": data.document_type.as_deref().unwrap_or("TKT"),
+        "issueDate": data.ticket_issue_date.as_deref().map(nuvei_airline_date),
+        "flightDateUTC": data.flight_date.as_deref().map(|value| time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339).ok().map(|date| date.to_offset(time::UtcOffset::UTC)).and_then(|date| date.format(time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]")).ok()).unwrap_or_else(|| nuvei_airline_date(value))),
+        "issuingCarrierCode": data.issuing_carrier_code.as_ref().or(data.airline_code.as_ref()),
+        "passengersCount": data.number_of_passengers.map(|count| count.to_string()),
+        "passengerDetails": passengers,
+        "flightLegDetails": legs,
+    }}});
+    fn remove_nulls(value: &mut serde_json::Value) {
+        match value {
+            serde_json::Value::Object(fields) => {
+                fields.retain(|_, value| !value.is_null());
+                for value in fields.values_mut() {
+                    remove_nulls(value);
+                }
+            }
+            serde_json::Value::Array(values) => values.iter_mut().for_each(remove_nulls),
+            _ => {}
+        }
+    }
+    remove_nulls(&mut value);
+    Ok(Some(pii::SecretSerdeValue::new(value)))
+}
+
+fn nuvei_airline_date(value: &str) -> String {
+    time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
+        .ok()
+        .and_then(|date| {
+            date.format(time::macros::format_description!(
+                "[year]-[month]-[day] [hour]:[minute]:[second]"
+            ))
+            .ok()
+        })
+        .unwrap_or_else(|| value.to_string())
+}
+
+fn get_nuvei_capture_addendums(
+    data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+) -> Result<Option<pii::SecretSerdeValue>, Report<IntegrationError>> {
+    merge_nuvei_capture_ticket(
+        get_nuvei_airline_addendums(data.request.domain_data.as_ref())?,
+        data.request.metadata.as_ref(),
+    )
+}
+
+fn merge_nuvei_capture_ticket(
+    addendums: Option<pii::SecretSerdeValue>,
+    metadata: Option<&pii::SecretSerdeValue>,
+) -> Result<Option<pii::SecretSerdeValue>, Report<IntegrationError>> {
+    let Some(addendums) = addendums else {
+        return Ok(None);
+    };
+    let mut value = addendums.expose();
+    // Capture metadata may arrive as JSON or a JSON-encoded string.
+    let decoded = metadata
+        .map(|metadata| {
+            if let Some(encoded) = metadata.peek().as_str() {
+                serde_json::from_str::<serde_json::Value>(encoded).change_context(
+                    IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    },
+                )
+            } else {
+                Ok(metadata.peek().clone())
+            }
+        })
+        .transpose()?;
+    if let Some(ticket) = decoded
+        .as_ref()
+        .and_then(|metadata| metadata.get("reference_id"))
+        .and_then(|ticket| ticket.as_str())
+        .filter(|ticket| !ticket.trim().is_empty())
+    {
+        value["airlines"]["reservationDetails"]["ticketNumber"] =
+            serde_json::Value::String(ticket.to_owned());
+    }
+    // The ticket is issued at capture, independently of booking/auth time.
+    value["airlines"]["reservationDetails"]["issueDate"] = serde_json::Value::String(
+        common_utils::date_time::now()
+            .format(time::macros::format_description!(
+                "[year]-[month]-[day] [hour]:[minute]:[second]"
+            ))
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?,
+    );
+    Ok(Some(pii::SecretSerdeValue::new(value)))
+}
+
+fn require_nuvei_three_ds_support(
+    meta: Option<&NuveiMeta>,
+) -> Result<(), Report<IntegrationError>> {
+    if meta.and_then(|meta| meta.v2supported.as_deref()) != Some("true") {
+        return Err(nuvei_missing_field(
+            "connector_feature_data.v2supported",
+            "Nuvei must confirm 3DS support before payment",
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn resolve_nuvei_payment_ip(
+    browser: Option<&BrowserInformation>,
+    meta: Option<&NuveiMeta>,
+    final_leg: bool,
+) -> Result<Secret<String, pii::IpAddress>, Report<IntegrationError>> {
+    browser
+        .and_then(|info| info.ip_address)
+        .map(|ip| Secret::new(ip.to_string()))
+        .or_else(|| {
+            final_leg
+                .then(|| meta.and_then(|meta| meta.browser_ip_address.clone()))
+                .flatten()
+        })
+        .ok_or_else(|| {
+            nuvei_missing_field(
+                "browser_info.ip_address",
+                "Send the original customer IP; final 3DS calls reuse it from connector state",
             )
             .into()
         })
@@ -1436,25 +2031,43 @@ pub(super) fn build_nuvei_transaction_response(
     ip_address: Option<String>,
     http_code: u16,
 ) -> Result<PaymentsResponseData, Report<ConnectorError>> {
-    let resource_id = response
-        .transaction_id
-        .clone()
-        .or_else(|| response.order_id.clone())
-        .map(ResponseId::ConnectorTransactionId)
-        .ok_or_else(|| {
-            Report::new(ConnectorError::response_handling_failed_with_context(
-                http_code,
-                Some("missing transactionId and orderId in Nuvei payment response".to_string()),
-            ))
-        })?;
+    let resource_id = if matches!(
+        response.transaction_type,
+        Some(NuveiTransactionType::Auth3D) | Some(NuveiTransactionType::InitAuth3D)
+    ) || matches!(
+        response.transaction_status,
+        Some(NuveiTransactionStatus::Redirect)
+    ) {
+        ResponseId::NoResponseId
+    } else {
+        response
+            .transaction_id
+            .clone()
+            .map(ResponseId::ConnectorTransactionId)
+            .ok_or_else(|| {
+                Report::new(ConnectorError::response_handling_failed_with_context(
+                    http_code,
+                    Some("missing final transactionId in Nuvei payment response".to_string()),
+                ))
+            })?
+    };
 
     let redirection_data = match payment_method {
-        common_enums::PaymentMethod::Wallet | common_enums::PaymentMethod::BankRedirect => response
-            .payment_option
-            .as_ref()
-            .and_then(|option| option.redirect_url.clone())
-            .and_then(|url| Url::parse(&url).ok())
-            .map(|url| RedirectForm::from((url, Method::Get))),
+        common_enums::PaymentMethod::Wallet | common_enums::PaymentMethod::BankRedirect
+            if response
+                .payment_option
+                .as_ref()
+                .and_then(|option| option.card.as_ref())
+                .and_then(|card| card.three_d.as_ref())
+                .is_none() =>
+        {
+            response
+                .payment_option
+                .as_ref()
+                .and_then(|option| option.redirect_url.clone())
+                .and_then(|url| Url::parse(&url).ok())
+                .map(|url| RedirectForm::from((url, Method::Get)))
+        }
         _ => response
             .payment_option
             .as_ref()
@@ -1471,6 +2084,21 @@ pub(super) fn build_nuvei_transaction_response(
             }),
     };
 
+    if matches!(
+        response.transaction_status,
+        Some(NuveiTransactionStatus::Redirect)
+    ) && matches!(
+        response.transaction_type,
+        Some(NuveiTransactionType::Auth3D)
+    ) && redirection_data.is_none()
+    {
+        return Err(ConnectorError::response_handling_failed_with_context(
+            http_code,
+            Some("Nuvei challenge response is missing acsUrl or cReq".to_owned()),
+        )
+        .into());
+    }
+
     let mandate_reference = response
         .payment_option
         .as_ref()
@@ -1483,6 +2111,7 @@ pub(super) fn build_nuvei_transaction_response(
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
                 mandate_metadata: ip_address
+                    .clone()
                     .map(|ip| pii::SecretSerdeValue::new(serde_json::Value::String(ip))),
             })
         });
@@ -1493,10 +2122,13 @@ pub(super) fn build_nuvei_transaction_response(
         .filter(|token| !token.peek().is_empty())
         .map(|session_token| {
             serde_json::to_value(NuveiMeta {
+                browser_ip_address: ip_address.clone().map(Secret::new),
+                webhook_url: None,
                 session_token,
                 related_transaction_id: None,
                 three_ds_leg: None,
                 v2supported: None,
+                three_ds_version: None,
                 mandate_reference: None,
                 network_txn_link_id: None,
             })
@@ -1587,8 +2219,14 @@ pub(super) fn apply_nuvei_partial_approval(
     resource_common_data: PaymentFlowData,
     http_code: u16,
 ) -> Result<PaymentFlowData, Report<ConnectorError>> {
-    let (amount_captured, amount_capturable) = get_amount_captured(response, http_code)?;
+    let (amount_captured, amount_capturable) =
+        if build_nuvei_error_response(response, http_code, None).is_none() {
+            get_amount_captured(response, http_code)?
+        } else {
+            (None, None)
+        };
     Ok(PaymentFlowData {
+        raw_connector_status: Some(nuvei_raw_connector_status(response)),
         amount_captured: amount_captured.or(resource_common_data.amount_captured),
         amount_capturable: amount_capturable.or(resource_common_data.amount_capturable),
         ..resource_common_data
@@ -1679,6 +2317,8 @@ pub struct NuveiTransactionDetails {
     pub gw_error_reason: Option<String>,
     pub gw_extended_error_code: Option<i64>,
     pub transaction_id: Option<String>,
+    #[serde(default)]
+    pub related_transaction_id: Option<String>,
     pub transaction_status: Option<NuveiTransactionStatus>,
     pub transaction_type: Option<NuveiTransactionType>,
     pub auth_code: Option<String>,
@@ -1773,6 +2413,8 @@ pub struct NuveiCaptureRequest {
     pub related_transaction_id: String,
     pub time_stamp: common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss>,
     pub checksum: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub addendums: Option<pii::SecretSerdeValue>,
 }
 
 // Refund Request
@@ -2028,8 +2670,10 @@ fn is_nuvei_three_ds_authorize_leg<T: PaymentMethodDataTypes>(
     resource: &PaymentFlowData,
     nuvei_meta: Option<&NuveiMeta>,
 ) -> bool {
-    matches!(request.payment_method_data, PaymentMethodData::Card(_))
-        && resource.auth_type == common_enums::AuthenticationType::ThreeDs
+    matches!(
+        request.payment_method_data,
+        PaymentMethodData::Card(_) | PaymentMethodData::Wallet(_)
+    ) && resource.auth_type == common_enums::AuthenticationType::ThreeDs
         && request.authentication_data.is_none()
         && nuvei_meta.and_then(|meta| meta.three_ds_leg.as_ref())
             == Some(&NuveiThreeDsLeg::PreAuthenticate)
@@ -2050,6 +2694,7 @@ fn build_nuvei_three_ds_authorize_request<
     is_cit: bool,
     cit_user_token_id: Option<Secret<String>>,
 ) -> Result<NuveiPaymentRequest<T>, Report<IntegrationError>> {
+    require_nuvei_three_ds_support(nuvei_meta)?;
     let related_transaction_id = nuvei_meta
         .and_then(|meta| meta.related_transaction_id.clone())
         .ok_or_else(|| {
@@ -2075,9 +2720,17 @@ fn build_nuvei_three_ds_authorize_request<
 
     build_nuvei_three_ds_payment_request(NuveiThreeDsPaymentParams {
         auth,
-        card,
-        card_holder_name,
+        card: NuveiCardPaymentOption::Raw(NuveiCard {
+            card_number: card.card_number.clone(),
+            card_holder_name,
+            expiration_month: card.card_exp_month.clone(),
+            expiration_year: card.card_exp_year.clone(),
+            cvv: card.card_cvc.clone(),
+            three_d: None,
+        }),
         browser_info,
+        three_ds_version: nuvei_meta.and_then(|meta| meta.three_ds_version.clone()),
+        webhook_url: request.webhook_url.clone(),
         notification_url: request
             .continue_redirection_url
             .as_ref()
@@ -2098,6 +2751,7 @@ fn build_nuvei_three_ds_authorize_request<
         billing_address,
         shipping_address,
         client_request_id: resource.connector_request_reference_id.clone(),
+        addendums: get_nuvei_airline_addendums(request.domain_data.as_ref())?,
     })
 }
 
@@ -2178,9 +2832,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     // returned CHARGED/AUTHORIZED already charged and has no
                     // final leg; an abandoned or malformed challenge must not
                     // charge the Auth3D.
+                    let callback = nuvei_stored_challenge_return(
+                        resource
+                            .connector_feature_data
+                            .as_ref()
+                            .or(request.connector_feature_data.as_ref()),
+                    );
                     let redirect_response = request
                         .redirect_response
-                        .as_ref()
+                        .as_ref().or(callback.as_ref())
                         .ok_or_else(|| {
                             nuvei_missing_field(
                                 "redirection_response",
@@ -2232,18 +2892,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .as_ref()
                     .filter(|_| !is_three_ds_final_leg)
                     .map(|auth_data| {
-                        let cavv = auth_data.cavv.clone().ok_or_else(|| {
-                            nuvei_missing_field(
-                                "authentication_data.cavv",
-                                "Send authentication_data.cavv with external 3DS data",
-                            )
-                        })?;
                         Ok::<_, Report<IntegrationError>>(Box::new(NuveiCardThreeD {
-                            external_mpi: Some(NuveiExternalMpi {
-                                eci: auth_data.eci.clone(),
-                                cavv,
-                                ds_trans_id: auth_data.ds_trans_id.clone(),
-                            }),
+                            external_mpi: Some(build_nuvei_external_mpi(auth_data)?),
                             ..Default::default()
                         }))
                     })
@@ -2483,12 +3133,96 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
                 .into())
             }
-            PaymentMethodData::Wallet(_) => {
-                return Err(nuvei_authorize_not_implemented(
-                    "Wallet payment methods",
-                    "Use a card, network token, bank redirect or ACH payment method",
-                )
-                .into())
+            PaymentMethodData::Wallet(wallet) => {
+                let mut card = NuveiCardPaymentOption::Wallet(build_nuvei_wallet_card(wallet)?);
+                if is_three_ds_final_leg {
+                    let callback = nuvei_stored_challenge_return(
+                        resource
+                            .connector_feature_data
+                            .as_ref()
+                            .or(request.connector_feature_data.as_ref()),
+                    );
+                    validate_nuvei_challenge_result(
+                        request
+                            .redirect_response
+                            .as_ref()
+                            .or(callback.as_ref())
+                            .ok_or_else(|| {
+                                nuvei_missing_field(
+                                    "redirection_response",
+                                    "Pass the ACS result for the final wallet payment",
+                                )
+                            })?,
+                    )?;
+                } else if resource.auth_type == common_enums::AuthenticationType::ThreeDs
+                    && request.authentication_data.is_none()
+                    && !nuvei_wallet_is_authenticated(wallet)
+                {
+                    let meta = nuvei_meta
+                        .as_ref()
+                        .filter(|meta| meta.three_ds_leg == Some(NuveiThreeDsLeg::PreAuthenticate))
+                        .ok_or_else(|| {
+                            nuvei_missing_field(
+                                "connector_feature_data",
+                                "Run PreAuthenticate before a Nuvei 3DS wallet payment",
+                            )
+                        })?;
+                    require_nuvei_three_ds_support(Some(meta))?;
+                    let browser_info = request.browser_info.as_ref().ok_or_else(|| {
+                        nuvei_missing_field("browser_info", "Send browser details for Nuvei 3DS")
+                    })?;
+                    return build_nuvei_three_ds_payment_request(NuveiThreeDsPaymentParams {
+                        auth,
+                        card,
+                        browser_info,
+                        three_ds_version: meta.three_ds_version.clone(),
+                        webhook_url: request.webhook_url.clone(),
+                        notification_url: request
+                            .continue_redirection_url
+                            .as_ref()
+                            .map(|url| url.to_string()),
+                        return_url: request.router_return_url.clone(),
+                        amount: request.amount.amount,
+                        currency: request.currency,
+                        capture_method: request.capture_method,
+                        billing_descriptor: request.billing_descriptor.as_ref(),
+                        l2_l3_data: resource.l2_l3_data.as_deref(),
+                        enable_partial_authorization: request.enable_partial_authorization,
+                        payment_channel: request.payment_channel.as_ref(),
+                        authentication_data: None,
+                        is_cit,
+                        customer_id: cit_user_token_id,
+                        session_token: resolve_session_token(
+                            Some(meta),
+                            resource.session_token.as_deref(),
+                            None,
+                        )?,
+                        related_transaction_id: meta.related_transaction_id.clone().ok_or_else(
+                            || {
+                                nuvei_missing_field(
+                                    "connector_feature_data.related_transaction_id",
+                                    "Pass initPayment metadata",
+                                )
+                            },
+                        )?,
+                        billing_address: get_required_billing_address(resource, email)?,
+                        shipping_address: resource
+                            .get_optional_shipping_country()
+                            .map(|country| NuveiShippingAddress::from((resource, country))),
+                        client_request_id: resource.connector_request_reference_id.clone(),
+                        addendums: get_nuvei_airline_addendums(request.domain_data.as_ref())?,
+                    });
+                } else if let Some(data) = &request.authentication_data {
+                    card = card.with_three_d(Some(Box::new(NuveiCardThreeD {
+                        external_mpi: Some(build_nuvei_external_mpi(data)?),
+                        ..Default::default()
+                    })));
+                }
+                NuveiPaymentOption {
+                    card: Some(card),
+                    alternative_payment_method: None,
+                    user_payment_option_id: None,
+                }
             }
             PaymentMethodData::PayLater(_) => {
                 return Err(nuvei_authorize_not_implemented(
@@ -2520,19 +3254,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_optional_shipping_country()
             .map(|country| NuveiShippingAddress::from((resource, country)));
 
-        // deviceDetails.ipAddress is mandatory
-        let ip_address = request
-            .browser_info
-            .as_ref()
-            .and_then(|browser_info| browser_info.ip_address)
-            .ok_or_else(|| {
-                nuvei_missing_field(
-                    "browser_info.ip_address",
-                    "Send browser_info.ip_address of the customer",
-                )
-            })?;
+        // Reuse the original IP on the final challenge call; txns need not
+        // recover or resend the browser payload after the ACS return.
         let device_details = NuveiDeviceDetails {
-            ip_address: Secret::new(ip_address.to_string()),
+            ip_address: resolve_nuvei_payment_ip(
+                request.browser_info.as_ref(),
+                nuvei_meta.as_ref(),
+                is_three_ds_final_leg,
+            )?,
         };
 
         // dynamicDescriptor.merchantPhone is at most 13 characters
@@ -2556,14 +3285,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         )?;
 
         // Build urlDetails from router_return_url if available
-        let url_details = request
-            .router_return_url
-            .as_ref()
-            .map(|url| NuveiUrlDetails {
-                success_url: url.clone(),
-                failure_url: url.clone(),
-                pending_url: url.clone(),
-            });
+        let url_details = build_nuvei_url_details(
+            request.router_return_url.as_deref(),
+            request.webhook_url.as_deref().or_else(|| {
+                nuvei_meta
+                    .as_ref()
+                    .and_then(|meta| meta.webhook_url.as_deref())
+            }),
+        );
 
         // Generate checksum: merchantId + merchantSiteId + clientRequestId + amount + currency + timeStamp + merchantSecretKey
         let checksum = auth.generate_checksum(&[
@@ -2597,6 +3326,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             items,
             amount_details,
             is_rebilling,
+            addendums: get_nuvei_airline_addendums(request.domain_data.as_ref())?,
             related_transaction_id: nuvei_meta.and_then(|meta| meta.related_transaction_id),
             is_moto: crate::utils::is_moto_payment_channel(request.payment_channel.as_ref())
                 .then_some(true),
@@ -2618,11 +3348,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let request = &router_data.request;
 
-        let status = get_nuvei_payment_status(
+        let status = nuvei_payment_response_status(
+            &response,
             Some(request.amount.amount.get_amount_as_i64()),
-            response.transaction_type.as_ref(),
-            response.transaction_status.as_ref(),
-            &response.status,
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -2646,7 +3374,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ) {
             Some(error) => Err(error),
             None => {
-                let transaction_response = build_nuvei_transaction_response(
+                let mut transaction_response = build_nuvei_transaction_response(
                     response,
                     router_data.resource_common_data.payment_method,
                     request
@@ -2656,6 +3384,46 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .map(|ip| ip.to_string()),
                     item.http_code,
                 )?;
+                let previous_meta = parse_nuvei_meta(
+                    router_data
+                        .resource_common_data
+                        .connector_feature_data
+                        .as_ref()
+                        .or(request.connector_feature_data.as_ref()),
+                );
+                if let PaymentsResponseData::TransactionResponse {
+                    connector_metadata,
+                    connector_response_reference_id,
+                    ..
+                } = &mut transaction_response
+                {
+                    // orderId is Nuvei's order identifier. The caller correlates
+                    // merchant_transaction_id with our outgoing clientUniqueId.
+                    *connector_response_reference_id =
+                        response.client_unique_id.clone().or_else(|| {
+                            Some(
+                                router_data
+                                    .resource_common_data
+                                    .connector_request_reference_id
+                                    .clone(),
+                            )
+                        });
+                    if connector_metadata.is_none() {
+                        *connector_metadata = previous_meta
+                            .as_ref()
+                            .map(|meta| encode_nuvei_meta(meta, item.http_code))
+                            .transpose()?;
+                    }
+                    if let Some(metadata) = connector_metadata {
+                        if let Some(webhook) = request.webhook_url.as_ref().or_else(|| {
+                            previous_meta
+                                .as_ref()
+                                .and_then(|meta| meta.webhook_url.as_ref())
+                        }) {
+                            metadata["webhook_url"] = serde_json::Value::String(webhook.clone());
+                        }
+                    }
+                }
                 // The 3DS leg after PreAuthenticate (payment with threeD):
                 // the ACS redirect is already in redirection_data and the
                 // status maps as the Authenticate leg's (REDIRECT /
@@ -2690,6 +3458,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             resource_common_data,
+            request: PaymentsAuthorizeData {
+                // Nuvei does not echo the requested amount/currency on every
+                // payment response. Populate the caller's round-trip fields
+                // from this request; these are not gateway-reported amounts.
+                // Partial approval remains in captured/capturable flow amounts.
+                integrity_object: Some(AuthoriseIntegrityObject {
+                    amount: request.amount.amount,
+                    currency: request.currency,
+                }),
+                ..request.clone()
+            },
             response: response_data,
             ..router_data.clone()
         })
@@ -2713,7 +3492,7 @@ fn with_nuvei_three_ds_leg_meta(
         resource_id,
         redirection_data,
         mandate_reference,
-        connector_metadata: _,
+        connector_metadata: previous_metadata,
         network_txn_id,
         network_txn_link_id,
         connector_response_reference_id,
@@ -2751,10 +3530,23 @@ fn with_nuvei_three_ds_leg_meta(
                 .ok_or(error)
         })?;
     let meta = NuveiMeta {
+        webhook_url: previous_metadata
+            .as_ref()
+            .and_then(|meta| meta.get("webhook_url"))
+            .and_then(|url| url.as_str())
+            .map(str::to_owned)
+            .or_else(|| nuvei_meta.and_then(|meta| meta.webhook_url.clone())),
+        browser_ip_address: previous_metadata
+            .as_ref()
+            .and_then(|meta| meta.get("browser_ip_address"))
+            .and_then(|ip| ip.as_str())
+            .map(|ip| Secret::new(ip.to_owned()))
+            .or_else(|| nuvei_meta.and_then(|meta| meta.browser_ip_address.clone())),
         session_token,
         related_transaction_id: Some(transaction_id),
-        three_ds_leg: Some(NuveiThreeDsLeg::Authenticate),
+        three_ds_leg: (!charged).then_some(NuveiThreeDsLeg::Authenticate),
         v2supported: None,
+        three_ds_version: nuvei_meta.and_then(|meta| meta.three_ds_version.clone()),
         mandate_reference: meta_mandate_reference,
         network_txn_link_id: network_txn_link_id.clone().filter(|_| charged),
     };
@@ -2810,7 +3602,7 @@ pub struct NuveiInitPaymentRequest<
 pub struct NuveiInitPaymentOption<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
-    pub card: NuveiCard<T>,
+    pub card: NuveiCardPaymentOption<T>,
 }
 
 /// initPayment response body.
@@ -2845,9 +3637,9 @@ struct NuveiAcsResponse {
 
 #[derive(Debug, Deserialize, PartialEq)]
 enum NuveiAcsTransStatus {
-    #[serde(rename = "Y", alias = "1", alias = "y")]
+    #[serde(rename = "Y")]
     Success,
-    #[serde(rename = "N", alias = "0", alias = "n")]
+    #[serde(rename = "N")]
     Failed,
     #[serde(other)]
     Unknown,
@@ -2860,28 +3652,6 @@ struct NuveiAcsErrorResponse {
     error_code: Option<String>,
     error_message: Option<String>,
     error_detail: Option<String>,
-}
-
-/// The 3DS legs take a raw card only.
-fn get_nuvei_three_ds_card<'a, T: PaymentMethodDataTypes>(
-    payment_method_data: Option<&'a PaymentMethodData<T>>,
-    flow: &str,
-) -> Result<&'a domain_types::payment_method_data::Card<T>, Report<IntegrationError>> {
-    match payment_method_data {
-        Some(PaymentMethodData::Card(card)) => Ok(card),
-        Some(PaymentMethodData::NetworkToken(_)) => {
-            Err(nuvei_three_ds_not_implemented("NetworkToken", flow).into())
-        }
-        Some(PaymentMethodData::Wallet(_)) => {
-            Err(nuvei_three_ds_not_implemented("Wallet payment methods", flow).into())
-        }
-        Some(_) => Err(nuvei_three_ds_not_implemented("This payment method", flow).into()),
-        None => Err(nuvei_missing_field(
-            "payment_method_data",
-            "Send the card in payment_method for Nuvei 3DS",
-        )
-        .into()),
-    }
 }
 
 /// threeD.browserDetails (hyperswitch `BrowserDetails::try_from`).
@@ -2939,34 +3709,140 @@ fn get_nuvei_browser_details(
     })
 }
 
+pub(super) fn has_nuvei_session_token(data: Option<&Secret<String>>) -> bool {
+    data.and_then(|value| serde_json::from_str::<NuveiMeta>(value.peek()).ok())
+        .is_some_and(|meta| !meta.session_token.peek().is_empty())
+}
+
+fn nuvei_stored_challenge_return(
+    data: Option<&pii::SecretSerdeValue>,
+) -> Option<ContinueRedirectionResponse> {
+    data.and_then(|data| data.peek().get("nuvei_challenge_cres"))
+        .and_then(serde_json::Value::as_str)
+        .map(|cres| ContinueRedirectionResponse {
+            params: None,
+            payload: Some(Secret::new(serde_json::json!({"cres": cres}))),
+        })
+}
+
+pub(super) fn process_nuvei_redirect(
+    request: &domain_types::connector_types::RequestDetails,
+    data: Option<&Secret<String>>,
+) -> Result<domain_types::connector_types::RedirectDetailsResponse, Report<IntegrationError>> {
+    let callback = ContinueRedirectionResponse {
+        params: request
+            .query_params
+            .clone()
+            .filter(|value| !value.is_empty())
+            .or_else(|| String::from_utf8(request.body.clone()).ok())
+            .map(Secret::new),
+        payload: (!request.body.is_empty()).then(|| {
+            Secret::new(
+                serde_json::from_slice::<serde_json::Value>(&request.body).unwrap_or_else(|_| {
+                    serde_json::Value::Object(
+                        url::form_urlencoded::parse(&request.body)
+                            .map(|(name, value)| {
+                                (
+                                    name.into_owned(),
+                                    serde_json::Value::String(value.into_owned()),
+                                )
+                            })
+                            .collect(),
+                    )
+                }),
+            )
+        }),
+    };
+    validate_nuvei_challenge_result(&callback)?;
+    let mut meta: serde_json::Value = data
+        .and_then(|data| serde_json::from_str(data.peek()).ok())
+        .ok_or_else(|| {
+            nuvei_missing_field(
+                "connector_feature_data",
+                "Pass the metadata returned with the Nuvei challenge",
+            )
+        })?;
+    let parsed: NuveiMeta =
+        serde_json::from_value(meta.clone()).change_context(nuvei_missing_field(
+            "connector_feature_data",
+            "Pass the metadata returned with the Nuvei challenge",
+        ))?;
+    if parsed.three_ds_leg != Some(NuveiThreeDsLeg::Authenticate)
+        || parsed
+            .related_transaction_id
+            .as_ref()
+            .is_none_or(String::is_empty)
+        || parsed.session_token.peek().is_empty()
+    {
+        return Err(nuvei_missing_field(
+            "connector_feature_data",
+            "Nuvei challenge session and Auth3D transaction ID are required",
+        )
+        .into());
+    }
+    if let Some(NuveiRedirectionResponse::Redirection { cres }) =
+        get_nuvei_redirection_response(&callback)
+    {
+        meta["nuvei_challenge_cres"] = serde_json::Value::String(cres.peek().clone());
+    }
+    Ok(domain_types::connector_types::RedirectDetailsResponse {
+        resource_id: None,
+        status: None,
+        response_amount: None,
+        connector_response_reference_id: None,
+        error_code: None,
+        error_message: None,
+        error_reason: None,
+        raw_connector_response: None,
+        connector_feature_data: Some(meta.to_string()),
+    })
+}
+
 fn get_nuvei_redirection_response(
     redirect_response: &ContinueRedirectionResponse,
 ) -> Option<NuveiRedirectionResponse> {
-    redirect_response
+    // An explicit ACS error takes precedence even if another callback transport
+    // also contains a cres. Never turn an ambiguous error return into a charge.
+    let from_value = |value: &serde_json::Value| {
+        value
+            .get("error")
+            .map(|error| NuveiRedirectionResponse::Error {
+                error: Secret::new(
+                    error
+                        .as_str()
+                        .map(str::to_owned)
+                        .unwrap_or_else(|| error.to_string()),
+                ),
+            })
+            .or_else(|| serde_json::from_value::<NuveiRedirectionResponse>(value.clone()).ok())
+    };
+    let payload = redirect_response
         .payload
         .as_ref()
-        .and_then(|payload| {
-            serde_json::from_value::<NuveiRedirectionResponse>(payload.peek().clone()).ok()
-        })
-        .or_else(|| {
-            redirect_response.params.as_ref().and_then(|params| {
-                let pairs: Vec<(String, String)> =
-                    url::form_urlencoded::parse(params.peek().trim_start_matches('?').as_bytes())
-                        .into_owned()
-                        .collect();
-                let value_of = |key: &str| {
-                    pairs
-                        .iter()
-                        .find(|(name, _)| name == key)
-                        .map(|(_, value)| Secret::new(value.clone()))
-                };
-                value_of("cres")
-                    .map(|cres| NuveiRedirectionResponse::Redirection { cres })
-                    .or_else(|| {
-                        value_of("error").map(|error| NuveiRedirectionResponse::Error { error })
-                    })
-            })
-        })
+        .and_then(|value| from_value(value.peek()));
+    let params = redirect_response.params.as_ref().and_then(|params| {
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(params.peek()) {
+            return from_value(&value);
+        }
+        let pairs: Vec<(String, String)> =
+            url::form_urlencoded::parse(params.peek().trim_start_matches('?').as_bytes())
+                .into_owned()
+                .collect();
+        let value_of = |key: &str| {
+            pairs
+                .iter()
+                .find(|(name, _)| name == key)
+                .map(|(_, value)| Secret::new(value.clone()))
+        };
+        value_of("error")
+            .map(|error| NuveiRedirectionResponse::Error { error })
+            .or_else(|| value_of("cres").map(|cres| NuveiRedirectionResponse::Redirection { cres }))
+    });
+    match (payload, params) {
+        (Some(error @ NuveiRedirectionResponse::Error { .. }), _)
+        | (_, Some(error @ NuveiRedirectionResponse::Error { .. })) => Some(error),
+        (payload, params) => payload.or(params),
+    }
 }
 
 fn decode_nuvei_challenge_field<R: serde::de::DeserializeOwned>(
@@ -3086,6 +3962,11 @@ fn get_nuvei_transaction_id(
 /// initPayment status: APPROVED (InitAuth3D) only authenticates, so it maps to
 /// AuthenticationPending, never Authorized.
 fn get_nuvei_pre_authenticate_status(response: &NuveiPaymentsResponse) -> AttemptStatus {
+    if matches!(response.status, NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed)
+        && response.transaction_status == Some(NuveiTransactionStatus::Approved)
+    {
+        return AttemptStatus::Pending;
+    }
     match response.transaction_status {
         Some(NuveiTransactionStatus::Approved) | Some(NuveiTransactionStatus::Redirect) => {
             AttemptStatus::AuthenticationPending
@@ -3158,8 +4039,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = NuveiAuthType::try_from(&router_data.connector_config)?;
 
         // card only
-        let card =
-            get_nuvei_three_ds_card(request.payment_method_data.as_ref(), "PreAuthenticate")?;
+        let card = get_nuvei_payment_card(
+            request.payment_method_data.as_ref(),
+            resource,
+            "PreAuthenticate",
+        )?;
 
         // Order-bound session token: NuveiMeta (HS carrier), else request session_token
         let session_token = resolve_session_token(
@@ -3215,16 +4099,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             client_request_id,
             amount,
             currency,
-            payment_option: NuveiInitPaymentOption {
-                card: NuveiCard {
-                    card_number: card.card_number.clone(),
-                    card_holder_name: get_nuvei_card_holder_name(card, resource),
-                    expiration_month: card.card_exp_month.clone(),
-                    expiration_year: card.card_exp_year.clone(),
-                    cvv: card.card_cvc.clone(),
-                    three_d: None,
-                },
-            },
+            payment_option: NuveiInitPaymentOption { card },
             device_details: NuveiDeviceDetails {
                 ip_address: Secret::new(ip_address.to_string()),
             },
@@ -3233,11 +4108,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref()
                 .map(|customer_id| Secret::new(customer_id.get_string_repr().to_string())),
             billing_address,
-            url_details: NuveiUrlDetails {
-                success_url: return_url.clone(),
-                failure_url: return_url.clone(),
-                pending_url: return_url,
-            },
+            url_details: build_nuvei_url_details(Some(&return_url), None).ok_or_else(|| {
+                nuvei_missing_field("return_url", "Send return_url for Nuvei initPayment")
+            })?,
         })
     }
 }
@@ -3267,6 +4140,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         {
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: Some(nuvei_raw_connector_status(response)),
                     status,
                     ..router_data.resource_common_data.clone()
                 },
@@ -3275,8 +4149,43 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             });
         }
 
+        let supported = response
+            .payment_option
+            .as_ref()
+            .and_then(|option| option.card.as_ref())
+            .and_then(|card| card.three_d.as_ref())
+            .and_then(|three_d| three_d.v2supported.as_deref());
+        if supported != Some("true") {
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    raw_connector_status: Some(domain_types::connector_types::RawConnectorStatus {
+                        code: Some("THREE_DS_NOT_SUPPORTED".to_owned()),
+                        message: Some("Nuvei does not support 3Ds for this card.".to_owned()),
+                        reason: None,
+                    }),
+                    status: AttemptStatus::AuthenticationFailed,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: "THREE_DS_NOT_SUPPORTED".to_owned(),
+                    message: "Nuvei does not support 3Ds for this card."
+                        .to_owned(),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::AuthenticationFailed)),
+                    ..Default::default()
+                }),
+                ..router_data.clone()
+            });
+        }
         let transaction_id = get_nuvei_transaction_id(response, item.http_code)?;
         let meta = NuveiMeta {
+            webhook_url: None,
+            browser_ip_address: router_data
+                .request
+                .browser_info
+                .as_ref()
+                .and_then(|info| info.ip_address)
+                .map(|ip| Secret::new(ip.to_string())),
             session_token: get_nuvei_leg_session_token(
                 response,
                 &router_data.resource_common_data,
@@ -3290,6 +4199,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .and_then(|option| option.card.as_ref())
                 .and_then(|card| card.three_d.as_ref())
                 .and_then(|three_d| three_d.v2supported.clone()),
+            three_ds_version: response
+                .payment_option
+                .as_ref()
+                .and_then(|option| option.card.as_ref())
+                .and_then(|card| card.three_d.as_ref())
+                .and_then(|three_d| three_d.version.clone()),
             mandate_reference: None,
             network_txn_link_id: None,
         };
@@ -3297,12 +4212,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
+                raw_connector_status: Some(nuvei_raw_connector_status(response)),
                 status,
                 connector_feature_data: Some(pii::SecretSerdeValue::new(connector_feature_data)),
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(PaymentsResponseData::PreAuthenticateResponse {
-                resource_id: Some(ResponseId::ConnectorTransactionId(transaction_id)),
+                resource_id: None,
                 authentication_data: None,
                 redirection_data: None,
                 connector_response_reference_id: response.order_id.clone(),
@@ -3315,15 +4231,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 /// Inputs of the 3DS `/payment.do` (threeD + initPayment relatedTransactionId),
 /// shared by the Authenticate flow and the 3DS leg of Authorize.
-struct NuveiThreeDsPaymentParams<'a, T: PaymentMethodDataTypes> {
+struct NuveiThreeDsPaymentParams<
+    'a,
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
     auth: NuveiAuthType,
-    card: &'a domain_types::payment_method_data::Card<T>,
-    card_holder_name: Option<Secret<String>>,
+    card: NuveiCardPaymentOption<T>,
     /// deviceDetails.ipAddress on both arms; threeD.browserDetails on the
     /// challenge arm only.
     browser_info: &'a BrowserInformation,
+    three_ds_version: Option<String>,
     /// threeD.notificationUrl (challenge arm only).
     notification_url: Option<String>,
+    webhook_url: Option<String>,
     /// urlDetails and threeD.merchantUrl (required on the challenge arm only).
     return_url: Option<String>,
     amount: common_utils::types::MinorUnit,
@@ -3342,6 +4262,7 @@ struct NuveiThreeDsPaymentParams<'a, T: PaymentMethodDataTypes> {
     billing_address: NuveiBillingAddress,
     shipping_address: Option<NuveiShippingAddress>,
     client_request_id: String,
+    addendums: Option<pii::SecretSerdeValue>,
 }
 
 /// Builds the 3DS `/payment.do` body: paymentOption.card.threeD (external MPI
@@ -3355,9 +4276,10 @@ fn build_nuvei_three_ds_payment_request<
     let NuveiThreeDsPaymentParams {
         auth,
         card,
-        card_holder_name,
         browser_info,
+        three_ds_version,
         notification_url,
+        webhook_url,
         return_url,
         amount: minor_amount,
         currency,
@@ -3374,6 +4296,7 @@ fn build_nuvei_three_ds_payment_request<
         billing_address,
         shipping_address,
         client_request_id,
+        addendums,
     } = params;
 
     let client_unique_id = get_valid_client_unique_id(&client_request_id)?;
@@ -3417,31 +4340,17 @@ fn build_nuvei_three_ds_payment_request<
         auth_data.cavv.is_some() || auth_data.eci.is_some() || auth_data.ds_trans_id.is_some()
     });
     let three_d = match external_mpi_data {
-        Some(auth_data) => {
-            let cavv = auth_data.cavv.clone().ok_or_else(|| {
-                nuvei_missing_field(
-                    "authentication_data.cavv",
-                    "Send authentication_data.cavv with external 3DS data",
-                )
-            })?;
-            NuveiCardThreeD {
-                external_mpi: Some(NuveiExternalMpi {
-                    eci: auth_data.eci.clone(),
-                    cavv,
-                    ds_trans_id: auth_data.ds_trans_id.clone(),
-                }),
-                ..Default::default()
-            }
-        }
+        Some(auth_data) => NuveiCardThreeD {
+            external_mpi: Some(build_nuvei_external_mpi(auth_data)?),
+            ..Default::default()
+        },
         None => {
             // the challenge needs the full browser_info and the challenge URLs
             let browser_details = get_nuvei_browser_details(browser_info)?;
-            let notification_url = notification_url.clone().ok_or_else(|| {
-                nuvei_missing_field(
-                    "continue_redirection_url",
-                    "Send continue_redirection_url (the 3DS challenge notification URL)",
-                )
-            })?;
+            let notification_url = resolve_nuvei_challenge_notification_url(
+                notification_url.clone(),
+                return_url.as_deref(),
+            )?;
             let merchant_url = return_url.clone().ok_or_else(|| {
                 nuvei_missing_field("return_url", "Send return_url for Nuvei 3DS")
             })?;
@@ -3454,6 +4363,7 @@ fn build_nuvei_three_ds_payment_request<
                 (None, None)
             };
             NuveiCardThreeD {
+                version: Some(require_nuvei_three_ds_version(three_ds_version)?),
                 method_completion_ind: Some(NuveiMethodCompletion::Unavailable),
                 browser_details: Some(browser_details),
                 notification_url: Some(notification_url),
@@ -3461,7 +4371,10 @@ fn build_nuvei_three_ds_payment_request<
                 external_mpi: None,
                 platform_type: Some(NuveiPlatformType::Browser),
                 v2_additional_params: Some(NuveiV2AdditionalParams {
-                    challenge_window_size: Some(NuveiChallengeWindowSize::FullScreen),
+                    challenge_window_size: Some(get_nuvei_challenge_window_size(
+                        browser_info.challenge_window_size.as_deref(),
+                        browser_info.screen_width.zip(browser_info.screen_height),
+                    )?),
                     challenge_preference: Some(NuveiChallengePreference::NoPreference),
                     rebill_expiry,
                     rebill_frequency,
@@ -3471,6 +4384,7 @@ fn build_nuvei_three_ds_payment_request<
     };
 
     Ok(NuveiPaymentRequest {
+        addendums,
         session_token,
         merchant_id: auth.merchant_id,
         merchant_site_id: auth.merchant_site_id,
@@ -3480,14 +4394,7 @@ fn build_nuvei_three_ds_payment_request<
         user_token_id,
         client_unique_id,
         payment_option: NuveiPaymentOption {
-            card: Some(NuveiCardPaymentOption::Raw(NuveiCard {
-                card_number: card.card_number.clone(),
-                card_holder_name,
-                expiration_month: card.card_exp_month.clone(),
-                expiration_year: card.card_exp_year.clone(),
-                cvv: card.card_cvc.clone(),
-                three_d: Some(Box::new(three_d)),
-            })),
+            card: Some(card.with_three_d(Some(Box::new(three_d)))),
             alternative_payment_method: None,
             user_payment_option_id: None,
         },
@@ -3505,11 +4412,7 @@ fn build_nuvei_three_ds_payment_request<
         },
         billing_address,
         shipping_address,
-        url_details: return_url.map(|return_url| NuveiUrlDetails {
-            success_url: return_url.clone(),
-            failure_url: return_url.clone(),
-            pending_url: return_url,
-        }),
+        url_details: build_nuvei_url_details(return_url.as_deref(), webhook_url.as_deref()),
         dynamic_descriptor,
         is_partial_approval: enable_partial_authorization.map(NuveiPartialApprovalFlag::from),
         items,
@@ -3556,10 +4459,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = NuveiAuthType::try_from(&router_data.connector_config)?;
 
         // card only
-        let card = get_nuvei_three_ds_card(request.payment_method_data.as_ref(), "Authenticate")?;
+        let card = get_nuvei_payment_card(
+            request.payment_method_data.as_ref(),
+            resource,
+            "Authenticate",
+        )?;
 
         // the initPayment NuveiMeta (sessionToken + relatedTransactionId)
         let nuvei_meta = parse_nuvei_meta(resource.connector_feature_data.as_ref());
+        require_nuvei_three_ds_support(nuvei_meta.as_ref())?;
         let related_transaction_id = nuvei_meta
             .as_ref()
             .and_then(|meta| meta.related_transaction_id.clone())
@@ -3595,8 +4503,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         build_nuvei_three_ds_payment_request(NuveiThreeDsPaymentParams {
             auth,
             card,
-            card_holder_name: get_nuvei_card_holder_name(card, resource),
             browser_info,
+            three_ds_version: nuvei_meta
+                .as_ref()
+                .and_then(|meta| meta.three_ds_version.clone()),
+            webhook_url: request.webhook_url.clone(),
             notification_url: request
                 .continue_redirection_url
                 .as_ref()
@@ -3623,6 +4534,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             billing_address,
             shipping_address,
             client_request_id: resource.connector_request_reference_id.clone(),
+            addendums: get_nuvei_airline_addendums(request.domain_data.as_ref())?,
         })
         .map(Self)
     }
@@ -3650,11 +4562,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // REDIRECT / APPROVED+Auth3D -> AuthenticationPending; frictionless
         // APPROVED+Sale -> Charged, +Auth -> Authorized; DECLINED/ERROR+Auth3D ->
         // AuthenticationFailed
-        let status = get_nuvei_payment_status(
+        let status = nuvei_payment_response_status(
+            &response,
             Some(request.amount.amount.get_amount_as_i64()),
-            response.transaction_type.as_ref(),
-            response.transaction_status.as_ref(),
-            &response.status,
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -3701,6 +4611,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )]),
                 })
             });
+
+        if status == AttemptStatus::AuthenticationPending && redirection_data.is_none() {
+            return Err(ConnectorError::response_handling_failed_with_context(
+                item.http_code,
+                Some("Nuvei challenge response is missing acsUrl or cReq".to_owned()),
+            )
+            .into());
+        }
 
         // Frictionless: the 3DS result Nuvei returned
         let authentication_data = three_d
@@ -3765,14 +4683,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // The final Authorize references this (Auth3D) transaction
         let meta = NuveiMeta {
+            webhook_url: request.webhook_url.clone(),
+            browser_ip_address: router_data
+                .request
+                .browser_info
+                .as_ref()
+                .and_then(|info| info.ip_address)
+                .map(|ip| Secret::new(ip.to_string())),
             session_token: get_nuvei_leg_session_token(
                 response,
                 &router_data.resource_common_data,
                 item.http_code,
             )?,
             related_transaction_id: Some(transaction_id.clone()),
-            three_ds_leg: Some(NuveiThreeDsLeg::Authenticate),
+            three_ds_leg: (status == AttemptStatus::AuthenticationPending)
+                .then_some(NuveiThreeDsLeg::Authenticate),
             v2supported: None,
+            three_ds_version: response
+                .payment_option
+                .as_ref()
+                .and_then(|option| option.card.as_ref())
+                .and_then(|card| card.three_d.as_ref())
+                .and_then(|three_d| three_d.version.clone()),
             mandate_reference: meta_mandate_reference,
             network_txn_link_id: network_txn_link_id.clone(),
         };
@@ -3781,7 +4713,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             resource_common_data,
             response: Ok(PaymentsResponseData::AuthenticateResponse {
-                resource_id: Some(ResponseId::ConnectorTransactionId(transaction_id)),
+                resource_id: if matches!(
+                    response.transaction_type,
+                    Some(NuveiTransactionType::Auth3D) | Some(NuveiTransactionType::InitAuth3D)
+                ) || matches!(
+                    response.transaction_status,
+                    Some(NuveiTransactionStatus::Redirect)
+                ) {
+                    None
+                } else {
+                    Some(ResponseId::ConnectorTransactionId(transaction_id))
+                },
                 redirection_data,
                 authentication_data,
                 connector_feature_data: Some(connector_feature_data),
@@ -3869,6 +4811,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ]);
 
         Ok(Self {
+            addendums: get_nuvei_capture_addendums(router_data)?,
             merchant_id: auth.merchant_id,
             merchant_site_id: auth.merchant_site_id,
             client_request_id,
@@ -3896,11 +4839,21 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
         // left unchanged and the requested transaction id is echoed back.
         if item.response.err_code == Some(NUVEI_NO_TRANSACTION_FOUND_ERR_CODE) {
             return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    raw_connector_status: Some(nuvei_raw_connector_status(
+                        &item.response.to_payments_response(),
+                    )),
+                    ..router_data.resource_common_data.clone()
+                },
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: request.connector_transaction_id.clone(),
                     redirection_data: None,
                     mandate_reference: None,
-                    connector_metadata: None,
+                    connector_metadata: router_data
+                        .resource_common_data
+                        .connector_feature_data
+                        .as_ref()
+                        .map(|data| data.peek().clone()),
                     network_txn_id: None,
                     network_txn_link_id: None,
                     connector_response_reference_id: None,
@@ -3915,13 +4868,16 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
 
         let response = item.response.to_payments_response();
 
-        // Request-level failure: the lookup itself failed (checksum, timestamp,
-        // rate limit) and says nothing about the payment. The status stays as
+        // A failed lookup (or conflicting approval) cannot establish a new payment
+        // state. Preserve the prior status and expose the query error. The status stays as
         // received and the Err carries errCode/reason with no attempt status.
         let is_request_level_failure = matches!(
             response.status,
             NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed
-        ) && response.transaction_status.is_none();
+        ) && matches!(
+            response.transaction_status,
+            None | Some(NuveiTransactionStatus::Approved)
+        );
         if is_request_level_failure {
             let error_view = NuveiPaymentsResponse {
                 status: NuveiPaymentStatus::Error,
@@ -3935,16 +4891,18 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
                     ))
                 })?;
             return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    raw_connector_status: Some(nuvei_raw_connector_status(&response)),
+                    ..router_data.resource_common_data.clone()
+                },
                 response: Err(error),
                 ..router_data.clone()
             });
         }
 
-        let status = get_nuvei_payment_status(
+        let status = nuvei_payment_response_status(
+            &response,
             Some(request.amount.amount.get_amount_as_i64()),
-            response.transaction_type.as_ref(),
-            response.transaction_status.as_ref(),
-            &response.status,
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -3961,7 +4919,7 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
         )?;
 
         // status ERROR, or a 2xx DECLINED/ERROR transaction, is a failure
-        let response_data = match build_nuvei_error_response(
+        let mut response_data = match build_nuvei_error_response(
             &response,
             item.http_code,
             Some(FlowStatus::Payment(status)),
@@ -3974,6 +4932,20 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
                 item.http_code,
             )?),
         };
+
+        if let Ok(PaymentsResponseData::TransactionResponse {
+            connector_metadata,
+            resource_id,
+            ..
+        }) = &mut response_data
+        {
+            *resource_id = request.connector_transaction_id.clone();
+            *connector_metadata = router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref()
+                .map(|data| data.peek().clone());
+        }
 
         Ok(Self {
             resource_common_data,
@@ -3994,15 +4966,13 @@ impl TryFrom<ResponseRouterData<NuveiCaptureResponse, Self>>
         let router_data = &item.router_data;
 
         // HS passes the capturable amount; transactionStatus absent + SUCCESS -> Pending
-        let status = get_nuvei_payment_status(
+        let status = nuvei_payment_response_status(
+            &response,
             router_data
                 .resource_common_data
                 .amount_capturable
                 .as_ref()
                 .map(|money| money.amount.get_amount_as_i64()),
-            response.transaction_type.as_ref(),
-            response.transaction_status.as_ref(),
-            &response.status,
         );
 
         // status ERROR, or a 2xx DECLINED/ERROR settle, is a failure
@@ -4022,6 +4992,7 @@ impl TryFrom<ResponseRouterData<NuveiCaptureResponse, Self>>
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
+                raw_connector_status: Some(nuvei_raw_connector_status(response)),
                 status,
                 ..router_data.resource_common_data.clone()
             },
@@ -4062,8 +5033,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id,
         )?;
 
-        // Extract relatedTransactionId from connector_transaction_id
+        // Txns supplies the Sale ID or the capture ID selected by its existing
+        // capture-update configuration. Validate missing IDs here in Prism.
         let related_transaction_id = router_data.request.connector_transaction_id.clone();
+        if related_transaction_id.trim().is_empty() {
+            return Err(IntegrationError::MissingConnectorTransactionID {
+                context: nuvei_error_context(
+                    "Pass the capture transaction ID for a captured Auth, or the final payment ID for a Sale",
+                    "Nuvei refund requires the transaction ID being refunded",
+                ),
+            }.into());
+        }
 
         let currency = router_data.request.currency;
 
@@ -4167,24 +5147,15 @@ impl TryFrom<ResponseRouterData<NuveiRefundResponse, Self>>
         // HS get_refund_response: status ERROR or transactionStatus ERROR/DECLINED is a
         // failed refund returned as Err, attempt_status Refund(Failure), carrying
         // gwErrorCode/gwErrorReason.
-        let is_error = matches!(response.status, NuveiPaymentStatus::Error)
-            || matches!(
-                response.transaction_status,
-                Some(NuveiTransactionStatus::Error) | Some(NuveiTransactionStatus::Declined)
-            );
-        if let Some(error) = is_error
-            .then(|| {
-                build_nuvei_error_response(
-                    response,
-                    item.http_code,
-                    Some(FlowStatus::Refund(common_enums::RefundStatus::Failure)),
-                )
-            })
-            .flatten()
-        {
+        if let Some(error) = build_nuvei_error_response(
+            response,
+            item.http_code,
+            Some(FlowStatus::Refund(get_nuvei_refund_status(&response))),
+        ) {
             return Ok(Self {
                 resource_common_data: RefundFlowData {
-                    status: common_enums::RefundStatus::Failure,
+                    raw_connector_status: Some(nuvei_raw_connector_status(response)),
+                    status: get_nuvei_refund_status(&response),
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(error),
@@ -4194,17 +5165,7 @@ impl TryFrom<ResponseRouterData<NuveiRefundResponse, Self>>
 
         // HS refund status map. An absent transactionStatus is Pending (never Success, never
         // a terminal Failure), matching RSync: a later RSync or the refund DMN settles it.
-        let refund_status = match response.transaction_status {
-            Some(NuveiTransactionStatus::Approved) => common_enums::RefundStatus::Success,
-            Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
-                common_enums::RefundStatus::Failure
-            }
-            Some(NuveiTransactionStatus::Pending)
-            | Some(NuveiTransactionStatus::Processing)
-            | Some(NuveiTransactionStatus::Redirect)
-            | Some(NuveiTransactionStatus::Unknown) => common_enums::RefundStatus::Pending,
-            None => common_enums::RefundStatus::Pending,
-        };
+        let refund_status = get_nuvei_refund_status(&response);
 
         // Get connector refund ID
         let connector_refund_id = response.transaction_id.clone().ok_or_else(|| {
@@ -4223,6 +5184,7 @@ impl TryFrom<ResponseRouterData<NuveiRefundResponse, Self>>
 
         Ok(Self {
             resource_common_data: RefundFlowData {
+                raw_connector_status: Some(nuvei_raw_connector_status(response)),
                 status: refund_status,
                 ..router_data.resource_common_data.clone()
             },
@@ -4248,6 +5210,12 @@ impl TryFrom<ResponseRouterData<NuveiRefundSyncResponse, Self>>
         // status is left unchanged and the requested refund id is echoed back.
         if item.response.err_code == Some(NUVEI_NO_TRANSACTION_FOUND_ERR_CODE) {
             return Ok(Self {
+                resource_common_data: RefundFlowData {
+                    raw_connector_status: Some(nuvei_raw_connector_status(
+                        &item.response.to_payments_response(),
+                    )),
+                    ..router_data.resource_common_data.clone()
+                },
                 response: Ok(RefundsResponseData {
                     connector_refund_id: request.connector_refund_id.clone(),
                     refund_status: request.refund_status,
@@ -4260,12 +5228,16 @@ impl TryFrom<ResponseRouterData<NuveiRefundSyncResponse, Self>>
 
         let response = item.response.to_payments_response();
 
-        // Request-level failure: status ERROR with no transactionStatus means the
-        // lookup itself failed (checksum, timestamp, rate limit) and says nothing
-        // about the refund. The refund status stays as received and the Err
+        // A failed lookup (or conflicting approval) cannot establish a new refund
+        // state. The refund status stays as received and the Err
         // carries errCode/reason with no attempt status (HS get_error_response).
-        let is_request_level_failure = matches!(response.status, NuveiPaymentStatus::Error)
-            && response.transaction_status.is_none();
+        let is_request_level_failure = matches!(
+            response.status,
+            NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed
+        ) && matches!(
+            response.transaction_status,
+            None | Some(NuveiTransactionStatus::Approved)
+        );
         if is_request_level_failure {
             let error =
                 build_nuvei_error_response(&response, item.http_code, None).ok_or_else(|| {
@@ -4276,6 +5248,7 @@ impl TryFrom<ResponseRouterData<NuveiRefundSyncResponse, Self>>
                 })?;
             return Ok(Self {
                 resource_common_data: RefundFlowData {
+                    raw_connector_status: Some(nuvei_raw_connector_status(&response)),
                     status: request.refund_status,
                     ..router_data.resource_common_data.clone()
                 },
@@ -4287,24 +5260,15 @@ impl TryFrom<ResponseRouterData<NuveiRefundSyncResponse, Self>>
         // HS: status ERROR or transactionDetails.transactionStatus ERROR/DECLINED of the
         // Credit transaction is a failed refund returned as Err, attempt_status
         // Refund(Failure).
-        let is_error = matches!(response.status, NuveiPaymentStatus::Error)
-            || matches!(
-                response.transaction_status,
-                Some(NuveiTransactionStatus::Error) | Some(NuveiTransactionStatus::Declined)
-            );
-        if let Some(error) = is_error
-            .then(|| {
-                build_nuvei_error_response(
-                    &response,
-                    item.http_code,
-                    Some(FlowStatus::Refund(common_enums::RefundStatus::Failure)),
-                )
-            })
-            .flatten()
-        {
+        if let Some(error) = build_nuvei_error_response(
+            &response,
+            item.http_code,
+            Some(FlowStatus::Refund(get_nuvei_refund_status(&response))),
+        ) {
             return Ok(Self {
                 resource_common_data: RefundFlowData {
-                    status: common_enums::RefundStatus::Failure,
+                    raw_connector_status: Some(nuvei_raw_connector_status(&response)),
+                    status: get_nuvei_refund_status(&response),
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(error),
@@ -4315,17 +5279,7 @@ impl TryFrom<ResponseRouterData<NuveiRefundSyncResponse, Self>>
         // HS refund status map. An absent transactionStatus is Pending (never
         // Success, never a terminal Failure): a later RSync or the refund DMN
         // settles it (deliberate divergence from HS, plan PL-12).
-        let refund_status = match response.transaction_status {
-            Some(NuveiTransactionStatus::Approved) => common_enums::RefundStatus::Success,
-            Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
-                common_enums::RefundStatus::Failure
-            }
-            Some(NuveiTransactionStatus::Pending)
-            | Some(NuveiTransactionStatus::Processing)
-            | Some(NuveiTransactionStatus::Redirect)
-            | Some(NuveiTransactionStatus::Unknown) => common_enums::RefundStatus::Pending,
-            None => common_enums::RefundStatus::Pending,
-        };
+        let refund_status = get_nuvei_refund_status(&response);
 
         // connector_refund_id = transactionDetails.transactionId
         let connector_refund_id = response.transaction_id.clone().ok_or_else(|| {
@@ -4340,6 +5294,7 @@ impl TryFrom<ResponseRouterData<NuveiRefundSyncResponse, Self>>
 
         Ok(Self {
             resource_common_data: RefundFlowData {
+                raw_connector_status: Some(nuvei_raw_connector_status(&response)),
                 status: refund_status,
                 ..router_data.resource_common_data.clone()
             },
@@ -4455,25 +5410,28 @@ impl TryFrom<ResponseRouterData<NuveiVoidResponse, Self>>
 
         // APPROVED+Void -> Voided; APPROVED without transactionType -> Pending;
         // DECLINED/ERROR+Void -> VoidFailed
-        let status = get_nuvei_payment_status(
+        let status = nuvei_payment_response_status(
+            &response,
             router_data
                 .request
                 .amount
                 .as_ref()
                 .map(|money| money.amount.get_amount_as_i64()),
-            response.transaction_type.as_ref(),
-            response.transaction_status.as_ref(),
-            &response.status,
         );
 
         // status ERROR, or a 2xx DECLINED/ERROR void, is a failure;
         // a failed void is VoidFailed
+        let error_status = if status == AttemptStatus::Pending {
+            AttemptStatus::Pending
+        } else {
+            AttemptStatus::VoidFailed
+        };
         let (status, response_data) = match build_nuvei_error_response(
             response,
             item.http_code,
-            Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
+            Some(FlowStatus::Payment(error_status)),
         ) {
-            Some(error) => (AttemptStatus::VoidFailed, Err(error)),
+            Some(error) => (error_status, Err(error)),
             None => (
                 status,
                 Ok(build_nuvei_transaction_response(
@@ -4487,6 +5445,7 @@ impl TryFrom<ResponseRouterData<NuveiVoidResponse, Self>>
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
+                raw_connector_status: Some(nuvei_raw_connector_status(response)),
                 status,
                 ..router_data.resource_common_data.clone()
             },
@@ -5088,14 +6047,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_type =
             TransactionType::get_from_capture_method(request.capture_method, minor_amount)?;
 
-        let url_details = request
-            .router_return_url
-            .as_ref()
-            .map(|url| NuveiUrlDetails {
-                success_url: url.clone(),
-                failure_url: url.clone(),
-                pending_url: url.clone(),
-            });
+        let url_details = build_nuvei_url_details(request.router_return_url.as_deref(), None);
 
         // Checksum: merchantId + merchantSiteId + clientRequestId + amount + currency + timeStamp + merchantSecretKey
         let checksum = auth.generate_checksum(&[
@@ -5158,7 +6110,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &router_data.request;
 
         // Zero-amount Auth APPROVED -> Charged (card verification)
-        let status = get_nuvei_payment_status(
+        let status = nuvei_payment_response_status(
+            &response,
             Some(
                 request
                     .amount
@@ -5166,9 +6119,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .map(|money| money.amount.get_amount_as_i64())
                     .unwrap_or(0),
             ),
-            response.transaction_type.as_ref(),
-            response.transaction_status.as_ref(),
-            &response.status,
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -5594,11 +6544,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let request = &router_data.request;
 
-        let status = get_nuvei_payment_status(
+        let status = nuvei_payment_response_status(
+            &response,
             Some(request.amount.amount.get_amount_as_i64()),
-            response.transaction_type.as_ref(),
-            response.transaction_status.as_ref(),
-            &response.status,
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -5714,6 +6662,8 @@ pub struct PaymentDmnNotification {
     pub transaction_type: Option<NuveiTransactionType>,
     #[serde(rename = "ErrCode")]
     pub err_code: Option<String>,
+    #[serde(rename = "ExErrCode")]
+    pub ex_err_code: Option<String>,
     #[serde(rename = "Reason")]
     pub reason: Option<String>,
     #[serde(rename = "ReasonCode")]
@@ -5735,6 +6685,9 @@ pub struct PaymentDmnNotification {
     pub acquirer_bank: Option<String>,
     pub client_request_id: Option<String>,
     pub related_transaction_id: Option<String>,
+    #[serde(rename = "merchant_unique_id")]
+    pub merchant_unique_id: Option<String>,
+    pub client_unique_id: Option<String>,
 }
 
 /// Chargeback notification from the Nuvei Control Panel.
@@ -5921,10 +6874,13 @@ pub enum DisputeUnifiedStatusCode {
 /// Parse a DMN body: form-encoded first (payment DMN), JSON fallback
 /// (chargeback) — hyperswitch `get_webhook_object_from_body`.
 pub fn parse_nuvei_webhook(body: &[u8]) -> Result<NuveiWebhook, Report<WebhookError>> {
-    match serde_urlencoded::from_bytes::<NuveiWebhook>(body) {
-        Ok(webhook) => Ok(webhook),
-        Err(_) => serde_json::from_slice::<NuveiWebhook>(body)
-            .change_context(WebhookError::WebhookBodyDecodingFailed),
+    if body.iter().find(|byte| !byte.is_ascii_whitespace()) == Some(&b'{') {
+        serde_json::from_slice::<NuveiWebhook>(body)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+    } else {
+        serde_urlencoded::from_bytes::<PaymentDmnNotification>(body)
+            .map(NuveiWebhook::PaymentDmn)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
     }
 }
 
@@ -6240,21 +7196,69 @@ pub fn get_dispute_stage(
 }
 
 impl PaymentDmnNotification {
+    pub fn money(&self) -> Result<common_utils::types::Money, Report<WebhookError>> {
+        let currency = serde_json::from_value(serde_json::json!(self.currency))
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        let amount: StringMajorUnit = serde_json::from_value(serde_json::json!(self.total_amount))
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        let amount = NuveiAmountConvertor::convert_back(amount, currency)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        Ok(common_utils::types::Money { amount, currency })
+    }
+
+    pub fn has_conflicting_status(&self) -> bool {
+        self.ppp_status == DmnApiTransactionStatus::Fail
+            && matches!(self.status, Some(DmnStatus::Approved | DmnStatus::Success))
+    }
+
+    pub fn raw_connector_status(&self) -> domain_types::connector_types::RawConnectorStatus {
+        nuvei_raw_connector_status(&self.to_payments_response())
+    }
+
+    pub fn merchant_reference(&self) -> Option<String> {
+        self.merchant_unique_id
+            .as_ref()
+            .filter(|reference| !reference.trim().is_empty())
+            .or_else(|| {
+                self.client_unique_id
+                    .as_ref()
+                    .filter(|reference| !reference.trim().is_empty())
+            })
+            .cloned()
+    }
     /// DMN -> getTransactionDetails shape (hyperswitch
     /// `From<PaymentDmnNotification> for NuveiTransactionSyncResponse`), so the
     /// shared status and error helpers apply unchanged.
-    fn to_payments_response(&self) -> NuveiPaymentsResponse {
-        let sync = NuveiSyncResponse {
+    fn to_sync_response(&self) -> NuveiSyncResponse {
+        NuveiSyncResponse {
             payment_option: None,
             partial_approval: None,
             transaction_details: Some(NuveiTransactionDetails {
                 gw_error_code: self
-                    .reason_code
+                    .err_code
                     .as_ref()
-                    .and_then(|code| code.parse::<i64>().ok()),
+                    .and_then(|code| code.parse::<i64>().ok())
+                    .or_else(|| self.reason_code.as_ref().and_then(|code| code.parse().ok())),
                 gw_error_reason: self.reason.clone(),
-                gw_extended_error_code: None,
+                gw_extended_error_code: self
+                    .ex_err_code
+                    .as_ref()
+                    .and_then(|code| code.parse::<i64>().ok())
+                    .or_else(|| {
+                        self.reason_code
+                            .as_ref()
+                            .and_then(|code| code.parse::<i64>().ok())
+                            .filter(|code| {
+                                *code != 0
+                                    && Some(*code)
+                                        != self
+                                            .err_code
+                                            .as_ref()
+                                            .and_then(|value| value.parse().ok())
+                            })
+                    }),
                 transaction_id: self.transaction_id.clone(),
+                related_transaction_id: self.related_transaction_id.clone(),
                 transaction_status: self.status.as_ref().map(|status| match status {
                     DmnStatus::Success | DmnStatus::Approved => NuveiTransactionStatus::Approved,
                     DmnStatus::Declined => NuveiTransactionStatus::Declined,
@@ -6269,9 +7273,21 @@ impl PaymentDmnNotification {
                 acquiring_bank_name: self.acquirer_bank.clone(),
             }),
             transaction_link_id: self.transaction_link_id.clone(),
-            client_unique_id: None,
+            client_unique_id: self.merchant_reference(),
             status: match self.ppp_status {
                 DmnApiTransactionStatus::Ok => NuveiPaymentStatus::Success,
+                // A valid DMN describing a declined transaction corresponds to an API
+                // request success with transactionStatus DECLINED/ERROR.
+                DmnApiTransactionStatus::Fail
+                    if matches!(self.status, Some(DmnStatus::Declined | DmnStatus::Error))
+                        && !self
+                            .err_code
+                            .as_ref()
+                            .and_then(|code| code.parse::<i64>().ok())
+                            .is_some_and(|code| code > 0) =>
+                {
+                    NuveiPaymentStatus::Success
+                }
                 DmnApiTransactionStatus::Fail => NuveiPaymentStatus::Failed,
                 DmnApiTransactionStatus::Pending => NuveiPaymentStatus::Processing,
                 DmnApiTransactionStatus::Unknown => NuveiPaymentStatus::Unknown,
@@ -6285,12 +7301,52 @@ impl PaymentDmnNotification {
             merchant_site_id: self.merchant_site_id.clone(),
             client_request_id: self.client_request_id.clone(),
             merchant_advice_code: self.merchant_advice_code.clone(),
-        };
-        NuveiPaymentsResponse {
-            merchant_advice_code: self.merchant_advice_code.clone(),
-            ..sync.to_payments_response()
         }
     }
+
+    fn to_payments_response(&self) -> NuveiPaymentsResponse {
+        NuveiPaymentsResponse {
+            merchant_advice_code: self.merchant_advice_code.clone(),
+            ..self.to_sync_response().to_payments_response()
+        }
+    }
+}
+
+fn normalized_nuvei_dmn_response(
+    notification: &PaymentDmnNotification,
+    raw_body: &[u8],
+) -> Result<String, Report<WebhookError>> {
+    let mut value = serde_json::to_value(notification.to_sync_response())
+        .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+    let fields: std::collections::HashMap<String, String> =
+        serde_urlencoded::from_bytes(raw_body).unwrap_or_default();
+    let mut card = serde_json::Map::new();
+    for (source, target) in [
+        ("issuerName", "issuerBankName"),
+        ("cardNumber", "ccCardNumber"),
+        ("bin", "bin"),
+        ("expMonth", "ccExpMonth"),
+        ("expYear", "ccExpYear"),
+        ("cardCompany", "cardBrand"),
+    ] {
+        if let Some(field) = fields.get(source).filter(|field| !field.is_empty()) {
+            card.insert(target.to_owned(), serde_json::Value::String(field.clone()));
+        }
+    }
+    if let Some(prepaid) = fields
+        .get("isPrepaid")
+        .and_then(|field| field.parse::<bool>().ok())
+    {
+        card.insert("isPrepaid".to_owned(), serde_json::Value::Bool(prepaid));
+    }
+    if !card.is_empty() {
+        value["paymentOption"] = serde_json::json!({"card": card});
+    }
+    if let Some(product_id) = &notification.product_id {
+        value["productDetails"] = serde_json::json!({"productId": product_id});
+    }
+    // Authentication/card attributes absent from the DMN are not invented.
+    serde_json::to_string(&value).change_context(WebhookError::WebhookBodyDecodingFailed)
 }
 
 /// Payment DMN -> webhook payment details: status via the shared
@@ -6307,12 +7363,7 @@ pub fn build_payment_webhook_details(
         .ok()
         .filter(|amount| *amount == 0.0)
         .map(|_| 0);
-    let status = get_nuvei_payment_status(
-        amount,
-        response.transaction_type.as_ref(),
-        response.transaction_status.as_ref(),
-        &response.status,
-    );
+    let status = nuvei_payment_response_status(&response, amount);
     let error = build_nuvei_error_response(&response, 200, None);
     let connector_transaction_id = notification
         .transaction_id
@@ -6322,13 +7373,13 @@ pub fn build_payment_webhook_details(
     Ok(WebhookDetailsResponse {
         resource_id: Some(ResponseId::ConnectorTransactionId(connector_transaction_id)),
         status,
-        connector_response_reference_id: None,
-        connector_request_reference_id: None,
+        connector_response_reference_id: notification.merchant_reference(),
+        connector_request_reference_id: notification.merchant_reference(),
         mandate_reference: None,
         error_code: error.as_ref().map(|error| error.code.clone()),
         error_message: error.as_ref().map(|error| error.message.clone()),
         error_reason: error.and_then(|error| error.reason),
-        raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+        raw_connector_response: Some(normalized_nuvei_dmn_response(notification, raw_body)?),
         status_code: 200,
         response_headers: None,
         amount_captured: None,
@@ -6346,18 +7397,7 @@ pub fn build_refund_webhook_details(
     raw_body: &[u8],
 ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
     let response = notification.to_payments_response();
-    let status = match response.transaction_status {
-        Some(NuveiTransactionStatus::Approved) => common_enums::RefundStatus::Success,
-        Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
-            common_enums::RefundStatus::Failure
-        }
-        Some(NuveiTransactionStatus::Pending)
-        | Some(NuveiTransactionStatus::Processing)
-        | Some(NuveiTransactionStatus::Redirect)
-        | Some(NuveiTransactionStatus::Unknown) => common_enums::RefundStatus::Pending,
-        // Absent Status: not terminal; RSync settles it (same as Refund/RSync).
-        None => common_enums::RefundStatus::Pending,
-    };
+    let status = get_nuvei_refund_status(&response);
     let error = build_nuvei_error_response(&response, 200, None);
     let connector_refund_id = notification
         .transaction_id
@@ -6371,7 +7411,7 @@ pub fn build_refund_webhook_details(
         connector_response_reference_id: None,
         error_code: error.as_ref().map(|error| error.code.clone()),
         error_message: error.map(|error| error.message),
-        raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+        raw_connector_response: Some(normalized_nuvei_dmn_response(notification, raw_body)?),
         status_code: 200,
         response_headers: None,
     })
@@ -6383,10 +7423,85 @@ pub fn build_refund_webhook_details(
 #[allow(clippy::panic)]
 mod tests {
     use domain_types::connector_types::ContinueRedirectionResponse;
+    use hyperswitch_masking::PeekInterface;
 
     use super::{
         payment_dmn_checksum_message, validate_nuvei_challenge_result, PaymentDmnNotification,
     };
+
+    #[test]
+    fn payment_webhook_verifies_supported_checksums_and_rejects_tampering() {
+        use common_utils::crypto::GenerateDigest;
+        use domain_types::{
+            connector_types::{ConnectorWebhookSecrets, HttpMethod, RequestDetails},
+            payment_method_data::DefaultPCIHolder,
+            router_data::ConnectorSpecificConfig,
+        };
+        use interfaces::connector_types::IncomingWebhook;
+        use sha2::{Digest, Sha256};
+
+        let connector = crate::connectors::nuvei::Nuvei::<DefaultPCIHolder>::new();
+        let config = |secret: &str| ConnectorSpecificConfig::Nuvei {
+            merchant_id: "merchant".to_owned().into(),
+            merchant_site_id: "site".to_owned().into(),
+            merchant_secret: secret.to_owned().into(),
+            base_url: None,
+        };
+        let explicit = |secret: &str| ConnectorWebhookSecrets {
+            secret: secret.as_bytes().to_vec(),
+            additional_secret: None,
+        };
+        let request = |checksum: &str, amount: &str| {
+            RequestDetails {
+            method: HttpMethod::Post,
+            uri: None,
+            headers: Default::default(),
+            body: format!("ppp_status=OK&Status=APPROVED&totalAmount={amount}&currency=USD&responseTimeStamp=2026-10-13.09%3A03%3A00&PPP_TransactionID=7110000001&productId=Airline+ticket&advanceResponseChecksum={checksum}").into_bytes(),
+            query_params: None,
+        }
+        };
+        // Independent fixture includes decoded form spaces and the documented order.
+        let message = b"secret10.00USD2026-10-13.09:03:007110000001APPROVEDAirline ticket";
+        let sha256 = hex::encode(Sha256::digest(message));
+        let md5 = hex::encode(common_utils::crypto::Md5.generate_digest(message).unwrap());
+        for checksum in [&sha256, &md5, &sha256.to_uppercase()] {
+            assert!(connector
+                .verify_webhook_source(request(checksum, "10.00"), None, Some(config("secret")))
+                .unwrap());
+            assert!(!connector
+                .verify_webhook_source(request(checksum, "11.00"), None, Some(config("secret")))
+                .unwrap());
+        }
+        assert!(connector
+            .verify_webhook_source(
+                request(&sha256, "10.00"),
+                Some(explicit("secret")),
+                Some(config("wrong"))
+            )
+            .unwrap());
+        assert!(!connector
+            .verify_webhook_source(
+                request(&sha256, "10.00"),
+                Some(explicit("wrong")),
+                Some(config("secret"))
+            )
+            .unwrap());
+        for checksum in ["", "not-hex", "abcd"] {
+            assert!(!connector
+                .verify_webhook_source(request(checksum, "10.00"), None, Some(config("secret")))
+                .unwrap());
+        }
+        assert!(connector
+            .verify_webhook_source(request(&sha256, "10.00"), None, None)
+            .is_err());
+        assert!(connector
+            .verify_webhook_source(
+                request(&sha256, "10.00"),
+                Some(explicit("")),
+                Some(config("secret"))
+            )
+            .is_err());
+    }
 
     fn dmn(status: Option<&str>) -> PaymentDmnNotification {
         let status = status
@@ -6446,6 +7561,86 @@ mod tests {
         .is_ok());
     }
 
+    #[test]
+    fn callback_transport_and_strict_status_validation() {
+        use base64::Engine;
+        for status in ["Y", "N", "U", "R", "y", "1", ""] {
+            let cres = base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(serde_json::json!({"transStatus": status}).to_string());
+            for params in [
+                serde_json::json!({"cres": cres}).to_string(),
+                format!("cres={cres}"),
+            ] {
+                let callback = ContinueRedirectionResponse {
+                    params: Some(hyperswitch_masking::Secret::new(params)),
+                    payload: None,
+                };
+                assert_eq!(
+                    validate_nuvei_challenge_result(&callback).is_ok(),
+                    status == "Y"
+                );
+            }
+        }
+        for payload in [
+            serde_json::json!({"cres":"invalid"}),
+            serde_json::json!({"error":"e30"}),
+            serde_json::json!({}),
+        ] {
+            assert!(validate_nuvei_challenge_result(&challenge_return(payload)).is_err());
+        }
+    }
+
+    #[test]
+    fn redirect_retains_session_and_auth3d_reference() {
+        use base64::Engine;
+        let cres =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(r#"{"transStatus":"Y"}"#);
+        let mut value = serde_json::json!({
+            "session_token":"original-session", "related_transaction_id":"auth3d-id"
+        });
+        value["three_ds_leg"] = serde_json::to_value(super::NuveiThreeDsLeg::Authenticate).unwrap();
+        let metadata = hyperswitch_masking::Secret::new(value.to_string());
+        let request = domain_types::connector_types::RequestDetails {
+            method: domain_types::connector_types::HttpMethod::Post,
+            uri: None,
+            headers: Default::default(),
+            body: vec![],
+            query_params: Some(serde_json::json!({"cres":cres}).to_string()),
+        };
+        for response in [
+            serde_json::json!({"cres": "eyJ0cmFuc1N0YXR1cyI6Ik4ifQ"}),
+            serde_json::json!({"cres":"broken"}),
+            serde_json::json!({"error":"e30"}),
+            serde_json::json!({}),
+        ] {
+            let mut rejected = request.clone();
+            rejected.query_params = Some(response.to_string());
+            assert!(super::process_nuvei_redirect(&rejected, Some(&metadata)).is_err());
+        }
+        let mut ambiguous = request.clone();
+        ambiguous.body = serde_json::json!({"error":"e30"}).to_string().into_bytes();
+        assert!(super::process_nuvei_redirect(&ambiguous, Some(&metadata)).is_err());
+        ambiguous.body = b"error=e30".to_vec();
+        assert!(super::process_nuvei_redirect(&ambiguous, Some(&metadata)).is_err());
+        ambiguous.body = serde_json::json!({"cres":cres, "error":"e30"})
+            .to_string()
+            .into_bytes();
+        assert!(super::process_nuvei_redirect(&ambiguous, Some(&metadata)).is_err());
+        assert!(super::process_nuvei_redirect(&request, None).is_err());
+        let result = super::process_nuvei_redirect(&request, Some(&metadata)).unwrap();
+        let returned = hyperswitch_masking::Secret::new(result.connector_feature_data.unwrap());
+        assert!(super::has_nuvei_session_token(Some(&returned)));
+        let value: serde_json::Value = serde_json::from_str(returned.peek()).unwrap();
+        assert_eq!(value["session_token"], "original-session");
+        assert_eq!(value["related_transaction_id"], "auth3d-id");
+        assert!(result.resource_id.is_none());
+        let state = hyperswitch_masking::Secret::new(value);
+        assert!(validate_nuvei_challenge_result(
+            &super::nuvei_stored_challenge_return(Some(&state)).unwrap()
+        )
+        .is_ok());
+    }
+
     /// A redirection_response that is present but carries neither a cres nor an
     /// error is reported as malformed, not as a missing field.
     #[test]
@@ -6463,4 +7658,1101 @@ mod tests {
             "expected InvalidDataFormat, got {error:?}"
         );
     }
+
+    fn payment_response(kind: &str, status: &str, id: &str) -> super::NuveiPaymentsResponse {
+        serde_json::from_value(serde_json::json!({"status":"SUCCESS","errCode":0,"transactionType":kind,"transactionStatus":status,"transactionId":id})).unwrap()
+    }
+
+    #[test]
+    fn only_confirmed_enrollment_permits_nuvei_three_ds_payment() {
+        for support in [None, Some("false"), Some("TRUE"), Some("unexpected")] {
+            let meta: super::NuveiMeta = serde_json::from_value(
+                serde_json::json!({"session_token":"session","v2supported":support}),
+            )
+            .unwrap();
+            assert!(super::require_nuvei_three_ds_support(Some(&meta)).is_err());
+        }
+        let meta: super::NuveiMeta = serde_json::from_value(
+            serde_json::json!({"session_token":"session","v2supported":"true"}),
+        )
+        .unwrap();
+        assert!(super::require_nuvei_three_ds_support(Some(&meta)).is_ok());
+    }
+
+    #[test]
+    fn challenge_hides_intermediate_id_and_posts_creq_for_cards_and_wallets() {
+        let mut response = payment_response("Auth3D", "REDIRECT", "intermediate");
+        response.payment_option = Some(serde_json::from_value(serde_json::json!({"card":{"threeD":{"acsUrl":"https://acs.example/challenge","cReq":"encoded-creq"}}})).unwrap());
+        for method in [
+            common_enums::PaymentMethod::Card,
+            common_enums::PaymentMethod::Wallet,
+        ] {
+            let output =
+                super::build_nuvei_transaction_response(&response, method, None, 200).unwrap();
+            let super::PaymentsResponseData::TransactionResponse {
+                resource_id,
+                redirection_data,
+                ..
+            } = output
+            else {
+                panic!("expected payment response")
+            };
+            assert!(matches!(resource_id, super::ResponseId::NoResponseId));
+            let super::RedirectForm::Form {
+                endpoint,
+                method,
+                form_fields,
+            } = *redirection_data.unwrap()
+            else {
+                panic!("expected ACS form")
+            };
+            assert_eq!(endpoint, "https://acs.example/challenge");
+            assert!(matches!(method, super::Method::Post));
+            assert_eq!(form_fields["creq"], "encoded-creq");
+        }
+        response.payment_option = None;
+        assert!(super::build_nuvei_transaction_response(
+            &response,
+            common_enums::PaymentMethod::Card,
+            None,
+            200
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn financial_payment_publishes_its_final_id() {
+        for kind in ["Sale", "Auth"] {
+            let response = payment_response(kind, "APPROVED", "last-payment");
+            let output = super::build_nuvei_transaction_response(
+                &response,
+                common_enums::PaymentMethod::Card,
+                None,
+                200,
+            )
+            .unwrap();
+            assert!(
+                matches!(output, super::PaymentsResponseData::TransactionResponse { resource_id: super::ResponseId::ConnectorTransactionId(ref id), .. } if id == "last-payment")
+            );
+        }
+    }
+
+    #[test]
+    fn final_authorize_response_returns_request_authorized_money() {
+        let amount = common_utils::types::Money {
+            amount: common_utils::types::MinorUnit::new(12345),
+            currency: common_enums::Currency::USD,
+        };
+        let request =
+            super::PaymentsAuthorizeData::<domain_types::payment_method_data::DefaultPCIHolder> {
+                payment_method_data: super::PaymentMethodData::MandatePayment,
+                amount: amount,
+                order_tax_amount: None,
+                surcharge_amount: None,
+                email: None,
+                customer_document_details: None,
+                customer_date_of_birth: None,
+                customer_name: None,
+                currency: common_enums::Currency::USD,
+                confirm: true,
+                billing_descriptor: None,
+                capture_method: None,
+                router_return_url: None,
+                webhook_url: None,
+                complete_authorize_url: None,
+                mandate_id: None,
+                setup_future_usage: None,
+                off_session: None,
+                browser_info: None,
+                order_category: None,
+                session_token: None,
+                access_token: None,
+                customer_acceptance: None,
+                enrolled_for_3ds: None,
+                related_transaction_id: None,
+                payment_experience: None,
+                payment_method_type: None,
+                customer_id: None,
+                request_incremental_authorization: None,
+                metadata: None,
+                authentication_data: None,
+                split_payments: None,
+                split_settlement: None,
+                merchant_order_id: None,
+                shipping_cost: None,
+                merchant_account_id: None,
+                integrity_object: None,
+                merchant_config_currency: None,
+                all_keys_required: None,
+                request_extended_authorization: None,
+                enable_overcapture: None,
+                setup_mandate_details: None,
+                connector_feature_data: None,
+                connector_testing_data: None,
+                payment_channel: None,
+                enable_partial_authorization: None,
+                locale: None,
+                redirect_response: None,
+                threeds_method_comp_ind: None,
+                continue_redirection_url: None,
+                tokenization: None,
+                mit_category: None,
+                domain_data: None,
+                partner_merchant_identifier_details: None,
+                currency_conversion_data: None,
+                is_account_funding_transaction: None,
+                recipient_details: None,
+                additional_connector_details: None,
+                customer: None,
+                business_country: None,
+                enable_avs_check: None,
+            };
+        let resource = super::PaymentFlowData {
+            merchant_id: serde_json::from_value(serde_json::json!("merchant_test")).unwrap(),
+            customer_id: None,
+            connector_customer: None,
+            payment_id: "payment".to_owned(),
+            attempt_id: "attempt".to_owned(),
+            status: common_enums::AttemptStatus::Pending,
+            payment_method: common_enums::PaymentMethod::Card,
+            payment_method_type: None,
+            description: None,
+            return_url: None,
+            address: Default::default(),
+            auth_type: common_enums::AuthenticationType::NoThreeDs,
+            connector_feature_data: None,
+            amount_captured: None,
+            amount_capturable: None,
+            amount: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            connector_order_id: None,
+            preprocessing_id: None,
+            connector_api_version: None,
+            connector_request_reference_id: "merchant-reference".to_owned(),
+            test_mode: None,
+            connector_http_status_code: None,
+            connector_response_headers: None,
+            external_latency: None,
+            connectors: std::sync::Arc::new(Default::default()),
+            raw_connector_response: None,
+            typed_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+            vault_headers: None,
+            connector_response: None,
+            recurring_mandate_payment_data: None,
+            order_details: None,
+            amount_authorized: None,
+            l2_l3_data: None,
+            merchant_request_id: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+            settlement_status: None,
+            raw_connector_status: None,
+        };
+        for (kind, echoed_reference, partial) in [
+            ("Sale", Some("merchant-reference"), false),
+            ("Auth", None, false),
+            ("Sale", None, true),
+            ("Auth", Some("merchant-reference"), true),
+        ] {
+            let mut response = payment_response(kind, "APPROVED", "final-payment-id");
+            response.order_id = Some("distinct-nuvei-order-id".to_owned());
+            response.client_unique_id = echoed_reference.map(str::to_owned);
+            if partial {
+                response.partial_approval = Some(
+                    serde_json::from_value(serde_json::json!({
+                        "requestedAmount":"123.45", "requestedCurrency":"USD",
+                        "processedAmount":"100.00", "processedCurrency":"USD"
+                    }))
+                    .unwrap(),
+                );
+            }
+            let router_data = super::RouterDataV2 {
+                flow: std::marker::PhantomData::<super::Authorize>,
+                resource_common_data: resource.clone(),
+                connector_config: super::ConnectorSpecificConfig::NoKey,
+                request: request.clone(),
+                response: Err(Default::default()),
+            };
+            let output = super::RouterDataV2::try_from(super::ResponseRouterData {
+                response,
+                router_data,
+                http_code: 200,
+            })
+            .unwrap();
+            let integrity = output.request.integrity_object.as_ref().unwrap();
+            assert_eq!(integrity.amount.get_amount_as_i64(), 12345);
+            assert_eq!(integrity.currency, common_enums::Currency::USD);
+            if partial {
+                let processed = if kind == "Sale" {
+                    output.resource_common_data.amount_captured.as_ref()
+                } else {
+                    output.resource_common_data.amount_capturable.as_ref()
+                }
+                .unwrap();
+                assert_eq!(processed.amount.get_amount_as_i64(), 10000);
+                assert_eq!(processed.currency, common_enums::Currency::USD);
+            }
+            let grpc = domain_types::types::generate_payment_authorize_response(output).unwrap();
+            let raw_status = grpc.raw_connector_status.as_ref().unwrap();
+            assert_eq!(raw_status.code.as_deref(), Some("APPROVED"));
+            assert_eq!(raw_status.message.as_deref(), Some("APPROVED"));
+            assert_eq!(
+                grpc.connector_transaction_id.as_deref(),
+                Some("final-payment-id")
+            );
+            let authorized = grpc.authorized_money.unwrap();
+            assert_eq!(authorized.minor_amount, 12345);
+            assert_eq!(
+                authorized.currency,
+                grpc_api_types::payments::Currency::Usd as i32
+            );
+            assert_eq!(
+                grpc.merchant_transaction_id.as_deref(),
+                Some("merchant-reference")
+            );
+        }
+    }
+
+    #[test]
+    fn decrypted_google_pay_preserves_cryptogram_and_external_mpi_without_cvv() {
+        let wallet = super::WalletData::GooglePay(Box::new(serde_json::from_value(serde_json::json!({
+            "type":"CARD","description":"test","info":{"card_network":"VISA","card_details":"1111"},
+            "tokenization_data":{"cardExpMonth":"12","cardExpYear":"30","applicationPrimaryAccountNumber":"4111111111111111","cryptogram":"wallet-cryptogram","eciIndicator":"05"}
+        })).unwrap()));
+        let card = super::build_nuvei_wallet_card(&wallet).unwrap();
+        let card = super::NuveiCardPaymentOption::<
+            domain_types::payment_method_data::DefaultPCIHolder,
+        >::Wallet(card)
+        .with_three_d(Some(Box::new(super::NuveiCardThreeD {
+            external_mpi: Some(super::NuveiExternalMpi {
+                eci: Some("02".to_owned()),
+                cavv: hyperswitch_masking::Secret::new("mpi-cavv".to_owned()),
+                ds_trans_id: Some("directory-id".to_owned()),
+            }),
+            ..Default::default()
+        })));
+        let wire = serde_json::to_value(card).unwrap();
+        assert_eq!(wire["externalToken"]["externalTokenProvider"], "GooglePay");
+        assert_eq!(wire["externalToken"]["cryptogram"], "wallet-cryptogram");
+        assert_eq!(wire["threeD"]["externalMpi"]["dsTransID"], "directory-id");
+        assert_eq!(wire["expirationYear"], "2030");
+        assert!(wire.get("CVV").is_none());
+    }
+
+    #[test]
+    fn decrypted_apple_pay_and_encrypted_wallet_rejection() {
+        let mut data: domain_types::payment_method_data::ApplePayWalletData = serde_json::from_value(serde_json::json!({
+            "payment_data":{"application_primary_account_number":"4111111111111111","application_expiration_month":"12","application_expiration_year":"2030","payment_data":{"online_payment_cryptogram":"apple-cryptogram","eci_indicator":"05"}},
+            "payment_method":{"display_name":"test","network":"Visa","type":"debit"},"transaction_identifier":"wallet-reference"
+        })).unwrap();
+        let wire = serde_json::to_value(
+            super::build_nuvei_wallet_card(&super::WalletData::ApplePay(Box::new(data.clone())))
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(wire["externalToken"]["externalTokenProvider"], "ApplePay");
+        assert_eq!(wire["externalToken"]["cryptogram"], "apple-cryptogram");
+        data.payment_data = super::ApplePayPaymentData::Encrypted("encrypted-token".to_owned());
+        assert!(
+            super::build_nuvei_wallet_card(&super::WalletData::ApplePay(Box::new(data))).is_err()
+        );
+    }
+
+    #[test]
+    fn airline_itinerary_comes_from_domain_data_and_capture_ticket_merge() {
+        let domain = domain_types::connector_types::DomainData {
+            airline_data: Some(domain_types::connector_types::AirlineData {
+                pnr_code: Some("PNR123".to_owned()),
+                number_of_passengers: Some(1),
+                flight_date: Some("2026-12-01T04:30:00Z".to_owned()),
+                airline_code: Some("AI".to_owned()),
+                flight_segments: vec![domain_types::connector_types::AirlineSegment {
+                    flight_number: Some("123".to_owned()),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let addendums = super::get_nuvei_airline_addendums(Some(&domain))
+            .unwrap()
+            .unwrap();
+        assert!(super::get_nuvei_airline_addendums(None).unwrap().is_none());
+        let continued = super::get_nuvei_airline_addendums(Some(&domain))
+            .unwrap()
+            .unwrap();
+        let ticket = super::pii::SecretSerdeValue::new(serde_json::Value::String(
+            r#"{"reference_id":"0001234567"}"#.to_owned(),
+        ));
+        let merged = super::merge_nuvei_capture_ticket(Some(continued), Some(&ticket))
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            merged.peek()["airlines"]["reservationDetails"]["pnrCode"],
+            "PNR123"
+        );
+        assert_eq!(
+            merged.peek()["airlines"]["reservationDetails"]["computerizedReservationSystem"],
+            "IBS"
+        );
+        assert_eq!(
+            merged.peek()["airlines"]["reservationDetails"]["ticketNumber"],
+            "0001234567"
+        );
+        assert_eq!(
+            merged.peek()["airlines"]["reservationDetails"]["flightDateUTC"],
+            "2026-12-01 04:30:00"
+        );
+        assert_eq!(
+            merged.peek()["airlines"]["reservationDetails"]["documentType"],
+            "TKT"
+        );
+        assert_eq!(
+            merged.peek()["airlines"]["reservationDetails"]["flightLegDetails"][0]["flightNumber"],
+            "AI 123"
+        );
+        assert_eq!(
+            merged.peek()["airlines"]["reservationDetails"]["flightLegDetails"][0]["stopOverCode"],
+            "O"
+        );
+        assert!(merged.peek()["airlines"]["reservationDetails"]["issueDate"].is_string());
+        let without_metadata = super::merge_nuvei_capture_ticket(Some(addendums.clone()), None)
+            .unwrap()
+            .unwrap();
+        assert!(without_metadata.peek()["airlines"]["reservationDetails"]["issueDate"].is_string());
+        assert_eq!(without_metadata.peek()["airlines"]["reservationDetails"]["pnrCode"], "PNR123");
+        assert!(without_metadata.peek()["airlines"]["reservationDetails"].get("ticketNumber").is_none());
+        for metadata in [serde_json::json!({}), serde_json::json!({"reference_id":""})] {
+            let metadata = super::pii::SecretSerdeValue::new(metadata);
+            let merged = super::merge_nuvei_capture_ticket(Some(addendums.clone()), Some(&metadata))
+                .unwrap()
+                .unwrap();
+            assert!(merged.peek()["airlines"]["reservationDetails"]["issueDate"].is_string());
+            assert!(merged.peek()["airlines"]["reservationDetails"].get("ticketNumber").is_none());
+        }
+    }
+
+    #[test]
+    fn airline_stopovers_follow_journey_boundaries_and_preserve_explicit_values() {
+        let segment = |journey_no, stopover: Option<&str>| domain_types::connector_types::AirlineSegment {
+            journey_no,
+            stopover_code: stopover.map(str::to_owned),
+            ..Default::default()
+        };
+        for (segments, expected) in [
+            (vec![segment(None, None)], vec!["O"]),
+            (vec![segment(None, None), segment(None, None)], vec!["X", "O"]),
+            (vec![segment(Some(1), None), segment(Some(1), None), segment(Some(2), None)], vec!["X", "O", "O"]),
+            (vec![segment(Some(1), Some("O")), segment(Some(1), None)], vec!["O", "O"]),
+        ] {
+            let domain = domain_types::connector_types::DomainData {
+                airline_data: Some(domain_types::connector_types::AirlineData {
+                    flight_segments: segments,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
+            let addendums = super::get_nuvei_airline_addendums(Some(&domain)).unwrap().unwrap();
+            let legs = addendums.peek()["airlines"]["reservationDetails"]["flightLegDetails"].as_array().unwrap();
+            let codes: Vec<_> = legs.iter().map(|leg| leg["stopOverCode"].as_str().unwrap()).collect();
+            assert_eq!(codes, expected);
+        }
+    }
+
+    #[test]
+    fn capture_issue_date_uses_capture_time_instead_of_supplied_booking_time() {
+        let addendums = super::pii::SecretSerdeValue::new(serde_json::json!({
+            "airlines": {"reservationDetails": {"issueDate": "2000-01-01 00:00:00", "ticketNumber": "existing-ticket"}}
+        }));
+        let captured = super::merge_nuvei_capture_ticket(Some(addendums), None).unwrap().unwrap();
+        let reservation = &captured.peek()["airlines"]["reservationDetails"];
+        assert_ne!(reservation["issueDate"], "2000-01-01 00:00:00");
+        assert_eq!(reservation["ticketNumber"], "existing-ticket");
+    }
+
+    #[test]
+    fn dmn_raw_status_reports_success_and_connector_failure() {
+        let approved = dmn(Some("APPROVED"));
+        let status = approved.raw_connector_status();
+        assert_eq!(status.code.as_deref(), Some("APPROVED"));
+        assert_eq!(status.message.as_deref(), Some("APPROVED"));
+
+        let mut failed = dmn(Some("ERROR"));
+        failed.ppp_status = super::DmnApiTransactionStatus::Fail;
+        failed.err_code = Some("-1100".to_owned());
+        failed.reason = Some("Issuer data is not available".to_owned());
+        let expected = super::build_nuvei_error_response(&failed.to_payments_response(), 200, None).unwrap();
+        let status = failed.raw_connector_status();
+        assert_eq!(status.code.as_deref(), Some(expected.code.as_str()));
+        assert_eq!(status.message.as_deref(), Some(expected.message.as_str()));
+    }
+
+    #[test]
+    fn form_dmn_accepts_both_merchant_references_and_normalizes_failure() {
+        let body = b"ppp_status=FAIL&PPP_TransactionID=order-id&totalAmount=35.0&currency=EUR&responseTimeStamp=2022-08-01.07%3A57%3A52&Status=ERROR&TransactionID=auth-id&transactionType=Auth&merchant_unique_id=merchant-txn&clientUniqueId=legacy-reference&ErrCode=-1100&Reason=Issuer+data+is+not+available&ReasonCode=1289";
+        let super::NuveiWebhook::PaymentDmn(notification) =
+            super::parse_nuvei_webhook(body).unwrap()
+        else {
+            panic!("Expected payment DMN");
+        };
+        assert_eq!(notification.merchant_reference().as_deref(), Some("merchant-txn"));
+        let details = super::build_payment_webhook_details(&notification, body).unwrap();
+        assert_eq!(details.connector_request_reference_id.as_deref(), Some("merchant-txn"));
+        let wire: serde_json::Value =
+            serde_json::from_str(&details.raw_connector_response.unwrap()).unwrap();
+        assert_eq!(wire["clientUniqueId"], "merchant-txn");
+        assert_eq!(wire["transactionDetails"]["transactionId"], "auth-id");
+        assert_eq!(wire["transactionDetails"]["gwErrorReason"], "Issuer data is not available");
+        assert_eq!(details.status, common_enums::AttemptStatus::AuthorizationFailed);
+    }
+
+    #[test]
+    fn dmn_reference_falls_back_to_client_unique_id() {
+        for merchant_reference in [None, Some("")] {
+            let mut notification = dmn(Some("APPROVED"));
+            notification.merchant_unique_id = merchant_reference.map(str::to_owned);
+            notification.client_unique_id = Some("fallback-txn".to_owned());
+            assert_eq!(notification.merchant_reference().as_deref(), Some("fallback-txn"));
+        }
+    }
+
+    #[test]
+    fn payment_and_refund_dmns_return_transaction_details_json() {
+        let notification: PaymentDmnNotification = serde_json::from_value(serde_json::json!({
+            "ppp_status":"OK","PPP_TransactionID":"order-id","totalAmount":"10.00","currency":"USD","responseTimeStamp":"2026-10-27.09:00:00","Status":"APPROVED","TransactionID":"settlement-id","transactionType":"Settle","relatedTransactionId":"auth-id","AuthCode":"123456"
+        })).unwrap();
+        let details =
+            super::build_payment_webhook_details(&notification, b"original form body").unwrap();
+        let wire: serde_json::Value =
+            serde_json::from_str(&details.raw_connector_response.unwrap()).unwrap();
+        assert_eq!(wire["transactionDetails"]["transactionId"], "settlement-id");
+        assert_eq!(
+            wire["transactionDetails"]["relatedTransactionId"],
+            "auth-id"
+        );
+        assert_eq!(wire["transactionDetails"]["authCode"], "123456");
+        assert_eq!(details.status, common_enums::AttemptStatus::Charged);
+        assert!(
+            matches!(details.resource_id, Some(super::ResponseId::ConnectorTransactionId(ref id)) if id == "settlement-id")
+        );
+        let mut refund = notification;
+        refund.transaction_type = Some(super::NuveiTransactionType::Credit);
+        let details = super::build_refund_webhook_details(&refund, b"form body").unwrap();
+        assert_eq!(details.status, common_enums::RefundStatus::Success);
+        let wire: serde_json::Value =
+            serde_json::from_str(&details.raw_connector_response.unwrap()).unwrap();
+        assert_eq!(wire["transactionDetails"]["transactionType"], "Credit");
+    }
+
+    #[test]
+    fn sync_status_mapping_distinguishes_auth_sale_settle_and_credit_pending() {
+        for (kind, expected) in [
+            ("Auth", common_enums::AttemptStatus::Authorized),
+            ("Sale", common_enums::AttemptStatus::Charged),
+            ("Settle", common_enums::AttemptStatus::Charged),
+        ] {
+            let sync: super::NuveiSyncResponse = serde_json::from_value(serde_json::json!({"status":"SUCCESS","transactionDetails":{"transactionId":"synced-id","transactionStatus":"Approved","transactionType":kind}})).unwrap();
+            let response = sync.to_payments_response();
+            assert_eq!(
+                super::get_nuvei_payment_status(
+                    Some(100),
+                    response.transaction_type.as_ref(),
+                    response.transaction_status.as_ref(),
+                    &response.status
+                ),
+                expected
+            );
+        }
+        let mut refund = dmn(Some("PENDING"));
+        refund.transaction_id = Some("credit-id".to_owned());
+        refund.transaction_type = Some(super::NuveiTransactionType::Credit);
+        assert_eq!(
+            super::build_refund_webhook_details(&refund, b"")
+                .unwrap()
+                .status,
+            common_enums::RefundStatus::Pending
+        );
+    }
+    #[test]
+    fn wallet_authentication_routing_distinguishes_nuvei_and_decoupled_google_pay() {
+        use interfaces::connector_types::{
+            AuthenticationContext, AuthenticationStep, RedirectState, ValidationTrait,
+        };
+        let mut wallet: domain_types::payment_method_data::GooglePayWalletData = serde_json::from_value(serde_json::json!({"type":"CARD","description":"test","info":{"card_network":"VISA","card_details":"1111","assurance_details":{"card_holder_authenticated":false,"account_verified":true}},"tokenization_data":{"cardExpMonth":"12","cardExpYear":"2030","applicationPrimaryAccountNumber":"4111111111111111","cryptogram":"token-cryptogram"}})).unwrap();
+        let connector = crate::connectors::nuvei::Nuvei::<
+            domain_types::payment_method_data::DefaultPCIHolder,
+        >::new();
+        for (authenticated, expected) in [
+            (false, AuthenticationStep::PreAuthenticate),
+            (true, AuthenticationStep::Authorize),
+        ] {
+            wallet
+                .info
+                .assurance_details
+                .as_mut()
+                .unwrap()
+                .card_holder_authenticated = authenticated;
+            let method = super::PaymentMethodData::Wallet(super::WalletData::GooglePay(Box::new(
+                wallet.clone(),
+            )));
+            let context = AuthenticationContext {
+                payment_method_data: Some(&method),
+                has_external_authentication: false,
+            };
+            assert_eq!(
+                connector.next_authentication_step(
+                    common_enums::AuthenticationType::ThreeDs,
+                    common_enums::PaymentMethod::Wallet,
+                    RedirectState::InitialRequest,
+                    None,
+                    &context
+                ),
+                expected
+            );
+            assert_eq!(
+                connector.next_authentication_step(
+                    common_enums::AuthenticationType::NoThreeDs,
+                    common_enums::PaymentMethod::Wallet,
+                    RedirectState::InitialRequest,
+                    None,
+                    &context
+                ),
+                AuthenticationStep::Authorize
+            );
+        }
+        let external = AuthenticationContext {
+            payment_method_data: None,
+            has_external_authentication: true,
+        };
+        assert_eq!(
+            connector.next_authentication_step(
+                common_enums::AuthenticationType::ThreeDs,
+                common_enums::PaymentMethod::Card,
+                RedirectState::InitialRequest,
+                None,
+                &external
+            ),
+            AuthenticationStep::Authorize
+        );
+        for auth in [
+            grpc_api_types::payments::AuthenticationType::ThreeDs,
+            grpc_api_types::payments::AuthenticationType::NoThreeDs,
+        ] {
+            assert!(domain_types::types::validate_nuvei_auth_type("nuvei", auth).is_ok());
+        }
+        assert!(domain_types::types::validate_nuvei_auth_type(
+            "nuvei",
+            grpc_api_types::payments::AuthenticationType::Unspecified
+        )
+        .is_err());
+        assert!(domain_types::types::validate_nuvei_auth_type(
+            "stripe",
+            grpc_api_types::payments::AuthenticationType::Unspecified
+        )
+        .is_ok());
+    }
+    #[test]
+    fn external_mpi_requires_nonempty_eci_cavv_and_directory_id() {
+        let complete =
+            serde_json::json!({"eci":"02","cavv":"mpi-value","ds_trans_id":"directory-id"});
+        let data: super::AuthenticationData = serde_json::from_value(complete.clone()).unwrap();
+        assert!(super::build_nuvei_external_mpi(&data).is_ok());
+        for field in ["eci", "cavv", "ds_trans_id"] {
+            for invalid in [
+                serde_json::Value::Null,
+                serde_json::Value::String(String::new()),
+            ] {
+                let mut incomplete = complete.clone();
+                incomplete[field] = invalid;
+                let data = serde_json::from_value(incomplete).unwrap();
+                assert!(super::build_nuvei_external_mpi(&data).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn initialization_pending_authentication_and_missing_final_id_cannot_publish_payment_id() {
+        for kind in ["Auth3D", "InitAuth3D"] {
+            for status in ["APPROVED", "PENDING", "PROCESSING"] {
+                let response = payment_response(kind, status, "authentication-only-id");
+                let output = super::build_nuvei_transaction_response(
+                    &response,
+                    common_enums::PaymentMethod::Card,
+                    None,
+                    200,
+                )
+                .unwrap();
+                assert!(matches!(
+                    output,
+                    super::PaymentsResponseData::TransactionResponse {
+                        resource_id: super::ResponseId::NoResponseId,
+                        ..
+                    }
+                ));
+            }
+        }
+        let mut response = payment_response("Sale", "APPROVED", "final-id");
+        response.transaction_id = None;
+        response.order_id = Some("order-id".to_owned());
+        assert!(super::build_nuvei_transaction_response(
+            &response,
+            common_enums::PaymentMethod::Card,
+            None,
+            200
+        )
+        .is_err());
+    }
+    #[test]
+    fn challenge_window_size_is_forwarded_validated_and_defaults_to_fullscreen() {
+        for code in ["01", "02", "03", "04", "05"] {
+            assert_eq!(
+                serde_json::to_value(
+                    super::get_nuvei_challenge_window_size(Some(code), Some((2560, 1440))).unwrap()
+                )
+                .unwrap(),
+                code
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(super::get_nuvei_challenge_window_size(None, None).unwrap())
+                .unwrap(),
+            "05"
+        );
+        assert_eq!(
+            serde_json::to_value(
+                super::get_nuvei_challenge_window_size(Some("FULL_SCREEN"), Some((250, 400)))
+                    .unwrap()
+            )
+            .unwrap(),
+            "05"
+        );
+        for invalid in ["", "06", "INVALID"] {
+            assert!(
+                super::get_nuvei_challenge_window_size(Some(invalid), Some((250, 400))).is_err()
+            );
+        }
+    }
+    #[test]
+    fn challenge_window_size_matches_legacy_nuvei_dimensions() {
+        for (dimensions, expected) in [
+            ((250, 400), "01"),
+            ((390, 400), "02"),
+            ((500, 600), "03"),
+            ((600, 400), "04"),
+            ((2560, 1440), "05"),
+            ((400, 250), "05"),
+        ] {
+            assert_eq!(
+                serde_json::to_value(
+                    super::get_nuvei_challenge_window_size(None, Some(dimensions)).unwrap()
+                )
+                .unwrap(),
+                expected
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(
+                super::get_nuvei_challenge_window_size(Some("02"), Some((250, 400))).unwrap()
+            )
+            .unwrap(),
+            "02"
+        );
+    }
+
+    #[test]
+    fn final_payment_reuses_original_ip_without_browser_payload() {
+        let mut response = payment_response("Auth3D", "APPROVED", "intermediate");
+        response.session_token = Some(super::Secret::new("session".to_owned()));
+        let result = super::build_nuvei_transaction_response(
+            &response,
+            common_enums::PaymentMethod::Card,
+            Some("198.51.100.42".to_owned()),
+            200,
+        )
+        .unwrap();
+        let super::PaymentsResponseData::TransactionResponse {
+            connector_metadata: Some(value),
+            ..
+        } = result
+        else {
+            panic!("Missing connector state")
+        };
+        let meta: super::NuveiMeta = serde_json::from_value(value).unwrap();
+        assert_eq!(
+            super::resolve_nuvei_payment_ip(None, Some(&meta), true)
+                .unwrap()
+                .peek(),
+            "198.51.100.42"
+        );
+        assert!(super::resolve_nuvei_payment_ip(None, Some(&meta), false).is_err());
+        assert!(super::resolve_nuvei_payment_ip(None, None, true).is_err());
+    }
+
+    #[test]
+    fn three_ds_payment_sends_negotiated_version_without_a_default() {
+        let browser = super::BrowserInformation {
+            color_depth: Some(24),
+            java_enabled: Some(false),
+            java_script_enabled: Some(true),
+            language: Some("en-US".to_owned()),
+            screen_height: Some(1440),
+            screen_width: Some(2560),
+            time_zone: Some(-330),
+            ip_address: Some("198.51.100.42".parse().unwrap()),
+            accept_header: Some("text/html".to_owned()),
+            user_agent: Some("test-browser".to_owned()),
+            ..Default::default()
+        };
+        let wallet: domain_types::payment_method_data::GooglePayWalletData = serde_json::from_value(serde_json::json!({
+            "type":"CARD", "description":"test", "info":{"card_network":"VISA","card_details":"1111"},
+            "tokenization_data":{"cardExpMonth":"12","cardExpYear":"2030","applicationPrimaryAccountNumber":"4111111111111111"}
+        })).unwrap();
+        let build = |version: Option<String>| {
+            super::build_nuvei_three_ds_payment_request(super::NuveiThreeDsPaymentParams::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            > {
+                auth: super::NuveiAuthType {
+                    merchant_id: super::Secret::new("merchant".to_owned()),
+                    merchant_site_id: super::Secret::new("site".to_owned()),
+                    merchant_secret: super::Secret::new("secret".to_owned()),
+                },
+                card: super::NuveiCardPaymentOption::Wallet(
+                    super::build_nuvei_wallet_card(&super::WalletData::GooglePay(Box::new(
+                        wallet.clone(),
+                    )))
+                    .unwrap(),
+                ),
+                browser_info: &browser,
+                three_ds_version: version,
+                notification_url: None,
+                return_url: Some("https://example.com/return".to_owned()),
+                webhook_url: Some("https://example.com/webhook".to_owned()),
+                amount: common_utils::types::MinorUnit::new(16000),
+                currency: common_enums::Currency::EUR,
+                capture_method: Some(common_enums::CaptureMethod::Manual),
+                billing_descriptor: None,
+                l2_l3_data: None,
+                enable_partial_authorization: None,
+                payment_channel: None,
+                authentication_data: None,
+                is_cit: false,
+                customer_id: None,
+                session_token: super::Secret::new("session".to_owned()),
+                related_transaction_id: "init-id".to_owned(),
+                billing_address: super::NuveiBillingAddress {
+                    email: "test@example.com".parse().unwrap(),
+                    country: common_enums::CountryAlpha2::US,
+                    first_name: None,
+                    last_name: None,
+                    phone: None,
+                    city: None,
+                    address: None,
+                    address_line2: None,
+                    address_line3: None,
+                    zip: None,
+                    state: None,
+                },
+                shipping_address: None,
+                client_request_id: "merchant-reference".to_owned(),
+                addendums: None,
+            })
+        };
+        for version in ["2.1.0", "2.2.0", "2.3.1"] {
+            let wire = serde_json::to_value(build(Some(version.to_owned())).unwrap()).unwrap();
+            assert_eq!(wire["paymentOption"]["card"]["threeD"]["version"], version);
+            assert_eq!(wire["relatedTransactionId"], "init-id");
+            assert_eq!(wire["transactionType"], "Auth");
+            assert_eq!(
+                wire["paymentOption"]["card"]["threeD"]["notificationURL"],
+                "https://example.com/return"
+            );
+            assert_eq!(
+                wire["urlDetails"]["notificationUrl"],
+                "https://example.com/webhook"
+            );
+        }
+        for version in [None, Some(String::new()), Some(" ".to_owned())] {
+            assert!(build(version).is_err());
+        }
+        let external = super::NuveiCardThreeD {
+            external_mpi: Some(super::NuveiExternalMpi {
+                eci: Some("05".to_owned()),
+                cavv: super::Secret::new("cavv".to_owned()),
+                ds_trans_id: Some("ds-id".to_owned()),
+            }),
+            ..Default::default()
+        };
+        assert!(serde_json::to_value(external)
+            .unwrap()
+            .get("version")
+            .is_none());
+    }
+
+    #[test]
+    fn challenge_callback_uses_explicit_url_then_legacy_return_url() {
+        assert_eq!(
+            super::resolve_nuvei_challenge_notification_url(
+                Some("https://example.com/acs".to_owned()),
+                Some("https://example.com/return"),
+            )
+            .unwrap(),
+            "https://example.com/acs"
+        );
+        assert_eq!(
+            super::resolve_nuvei_challenge_notification_url(
+                None,
+                Some("https://example.com/return"),
+            )
+            .unwrap(),
+            "https://example.com/return"
+        );
+        assert!(super::resolve_nuvei_challenge_notification_url(None, None).is_err());
+    }
+
+    #[test]
+    fn payment_notification_url_is_independent_of_acs_and_return_urls() {
+        let urls =
+            super::build_nuvei_url_details(None, Some("https://example.com/webhook")).unwrap();
+        let value = serde_json::to_value(urls).unwrap();
+        assert_eq!(value["notificationUrl"], "https://example.com/webhook");
+        assert!(value.get("successUrl").is_none());
+        assert!(super::build_nuvei_url_details(None, None).is_none());
+    }
+
+    #[test]
+    fn normalized_webhook_preserves_available_card_and_product_fields() {
+        let mut notification = dmn(Some("APPROVED"));
+        notification.product_id = Some("product".to_owned());
+        let raw = b"cardNumber=4%2A%2A%2A1111&issuerName=TestBank&cardCompany=VISA&isPrepaid=false&expMonth=12&expYear=30";
+        let value: serde_json::Value = serde_json::from_str(
+            &super::normalized_nuvei_dmn_response(&notification, raw).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(value["paymentOption"]["card"]["ccCardNumber"], "4***1111");
+        assert_eq!(value["paymentOption"]["card"]["issuerBankName"], "TestBank");
+        assert_eq!(value["paymentOption"]["card"]["cardBrand"], "VISA");
+        assert_eq!(value["productDetails"]["productId"], "product");
+        assert!(value["paymentOption"]["card"].get("threeD").is_none());
+    }
+    #[test]
+    fn authentication_errors_do_not_publish_intermediate_transaction_ids() {
+        for kind in ["InitAuth3D", "Auth3D"] {
+            let response = payment_response(kind, "DECLINED", "intermediate");
+            let error = super::build_nuvei_error_response(&response, 200, None).unwrap();
+            assert!(error.connector_transaction_id.is_none());
+        }
+        let response = payment_response("Sale", "DECLINED", "final");
+        assert_eq!(
+            super::build_nuvei_error_response(&response, 200, None)
+                .unwrap()
+                .connector_transaction_id
+                .as_deref(),
+            Some("final")
+        );
+    }
+    #[test]
+    fn api_and_dmn_status_and_error_mapping_agree() {
+        for kind in ["Auth", "Sale", "Settle", "Credit", "Void"] {
+            for status in ["APPROVED", "DECLINED", "ERROR", "PENDING"] {
+                let failure = matches!(status, "DECLINED" | "ERROR");
+                let mut api = payment_response(kind, status, "transaction-id");
+                let mut notification = dmn(Some(status));
+                notification.transaction_type = api.transaction_type.clone();
+                notification.transaction_id = Some("transaction-id".to_owned());
+                if failure {
+                    let (code, extended_code, reason) = if status == "DECLINED" {
+                        (-1, 0, "Insufficient funds")
+                    } else {
+                        (-1100, 1289, "Issuer data is not available")
+                    };
+                    api.gw_error_code = Some(code);
+                    api.gw_extended_error_code = Some(extended_code);
+                    api.gw_error_reason = Some(reason.to_owned());
+                    notification.ppp_status = super::DmnApiTransactionStatus::Fail;
+                    notification.err_code = Some(code.to_string());
+                    notification.ex_err_code = Some(extended_code.to_string());
+                    notification.reason_code = Some(extended_code.to_string());
+                    notification.reason = api.gw_error_reason.clone();
+                }
+                let normalized = notification.to_payments_response();
+                let api_raw = super::nuvei_raw_connector_status(&api);
+                let dmn_raw = notification.raw_connector_status();
+                assert_eq!(api_raw.code, dmn_raw.code, "{kind}/{status}");
+                assert_eq!(api_raw.message, dmn_raw.message, "{kind}/{status}");
+                assert_eq!(api_raw.reason, dmn_raw.reason, "{kind}/{status}");
+                assert_eq!(
+                    super::get_nuvei_payment_status(
+                        Some(1000),
+                        api.transaction_type.as_ref(),
+                        api.transaction_status.as_ref(),
+                        &api.status
+                    ),
+                    super::get_nuvei_payment_status(
+                        Some(1000),
+                        normalized.transaction_type.as_ref(),
+                        normalized.transaction_status.as_ref(),
+                        &normalized.status
+                    ),
+                    "{kind}/{status}"
+                );
+                assert_eq!(
+                    super::get_nuvei_refund_status(&api),
+                    super::get_nuvei_refund_status(&normalized)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn api_and_dmn_request_errors_report_the_same_code_and_message() {
+        let mut api = payment_response("Sale", "ERROR", "transaction-id");
+        api.status = super::NuveiPaymentStatus::Error;
+        api.err_code = Some(1019);
+        api.reason = Some("Validation Error".to_owned());
+        let mut notification = dmn(Some("ERROR"));
+        notification.ppp_status = super::DmnApiTransactionStatus::Fail;
+        notification.err_code = Some("1019".to_owned());
+        notification.reason_code = Some("1019".to_owned());
+        notification.reason = api.reason.clone();
+        let raw_api = super::nuvei_raw_connector_status(&api);
+        let raw_dmn = notification.raw_connector_status();
+        assert_eq!(raw_api.code, raw_dmn.code);
+        assert_eq!(raw_api.message, raw_dmn.message);
+        assert_eq!(raw_api.reason, raw_dmn.reason);
+    }
+
+    #[test]
+    fn conflicting_request_error_and_approval_is_never_terminal_success() {
+        for kind in [
+            "Auth",
+            "Sale",
+            "Settle",
+            "Credit",
+            "Void",
+            "InitAuth3D",
+            "Auth3D",
+        ] {
+            let mut response = payment_response(kind, "APPROVED", "transaction-id");
+            response.status = super::NuveiPaymentStatus::Error;
+            response.err_code = Some(1013);
+            response.reason = Some("Invalid merchant Id.".to_owned());
+            assert_eq!(
+                super::get_nuvei_payment_status(
+                    Some(1000),
+                    response.transaction_type.as_ref(),
+                    response.transaction_status.as_ref(),
+                    &response.status
+                ),
+                common_enums::AttemptStatus::Pending
+            );
+            assert_eq!(
+                super::get_nuvei_refund_status(&response),
+                common_enums::RefundStatus::Pending
+            );
+            assert_eq!(
+                super::get_nuvei_pre_authenticate_status(&response),
+                common_enums::AttemptStatus::Pending
+            );
+            let raw = super::nuvei_raw_connector_status(&response);
+            assert_eq!(raw.code.as_deref(), Some("1013"));
+            assert_eq!(raw.message.as_deref(), Some("Invalid merchant Id."));
+        }
+        let mut notification = dmn(Some("APPROVED"));
+        notification.ppp_status = super::DmnApiTransactionStatus::Fail;
+        assert!(notification.has_conflicting_status());
+    }
+
+    #[test]
+    fn explicit_gateway_error_cannot_accompany_terminal_success() {
+        let mut response = payment_response("Sale", "APPROVED", "transaction-id");
+        response.gw_error_reason = Some("Missing argument".to_owned());
+        assert_eq!(
+            super::nuvei_payment_response_status(&response, Some(1000)),
+            common_enums::AttemptStatus::Pending
+        );
+        assert_eq!(
+            super::get_nuvei_refund_status(&response),
+            common_enums::RefundStatus::Pending
+        );
+    }
+
+    #[test]
+    fn raw_status_keeps_pending_and_request_errors_distinct_from_approval() {
+        for status in ["PENDING", "PROCESSING", "REDIRECT", "UNKNOWN"] {
+            let response = payment_response("Sale", status, "transaction-id");
+            let raw = super::nuvei_raw_connector_status(&response);
+            assert_eq!(raw.code.as_deref(), Some(status));
+            assert_eq!(raw.message.as_deref(), Some(status));
+        }
+        let mut response = payment_response("Sale", "DECLINED", "transaction-id");
+        response.transaction_status = None;
+        for status in [
+            super::NuveiPaymentStatus::Error,
+            super::NuveiPaymentStatus::Failed,
+        ] {
+            response.status = status;
+            response.err_code = Some(1019);
+            response.reason = Some("Validation Error".to_owned());
+            let raw = super::nuvei_raw_connector_status(&response);
+            assert_eq!(raw.code.as_deref(), Some("1019"));
+            assert_eq!(raw.message.as_deref(), Some("Validation Error"));
+        }
+    }
+
+    #[test]
+    fn normalized_dmn_keeps_generic_and_extended_gateway_codes() {
+        let body = b"ppp_status=FAIL&PPP_TransactionID=order&totalAmount=10&currency=EUR&responseTimeStamp=2026-11-01.00%3A00%3A00&Status=ERROR&transactionType=Sale&TransactionID=txn&ErrCode=-1100&ExErrCode=1289&ReasonCode=1289&Reason=Issuer+data+is+not+available";
+        let super::NuveiWebhook::PaymentDmn(notification) =
+            super::parse_nuvei_webhook(body).unwrap()
+        else {
+            panic!("Expected payment DMN");
+        };
+        let normalized: serde_json::Value = serde_json::from_str(
+            &super::normalized_nuvei_dmn_response(&notification, body).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(normalized["transactionDetails"]["gwErrorCode"], -1100);
+        assert_eq!(
+            normalized["transactionDetails"]["gwExtendedErrorCode"],
+            1289
+        );
+        let raw = notification.raw_connector_status();
+        assert_eq!(raw.code.as_deref(), Some("-1100"));
+        assert_eq!(raw.message.as_deref(), Some("Issuer data is not available"));
+        assert_eq!(
+            raw.reason.as_deref(),
+            Some("Issuer data is not available (gwExtendedErrorCode 1289)")
+        );
+    }
+    #[test]
+    fn webhook_money_uses_reported_currency_and_its_minor_units() {
+        for (currency, total, minor) in [("EUR", "160.00", 16000), ("JPY", "160", 160), ("KWD", "1.234", 1234)] {
+            let mut notification = dmn(Some("APPROVED"));
+            notification.currency = currency.to_owned();
+            notification.total_amount = total.to_owned();
+            assert_eq!(notification.money().unwrap().amount.get_amount_as_i64(), minor);
+        }
+        let mut notification = dmn(Some("APPROVED"));
+        notification.total_amount = "not-an-amount".to_owned();
+        assert!(notification.money().is_err());
+        notification.total_amount = "10".to_owned();
+        notification.currency = "INVALID".to_owned();
+        assert!(notification.money().is_err());
+    }
+
+    #[test]
+    fn webhook_reference_mapping_matches_merchant_transaction_reference() {
+        let mut notification = dmn(Some("APPROVED"));
+        notification.transaction_type = Some(super::NuveiTransactionType::Settle);
+        notification.transaction_id = Some("settlement-id".to_owned());
+        notification.merchant_unique_id = Some("merchant-txn".to_owned());
+        let details = super::build_payment_webhook_details(&notification, b"").unwrap();
+        assert_eq!(details.connector_response_reference_id.as_deref(), Some("merchant-txn"));
+        assert_eq!(details.connector_request_reference_id.as_deref(), Some("merchant-txn"));
+    }
+
 }

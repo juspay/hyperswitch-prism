@@ -554,6 +554,7 @@ message CompositeCaptureRequest {
 
   // Currency conversion quote and customer decision supplied for the capture.
   optional CurrencyConversionData currency_conversion_data = 20;
+  optional DomainData domain_data = 21;
 }
 
 // Response message for composite capture flow.

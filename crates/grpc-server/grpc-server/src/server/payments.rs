@@ -506,6 +506,11 @@ impl Payments {
         payment_method_data: payment_method_data::PaymentMethodData<T>,
     ) -> Result<PaymentServiceAuthorizeResponse, error_stack::Report<ucs_env::error::GrpcError>>
     {
+        domain_types::types::validate_nuvei_auth_type(
+            &connector.get_connector_name(),
+            payload.auth_type,
+        )
+        .map_err(|error| ucs_env::error::GrpcError::from(error.current_context().clone()))?;
         //get connector data
         let connector_data =
             ConnectorData::from_connector_variant(&connector).ok_or_else(|| {

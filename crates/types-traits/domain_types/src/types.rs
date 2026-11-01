@@ -684,6 +684,9 @@ impl Connectors {
             ConnectorEnum::Novalnet => {
                 patched.novalnet.apply(params_patch);
             }
+            ConnectorEnum::Nuvei => {
+                patched.nuvei.apply(params_patch);
+            }
             ConnectorEnum::Forte => {
                 patched.forte.apply(params_patch);
             }
@@ -5117,6 +5120,7 @@ impl ForeignTryFrom<grpc_payment_types::AirlineSegment> for connector_types::Air
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             sequence_no: segment.sequence_no,
+            journey_no: segment.journey_no,
             marketing_carrier_code: segment.marketing_carrier_code,
             flight_number: segment.flight_number,
             flight_type: segment.flight_type,
@@ -6704,6 +6708,23 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
     }
 }
 
+/// Nuvei must never turn an unspecified authentication request into a non-3DS payment.
+pub fn validate_nuvei_auth_type(
+    connector: &str,
+    auth_type: grpc_api_types::payments::AuthenticationType,
+) -> Result<(), error_stack::Report<IntegrationError>> {
+    if connector.eq_ignore_ascii_case("nuvei")
+        && auth_type == grpc_api_types::payments::AuthenticationType::Unspecified
+    {
+        return Err(IntegrationError::MissingRequiredField {
+            field_name: "auth_type",
+            context: IntegrationErrorContext::default(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
 impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for PaymentFlowData {
     type Error = IntegrationError;
 
@@ -6715,6 +6736,9 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
     fn foreign_try_from(
         (value, connectors, metadata): (AuthorizationRequest, Connectors, &MaskedMetadata),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        if let Some(connector) = metadata.get("x-connector") {
+            validate_nuvei_auth_type(connector.peek(), value.auth_type)?;
+        }
         let address = match &value.address {
             Some(address_value) => PaymentAddress::foreign_try_from((*address_value).clone())?,
             None => {
@@ -13251,6 +13275,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
                 .map(connector_types::SplitSettlement::foreign_try_from)
                 .transpose()?
                 .map(Box::new),
+            domain_data: value
+                .domain_data
+                .map(connector_types::DomainData::foreign_try_from)
+                .transpose()?,
             amount_to_capture: amount.clone(),
             currency: amount.currency,
             connector_transaction_id,
@@ -15984,6 +16012,7 @@ impl ForeignTryFrom<grpc_api_types::payments::BrowserInformation> for BrowserInf
         value: grpc_api_types::payments::BrowserInformation,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
+            challenge_window_size: value.challenge_window_size,
             color_depth: value.color_depth.map(|cd| cd as u8),
             java_enabled: value.java_enabled,
             java_script_enabled: value.java_script_enabled,

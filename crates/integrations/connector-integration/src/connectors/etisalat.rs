@@ -98,6 +98,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _payment_method: common_enums::PaymentMethod,
         _redirect_state: RedirectState,
         _completed_step: Option<AuthenticationStep>,
+        _context: &connector_types::AuthenticationContext<'_>,
     ) -> AuthenticationStep {
         AuthenticationStep::Authorize
     }

@@ -76,6 +76,9 @@ req_transformer!(
         let auth_req: domain_types::types::AuthorizationRequest = p.clone().into();
         domain_types::types::build_request_data_with_required_pmd(p.payment_method.clone(), auth_req)
     },
+    validate_request: |payload: &PaymentServiceAuthorizeRequest, connector: &domain_types::connector_types::ConnectorEnum| {
+        domain_types::types::validate_nuvei_auth_type(&connector.to_string(), payload.auth_type())
+    },
 );
 
 // authorize response transformer
@@ -1118,6 +1121,9 @@ req_transformer!(
         let auth_req: domain_types::types::AuthorizationRequest = base.clone().into();
         domain_types::types::build_request_data_with_required_pmd(base.payment_method.clone(), auth_req)
     },
+    validate_request: |payload: &PaymentServiceTokenAuthorizeRequest, connector: &domain_types::connector_types::ConnectorEnum| {
+        domain_types::types::validate_nuvei_auth_type(&connector.to_string(), domain_types::types::tokenized_authorize_to_base(payload.clone()).auth_type())
+    },
 );
 
 res_transformer!(
@@ -1179,6 +1185,9 @@ req_transformer!(
     connector_data_type: domain_types::payment_method_data::VaultTokenHolder,
     request_data_fn: |p: &PaymentServiceProxyAuthorizeRequest| {
         domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+    validate_request: |payload: &PaymentServiceProxyAuthorizeRequest, connector: &domain_types::connector_types::ConnectorEnum| {
+        domain_types::types::validate_nuvei_auth_type(&connector.to_string(), payload.auth_type())
     },
 );
 

@@ -138,6 +138,7 @@ fn extract_request_ref_id(response: &PaymentServiceAuthorizeResponse) -> String 
 // Helper function to create browser info with IP address (required for Helcim)
 fn create_test_browser_info() -> BrowserInformation {
     BrowserInformation {
+        challenge_window_size: None,
         ip_address: Some("192.168.1.1".to_string()),
         user_agent: Some(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36".to_string(),

@@ -84,6 +84,13 @@ pub enum AuthenticationStep {
     Authorize,
 }
 
+/// Payment details needed to choose authentication without adding another routing hook.
+pub struct AuthenticationContext<'a> {
+    pub payment_method_data:
+        Option<&'a PaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>>,
+    pub has_external_authentication: bool,
+}
+
 /// Represents the redirect state for composite authorize flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RedirectState {
@@ -308,6 +315,7 @@ pub trait ValidationTrait: ConnectorCommon {
         _payment_method: PaymentMethod,
         _redirect_state: RedirectState,
         _completed_step: Option<AuthenticationStep>,
+        _context: &AuthenticationContext<'_>,
     ) -> AuthenticationStep {
         AuthenticationStep::Authorize
     }
@@ -632,6 +640,14 @@ pub trait IncomingWebhook {
         vec![]
     }
 
+    /// Money reported by the provider, independent of the payment request.
+    fn get_webhook_amount(
+        &self,
+        _request: RequestDetails,
+    ) -> Result<Option<common_utils::types::Money>, error_stack::Report<WebhookError>> {
+        Ok(None)
+    }
+
     /// fn get_webhook_source_verification_signature
     fn get_webhook_source_verification_signature(
         &self,
@@ -664,6 +680,13 @@ pub trait IncomingWebhook {
         &self,
         _request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        Ok(None)
+    }
+
+    fn get_webhook_raw_connector_status(
+        &self,
+        _request: RequestDetails,
+    ) -> Result<Option<domain_types::connector_types::RawConnectorStatus>, error_stack::Report<WebhookError>> {
         Ok(None)
     }
 

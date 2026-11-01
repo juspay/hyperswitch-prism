@@ -20,6 +20,7 @@ pub type Error = error_stack::Report<errors::IntegrationError>;
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BrowserInformation {
+    pub challenge_window_size: Option<String>,
     pub color_depth: Option<u8>,
     pub java_enabled: Option<bool>,
     pub java_script_enabled: Option<bool>,

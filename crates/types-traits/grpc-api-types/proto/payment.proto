@@ -1212,6 +1212,8 @@ message BrowserInformation {
   optional string os_type = 13;
   optional string os_version = 14;
   optional string device_model = 15;
+  optional string challenge_window_size = 16; // EMV 3DS window code 01..05
+
 }
 
 message MandateReferenceDetails {
@@ -3227,6 +3229,7 @@ message PaymentServiceCaptureRequest {
   // Currency conversion quote and decision data passed through the
   // capture flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 19;
+  optional DomainData domain_data = 20;
 }
 
 // Response message for a payment capture operation

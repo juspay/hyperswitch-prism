@@ -329,6 +329,7 @@ fn create_payment_authorize_request(
     });
 
     let browser_info = BrowserInformation {
+        challenge_window_size: None,
         color_depth: None,
         java_enabled: Some(false),
         screen_height: Some(1080),
@@ -411,6 +412,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
         currency_conversion_data: None,
         integrity_specifications: None,
         is_overcapture_enabled: None,
+        domain_data: None,
         split_settlement: None,
         payment_method: None,
         merchant_capture_id: Some(request_ref_id),

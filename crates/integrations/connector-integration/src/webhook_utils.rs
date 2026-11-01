@@ -1,7 +1,7 @@
 use domain_types::{
     connector_types::EventContext, errors::WebhookError,
     payment_method_data::PaymentMethodDataTypes, router_data::ConnectorSpecificConfig,
-    utils::ForeignTryFrom,
+    utils::{ForeignFrom, ForeignTryFrom},
 };
 use error_stack::ResultExt;
 use grpc_api_types::payments::{
@@ -98,7 +98,13 @@ pub fn process_webhook_event<
         body: ack.body.unwrap_or_default(),
     });
 
+    let amount = match event_content.content.as_ref() {
+        Some(grpc_api_types::payments::event_content::Content::PaymentsResponse(response)) => response.amount.clone(),
+        _ => None,
+    };
+
     Ok(EventServiceHandleResponse {
+        amount,
         event_type: api_event_type.into(),
         event_content: Some(event_content),
         source_verified,
@@ -151,8 +157,20 @@ pub fn get_payments_webhook_content<
         )
         .attach_printable("Failed to process payment webhook from connector")?;
 
-    let response = PaymentServiceGetResponse::foreign_try_from(webhook_details)
+    let webhook_amount = connector_data.connector.get_webhook_amount(request_details.clone())?;
+    let raw_connector_status = connector_data
+        .connector
+        .get_webhook_raw_connector_status(request_details)?;
+    let mut response = PaymentServiceGetResponse::foreign_try_from(webhook_details)
         .change_context(WebhookError::WebhookProcessingFailed)?;
+    response.raw_connector_status = raw_connector_status.map(ForeignFrom::foreign_from);
+    if let Some(amount) = webhook_amount.as_ref() {
+        response.amount = Some(grpc_api_types::payments::Money {
+            minor_amount: amount.amount.get_amount_as_i64(),
+            currency: grpc_api_types::payments::Currency::foreign_try_from(amount.currency)
+                .change_context(WebhookError::WebhookProcessingFailed)? as i32,
+        });
+    }
 
     Ok(EventContent {
         content: Some(grpc_api_types::payments::event_content::Content::PaymentsResponse(response)),
@@ -178,11 +196,15 @@ pub fn get_refunds_webhook_content<
 ) -> error_stack::Result<EventContent, WebhookError> {
     let webhook_details = connector_data
         .connector
-        .process_refund_webhook(request_details, webhook_secrets, connector_config)
+        .process_refund_webhook(request_details.clone(), webhook_secrets, connector_config)
         .attach_printable("Failed to process refund webhook from connector")?;
 
-    let response = RefundResponse::foreign_try_from(webhook_details)
+    let raw_connector_status = connector_data
+        .connector
+        .get_webhook_raw_connector_status(request_details)?;
+    let mut response = RefundResponse::foreign_try_from(webhook_details)
         .change_context(WebhookError::WebhookProcessingFailed)?;
+    response.raw_connector_status = raw_connector_status.map(ForeignFrom::foreign_from);
 
     Ok(EventContent {
         content: Some(grpc_api_types::payments::event_content::Content::RefundsResponse(response)),

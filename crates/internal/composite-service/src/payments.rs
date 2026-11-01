@@ -1,8 +1,8 @@
 use connector_integration::types::{ConnectorData, ConnectorDataProvider};
-use domain_types::{
-    connector_types::{ConnectorEnum, ConnectorVariant, ServerAuthenticationTokenResponseData},
-    utils::ForeignTryFrom as _,
+use domain_types::connector_types::{
+    ConnectorEnum, ConnectorVariant, ServerAuthenticationTokenResponseData,
 };
+use domain_types::utils::ForeignTryFrom as _;
 use grpc_api_types::payments::{
     composite_payment_service_server::CompositePaymentService,
     composite_refund_service_server::CompositeRefundService,
@@ -638,6 +638,9 @@ where
         >,
         create_customer_response: Option<&CustomerServiceCreateResponse>,
         create_order_response: Option<&PaymentServiceCreateOrderResponse>,
+        pre_authenticate_response: Option<
+            &PaymentMethodAuthenticationServicePreAuthenticateResponse,
+        >,
         authenticate_response: Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
         post_authenticate_response: Option<
             &PaymentMethodAuthenticationServicePostAuthenticateResponse,
@@ -651,6 +654,7 @@ where
             session_token_response,
             create_customer_response,
             create_order_response,
+            pre_authenticate_response,
             authenticate_response,
             post_authenticate_response,
         ));
@@ -803,6 +807,12 @@ where
 
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+        domain_types::types::validate_nuvei_auth_type(&connector.to_string(), payload.auth_type())
+            .map_err(|_| {
+                tonic::Status::invalid_argument(
+                    "Nuvei requires explicit auth_type THREE_DS or NO_THREE_DS",
+                )
+            })?;
 
         let access_token_response = self
             .create_server_authentication_token(
@@ -842,6 +852,33 @@ where
 
         let mut state = AuthorizeCompositeState::default();
 
+        // Only Nuvei consumes detailed wallet context today. Other connectors keep
+        // their previous routing without introducing a new payment-data conversion.
+        let payment_method_data = if connector == ConnectorEnum::Nuvei
+            && payment_method == common_enums::PaymentMethod::Wallet
+        {
+            payload
+                .payment_method
+                .clone()
+                .map(
+                    domain_types::payment_method_data::PaymentMethodData::<
+                        domain_types::payment_method_data::DefaultPCIHolder,
+                    >::convert_to_domain_model_for_non_card_payment_methods,
+                )
+                .transpose()
+                .map_err(|err| {
+                    tonic::Status::invalid_argument(format!("invalid payment_method: {err}"))
+                })?
+        } else {
+            None
+        };
+        let authentication_context = interfaces::connector_types::AuthenticationContext {
+            payment_method_data: payment_method_data.as_ref(),
+            has_external_authentication: payload.authentication_data.as_ref().is_some_and(|data| {
+                data.cavv.is_some() || data.eci.is_some() || data.ds_transaction_id.is_some()
+            }),
+        };
+
         // Authentication loop - connector controls flow via next_authentication_step
         loop {
             let next_step = connector_data.connector.next_authentication_step(
@@ -849,6 +886,7 @@ where
                 payment_method,
                 redirect_state,
                 state.completed_step,
+                &authentication_context,
             );
 
             match next_step {
@@ -923,6 +961,7 @@ where
                             session_token_response.as_ref(),
                             create_customer_response.as_ref(),
                             create_order_response.as_ref(),
+                            state.pre_auth_response_opt.as_ref(),
                             state.authn_response_opt.as_ref(),
                             state.post_authn_response_opt.as_ref(),
                             &metadata,
@@ -943,6 +982,11 @@ where
             .unwrap_or(false)
             || state
                 .authn_response_opt
+                .as_ref()
+                .map(|r| r.redirection_data.is_some())
+                .unwrap_or(false)
+            || state
+                .authorize_response_opt
                 .as_ref()
                 .map(|r| r.redirection_data.is_some())
                 .unwrap_or(false);

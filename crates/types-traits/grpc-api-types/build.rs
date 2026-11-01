@@ -110,6 +110,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `PaysafePaymentMethodDetails::get_account_id` (domain_types/router_data.rs).
     config.type_attribute(".types.PaysafePaymentMethodDetails", "#[serde(default)]");
 
+    // Existing txns Nuvei accounts use these credential names. Keep the
+    // canonical wire names while accepting the legacy account configuration.
+    for (field, alias) in [
+        ("merchant_id", "merchantId"),
+        ("merchant_site_id", "merchantSiteId"),
+        ("merchant_secret", "merchantKey"),
+    ] {
+        config.field_attribute(
+            format!(".types.NuveiConfig.{field}"),
+            format!("#[serde(alias = \"{alias}\")]"),
+        );
+    }
+
     // Use compile_protos_with_config which handles everything internally
     // including string enum support, serde derives, and descriptor set writing
     bridge_generator.compile_protos_with_config(

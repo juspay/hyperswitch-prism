@@ -248,6 +248,7 @@ impl
         Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
         Option<&CustomerServiceCreateResponse>,
         Option<&PaymentServiceCreateOrderResponse>,
+        Option<&PaymentMethodAuthenticationServicePreAuthenticateResponse>,
         Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
         Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
     )> for PaymentServiceAuthorizeRequest
@@ -260,6 +261,7 @@ impl
             session_token_response,
             create_customer_response,
             create_order_response,
+            pre_authenticate_response,
             authenticate_response,
             post_authenticate_response,
         ): (
@@ -268,6 +270,7 @@ impl
             Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
             Option<&CustomerServiceCreateResponse>,
             Option<&PaymentServiceCreateOrderResponse>,
+            Option<&PaymentMethodAuthenticationServicePreAuthenticateResponse>,
             Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
             Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
         ),
@@ -298,10 +301,12 @@ impl
             .or_else(|| authenticate_response.and_then(|r| r.authentication_data.clone()))
             .or_else(|| item.authentication_data.clone());
 
-        // Prefer connector_feature_data from post-auth, then authenticate, then request
+        // Prefer metadata from the latest completed authentication step. Nuvei
+        // goes directly from PreAuthenticate to Authorize, without Authenticate.
         let connector_feature_data = post_authenticate_response
             .and_then(|r| r.connector_feature_data.clone())
             .or_else(|| authenticate_response.and_then(|r| r.connector_feature_data.clone()))
+            .or_else(|| pre_authenticate_response.and_then(|r| r.connector_feature_data.clone()))
             .or_else(|| item.connector_feature_data.clone());
 
         // Prefer connector_order_id from create_order_response, then from request
@@ -853,6 +858,7 @@ impl
             connector_transaction_id: item.connector_transaction_id.clone(),
             amount_to_capture: item.amount_to_capture,
             metadata: item.metadata.clone(),
+            domain_data: item.domain_data.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             multiple_capture_data: item.multiple_capture_data.clone(),
             browser_info: item.browser_info.clone(),
@@ -1304,7 +1310,7 @@ impl
             l2_l3_data: request.l2_l3_data.clone(),
             connector_order_id: request.connector_order_id.clone(),
             merchant_request_id: request.merchant_request_id.clone(),
-            domain_data: None,
+            domain_data: request.domain_data.clone(),
             risk_assessment_data: request.risk_assessment_data.clone(),
             split_payments: request.split_payments.clone(),
             partner_merchant_identifier_details: request
@@ -1582,5 +1588,117 @@ impl
             state: resolved_state,
             connector_feature_data: item.connector_feature_data.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod capture_domain_tests {
+    use super::*;
+
+    #[test]
+    fn authorize_preserves_pre_authenticate_metadata_and_latest_step_precedence() {
+        let request = CompositeAuthorizeRequest {
+            auth_type: grpc_api_types::payments::AuthenticationType::ThreeDs as i32,
+            connector_feature_data: Some(hyperswitch_masking::Secret::new(
+                "request-state".to_owned(),
+            )),
+            ..Default::default()
+        };
+        let pre_auth = PaymentMethodAuthenticationServicePreAuthenticateResponse {
+            connector_feature_data: Some(hyperswitch_masking::Secret::new(
+                r#"{"session_token":"session","related_transaction_id":"init-id","three_ds_leg":"pre_authenticate","v2supported":"true"}"#.to_owned(),
+            )),
+            ..Default::default()
+        };
+        let auth = PaymentMethodAuthenticationServiceAuthenticateResponse {
+            connector_feature_data: Some(hyperswitch_masking::Secret::new(
+                "authenticate-state".to_owned(),
+            )),
+            ..Default::default()
+        };
+        let post_auth = PaymentMethodAuthenticationServicePostAuthenticateResponse {
+            connector_feature_data: Some(hyperswitch_masking::Secret::new(
+                "post-authenticate-state".to_owned(),
+            )),
+            ..Default::default()
+        };
+        for (pre, auth, post, expected) in [
+            (None, None, None, request.connector_feature_data.clone()),
+            (
+                Some(&pre_auth),
+                None,
+                None,
+                pre_auth.connector_feature_data.clone(),
+            ),
+            (
+                Some(&pre_auth),
+                Some(&auth),
+                None,
+                auth.connector_feature_data.clone(),
+            ),
+            (
+                Some(&pre_auth),
+                Some(&auth),
+                Some(&post_auth),
+                post_auth.connector_feature_data.clone(),
+            ),
+        ] {
+            let output = PaymentServiceAuthorizeRequest::foreign_from((
+                &request, None, None, None, None, pre, auth, post,
+            ));
+            assert_eq!(output.connector_feature_data, expected);
+            assert_eq!(output.auth_type, request.auth_type);
+        }
+    }
+
+    #[test]
+    fn composite_capture_forwards_airline_domain_data() {
+        let input = CompositeCaptureRequest {
+            domain_data: Some(grpc_api_types::payments::DomainData {
+                airline_data: Some(grpc_api_types::payments::AirlineData {
+                    pnr_code: Some("PNR123".to_owned()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let output = PaymentServiceCaptureRequest::foreign_from((&input, None));
+        assert_eq!(
+            output
+                .domain_data
+                .unwrap()
+                .airline_data
+                .unwrap()
+                .pnr_code
+                .as_deref(),
+            Some("PNR123")
+        );
+    }
+    #[test]
+    fn redirect_continuation_forwards_airline_domain_data() {
+        let request = CompositeVerifyRedirectResponseRequest {
+            domain_data: Some(grpc_api_types::payments::DomainData {
+                airline_data: Some(grpc_api_types::payments::AirlineData {
+                    pnr_code: Some("PNR123".to_owned()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let verified = PaymentServiceVerifyRedirectResponseResponse::default();
+        let output =
+            PaymentServiceAuthorizeRequest::foreign_from((&request, &verified, None, None));
+        assert_eq!(
+            output
+                .domain_data
+                .unwrap()
+                .airline_data
+                .unwrap()
+                .pnr_code
+                .as_deref(),
+            Some("PNR123")
+        );
     }
 }
