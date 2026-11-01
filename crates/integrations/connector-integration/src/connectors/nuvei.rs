@@ -56,8 +56,8 @@ use transformers::{
 use super::macros;
 use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
-use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 use domain_types::errors::WebhookError;
+use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 
 /// Header carrying the chargeback DMN checksum.
 const NUVEI_CHARGEBACK_CHECKSUM_HEADER: &str = "checksum";
@@ -278,7 +278,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ]
     }
 
-
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
         match transformers::parse_nuvei_webhook(&request.body)? {
             transformers::NuveiWebhook::PaymentDmn(notification) => {
@@ -356,7 +355,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )),
         }
     }
-
 
     fn process_payment_webhook(
         &self,

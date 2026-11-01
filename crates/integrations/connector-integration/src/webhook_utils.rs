@@ -1,8 +1,6 @@
 use domain_types::{
-    connector_types::EventContext,
-    errors::WebhookError,
-    payment_method_data::PaymentMethodDataTypes,
-    router_data::ConnectorSpecificConfig,
+    connector_types::EventContext, errors::WebhookError,
+    payment_method_data::PaymentMethodDataTypes, router_data::ConnectorSpecificConfig,
     utils::ForeignTryFrom,
 };
 use error_stack::ResultExt;

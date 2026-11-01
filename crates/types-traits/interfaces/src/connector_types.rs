@@ -653,7 +653,6 @@ pub trait IncomingWebhook {
         vec![]
     }
 
-
     /// fn get_webhook_source_verification_signature
     fn get_webhook_source_verification_signature(
         &self,
@@ -688,7 +687,6 @@ pub trait IncomingWebhook {
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
         Ok(None)
     }
-
 
     fn process_payment_webhook(
         &self,
