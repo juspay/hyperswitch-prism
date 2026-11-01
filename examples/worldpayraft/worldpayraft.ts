@@ -7,7 +7,7 @@
 
 import { PaymentClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "proxy_authorize", "refund"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "incremental_authorization", "proxy_authorize", "refund", "reverse", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -46,6 +46,56 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
         "returnUrl": "https://example.com/return"  // URLs for Redirection and Webhooks.
+    };
+}
+
+function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentServiceCaptureRequest {
+    return {
+        "merchantCaptureId": "probe_capture_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amountToCapture": {  // Capture Details.
+            "minorAmount": 1000,
+            "currency": Currency.USD
+        },
+        "originalPaymentDetails": {  // Original authorization references and authorized amount needed by connectors for this capture.
+            "connectorReferenceId": "0000000000000001",  // The connector_reference_id returned by the original authorization or purchase.
+            "authorizedAmount": {  // Amount authorized on the original payment; this can differ from amount_to_capture.
+                "minorAmount": 1000,
+                "currency": Currency.USD
+            }
+        }
+    };
+}
+
+function _buildIncrementalAuthorizationRequest(): types.IPaymentServiceIncrementalAuthorizationRequest {
+    return {
+        "merchantAuthorizationId": "probe_auth_001",  // Identification.
+        "connectorTransactionId": "C|123456|123456789012|000001",
+        "amount": {  // New total authorized amount, including this increase.
+            "minorAmount": 1100,
+            "currency": Currency.USD
+        },
+        "reason": "incremental_auth_probe",  // Optional Fields.
+        "additionalAmount": {  // Increase over the current authorized total. Must use the same currency as amount.
+            "minorAmount": 100,
+            "currency": Currency.USD
+        },
+        "paymentMethod": {  // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
+            "cardWithNoCvc": {  // Card payment where CVC is not required.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardNetwork": CardNetwork.VISA
+            }
+        },
+        "originalPaymentDetails": {  // Original authorization references and authorized amount needed by connectors for this increase.
+            "connectorReferenceId": "0000000000000001",  // The connector_reference_id returned by the original authorization or purchase.
+            "networkTransactionId": "263010131742906",  // The network transaction ID returned by the original authorization or purchase.
+            "authorizedAmount": {  // Amount authorized on the original payment; this can differ from amount_to_capture.
+                "minorAmount": 1000,
+                "currency": Currency.USD
+            }
+        }
     };
 }
 
@@ -96,6 +146,47 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
     };
 }
 
+function _buildReverseRequest(connectorTransactionId: string): types.IPaymentServiceReverseRequest {
+    return {
+        "merchantReverseId": "probe_reverse_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Original payment amount and currency.
+            "minorAmount": 1000,
+            "currency": Currency.USD
+        },
+        "paymentMethod": {  // Original payment method for connectors that require PAN and expiry again.
+            "cardWithNoCvc": {  // Card payment where CVC is not required.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardNetwork": CardNetwork.VISA
+            }
+        },
+        "captureMethod": CaptureMethod.MANUAL,  // Original payment's capture method, not the reversal's disposition. Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at different endpoints.
+        "originalPaymentDetails": {  // Original transaction references and authorized amount needed by connectors for this reversal.
+            "connectorReferenceId": "0000000000000001",  // The connector_reference_id returned by the original authorization or purchase.
+            "authorizedAmount": {  // Amount authorized on the original payment; this can differ from amount_to_capture.
+                "minorAmount": 1000,
+                "currency": Currency.USD
+            }
+        }
+    };
+}
+
+function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
+    return {
+        "merchantVoidId": "probe_void_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,
+            "currency": Currency.USD
+        },
+        "originalPaymentDetails": {  // Original transaction references and authorized amount needed by connectors for this void.
+            "connectorReferenceId": "0000000000000001"  // The connector_reference_id returned by the original authorization or purchase.
+        }
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // One-step Payment (Authorize + Capture)
@@ -115,6 +206,32 @@ async function processCheckoutAutocapture(merchantTransactionId: string, config:
     }
 
     return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: authorizeResponse.error } as any;
+}
+
+// Card Payment (Authorize + Capture)
+// Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
+async function processCheckoutCard(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
+
+    if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
+        throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
+    }
+    if (authorizeResponse.status === types.PaymentStatus.PENDING) {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    // Step 2: Capture — settle the reserved funds
+    const captureResponse = await paymentClient.capture(_buildCaptureRequest(authorizeResponse.connectorTransactionId!));
+
+    if (captureResponse.status === types.PaymentStatus.FAILURE) {
+        throw new Error(`Capture failed: ${JSON.stringify(captureResponse.error)}`);
+    }
+
+    return { status: captureResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: authorizeResponse.error } as any;
 }
 
 // Refund
@@ -143,6 +260,28 @@ async function processRefund(merchantTransactionId: string, config: types.IConne
     return { status: refundResponse.status, error: refundResponse.error } as any;
 }
 
+// Void Payment
+// Cancel an authorized but not-yet-captured payment.
+async function processVoidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
+
+    if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
+        throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
+    }
+    if (authorizeResponse.status === types.PaymentStatus.PENDING) {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    const voidResponse = await paymentClient.void(_buildVoidRequest(authorizeResponse.connectorTransactionId!));
+
+    return { status: voidResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: voidResponse.error } as any;
+}
+
 // Flow: PaymentService.Authorize (Card)
 async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -150,6 +289,24 @@ async function authorize(merchantTransactionId: string, config: types.IConnector
     const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
 
     return authorizeResponse;
+}
+
+// Flow: PaymentService.Capture
+async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const captureResponse = await paymentClient.capture(_buildCaptureRequest('C|123456|123456789012|000001'));
+
+    return captureResponse;
+}
+
+// Flow: PaymentService.IncrementalAuthorization
+async function incrementalAuthorization(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const incrementalResponse = await paymentClient.incrementalAuthorization(_buildIncrementalAuthorizationRequest());
+
+    return incrementalResponse;
 }
 
 // Flow: PaymentService.ProxyAuthorize
@@ -170,10 +327,28 @@ async function refund(merchantTransactionId: string, config: types.IConnectorCon
     return refundResponse;
 }
 
+// Flow: PaymentService.Reverse
+async function reverse(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const reverseResponse = await paymentClient.reverse(_buildReverseRequest('C|123456|123456789012|000001'));
+
+    return reverseResponse;
+}
+
+// Flow: PaymentService.Void
+async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const voidResponse = await paymentClient.void(_buildVoidRequest('C|123456|123456789012|000001'));
+
+    return voidResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processRefund, authorize, proxyAuthorize, refund, _buildAuthorizeRequest, _buildProxyAuthorizeRequest, _buildRefundRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, incrementalAuthorization, proxyAuthorize, refund, reverse, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildIncrementalAuthorizationRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildReverseRequest, _buildVoidRequest
 };
 
 // CLI runner
