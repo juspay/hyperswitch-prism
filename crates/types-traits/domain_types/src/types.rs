@@ -3829,6 +3829,7 @@ where
 /// This type serves as the unified input to AuthorizeCore.
 #[derive(Debug, Clone)]
 pub struct AuthorizationRequest {
+    pub is_stored_credential: Option<bool>,
     // Identification
     pub merchant_transaction_id: Option<String>,
     // Amount Information
@@ -3981,6 +3982,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             other => Some(common_enums::MitCategory::foreign_from(other)),
         };
         Self {
+            is_stored_credential: req.is_stored_credential,
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
             order_tax_amount: req
@@ -4072,6 +4074,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             .threeds_completion_indicator
             .map(|_| req.threeds_completion_indicator());
         Self {
+            is_stored_credential: None,
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
             order_tax_amount: None,
@@ -5728,6 +5731,7 @@ impl<
         };
 
         Ok(Self {
+            is_stored_credential: value.is_stored_credential,
             split_settlement: value
                 .split_settlement
                 .clone()
@@ -11390,6 +11394,26 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payments::OriginalPaymentDetails>
+    for connector_types::OriginalPaymentDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::OriginalPaymentDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            connector_reference_id: value.connector_reference_id,
+            network_transaction_id: value.network_transaction_id,
+            network_transaction_link_id: value.network_transaction_link_id,
+            authorized_amount: value
+                .authorized_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
 impl ForeignTryFrom<PaymentServiceVoidRequest> for PaymentVoidData {
     type Error = IntegrationError;
 
@@ -11414,6 +11438,10 @@ impl ForeignTryFrom<PaymentServiceVoidRequest> for PaymentVoidData {
             .flatten();
         let currency = amount.as_ref().map(|amount| amount.currency);
         Ok(Self {
+            original_payment_details: value
+                .original_payment_details
+                .map(connector_types::OriginalPaymentDetails::foreign_try_from)
+                .transpose()?,
             payment_method_data: value
                 .payment_method
                 .map(PaymentMethodData::<DefaultPCIHolder>::foreign_try_from)
@@ -11455,6 +11483,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceReverseRequest>
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let capture_method = Some(CaptureMethod::foreign_try_from(value.capture_method())?);
         Ok(Self {
+            original_payment_details: value
+                .original_payment_details
+                .map(connector_types::OriginalPaymentDetails::foreign_try_from)
+                .transpose()?,
             payment_method_data: value
                 .payment_method
                 .map(PaymentMethodData::<DefaultPCIHolder>::foreign_try_from)
@@ -11816,6 +11848,10 @@ impl ForeignTryFrom<PaymentServiceIncrementalAuthorizationRequest>
             .transpose()?;
 
         Ok(Self {
+            original_payment_details: value
+                .original_payment_details
+                .map(connector_types::OriginalPaymentDetails::foreign_try_from)
+                .transpose()?,
             payment_method_data: value
                 .payment_method
                 .map(PaymentMethodData::<DefaultPCIHolder>::foreign_try_from)
@@ -13237,6 +13273,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
         }?;
 
         Ok(Self {
+            original_payment_details: value
+                .original_payment_details
+                .map(connector_types::OriginalPaymentDetails::foreign_try_from)
+                .transpose()?,
             payment_method_data: value
                 .payment_method
                 .map(PaymentMethodData::<DefaultPCIHolder>::foreign_try_from)
@@ -22141,6 +22181,7 @@ pub fn tokenized_authorize_to_base(
     v: grpc_payment_types::PaymentServiceTokenAuthorizeRequest,
 ) -> PaymentServiceAuthorizeRequest {
     PaymentServiceAuthorizeRequest {
+        is_stored_credential: None,
         split_settlement: None,
         merchant_transaction_id: v.merchant_transaction_id,
         amount: v.amount,
@@ -22342,6 +22383,7 @@ pub fn proxied_authorize_to_base(
         })
     })?;
     Ok(PaymentServiceAuthorizeRequest {
+        is_stored_credential: None,
         split_settlement: None,
         merchant_transaction_id: v.merchant_transaction_id,
         amount: v.amount,

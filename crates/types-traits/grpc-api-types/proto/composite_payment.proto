@@ -160,6 +160,8 @@ message CompositeAuthorizeRequest {
 
   // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 66;
+
+    optional bool is_stored_credential = 67;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -488,6 +490,9 @@ message CompositeVoidRequest {
 
   // Deprecated: use split_settlement instead. Legacy split payment configuration.
   optional SplitPaymentsDetails split_payments = 15 [deprecated = true];
+
+  // Original transaction references and authorized amount needed by connectors for this void.
+  optional OriginalPaymentDetails original_payment_details = 16;
 }
 
 // Response message for composite void flow.
@@ -554,6 +559,9 @@ message CompositeCaptureRequest {
 
   // Currency conversion quote and customer decision supplied for the capture.
   optional CurrencyConversionData currency_conversion_data = 20;
+
+  // Original authorization references and authorized amount needed by connectors for this capture.
+  optional OriginalPaymentDetails original_payment_details = 21;
 }
 
 // Response message for composite capture flow.
@@ -896,6 +904,8 @@ message CompositeVerifyRedirectResponseRequest {
 
   // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 62;
+
+  optional bool is_stored_credential = 63;
 }
 
 // Response message for composite verify redirect response flow.

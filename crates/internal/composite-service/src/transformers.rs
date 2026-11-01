@@ -310,6 +310,7 @@ impl
             .or_else(|| item.connector_order_id.clone());
 
         Self {
+            is_stored_credential: item.is_stored_credential,
             integrity_specifications: item.integrity_specifications,
             split_settlement: item.split_settlement.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
@@ -624,6 +625,7 @@ impl
         });
 
         Self {
+            original_payment_details: item.original_payment_details.clone(),
             merchant_void_id: item.merchant_void_id.clone(),
             payment_method: item.payment_method.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
@@ -845,6 +847,7 @@ impl
         });
 
         Self {
+            original_payment_details: item.original_payment_details.clone(),
             integrity_specifications: item.integrity_specifications,
             is_overcapture_enabled: item.is_overcapture_enabled,
             split_settlement: item.split_settlement.clone(),
@@ -1256,6 +1259,7 @@ impl
         });
 
         Self {
+            is_stored_credential: request.is_stored_credential,
             integrity_specifications: request.integrity_specifications,
             split_settlement: request.split_settlement.clone(),
             merchant_transaction_id: request.merchant_transaction_id.clone(),

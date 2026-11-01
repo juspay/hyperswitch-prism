@@ -130,6 +130,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -352,6 +353,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -525,6 +527,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -720,6 +723,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -1117,6 +1121,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                is_stored_credential: None,
                 risk_assessment_data: None,
                 split_settlement: None,
                 customer_document_details: None,
@@ -1346,6 +1351,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                is_stored_credential: None,
                 risk_assessment_data: None,
                 split_settlement: None,
                 customer_document_details: None,
@@ -1854,6 +1860,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
