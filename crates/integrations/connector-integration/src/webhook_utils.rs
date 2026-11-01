@@ -99,7 +99,7 @@ pub fn process_webhook_event<
     });
 
     let amount = match event_content.content.as_ref() {
-        Some(grpc_api_types::payments::event_content::Content::PaymentsResponse(response)) => response.amount.clone(),
+        Some(grpc_api_types::payments::event_content::Content::PaymentsResponse(response)) => response.amount,
         _ => None,
     };
 
@@ -167,8 +167,8 @@ pub fn get_payments_webhook_content<
     if let Some(amount) = webhook_amount.as_ref() {
         response.amount = Some(grpc_api_types::payments::Money {
             minor_amount: amount.amount.get_amount_as_i64(),
-            currency: grpc_api_types::payments::Currency::foreign_try_from(amount.currency)
-                .change_context(WebhookError::WebhookProcessingFailed)? as i32,
+            currency: i32::from(grpc_api_types::payments::Currency::foreign_try_from(amount.currency)
+                .change_context(WebhookError::WebhookProcessingFailed)?),
         });
     }
 

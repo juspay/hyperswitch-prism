@@ -1598,7 +1598,7 @@ mod capture_domain_tests {
     #[test]
     fn authorize_preserves_pre_authenticate_metadata_and_latest_step_precedence() {
         let request = CompositeAuthorizeRequest {
-            auth_type: grpc_api_types::payments::AuthenticationType::ThreeDs as i32,
+            auth_type: i32::from(grpc_api_types::payments::AuthenticationType::ThreeDs),
             connector_feature_data: Some(hyperswitch_masking::Secret::new(
                 "request-state".to_owned(),
             )),
@@ -1667,10 +1667,8 @@ mod capture_domain_tests {
         assert_eq!(
             output
                 .domain_data
-                .unwrap()
-                .airline_data
-                .unwrap()
-                .pnr_code
+                .and_then(|domain| domain.airline_data)
+                .and_then(|airline| airline.pnr_code)
                 .as_deref(),
             Some("PNR123")
         );
@@ -1693,10 +1691,8 @@ mod capture_domain_tests {
         assert_eq!(
             output
                 .domain_data
-                .unwrap()
-                .airline_data
-                .unwrap()
-                .pnr_code
+                .and_then(|domain| domain.airline_data)
+                .and_then(|airline| airline.pnr_code)
                 .as_deref(),
             Some("PNR123")
         );
