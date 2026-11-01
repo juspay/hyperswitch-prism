@@ -1808,6 +1808,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub mandate_id: Option<MandateIds>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    /// Whether this payment uses a previously stored credential.
+    pub is_stored_credential: Option<bool>,
     pub browser_info: Option<BrowserInformation>,
     pub order_category: Option<String>,
     pub session_token: Option<String>,
@@ -3908,6 +3910,8 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub mandate_id: Option<MandateIds>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    /// Whether this payment uses a previously stored credential.
+    pub is_stored_credential: Option<bool>,
     pub setup_mandate_details: Option<MandateData>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
