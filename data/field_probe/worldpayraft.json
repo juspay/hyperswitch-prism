@@ -578,8 +578,32 @@
     },
     "capture": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: original_payment_details.authorized_amount — Missing required field: original_payment_details.authorized_amount"
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "C|123456|123456789012|000001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "original_payment_details": {
+            "connector_reference_id": "0000000000000001",
+            "authorized_amount": {
+              "minor_amount": 1000,
+              "currency": "USD"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/completion",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"creditcompletion\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\",\"PreauthorizedAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"ProcFlagsIndicators\":{\"PriorAuth\":\"Y\"},\"AuthorizationType\":\"FP\",\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"0000000000000001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       }
     },
     "create_client_authentication_token": {
@@ -660,8 +684,46 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: original_payment_details.connector_reference_id — Missing required field: original_payment_details.connector_reference_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "C|123456|123456789012|000001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe",
+          "additional_amount": {
+            "minor_amount": 100,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card_with_no_cvc": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_network": "VISA"
+            }
+          },
+          "original_payment_details": {
+            "connector_reference_id": "0000000000000001",
+            "network_transaction_id": "263010131742906",
+            "authorized_amount": {
+              "minor_amount": 1000,
+              "currency": "USD"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"1.00\",\"CumulativeAmount\":\"11.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ProcFlagsIndicators\":{\"IncrementalAuth\":\"Y\"},\"VisaSpecificData\":{\"VisaTransactionId\":\"263010131742906\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"0000000000000001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       }
     },
     "parse_event": {
@@ -787,8 +849,41 @@
     },
     "reverse": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: original_payment_details.connector_reference_id — Missing required field: original_payment_details.connector_reference_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "C|123456|123456789012|000001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card_with_no_cvc": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_network": "VISA"
+            }
+          },
+          "capture_method": "MANUAL",
+          "original_payment_details": {
+            "connector_reference_id": "0000000000000001",
+            "authorized_amount": {
+              "minor_amount": 1000,
+              "currency": "USD"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/completion",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"creditcompletion\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\",\"PreauthorizedAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ProcFlagsIndicators\":{\"PriorAuth\":\"Y\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\"},\"AuthorizationType\":\"RV\",\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"0000000000000001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       }
     },
     "setup_recurring": {
@@ -816,8 +911,28 @@
     },
     "void": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: original_payment_details.connector_reference_id — Missing required field: original_payment_details.connector_reference_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "C|123456|123456789012|000001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "original_payment_details": {
+            "connector_reference_id": "0000000000000001"
+          }
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"AuthorizationType\":\"RV\",\"ReversalAdviceReasonCd\":\"000\",\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"0000000000000001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       }
     }
   }
