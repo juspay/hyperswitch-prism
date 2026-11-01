@@ -1161,6 +1161,12 @@ pub enum ConnectorSpecificConfig {
         webhook_key: Option<Secret<String>>,
         base_url: Option<String>,
     },
+    Reddot {
+        mid: Secret<String>,
+        secret: Secret<String>,
+        acquirer_cybersource: String,
+        base_url: Option<String>,
+    },
     /// Ecommpay Gate API v2.
     /// `project_id` = `general.project_id`, the project identifier; sent on the wire as an
     ///                integer (1–4294967295), so it must be numeric.
@@ -1620,6 +1626,12 @@ impl ConnectorSpecificConfig {
                 api_key,
                 api_password,
                 webhook_key
+            },
+            Reddot {
+                mid,
+                secret,
+                acquirer_cybersource,
+                base_url
             },
             Ecommpay {
                 project_id,
@@ -2169,6 +2181,12 @@ impl ConnectorSpecificConfig {
                     api_key,
                     api_password,
                     webhook_key
+                },
+                Reddot {
+                    mid,
+                    secret,
+                    acquirer_cybersource,
+                    base_url
                 },
                 Ecommpay {
                     project_id,
@@ -2927,6 +2945,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_password: betterpayment.api_password.ok_or_else(err)?,
                 webhook_key: betterpayment.webhook_key,
                 base_url: betterpayment.base_url,
+            }),
+            AuthType::Reddot(reddot) => Ok(Self::Reddot {
+                mid: reddot.mid.ok_or_else(err)?,
+                secret: reddot.secret.ok_or_else(err)?,
+                acquirer_cybersource: reddot.acquirer_cybersource,
+                base_url: reddot.base_url,
             }),
             AuthType::Ecommpay(ecommpay) => Ok(Self::Ecommpay {
                 project_id: ecommpay.project_id.ok_or_else(err)?,
@@ -4369,6 +4393,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Reddot => Err(errors::IntegrationError::FailedToObtainAuthType {
+                    context: crate::errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Legacy RedDot auth cannot specify acquirer_cybersource".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Use typed RedDot config with mid, secret, and acquirer_cybersource"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into()),
                 ConnectorEnum::Ecommpay => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
                         secret_key: api_key.clone(),
