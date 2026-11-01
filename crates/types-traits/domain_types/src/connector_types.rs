@@ -3085,6 +3085,9 @@ pub struct RedirectDetailsResponse {
 
 #[derive(Debug, Clone)]
 pub struct WebhookDetailsResponse {
+    pub raw_connector_status: Option<RawConnectorStatus>,
+    /// Transaction amount and currency reported by the provider.
+    pub amount: Option<Money>,
     pub resource_id: Option<ResponseId>,
     pub status: AttemptStatus,
     pub connector_response_reference_id: Option<String>,
@@ -3181,6 +3184,7 @@ pub struct PayoutWebhookReference {
 
 #[derive(Debug, Clone)]
 pub struct RefundWebhookDetailsResponse {
+    pub raw_connector_status: Option<RawConnectorStatus>,
     pub connector_refund_id: Option<String>,
     pub merchant_transaction_id: Option<String>,
     pub status: common_enums::RefundStatus,

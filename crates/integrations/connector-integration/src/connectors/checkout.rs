@@ -283,6 +283,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id,
             status,
@@ -321,6 +323,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )?;
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             // action_id is the refund's PSP identifier
             connector_refund_id: body.data.action_id,
             merchant_transaction_id: None,

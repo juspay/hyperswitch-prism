@@ -31,6 +31,7 @@ use grpc_api_types::payments::{
     RefundResponse, RefundServiceGetRequest,
 };
 use interfaces::connector_types::AuthenticationStep;
+use ucs_env::error::ResultExtGrpc;
 
 use crate::transformers::{ForeignFrom, ForeignTryFrom};
 use crate::utils::{
@@ -807,12 +808,13 @@ where
 
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
-        domain_types::types::validate_nuvei_auth_type(&connector.to_string(), payload.auth_type())
-            .map_err(|_| {
-                tonic::Status::invalid_argument(
-                    "Nuvei requires explicit auth_type THREE_DS or NO_THREE_DS",
-                )
-            })?;
+        let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
+        connector_data
+            .connector
+            .validate_auth_type(
+                payload.auth_type() != grpc_api_types::payments::AuthenticationType::Unspecified,
+            )
+            .into_grpc_status()?;
 
         let access_token_response = self
             .create_server_authentication_token(
@@ -847,14 +849,14 @@ where
         // Extract flow parameters from payload
         let auth_type = self.get_auth_type(&payload)?;
         let payment_method = self.get_payment_method(&payload)?;
-        let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
         let redirect_state = self.get_redirect_state(&payload);
 
         let mut state = AuthorizeCompositeState::default();
 
-        // Only Nuvei consumes detailed wallet context today. Other connectors keep
-        // their previous routing without introducing a new payment-data conversion.
-        let payment_method_data = if connector == ConnectorEnum::Nuvei
+        // Decode wallet data only when the connector needs it for authentication routing.
+        let payment_method_data = if connector_data
+            .connector
+            .requires_authentication_payment_method_data()
             && payment_method == common_enums::PaymentMethod::Wallet
         {
             payload

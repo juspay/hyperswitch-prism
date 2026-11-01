@@ -259,6 +259,14 @@ pub fn validate_psync_connector_transaction_id(
 }
 
 pub trait ValidationTrait: ConnectorCommon {
+    /// Validate auth-type presence before transport defaults are applied.
+    fn validate_auth_type(
+        &self,
+        _is_specified: bool,
+    ) -> CustomResult<(), domain_types::errors::IntegrationError> {
+        Ok(())
+    }
+
     fn should_do_order_create(&self) -> bool {
         false
     }
@@ -305,6 +313,11 @@ pub trait ValidationTrait: ConnectorCommon {
                     .unwrap_or(false)
             })
             .unwrap_or(false)
+    }
+
+    /// Whether payment method data is needed to select the next authentication step.
+    fn requires_authentication_payment_method_data(&self) -> bool {
+        false
     }
 
     /// Returns the next authentication step for composite authorize flow.
@@ -640,13 +653,6 @@ pub trait IncomingWebhook {
         vec![]
     }
 
-    /// Money reported by the provider, independent of the payment request.
-    fn get_webhook_amount(
-        &self,
-        _request: RequestDetails,
-    ) -> Result<Option<common_utils::types::Money>, error_stack::Report<WebhookError>> {
-        Ok(None)
-    }
 
     /// fn get_webhook_source_verification_signature
     fn get_webhook_source_verification_signature(
@@ -683,15 +689,6 @@ pub trait IncomingWebhook {
         Ok(None)
     }
 
-    fn get_webhook_raw_connector_status(
-        &self,
-        _request: RequestDetails,
-    ) -> Result<
-        Option<domain_types::connector_types::RawConnectorStatus>,
-        error_stack::Report<WebhookError>,
-    > {
-        Ok(None)
-    }
 
     fn process_payment_webhook(
         &self,

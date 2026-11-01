@@ -506,11 +506,6 @@ impl Payments {
         payment_method_data: payment_method_data::PaymentMethodData<T>,
     ) -> Result<PaymentServiceAuthorizeResponse, error_stack::Report<ucs_env::error::GrpcError>>
     {
-        domain_types::types::validate_nuvei_auth_type(
-            &connector.get_connector_name(),
-            payload.auth_type,
-        )
-        .map_err(|error| ucs_env::error::GrpcError::from(error.current_context().clone()))?;
         //get connector data
         let connector_data =
             ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
@@ -519,6 +514,13 @@ impl Payments {
                     context: domain_types::errors::IntegrationErrorContext::default(),
                 })
             })?;
+
+        connector_data
+            .connector
+            .validate_auth_type(
+                payload.auth_type != grpc_api_types::payments::AuthenticationType::Unspecified,
+            )
+            .map_err(|error| ucs_env::error::GrpcError::from(error.current_context().clone()))?;
 
         // Get connector integration
         let connector_integration: BoxedConnectorIntegrationV2<

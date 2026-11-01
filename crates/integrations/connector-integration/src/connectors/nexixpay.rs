@@ -338,6 +338,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (None, None, None)
         };
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 operation.order_id.clone(),
             )),
@@ -382,6 +384,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (None, None)
         };
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(operation.operation_id),
             merchant_transaction_id: None,
             status,

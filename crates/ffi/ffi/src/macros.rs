@@ -43,8 +43,7 @@ macro_rules! req_transformer {
         request_data_type: $request_data_type:ty,
         response_data_type: $response_data_type:ty,
         connector_data_type: $connector_data_type:ty,
-        request_data_fn: $request_data_fn:expr,
-        $(validate_request: $validate_request:expr,)?
+        request_data_fn: $request_data_fn:expr $(,)?
     ) => {
         pub fn $fn_name<
             T: domain_types::payment_method_data::PaymentMethodDataTypes
@@ -64,11 +63,6 @@ macro_rules! req_transformer {
             connector_config: domain_types::router_data::ConnectorSpecificConfig,
             metadata: &common_utils::metadata::MaskedMetadata,
         ) -> Result<Option<common_utils::request::Request>, grpc_api_types::payments::IntegrationError> {
-
-            $(
-                ($validate_request)(&payload, &connector)
-                    .map_err(|error: error_stack::Report<domain_types::errors::IntegrationError>| common_utils::errors::ErrorSwitch::switch(error.current_context()))?;
-            )?
 
             let connector_data: connector_integration::types::ConnectorData<$connector_data_type> =
                 connector_integration::types::ConnectorData::get_connector_by_name(&connector);

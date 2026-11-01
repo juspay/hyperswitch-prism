@@ -56,7 +56,7 @@ use transformers::{
 use super::macros;
 use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 use domain_types::errors::WebhookError;
 
 /// Header carrying the chargeback DMN checksum.
@@ -125,6 +125,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Nuvei<T>
 {
+    fn validate_auth_type(&self, is_specified: bool) -> CustomResult<(), IntegrationError> {
+        if !is_specified {
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "auth_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Nuvei requires explicit auth_type THREE_DS or NO_THREE_DS".to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
+        Ok(())
+    }
+
     fn should_do_session_token(
         &self,
         connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
@@ -133,6 +149,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn requires_authorize_post_redirect(&self) -> bool {
+        true
+    }
+
+    fn requires_authentication_payment_method_data(&self) -> bool {
         true
     }
 
@@ -156,7 +176,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         if auth_type == common_enums::AuthenticationType::ThreeDs
             && !context.has_external_authentication
-            && !matches!(context.payment_method_data, Some(domain_types::payment_method_data::PaymentMethodData::Wallet(wallet)) if transformers::nuvei_wallet_is_authenticated(wallet))
+            && !matches!(context.payment_method_data, Some(domain_types::payment_method_data::PaymentMethodData::Wallet(wallet)) if wallet.is_authenticated())
             && (payment_method == common_enums::PaymentMethod::Card
                 || matches!(context.payment_method_data, Some(domain_types::payment_method_data::PaymentMethodData::Wallet(wallet)) if matches!(wallet, domain_types::payment_method_data::WalletData::GooglePay(_) | domain_types::payment_method_data::WalletData::ApplePay(_))))
         {
@@ -258,15 +278,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ]
     }
 
-    fn get_webhook_amount(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<common_utils::types::Money>, Report<WebhookError>> {
-        match transformers::parse_nuvei_webhook(&request.body)? {
-            transformers::NuveiWebhook::PaymentDmn(notification) => notification.money().map(Some),
-            transformers::NuveiWebhook::Chargeback(_) => Ok(None),
-        }
-    }
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
         match transformers::parse_nuvei_webhook(&request.body)? {
@@ -346,18 +357,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
     }
 
-    fn get_webhook_raw_connector_status(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<domain_types::connector_types::RawConnectorStatus>, Report<WebhookError>>
-    {
-        match transformers::parse_nuvei_webhook(&request.body)? {
-            transformers::NuveiWebhook::PaymentDmn(notification) => {
-                Ok(Some(notification.raw_connector_status()))
-            }
-            transformers::NuveiWebhook::Chargeback(_) => Ok(None),
-        }
-    }
 
     fn process_payment_webhook(
         &self,

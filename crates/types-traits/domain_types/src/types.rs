@@ -6708,23 +6708,6 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
     }
 }
 
-/// Nuvei must never turn an unspecified authentication request into a non-3DS payment.
-pub fn validate_nuvei_auth_type(
-    connector: &str,
-    auth_type: grpc_api_types::payments::AuthenticationType,
-) -> Result<(), error_stack::Report<IntegrationError>> {
-    if connector.eq_ignore_ascii_case("nuvei")
-        && auth_type == grpc_api_types::payments::AuthenticationType::Unspecified
-    {
-        return Err(IntegrationError::MissingRequiredField {
-            field_name: "auth_type",
-            context: IntegrationErrorContext::default(),
-        }
-        .into());
-    }
-    Ok(())
-}
-
 impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for PaymentFlowData {
     type Error = IntegrationError;
 
@@ -6736,9 +6719,6 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
     fn foreign_try_from(
         (value, connectors, metadata): (AuthorizationRequest, Connectors, &MaskedMetadata),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        if let Some(connector) = metadata.get("x-connector") {
-            validate_nuvei_auth_type(connector.peek(), value.auth_type)?;
-        }
         let address = match &value.address {
             Some(address_value) => PaymentAddress::foreign_try_from((*address_value).clone())?,
             None => {
@@ -11274,7 +11254,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
         });
         Ok(Self {
             split_settlement: None,
-            raw_connector_status: None,
+            raw_connector_status: value.raw_connector_status.map(ForeignFrom::foreign_from),
             connector_transaction_id: extract_connector_request_reference_id(
                 &value
                     .resource_id
@@ -11300,7 +11280,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             }),
             network_transaction_id: value.network_txn_id,
             network_txn_link_id: None,
-            amount: None,
+            amount: value.amount.as_ref().map(connector_money_to_grpc).transpose()?,
             captured_amount: value
                 .amount_captured
                 .as_ref()
@@ -11312,7 +11292,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                 .transpose()?,
             // Webhook details don't carry a capturable amount.
             capturable_money: None,
-            // Webhook details don't carry the connector-reported amount used by the integrity check.
+            // Webhook amounts do not represent a separate authorized amount.
             authorized_money: None,
             payment_method_type: None,
             capture_method: None,
@@ -12001,7 +11981,7 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
 
         Ok(Self {
             split_settlement: None,
-            raw_connector_status: None,
+            raw_connector_status: value.raw_connector_status.map(ForeignFrom::foreign_from),
             connector_transaction_id: None,
             connector_refund_id: value.connector_refund_id.unwrap_or_default(),
             status: status.into(),
