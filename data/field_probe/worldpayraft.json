@@ -578,26 +578,8 @@
     },
     "capture": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_capture_id": "probe_capture_001",
-          "connector_transaction_id": "C|123456|123456789012|000001",
-          "amount_to_capture": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "connector_feature_data": "{\"api_transaction_id\":\"0000000000000001\"}"
-        },
-        "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/completion",
-          "method": "Post",
-          "headers": {
-            "authorization": "VANTIV license=\"probe_key\"",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"creditcompletion\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"0000000000000001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: original_payment_details.authorized_amount — Missing required field: original_payment_details.authorized_amount"
       }
     },
     "create_client_authentication_token": {
@@ -678,40 +660,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_authorization_id": "probe_auth_001",
-          "connector_transaction_id": "C|123456|123456789012|000001",
-          "amount": {
-            "minor_amount": 1100,
-            "currency": "USD"
-          },
-          "reason": "incremental_auth_probe",
-          "additional_amount": {
-            "minor_amount": 100,
-            "currency": "USD"
-          },
-          "network_transaction_id": "263010131742906",
-          "payment_method": {
-            "card_with_no_cvc": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_network": "VISA"
-            }
-          },
-          "connector_feature_data": "{\"api_transaction_id\":\"probe_auth_001\",\"original_authorized_amount\":{\"amount\":1000,\"currency\":\"USD\"},\"terminal_data\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"ecommerce_data\":{\"E-commerceIndicator\":\"07\"},\"proc_flags_indicators\":{\"EstimatedAuth\":\"Y\"},\"brand_specific_data\":{\"VisaSpecificData\":{\"VisaTransactionId\":\"263010131742906\"}}}"
-        },
-        "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
-          "method": "Post",
-          "headers": {
-            "authorization": "VANTIV license=\"probe_key\"",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"1.00\",\"CumulativeAmount\":\"11.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ProcFlagsIndicators\":{\"IncrementalAuth\":\"Y\"},\"VisaSpecificData\":{\"VisaTransactionId\":\"263010131742906\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_auth_001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: original_payment_details.connector_reference_id — Missing required field: original_payment_details.connector_reference_id"
       }
     },
     "parse_event": {
@@ -774,78 +724,14 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe",
-            "card_network": "VISA"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "customer_acceptance": {
-            "acceptance_type": "OFFLINE",
-            "accepted_at": 0
-          },
-          "auth_type": "NO_THREE_DS",
-          "setup_future_usage": "OFF_SESSION"
-        },
-        "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/tokenization/token",
-          "method": "Post",
-          "headers": {
-            "authorization": "VANTIV license=\"probe_key\"",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"tokenize\":{\"CardInfo\":{\"PAN\":\"{{$card_number}}\",\"ExpirationDate\":\"3003\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_proxy_mand\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
-        }
+        "status": "not_supported",
+        "error": "Connector-token mandates is not supported by worldpayraft. Use a network transaction ID with card or network-token details"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "connector_recurring_payment_id": {
-            "mandate_id_type": {
-              "connector_mandate_id": {
-                "connector_mandate_id": "probe-mandate-123"
-              }
-            }
-          },
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "token": {
-              "token": "probe_pm_token"
-            }
-          },
-          "return_url": "https://example.com/recurring-return",
-          "connector_customer_id": "cust_probe_123",
-          "payment_method_type": "PAY_PAL",
-          "off_session": true
-        },
-        "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
-          "method": "Post",
-          "headers": {
-            "authorization": "VANTIV license=\"probe_key\"",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{},\"EncryptionTokenData\":{\"TokenizedPAN\":\"probe-mandate-123\"},\"TerminalData\":{\"EntryMode\":\"CREDONFL\",\"POSConditionCode\":\"08\",\"TerminalEntryCap\":\"0\",\"POSEnvironment\":\"C\"},\"E-commerceData\":{\"E-commerceIndicator\":\"01\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
-        }
+        "status": "not_supported",
+        "error": "Connector-token mandates is not supported by worldpayraft. Use a network transaction ID with card or network-token details"
       }
     },
     "recurring_revoke": {
@@ -901,77 +787,14 @@
     },
     "reverse": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_reverse_id": "probe_reverse_001",
-          "connector_transaction_id": "C|123456|123456789012|000001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card_with_no_cvc": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_network": "VISA"
-            }
-          },
-          "capture_method": "MANUAL"
-        },
-        "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/completion",
-          "method": "Post",
-          "headers": {
-            "authorization": "VANTIV license=\"probe_key\"",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"creditcompletion\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\",\"PreauthorizedAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"ProcFlagsIndicators\":{\"PriorAuth\":\"Y\"},\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\"},\"AuthorizationType\":\"RV\",\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"0000000000000001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: original_payment_details.connector_reference_id — Missing required field: original_payment_details.connector_reference_id"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "enrolled_for_3ds": false,
-          "return_url": "https://example.com/mandate-return",
-          "setup_future_usage": "OFF_SESSION",
-          "request_incremental_authorization": false,
-          "customer_acceptance": {
-            "acceptance_type": "OFFLINE",
-            "accepted_at": 0
-          }
-        },
-        "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/tokenization/token",
-          "method": "Post",
-          "headers": {
-            "authorization": "VANTIV license=\"probe_key\"",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"tokenize\":{\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_mandate_00\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
-        }
+        "status": "not_supported",
+        "error": "Connector-token mandates is not supported by worldpayraft. Use a network transaction ID with card or network-token details"
       }
     },
     "token_authorize": {
@@ -982,8 +805,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT SetupMandate. Provide PaymentMethodData::Card with a PAN and expiry so Worldpay RAFT can create a TokenizedPAN for subsequent payments"
+        "status": "not_supported",
+        "error": "Connector-token mandates is not supported by worldpayraft. Use a network transaction ID with card or network-token details"
       }
     },
     "verify_redirect": {
@@ -993,26 +816,8 @@
     },
     "void": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_void_id": "probe_void_001",
-          "connector_transaction_id": "C|123456|123456789012|000001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "connector_feature_data": "{\"api_transaction_id\":\"0000000000000001\"}"
-        },
-        "sample": {
-          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
-          "method": "Post",
-          "headers": {
-            "authorization": "VANTIV license=\"probe_key\"",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"creditauth\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"AuthorizationType\":\"RV\",\"ReversalAdviceReasonCd\":\"000\",\"ReferenceTraceNumbers\":{\"AuthorizationNumber\":\"123456\",\"RetrievalREFNumber\":\"123456789012\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"0000000000000001\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: original_payment_details.connector_reference_id — Missing required field: original_payment_details.connector_reference_id"
       }
     }
   }
