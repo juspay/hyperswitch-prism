@@ -7201,9 +7201,8 @@ impl PaymentDmnNotification {
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         let amount: StringMajorUnit = serde_json::from_value(serde_json::json!(self.total_amount))
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        let amount = NuveiAmountConvertor::convert_back(amount, currency)
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        Ok(common_utils::types::Money { amount, currency })
+        NuveiAmountConvertor::convert_back(amount, currency)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
     }
 
     pub fn has_conflicting_status(&self) -> bool {
@@ -7746,7 +7745,7 @@ mod tests {
         let request =
             super::PaymentsAuthorizeData::<domain_types::payment_method_data::DefaultPCIHolder> {
                 payment_method_data: super::PaymentMethodData::MandatePayment,
-                amount: amount,
+                amount,
                 order_tax_amount: None,
                 surcharge_amount: None,
                 email: None,
@@ -7782,6 +7781,7 @@ mod tests {
                 shipping_cost: None,
                 merchant_account_id: None,
                 integrity_object: None,
+                integrity_specifications: None,
                 merchant_config_currency: None,
                 all_keys_required: None,
                 request_extended_authorization: None,
@@ -7806,6 +7806,7 @@ mod tests {
                 customer: None,
                 business_country: None,
                 enable_avs_check: None,
+                risk_assessment_data: None,
             };
         let resource = super::PaymentFlowData {
             merchant_id: serde_json::from_value(serde_json::json!("merchant_test")).unwrap(),
