@@ -20,6 +20,7 @@ _default_config = sdk_config_pb2.ConnectorConfig(
             user=payment_methods_pb2.SecretString(value="YOUR_USER"),
             password=payment_methods_pb2.SecretString(value="YOUR_PASSWORD"),
             merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            merchant_id_by_currency={"USD": payment_methods_pb2.SecretString(value="YOUR_USD_MERCHANT_ID_BY_CURRENCY")},
             base_url="YOUR_BASE_URL",
             report_group="YOUR_REPORT_GROUP",
             merchant_config_currency="YOUR_MERCHANT_CONFIG_CURRENCY",

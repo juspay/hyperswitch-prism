@@ -343,7 +343,7 @@ pub(crate) fn base_accept_dispute_request() -> DisputeServiceAcceptRequest {
     DisputeServiceAcceptRequest {
         merchant_dispute_id: Some("probe_dispute_001".to_string()),
         connector_transaction_id: "probe_txn_001".to_string(),
-        dispute_id: "probe_dispute_id_001".to_string(),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
     }
 }
 
@@ -351,7 +351,7 @@ pub(crate) fn base_submit_evidence_request() -> DisputeServiceSubmitEvidenceRequ
     DisputeServiceSubmitEvidenceRequest {
         merchant_dispute_id: Some("probe_dispute_001".to_string()),
         connector_transaction_id: Some("probe_txn_001".to_string()),
-        dispute_id: "probe_dispute_id_001".to_string(),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
         evidence_documents: vec![EvidenceDocument {
             evidence_type: EvidenceType::ServiceDocumentation as i32,
             file_content: Some(b"probe evidence content".to_vec()),
@@ -367,7 +367,7 @@ pub(crate) fn base_defend_dispute_request() -> DisputeServiceDefendRequest {
     DisputeServiceDefendRequest {
         merchant_dispute_id: Some("probe_dispute_001".to_string()),
         connector_transaction_id: "probe_txn_001".to_string(),
-        dispute_id: "probe_dispute_id_001".to_string(),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
         reason_code: Some("probe_reason".to_string()),
     }
 }
