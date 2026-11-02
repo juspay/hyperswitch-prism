@@ -170,13 +170,41 @@ pub struct JpmorganLineItemTax {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganShipTo {
-    pub shipping_address: JpmorganShippingAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_address: Option<JpmorganAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<common_utils::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<JpmorganPhone>,
+}
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<common_enums::CountryAlpha3>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct JpmorganShippingAddress {
-    pub postal_code: Secret<String>,
+pub struct JpmorganPhone {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<u16>,
+    pub phone_number: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -206,6 +234,8 @@ pub struct JpmorganCard<T: PaymentMethodDataTypes> {
     pub authentication: Option<JpmorganAuthentication>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_sales_channel_name: Option<JpmorganMerchantSalesChannelName>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvv: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -263,12 +293,20 @@ pub struct JpmorganAch {
     pub account_type: JpmorganAchAccountType,
 }
 
-/// ACH Account Holder structure
-#[derive(Debug, Serialize)]
+/// Billing and contact information for the account holder.
+#[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganAccountHolder {
-    pub first_name: Secret<String>,
-    pub last_name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<JpmorganAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<common_utils::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<JpmorganPhone>,
 }
 
 /// ACH Account Type enum
@@ -376,6 +414,12 @@ pub enum JpmorganInitiatorType {
     Merchant,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganAuthorizationPurpose {
+    Resubmission,
+}
+
 /// JPMorgan account on file status
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -404,16 +448,6 @@ pub struct JpmorganRecurring {
     pub is_variable_amount: Option<bool>,
 }
 
-/// Card or decrypted wallet data for verification without a funds hold.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct JpmorganSetupMandateCard<T: PaymentMethodDataTypes> {
-    #[serde(flatten)]
-    pub card: JpmorganCard<T>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cvv: Option<Secret<String>>,
-}
-
 /// Credential and original network references for a merchant-initiated payment.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -433,7 +467,7 @@ pub struct JpmorganMitCardByNti<T: PaymentMethodDataTypes> {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganSetupMandatePaymentMethodType<T: PaymentMethodDataTypes> {
-    pub card: JpmorganSetupMandateCard<T>,
+    pub card: JpmorganCard<T>,
 }
 
 /// Direct credential used for a merchant-initiated payment.
@@ -450,6 +484,8 @@ pub struct JpmorganSetupMandateRequest<T: PaymentMethodDataTypes> {
     pub currency: common_enums::Currency,
     pub merchant: JpmorganMerchant,
     pub payment_method_type: JpmorganSetupMandatePaymentMethodType<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_holder: Option<JpmorganAccountHolder>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring_sequence: Option<JpmorganRecurringSequence>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -470,7 +506,13 @@ pub struct JpmorganRepeatPaymentRequest<T: PaymentMethodDataTypes> {
     pub merchant: JpmorganMerchant,
     pub payment_method_type: JpmorganRepeatPaymentMethodType<T>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_holder: Option<JpmorganAccountHolder>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_to: Option<JpmorganShipTo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring: Option<JpmorganRecurring>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorization_purpose: Option<JpmorganAuthorizationPurpose>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_order_number: Option<String>,
     pub initiator_type: JpmorganInitiatorType,

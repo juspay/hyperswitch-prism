@@ -205,6 +205,8 @@ impl From<common_enums::AuthenticationType> for Auth3ds {
 }
 
 const GOOGLE_PAY_TOKENIZATION_METHOD: &str = "android_pay";
+const APPLE_PAY_TOKENIZATION_METHOD: &str = "apple_pay";
+const GOOGLE_PAY_DPAN_TOKENIZATION_METHOD: &str = "google_pay_dpan";
 const GOOGLE_PAY_WALLET_NAME: &str = "Google Pay";
 
 pub fn tokenize_mints_payment_method<T>(request: &PaymentMethodTokenizationData<T>) -> bool
@@ -998,6 +1000,7 @@ pub enum StripeWallet {
     RevolutPay(RevolutpayPayment),
     ApplePayPredecryptToken(Box<StripeApplePayPredecrypt>),
     GooglePayPredecryptToken(Box<StripeGooglePayPredecrypt>),
+    WalletNetworkTokenPayment(Box<StripeWalletNetworkTokenPayment>),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1030,6 +1033,123 @@ pub struct StripeGooglePayPredecrypt {
     eci: Option<String>,
     #[serde(rename = "card[tokenization_method]")]
     tokenization_method: String,
+}
+
+/// Pre-decrypted wallet (Apple Pay / Google Pay) token sent as a network token directly in the
+/// payment intent or setup intent, used when the payment is not made via a single-use token.
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeWalletNetworkTokenPayment {
+    #[serde(rename = "payment_method_data[type]")]
+    payment_method_data_type: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[card][exp_month]")]
+    exp_month: Secret<String>,
+    #[serde(rename = "payment_method_data[card][exp_year]")]
+    exp_year: Secret<String>,
+    #[serde(rename = "payment_method_data[card][last4]")]
+    last4: String,
+    #[serde(rename = "payment_method_data[card][network_token][number]")]
+    network_token_number: CardNumber,
+    #[serde(rename = "payment_method_data[card][network_token][exp_month]")]
+    network_token_exp_month: Secret<String>,
+    #[serde(rename = "payment_method_data[card][network_token][exp_year]")]
+    network_token_exp_year: Secret<String>,
+    #[serde(rename = "payment_method_data[card][network_token][tokenization_method]")]
+    tokenization_method: String,
+    #[serde(rename = "payment_method_options[card][network_token][cryptogram]")]
+    cryptogram: Secret<String>,
+    #[serde(rename = "payment_method_options[card][network_token][electronic_commerce_indicator]")]
+    eci: Option<String>,
+}
+
+impl From<&payment_method_data::ApplePayDecryptedData> for StripeWalletNetworkTokenPayment {
+    fn from(decrypt_data: &payment_method_data::ApplePayDecryptedData) -> Self {
+        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
+        Self {
+            payment_method_data_type: StripePaymentMethodType::Card,
+            exp_month: decrypt_data.application_expiration_month.clone(),
+            exp_year: expiry_year_4_digit.clone(),
+            last4: decrypt_data.application_primary_account_number.get_last4(),
+            network_token_number: decrypt_data.application_primary_account_number.clone(),
+            network_token_exp_month: decrypt_data.application_expiration_month.clone(),
+            network_token_exp_year: expiry_year_4_digit,
+            tokenization_method: APPLE_PAY_TOKENIZATION_METHOD.to_string(),
+            cryptogram: decrypt_data.payment_data.online_payment_cryptogram.clone(),
+            eci: decrypt_data.payment_data.eci_indicator.clone(),
+        }
+    }
+}
+
+impl StripeWalletNetworkTokenPayment {
+    /// Returns `None` when the decrypted Google Pay token has no cryptogram (PAN_ONLY); such
+    /// tokens are sent as a regular card.
+    fn try_from_google_pay_decrypted_data(
+        decrypt_data: &payment_method_data::GooglePayDecryptedData,
+    ) -> Result<Option<Self>, error_stack::Report<IntegrationError>> {
+        let Some(cryptogram) = decrypt_data.cryptogram.clone() else {
+            return Ok(None);
+        };
+        let expiry_year_4_digit = decrypt_data
+            .get_four_digit_expiry_year()
+            .change_context(IntegrationError::InvalidDataFormat {
+            field_name: "google_pay_decrypted_data.card_exp_year",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "the decrypted google pay expiry year could not be normalized to four digits"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "send card_exp_year as a two or four digit year".to_string(),
+                ),
+                doc_url: None,
+            },
+        })?;
+        Ok(Some(Self {
+            payment_method_data_type: StripePaymentMethodType::Card,
+            exp_month: decrypt_data.card_exp_month.clone(),
+            exp_year: expiry_year_4_digit.clone(),
+            last4: decrypt_data.application_primary_account_number.get_last4(),
+            network_token_number: decrypt_data.application_primary_account_number.clone(),
+            network_token_exp_month: decrypt_data.card_exp_month.clone(),
+            network_token_exp_year: expiry_year_4_digit,
+            tokenization_method: GOOGLE_PAY_DPAN_TOKENIZATION_METHOD.to_string(),
+            cryptogram,
+            eci: decrypt_data.eci_indicator.clone(),
+        }))
+    }
+}
+
+/// Returns the pre-decrypted wallet (Apple Pay / Google Pay) data as network token payment
+/// method data for a PaymentIntent / SetupIntent, used when the payment is not made via a
+/// single-use token. Returns `None` if the payment method is not a decrypted Apple Pay /
+/// Google Pay wallet, or if it is a Google Pay token without a cryptogram (sent as a regular
+/// card).
+fn get_wallet_network_token_payment_data<
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+>(
+    payment_method_data: &PaymentMethodData<T>,
+) -> Result<Option<StripePaymentMethodData<T>>, error_stack::Report<IntegrationError>> {
+    let network_token_payment = match payment_method_data {
+        PaymentMethodData::Wallet(WalletData::ApplePay(applepay_data)) => applepay_data
+            .payment_data
+            .get_decrypted_apple_pay_payment_data_optional()
+            .map(StripeWalletNetworkTokenPayment::from),
+        PaymentMethodData::Wallet(WalletData::GooglePay(gpay_data)) => {
+            match &gpay_data.tokenization_data {
+                payment_method_data::GpayTokenizationData::Decrypted(decrypt_data) => {
+                    StripeWalletNetworkTokenPayment::try_from_google_pay_decrypted_data(
+                        decrypt_data,
+                    )?
+                }
+                payment_method_data::GpayTokenizationData::Encrypted(_) => None,
+            }
+        }
+        _ => None,
+    };
+    Ok(network_token_payment.map(|network_token_payment| {
+        StripePaymentMethodData::Wallet(StripeWallet::WalletNetworkTokenPayment(Box::new(
+            network_token_payment,
+        )))
+    }))
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -2871,6 +2991,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 &shipping_address,
                 payment_method_type.as_ref(),
             )?;
+
+            let (payment_method_data, payment_method_type) =
+                match get_wallet_network_token_payment_data(&item.request.payment_method_data)? {
+                    Some(network_token_payment_data) => (
+                        network_token_payment_data,
+                        Some(StripePaymentMethodType::Card),
+                    ),
+                    None => (payment_method_data, payment_method_type),
+                };
 
             let setup_future_usage =
                 if is_setup_future_usage_supported(item.request.payment_method_type) {
@@ -6232,11 +6361,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }
                 _ => {
                     let pm_type = StripePaymentMethodType::Card;
-                    let payment_data = StripePaymentMethodData::try_from((
-                        &item,
-                        item.router_data.resource_common_data.auth_type,
-                        pm_type,
-                    ))?;
+                    // Setup mandate is not made via a single-use token: send a decrypted
+                    // Apple Pay / Google Pay wallet directly as a network token.
+                    let payment_data = match get_wallet_network_token_payment_data(
+                        &item.router_data.request.payment_method_data,
+                    )? {
+                        Some(network_token_payment_data) => network_token_payment_data,
+                        None => StripePaymentMethodData::try_from((
+                            &item,
+                            item.router_data.resource_common_data.auth_type,
+                            pm_type,
+                        ))?,
+                    };
                     (None, Some(payment_data), Some(pm_type))
                 }
             };

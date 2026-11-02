@@ -120,6 +120,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "proto/common_types.proto",
             "proto/domain.proto",
             "proto/payment.proto",
+            "proto/dispute.proto",
             "proto/events.proto",
             "proto/composite_services.proto",
             "proto/composite_payment.proto",
