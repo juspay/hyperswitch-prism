@@ -10,6 +10,38 @@ use tonic::Status;
 use crate::logger;
 use prost::Message;
 
+/// HTTP status used by both the HTTP adapter and incoming audit logs.
+pub fn http_status_for_status(status: &Status) -> u16 {
+    // Integration details are decoded first, matching the HTTP adapter's error discriminator.
+    if grpc_api_types::payments::IntegrationError::decode(status.details()).is_err() {
+        if let Ok(error) = grpc_api_types::payments::ConnectorError::decode(status.details()) {
+            if error.error_code == "CONNECTOR_ERROR_RESPONSE" {
+                if let Some(code) = error.http_status_code {
+                    if (400..600).contains(&code) {
+                        return u16::try_from(code).unwrap_or(500);
+                    }
+                }
+            }
+        }
+    }
+    match status.code() {
+        tonic::Code::Ok => 200,
+        tonic::Code::Cancelled => 408,
+        tonic::Code::InvalidArgument => 400,
+        tonic::Code::DeadlineExceeded => 504,
+        tonic::Code::NotFound => 404,
+        tonic::Code::AlreadyExists | tonic::Code::Aborted => 409,
+        tonic::Code::PermissionDenied => 403,
+        tonic::Code::ResourceExhausted => 429,
+        tonic::Code::FailedPrecondition => 412,
+        tonic::Code::OutOfRange => 416,
+        tonic::Code::Unimplemented => 501,
+        tonic::Code::Unavailable => 503,
+        tonic::Code::Unauthenticated => 401,
+        tonic::Code::Unknown | tonic::Code::Internal | tonic::Code::DataLoss => 500,
+    }
+}
+
 pub trait IntoGrpcStatus {
     fn into_grpc_status(self) -> Status;
 }

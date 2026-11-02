@@ -187,51 +187,12 @@ fn extract_error_details_from_status(status: &tonic::Status) -> Option<ErrorDeta
     None
 }
 
-/// Extract the connector's exact HTTP error status when the decoded details identify a
-/// connector-originated 4xx/5xx response.
-fn connector_http_status_from_error_details(details: Option<&ErrorDetails>) -> Option<StatusCode> {
-    match details {
-        Some(ErrorDetails::ConnectorError {
-            error_code,
-            http_status_code: Some(http_status_code),
-            ..
-        }) if error_code == "CONNECTOR_ERROR_RESPONSE" => u16::try_from(*http_status_code)
-            .ok()
-            .and_then(|status_code| StatusCode::from_u16(status_code).ok())
-            .filter(|status_code| status_code.is_client_error() || status_code.is_server_error()),
-        _ => None,
-    }
-}
-
-fn grpc_code_to_http_status(code: tonic::Code) -> StatusCode {
-    match code {
-        tonic::Code::Ok => StatusCode::OK,
-        tonic::Code::Cancelled => StatusCode::REQUEST_TIMEOUT,
-        tonic::Code::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
-        tonic::Code::InvalidArgument => StatusCode::BAD_REQUEST,
-        tonic::Code::DeadlineExceeded => StatusCode::GATEWAY_TIMEOUT,
-        tonic::Code::NotFound => StatusCode::NOT_FOUND,
-        tonic::Code::AlreadyExists => StatusCode::CONFLICT,
-        tonic::Code::PermissionDenied => StatusCode::FORBIDDEN,
-        tonic::Code::ResourceExhausted => StatusCode::TOO_MANY_REQUESTS,
-        tonic::Code::FailedPrecondition => StatusCode::PRECONDITION_FAILED,
-        tonic::Code::Aborted => StatusCode::CONFLICT,
-        tonic::Code::OutOfRange => StatusCode::RANGE_NOT_SATISFIABLE,
-        tonic::Code::Unimplemented => StatusCode::NOT_IMPLEMENTED,
-        tonic::Code::Internal => StatusCode::INTERNAL_SERVER_ERROR,
-        tonic::Code::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
-        tonic::Code::DataLoss => StatusCode::INTERNAL_SERVER_ERROR,
-        tonic::Code::Unauthenticated => StatusCode::UNAUTHORIZED,
-    }
-}
-
 /// The HTTP status the caller receives for a gRPC error: the connector's exact 4xx/5xx when the
 /// details carry one, else the gRPC-to-HTTP fallback. Shared by the HTTP response and the golden
 /// line so both report the same status.
 pub fn http_status_for_status(status: &tonic::Status) -> StatusCode {
-    let details = extract_error_details_from_status(status);
-    connector_http_status_from_error_details(details.as_ref())
-        .unwrap_or_else(|| grpc_code_to_http_status(status.code()))
+    StatusCode::from_u16(ucs_env::error::http_status_for_status(status))
+        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 // Convert tonic::Status to HTTP error
@@ -241,10 +202,7 @@ impl From<tonic::Status> for HttpError {
 
         // Preserve the exact connector HTTP status when available; otherwise use the
         // canonical gRPC-to-HTTP fallback.
-        let http_status = match connector_http_status_from_error_details(details.as_ref()) {
-            Some(connector_status) => connector_status,
-            None => grpc_code_to_http_status(status.code()),
-        };
+        let http_status = http_status_for_status(&status);
 
         let message = status.message().to_string();
 

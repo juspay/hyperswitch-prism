@@ -834,6 +834,7 @@ where
         + SetIntegrityFailureStatus,
 {
     let start = tokio::time::Instant::now();
+    let mut external_call_attempted = false;
     tracing::Span::current().record(
         "api_tag",
         api_tag
@@ -1027,6 +1028,7 @@ where
                         },
                     );
                     let external_service_start_latency = tokio::time::Instant::now();
+                    external_call_attempted = true;
                     tracing::Span::current().record(
                         "request.url",
                         tracing::field::display(connector.sanitize_url_for_logs(&url)),
@@ -1267,6 +1269,7 @@ where
                         },
                     );
                     let external_service_start_latency = tokio::time::Instant::now();
+                    external_call_attempted = true;
 
                     let topic = record.topic.clone();
                     tracing::Span::current().record("request.url", tracing::field::display(&topic));
@@ -1408,7 +1411,9 @@ where
     let elapsed_millis = u64::try_from(elapsed).unwrap_or(u64::MAX);
     tracing::Span::current().record("latency_ms", elapsed_millis);
     #[cfg(feature = "log-transformations")]
-    if event_params.log_fields_enabled || event_params.masking_keys.enabled {
+    if external_call_attempted
+        && (event_params.log_fields_enabled || event_params.masking_keys.enabled)
+    {
         apply_log_fields(
             event_params.log_fields,
             connector_reply
@@ -1421,7 +1426,11 @@ where
                 }),
         );
     }
-    tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
+    if external_call_attempted {
+        tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
+    } else {
+        tracing::debug!("Connector processing completed without an external call");
+    }
     result_with_integrity_check
 }
 
