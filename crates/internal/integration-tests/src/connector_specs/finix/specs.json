@@ -10,6 +10,34 @@
     "RefundService/Get",
     "PaymentService/SetupRecurring",
     "PaymentMethodService/Tokenize",
-    "PaymentService/Void"
-  ]
+    "PaymentService/Void",
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
+    "EventService/HandleEvent"
+  ],
+  "unsupported_scenarios": {
+    "PaymentMethodAuthenticationService/Authenticate": {
+      "threeds_card_authenticate": "CONNECTOR_API_LACKS: Finix docs, 3D Secure Sessions (POST /3d_secure_sessions needs payment_instrument_id) — the scenario sends a raw card and its suite depends on PreAuthenticate, a leg Finix has no call for; the leg is graded on the gRPC matrix with a tokenized card instead"
+    },
+    "PaymentMethodAuthenticationService/PostAuthenticate": {
+      "threeds_card_post_authenticate": "CONNECTOR_API_LACKS: Finix docs, Retrieve a 3D Secure Session — a session result exists only after the buyer completes the Finix-hosted page in a browser, and the suite chains the raw-card Authenticate scenario above"
+    },
+    "PaymentService/Authorize": {
+      "threeds_manual_capture_credit_card": "CONNECTOR_API_LACKS: Finix docs, Charge with the session — Finix has no in-Authorize 3DS; a 3DS charge needs a SUCCEEDED 3d_secure_session from the Authenticate/PostAuthenticate legs and a tokenized source, so this raw-card scenario is refused before any call",
+      "no3ds_auto_capture_google_pay_encrypted": "CONNECTOR_API_LACKS: Finix docs, Charge the wallet instrument — Finix charges only a vaulted Payment Instrument (source = PI), so raw wallet data sent straight to Authorize is refused; the wallet is graded through Tokenize then Authorize, which also needs a genuine Google Pay token",
+      "no3ds_auto_capture_google_pay_decrypted": "CONNECTOR_API_LACKS: Finix docs, Charge the wallet instrument — Authorize takes only a vaulted Payment Instrument; the decrypted Google Pay passthrough is graded through Tokenize then Authorize",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "CONNECTOR_API_LACKS: Finix docs, Charge the wallet instrument — Authorize takes only a vaulted Payment Instrument; the decrypted Google Pay CIT is graded through Tokenize then Authorize",
+      "no3ds_auto_capture_apple_pay_decrypted": "CONNECTOR_API_LACKS: Finix docs, Charge the wallet instrument — Authorize takes only a vaulted Payment Instrument; the decrypted Apple Pay passthrough is graded through Tokenize then Authorize",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "CONNECTOR_API_LACKS: Finix docs, Charge the wallet instrument — Authorize takes only a vaulted Payment Instrument; the decrypted Apple Pay CIT is graded through Tokenize then Authorize"
+    },
+    "PaymentMethodService/Tokenize": {
+      "tokenize_google_pay_encrypted": "SANDBOX_NOT_PROVISIONED: Finix docs, Create a Google Pay Payment Instrument — the scenario token is a placeholder, not a Google-minted token for gateway finix and this merchant identity, so Finix cannot decrypt it; a genuine Google Pay TEST token is required"
+    },
+    "EventService/HandleEvent": {
+      "payment_succeeded": "SANDBOX_NOT_PROVISIONED: Finix docs, Webhook Authentication & Signature Verification — implemented, not live-verified: the Finix creds entry has no webhook_secret (the secret_signing_key is returned only when a webhook is created) and the shared harness signer has no finix scheme, so the Finix-Signature header cannot be produced",
+      "payment_failed": "SANDBOX_NOT_PROVISIONED: Finix docs, Webhook Authentication & Signature Verification — implemented, not live-verified: no webhook_secret in the Finix creds entry and no finix scheme in the shared harness signer",
+      "refund_succeeded": "SANDBOX_NOT_PROVISIONED: Finix docs, Webhook Authentication & Signature Verification — implemented, not live-verified: no webhook_secret in the Finix creds entry and no finix scheme in the shared harness signer",
+      "invalid_signature": "SANDBOX_NOT_PROVISIONED: Finix docs, Webhook Authentication & Signature Verification — without a configured webhook_secret verification fails closed before any HMAC comparison, so the scenario would not prove signature rejection"
+    }
+  }
 }

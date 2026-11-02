@@ -27,7 +27,7 @@ use common_enums::{
 };
 use common_utils::config_patch::Patch;
 use common_utils::{
-    consts::{self, NO_ERROR_CODE, X_EXTERNAL_VAULT_METADATA},
+    consts::{self, X_EXTERNAL_VAULT_METADATA},
     id_type::CustomerId,
     metadata::MaskedMetadata,
     pii::Email,
@@ -10929,7 +10929,7 @@ pub fn generate_submit_evidence_response(
             Ok(DisputeServiceSubmitEvidenceResponse {
                 dispute_status: grpc_status.into(),
                 dispute_id: Some(response.connector_dispute_id),
-                submitted_evidence_ids: vec![],
+                submitted_evidence_ids: response.submitted_evidence_ids,
                 connector_status_code: None,
                 error: None,
                 merchant_dispute_id: None,
@@ -12866,10 +12866,27 @@ impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceSubmitEvidenceReques
         };
 
         // Extract evidence from evidence_documents array
+        let mut seen_evidence_types = std::collections::HashSet::new();
         for document in value.evidence_documents {
             let evidence_type =
                 grpc_api_types::payments::EvidenceType::try_from(document.evidence_type)
                     .unwrap_or(grpc_api_types::payments::EvidenceType::Unspecified);
+
+            // Each evidence type has one slot below, so a repeat would overwrite the earlier document.
+            if evidence_type != grpc_api_types::payments::EvidenceType::Unspecified
+                && !seen_evidence_types.insert(evidence_type)
+            {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "evidence_documents",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Send at most one evidence document per evidence_type.".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into());
+            }
 
             match evidence_type {
                 grpc_api_types::payments::EvidenceType::CancellationPolicy => {
@@ -15148,11 +15165,11 @@ pub fn generate_defend_dispute_response(
             typed_connector_request,
         }),
         Err(e) => Ok(DisputeServiceDefendResponse {
-            dispute_id: e
-                .connector_transaction_id
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            dispute_status: grpc_api_types::payments::DisputeStatus::DisputeLost as i32,
+            dispute_id: e.connector_transaction_id.clone().unwrap_or_default(),
+            dispute_status: e
+                .attempt_status
+                .map(grpc_api_types::payments::DisputeStatus::foreign_from)
+                .unwrap_or_default() as i32,
             connector_status_code: None,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,

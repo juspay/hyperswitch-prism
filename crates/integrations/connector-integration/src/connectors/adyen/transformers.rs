@@ -7538,6 +7538,7 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenDisputeAcceptResponse, Self>>
                     .connector_dispute_id
                     .clone(),
                 connector_dispute_status: None,
+                submitted_evidence_ids: vec![],
                 status_code: http_code,
             };
 
@@ -7747,6 +7748,7 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenSubmitEvidenceResponse, Self>>
                     .connector_dispute_id
                     .clone(),
                 connector_dispute_status: None,
+                submitted_evidence_ids: vec![],
                 status_code: http_code,
             };
 
@@ -7883,6 +7885,7 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenDefendDisputeResponse, Self>>
                             .resource_common_data
                             .connector_dispute_id
                             .clone(),
+                        submitted_evidence_ids: vec![],
                         status_code: http_code,
                     }),
                     ..router_data
