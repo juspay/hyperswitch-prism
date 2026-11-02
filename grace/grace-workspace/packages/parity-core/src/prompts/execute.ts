@@ -14,6 +14,7 @@ Allowed file writes:
 You may ADD ONE tracing::debug!("parity:<flow>:<field> hit") line inside the changed function — this is required for gRPC verification (the orchestrator will grep server logs for this line).
 
 Hard rules:
+- Your output and any code comment you write are published in a PUBLIC repository. Never write merchant, org or profile names/IDs, payment/request/connector-transaction IDs, occurrence counts, fingerprints, environment names (prod) or links/numbers of the tracker issue. Say "a merchant" and describe the diff by field path only.
 - Never run cargo with --release at this phase (slower, not needed).
 - Never edit files outside the plan's named paths. Never edit crates/types-traits/. Never edit hyperswitch_connectors/, hyperswitch_domain_models/, api_models/, router/.
 - Never commit, push, or create PRs — orchestrator handles git operations.

@@ -18,7 +18,7 @@ use domain_types::{
         SetupMandateRequestData,
     },
     mandates::MandateDataType,
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -133,12 +133,17 @@ where
         let router_data = item.router_data;
         let payment_method = match router_data.request.payment_method_type {
             Some(common_enums::PaymentMethodType::BancontactCard) => "BANCONTACT".to_string(),
+            Some(common_enums::PaymentMethodType::BancontactIntent) => "BANCONTACT".to_string(),
+            Some(common_enums::PaymentMethodType::BancontactQr) => "BANCONTACT".to_string(),
             Some(common_enums::PaymentMethodType::UpiIntent) => "UPI".to_string(),
             Some(common_enums::PaymentMethodType::UpiQr) => "UPI".to_string(),
             Some(common_enums::PaymentMethodType::AliPay) => "ALIPAY".to_string(),
             Some(common_enums::PaymentMethodType::WeChatPay) => "WECHATPAY".to_string(),
+            Some(common_enums::PaymentMethodType::WeChatPayQr) => "WECHATPAY".to_string(),
             Some(common_enums::PaymentMethodType::MbWay) => "MBWAY".to_string(),
             Some(common_enums::PaymentMethodType::Satispay) => "SATISPAY".to_string(),
+            Some(common_enums::PaymentMethodType::SatispayIntent) => "SATISPAY".to_string(),
+            Some(common_enums::PaymentMethodType::SatispayQr) => "SATISPAY".to_string(),
             Some(common_enums::PaymentMethodType::Wero) => "WERO".to_string(),
             Some(common_enums::PaymentMethodType::Ideal) => "IDEAL".to_string(),
             Some(common_enums::PaymentMethodType::Trustly) => "TRUSTLY".to_string(),
@@ -169,22 +174,30 @@ where
         };
 
         let authentication_settings = match router_data.request.payment_method_type {
-            Some(common_enums::PaymentMethodType::UpiIntent) => {
-                Some(vec![PproAuthenticationSettings {
-                    r#type: PproAuthenticationType::AppIntent,
-                    settings: Some(PproAuthSettingsDetails {
-                        return_url: None,
-                        scan_by: None,
-                        mobile_intent_uri: router_data.request.router_return_url.clone(),
-                    }),
-                }])
-            }
-            Some(common_enums::PaymentMethodType::UpiQr) => {
-                Some(vec![PproAuthenticationSettings {
-                    r#type: PproAuthenticationType::ScanCode,
-                    settings: None,
-                }])
-            }
+            // Intent-based APP_INTENT flows (mobileIntentUri sourced from router_return_url).
+            Some(
+                common_enums::PaymentMethodType::UpiIntent
+                | common_enums::PaymentMethodType::SatispayIntent
+                | common_enums::PaymentMethodType::BancontactIntent,
+            ) => Some(vec![PproAuthenticationSettings {
+                r#type: PproAuthenticationType::AppIntent,
+                settings: Some(PproAuthSettingsDetails {
+                    return_url: None,
+                    scan_by: None,
+                    mobile_intent_uri: router_data.request.router_return_url.clone(),
+                }),
+            }]),
+            // QR-based SCAN_CODE flows.
+            Some(
+                common_enums::PaymentMethodType::UpiQr
+                | common_enums::PaymentMethodType::SatispayQr
+                | common_enums::PaymentMethodType::WeChatPayQr
+                | common_enums::PaymentMethodType::BancontactQr,
+            ) => Some(vec![PproAuthenticationSettings {
+                r#type: PproAuthenticationType::ScanCode,
+                settings: None,
+            }]),
+            // Everything else (e.g. plain Satispay): REDIRECT via router_return_url.
             _ => router_data
                 .request
                 .router_return_url
@@ -206,23 +219,25 @@ where
             .get_optional_billing_email()
             .or_else(|| router_data.request.get_optional_email());
 
-        // PPRO requires consumer email and country for Afterpay payments.
+        // PPRO requires consumer email for Afterpay payments.
         if matches!(
             router_data.request.payment_method_type,
             Some(common_enums::PaymentMethodType::AfterpayClearpay)
-        ) {
-            if email.is_none() {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name: "email",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Afterpay requires consumer email".to_string()),
-                        ..Default::default()
-                    },
-                }
-                .into());
+        ) && email.is_none()
+        {
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "email",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Afterpay requires consumer email".to_string()),
+                    ..Default::default()
+                },
             }
-            router_data.resource_common_data.get_billing_country()?;
+            .into());
         }
+
+        // PPRO requires a consumer country for all payment methods, so the billing
+        // country must always be present.
+        router_data.resource_common_data.get_billing_country()?;
 
         let merchant_consumer_reference = if matches!(
             router_data.request.payment_method_type,
@@ -233,6 +248,14 @@ where
         } else {
             None
         };
+
+        if matches!(
+            router_data.request.payment_method_type,
+            Some(common_enums::PaymentMethodType::WeChatPayQr)
+                | Some(common_enums::PaymentMethodType::WeChatPay)
+        ) {
+            router_data.resource_common_data.get_billing_full_name()?;
+        }
 
         let consumer = router_data
             .resource_common_data
@@ -363,8 +386,10 @@ pub struct PproPaymentsResponse {
     pub amount: Option<common_utils::MinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
-    /// The instrument ID returned by PPRO after a successful authorization.
-    /// This is stored as the mandate reference for recurring payments.
+    /// The consumer's payment instrument, resolved by PPRO during authentication and
+    /// returned on ordinary one-off charges as well. This is NOT an agreement id and must
+    /// not be surfaced as a mandate reference -- recurring charges are made against a
+    /// payment agreement created by SetupMandate.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instrument_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -626,7 +651,9 @@ fn ppro_raw_connector_status<S: std::fmt::Display>(
     failure: Option<&PproFailure>,
 ) -> RawConnectorStatus {
     RawConnectorStatus {
-        code: Some(status.to_string()),
+        code: failure
+            .and_then(|f| f.failure_code.clone())
+            .or(Some(status.to_string())),
         message: failure.map(|f| f.failure_message.clone()),
         reason: failure.map(|f| {
             format!(
@@ -833,17 +860,6 @@ where
             }
         }
 
-        // If PPRO returned an instrumentId, store it as the mandate reference
-        // so callers can use it for subsequent RepeatPayment charges.
-        let mandate_reference = item.response.instrument_id.as_ref().map(|instr_id| {
-            Box::new(MandateReference {
-                connector_mandate_id: Some(instr_id.clone()),
-                payment_method_id: None,
-                connector_mandate_request_reference_id: None,
-                mandate_metadata: None,
-            })
-        });
-
         let resolved_minor_amount = item
             .response
             .captures
@@ -912,7 +928,12 @@ where
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: redirection_data.map(Box::new),
-                mandate_reference,
+                // PPRO's charge endpoints never establish a mandate: an agreement is only
+                // created via SetupMandate (POST /v1/payment-agreements), which builds its
+                // own MandateReference from the agreement id. The `instrumentId` echoed back
+                // here is the consumer's resolved payment instrument -- returned on ordinary
+                // one-off charges too -- and is not usable as an agreement id.
+                mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
@@ -1131,16 +1152,64 @@ pub struct PproAgreementRequest {
     pub instrument: Option<PproInstrument>,
 }
 
+/// Parses PPRO's `scanBy` QR-expiry timestamp (an RFC-3339 datetime string) into a unix
+/// timestamp. Returns `None` if it doesn't parse, rather than failing the whole response.
+fn parse_scan_by_expiry(scan_by: &str) -> Option<i64> {
+    time::OffsetDateTime::parse(scan_by, &time::format_description::well_known::Rfc3339)
+        .ok()
+        .map(|dt| dt.unix_timestamp())
+}
+
 /// Builds a `RedirectForm` from the PPRO authentication method matching the requested
-/// payment method: UPI Intent → `APP_INTENT`, UPI QR → `SCAN_CODE`, otherwise `REDIRECT`.
+/// payment method: UPI Intent / Satispay Intent → `APP_INTENT` (as a `Uri`), UPI QR / Satispay
+/// QR → `SCAN_CODE` (as a `Qr`), otherwise → `REDIRECT` (as a `Uri` from `requestUrl`).
 pub(crate) fn build_auth_redirect(
     auth_methods: &[PproAuthenticationResponse],
     payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> Option<RedirectForm> {
-    let matched_type = match payment_method_type {
-        Some(common_enums::PaymentMethodType::UpiIntent) => PproAuthenticationType::AppIntent,
-        Some(common_enums::PaymentMethodType::UpiQr) => PproAuthenticationType::ScanCode,
-        _ => PproAuthenticationType::Redirect,
+    let (matched_type, build): (
+        PproAuthenticationType,
+        fn(&PproAuthDetailsResponse) -> Option<RedirectForm>,
+    ) = match payment_method_type {
+        // UpiIntent and SatispayIntent both resolve to PPRO's APP_INTENT auth type and
+        // build an identical `Uri` from `mobileIntentUri` -- only the triggering
+        // `PaymentMethodType` differs between UPI and Satispay.
+        Some(common_enums::PaymentMethodType::UpiIntent)
+        | Some(common_enums::PaymentMethodType::SatispayIntent)
+        | Some(common_enums::PaymentMethodType::BancontactIntent) => {
+            (PproAuthenticationType::AppIntent, |details| {
+                details
+                    .mobile_intent_uri
+                    .clone()
+                    .filter(|uri| !uri.trim().is_empty())
+                    .map(|uri| RedirectForm::Uri { uri })
+            })
+        }
+        Some(common_enums::PaymentMethodType::UpiQr)
+        | Some(common_enums::PaymentMethodType::SatispayQr)
+        | Some(common_enums::PaymentMethodType::WeChatPayQr)
+        | Some(common_enums::PaymentMethodType::BancontactQr) => {
+            (PproAuthenticationType::ScanCode, |details| {
+                let payload = details
+                    .code_payload
+                    .clone()
+                    .filter(|payload| !payload.trim().is_empty());
+                let payload = payload?;
+                Some(RedirectForm::Qr {
+                    payload: Some(payload),
+                    image_base64: None,
+                    image_url: details.code_image.clone(),
+                    fallback_url: None,
+                    expires_at: details.scan_by.as_deref().and_then(parse_scan_by_expiry),
+                })
+            })
+        }
+        _ => (PproAuthenticationType::Redirect, |details| {
+            details
+                .request_url
+                .clone()
+                .map(|uri| RedirectForm::Uri { uri })
+        }),
     };
 
     auth_methods.iter().find_map(|method| {
@@ -1148,13 +1217,7 @@ pub(crate) fn build_auth_redirect(
             return None;
         }
         let details = method.details.as_ref()?;
-        let uri = match matched_type {
-            PproAuthenticationType::AppIntent => details.mobile_intent_uri.clone(),
-            PproAuthenticationType::ScanCode => details.code_payload.clone(),
-            PproAuthenticationType::Redirect => details.request_url.clone(),
-            PproAuthenticationType::Unknown => None,
-        }?;
-        Some(RedirectForm::Uri { uri })
+        build(details)
     })
 }
 
@@ -1426,7 +1489,7 @@ where
         // iDEAL requires debitMandateId for recurring agreements
         Some(common_enums::PaymentMethodType::Ideal) => {
             let bank_name = match &router_data.request.payment_method_data {
-                domain_types::payment_method_data::PaymentMethodData::BankRedirect(
+                PaymentMethodData::BankRedirect(
                     domain_types::payment_method_data::BankRedirectData::Ideal { bank_name },
                 ) => *bank_name,
                 _ => None,

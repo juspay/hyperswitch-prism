@@ -42,9 +42,107 @@ pub fn generate_signature(
         "checkout" => generate_checkout_signature(payload, secret),
         "paypal" => generate_paypal_signature(payload, secret),
         "phonepe" => generate_phonepe_signature(payload, secret, ctx),
+        "ecommpay" => generate_ecommpay_signature(payload, secret),
         "cybersource" => generate_cybersource_signature(payload, secret, ctx.timestamp),
         _ => Err(format!("Unsupported connector: {}", connector)),
     }
+}
+
+/// Generate an Ecommpay callback signature (the value of the body's own `signature` field).
+///
+/// `payload` is the JSON body without `signature`. Ecommpay's documented algorithm
+/// (developers.ecommpay.com, "Signature generation and verification"), re-implemented here
+/// independently of the connector so the harness stays an oracle:
+///   1. flatten every leaf to `parent:...:key:value` (array elements keyed by zero-based
+///      index, booleans as `1`/`0`, empty strings kept, empty arrays skipped);
+///   2. sort the strings in natural order and join them with `;`;
+///   3. Base64(HMAC-SHA512(secret, joined)).
+fn generate_ecommpay_signature(payload: &[u8], secret: &str) -> Result<String, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    use hmac::{Hmac, Mac};
+    use sha2::Sha512;
+
+    fn flatten(prefix: &str, value: &serde_json::Value, out: &mut Vec<String>) {
+        let join = |key: &str| {
+            if prefix.is_empty() {
+                key.to_string()
+            } else {
+                format!("{prefix}:{key}")
+            }
+        };
+        match value {
+            serde_json::Value::Object(map) => {
+                for (key, child) in map {
+                    flatten(&join(key), child, out);
+                }
+            }
+            serde_json::Value::Array(items) => {
+                for (index, child) in items.iter().enumerate() {
+                    flatten(&join(&index.to_string()), child, out);
+                }
+            }
+            serde_json::Value::Bool(flag) => {
+                out.push(format!("{prefix}:{}", if *flag { 1 } else { 0 }))
+            }
+            serde_json::Value::Number(number) => out.push(format!("{prefix}:{number}")),
+            serde_json::Value::String(text) => out.push(format!("{prefix}:{text}")),
+            serde_json::Value::Null => out.push(format!("{prefix}:")),
+        }
+    }
+
+    /// Natural order: where both strings have a run of digits at the same position, the runs
+    /// compare by numeric value; every other position compares by byte.
+    fn natural_order(left: &str, right: &str) -> std::cmp::Ordering {
+        fn digit_run(bytes: &mut std::iter::Peekable<std::str::Bytes<'_>>) -> String {
+            let mut run = String::new();
+            while let Some(digit) = bytes.next_if(u8::is_ascii_digit) {
+                run.push(char::from(digit));
+            }
+            run
+        }
+        let (mut l, mut r) = (left.bytes().peekable(), right.bytes().peekable());
+        loop {
+            let ordering = match (l.peek().copied(), r.peek().copied()) {
+                (None, None) => return std::cmp::Ordering::Equal,
+                (None, Some(_)) => return std::cmp::Ordering::Less,
+                (Some(_), None) => return std::cmp::Ordering::Greater,
+                (Some(a), Some(b)) if a.is_ascii_digit() && b.is_ascii_digit() => {
+                    let (l_run, r_run) = (digit_run(&mut l), digit_run(&mut r));
+                    let (l_value, r_value) =
+                        (l_run.trim_start_matches('0'), r_run.trim_start_matches('0'));
+                    l_value
+                        .len()
+                        .cmp(&r_value.len())
+                        .then(l_value.cmp(r_value))
+                        .then(l_run.len().cmp(&r_run.len()))
+                }
+                (Some(a), Some(b)) => {
+                    l.next();
+                    r.next();
+                    a.cmp(&b)
+                }
+            };
+            if ordering != std::cmp::Ordering::Equal {
+                return ordering;
+            }
+        }
+    }
+
+    let mut body: serde_json::Value = serde_json::from_slice(payload)
+        .map_err(|e| format!("ecommpay signature payload must be JSON: {e}"))?;
+    if let Some(object) = body.as_object_mut() {
+        object.remove("signature");
+    }
+    let mut leaves = Vec::new();
+    flatten("", &body, &mut leaves);
+    leaves.sort_by(|left, right| natural_order(left, right));
+    let preimage = leaves.join(";");
+
+    type HmacSha512 = Hmac<Sha512>;
+    let mut mac = HmacSha512::new_from_slice(secret.as_bytes())
+        .map_err(|e| format!("Failed to create HMAC: {e}"))?;
+    mac.update(preimage.as_bytes());
+    Ok(STANDARD.encode(mac.finalize().into_bytes()))
 }
 
 /// Key id placed in the `keyId` parameter of a generated Cybersource

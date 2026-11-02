@@ -203,6 +203,12 @@ def _generate_connector_config_rust(connector_name: str) -> str:
                 field_lines.append(f'                {field_name}: vec!["value".to_string()],  // Array field')
         elif field_type == 'SecretString':
             field_lines.append(f'                {field_name}: Some(hyperswitch_masking::Secret::new("YOUR_{field_name.upper()}".to_string())),  // Authentication credential')
+        elif field_type.replace(" ", "") == "map<string,SecretString>":
+            # Match the USD currency used by the generated payment examples.
+            field_lines.append(
+                f'                {field_name}: std::collections::HashMap::from([("USD".to_string(), '
+                f'hyperswitch_masking::Secret::new("YOUR_USD_{field_name.upper()}".to_string()))]),'
+            )
         elif field_type == 'string':
             field_lines.append(f'                {field_name}: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls')
         elif field_type == 'bool':
@@ -242,6 +248,10 @@ def _generate_connector_config_python(connector_name: str) -> str:
         elif field_type == "SecretString":
             field_lines.append(
                 f'            {field_name}=payment_methods_pb2.SecretString(value="YOUR_{field_name.upper()}"),'
+            )
+        elif field_type.replace(" ", "") == "map<string,SecretString>":
+            field_lines.append(
+                f'            {field_name}={{"USD": payment_methods_pb2.SecretString(value="YOUR_USD_{field_name.upper()}")}},'
             )
         elif field_type == "string":
             field_lines.append(f'            {field_name}="YOUR_{field_name.upper()}",')
@@ -289,6 +299,10 @@ def _generate_connector_config_typescript(
             field_lines.append(f"            {camel}: ['YOUR_{field_name.upper()}'],")
         elif field_type == "SecretString":
             field_lines.append(f"            {camel}: {{ value: 'YOUR_{field_name.upper()}' }},")
+        elif field_type.replace(" ", "") == "map<string,SecretString>":
+            field_lines.append(
+                f"            {camel}: {{ USD: {{ value: 'YOUR_USD_{field_name.upper()}' }} }},"
+            )
         elif field_type == "string":
             field_lines.append(f"            {camel}: 'YOUR_{field_name.upper()}',")
         elif field_type == "bool":
@@ -333,6 +347,10 @@ def _generate_connector_config_kotlin(connector_name: str, indent: str = "    ")
         elif field_type == "SecretString":
             field_lines.append(
                 f"{i}            .{setter}(SecretString.newBuilder().setValue(\"YOUR_{field_name.upper()}\").build())"
+            )
+        elif field_type.replace(" ", "") == "map<string,SecretString>":
+            field_lines.append(
+                f'{i}            .put{pascal}("USD", SecretString.newBuilder().setValue("YOUR_USD_{field_name.upper()}").build())'
             )
         elif field_type == "string":
             field_lines.append(f"{i}            .{setter}(\"YOUR_{field_name.upper()}\")")
@@ -3279,6 +3297,11 @@ def render_consolidated_kotlin(
         grpc_req = flow_metadata.get(flow_key, {}).get("grpc_request", "")
         if grpc_req and grpc_req not in grpc_req_types:
             grpc_req_types.append(grpc_req)
+    dispute_proto_import = (
+        "import types.Dispute.*\n"
+        if any(req.startswith("DisputeService") for req in grpc_req_types)
+        else ""
+    )
 
     # Collect enum types used in payload fields (for Currency.USD, CaptureMethod.MANUAL, etc.)
     enum_types: set[str] = set()
@@ -3529,7 +3552,7 @@ def render_consolidated_kotlin(
 package examples.{connector_name}
 
 import types.Payment.*
-import types.Events.*
+{dispute_proto_import}import types.Events.*
 import types.PaymentMethods.*
 {imports}
 import payments.ConnectorConfig

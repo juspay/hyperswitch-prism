@@ -45,13 +45,6 @@ def output_node(state: WorkflowState) -> WorkflowState:
         if state.get("field_dependency_filepath"):
             click.echo(f"• Analysis saved to: {state['field_dependency_filepath']}")
 
-    if state["metadata"].get("mock_server_generated", False):
-        click.echo(f"• Mock server generated successfully")
-        if "mock_server_dir" in state:
-            click.echo(f"• Mock server directory: {state['mock_server_dir']}")
-        if "mock_server_process" in state and state["mock_server_process"]:
-            click.echo(f"• Mock server running (PID: {state['mock_server_process'].pid})")
-    
     click.echo(f"• Results saved to: {state['output_dir']}")
     
 

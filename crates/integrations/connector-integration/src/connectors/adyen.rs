@@ -112,6 +112,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Adyen<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        if data.encoded_data.is_some() {
+            return Ok(());
+        }
+        Err(IntegrationError::MissingRequiredField {
+            field_name: "encoded_data",
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -646,7 +660,7 @@ pub fn build_adyen_error_response(
     }
 }
 
-const ADYEN_API_VERSION: &str = "v68";
+const ADYEN_API_VERSION: &str = "v72";
 /// `Idempotency-Key` operation for `POST /payments` (see `build_headers_with_idempotency`).
 const ADYEN_IDEMPOTENCY_OP_PAYMENTS: &str = "payments";
 /// `Idempotency-Key` operation for the zero-value tokenization `POST /payments` (SetupMandate).
@@ -665,12 +679,12 @@ const ADYEN_IDEMPOTENCY_OP_CANCELS: &str = "cancels";
 /// `Idempotency-Key` operation for `POST /payments/{paymentPspReference}/refunds`.
 const ADYEN_IDEMPOTENCY_OP_REFUNDS: &str = "refunds";
 const ADYEN_CANCELS_DOC_URL: &str =
-    "https://docs.adyen.com/api-explorer/Checkout/68/post/payments/-paymentPspReference-/cancels";
-/// Checkout version used by the standalone authentication legs: `authenticationData` does not
-/// exist on v68 (measured: Adyen answers `702 ... unknown fields: [authenticationData]`).
+    "https://docs.adyen.com/api-explorer/Checkout/72/post/payments/_paymentPspReference_/cancels";
+/// Checkout version the standalone authentication legs are verified on. v68 has no
+/// `authenticationData` (measured: Adyen answers `702 ... unknown fields: [authenticationData]`).
 const ADYEN_AUTHENTICATION_API_VERSION: &str = "v71";
 const ADYEN_AMOUNT_UPDATES_DOC_URL: &str =
-    "https://docs.adyen.com/api-explorer/Checkout/68/post/payments/-paymentPspReference-/amountUpdates";
+    "https://docs.adyen.com/api-explorer/Checkout/72/post/payments/_paymentPspReference_/amountUpdates";
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type],
@@ -1140,21 +1154,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         } else {
             AuthenticationStep::Authorize
         }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        data: &PaymentsSyncData,
-        _payment_flow_data: &PaymentFlowData,
-    ) -> CustomResult<(), IntegrationError> {
-        if data.encoded_data.is_some() {
-            return Ok(());
-        }
-        Err(IntegrationError::MissingRequiredField {
-            field_name: "encoded_data",
-            context: Default::default(),
-        }
-        .into())
     }
 }
 
@@ -1808,8 +1807,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = utils::convert_amount_for_webhook(
             self.amount_converter,
-            notif.amount.value,
-            notif.amount.currency,
+            &common_utils::types::Money {
+                amount: notif.amount.value,
+                currency: notif.amount.currency,
+            },
         )?;
 
         Ok(

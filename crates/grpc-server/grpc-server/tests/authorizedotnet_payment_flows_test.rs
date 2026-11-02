@@ -323,6 +323,7 @@ fn create_payment_authorize_request(
             phone_number: None,
             phone_country_code: None,
             email: None,
+            origin_zip: None,
         }),
         shipping_address: None, // Minimal address - no shipping for working grpcurl
     });
@@ -376,6 +377,9 @@ fn create_payment_authorize_request(
 // Helper function to create a payment sync request
 fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        enable_partial_authorization: None,
+        integrity_specifications: None,
+        is_overcapture_enabled: None,
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         capture_method: None,
@@ -404,6 +408,9 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
     let request_ref_id = generate_unique_request_ref_id("capture");
 
     PaymentServiceCaptureRequest {
+        currency_conversion_data: None,
+        integrity_specifications: None,
+        is_overcapture_enabled: None,
         split_settlement: None,
         payment_method: None,
         merchant_capture_id: Some(request_ref_id),
@@ -458,6 +465,7 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
     let refund_metadata_json = serde_json::to_string(&refund_metadata_map).unwrap();
 
     PaymentServiceRefundRequest {
+        currency_conversion_data: None,
         split_settlement_refund: None,
         merchant_refund_id: Some(generate_unique_request_ref_id("refund")),
         connector_transaction_id: transaction_id.to_string(),
@@ -573,6 +581,7 @@ fn create_register_request() -> PaymentServiceSetupRecurringRequest {
             phone_number: None,
             phone_country_code: None,
             email: Some(generate_unique_email().into()),
+            origin_zip: None,
         }),
         shipping_address: None,
     });

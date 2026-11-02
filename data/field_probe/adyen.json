@@ -42,7 +42,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -91,7 +91,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -138,7 +138,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -180,7 +180,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -219,7 +219,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -272,7 +272,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -331,7 +331,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -380,7 +380,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -441,7 +441,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -483,7 +483,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -543,7 +543,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -597,7 +597,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -643,7 +643,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -682,7 +682,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -724,7 +724,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -782,7 +782,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -832,7 +832,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -879,7 +879,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -921,7 +921,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -995,7 +995,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1039,7 +1039,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1078,7 +1078,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1138,7 +1138,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1203,7 +1203,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1271,7 +1271,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1327,7 +1327,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1369,7 +1369,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1428,7 +1428,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1473,7 +1473,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1517,7 +1517,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1571,7 +1571,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1623,7 +1623,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1666,7 +1666,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1728,7 +1728,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1782,7 +1782,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1836,7 +1836,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1894,7 +1894,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1948,7 +1948,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2008,7 +2008,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2047,7 +2047,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2095,7 +2095,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2134,7 +2134,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2179,7 +2179,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2233,7 +2233,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2276,7 +2276,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2348,7 +2348,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2392,7 +2392,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2444,7 +2444,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2491,7 +2491,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2530,7 +2530,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2582,7 +2582,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2621,7 +2621,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2672,7 +2672,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2708,7 +2708,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments/probe_connector_txn_001/captures",
+          "url": "https://checkout-test.adyen.com/v72/payments/probe_connector_txn_001/captures",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2735,7 +2735,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/sessions",
+          "url": "https://checkout-test.adyen.com/v72/sessions",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2757,7 +2757,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/orders",
+          "url": "https://checkout-test.adyen.com/v72/orders",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2798,7 +2798,7 @@
         "proto_request": {
           "merchant_dispute_id": "probe_dispute_001",
           "connector_transaction_id": "probe_txn_001",
-          "dispute_id": "probe_dispute_id_001"
+          "connector_dispute_id": "probe_dispute_id_001"
         },
         "sample": {
           "url": "https://ca-test.adyen.com/ca/services/DisputeService/v30/acceptDispute",
@@ -2818,7 +2818,7 @@
         "proto_request": {
           "merchant_dispute_id": "probe_dispute_001",
           "connector_transaction_id": "probe_txn_001",
-          "dispute_id": "probe_dispute_id_001",
+          "connector_dispute_id": "probe_dispute_id_001",
           "reason_code": "probe_reason"
         },
         "sample": {
@@ -2844,7 +2844,7 @@
         "proto_request": {
           "merchant_dispute_id": "probe_dispute_001",
           "connector_transaction_id": "probe_txn_001",
-          "dispute_id": "probe_dispute_id_001",
+          "connector_dispute_id": "probe_dispute_id_001",
           "evidence_documents": [
             {
               "evidence_type": "SERVICE_DOCUMENTATION",
@@ -2928,7 +2928,7 @@
           "reason": "incremental_auth_probe"
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments/probe_connector_txn_001/amountUpdates",
+          "url": "https://checkout-test.adyen.com/v72/payments/probe_connector_txn_001/amountUpdates",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3055,7 +3055,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3112,7 +3112,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3150,7 +3150,7 @@
           "off_session": true
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3186,7 +3186,7 @@
           "reason": "customer_requested"
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments/probe_connector_txn_001/refunds",
+          "url": "https://checkout-test.adyen.com/v72/payments/probe_connector_txn_001/refunds",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3212,7 +3212,7 @@
           "connector_transaction_id": "probe_connector_txn_001"
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments/probe_connector_txn_001/reversals",
+          "url": "https://checkout-test.adyen.com/v72/payments/probe_connector_txn_001/reversals",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3271,7 +3271,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3300,7 +3300,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3331,7 +3331,7 @@
           "connector_transaction_id": "probe_connector_txn_001"
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments/probe_connector_txn_001/cancels",
+          "url": "https://checkout-test.adyen.com/v72/payments/probe_connector_txn_001/cancels",
           "method": "Post",
           "headers": {
             "content-type": "application/json",

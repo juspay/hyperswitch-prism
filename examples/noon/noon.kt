@@ -29,7 +29,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.NoonConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -254,7 +254,7 @@ fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
             uri = "https://example.com/webhook"  // URI of the request.
             putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"SALE\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}")  // Body of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}")  // Body of the HTTP request.
         }
     }.build()
     val response = client.handle_event(request)
@@ -269,7 +269,7 @@ fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
             uri = "https://example.com/webhook"  // URI of the request.
             putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"SALE\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}")  // Body of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}")  // Body of the HTTP request.
         }
     }.build()
     val response = client.parse_event(request)
@@ -328,13 +328,22 @@ fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
             billingAddressBuilder.apply {
             }
         }
-        metadataBuilder.value = "{\"order_category\":\"mobile\",\"description\":\"purchase desc\"}"
+        metadataBuilder.value = "{\"description\":\"Probe mandate setup\"}"
+        setupMandateDetailsBuilder.apply {
+            mandateTypeBuilder.apply {  // Type of mandate (single_use or multi_use) with amount details.
+                multiUseBuilder.apply {  // Multi use mandate with amount details (for recurring payments).
+                    amount = 10000L  // Use amount_money instead (will be removed in a future release).
+                    currency = Currency.AED  // Use amount_money.currency instead (will be removed in a future release).
+                }
+            }
+        }
         customerAcceptanceBuilder.apply {
             acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
             acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
         }
         authType = AuthenticationType.NO_THREE_DS
         setupFutureUsage = FutureUsage.OFF_SESSION
+        orderCategory = "pay"  // Category of the order/service.
     }.build()
     val response = client.proxy_setup_recurring(request)
     println("Status: ${response.status.name}")
@@ -401,9 +410,60 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
         merchantRefundId = "probe_refund_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"
         refundId = "probe_refund_id_001"  // Deprecated.
+        connectorRefundId = "probe_refund_id_001"
+        connectorOrderId = "probe_order_ref_001"  // Connector-side identifier for the original payment that this refund sync targets.
     }.build()
     val response = client.refund_get(request)
     println("Status: ${response.status.name}")
+}
+
+// Flow: PaymentService.SetupRecurring
+fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_mandate_001"  // Identification.
+        amountBuilder.apply {  // Mandate Details.
+            minorAmount = 0L
+            currency = Currency.USD
+        }
+        paymentMethodBuilder.apply {
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used.
+        enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure.
+        metadataBuilder.value = "{\"description\":\"Probe mandate setup\"}"  // Additional metadata for the connector.
+        returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup.
+        orderCategory = "pay"  // Category of the order/service related to the mandate.
+        setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention.
+        requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested.
+        customerAcceptanceBuilder.apply {  // Details of customer acceptance.
+            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+        setupMandateDetailsBuilder.apply {  // Mandate setup details.
+            mandateTypeBuilder.apply {  // Type of mandate (single_use or multi_use) with amount details.
+                multiUseBuilder.apply {  // Multi use mandate with amount details (for recurring payments).
+                    amount = 10000L  // Use amount_money instead (will be removed in a future release).
+                    currency = Currency.AED  // Use amount_money.currency instead (will be removed in a future release).
+                }
+            }
+        }
+    }.build()
+    val response = client.setup_recurring(request)
+    when (response.status.name) {
+        "FAILED" -> throw RuntimeException("Setup failed: ${response.error.unifiedDetails.message}")
+        else     -> println("Mandate stored: ${response.connectorRecurringPaymentId}")
+    }
 }
 
 // Flow: PaymentService.Void
@@ -437,7 +497,8 @@ fun main(args: Array<String>) {
         "recurringRevoke" -> recurringRevoke(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
+        "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, recurringRevoke, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, recurringRevoke, refund, refundGet, setupRecurring, void")
     }
 }

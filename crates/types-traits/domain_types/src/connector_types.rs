@@ -161,6 +161,7 @@ pub enum ConnectorEnum {
     Qwikcilver,
     Flywire,
     Affirm,
+    Reddot,
     Givepayments,
     Grabpay,
     Tesouro,
@@ -178,6 +179,8 @@ pub enum ConnectorEnum {
     GlobalpaymentsRealex,
     GlobalpaymentsHeartland,
     Payhere,
+    Betterpayment,
+    Ecommpay,
 }
 
 // snake case for enum variants
@@ -217,6 +220,7 @@ pub enum SurchargeConnectorEnum {
 pub enum FrmConnectorEnum {
     Kount,
     Nsure,
+    ClearsaleBr,
 }
 
 /// Enum representing connectors that support authenticator flows (account linking, identity verification)
@@ -356,6 +360,7 @@ impl ForeignTryFrom<AuthType> for FrmConnectorEnum {
         match config {
             AuthType::Kount(_) => Ok(Self::Kount),
             AuthType::Nsure(_) => Ok(Self::Nsure),
+            AuthType::ClearsaleBr(_) => Ok(Self::ClearsaleBr),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -547,6 +552,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::Maya => Ok(Self::Maya),
+            grpc_api_types::payments::Connector::Reddot => Ok(Self::Reddot),
             grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
             grpc_api_types::payments::Connector::GlobalpaymentsRealex => {
                 Ok(Self::GlobalpaymentsRealex)
@@ -577,6 +583,8 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Paydotcom => Ok(Self::Paydotcom),
             grpc_api_types::payments::Connector::ElavonPg => Ok(Self::ElavonPg),
             grpc_api_types::payments::Connector::Payhere => Ok(Self::Payhere),
+            grpc_api_types::payments::Connector::Betterpayment => Ok(Self::Betterpayment),
+            grpc_api_types::payments::Connector::Ecommpay => Ok(Self::Ecommpay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -747,6 +755,14 @@ impl MandateIds {
     }
 }
 
+/// Integrity-check settings applied when comparing the connector response with the request.
+#[derive(Debug, Clone, Copy)]
+pub struct IntegritySpecifications {
+    /// When true, an amount mismatch between request and connector response is not treated
+    /// as an integrity failure, in either direction. A currency mismatch still is.
+    pub allow_amount_mismatch: Option<bool>,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct PaymentsSyncData {
     pub connector_transaction_id: ResponseId,
@@ -761,6 +777,15 @@ pub struct PaymentsSyncData {
     pub amount: Money,
     pub all_keys_required: Option<bool>,
     pub integrity_object: Option<PaymentSynIntegrityObject>,
+    /// When true, an amount mismatch between request and connector response is not an
+    /// integrity failure, in either direction.
+    pub integrity_specifications: Option<IntegritySpecifications>,
+    /// Whether overcapture is enabled. When true, a connector-reported amount higher than
+    /// the requested amount is not an integrity failure.
+    pub is_overcapture_enabled: Option<bool>,
+    /// Whether partial authorization is enabled. When true, a connector-reported amount lower
+    /// than the requested amount is not an integrity failure.
+    pub enable_partial_authorization: Option<bool>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub mandate_reference: Option<MandateReference>,
@@ -1730,10 +1755,14 @@ pub struct EligibilityErrorInfo {
 #[derive(Debug, Clone)]
 pub struct PaymentsCancelPostCaptureData {
     pub connector_transaction_id: String,
+    pub amount: Option<Money>,
     pub cancellation_reason: Option<String>,
     pub integrity_object: Option<PaymentVoidPostCaptureIntegrityObject>,
     pub raw_connector_response: Option<String>,
     pub browser_info: Option<BrowserInformation>,
+    pub payment_method_data: Option<PaymentMethodData<DefaultPCIHolder>>,
+    /// Capture method of the original payment being reversed.
+    pub capture_method: Option<common_enums::CaptureMethod>,
 }
 
 impl PaymentsCancelPostCaptureData {
@@ -1781,6 +1810,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub mandate_id: Option<MandateIds>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    /// Whether this payment uses a previously stored credential.
+    pub is_stored_credential: Option<bool>,
     pub browser_info: Option<BrowserInformation>,
     pub order_category: Option<String>,
     pub session_token: Option<String>,
@@ -1805,6 +1836,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub shipping_cost: Option<Money>,
     pub merchant_account_id: Option<String>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
+    /// When true, an amount mismatch between request and connector response is not an
+    /// integrity failure, in either direction.
+    pub integrity_specifications: Option<IntegritySpecifications>,
     pub merchant_config_currency: Option<Currency>,
     pub all_keys_required: Option<bool>,
     pub request_extended_authorization: Option<bool>,
@@ -2190,7 +2224,6 @@ pub enum PaymentsResponseData {
     PostCaptureVoidResponse {
         post_capture_void_status: common_enums::PostCaptureVoidStatus,
         connector_reference_id: Option<String>,
-        description: Option<String>,
         status_code: u16,
     },
 }
@@ -2281,6 +2314,9 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
     pub setup_mandate_details: Option<MandateData>,
     pub mandate_id: Option<MandateIds>,
     pub integrity_object: Option<PaymentMethodTokenIntegrityObject>,
+    /// When true, an amount mismatch between request and connector response is not an
+    /// integrity failure, in either direction.
+    pub integrity_specifications: Option<IntegritySpecifications>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
     pub metadata: Option<Secret<String>>,
@@ -3747,6 +3783,8 @@ pub struct RefundsData {
     pub connector_order_id: Option<String>,
     pub payment_method_data:
         Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
+    /// Merchant-supplied settlement quote for this operation.
+    pub currency_conversion_data: Option<CurrencyConversionData>,
 }
 
 impl RefundsData {
@@ -3810,6 +3848,12 @@ pub struct PaymentsCaptureData {
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub integrity_object: Option<CaptureIntegrityObject>,
+    /// When true, an amount mismatch between request and connector response is not an
+    /// integrity failure, in either direction.
+    pub integrity_specifications: Option<IntegritySpecifications>,
+    /// Whether overcapture is enabled. When true, a connector-reported amount higher than
+    /// the requested amount is not an integrity failure.
+    pub is_overcapture_enabled: Option<bool>,
     pub browser_info: Option<BrowserInformation>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<SecretSerdeValue>,
@@ -3819,6 +3863,8 @@ pub struct PaymentsCaptureData {
     /// Unified split settlement (supersedes split_payments). Boxed to keep the
     /// enclosing request (and its RouterDataV2 clones) small on the async stack.
     pub split_settlement: Option<Box<SplitSettlement>>,
+    /// Merchant-supplied settlement quote for this operation.
+    pub currency_conversion_data: Option<CurrencyConversionData>,
 }
 
 impl PaymentsCaptureData {
@@ -3866,6 +3912,8 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub mandate_id: Option<MandateIds>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    /// Whether this payment uses a previously stored credential.
+    pub is_stored_credential: Option<bool>,
     pub setup_mandate_details: Option<MandateData>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
@@ -3903,6 +3951,9 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
+    /// Category of the order/service (proto `order_category`), for connectors that
+    /// require it on the mandate-setup order.
+    pub order_category: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -3975,6 +4026,9 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub metadata: Option<SecretSerdeValue>,
     pub webhook_url: Option<String>,
     pub integrity_object: Option<RepeatPaymentIntegrityObject>,
+    /// When true, an amount mismatch between request and connector response is not an
+    /// integrity failure, in either direction.
+    pub integrity_specifications: Option<IntegritySpecifications>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
@@ -4013,6 +4067,8 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
+    /// Merchant-supplied settlement quote for this operation.
+    pub currency_conversion_data: Option<CurrencyConversionData>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
@@ -4458,6 +4514,8 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::RevolutPay(_) => Self::RevolutPay,
                 payment_method_data::WalletData::MbWay(_) => Self::MbWay,
                 payment_method_data::WalletData::Satispay(_) => Self::Satispay,
+                payment_method_data::WalletData::SatispayIntent(_) => Self::Satispay,
+                payment_method_data::WalletData::SatispayQr(_) => Self::Satispay,
                 payment_method_data::WalletData::Wero(_) => Self::Wero,
                 payment_method_data::WalletData::LazyPayRedirect(_) => Self::LazyPayRedirect,
                 payment_method_data::WalletData::PhonePeRedirect(_) => Self::PhonePeRedirect,
@@ -4490,6 +4548,10 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::BankRedirectData::BancontactCard { .. } => {
                     Self::BancontactCard
                 }
+                payment_method_data::BankRedirectData::BancontactIntent { .. } => {
+                    Self::BancontactCard
+                }
+                payment_method_data::BankRedirectData::BancontactQr { .. } => Self::BancontactCard,
                 payment_method_data::BankRedirectData::Bizum {} => Self::Bizum,
                 payment_method_data::BankRedirectData::Blik { .. } => Self::Blik,
                 payment_method_data::BankRedirectData::Eps { .. } => Self::Eps,
@@ -4950,6 +5012,8 @@ pub struct CurrencyConversionQuote {
     pub currency_conversion_type: Option<CurrencyConversionType>,
     pub quoted_at: Option<i64>,
     pub expires_at: Option<i64>,
+    pub conversion_reason_code: Option<String>,
+    pub user_id: Option<String>,
 }
 
 /// A validated currency conversion decision and the quote presented to the cardholder.
@@ -5164,6 +5228,12 @@ pub struct HotelSegment {
     pub host: Option<HostDetails>,
     /// Room rate per night, excluding tax.
     pub daily_rate: Option<common_utils::types::Money>,
+    /// State / province of the property (UF for BR).
+    pub hotel_state: Option<String>,
+    /// Reservation creation timestamp (RFC 3339).
+    pub reservation_date_time: Option<String>,
+    /// Reservation hold expiry timestamp (RFC 3339).
+    pub reservation_expires_date_time: Option<String>,
 }
 
 /// Host details for hosted accommodations (rental / homestay platforms).
@@ -5210,6 +5280,14 @@ pub struct TravelSegment {
     pub travel_class: Option<common_enums::TravelClass>,
     /// Passenger details for this leg.
     pub passengers: Vec<Traveller>,
+    /// Arrival timestamp (RFC 3339).
+    pub arrival_date_time: Option<String>,
+    /// Boarding gate opening timestamp (RFC 3339).
+    pub boarding_date_time: Option<String>,
+    /// Departure timestamp (RFC 3339).
+    pub departure_date_time: Option<String>,
+    /// Trip / service / coach / flight number.
+    pub identification_number: Option<String>,
 }
 
 /// A passenger on a ground / sea travel booking.
@@ -5223,6 +5301,15 @@ pub struct Traveller {
     pub phone_number: Option<Secret<String>>,
     /// Passenger's date of birth.
     pub date_of_birth: Option<Secret<String>>,
+    /// Passenger identity document, when collected per-traveller rather than
+    /// at order level.
+    pub document: Option<crate::payment_method_data::CustomerDocumentDetails>,
+    /// Passenger gender.
+    pub gender: Option<common_enums::Gender>,
+    /// Passenger loyalty / frequent-traveller card number.
+    pub loyalty_card: Option<Secret<String>>,
+    /// Issuer of the loyalty card.
+    pub loyalty_card_issuer: Option<String>,
 }
 
 /// Connector-agnostic vehicle sales data.
@@ -5385,6 +5472,7 @@ pub struct OrderInfo {
     pub discount_amount: Option<Money>,
     pub shipping_cost: Option<Money>,
     pub duty_amount: Option<Money>,
+    pub order_commodity_code: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -5392,11 +5480,16 @@ pub struct TaxInfo {
     pub tax_status: Option<common_enums::TaxStatus>,
     pub customer_tax_registration_id: Option<Secret<String>>,
     pub merchant_tax_registration_id: Option<Secret<String>>,
+    pub merchant_vat_registration_id: Option<Secret<String>>,
     pub shipping_amount_tax: Option<Money>,
     pub order_tax_amount: Option<Money>,
+    pub value_added_tax_amount: Option<Money>,
+    /// A percentage between 0 and 100 — 2.5 means 2.5%.
+    pub value_added_tax_percent: Option<f64>,
+    pub vat_invoice_reference_number: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CustomerInfo {
     pub customer_id: Option<CustomerId>,
     pub customer_email: Option<common_utils::pii::Email>,
@@ -5573,6 +5666,32 @@ impl L2L3Data {
             .and_then(|order| order.duty_amount.as_ref().map(|money| money.amount))
     }
 
+    pub fn get_order_commodity_code(&self) -> Option<String> {
+        self.order_info
+            .as_ref()
+            .and_then(|order| order.order_commodity_code.clone())
+    }
+
+    pub fn get_value_added_tax_amount(&self) -> Option<MinorUnit> {
+        self.tax_info.as_ref().and_then(|tax| {
+            tax.value_added_tax_amount
+                .as_ref()
+                .map(|money| money.amount)
+        })
+    }
+
+    pub fn get_value_added_tax_percent(&self) -> Option<f64> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.value_added_tax_percent)
+    }
+
+    pub fn get_vat_invoice_reference_number(&self) -> Option<String> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.vat_invoice_reference_number.clone())
+    }
+
     pub fn get_tax_status(&self) -> Option<common_enums::TaxStatus> {
         self.tax_info.as_ref().and_then(|tax| tax.tax_status)
     }
@@ -5587,6 +5706,12 @@ impl L2L3Data {
         self.tax_info
             .as_ref()
             .and_then(|tax| tax.merchant_tax_registration_id.clone())
+    }
+
+    pub fn get_merchant_vat_registration_id(&self) -> Option<Secret<String>> {
+        self.tax_info
+            .as_ref()
+            .and_then(|tax| tax.merchant_vat_registration_id.clone())
     }
 
     pub fn get_shipping_amount_tax(&self) -> Option<MinorUnit> {
@@ -6428,6 +6553,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
             AuthType::Grabpay(_) => Ok(Self::Payment(ConnectorEnum::Grabpay)),
             AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
+            AuthType::Reddot(_) => Ok(Self::Payment(ConnectorEnum::Reddot)),
             AuthType::Tesouro(_) => Ok(Self::Payment(ConnectorEnum::Tesouro)),
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
             AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
@@ -6444,6 +6570,8 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Paydotcom(_) => Ok(Self::Payment(ConnectorEnum::Paydotcom)),
             AuthType::ElavonPg(_) => Ok(Self::Payment(ConnectorEnum::ElavonPg)),
             AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
+            AuthType::Betterpayment(_) => Ok(Self::Payment(ConnectorEnum::Betterpayment)),
+            AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::GlobalpaymentsRealex(_) => {
@@ -6462,6 +6590,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
             AuthType::Plaid(_) => Ok(Self::Authenticator(AuthenticatorConnectorEnum::Plaid)),
             AuthType::Nsure(_) => Ok(Self::Frm(FrmConnectorEnum::Nsure)),
+            AuthType::ClearsaleBr(_) => Ok(Self::Frm(FrmConnectorEnum::ClearsaleBr)),
             AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
             AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
         }

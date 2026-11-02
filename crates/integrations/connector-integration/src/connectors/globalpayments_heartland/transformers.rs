@@ -608,10 +608,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let amt = GlobalpaymentsHeartlandAmountConvertor::convert(
-            request.amount.amount,
-            request.currency,
-        )?;
+        let amt = GlobalpaymentsHeartlandAmountConvertor::convert(&request.amount)?;
 
         let manual_entry = GlobalpaymentsHeartlandManualEntry {
             card_nbr: Secret::new(card.card_number.peek().to_string()),
@@ -932,8 +929,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = GlobalpaymentsHeartlandAuthType::try_from(&router_data.connector_config)?;
 
         let amt = GlobalpaymentsHeartlandAmountConvertor::convert(
-            router_data.request.amount_to_capture.amount,
-            router_data.request.currency,
+            &router_data.request.amount_to_capture,
         )?;
 
         Ok(Self {
@@ -1179,10 +1175,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let auth = GlobalpaymentsHeartlandAuthType::try_from(&router_data.connector_config)?;
 
-        let amt = GlobalpaymentsHeartlandAmountConvertor::convert(
-            router_data.request.refund_amount.amount,
-            router_data.request.currency,
-        )?;
+        let amt =
+            GlobalpaymentsHeartlandAmountConvertor::convert(&router_data.request.refund_amount)?;
 
         let gateway_txn_id = router_data.request.connector_transaction_id.clone();
         if gateway_txn_id.is_empty() {

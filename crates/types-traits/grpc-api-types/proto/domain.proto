@@ -258,6 +258,9 @@ message HotelSegment {
   optional AccommodationType accommodation_type = 12; // room / apartment / villa / suite
   optional HostDetails host = 13;           // Host of this property
   optional Money daily_rate = 14;           // Room rate per night, excluding tax
+  optional string hotel_state = 15;         // State / province of the property (UF for BR)
+  optional string reservation_date_time = 16;      // Reservation creation timestamp (RFC 3339)
+  optional string reservation_expires_date_time = 17; // Reservation hold expiry timestamp (RFC 3339)
 }
 
 // Room category booked.
@@ -313,6 +316,10 @@ message TravelSegment {
   optional string destination = 2;              // Destination station / port
   optional TravelClass travel_class = 3;        // Cabin / service class
   repeated Traveller passengers = 4;            // Passenger details for this leg
+  optional string arrival_date_time = 5;                  // Arrival timestamp (RFC 3339)
+  optional string boarding_date_time = 6;                 // Boarding gate opening timestamp (RFC 3339)
+  optional string departure_date_time = 7;                // Departure timestamp (RFC 3339)
+  optional string identification_number = 8;               // Trip / service / coach / flight number
 }
 
 // Mode of ground / sea transport.
@@ -332,12 +339,26 @@ enum TravelClass {
   TRAVEL_CLASS_FIRST = 4;
 }
 
+// Passenger / customer gender.
+// Proto3 enum values share the package scope, so every value is prefixed —
+// Callers send the prefixed names (GENDER_MALE / GENDER_FEMALE / GENDER_OTHER).
+enum Gender {
+  GENDER_UNSPECIFIED = 0;
+  GENDER_MALE = 1;
+  GENDER_FEMALE = 2;
+  GENDER_OTHER = 3;
+}
+
 // A passenger on a ground / sea travel booking.
 message Traveller {
   optional SecretString first_name = 1;    // Passenger's first name
   optional SecretString last_name = 2;     // Passenger's last name
   optional SecretString phone_number = 4;  // Passenger's phone number
   optional SecretString date_of_birth = 5; // Passenger's date of birth
+  optional CustomerDocumentDetails document = 6; // Passenger identity document
+  optional Gender gender = 7;              // GENDER_MALE / GENDER_FEMALE / GENDER_OTHER
+  optional SecretString loyalty_card = 8;  // Loyalty / frequent-traveller card number
+  optional string loyalty_card_issuer = 9; // Issuer of the loyalty card
 }
 
 // Connector-agnostic vehicle sales data.

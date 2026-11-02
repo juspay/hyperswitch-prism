@@ -178,6 +178,8 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
             BankRedirectData::Blik { .. } => Ok(Self::Blik),
             BankRedirectData::BancontactCard { .. }
+            | BankRedirectData::BancontactIntent { .. }
+            | BankRedirectData::BancontactQr { .. }
             | BankRedirectData::Bizum {}
             | BankRedirectData::Eft { .. }
             | BankRedirectData::Interac { .. }
@@ -1762,10 +1764,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1908,10 +1907,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.refund_amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.refund_amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2347,10 +2343,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2483,7 +2476,8 @@ pub(crate) fn get_apple_pay_session(
                     .change_context(IntegrationError::InvalidDataFormat {
                         field_name: "amount",
                         context: Default::default(),
-                    })?,
+                    })?
+                    .amount,
                     total_type: None,
                 },
                 merchant_identifier: None,
@@ -2586,6 +2580,7 @@ impl From<GooglePayTransactionInfo> for domain_types::connector_types::GpayTrans
     fn from(value: GooglePayTransactionInfo) -> Self {
         let total_price =
             TrustpayAmountConvertor::convert_back(value.total_price, value.currency_code)
+                .map(|money| money.amount)
                 .unwrap_or_else(|_| MinorUnit::new(0));
 
         Self {
@@ -2755,7 +2750,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(MinorUnit::new(0), router_data.request.currency)
+            .convert(&common_utils::types::Money {
+                amount: MinorUnit::new(0),
+                currency: router_data.request.currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2965,10 +2963,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

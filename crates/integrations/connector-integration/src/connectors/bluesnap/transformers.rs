@@ -292,10 +292,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                         });
 
-                let amount = super::BluesnapAmountConvertor::convert(
-                    router_data.request.amount.amount,
-                    router_data.request.currency,
-                )?;
+                let amount = super::BluesnapAmountConvertor::convert(&router_data.request.amount)?;
 
                 Ok(Self::Card(BluesnapPaymentsRequest {
                     amount,
@@ -387,10 +384,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                         });
 
-                let amount = super::BluesnapAmountConvertor::convert(
-                    router_data.request.amount.amount,
-                    router_data.request.currency,
-                )?;
+                let amount = super::BluesnapAmountConvertor::convert(&router_data.request.amount)?;
 
                 Ok(Self::Card(BluesnapPaymentsRequest {
                     amount,
@@ -436,10 +430,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     // Map to BlueSnap ECP account type format
                     let account_type = map_ecp_account_type(*bank_type, *bank_holder_type)?;
 
-                    let amount = super::BluesnapAmountConvertor::convert(
-                        router_data.request.amount.amount,
-                        router_data.request.currency,
-                    )?;
+                    let amount =
+                        super::BluesnapAmountConvertor::convert(&router_data.request.amount)?;
 
                     let transaction_fraud_info = Some(TransactionFraudInfo {
                         fraud_session_id: router_data
@@ -481,10 +473,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .map(|c| c.to_string())
                         .unwrap_or_else(|| "de".to_string()); // Default to DE for SEPA
 
-                    let amount = super::BluesnapAmountConvertor::convert(
-                        router_data.request.amount.amount,
-                        router_data.request.currency,
-                    )?;
+                    let amount =
+                        super::BluesnapAmountConvertor::convert(&router_data.request.amount)?;
 
                     let transaction_fraud_info = Some(TransactionFraudInfo {
                         fraud_session_id: router_data
@@ -546,10 +536,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                         });
 
-                let amount = super::BluesnapAmountConvertor::convert(
-                    router_data.request.amount.amount,
-                    router_data.request.currency,
-                )?;
+                let amount = super::BluesnapAmountConvertor::convert(&router_data.request.amount)?;
 
                 Ok(Self::CardToken(BluesnapCompletePaymentsRequest {
                     amount,
@@ -609,10 +596,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let amount = super::BluesnapAmountConvertor::convert(
-            router_data.request.amount_to_capture.amount,
-            router_data.request.currency,
-        )?;
+        let amount =
+            super::BluesnapAmountConvertor::convert(&router_data.request.amount_to_capture)?;
 
         Ok(Self {
             card_transaction_type: BluesnapTxnType::Capture,
@@ -675,10 +660,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
 
-        let amount = super::BluesnapAmountConvertor::convert(
-            router_data.request.refund_amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = super::BluesnapAmountConvertor::convert(&router_data.request.refund_amount)?;
 
         Ok(Self {
             amount: Some(amount),
