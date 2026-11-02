@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.02.3
+
+### Features
+
+- **connector:** [Stripe] send decrypted Apple Pay / Google Pay as network tokens in Authorize and SetupRecurring ([#2645](https://github.com/juspay/connector-service/pull/2645)) ([`688ed59`](https://github.com/juspay/connector-service/commit/688ed599272b034bfb7b880cd229deb21f059847))
+
+### Miscellaneous Tasks
+
+- **superposition:** Bump superposition_provider to 0.118.2 and use millisecond polling config ([#2567](https://github.com/juspay/connector-service/pull/2567)) ([`14dfe97`](https://github.com/juspay/connector-service/commit/14dfe97fbcde565b609ad14e2d7a167882a05cfb))
+
+**Full Changelog:** [`2026.11.02.2...2026.11.02.3`](https://github.com/juspay/connector-service/compare/2026.11.02.2...2026.11.02.3)
+
+- - -
+
 ## 2026.11.02.2
 
 ### Features

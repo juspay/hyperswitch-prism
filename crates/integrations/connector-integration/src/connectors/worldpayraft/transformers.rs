@@ -225,17 +225,218 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayraftAuthType {
 // ERROR RESPONSE
 // =============================================================================
 
+/// Field information returned when RAFT identifies an invalid request field.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayraftErrorInformation {
+    pub field_in_error: Option<String>,
+    pub error_text: Option<String>,
+}
+
 /// Worldpay RAFT error response body.
 ///
-/// The API always returns HTTP 200. To detect errors, check:
-/// - `ReturnCode` != "0000"  → operation-level failure
-/// - `ResponseCode` != "000" → soft decline / issuer decline
+/// A transaction error can be returned with HTTP 200. To detect errors, check:
+/// - `ReturnCode` != "0000" → operation-level failure
+/// - `ResponseCode` != "000" → decline or non-approved outcome
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftErrorResponse {
     pub return_code: Option<String>,
     pub reason_code: Option<String>,
+    pub return_text: Option<String>,
     pub response_code: Option<String>,
+    pub error_information: Option<WorldpayraftErrorInformation>,
+}
+
+impl WorldpayraftErrorResponse {
+    fn is_success(&self) -> bool {
+        self.return_code.as_deref() == Some(RETURN_CODE_SUCCESS)
+            && self.response_code.as_deref() == Some(RESPONSE_CODE_SUCCESS)
+    }
+
+    pub(super) fn error_response_if_failed(
+        &self,
+        status_code: u16,
+        attempt_status: Option<FlowStatus>,
+        connector_transaction_id: Option<String>,
+    ) -> Option<ErrorResponse> {
+        if self.is_success() {
+            return None;
+        }
+
+        let code = self
+            .return_code
+            .as_ref()
+            .filter(|code| code.as_str() != RETURN_CODE_SUCCESS)
+            .or_else(|| {
+                self.response_code
+                    .as_ref()
+                    .filter(|code| code.as_str() != RESPONSE_CODE_SUCCESS)
+            })
+            .cloned()
+            .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string());
+
+        let response_code_message = self
+            .response_code
+            .as_deref()
+            .filter(|code| *code != RESPONSE_CODE_SUCCESS)
+            .and_then(worldpayraft_response_code_message);
+        let message = self
+            .return_text
+            .as_deref()
+            .filter(|text| !text.trim().is_empty())
+            .map(str::to_owned)
+            .or_else(|| response_code_message.map(str::to_owned))
+            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
+        let message = self
+            .error_information
+            .as_ref()
+            .and_then(|information| information.field_in_error.as_ref())
+            .filter(|field| !field.trim().is_empty())
+            .map(|field| format!("{message} (field in error: {field})"))
+            .unwrap_or(message);
+
+        let network_decline_code = self
+            .response_code
+            .as_ref()
+            .filter(|code| code.as_str() != RESPONSE_CODE_SUCCESS)
+            .cloned();
+        let network_error_message = response_code_message.map(str::to_string);
+
+        Some(ErrorResponse {
+            status_code,
+            code,
+            message,
+            reason: self
+                .reason_code
+                .as_ref()
+                .filter(|reason| !reason.trim().is_empty())
+                .cloned(),
+            attempt_status,
+            connector_transaction_id,
+            network_decline_code,
+            network_error_message,
+            ..ErrorResponse::default()
+        })
+    }
+}
+
+/// Descriptions for the response codes documented by Worldpay RAFT.
+/// Unknown codes remain declines, as required by the RAFT specification.
+fn worldpayraft_response_code_message(code: &str) -> Option<&'static str> {
+    const RESPONSE_CODES: &[(&str, &str)] = &[
+        ("000", "APPROVE"),
+        ("001", "REFER TO ISSUER"),
+        ("002", "VOID UNSUCCESSFUL"),
+        ("003", "HONOR WITH ID"),
+        ("004", "CARD EXPIRED"),
+        ("005", "DO NOT HONOR"),
+        ("006", "PIN TRY LIMIT EXCEEDED"),
+        ("007", "INVALID MERCHANT ID"),
+        ("008", "INVALID AMOUNT"),
+        ("009", "INVALID ACCOUNT"),
+        ("010", "PARTIAL APPROVAL"),
+        ("011", "INVALID TRANSACTION"),
+        ("012", "INVALID PIN"),
+        ("013", "INVALID CARD SECURITY CODE"),
+        ("014", "NETWORK UNAVAILABLE"),
+        ("015", "INVALID CURRENCY CODE"),
+        ("016", "DECLINE - PICK UP CARD"),
+        ("017", "DECLINE - PICK UP CARD - FRAUD"),
+        ("018", "INVALID CARD NUMBER"),
+        ("019", "SUSPECTED FRAUD - CALL CENTER"),
+        ("020", "RESTRICTED CARD"),
+        ("021", "DECLINE - PICK UP LOST CARD"),
+        ("022", "DECLINE - PICK UP STOLEN CARD"),
+        ("023", "DECLINED - OVER LIMIT - ACCOUNT"),
+        ("024", "INVALID TERMINAL ID"),
+        ("025", "DO NOT HONOR - SUSPECTED FRAUD"),
+        ("026", "EXCEEDS WITHDRAWAL LIMIT"),
+        ("027", "NO DATA AVAILABLE"),
+        ("028", "SECURITY VIOLATION"),
+        ("029", "ORIGINAL AMOUNT INCORRECT"),
+        ("030", "FORMAT ERROR"),
+        ("031", "EXCEEDS WITHDRAWAL COUNT LIMIT"),
+        ("032", "HARD CAPTURE"),
+        ("033", "RESPONSE RECEIVED TOO LATE"),
+        ("034", "UNABLE TO ROUTE TRANSACTION"),
+        ("035", "DECLINED - TRANSACTION IN VIOLATION OF LAW"),
+        ("036", "DUPLICATE REQUEST"),
+        ("037", "DUPLICATE REVERSAL"),
+        ("038", "NO SUCH ISSUER"),
+        ("039", "INSUFFICIENT FUNDS"),
+        ("040", "EXCEEDS PURCHASE LIMITS"),
+        ("041", "RE-ENTER"),
+        ("042", "CALL CENTER"),
+        ("043", "ENTER DOB AND RE-SEND"),
+        ("044", "CAN'T CONVERT CHECK"),
+        ("045", "INVALID DATE"),
+        ("046", "CRYPTOGRAPHIC ERROR FOUND IN PIN OR CVV"),
+        ("047", "TIME LIMIT FOR A PRE-AUTH IS TOO LONG"),
+        ("048", "SYSTEM MALFUNCTION"),
+        ("049", "PIN MISSING"),
+        ("050", "SWITCH COMMUNICATION ERROR"),
+        ("051", "UNABLE TO LOCATE A MATCHING ORIGINAL TRANSACTION"),
+        ("052", "CARD NOT ACTIVATED YET"),
+        ("053", "CARD ALREADY ACTIVATED"),
+        ("054", "VELOCITY: EXCEEDS COUNT"),
+        ("055", "VELOCITY: EXCEEDS AMOUNT"),
+        ("056", "VELOCITY: EXCEEDS COUNT AND AMOUNT"),
+        ("057", "VELOCITY: VELOCITY NEGATIVE"),
+        ("058", "VELOCITY: VELOCITY FRAUD RECORD"),
+        ("059", "VELOCITY: NO ZIP CODE MATCH"),
+        ("060", "CARD ESCHEATED"),
+        ("061", "MERCHANT DEPLETED"),
+        ("062", "FRAUD SYSTEM DETECTED UNUSUAL ACTIVITY"),
+        ("063", "EMV MISSING OR INVALID TAG DATA"),
+        ("064", "LINE TYPE NOT VALID FOR THIS TERMINAL"),
+        ("065", "DECRYPTION/TOKENIZATION ERROR"),
+        ("066", "REGISTRATION EVENT"),
+        ("067", "APPLICATION TRANSACTION COUNTER ERROR"),
+        ("068", "CARDHOLDER VERIFICATION FAILURE - TVR"),
+        ("069", "ERROR IDENTIFYING CHIP APPLICATION"),
+        ("070", "MAC NOT DETECTED"),
+        ("071", "INTERNAL MAC PROCESSING ERROR"),
+        ("072", "INVALID MAC DETECTED"),
+        ("073", "DECRYPTION NOT POSSIBLE - MERCHANT"),
+        ("074", "DECRYPTION NOT POSSIBLE - WORLDPAY"),
+        ("075", "PROBLEM CALLING ENCRYPTION"),
+        ("076", "MALFORMED MESSAGE RECEIVED"),
+        ("077", "POSSIBLE DECRYPTION FAILURE"),
+        ("078", "DETOKENIZATION FAILED"),
+        ("079", "LOW TOKEN CONVERSION ERROR"),
+        ("080", "RESERVED"),
+        (
+            "100",
+            "IDEMPOTENCY DETECTED A DUPLICATE REQUEST BUT THERE WAS A MESSAGE TYPE MISMATCH BETWEEN WHAT IT LOCATED AND WHAT WAS SENT IN.",
+        ),
+        (
+            "101",
+            "A REQUEST FOR PINLESS CONVERSION FAILED TO FIND A VALID ROUTING OPTION.",
+        ),
+        ("102", "ACCOUNT CLOSED"),
+        ("103", "TRANSACTION FEE NOT PERMITTED OR INVALID"),
+        ("104", "CASH BACK REQUEST EXCEEDS ISSUER LIMIT"),
+        ("105", "UNABLE TO LOCATE PREVIOUS TRANSACTION"),
+        ("106", "PREVIOUS TRANSACTION LOCATED, BUT DATA INCONSISTENT"),
+        ("107", "DECLINED FIRST USE OF CARD"),
+        ("108", "TRANSACTION AMOUNT EXCEEDS PREAUTHORIZED AMOUNT"),
+        ("109", "STOP PAYMENT ORDER"),
+        ("110", "EXPIRATION DATE MISMATCH"),
+        ("111", "STALE DATED TRANSACTION"),
+        ("112", "INVALID ADDRESS VERIFICATION INFORMATION"),
+        ("113", "CUTOFF IS IN PROGRESS"),
+        ("114", "REQUEST IN PROGRESS"),
+        ("115", "INFORMATION NOT ON FILE"),
+        ("116", "TOKEN LOOKUP FAILURE"),
+        ("117", "CARDHOLDER DOES NOT PARTICIPATE IN ATTEMPTED PRODUCT"),
+        ("118", "SPECIAL CONDITIONS"),
+        ("550", "TRANSACTION DECLINED BY FRAUDSIGHT"),
+    ];
+
+    RESPONSE_CODES
+        .iter()
+        .find_map(|(response_code, message)| (*response_code == code).then_some(*message))
 }
 
 // =============================================================================
@@ -1153,12 +1354,26 @@ pub struct WorldpayraftResponseTraceNumbers {
 pub struct WorldpayraftCardAuthResponseInner {
     pub return_code: String,
     pub reason_code: Option<String>,
+    pub return_text: Option<String>,
     pub response_code: String,
+    pub error_information: Option<WorldpayraftErrorInformation>,
     pub reference_trace_numbers: Option<WorldpayraftResponseTraceNumbers>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: Option<String>,
     #[serde(flatten)]
     pub brand_specific_data: WorldpayraftBrandSpecificData,
+}
+
+impl From<&WorldpayraftCardAuthResponseInner> for WorldpayraftErrorResponse {
+    fn from(response: &WorldpayraftCardAuthResponseInner) -> Self {
+        Self {
+            return_code: Some(response.return_code.clone()),
+            reason_code: response.reason_code.clone(),
+            return_text: response.return_text.clone(),
+            response_code: Some(response.response_code.clone()),
+            error_information: response.error_information.clone(),
+        }
+    }
 }
 
 /// Outer wrapper for authorize responses.
@@ -1886,8 +2101,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_metadata = serde_json::to_value(&metadata).change_context(
             errors::ConnectorError::response_handling_failed(item.http_code),
         )?;
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response = match WorldpayraftErrorResponse::from(inner).error_response_if_failed(
+            item.http_code,
+            Some(FlowStatus::Payment(status)),
+            Some(connector_transaction_id.clone()),
+        ) {
+            Some(error) => Err(error),
+            None => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
                 mandate_reference: None,
@@ -1908,6 +2128,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 status_code: item.http_code,
                 payment_account_reference: None,
             }),
+        };
+
+        Ok(Self {
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -1986,10 +2210,24 @@ pub enum WorldpayraftCaptureRequest {
 pub struct WorldpayraftCompletionResponseInner {
     pub return_code: String,
     pub reason_code: Option<String>,
+    pub return_text: Option<String>,
     pub response_code: String,
+    pub error_information: Option<WorldpayraftErrorInformation>,
     pub reference_trace_numbers: Option<WorldpayraftCaptureTraceNumbers>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: Option<String>,
+}
+
+impl From<&WorldpayraftCompletionResponseInner> for WorldpayraftErrorResponse {
+    fn from(response: &WorldpayraftCompletionResponseInner) -> Self {
+        Self {
+            return_code: Some(response.return_code.clone()),
+            reason_code: response.reason_code.clone(),
+            return_text: response.return_text.clone(),
+            response_code: Some(response.response_code.clone()),
+            error_information: response.error_information.clone(),
+        }
+    }
 }
 
 /// Outer wrapper for capture responses.
@@ -2248,8 +2486,13 @@ impl TryFrom<ResponseRouterData<WorldpayraftCaptureResponse, Self>>
                 item.http_code,
             ))?;
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response = match WorldpayraftErrorResponse::from(inner).error_response_if_failed(
+            item.http_code,
+            Some(FlowStatus::Payment(status)),
+            Some(connector_transaction_id.clone()),
+        ) {
+            Some(error) => Err(error),
+            None => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
                 mandate_reference: None,
@@ -2265,6 +2508,10 @@ impl TryFrom<ResponseRouterData<WorldpayraftCaptureResponse, Self>>
                 status_code: item.http_code,
                 payment_account_reference: None,
             }),
+        };
+
+        Ok(Self {
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -2346,10 +2593,24 @@ pub struct WorldpayraftRefundResponseTraceNumbers {
 pub struct WorldpayraftRefundResponseInner {
     pub return_code: String,
     pub reason_code: Option<String>,
+    pub return_text: Option<String>,
     pub response_code: String,
+    pub error_information: Option<WorldpayraftErrorInformation>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: Option<String>,
     pub reference_trace_numbers: Option<WorldpayraftRefundResponseTraceNumbers>,
+}
+
+impl From<&WorldpayraftRefundResponseInner> for WorldpayraftErrorResponse {
+    fn from(response: &WorldpayraftRefundResponseInner) -> Self {
+        Self {
+            return_code: Some(response.return_code.clone()),
+            reason_code: response.reason_code.clone(),
+            return_text: response.return_text.clone(),
+            response_code: Some(response.response_code.clone()),
+            error_information: response.error_information.clone(),
+        }
+    }
 }
 
 /// Outer wrapper for refund responses.
@@ -2549,13 +2810,22 @@ impl TryFrom<ResponseRouterData<WorldpayraftRefundResponse, Self>>
             .or_else(|| inner.api_transaction_id.clone())
             .unwrap_or_default();
 
-        Ok(Self {
-            response: Ok(RefundsResponseData {
+        let response = match WorldpayraftErrorResponse::from(inner).error_response_if_failed(
+            item.http_code,
+            Some(FlowStatus::Refund(refund_status)),
+            Some(item.router_data.request.connector_transaction_id.clone()),
+        ) {
+            Some(error) => Err(error),
+            None => Ok(RefundsResponseData {
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
                 acquirer_reference_number: None,
             }),
+        };
+
+        Ok(Self {
+            response,
             resource_common_data: RefundFlowData {
                 status: refund_status,
                 ..item.router_data.resource_common_data
@@ -2986,8 +3256,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_metadata = metadata.encode_to_value().change_context(
             errors::ConnectorError::response_handling_failed(item.http_code),
         )?;
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response = match WorldpayraftErrorResponse::from(response).error_response_if_failed(
+            item.http_code,
+            Some(FlowStatus::Payment(status)),
+            Some(connector_transaction_id.clone()),
+        ) {
+            Some(error) => Err(error),
+            None => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
                 mandate_reference: None,
@@ -3003,6 +3278,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 status_code: item.http_code,
                 payment_account_reference: None,
             }),
+        };
+        Ok(Self {
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -3215,11 +3493,15 @@ impl TryFrom<ResponseRouterData<WorldpayraftVoidResponse, Self>>
             AttemptStatus::VoidFailed
         };
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.router_data.request.connector_transaction_id.clone(),
-                ),
+        let connector_transaction_id = item.router_data.request.connector_transaction_id.clone();
+        let response = match WorldpayraftErrorResponse::from(inner).error_response_if_failed(
+            item.http_code,
+            Some(FlowStatus::Payment(status)),
+            Some(connector_transaction_id.clone()),
+        ) {
+            Some(error) => Err(error),
+            None => Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -3231,6 +3513,10 @@ impl TryFrom<ResponseRouterData<WorldpayraftVoidResponse, Self>>
                 status_code: item.http_code,
                 payment_account_reference: None,
             }),
+        };
+
+        Ok(Self {
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -3485,8 +3771,21 @@ pub struct WorldpayraftVoidPCResponseInner {
     reason_code: Option<String>,
     return_text: Option<String>,
     response_code: Option<String>,
+    error_information: Option<WorldpayraftErrorInformation>,
     #[serde(rename = "APITransactionID")]
     api_transaction_id: Option<String>,
+}
+
+impl From<&WorldpayraftVoidPCResponseInner> for WorldpayraftErrorResponse {
+    fn from(response: &WorldpayraftVoidPCResponseInner) -> Self {
+        Self {
+            return_code: Some(response.return_code.clone()),
+            reason_code: response.reason_code.clone(),
+            return_text: response.return_text.clone(),
+            response_code: response.response_code.clone(),
+            error_information: response.error_information.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -3532,25 +3831,13 @@ impl TryFrom<ResponseRouterData<WorldpayraftVoidPCResponse, Self>>
                 status_code: item.http_code,
             })
         } else {
-            Err(ErrorResponse {
-                status_code: item.http_code,
-                code: if inner.return_code == RETURN_CODE_SUCCESS {
-                    inner
-                        .response_code
-                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string())
-                } else {
-                    inner.return_code
-                },
-                message: inner
-                    .return_text
-                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                reason: inner.reason_code,
-                attempt_status: Some(FlowStatus::Payment(status)),
-                connector_transaction_id: Some(
-                    item.router_data.request.connector_transaction_id.clone(),
-                ),
-                ..ErrorResponse::default()
-            })
+            Err(WorldpayraftErrorResponse::from(&inner)
+                .error_response_if_failed(
+                    item.http_code,
+                    Some(FlowStatus::Payment(status)),
+                    Some(item.router_data.request.connector_transaction_id.clone()),
+                )
+                .unwrap_or_default())
         };
         Ok(Self {
             response,
@@ -3839,7 +4126,8 @@ impl TryFrom<ResponseRouterData<WorldpayraftIncrementalAuthorizationResponse, Se
         item: ResponseRouterData<WorldpayraftIncrementalAuthorizationResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = item.response.creditauthresponse;
-        let result = if map_payment_status(&response.return_code, &response.response_code) {
+        let is_success = map_payment_status(&response.return_code, &response.response_code);
+        let result = if is_success {
             Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
                 status: AuthorizationStatus::Success,
                 connector_authorization_id: response
@@ -3848,23 +4136,19 @@ impl TryFrom<ResponseRouterData<WorldpayraftIncrementalAuthorizationResponse, Se
                 status_code: item.http_code,
             })
         } else {
-            Err(ErrorResponse {
-                status_code: item.http_code,
-                code: if response.return_code == RETURN_CODE_SUCCESS {
-                    response.response_code
-                } else {
-                    response.return_code
-                },
-                message: NO_ERROR_MESSAGE.to_string(),
-                reason: response.reason_code,
-                connector_transaction_id: item
-                    .router_data
-                    .request
-                    .connector_transaction_id
-                    .get_connector_transaction_id()
-                    .ok(),
-                ..ErrorResponse::default()
-            })
+            Err(WorldpayraftErrorResponse::from(&response)
+                .error_response_if_failed(
+                    item.http_code,
+                    Some(FlowStatus::Payment(
+                        item.router_data.resource_common_data.status,
+                    )),
+                    item.router_data
+                        .request
+                        .connector_transaction_id
+                        .get_connector_transaction_id()
+                        .ok(),
+                )
+                .unwrap_or_default())
         };
         // A failed increase leaves the original authorization in place.
         Ok(Self {
