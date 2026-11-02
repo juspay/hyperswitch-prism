@@ -5,13 +5,16 @@
 
 use std::{fmt, path::PathBuf};
 
+use chrono::{DateTime, Utc};
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde_json::{Map, Value};
+use superposition_core::experiment::ExperimentConfig;
 use superposition_provider::{
-    data_source::{file::FileDataSource, http::HttpDataSource},
+    data_source::{file::FileDataSource, http::HttpDataSource, FetchResponse},
     traits::AllFeatureProvider,
-    AuthMethod, EvaluationContext, LocalResolutionProvider, PollingStrategy, RefreshStrategy,
-    SuperpositionDataSource, SuperpositionOptions, WatchStrategy,
+    AuthMethod, ConfigData, EvaluationContext, ExperimentData, LocalResolutionProvider,
+    PollingStrategy, RefreshStrategy, Result as ProviderResult, SuperpositionDataSource,
+    SuperpositionOptions, WatchStrategy, WatchStream,
 };
 
 use crate::consts::{
@@ -166,6 +169,98 @@ impl fmt::Debug for SuperpositionConfig {
     }
 }
 
+/// The remote source's init-time fallback: a file's config, with no experiments.
+///
+/// Since provider 0.118, `LocalResolutionProvider::init` fails when the primary's
+/// experiment fetch fails and the fallback cannot serve experiments, which a bare
+/// [`FileDataSource`] never can. A workspace that is down at boot would then leave prism
+/// on the baked file until restart. Answering with an empty experiment set lets init
+/// succeed on the file's config, so the provider stays remote and keeps polling.
+///
+/// Both are dated at the Unix epoch. The poller sends the cached `fetched_at` to the
+/// workspace as `If-Modified-Since`, so a boot-time stamp would let it answer 304 and
+/// the file's policy would outlive the outage. The provider reads the fallback at init only.
+struct FileFallback(FileDataSource);
+
+impl FileFallback {
+    fn no_experiments() -> ExperimentData {
+        ExperimentData {
+            data: ExperimentConfig {
+                experiments: Vec::new(),
+                experiment_groups: Vec::new(),
+            },
+            fetched_at: DateTime::<Utc>::UNIX_EPOCH,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl SuperpositionDataSource for FileFallback {
+    async fn fetch_filtered_config(
+        &self,
+        context: Option<Map<String, Value>>,
+        prefix_filter: Option<Vec<String>>,
+        exclude_prefix_filter: Option<Vec<String>>,
+        if_modified_since: Option<DateTime<Utc>>,
+    ) -> ProviderResult<FetchResponse<ConfigData>> {
+        let response = self
+            .0
+            .fetch_filtered_config(
+                context,
+                prefix_filter,
+                exclude_prefix_filter,
+                if_modified_since,
+            )
+            .await?;
+        Ok(match response {
+            FetchResponse::Data(mut config) => {
+                config.fetched_at = DateTime::<Utc>::UNIX_EPOCH;
+                FetchResponse::Data(config)
+            }
+            FetchResponse::NotModified => FetchResponse::NotModified,
+        })
+    }
+
+    async fn fetch_active_experiments(
+        &self,
+        _if_modified_since: Option<DateTime<Utc>>,
+    ) -> ProviderResult<FetchResponse<ExperimentData>> {
+        Ok(FetchResponse::Data(Self::no_experiments()))
+    }
+
+    async fn fetch_candidate_active_experiments(
+        &self,
+        _context: Option<Map<String, Value>>,
+        _prefix_filter: Option<Vec<String>>,
+        _exclude_prefix_filter: Option<Vec<String>>,
+        _if_modified_since: Option<DateTime<Utc>>,
+    ) -> ProviderResult<FetchResponse<ExperimentData>> {
+        Ok(FetchResponse::Data(Self::no_experiments()))
+    }
+
+    async fn fetch_matching_active_experiments(
+        &self,
+        _context: Option<Map<String, Value>>,
+        _prefix_filter: Option<Vec<String>>,
+        _exclude_prefix_filter: Option<Vec<String>>,
+        _if_modified_since: Option<DateTime<Utc>>,
+    ) -> ProviderResult<FetchResponse<ExperimentData>> {
+        Ok(FetchResponse::Data(Self::no_experiments()))
+    }
+
+    fn supports_experiments(&self) -> bool {
+        true
+    }
+
+    fn watch(&self) -> ProviderResult<Option<WatchStream>> {
+        self.0.watch()
+    }
+
+    async fn close(&self) -> ProviderResult<()> {
+        self.0.close().await
+    }
+}
+
 impl SuperpositionConfig {
     /// Build the provider the settings ask for.
     ///
@@ -195,11 +290,12 @@ impl SuperpositionConfig {
                 settings.workspace_id.clone(),
             ));
             // A missing fallback file only warns: the remote source may still
-            // initialise on its own, exactly as hyperswitch treats it.
+            // initialise on its own, exactly as hyperswitch treats it. A present one is
+            // wrapped so an unreachable workspace still initialises (see `FileFallback`).
             let fallback: Option<Box<dyn SuperpositionDataSource>> = match FileDataSource::new(
                 fallback_path.clone(),
             ) {
-                Ok(source) => Some(Box::new(source)),
+                Ok(source) => Some(Box::new(FileFallback(source))),
                 Err(error) => {
                     tracing::warn!(
                         path = %fallback_path.display(),
