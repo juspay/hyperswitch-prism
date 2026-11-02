@@ -2577,6 +2577,9 @@ message PaymentServiceAuthorizeRequest {
 
  // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 59;
+
+  // Whether the payment uses a previously stored credential.
+  optional bool is_stored_credential = 60;
 }
 
 // Customer risk-assessment signals supplied by the merchant, used by
@@ -3711,6 +3714,9 @@ message PaymentServiceSetupRecurringRequest {
   // for on_behalf_of on a destination charge, and to echo the charge details back
   // as mandate_reference.mandate_metadata.
   optional SplitPaymentsDetails split_payments = 43;
+
+  // Whether the payment uses a previously stored credential.
+  optional bool is_stored_credential = 44;
 }
 
 // Response message for a mandate setup operation
