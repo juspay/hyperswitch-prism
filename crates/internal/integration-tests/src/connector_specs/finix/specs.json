@@ -17,10 +17,10 @@
   ],
   "unsupported_scenarios": {
     "PaymentMethodAuthenticationService/Authenticate": {
-      "threeds_card_authenticate": "CONNECTOR_API_LACKS: Finix docs, 3D Secure Sessions (POST /3d_secure_sessions needs payment_instrument_id) — the scenario sends a raw card and its suite depends on PreAuthenticate, a leg Finix has no call for; the leg is graded on the gRPC matrix with a tokenized card instead"
+      "threeds_card_authenticate": "SANDBOX_NOT_PROVISIONED: Finix docs, 3D Secure Sessions (POST /3d_secure_sessions needs payment_instrument_id) — the scenario sends a raw card and depends on PreAuthenticate, a leg Finix has no call for, and no tokenized global scenario exists; the sandbox answered 500 on every session create, so the tokenized gRPC rows authenticate_frictionless_card, authenticate_not_enrolled and post_authenticate_pending FAIL and this leg has no pass"
     },
     "PaymentMethodAuthenticationService/PostAuthenticate": {
-      "threeds_card_post_authenticate": "CONNECTOR_API_LACKS: Finix docs, Retrieve a 3D Secure Session — a session result exists only after the buyer completes the Finix-hosted page in a browser, and the suite chains the raw-card Authenticate scenario above"
+      "threeds_card_post_authenticate": "SANDBOX_NOT_PROVISIONED: Finix docs, Retrieve a 3D Secure Session — a session result exists only after the buyer completes the Finix-hosted page in a browser, and the suite chains the raw-card Authenticate scenario above; the sandbox answered 500 on session create, so post_authenticate_succeeded and authorize_with_session have not run"
     },
     "PaymentService/Authorize": {
       "threeds_manual_capture_credit_card": "CONNECTOR_API_LACKS: Finix docs, Charge with the session — Finix has no in-Authorize 3DS; a 3DS charge needs a SUCCEEDED 3d_secure_session from the Authenticate/PostAuthenticate legs and a tokenized source, so this raw-card scenario is refused before any call",

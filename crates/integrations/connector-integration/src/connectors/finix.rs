@@ -399,6 +399,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         data: &PaymentsSyncData,
         _payment_flow_data: &PaymentFlowData,
     ) -> CustomResult<(), IntegrationError> {
+        transformers::ensure_not_three_d_secure_session(&data.get_connector_transaction_id()?)?;
         connector_types::validate_psync_connector_transaction_id(data)
     }
 }
@@ -728,12 +729,14 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Route based on capture_method: AUTOMATIC -> /transfers, MANUAL -> /authorizations
+            // Route based on capture_method: MANUAL -> /authorizations, else /transfers,
+            // the same default as RepeatPayment below and HS (unwrap_or_default -> Automatic).
             let endpoint = match req.request.capture_method {
-                Some(common_enums::CaptureMethod::Automatic) |
-                Some(common_enums::CaptureMethod::SequentialAutomatic) => "transfers",
-                _ => "authorizations"
-};
+                Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled) => "authorizations",
+                _ => "transfers",
+            };
             Ok(format!("{}/{}", self.connector_base_url_payments(req), endpoint))
         }
     }
@@ -763,6 +766,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let connector_transaction_id = req.request.get_connector_transaction_id()?;
+            transformers::ensure_not_three_d_secure_session(&connector_transaction_id)?;
             // Route based on ID type using FinixId enum
             let finix_id = transformers::FinixId::from(connector_transaction_id);
             let endpoint = match finix_id {

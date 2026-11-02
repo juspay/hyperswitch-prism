@@ -12936,6 +12936,41 @@ impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceSubmitEvidenceReques
                 .into());
             }
 
+            // An unknown enum value also lands on Unspecified; never drop a document silently.
+            if evidence_type == grpc_api_types::payments::EvidenceType::Unspecified
+                && (document.file_content.is_some()
+                    || document.provider_file_id.is_some()
+                    || document.text_content.is_some())
+            {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "evidence_documents.evidence_type",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Set evidence_type on every evidence document that carries content."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into());
+            }
+
+            // Only UncategorizedFile has a text slot below; never drop text silently.
+            if document.text_content.is_some()
+                && evidence_type != grpc_api_types::payments::EvidenceType::UncategorizedFile
+            {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "evidence_documents.text_content",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Send text_content only on UNCATEGORIZED_FILE.".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into());
+            }
+
             match evidence_type {
                 grpc_api_types::payments::EvidenceType::CancellationPolicy => {
                     result.cancellation_policy = document.file_content;

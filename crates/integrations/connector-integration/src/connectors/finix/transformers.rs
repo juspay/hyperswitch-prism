@@ -601,7 +601,7 @@ pub enum FinixPaymentStatus {
 }
 
 /// Authorization with `is_void: true`. Finix: a voided Authorization "can no longer be
-/// captured", and void_state stays PENDING while state is SUCCEEDED, so PENDING is voided too.
+/// captured". `state` PENDING reads as voided too, per spec:891 and HS (transformers.rs:847-853).
 fn get_finix_void_attempt_status(state: &FinixPaymentStatus) -> AttemptStatus {
     match state {
         FinixPaymentStatus::Succeeded | FinixPaymentStatus::Pending => AttemptStatus::Voided,
@@ -707,6 +707,19 @@ fn get_finix_fraud_session_id(connector_feature_data: Option<&SecretSerdeValue>)
     })
 }
 
+/// The Payment Instrument a 3D Secure Session was created for, written by PostAuthenticate.
+fn get_finix_session_instrument(
+    connector_feature_data: Option<&SecretSerdeValue>,
+) -> Option<String> {
+    connector_feature_data.and_then(|feature_data| {
+        feature_data
+            .peek()
+            .get("payment_method_token")
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned)
+    })
+}
+
 // TRYFROM IMPLEMENTATIONS - AUTHORIZE REQUEST
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -741,11 +754,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = FinixAuthType::try_from(&router_data.connector_config)?;
         let merchant_id = auth.merchant_id.clone();
 
+        // A Finix 3D Secure Session id goes in `3d_secure_session` alone; any other
+        // authentication_data is an external 3DS result passed through as-is.
+        let authentication_data = router_data.request.authentication_data.as_ref();
+        let three_d_secure_session = get_finix_three_d_secure_session(authentication_data);
+
         // For Finix, we need a payment instrument ID (source)
         // First try to get token from payment_method_token, otherwise create instrument inline
         let source = match &router_data.request.payment_method_data {
             PaymentMethodData::PaymentMethodToken(t) => t.token.peek().to_string(),
-            _ => return Err(IntegrationError::NotSupported {
+            // G-ThreeDS-08: the 3DS return leg of a saved card. HS resends the card it recovered,
+            // with or without a CVC; the charge uses the instrument the session authenticated.
+            _ => match three_d_secure_session.as_ref().and_then(|_| {
+                get_finix_session_instrument(router_data.request.connector_feature_data.as_ref())
+            }) {
+                Some(instrument) => instrument,
+                None => return Err(IntegrationError::NotSupported {
                 message: "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly.".to_string(),
                 connector: "finix",
                 context: IntegrationErrorContext {
@@ -754,6 +778,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some("The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first.".to_string()),
                 },
             }.into()),
+            },
         };
 
         let statement_descriptor = item
@@ -762,10 +787,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .billing_descriptor
             .clone()
             .and_then(|billing_descriptor| billing_descriptor.statement_descriptor);
-        // A Finix 3D Secure Session id goes in `3d_secure_session` alone; any other
-        // authentication_data is an external 3DS result passed through as-is.
-        let authentication_data = router_data.request.authentication_data.as_ref();
-        let three_d_secure_session = get_finix_three_d_secure_session(authentication_data);
         // G-ThreeDS-07: a session id says the process ran, not that the buyer authenticated.
         // Finix: NON_AUTHENTICATED "Liability stays with the seller"; PENDING has no outcome yet.
         if three_d_secure_session.is_some()
@@ -942,6 +963,25 @@ pub struct FinixThreeDSecureSessionRequest {
     pub merchant_id: Secret<String>,
     pub payment_instrument_id: Secret<String>,
     pub redirect_url: String,
+}
+
+/// G-ThreeDS-09: while a 3DS attempt is in flight its id is the session id, and PSync reads
+/// authorizations and transfers only. PostAuthenticate is what reads a session.
+pub fn ensure_not_three_d_secure_session(
+    connector_transaction_id: &str,
+) -> Result<(), error_stack::Report<IntegrationError>> {
+    if connector_transaction_id.starts_with(FINIX_3DS_SESSION_ID_PREFIX) {
+        return Err(IntegrationError::NotSupported {
+            message: "PSync of a 3D Secure Session".to_string(),
+            connector: "finix",
+            context: three_ds_context(
+                "Call PostAuthenticate for this session; PSync applies once a transfer or authorization exists.",
+                "The connector_transaction_id is a 3d_secure_session id, not AU... or TR...",
+            ),
+        }
+        .into());
+    }
+    Ok(())
 }
 
 fn three_ds_context(suggested_action: &str, additional_context: &str) -> IntegrationErrorContext {
@@ -1417,6 +1457,39 @@ fn build_finix_connector_response(
 // Aliases for backward compatibility during migration
 pub type FinixPSyncResponse = FinixPaymentsResponse;
 
+impl FinixPaymentsResponse {
+    /// A failed resource is an error carrying Finix's reason (HS finix/transformers.rs:927-949).
+    fn failure_error_response(&self, status: AttemptStatus, http_code: u16) -> ErrorResponse {
+        ErrorResponse {
+            code: self
+                .failure_code
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: self
+                .failure_message
+                .clone()
+                .or_else(|| {
+                    self.messages
+                        .as_deref()
+                        .filter(|msg| !msg.is_empty())
+                        .map(|msg| msg.join(","))
+                })
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+            status_code: http_code,
+            attempt_status: Some(FlowStatus::Payment(status)),
+            connector_transaction_id: Some(self.id.clone()),
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+        }
+    }
+}
+
 impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
@@ -1458,8 +1531,10 @@ impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
         }));
         let connector_response = build_finix_connector_response(response);
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let flow_response = if domain_types::utils::is_payment_failure(status) {
+            Err(response.failure_error_response(status, item.http_code))
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
                 mandate_reference,
@@ -1471,7 +1546,11 @@ impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
                 status_code: item.http_code,
                 splits: None,
                 payment_account_reference: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response: flow_response,
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response,
@@ -1551,28 +1630,7 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
         let is_failure = domain_types::utils::is_payment_failure(status);
 
         let flow_response = if is_failure {
-            Err(ErrorResponse {
-                code: response
-                    .failure_code
-                    .clone()
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                message: response
-                    .failure_message
-                    .clone()
-                    .or_else(|| response.messages.clone().map(|msg| msg.join(",")))
-                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                reason: None,
-                status_code: item.http_code,
-                attempt_status: Some(FlowStatus::Payment(status)),
-                connector_transaction_id: Some(response.id.clone()),
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
-                typed_connector_response: None,
-                raw_connector_response: None,
-                raw_connector_request: None,
-                typed_connector_request: None,
-            })
+            Err(response.failure_error_response(status, item.http_code))
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
                 // The transfer id (TR*) tracks the actual funds movement; fall back
@@ -1716,8 +1774,10 @@ impl TryFrom<ResponseRouterData<FinixVoidResponse, Self>>
             }
         };
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let flow_response = if domain_types::utils::is_payment_failure(status) {
+            Err(response.failure_error_response(status, item.http_code))
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
@@ -1729,7 +1789,11 @@ impl TryFrom<ResponseRouterData<FinixVoidResponse, Self>>
                 status_code: item.http_code,
                 splits: None,
                 payment_account_reference: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response: flow_response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data.clone()
@@ -2789,7 +2853,8 @@ use domain_types::connector_types::{
 use domain_types::errors::WebhookError;
 use time::PrimitiveDateTime;
 
-/// Webhook transaction state. Mirrors HS `FinixState` (transformers/request.rs).
+/// Webhook transaction state. Mirrors HS `FinixState` (transformers/request.rs), except that
+/// an undocumented state is not a failure: same split and reason as `FinixPaymentStatus` (PL-06).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FinixState {
@@ -2797,8 +2862,12 @@ pub enum FinixState {
     Succeeded,
     Failed,
     Canceled,
-    #[serde(other)]
     Unknown,
+    /// ACH return: failed, as on the PSync path.
+    Returned,
+    /// A state Finix does not document. Non-terminal: a false failure invites a retry.
+    #[serde(other)]
+    Unrecognized,
 }
 
 /// Webhook transfer type. Mirrors HS `FinixPaymentType` (transformers/request.rs).
@@ -3137,6 +3206,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
         get_connector_dispute_id(&request.connector_dispute_id)?;
+        // G-SubmitEvidence-02: Finix takes file bytes, so text or a file reference would be lost.
+        if request.uncategorized_text.is_some()
+            || [
+                &request.cancellation_policy_provider_file_id,
+                &request.customer_communication_provider_file_id,
+                &request.customer_signature_provider_file_id,
+                &request.receipt_provider_file_id,
+                &request.refund_policy_provider_file_id,
+                &request.service_documentation_provider_file_id,
+                &request.shipping_documentation_provider_file_id,
+                &request.invoice_showing_distinct_transactions_provider_file_id,
+                &request.recurring_transaction_agreement_provider_file_id,
+                &request.uncategorized_file_provider_file_id,
+            ]
+            .into_iter()
+            .any(Option::is_some)
+        {
+            return Err(IntegrationError::NotSupported {
+                message: "Evidence as provider_file_id or text_content".to_string(),
+                connector: "finix",
+                context: evidence_context(
+                    "Send the document bytes in file_content, without provider_file_id or text_content.",
+                ),
+            }
+            .into());
+        }
         let documents = [
             (
                 "cancellation_policy",
@@ -3207,7 +3302,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // G-SubmitEvidence-02: never silently drop a document.
         if present.next().is_some() {
             return Err(IntegrationError::NotSupported {
-                message: "Finix accepts one evidence file per SubmitEvidence request".to_string(),
+                message: "More than one evidence file per SubmitEvidence request".to_string(),
                 connector: "finix",
                 context: evidence_context("Call SubmitEvidence once per document."),
             }
@@ -3224,7 +3319,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
         let extension =
             finix_evidence_extension(mime_type).ok_or(IntegrationError::NotSupported {
-                message: format!("Finix does not accept evidence of type {mime_type}"),
+                message: format!("Evidence of type {mime_type}"),
                 connector: "finix",
                 context: evidence_context("Convert the document to JPEG, PNG or PDF."),
             })?;
@@ -3446,19 +3541,25 @@ pub(super) fn get_finix_webhook_event_type(
 
             if authorization.is_void == Some(true) {
                 match authorization.state {
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::PaymentIntentCancelFailure)
+                    FinixState::Failed
+                    | FinixState::Canceled
+                    | FinixState::Unknown
+                    | FinixState::Returned => Ok(EventType::PaymentIntentCancelFailure),
+                    FinixState::Pending | FinixState::Unrecognized => {
+                        Ok(EventType::PaymentIntentProcessing)
                     }
-                    FinixState::Pending => Ok(EventType::PaymentIntentProcessing),
                     FinixState::Succeeded => Ok(EventType::PaymentIntentCancelled),
                 }
             } else {
                 match authorization.state {
-                    FinixState::Pending => Ok(EventType::PaymentIntentProcessing),
-                    FinixState::Succeeded => Ok(EventType::PaymentIntentAuthorizationSuccess),
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::PaymentIntentAuthorizationFailure)
+                    FinixState::Pending | FinixState::Unrecognized => {
+                        Ok(EventType::PaymentIntentProcessing)
                     }
+                    FinixState::Succeeded => Ok(EventType::PaymentIntentAuthorizationSuccess),
+                    FinixState::Failed
+                    | FinixState::Canceled
+                    | FinixState::Unknown
+                    | FinixState::Returned => Ok(EventType::PaymentIntentAuthorizationFailure),
                 }
             }
         }
@@ -3469,18 +3570,24 @@ pub(super) fn get_finix_webhook_event_type(
                 match transfer.state {
                     FinixState::Succeeded => Ok(EventType::RefundSuccess),
                     // HS: `EventNotSupported` (see doc comment above).
-                    FinixState::Pending => Ok(EventType::IncomingWebhookEventUnspecified),
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::RefundFailure)
+                    FinixState::Pending | FinixState::Unrecognized => {
+                        Ok(EventType::IncomingWebhookEventUnspecified)
                     }
+                    FinixState::Failed
+                    | FinixState::Canceled
+                    | FinixState::Unknown
+                    | FinixState::Returned => Ok(EventType::RefundFailure),
                 }
             } else {
                 match transfer.state {
-                    FinixState::Pending => Ok(EventType::PaymentIntentProcessing),
-                    FinixState::Succeeded => Ok(EventType::PaymentIntentSuccess),
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::PaymentIntentFailure)
+                    FinixState::Pending | FinixState::Unrecognized => {
+                        Ok(EventType::PaymentIntentProcessing)
                     }
+                    FinixState::Succeeded => Ok(EventType::PaymentIntentSuccess),
+                    FinixState::Failed
+                    | FinixState::Canceled
+                    | FinixState::Unknown
+                    | FinixState::Returned => Ok(EventType::PaymentIntentFailure),
                 }
             }
         }
@@ -3578,25 +3685,31 @@ fn get_finix_webhook_attempt_status(
 ) -> AttemptStatus {
     if is_void == Some(true) {
         return match state {
-            FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                AttemptStatus::VoidFailed
-            }
+            FinixState::Failed
+            | FinixState::Canceled
+            | FinixState::Unknown
+            | FinixState::Returned => AttemptStatus::VoidFailed,
             FinixState::Pending => AttemptStatus::Voided,
             FinixState::Succeeded => AttemptStatus::Voided,
+            FinixState::Unrecognized => AttemptStatus::Pending,
         };
     }
     match (flow, state) {
-        (FinixWebhookFlow::Auth, FinixState::Pending) => AttemptStatus::AuthenticationPending,
+        (FinixWebhookFlow::Auth, FinixState::Pending | FinixState::Unrecognized) => {
+            AttemptStatus::AuthenticationPending
+        }
         (FinixWebhookFlow::Auth, FinixState::Succeeded) => AttemptStatus::Authorized,
         (
             FinixWebhookFlow::Auth,
-            FinixState::Failed | FinixState::Canceled | FinixState::Unknown,
+            FinixState::Failed | FinixState::Canceled | FinixState::Unknown | FinixState::Returned,
         ) => AttemptStatus::AuthorizationFailed,
-        (FinixWebhookFlow::Transfer, FinixState::Pending) => AttemptStatus::Pending,
+        (FinixWebhookFlow::Transfer, FinixState::Pending | FinixState::Unrecognized) => {
+            AttemptStatus::Pending
+        }
         (FinixWebhookFlow::Transfer, FinixState::Succeeded) => AttemptStatus::Charged,
         (
             FinixWebhookFlow::Transfer,
-            FinixState::Failed | FinixState::Canceled | FinixState::Unknown,
+            FinixState::Failed | FinixState::Canceled | FinixState::Unknown | FinixState::Returned,
         ) => AttemptStatus::Failure,
     }
 }
@@ -3604,9 +3717,11 @@ fn get_finix_webhook_attempt_status(
 /// Ports HS `impl From<FinixState> for RefundStatus` (finix/transformers.rs).
 fn get_finix_webhook_refund_status(state: &FinixState) -> RefundStatus {
     match state {
-        FinixState::Pending => RefundStatus::Pending,
+        FinixState::Pending | FinixState::Unrecognized => RefundStatus::Pending,
         FinixState::Succeeded => RefundStatus::Success,
-        FinixState::Failed | FinixState::Canceled | FinixState::Unknown => RefundStatus::Failure,
+        FinixState::Failed | FinixState::Canceled | FinixState::Unknown | FinixState::Returned => {
+            RefundStatus::Failure
+        }
     }
 }
 
