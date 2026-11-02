@@ -310,7 +310,6 @@ impl
             .or_else(|| item.connector_order_id.clone());
 
         Self {
-            is_stored_credential: item.is_stored_credential,
             integrity_specifications: item.integrity_specifications,
             split_settlement: item.split_settlement.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
@@ -335,6 +334,7 @@ impl
             merchant_order_id: item.merchant_order_id.clone(),
             setup_future_usage: item.setup_future_usage,
             off_session: item.off_session,
+            is_stored_credential: item.is_stored_credential,
             request_incremental_authorization: item.request_incremental_authorization,
             request_extended_authorization: item.request_extended_authorization,
             enable_partial_authorization: item.enable_partial_authorization,
@@ -1259,7 +1259,6 @@ impl
         });
 
         Self {
-            is_stored_credential: request.is_stored_credential,
             integrity_specifications: request.integrity_specifications,
             split_settlement: request.split_settlement.clone(),
             merchant_transaction_id: request.merchant_transaction_id.clone(),
@@ -1285,6 +1284,7 @@ impl
             order_category: request.order_category.clone(),
             setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
+            is_stored_credential: request.is_stored_credential,
             request_incremental_authorization: request.request_incremental_authorization,
             request_extended_authorization: request.request_extended_authorization,
             enable_partial_authorization: request.enable_partial_authorization,

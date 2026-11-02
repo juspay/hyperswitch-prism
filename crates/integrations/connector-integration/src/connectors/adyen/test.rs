@@ -100,7 +100,6 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
-                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -139,6 +138,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: Some(
                         domain_types::router_request_types::BrowserInformation {
                             color_depth: Some(24),
@@ -320,7 +320,6 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
-                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -344,6 +343,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: None,
                     integrity_object: None,
                     order_category: None,

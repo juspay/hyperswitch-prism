@@ -161,7 +161,8 @@ message CompositeAuthorizeRequest {
   // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 66;
 
-    optional bool is_stored_credential = 67;
+  // Whether the payment uses a previously stored credential.
+  optional bool is_stored_credential = 67;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -905,6 +906,7 @@ message CompositeVerifyRedirectResponseRequest {
   // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 62;
 
+  // Whether the payment uses a previously stored credential.
   optional bool is_stored_credential = 63;
 }
 

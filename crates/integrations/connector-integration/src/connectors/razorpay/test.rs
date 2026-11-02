@@ -130,7 +130,6 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
-                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -174,6 +173,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: Some(BrowserInformation {
                         color_depth: None,
                         java_enabled: Some(false),
@@ -353,7 +353,6 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
-                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -395,6 +394,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: None,
                     order_category: None,
                     session_token: None,
@@ -527,7 +527,6 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
-                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -568,6 +567,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: None,
                     order_category: None,
                     session_token: None,
@@ -723,7 +723,6 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
-                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -766,6 +765,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: Some(BrowserInformation {
                         color_depth: None,
                         java_enabled: Some(false),
@@ -1121,7 +1121,6 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
-                is_stored_credential: None,
                 risk_assessment_data: None,
                 split_settlement: None,
                 customer_document_details: None,
@@ -1161,6 +1160,7 @@ mod tests {
                 mandate_id: None,
                 setup_future_usage: None,
                 off_session: None,
+                is_stored_credential: None,
                 browser_info: Some(BrowserInformation {
                     color_depth: None,
                     java_enabled: Some(false),
@@ -1351,7 +1351,6 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
-                is_stored_credential: None,
                 risk_assessment_data: None,
                 split_settlement: None,
                 customer_document_details: None,
@@ -1391,6 +1390,7 @@ mod tests {
                 mandate_id: None,
                 setup_future_usage: None,
                 off_session: None,
+                is_stored_credential: None,
                 browser_info: Some(BrowserInformation {
                     color_depth: None,
                     java_enabled: Some(false),
@@ -1860,7 +1860,6 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
-                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -1901,6 +1900,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: None,
                     order_category: None,
                     session_token: None,

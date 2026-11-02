@@ -4137,7 +4137,6 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         });
 
     PaymentsAuthorizeData {
-        is_stored_credential: None,
         payment_method_data: req.payment_method_data.clone(),
         amount: req.amount.clone(),
         order_tax_amount: None,
@@ -4156,6 +4155,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         mandate_id: Some(mandate_ids),
         setup_future_usage: None,
         off_session: Some(true),
+        is_stored_credential: None,
         browser_info: req.browser_info.clone(),
         order_category: None,
         session_token: None,

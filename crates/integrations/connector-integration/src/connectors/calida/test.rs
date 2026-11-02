@@ -114,7 +114,6 @@ mod tests {
                     shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
-                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -145,6 +144,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: None,
                     order_category: None,
                     session_token: None,
@@ -316,7 +316,6 @@ mod tests {
                     shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
-                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -347,6 +346,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: None,
                     order_category: None,
                     session_token: None,
@@ -504,7 +504,6 @@ mod tests {
                     shop_name: None,
                 },
                 request: PaymentsAuthorizeData {
-                    is_stored_credential: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -531,6 +530,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: None,
                     integrity_object: None,
                     order_category: None,

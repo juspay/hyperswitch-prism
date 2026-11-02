@@ -1566,7 +1566,6 @@ mod satispay_request_tests {
                 webhook_secret: None,
             },
             request: PaymentsAuthorizeData {
-                is_stored_credential: None,
                 customer_document_details: None,
                 authentication_data: None,
                 connector_testing_data: None,
@@ -1594,6 +1593,7 @@ mod satispay_request_tests {
                 mandate_id: None,
                 setup_future_usage: None,
                 off_session: None,
+                is_stored_credential: None,
                 browser_info: None,
                 order_category: None,
                 session_token: None,

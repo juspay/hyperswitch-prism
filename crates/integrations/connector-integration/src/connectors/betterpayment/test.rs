@@ -401,7 +401,6 @@ fn payment_flow() -> PaymentFlowData {
 
 fn authorize_request() -> PaymentsAuthorizeData<DefaultPCIHolder> {
     PaymentsAuthorizeData {
-        is_stored_credential: None,
         payment_method_data: domain_types::payment_method_data::PaymentMethodData::Wallet(
             domain_types::payment_method_data::WalletData::Wero(
                 domain_types::payment_method_data::WeroData {},
@@ -424,6 +423,7 @@ fn authorize_request() -> PaymentsAuthorizeData<DefaultPCIHolder> {
         mandate_id: None,
         setup_future_usage: None,
         off_session: None,
+        is_stored_credential: None,
         browser_info: None,
         order_category: None,
         session_token: None,
