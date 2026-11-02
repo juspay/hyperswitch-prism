@@ -10,20 +10,9 @@ use tonic::Status;
 use crate::logger;
 use prost::Message;
 
-/// HTTP status used by both the HTTP adapter and incoming audit logs.
-pub fn http_status_for_status(status: &Status) -> u16 {
-    // Integration details are decoded first, matching the HTTP adapter's error discriminator.
-    if grpc_api_types::payments::IntegrationError::decode(status.details()).is_err() {
-        if let Ok(error) = grpc_api_types::payments::ConnectorError::decode(status.details()) {
-            if error.error_code == "CONNECTOR_ERROR_RESPONSE" {
-                if let Some(code) = error.http_status_code {
-                    if (400..600).contains(&code) {
-                        return u16::try_from(code).unwrap_or(500);
-                    }
-                }
-            }
-        }
-    }
+/// Map tonic status codes to HTTP for the HTTP adapter and incoming audit logs.
+/// Parsed connector HTTP errors are carried in successful flow responses instead.
+pub fn http_status_for_tonic_status(status: &Status) -> u16 {
     match status.code() {
         tonic::Code::Ok => 200,
         tonic::Code::Cancelled => 408,

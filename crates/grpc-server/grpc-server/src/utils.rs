@@ -380,9 +380,8 @@ pub fn log_after_initialization<T>(
             current_span.record("error_message", status.message());
             // Backward-compatible: keep main's gRPC code-name string on `status_code`.
             current_span.record("status_code", status.code().to_string());
-            // Additive numeric `res_code`: connector-aware HTTP status (e.g. 422) — matches the
-            // HTTP response the caller receives, not the coarse gRPC code.
-            let http_status = crate::http::error::http_status_for_status(status).as_u16();
+            // Use the same tonic-to-HTTP mapping as the HTTP response adapter.
+            let http_status = crate::http::error::http_status_for_tonic_status(status).as_u16();
             record_json_fields_on_span(vec![("res_code", Value::from(i64::from(http_status)))]);
         }
     }

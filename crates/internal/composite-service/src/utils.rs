@@ -64,7 +64,7 @@ where
         Err(status) => {
             span.record("error_message", status.message());
             span.record("status_code", status.code().to_string());
-            ucs_env::error::http_status_for_status(status)
+            ucs_env::error::http_status_for_tonic_status(status)
         }
     };
     record_json_fields_on_span(vec![("res_code", serde_json::json!(status_code))]);

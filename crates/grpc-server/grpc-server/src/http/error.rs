@@ -187,11 +187,9 @@ fn extract_error_details_from_status(status: &tonic::Status) -> Option<ErrorDeta
     None
 }
 
-/// The HTTP status the caller receives for a gRPC error: the connector's exact 4xx/5xx when the
-/// details carry one, else the gRPC-to-HTTP fallback. Shared by the HTTP response and the golden
-/// line so both report the same status.
-pub fn http_status_for_status(status: &tonic::Status) -> StatusCode {
-    StatusCode::from_u16(ucs_env::error::http_status_for_status(status))
+/// Map tonic errors to the same HTTP status used by incoming audit logs.
+pub fn http_status_for_tonic_status(status: &tonic::Status) -> StatusCode {
+    StatusCode::from_u16(ucs_env::error::http_status_for_tonic_status(status))
         .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
 }
 
@@ -200,9 +198,7 @@ impl From<tonic::Status> for HttpError {
     fn from(status: tonic::Status) -> Self {
         let details = extract_error_details_from_status(&status);
 
-        // Preserve the exact connector HTTP status when available; otherwise use the
-        // canonical gRPC-to-HTTP fallback.
-        let http_status = http_status_for_status(&status);
+        let http_status = http_status_for_tonic_status(&status);
 
         let message = status.message().to_string();
 
@@ -239,16 +235,16 @@ mod tests {
     }
 
     #[test]
-    fn connector_http_status_takes_precedence_over_grpc_mapping() {
-        let cases = [
-            (tonic::Code::Unknown, 409),
-            (tonic::Code::Unknown, 422),
-            (tonic::Code::DeadlineExceeded, 408),
-            (tonic::Code::Unavailable, 502),
-            (tonic::Code::Unknown, 599),
+    fn tonic_status_determines_http_status_regardless_of_connector_details() {
+        let cases: [(tonic::Code, u16, u16); 5] = [
+            (tonic::Code::Unknown, 409, 500),
+            (tonic::Code::InvalidArgument, 422, 400),
+            (tonic::Code::DeadlineExceeded, 408, 504),
+            (tonic::Code::Unavailable, 502, 503),
+            (tonic::Code::Unknown, 599, 500),
         ];
 
-        for (grpc_code, connector_http_status) in cases {
+        for (grpc_code, connector_http_status, expected_http_status) in cases {
             let status = status_with_connector_error(
                 grpc_code,
                 "CONNECTOR_ERROR_RESPONSE",
@@ -259,8 +255,8 @@ mod tests {
 
             assert_eq!(
                 http_error.status.as_u16(),
-                connector_http_status,
-                "connector HTTP status should be preserved for {grpc_code:?}"
+                expected_http_status,
+                "HTTP status should follow tonic code {grpc_code:?}"
             );
         }
     }
