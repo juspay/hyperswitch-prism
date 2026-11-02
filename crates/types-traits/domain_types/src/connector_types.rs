@@ -161,6 +161,7 @@ pub enum ConnectorEnum {
     Qwikcilver,
     Flywire,
     Affirm,
+    Reddot,
     Givepayments,
     Grabpay,
     Tesouro,
@@ -178,6 +179,7 @@ pub enum ConnectorEnum {
     GlobalpaymentsRealex,
     GlobalpaymentsHeartland,
     Payhere,
+    Betterpayment,
     Ecommpay,
 }
 
@@ -550,6 +552,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::Maya => Ok(Self::Maya),
+            grpc_api_types::payments::Connector::Reddot => Ok(Self::Reddot),
             grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
             grpc_api_types::payments::Connector::GlobalpaymentsRealex => {
                 Ok(Self::GlobalpaymentsRealex)
@@ -580,6 +583,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Paydotcom => Ok(Self::Paydotcom),
             grpc_api_types::payments::Connector::ElavonPg => Ok(Self::ElavonPg),
             grpc_api_types::payments::Connector::Payhere => Ok(Self::Payhere),
+            grpc_api_types::payments::Connector::Betterpayment => Ok(Self::Betterpayment),
             grpc_api_types::payments::Connector::Ecommpay => Ok(Self::Ecommpay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -1806,6 +1810,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub mandate_id: Option<MandateIds>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    /// Whether this payment uses a previously stored credential.
+    pub is_stored_credential: Option<bool>,
     pub browser_info: Option<BrowserInformation>,
     pub order_category: Option<String>,
     pub session_token: Option<String>,
@@ -3908,6 +3914,8 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub mandate_id: Option<MandateIds>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    /// Whether this payment uses a previously stored credential.
+    pub is_stored_credential: Option<bool>,
     pub setup_mandate_details: Option<MandateData>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
@@ -3947,6 +3955,9 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
+    /// Category of the order/service (proto `order_category`), for connectors that
+    /// require it on the mandate-setup order.
+    pub order_category: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -4509,6 +4520,8 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::RevolutPay(_) => Self::RevolutPay,
                 payment_method_data::WalletData::MbWay(_) => Self::MbWay,
                 payment_method_data::WalletData::Satispay(_) => Self::Satispay,
+                payment_method_data::WalletData::SatispayIntent(_) => Self::Satispay,
+                payment_method_data::WalletData::SatispayQr(_) => Self::Satispay,
                 payment_method_data::WalletData::Wero(_) => Self::Wero,
                 payment_method_data::WalletData::LazyPayRedirect(_) => Self::LazyPayRedirect,
                 payment_method_data::WalletData::PhonePeRedirect(_) => Self::PhonePeRedirect,
@@ -4541,6 +4554,10 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::BankRedirectData::BancontactCard { .. } => {
                     Self::BancontactCard
                 }
+                payment_method_data::BankRedirectData::BancontactIntent { .. } => {
+                    Self::BancontactCard
+                }
+                payment_method_data::BankRedirectData::BancontactQr { .. } => Self::BancontactCard,
                 payment_method_data::BankRedirectData::Bizum {} => Self::Bizum,
                 payment_method_data::BankRedirectData::Blik { .. } => Self::Blik,
                 payment_method_data::BankRedirectData::Eps { .. } => Self::Eps,
@@ -5478,7 +5495,7 @@ pub struct TaxInfo {
     pub vat_invoice_reference_number: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CustomerInfo {
     pub customer_id: Option<CustomerId>,
     pub customer_email: Option<common_utils::pii::Email>,
@@ -6542,6 +6559,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
             AuthType::Grabpay(_) => Ok(Self::Payment(ConnectorEnum::Grabpay)),
             AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
+            AuthType::Reddot(_) => Ok(Self::Payment(ConnectorEnum::Reddot)),
             AuthType::Tesouro(_) => Ok(Self::Payment(ConnectorEnum::Tesouro)),
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
             AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
@@ -6558,6 +6576,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Paydotcom(_) => Ok(Self::Payment(ConnectorEnum::Paydotcom)),
             AuthType::ElavonPg(_) => Ok(Self::Payment(ConnectorEnum::ElavonPg)),
             AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
+            AuthType::Betterpayment(_) => Ok(Self::Payment(ConnectorEnum::Betterpayment)),
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),

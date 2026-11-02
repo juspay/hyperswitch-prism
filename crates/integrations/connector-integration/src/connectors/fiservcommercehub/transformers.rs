@@ -65,6 +65,50 @@ pub struct EncryptedCardData {
     pub encryption_block_fields: String,
 }
 
+fn encrypt_fiserv_block(
+    public_key_der: &[u8],
+    plaintext: &[u8],
+    field_name: &'static str,
+    doc_url: &'static str,
+    additional_context: &'static str,
+) -> Result<Vec<u8>, error_stack::Report<errors::IntegrationError>> {
+    RsaOaepSha256::encrypt(public_key_der, plaintext).map_err(|error| {
+        let integration_error = match error.current_context() {
+            common_utils::errors::CryptoError::PlaintextTooLong {
+                max_length,
+                actual_length,
+            } => errors::IntegrationError::MaxFieldLengthViolated {
+                connector: "fiservcommercehub".to_string(),
+                field_name: field_name.to_string(),
+                max_length: *max_length,
+                received_length: *actual_length,
+                context: errors::IntegrationErrorContext {
+                    doc_url: Some(doc_url.to_string()),
+                    suggested_action: Some(
+                        "Reduce the UTF-8 byte length of the payment data included in the Fiserv encryption block"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "The combined payment data exceeds the RSA-OAEP-SHA256 capacity of the active Fiserv public key"
+                            .to_string(),
+                    ),
+                },
+            },
+            _ => errors::IntegrationError::RequestEncodingFailed {
+                context: errors::IntegrationErrorContext {
+                    doc_url: Some(doc_url.to_string()),
+                    suggested_action: Some(
+                        "Ensure the RSA public key is correctly configured and valid".to_string(),
+                    ),
+                    additional_context: Some(additional_context.to_string()),
+                },
+            },
+        };
+
+        error.change_context(integration_error)
+    })
+}
+
 fn encrypt_card_data<T: PaymentMethodDataTypes>(
     card: &domain_types::payment_method_data::Card<T>,
     key_id: String,
@@ -100,19 +144,14 @@ fn encrypt_card_data<T: PaymentMethodDataTypes>(
         "card.cardData:{card_data_len},card.nameOnCard:{name_on_card_len},card.expirationMonth:{expiration_month_len},card.expirationYear:{expiration_year_len},card.securityCode:{security_code_len}"
     );
 
-    let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
-        .change_context(errors::IntegrationError::RequestEncodingFailed {
-            context: errors::IntegrationErrorContext {
-                doc_url: Some(FISERV_PAYMENT_METHOD_ENCRYPTION_URL.to_string()),
-                suggested_action: Some(
-                    "Ensure the RSA public key is correctly configured and valid".to_string(),
-                ),
-                additional_context: Some(
-                    "RSA OAEP-SHA256 encryption for card data failed".to_string(),
-                ),
-            },
-        })
-        .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
+    let encrypted_bytes = encrypt_fiserv_block(
+        public_key_der,
+        plain_block.as_bytes(),
+        "payment_method_data.card",
+        FISERV_PAYMENT_METHOD_ENCRYPTION_URL,
+        "RSA OAEP-SHA256 encryption for card data failed",
+    )
+    .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
 
     let encryption_block = Secret::new(general_purpose::STANDARD.encode(&encrypted_bytes));
 
@@ -233,21 +272,14 @@ fn encrypt_decrypted_wallet_data(
 
     let encryption_block_fields = field_descriptors.join(",");
 
-    let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
-        .change_context(errors::IntegrationError::RequestEncodingFailed {
-            context: errors::IntegrationErrorContext {
-                doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
-                suggested_action: Some(
-                    "Ensure the MUPK RSA public key is correctly configured for wallet encryption"
-                        .to_string(),
-                ),
-                additional_context: Some(
-                    "RSA OAEP-SHA256 encryption of decrypted wallet payment data failed"
-                        .to_string(),
-                ),
-            },
-        })
-        .attach_printable("RSA OAEP-SHA256 encryption of decrypted wallet data failed")?;
+    let encrypted_bytes = encrypt_fiserv_block(
+        public_key_der,
+        plain_block.as_bytes(),
+        "payment_method_data.decrypted_wallet",
+        FISERV_DECRYPTED_WALLET_DOC_URL,
+        "RSA OAEP-SHA256 encryption of decrypted wallet payment data failed",
+    )
+    .attach_printable("RSA OAEP-SHA256 encryption of decrypted wallet data failed")?;
 
     let encrypted_block = Secret::new(general_purpose::STANDARD.encode(&encrypted_bytes));
 
@@ -299,19 +331,14 @@ fn encrypt_card_data_no_cvc(
         "card.cardData:{card_data_len},card.nameOnCard:{name_on_card_len},card.expirationMonth:{expiration_month_len},card.expirationYear:{expiration_year_len}"
     );
 
-    let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
-        .change_context(errors::IntegrationError::RequestEncodingFailed {
-            context: errors::IntegrationErrorContext {
-                doc_url: Some(FISERV_PAYMENT_METHOD_ENCRYPTION_URL.to_string()),
-                suggested_action: Some(
-                    "Ensure the RSA public key is correctly configured and valid".to_string(),
-                ),
-                additional_context: Some(
-                    "RSA OAEP-SHA256 encryption for card data failed".to_string(),
-                ),
-            },
-        })
-        .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
+    let encrypted_bytes = encrypt_fiserv_block(
+        public_key_der,
+        plain_block.as_bytes(),
+        "payment_method_data.card",
+        FISERV_PAYMENT_METHOD_ENCRYPTION_URL,
+        "RSA OAEP-SHA256 encryption for card data failed",
+    )
+    .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
 
     let encryption_block = Secret::new(general_purpose::STANDARD.encode(&encrypted_bytes));
 

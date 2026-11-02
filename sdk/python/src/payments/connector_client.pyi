@@ -4,6 +4,14 @@
 # This stub exposes per-service client classes to static analysers
 # (Pylance, pyright, mypy) so IDEs offer completions and type checking.
 from payments.generated.sdk_config_pb2 import ConnectorConfig, RequestConfig
+from payments.generated.dispute_pb2 import (
+    DisputeServiceAcceptRequest,
+    DisputeServiceAcceptResponse,
+    DisputeServiceDefendRequest,
+    DisputeServiceDefendResponse,
+    DisputeServiceSubmitEvidenceRequest,
+    DisputeServiceSubmitEvidenceResponse,
+)
 from payments.generated.events_pb2 import (
     EventServiceHandleRequest,
     EventServiceHandleResponse,
@@ -21,12 +29,6 @@ from payments.generated.payment_pb2 import (
     CustomerServiceCreateResponse,
     CustomerServiceGetRequest,
     CustomerServiceGetResponse,
-    DisputeServiceAcceptRequest,
-    DisputeServiceAcceptResponse,
-    DisputeServiceDefendRequest,
-    DisputeServiceDefendResponse,
-    DisputeServiceSubmitEvidenceRequest,
-    DisputeServiceSubmitEvidenceResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,

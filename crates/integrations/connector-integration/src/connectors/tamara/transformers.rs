@@ -1,10 +1,13 @@
-use std::fmt::Debug;
+use std::{collections::BTreeMap, fmt::Debug};
 
 use crate::connectors::tamara::TamaraRouterData;
 use crate::types::ResponseRouterData;
 use crate::utils;
 use common_enums::EligibilityStatus;
-use common_enums::{AttemptStatus, Currency, ProductType, RefundStatus};
+use common_enums::{
+    AttemptStatus, Currency, DepositPaymentType, FutureUsage, PremiumCustomerStatus, ProductType,
+    RefundStatus, TicketRefundability,
+};
 use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
     Email,
@@ -12,19 +15,22 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
-        EventType, PMEligibility, PaymentFlowData, PaymentMethodEligibilityData,
-        PaymentMethodEligibilityResponse, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RawConnectorStatus,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        AirlineData, CustomerInfo, DomainData, EducationData, EventType, HotelData, PMEligibility,
+        PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RawConnectorStatus, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RentalData, ResponseId, RiskAssessmentData, SalesData,
+        TicketDeliveryContact, TravelData,
     },
     errors,
+    payment_address::AddressDetails,
     payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
@@ -163,8 +169,528 @@ pub struct TamaraPaymentsRequest {
     pub consumer: TamaraConsumer,
     pub merchant_url: TamaraMerchantUrl,
     pub shipping_address: TamaraAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub risk_assessment: Option<TamaraRiskAssessment>,
 }
 
+// ===== RISK ASSESSMENT (the `risk_assessment` object on /checkout) =====
+// Docs: https://docs.tamara.co/docs/additional-customer-details-for-risk-assessment.md
+// General fields come from `RiskAssessmentData`; the vertical blocks (flights,
+// hotels, trains, education, car sales, car rentals) live under `DomainData` at
+// our side but nest inside `risk_assessment` in Tamara's payload.
+
+/// Tamara dates are `dd-mm-yyyy`; domain dates arrive as `yyyy-MM-dd` or RFC 3339.
+fn to_tamara_date(value: &str) -> String {
+    let date = value.split(['T', ' ']).next().unwrap_or(value);
+    let mut parts = date.split('-');
+    match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some(year), Some(month), Some(day), None) if year.len() == 4 => {
+            format!("{day}-{month}-{year}")
+        }
+        _ => value.to_string(),
+    }
+}
+
+/// Tamara collects passenger / guest names as dynamic keys, e.g. `passenger1_name`.
+fn tamara_name_map<I>(names: I, key_prefix: &str) -> Option<BTreeMap<String, String>>
+where
+    I: IntoIterator<Item = Option<Secret<String>>>,
+{
+    let map: BTreeMap<String, String> = names
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .map(|(index, name)| {
+            (
+                format!("{key_prefix}{}_name", index + 1),
+                name.peek().clone(),
+            )
+        })
+        .collect();
+    (!map.is_empty()).then_some(map)
+}
+
+/// Tamara's `ticket_delivery_recipient` is "Email or Phone Number where tickets are sent".
+fn tamara_ticket_delivery_recipient(contact: &TicketDeliveryContact) -> Option<String> {
+    contact
+        .email
+        .as_ref()
+        .map(|email| email.peek().clone())
+        .or_else(|| {
+            contact
+                .phone_number
+                .as_ref()
+                .map(|phone_number| phone_number.peek().clone())
+        })
+}
+
+fn is_refundable_booking(refundability: TicketRefundability) -> bool {
+    matches!(refundability, TicketRefundability::Refundable)
+}
+
+/// Tamara takes a single-line location string ("Address of the ... location.
+/// Airport code if applicable").
+fn tamara_location(address: &AddressDetails) -> Option<String> {
+    let parts = [
+        address.line1.as_ref().map(|line| line.peek().clone()),
+        address.line2.as_ref().map(|line| line.peek().clone()),
+        address.line3.as_ref().map(|line| line.peek().clone()),
+        address.city.as_ref().map(|city| city.peek().clone()),
+        address.state.as_ref().map(|state| state.peek().clone()),
+        address.zip.as_ref().map(|zip| zip.peek().clone()),
+        address.country.map(|country| country.to_string()),
+    ];
+    let joined = parts
+        .into_iter()
+        .flatten()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join(", ");
+    (!joined.is_empty()).then_some(joined)
+}
+
+fn tamara_deposit_payment_type(deposit_payment_type: DepositPaymentType) -> String {
+    match deposit_payment_type {
+        DepositPaymentType::Cash => "Cash",
+        DepositPaymentType::CreditCard => "Credit Card",
+        DepositPaymentType::DebitCard => "Debit Card",
+        DepositPaymentType::PrepaidCard => "Prepaid Card",
+    }
+    .to_string()
+}
+
+#[derive(Debug, Serialize)]
+pub struct TamaraRiskAssessment {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_premium_customer: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_creation_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_order_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub risk_score: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date_first_paid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date_last_paid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_count_last_24h: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flights_itinerary: Option<FlightsItinerary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hotels_itinerary: Option<HotelItinerary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trains_itinerary: Option<TrainsItinerary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub education: Option<Education>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub car_sales: Option<CarSales>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub car_rentals: Option<CarRentals>,
+}
+
+impl TamaraRiskAssessment {
+    /// General signals from [`RiskAssessmentData`]; vertical blocks from [`DomainData`].
+    /// `purchase_type` is Tamara's "Subscription" / "One-time" vocabulary and is
+    /// inferred from the payment's setup signals by the caller.
+    fn from_domain(
+        risk_assessment_data: Option<&RiskAssessmentData>,
+        domain_data: Option<&DomainData>,
+        purchase_type: &str,
+    ) -> Self {
+        Self {
+            is_premium_customer: risk_assessment_data
+                .and_then(|data| data.is_premium_customer)
+                .map(|status| matches!(status, PremiumCustomerStatus::PremiumCustomer)),
+            account_creation_date: risk_assessment_data
+                .and_then(|data| data.customer_account_creation_date.as_deref())
+                .map(to_tamara_date),
+            total_order_count: risk_assessment_data.and_then(|data| data.number_of_orders),
+            risk_score: risk_assessment_data.and_then(|data| data.risk_score),
+            date_first_paid: risk_assessment_data
+                .and_then(|data| data.date_first_paid.as_deref())
+                .map(to_tamara_date),
+            date_last_paid: risk_assessment_data
+                .and_then(|data| data.date_last_paid.as_deref())
+                .map(to_tamara_date),
+            order_count_last_24h: risk_assessment_data
+                .and_then(|data| data.number_of_orders_in_past_24h),
+            flights_itinerary: domain_data
+                .and_then(|domain| domain.airline_data.as_ref())
+                .map(FlightsItinerary::from),
+            hotels_itinerary: domain_data
+                .and_then(|domain| domain.hotel_data.as_ref())
+                .map(HotelItinerary::from),
+            trains_itinerary: domain_data
+                .and_then(|domain| domain.travel_data.as_ref())
+                .map(TrainsItinerary::from),
+            education: domain_data
+                .and_then(|domain| domain.education_data.as_ref())
+                .map(|education| Education::from_education_data(education, purchase_type)),
+            car_sales: domain_data
+                .and_then(|domain| domain.sales_data.as_ref())
+                .map(CarSales::from),
+            car_rentals: domain_data
+                .and_then(|domain| domain.rental_data.as_ref())
+                .map(CarRentals::from),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct FlightsItinerary {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub origin: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub travel_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trip_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub carrier: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number_of_passengers: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name_of_passengers: Option<BTreeMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket_delivery_recipient: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub travel_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_refundable_booking: Option<bool>,
+}
+
+impl From<&AirlineData> for FlightsItinerary {
+    fn from(airline_data: &AirlineData) -> Self {
+        let first_segment = airline_data.flight_segments.first();
+        let location_code = |location: &domain_types::connector_types::AirlineLocation| {
+            location
+                .airport_code
+                .clone()
+                .or_else(|| location.city_code.clone())
+        };
+        Self {
+            origin: first_segment
+                .and_then(|segment| segment.departure.as_ref())
+                .and_then(location_code),
+            // Destination is the outbound leg's arrival. On a return trip the
+            // last leg flies back to the origin, so its arrival is the origin.
+            destination: first_segment
+                .and_then(|segment| segment.arrival.as_ref())
+                .and_then(location_code),
+            travel_type: first_segment.and_then(|segment| segment.flight_type.clone()),
+            trip_type: airline_data
+                .trip_type
+                .map(|trip_type| trip_type.to_string()),
+            class: first_segment.and_then(|segment| segment.class_of_service.clone()),
+            carrier: first_segment
+                .and_then(|segment| segment.marketing_carrier_name.clone())
+                .or_else(|| airline_data.issuing_carrier_code.clone())
+                .or_else(|| airline_data.airline_code.clone()),
+            number_of_passengers: airline_data.number_of_passengers.or_else(|| {
+                u32::try_from(airline_data.passengers.len())
+                    .ok()
+                    .filter(|count| *count > 0)
+            }),
+            name_of_passengers: tamara_name_map(
+                airline_data.passengers.iter().map(|passenger| {
+                    passenger
+                        .customer
+                        .as_ref()
+                        .and_then(CustomerInfo::get_full_name)
+                }),
+                "passenger",
+            ),
+            ticket_delivery_recipient: airline_data.flight_segments.iter().find_map(|segment| {
+                segment
+                    .ticket_delivery_recipient
+                    .as_ref()
+                    .and_then(tamara_ticket_delivery_recipient)
+            }),
+            travel_date: airline_data
+                .flight_date
+                .as_deref()
+                .map(to_tamara_date)
+                .or_else(|| {
+                    first_segment
+                        .and_then(|segment| segment.departure.as_ref())
+                        .and_then(|departure| departure.date_time.as_deref())
+                        .map(to_tamara_date)
+                }),
+            is_refundable_booking: airline_data.refundability.map(is_refundable_booking),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct TrainsItinerary {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub origin: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub carrier: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number_of_passengers: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name_of_passengers: Option<BTreeMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub travel_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_refundable_booking: Option<bool>,
+}
+
+impl From<&TravelData> for TrainsItinerary {
+    fn from(travel_data: &TravelData) -> Self {
+        let first_segment = travel_data.travel_segments.first();
+        Self {
+            origin: first_segment.and_then(|segment| segment.origin.clone()),
+            destination: first_segment.and_then(|segment| segment.destination.clone()),
+            class: first_segment
+                .and_then(|segment| segment.travel_class)
+                .map(|travel_class| travel_class.to_string()),
+            carrier: travel_data.carrier_name.clone(),
+            number_of_passengers: travel_data.number_of_passengers,
+            name_of_passengers: tamara_name_map(
+                travel_data
+                    .travel_segments
+                    .iter()
+                    .flat_map(|segment| segment.passengers.iter())
+                    .map(|traveller| {
+                        CustomerInfo {
+                            first_name: traveller.first_name.clone(),
+                            last_name: traveller.last_name.clone(),
+                            ..Default::default()
+                        }
+                        .get_full_name()
+                    }),
+                "passenger",
+            ),
+            travel_date: travel_data.travel_date.as_deref().map(to_tamara_date),
+            is_refundable_booking: travel_data.refundability.map(is_refundable_booking),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct HotelItinerary {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checkin_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checkout_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number_of_guests: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name_of_guests: Option<BTreeMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket_delivery_recipient: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number_of_rooms: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hotel_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hotel_city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hotel_country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hotel_room_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_refundable_booking: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host: Option<HotelItineraryHost>,
+}
+
+/// Host details; Tamara requires these for rentals ("Required in case of rentals").
+#[derive(Debug, Serialize)]
+pub struct HotelItineraryHost {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host_registration_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host_number_of_reservations: Option<u32>,
+}
+
+impl From<&HotelData> for HotelItinerary {
+    fn from(hotel_data: &HotelData) -> Self {
+        // Tamara's `hotels_itinerary` describes a single property; take the first stay.
+        let segment = hotel_data.hotel_segments.first();
+        let host = segment
+            .and_then(|segment| segment.host.as_ref())
+            .and_then(|host| {
+                let host_registration_date = host.registered_at.as_deref().map(to_tamara_date);
+                let host_number_of_reservations = host.number_of_reservations;
+                (host_registration_date.is_some() || host_number_of_reservations.is_some())
+                    .then_some(HotelItineraryHost {
+                        host_registration_date,
+                        host_number_of_reservations,
+                    })
+            });
+        Self {
+            checkin_date: segment
+                .and_then(|segment| segment.checkin.as_deref())
+                .map(to_tamara_date),
+            checkout_date: segment
+                .and_then(|segment| segment.checkout.as_deref())
+                .map(to_tamara_date),
+            number_of_guests: hotel_data
+                .number_of_guests
+                .or_else(|| segment.and_then(|segment| segment.number_of_guests)),
+            name_of_guests: tamara_name_map(
+                segment
+                    .map(|segment| segment.guests.iter())
+                    .into_iter()
+                    .flatten()
+                    .map(|guest| guest.get_full_name()),
+                "guest",
+            ),
+            ticket_delivery_recipient: hotel_data
+                .ticket_delivery_recipient
+                .as_ref()
+                .and_then(tamara_ticket_delivery_recipient),
+            number_of_rooms: segment.and_then(|segment| segment.number_of_rooms),
+            hotel_name: segment.and_then(|segment| segment.hotel_name.clone()),
+            hotel_city: segment.and_then(|segment| segment.hotel_city.clone()),
+            hotel_country: segment.and_then(|segment| segment.hotel_country.clone()),
+            hotel_room_class: segment
+                .and_then(|segment| segment.room_class)
+                .map(|room_class| room_class.to_string()),
+            is_refundable_booking: hotel_data.refundability.map(is_refundable_booking),
+            host,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct Education {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub education_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub event_location: Option<String>,
+    pub purchase_type: String,
+}
+
+impl Education {
+    fn from_education_data(education_data: &EducationData, purchase_type: &str) -> Self {
+        Self {
+            education_type: education_data
+                .education_type
+                .map(|education_type| education_type.to_string()),
+            start_date: education_data.start_date.as_deref().map(to_tamara_date),
+            end_date: education_data.end_date.as_deref().map(to_tamara_date),
+            event_location: education_data
+                .is_online
+                .map(|is_online| is_online.to_string()),
+            purchase_type: purchase_type.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct CarSales {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub year: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub make: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trim: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub odometer: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub num_previous_owners: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub market_spec: Option<String>,
+}
+
+impl From<&SalesData> for CarSales {
+    fn from(sales_data: &SalesData) -> Self {
+        Self {
+            year: sales_data.year,
+            make: sales_data.make.clone(),
+            model: sales_data.model.clone(),
+            trim: sales_data.trim.clone(),
+            odometer: sales_data.odometer_km,
+            num_previous_owners: sales_data.number_of_previous_owners,
+            market_spec: sales_data.market_spec.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct CarRentals {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rental_company: Option<String>,
+    // `pickup_date` / `dropoff_date` are not sent: `RentalData` carries the
+    // pickup / dropoff locations but no rental dates.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pickup_location: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dropoff_location: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub car_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number_of_drivers: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name_of_drivers: Option<BTreeMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub insurance_purchased: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub add_ons: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deposit_required: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deposit_payment_type: Option<String>,
+}
+
+impl From<&RentalData> for CarRentals {
+    fn from(rental_data: &RentalData) -> Self {
+        let deposit_payment_type = rental_data
+            .deposit_payment_type
+            .map(tamara_deposit_payment_type);
+        let add_ons = rental_data
+            .extra_charges
+            .iter()
+            .filter_map(|charge| charge.charge_type.clone())
+            .collect::<Vec<_>>()
+            .join(", ");
+        Self {
+            rental_company: rental_data.rental_company.clone(),
+            pickup_location: rental_data.pickup.as_ref().and_then(tamara_location),
+            dropoff_location: rental_data.dropoff.as_ref().and_then(tamara_location),
+            car_class: rental_data
+                .vehicle
+                .as_ref()
+                .and_then(|vehicle| vehicle.car_class.clone()),
+            number_of_drivers: rental_data.number_of_drivers.or_else(|| {
+                u32::try_from(rental_data.drivers.len())
+                    .ok()
+                    .filter(|count| *count > 0)
+            }),
+            name_of_drivers: tamara_name_map(
+                rental_data
+                    .drivers
+                    .iter()
+                    .map(|driver| driver.driver.as_ref().and_then(CustomerInfo::get_full_name)),
+                "driver",
+            ),
+            insurance_purchased: Some(!rental_data.insurances.is_empty()),
+            add_ons: (!add_ons.is_empty()).then_some(add_ons),
+            // No dedicated deposit flag on `RentalData`; a deposit funding type
+            // implies the rental takes a deposit.
+            deposit_required: deposit_payment_type.as_ref().map(|_| true),
+            deposit_payment_type,
+        }
+    }
+}
 #[derive(Debug, Serialize)]
 pub struct TamaraLineItem {
     pub name: String,
@@ -387,6 +913,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })
             .transpose()?;
 
+        // Tamara's education block wants "Subscription" / "One-time"; our
+        // `EducationData.purchase_type` is a purchase-channel enum and cannot
+        // express that axis, so infer it from the payment's setup signals.
+        let purchase_type = if router_data.request.setup_mandate_details.is_some()
+            || matches!(
+                router_data.request.setup_future_usage,
+                Some(FutureUsage::OffSession)
+            ) {
+            "Subscription"
+        } else {
+            "One-time"
+        };
+
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
             shipping_amount: TamaraAmount {
@@ -418,6 +957,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 line1: shipping_line1.into(),
                 city: shipping_city.into(),
                 country_code: shipping_country.into(),
+            },
+            // Sent when the merchant supplied risk signals or any vertical's domain
+            // data; every field that is unknown is simply omitted.
+            risk_assessment: {
+                let domain_data = router_data.request.domain_data.as_ref();
+                let has_vertical = domain_data.is_some_and(|domain| {
+                    domain.airline_data.is_some()
+                        || domain.education_data.is_some()
+                        || domain.hotel_data.is_some()
+                        || domain.travel_data.is_some()
+                        || domain.sales_data.is_some()
+                        || domain.rental_data.is_some()
+                });
+                (router_data.request.risk_assessment_data.is_some() || has_vertical).then(|| {
+                    TamaraRiskAssessment::from_domain(
+                        router_data.request.risk_assessment_data.as_ref(),
+                        domain_data,
+                        purchase_type,
+                    )
+                })
             },
         })
     }

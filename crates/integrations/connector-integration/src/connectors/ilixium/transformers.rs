@@ -14,6 +14,7 @@ use domain_types::{
         ResponseId,
     },
     errors,
+    payment_address::AddressDetails,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -685,17 +686,10 @@ pub(super) fn build_ilixium_payments_request<T: PaymentMethodDataTypes + std::fm
             address: IlixiumAddress {
                 address_line1: common.get_optional_billing_line1(),
                 city: common.get_optional_billing_city(),
-                // Ilixium rejects a `province` that is not a subdivision code of `country`
-                // with `136` "Invalid format province" — and rejects an *absent* `province` the
-                // same way, so a value that cannot be mapped must still be sent rather than
-                // dropped, leaving the rejection to describe what the merchant actually supplied.
-                // `to_state_code_as_optional` passes an existing 2-char code straight through,
-                // maps a full subdivision name for the 42 countries it knows (including the
-                // accented "Québec"), and returns anything else unchanged.
                 province: common
                     .get_billing_address()
                     .ok()
-                    .and_then(|billing| billing.to_state_code_as_optional().ok().flatten()),
+                    .and_then(to_iso_3166_2_province),
                 postcode: common.get_optional_billing_zip(),
                 country,
             },
@@ -3851,5 +3845,44 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
             },
             ..item.router_data
         })
+    }
+}
+
+/// Ilixium's manual specifies `province` as a full ISO 3166-2 code (`CA-MB`) and rejects anything
+/// it cannot read as a subdivision of `country` with `136` "Invalid format province" — including
+/// an *absent* `province`, so a value that cannot be mapped is still sent rather than dropped,
+/// leaving the rejection to describe what the merchant actually supplied.
+///
+/// A leading `<country>-` is stripped first, so `CA-MB`, `ca-mb`, `MB`, `Manitoba` and
+/// `CA-Manitoba` all become `CA-MB`. The remainder goes through `to_state_code_as_optional`
+/// (2-char codes pass through; full names are mapped for the 42 countries it knows, including
+/// the accented "Québec"). A 1–3 char alphanumeric result is an ISO 3166-2 subdivision code and
+/// gets the country prefix; anything else is sent as the merchant supplied it.
+fn to_iso_3166_2_province(billing: &AddressDetails) -> Option<Secret<String>> {
+    let raw = billing.state.as_ref()?.peek().trim();
+    let Some(country) = billing.country else {
+        return Some(Secret::new(raw.to_string()));
+    };
+    let prefix = format!("{country:?}-");
+    let local = raw
+        .get(..prefix.len())
+        .filter(|head| head.eq_ignore_ascii_case(&prefix))
+        .and_then(|_| raw.get(prefix.len()..))
+        .unwrap_or(raw);
+    let code = AddressDetails {
+        state: Some(Secret::new(local.to_string())),
+        ..billing.clone()
+    }
+    .to_state_code_as_optional()
+    .ok()
+    .flatten()?;
+    let code = code.peek().trim();
+    if (1..=3).contains(&code.len()) && code.chars().all(|c| c.is_ascii_alphanumeric()) {
+        Some(Secret::new(format!(
+            "{country:?}-{}",
+            code.to_ascii_uppercase()
+        )))
+    } else {
+        Some(Secret::new(raw.to_string()))
     }
 }
