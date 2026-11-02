@@ -50,15 +50,32 @@ test("creds.json values and their base64 are needles", { timeout: 1000 }, () => 
   const p = join(dir, "creds.json");
   writeFileSync(p, JSON.stringify({ nmi: { api_key: "liveKey12345678", auth_type: "HeaderKey", base_url: "https://x.y" } }));
   const n = credNeedles(p);
-  assert.ok(n.includes("liveKey12345678"));
-  assert.ok(n.includes(Buffer.from("liveKey12345678").toString("base64")));
-  assert.ok(!n.includes("HeaderKey") && !n.includes("https://x.y"));
+  assert.deepEqual(n, ["liveKey12345678", Buffer.from("liveKey12345678").toString("base64")]);
   assert.deepEqual(credNeedles(join(dir, "missing.json")), []);
 });
 
-test("patterns stay linear on long input", { timeout: 1000 }, () => {
-  findLeaks("merchant" + " ".repeat(30_000) + "`" + "a".repeat(30_000));
-  issueNeedles("org" + ":".repeat(30_000) + "diff:" + "x / ".repeat(10_000));
+test("patterns stay linear on long input", () => {
+  // Measured, not a test timeout: a timeout cannot interrupt synchronous regex work.
+  for (const run of [
+    () => findLeaks("merchant" + " ".repeat(30_000) + "`" + "a".repeat(30_000)),
+    () => issueNeedles("org" + ":".repeat(30_000) + "diff:" + "x / ".repeat(10_000)),
+    () => issueNeedles("diff:" + " ".repeat(4_000)),
+    () => issueNeedles("diff: a" + '"'.repeat(60_000) + "x / b / c"),
+  ]) {
+    const start = performance.now();
+    run();
+    assert.ok(performance.now() - start < 500, run.toString());
+  }
+});
+
+test("merchant is read from a diff title on any line, and trailing marks are trimmed", () => {
+  assert.deepEqual(issueNeedles("intro\n[prod] Validation router DIFF:  acmefoods. / stripe / capture"), ["acmefoods"]);
+  assert.deepEqual(issueNeedles("diff: acmefoods / / capture"), ["acmefoods"]);
+  assert.deepEqual(issueNeedles("diff: acmefoods/stripe/capture/extra"), ["acmefoods"]);
+  assert.deepEqual(issueNeedles("x diff: nope\ndiff: acmefoods / a / b"), ["acmefoods"]);
+  for (const none of ["diff: acmefoods / stripe", "diff: acmefoods / stripe /", "diff:  / stripe / capture", 'merchant=`"acmefoods`']) {
+    assert.deepEqual(issueNeedles(none), [], none);
+  }
 });
 
 test("parity handoff refuses to publish a summary that names the merchant", { timeout: 5000 }, async () => {

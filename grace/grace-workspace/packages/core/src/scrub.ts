@@ -34,11 +34,30 @@ const PATTERNS: [string, RegExp][] = [
   ["prod-merchant-label", /\bmerchant(?:=|\s*\*{0,2}`)[A-Za-z0-9_.-]{3,}/gi],
 ];
 
+// Plain string scans, not regexes: issue text is unbounded and these shapes backtrack badly.
+function trimMarks(s: string): string {
+  let start = 0;
+  let end = s.length;
+  while (start < end && "`*'\"".includes(s.charAt(start))) start++;
+  while (end > start && "`*'\".,;:)".includes(s.charAt(end - 1))) end--;
+  return s.slice(start, end);
+}
+
+function titleMerchant(text: string): string | undefined {
+  for (const line of text.split("\n")) {
+    const at = line.search(/diff:/i);
+    if (at < 0) continue;
+    const [merchant, connector, ...flow] = line.slice(at + "diff:".length).split("/");
+    if (merchant?.trim() && connector && flow.join("/")) return merchant;
+  }
+  return undefined;
+}
+
 /** Identifiers in private issue text that must not follow it into a public PR. */
 export function issueNeedles(text: string, allow: string[] = []): string[] {
   const out = new Set<string>();
   const add = (v: string | undefined) => {
-    const s = v?.trim().replace(/^[`*'"]+|[`*'".,;:)]+$/g, "");
+    const s = v && trimMarks(v.trim());
     if (s && s.length >= 3) out.add(s);
   };
   // merchant `acmefoods`, merchant=examplemart, org: `ExampleOrg`, org `Example Platform`.
@@ -47,8 +66,7 @@ export function issueNeedles(text: string, allow: string[] = []): string[] {
   // known prod id shapes: bu_xx, tg_example_group, demo_ws_…, merchant_1…, pay_…, mca_…, pro_…
   for (const m of text.matchAll(/\b(?:(?:bu|tg)_[a-z0-9_]+|[a-z]+_ws_[A-Za-z0-9-]+|merchant_\d{10,}|(?:pay|mca|pro)_[A-Za-z0-9]{10,})\b/g)) add(m[0]);
   // validation-service title shape: "[prod] Validation router diff: <merchant> / <connector> / <flow>"
-  const t = text.match(/diff:\s*([^/\n]+?)\s*\/[^/\n]+\/[^\n]+/i);
-  if (t) add(t[1]);
+  add(titleMerchant(text));
   const skip = new Set(
     ["merchant", "merchants", "org", "the", "this", "with", "for", "and", "true", "false", "null", ...allow].map((s) => s.toLowerCase()),
   );
