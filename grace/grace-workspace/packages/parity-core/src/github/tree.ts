@@ -1,6 +1,6 @@
 import type { ParityConfig } from "../config.js";
 import { dailyTreeCachePath, readIfFresh, writeAtomic } from "../cache.js";
-import { getIssue, ghGraphQL } from "./client.js";
+import { getIssue, ghGraphQL, viewPr } from "./client.js";
 import type { Leaf, LinkedPR } from "../types.js";
 import { join } from "node:path";
 
@@ -62,8 +62,9 @@ const TIMELINE_QUERY = `
 query($owner:String!,$repo:String!,$num:Int!){
   repository(owner:$owner,name:$repo){
     issue(number:$num){
-      timelineItems(itemTypes:[CROSS_REFERENCED_EVENT],first:50){
+      timelineItems(itemTypes:[CROSS_REFERENCED_EVENT,ISSUE_COMMENT],first:100){
         nodes{
+          ... on IssueComment { body }
           ... on CrossReferencedEvent {
             source {
               ... on PullRequest {
@@ -85,6 +86,7 @@ interface TimelineRoot {
       issue: {
         timelineItems: {
           nodes: {
+            body?: string;
             source?: {
               number?: number;
               state?: string;
@@ -122,6 +124,19 @@ async function resolveLinkedPRs(cfg: ParityConfig, issueNumber: number): Promise
         author: s.author?.login,
         url: s.url,
       });
+    }
+    // Autopilot PRs no longer link this (private) issue from their public body, so
+    // GitHub records no cross-reference; handoff's "Draft PR: <url>" comment is the link.
+    for (const n of nodes) {
+      for (const m of (n.body ?? "").matchAll(/Draft PR: https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/pull\/(\d+)/g)) {
+        const repo = m[1];
+        const number = Number(m[2]);
+        if (out.some((p) => p.repo === repo && p.number === number)) continue;
+        const pr = await viewPr(repo, number).catch(() => null);
+        if (!pr) continue;
+        const state: LinkedPR["state"] = pr.mergedAt ? "merged" : pr.state.toLowerCase() === "open" ? "open" : "closed";
+        out.push({ repo, number, state, mergedAt: pr.mergedAt ?? undefined, author: pr.author?.login, url: pr.url });
+      }
     }
     return out;
   } catch {

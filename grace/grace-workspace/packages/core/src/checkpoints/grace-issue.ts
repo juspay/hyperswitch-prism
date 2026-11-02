@@ -6,6 +6,7 @@ import type {
   SpecReviewSession,
 } from "../types.js";
 import { getConfig } from "../config.js";
+import { credNeedles, describeLeaks, findLeaks } from "../scrub.js";
 
 /**
  * Phase 13: side-effect that runs after `l2_review` returns `passed: true`
@@ -192,6 +193,16 @@ export async function maybeCreateNewConnectorGraceIssue(
       : bodyDraft.slice(0, MAX_BODY_BYTES - 200) +
         `\n\n…\n\n_(truncated at ${MAX_BODY_BYTES - 200} bytes; see Grace run \`${ctx.runId}\`'s task.techSpecMarkdown for the full spec)_`;
 
+  // graceIssueRepo (juspay/grace) is public: refuse rather than publish a secret or prod identifier.
+  const leaks = findLeaks(`${title}\n${body}`, credNeedles(getConfig().credsPath));
+  if (leaks.length > 0) {
+    ctx.log(
+      `[grace-issue] not creating issue: scrub gate hit (${describeLeaks(leaks)}). Remove them from the spec and file it manually.`,
+      "warn"
+    );
+    return result;
+  }
+
   const repo = cfg.graceIssueRepo;
   const labels = cfg.graceIssueLabels ?? [];
   const args = ["issue", "create", "--repo", repo, "--title", title, "--body-file", "-"];
@@ -295,6 +306,16 @@ export async function maybeCreateGraceIssue(
   const paymentMethod = task.paymentMethod || "Unknown";
   const title = buildIssueTitle(connector, paymentMethod);
   const body = buildIssueBody(connector, paymentMethod, ctx.runId, l2);
+
+  // graceIssueRepo (juspay/grace) is public: refuse rather than publish a secret or prod identifier.
+  const leaks = findLeaks(`${title}\n${body}`, credNeedles(getConfig().credsPath));
+  if (leaks.length > 0) {
+    ctx.log(
+      `[grace-issue] not creating issue: scrub gate hit (${describeLeaks(leaks)}). Remove them from the spec and file it manually.`,
+      "warn"
+    );
+    return result;
+  }
 
   const repo = cfg.graceIssueRepo;
   const labels = cfg.graceIssueLabels ?? [];
