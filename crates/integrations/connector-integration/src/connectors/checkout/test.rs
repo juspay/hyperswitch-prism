@@ -12,7 +12,7 @@ use domain_types::{
 use hyperswitch_masking::Secret;
 use serde_json::json;
 
-use super::transformers::{build_checkout_sender, build_checkout_sender_address, CheckoutSender};
+use super::transformers::{build_checkout_sender, build_checkout_sender_address};
 
 fn secret(value: &str) -> Secret<String> {
     Secret::new(value.to_string())
@@ -287,16 +287,4 @@ fn without_sender_details_the_request_is_unchanged() {
 
     let error = build(None, None).expect_err("date of birth is required");
     assert_eq!(missing_field(&error), "customer.date_of_birth");
-}
-
-#[test]
-fn individual_sender_omits_missing_date_of_birth() {
-    let sender = CheckoutSender::Individual {
-        first_name: secret("John"),
-        last_name: secret("Smith"),
-        date_of_birth: None,
-        address: build_checkout_sender_address(&sender_address()).expect("address builds"),
-    };
-    let value = serde_json::to_value(&sender).expect("sender serializes");
-    assert!(value.get("date_of_birth").is_none());
 }

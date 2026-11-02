@@ -1158,6 +1158,7 @@ fn build_worldpayxml_recipient_party(
         .address
         .as_ref()
         .ok_or_else(utils::missing_field_err("recipient_details.address"))?;
+    let country = *address.get_country()?;
 
     let account_reference = recipient_details
         .account
@@ -1180,10 +1181,10 @@ fn build_worldpayxml_recipient_party(
             city: address.get_city()?.clone().expose(),
             state: get_worldpayxml_funding_state(
                 address.get_optional_state(),
-                *address.get_country()?,
+                country,
                 "recipient_details.address.state",
             )?,
-            country_code: *address.get_country()?,
+            country_code: country,
         },
         funding_data: recipient_details
             .phone_number
@@ -1213,7 +1214,21 @@ fn get_worldpayxml_company_full_name(
 ) -> Result<requests::WorldpayxmlFullName, Report<IntegrationError>> {
     let words: Vec<&str> = company_name.peek().split_whitespace().collect();
     match words.as_slice() {
-        [] | [_] => Err(utils::missing_field_err("sender_details.company_name")()),
+        [] | [_] => Err(IntegrationError::InvalidDataFormat {
+            field_name: "sender_details.company_name",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "For AFT, both a first name and a second name of the company is mandatory"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Pass the full registered company name (for example, \"Acme Ltd\")."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        }
+        .into()),
         [first, middle @ .., last] => Ok(requests::WorldpayxmlFullName {
             first: Secret::new((*first).to_string()),
             middle: (!middle.is_empty()).then(|| Secret::new(middle.join(" "))),
@@ -1280,29 +1295,32 @@ pub(super) fn build_worldpayxml_sender_party(
     let customer_date_of_birth = customer.and_then(|customer| customer.date_of_birth.clone());
 
     let (full_name, funding_address, funding_data) = match sender_details {
-        None => (
-            requests::WorldpayxmlFullName {
-                first: resource_common_data.get_billing_first_name()?,
-                middle: None,
-                last: resource_common_data.get_billing_last_name()?,
-            },
-            requests::WorldpayxmlFundingAddress {
-                address1: resource_common_data.get_billing_line1()?,
-                address2: resource_common_data.get_optional_billing_line2(),
-                postal_code: resource_common_data.get_billing_zip()?,
-                city: resource_common_data.get_billing_city()?.expose(),
-                state: get_worldpayxml_funding_state(
-                    resource_common_data.get_optional_billing_state(),
-                    resource_common_data.get_billing_country()?,
-                    "payment_method_data.billing.address.state",
-                )?,
-                country_code: resource_common_data.get_billing_country()?,
-            },
-            Some(requests::WorldpayxmlFundingData {
-                birth_date: customer_date_of_birth.map(requests::WorldpayxmlBirthDate::from),
-                telephone_number: resource_common_data.get_optional_billing_phone_number(),
-            }),
-        ),
+        None => {
+            let country = resource_common_data.get_billing_country()?;
+            (
+                requests::WorldpayxmlFullName {
+                    first: resource_common_data.get_billing_first_name()?,
+                    middle: None,
+                    last: resource_common_data.get_billing_last_name()?,
+                },
+                requests::WorldpayxmlFundingAddress {
+                    address1: resource_common_data.get_billing_line1()?,
+                    address2: resource_common_data.get_optional_billing_line2(),
+                    postal_code: resource_common_data.get_billing_zip()?,
+                    city: resource_common_data.get_billing_city()?.expose(),
+                    state: get_worldpayxml_funding_state(
+                        resource_common_data.get_optional_billing_state(),
+                        country,
+                        "payment_method_data.billing.address.state",
+                    )?,
+                    country_code: country,
+                },
+                Some(requests::WorldpayxmlFundingData {
+                    birth_date: customer_date_of_birth.map(requests::WorldpayxmlBirthDate::from),
+                    telephone_number: resource_common_data.get_optional_billing_phone_number(),
+                }),
+            )
+        }
         Some(SenderDetails::Individual(individual)) => (
             requests::WorldpayxmlFullName {
                 first: individual.first_name.clone(),

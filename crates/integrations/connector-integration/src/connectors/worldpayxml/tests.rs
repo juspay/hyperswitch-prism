@@ -556,10 +556,18 @@ mod sender_party {
     }
 
     #[test]
-    fn single_word_company_name_has_no_last_name() {
-        let error = sender_party_xml(Some(&corporate("Acme", None)), None)
-            .expect_err("last name is required");
-        assert_eq!(missing_field(&error), "sender_details.company_name");
+    fn single_word_company_name_is_rejected_as_invalid_format() {
+        for company_name in ["Acme", "   "] {
+            let error = sender_party_xml(Some(&corporate(company_name, None)), None)
+                .expect_err("a last name is required");
+            assert!(matches!(
+                error.current_context(),
+                IntegrationError::InvalidDataFormat {
+                    field_name: "sender_details.company_name",
+                    ..
+                }
+            ));
+        }
     }
 
     #[test]

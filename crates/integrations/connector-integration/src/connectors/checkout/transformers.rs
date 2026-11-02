@@ -345,8 +345,7 @@ pub enum CheckoutSender {
     Individual {
         first_name: Secret<String>,
         last_name: Secret<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        date_of_birth: Option<Secret<time::Date>>,
+        date_of_birth: Secret<time::Date>,
         address: CheckoutAddress,
     },
     Corporate {
@@ -530,7 +529,7 @@ pub(super) fn build_checkout_sender(
         return Ok(CheckoutSender::Individual {
             first_name: resource_common_data.get_billing_first_name()?,
             last_name: resource_common_data.get_billing_last_name()?,
-            date_of_birth: Some(date_of_birth),
+            date_of_birth,
             address: CheckoutAddress {
                 address_line1: Some(resource_common_data.get_billing_line1()?),
                 address_line2: resource_common_data.get_optional_billing_line2(),
@@ -558,10 +557,10 @@ pub(super) fn build_checkout_sender(
             last_name: individual.last_name.clone(),
             // For backward compatibility, fall back to the customer's date of birth, which was
             // the only source of the sender's date of birth before sender details were added.
-            date_of_birth: Some(match individual.date_of_birth.clone() {
+            date_of_birth: match individual.date_of_birth.clone() {
                 Some(date_of_birth) => date_of_birth,
                 None => get_customer_date_of_birth()?,
-            }),
+            },
             address,
         }),
         SenderDetails::Corporate(corporate) => Ok(CheckoutSender::Corporate {

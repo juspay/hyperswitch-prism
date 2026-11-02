@@ -2419,11 +2419,17 @@ message RecipientDetails {
 
 // Address of the party providing the funds in an AFT. Location only, no names.
 message SenderAddress {
+  // First line of the street address (e.g. house number and street).
   optional SecretString line1 = 1;
+  // Second line of the street address (e.g. flat, suite or building).
   optional SecretString line2 = 2;
+  // City or locality.
   optional SecretString city = 3;
+  // State, province or region. Some connectors require it for US and CA addresses.
   optional SecretString state = 4;
+  // Postal or ZIP code.
   optional SecretString zip_code = 5;
+  // Country, as an ISO 3166-1 alpha-2 code.
   optional CountryAlpha2 country_alpha2_code = 6;
 }
 
@@ -3935,7 +3941,6 @@ message RecurringPaymentServiceChargeRequest {
 
   // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 41;
-
 
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 42;

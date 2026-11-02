@@ -342,6 +342,7 @@ fn authorize_data() -> AuthorizeData {
             currency_conversion_data: Default::default(),
             is_account_funding_transaction: Default::default(),
             recipient_details: Default::default(),
+            sender_details: Default::default(),
             additional_connector_details: Default::default(),
             customer: Default::default(),
             business_country: Default::default(),
