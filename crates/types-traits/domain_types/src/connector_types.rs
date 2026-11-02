@@ -161,6 +161,7 @@ pub enum ConnectorEnum {
     Qwikcilver,
     Flywire,
     Affirm,
+    Reddot,
     Givepayments,
     Grabpay,
     Tesouro,
@@ -551,6 +552,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::Maya => Ok(Self::Maya),
+            grpc_api_types::payments::Connector::Reddot => Ok(Self::Reddot),
             grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
             grpc_api_types::payments::Connector::GlobalpaymentsRealex => {
                 Ok(Self::GlobalpaymentsRealex)
@@ -6547,6 +6549,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
             AuthType::Grabpay(_) => Ok(Self::Payment(ConnectorEnum::Grabpay)),
             AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
+            AuthType::Reddot(_) => Ok(Self::Payment(ConnectorEnum::Reddot)),
             AuthType::Tesouro(_) => Ok(Self::Payment(ConnectorEnum::Tesouro)),
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
             AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),

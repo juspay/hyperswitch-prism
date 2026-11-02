@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.02.0
+
+### Features
+
+- **reddot:** Add Red Dot Payment connector ([#2334](https://github.com/juspay/connector-service/pull/2334)) ([`b9ab759`](https://github.com/juspay/connector-service/commit/b9ab759f72a609c808002058b021dbf8433d52b9))
+- Move dispute messages into dispute.proto ([#2643](https://github.com/juspay/connector-service/pull/2643)) ([`e2625fc`](https://github.com/juspay/connector-service/commit/e2625fc4e5abfa26a34a868f62def7931c38eb58))
+
+**Full Changelog:** [`2026.10.30.1...2026.11.02.0`](https://github.com/juspay/connector-service/compare/2026.10.30.1...2026.11.02.0)
+
+- - -
+
 ## 2026.10.30.1
 
 ### Features

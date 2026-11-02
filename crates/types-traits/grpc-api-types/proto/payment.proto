@@ -757,6 +757,7 @@ enum Connector {
   ECOMMPAY = 153;
   CLEARSALE_BR = 154;
   BETTERPAYMENT = 155;
+  REDDOT = 156;
 }
 
 // Payment method types
@@ -5941,6 +5942,17 @@ message EcommpayConfig {
   optional string base_url = 50;
 }
 
+message ReddotConfig {
+  // RDP merchant ID.
+  SecretString mid = 1;
+  // RDP merchant secret key, used to build request signatures.
+  SecretString secret = 2;
+  // Required true/false string (case-insensitive); invalid values are rejected.
+  // When true (CyberSource-acquired MID), bill_to_* fields are sent to RDP.
+  string acquirer_cybersource = 3;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6299,6 +6311,8 @@ message ConnectorSpecificConfig {
     ClearsaleBrConfig clearsale_br = 165;
     // BETTERPAYMENT = 155
     BetterpaymentConfig betterpayment = 166;
+    // REDDOT = 156
+    ReddotConfig reddot = 167;
   }
 }
 
