@@ -125,6 +125,11 @@ message PaymentMethod {
     CashappQrWallet cashapp_qr = 178;                     // Cash App
     WeChatPayQrWallet we_chat_pay_qr = 179;               // WeChat Pay QR
     SwishQrWallet swish_qr = 180;                         // Swish QR
+    SatispayQr satispay_qr = 191;                         // Satispay QR (scan-to-pay)
+
+    // --- DEEPLINK / INTENT WALLETS ---
+    // User redirects to wallet's app to complete payment
+    SatispayIntent satispay_intent = 190;                 // Satispay Intent (app-to-app)
 
     // UPI METHODS (30-39) - Direct variants
     UpiCollect upi_collect = 30;                        // UPI Collect
@@ -149,6 +154,8 @@ message PaymentMethod {
     Przelewy24 przelewy24 = 54;
     Pse pse = 55;
     BancontactCard bancontact_card = 56;
+    BancontactIntent bancontact_intent = 192;             // Bancontact app-to-app flow
+    BancontactQr bancontact_qr = 193;                     // Bancontact scan-to-pay flow
     Blik blik = 57;
     OpenBanking open_banking = 58;
     Interac interac = 59;                                     // Interac - Canadian bank redirect payment method
@@ -650,6 +657,14 @@ message Satispay {
   // Fields will be added as needed for Satispay integration
 }
 
+// Satispay Intent - native app-to-app handoff flow
+message SatispayIntent {
+}
+
+// Satispay QR - scan-to-pay flow
+message SatispayQr {
+}
+
 // Wero - European digital wallet payment solution
 message Wero {
   // Fields will be added as needed for Wero integration
@@ -1130,6 +1145,13 @@ message BancontactCard {
   // The card holder's name
   SecretString card_holder_name = 4;
 }
+
+// Bancontact native app handoff. The merchant app return URI is supplied in
+// the authorize request's router_return_url.
+message BancontactIntent {}
+
+// Bancontact QR flow; the payment charge response supplies the code payload.
+message BancontactQr {}
 
 // ============================================================================
 // BUY NOW, PAY LATER PAYMENT METHODS - TODO: Not yet supported

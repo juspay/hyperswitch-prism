@@ -239,8 +239,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         // Convert amount using the connector's amount_converter
         let amount = utils::convert_amount(
             wrapper.connector.amount_converter,
-            router_data.request.amount.amount,
-            router_data.request.currency,
+            &router_data.request.amount,
         )?;
 
         let auth_type = HyperpgAuthType::try_from(&router_data.connector_config)?;
@@ -300,10 +299,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
 
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(
-                router_data.request.refund_amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.refund_amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

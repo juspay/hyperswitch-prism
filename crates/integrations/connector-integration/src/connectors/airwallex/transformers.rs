@@ -1685,7 +1685,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(capture_amount, item.router_data.request.currency)
+            .convert(&common_utils::types::Money {
+                amount: capture_amount,
+                currency: item.router_data.request.currency,
+            })
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1819,7 +1822,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(refund_amount, item.router_data.request.currency)
+            .convert(&common_utils::types::Money {
+                amount: refund_amount,
+                currency: item.router_data.request.currency,
+            })
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -2200,10 +2206,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -2219,7 +2222,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         let unit_price = item
                             .connector
                             .amount_converter
-                            .convert(detail.amount, item.router_data.request.currency)
+                            .convert(&common_utils::types::Money {
+                                amount: detail.amount,
+                                currency: item.router_data.request.currency,
+                            })
                             .map_err(|_| IntegrationError::RequestEncodingFailed {
                                 context: aw_err_ctx(
                                     "Failed to convert an order line item amount into the \

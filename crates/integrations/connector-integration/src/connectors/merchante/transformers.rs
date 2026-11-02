@@ -394,10 +394,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(
-                router_data.request.amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -732,10 +729,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = MerchanteAuthType::try_from(&router_data.connector_config)?;
         let amount = connector
             .amount_converter
-            .convert(
-                router_data.request.amount_to_capture.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount_to_capture)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -961,10 +955,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Some(
                 connector
                     .amount_converter
-                    .convert(
-                        router_data.request.refund_amount.amount,
-                        router_data.request.currency,
-                    )
+                    .convert(&router_data.request.refund_amount)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: IntegrationErrorContext {
                             suggested_action: Some(
@@ -1085,10 +1076,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = MerchanteAuthType::try_from(&router_data.connector_config)?;
         let amount = connector
             .amount_converter
-            .convert(
-                router_data.request.amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(

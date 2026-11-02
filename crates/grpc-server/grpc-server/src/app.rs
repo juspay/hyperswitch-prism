@@ -278,7 +278,11 @@ impl Service {
             self.customer_service,
             self.payment_method_authentication_service,
         );
-        let router = crate::http::create_router(app_state).layer(logging_layer);
+        let router = crate::http::create_router(app_state)
+            .layer(axum::middleware::from_fn(
+                crate::http::config_middleware::track_composite_outgoing_latency,
+            ))
+            .layer(logging_layer);
         // HTTP ingress record/replay boundary. NB: `Router::layer` wraps outside-in (the
         // LAST layer added is OUTERMOST), so listing deja here — after the trace layer,
         // before request-id — places it outer→inner as: config-override → propagate →
@@ -366,7 +370,8 @@ impl Service {
             )))
             .layer(logging_layer)
             .layer(request_id_layer)
-            .layer(propagate_request_id_layer);
+            .layer(propagate_request_id_layer)
+            .layer(crate::config_overrides::CompositeLatencyLayer);
         // gRPC ingress record/replay boundary. Spliced inside SetRequestId (the request
         // always carries x-request-id) and outside config-override (a rejected request
         // still yields one event). Inert until a boot hook is installed; feature-off this

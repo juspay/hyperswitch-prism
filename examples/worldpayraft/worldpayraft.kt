@@ -251,16 +251,16 @@ fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultCo
             minorAmount = 100L
             currency = Currency.USD
         }
-        networkTransactionId = "probe_network_txn_001"  // Network transaction ID returned by the original authorization.
+        networkTransactionId = "263010131742906"  // Network transaction ID returned by the original authorization.
         paymentMethodBuilder.apply {  // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
             cardWithNoCvcBuilder.apply {  // Card payment where CVC is not required.
                 cardNumberBuilder.value = "4111111111111111"  // Card Identification.
                 cardExpMonthBuilder.value = "03"
                 cardExpYearBuilder.value = "2030"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
                 cardNetwork = CardNetwork.VISA
             }
         }
+        connectorFeatureDataBuilder.value = "{\"api_transaction_id\":\"probe_auth_001\",\"original_authorized_amount\":{\"amount\":1000,\"currency\":\"USD\"},\"terminal_data\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"ecommerce_data\":{\"E-commerceIndicator\":\"07\"},\"proc_flags_indicators\":{\"EstimatedAuth\":\"Y\"},\"brand_specific_data\":{\"VisaSpecificData\":{\"VisaTransactionId\":\"263010131742906\"}}}"
     }.build()
     val response = client.incremental_authorization(request)
     println("Status: ${response.status.name}")

@@ -22,11 +22,15 @@ macro_rules! http_handler {
     ($fn_name:ident, $req_type:ty, $resp_type:ty, $service_method:ident, $service_field:ident) => {
         pub async fn $fn_name(
             Extension(config): Extension<Arc<Config>>,
+            tracker: Option<Extension<common_utils::request_metrics::ConnectorLatencyTracker>>,
             State(state): State<AppState>,
             headers: HeaderMap,
             ValidatedJson(payload): ValidatedJson<$req_type>,
         ) -> Result<Json<$resp_type>, HttpError> {
             let mut grpc_request = tonic::Request::new(payload);
+            if let Some(Extension(tracker)) = tracker {
+                grpc_request.extensions_mut().insert(tracker);
+            }
             transfer_config_to_grpc_request(&config, &mut grpc_request);
             let grpc_metadata =
                 http_headers_to_grpc_metadata(&headers).map_err(|status| HttpError {

@@ -1,8 +1,9 @@
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_enums::{AttemptStatus, CaptureMethod};
+use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::{self, VerifySignature},
     errors::CustomResult,
     events,
@@ -17,8 +18,10 @@ use domain_types::{
         ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentFlowData, PaymentVoidData,
         PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, SetupMandateRequestData, WebhookResourceReference,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ResponseId, SetupMandateRequestData, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -35,15 +38,17 @@ use serde::Serialize;
 pub mod transformers;
 use error_stack::{report, ResultExt};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+/// Noon `resultCode` for "Order referenced in the request does not exist".
+const ORDER_NOT_FOUND_RESULT_CODE: &str = "19001";
 
 use transformers::{
     self as noon, NoonAuthType, NoonErrorResponse, NoonPaymentsActionRequest,
     NoonPaymentsActionRequest as NoonPaymentsRefundActionRequest, NoonPaymentsCancelRequest,
     NoonPaymentsRequest, NoonPaymentsResponse, NoonPaymentsResponse as NoonPaymentsSyncResponse,
-    NoonPaymentsResponse as NoonPaymentsCaptureResponse,
-    NoonPaymentsResponse as NoonPaymentsVoidResponse, NoonRepeatPaymentRequest,
-    NoonRepeatPaymentResponse, NoonRevokeMandateRequest, NoonRevokeMandateResponse, RefundResponse,
-    RefundSyncResponse, SetupMandateRequest, SetupMandateResponse,
+    NoonPaymentsResponse as NoonPaymentsCaptureResponse, NoonRepeatPaymentRequest,
+    NoonRepeatPaymentResponse, NoonRevokeMandateRequest, NoonRevokeMandateResponse,
+    NoonVoidResponse, RefundResponse, RefundSyncResponse, SetupMandateRequest,
+    SetupMandateResponse,
 };
 
 use super::macros;
@@ -68,6 +73,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Noon<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        // Defer reference validation to PSync request construction and the connector.
+        Ok(())
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Noon<T>
@@ -109,6 +122,81 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
     for Noon<T>
 {
 }
+/// Maps a signed (`eventType`, `orderStatus`) pair to an event (spec ## Webhook Events).
+///
+/// Only the pairs the spec documents are mapped; every other pair (3DS, Authenticate, Cancel,
+/// Review, Lock, an unknown event, or an undocumented status) is
+/// `IncomingWebhookEventUnspecified`, so it can never move a payment or refund to a terminal state.
+fn get_noon_webhook_event_type(
+    event_type: &noon::NoonWebhookEventTypes,
+    order_status: &noon::NoonPaymentStatus,
+) -> EventType {
+    use noon::{NoonPaymentStatus as Status, NoonWebhookEventTypes as Event};
+
+    match event_type {
+        Event::Sale => match order_status {
+            Status::Captured => EventType::PaymentIntentSuccess,
+            _ => EventType::IncomingWebhookEventUnspecified,
+        },
+        Event::Capture => match order_status {
+            Status::Captured => EventType::PaymentIntentSuccess,
+            Status::PartiallyCaptured => EventType::PaymentIntentCaptureSuccess,
+            _ => EventType::IncomingWebhookEventUnspecified,
+        },
+        Event::Authorize => match order_status {
+            Status::Authorized => EventType::PaymentIntentAuthorizationSuccess,
+            Status::Failed => EventType::PaymentIntentAuthorizationFailure,
+            Status::Pending | Status::MarkedForReview => EventType::PaymentIntentProcessing,
+            _ => EventType::IncomingWebhookEventUnspecified,
+        },
+        // Fail carries the order's resulting status: only a failed order is a payment failure.
+        // A failed later operation (e.g. a refund on a CAPTURED order) must not be terminal.
+        Event::Fail => match order_status {
+            Status::Failed | Status::Rejected | Status::Cancelled | Status::Expired => {
+                EventType::PaymentIntentFailure
+            }
+            Status::Initiated
+            | Status::Authorized
+            | Status::Captured
+            | Status::PartiallyCaptured
+            | Status::PartiallyRefunded
+            | Status::PaymentInfoAdded
+            | Status::ThreeDsEnrollInitiated
+            | Status::ThreeDsEnrollChecked
+            | Status::ThreeDsResultVerified
+            | Status::MarkedForReview
+            | Status::Authenticated
+            | Status::PartiallyReversed
+            | Status::Pending
+            | Status::Refunded
+            | Status::Reversed
+            | Status::Locked
+            | Status::Unknown => EventType::IncomingWebhookEventUnspecified,
+        },
+        Event::Reject => match order_status {
+            Status::Rejected => EventType::PaymentIntentFailure,
+            _ => EventType::IncomingWebhookEventUnspecified,
+        },
+        Event::Reverse => match order_status {
+            Status::Reversed => EventType::PaymentIntentCancelled,
+            // AUTHORIZED on a Reverse event means the reversal failed (spec ## Webhook Events).
+            Status::Authorized => EventType::PaymentIntentCancelFailure,
+            _ => EventType::IncomingWebhookEventUnspecified,
+        },
+        Event::Refund => match order_status {
+            Status::Refunded | Status::PartiallyRefunded => EventType::RefundSuccess,
+            Status::Pending => EventType::RefundProcessing,
+            _ => EventType::IncomingWebhookEventUnspecified,
+        },
+        Event::ThreeDs
+        | Event::Authenticate
+        | Event::Cancel
+        | Event::Review
+        | Event::Lock
+        | Event::Unknown => EventType::IncomingWebhookEventUnspecified,
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Noon<T>
 {
@@ -139,6 +227,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("NoonWebhookBody")
             .change_context(WebhookError::WebhookSignatureNotFound)
             .attach_printable("Missing incoming webhook signature for noon")?;
+        // v1 preimage (spec ## Webhook Authentication & Signature Verification): the raw,
+        // case-sensitive values joined by commas in exactly this order.
         let message = format!(
             "{},{},{},{},{}",
             webhook_body.order_id,
@@ -151,35 +241,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
-        br#"{"orderId":12345,"orderStatus":"CAPTURED","eventType":"SALE","eventId":"probe-event-001","timeStamp":"2024-01-01T00:00:00Z"}"#
+        br#"{"orderId":12345,"orderStatus":"CAPTURED","eventType":"Sale","eventId":"probe-event-001","timeStamp":"2024-01-01T00:00:00Z"}"#
     }
 
     fn get_event_type(
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        // Noon checks the endpoint with an empty body.
+        if request.body.is_empty() {
+            return Ok(EventType::EndpointVerification);
+        }
         let details: noon::NoonWebhookEvent = request
             .body
             .parse_struct("NoonWebhookEvent")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse webhook event type from Noon webhook body")?;
 
-        match &details.event_type {
-            noon::NoonWebhookEventTypes::Sale | noon::NoonWebhookEventTypes::Capture => {
-                match &details.order_status {
-                    noon::NoonPaymentStatus::Captured => Ok(EventType::PaymentIntentSuccess),
-                    _ => Err(report!(WebhookError::WebhookEventTypeNotFound)
-                        .attach_printable("Unexpected order status for sale/capture Noon webhook")),
-                }
-            }
-            noon::NoonWebhookEventTypes::Fail => Ok(EventType::PaymentIntentFailure),
-            noon::NoonWebhookEventTypes::Authorize
-            | noon::NoonWebhookEventTypes::Authenticate
-            | noon::NoonWebhookEventTypes::Refund
-            | noon::NoonWebhookEventTypes::Unknown => {
-                Ok(EventType::IncomingWebhookEventUnspecified)
-            }
-        }
+        Ok(get_noon_webhook_event_type(
+            &details.event_type,
+            &details.order_status,
+        ))
     }
 
     fn verify_webhook_source(
@@ -219,15 +301,40 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse NoonWebhookObject for reference extraction")?;
 
-        // Noon's order_id serves as the connector transaction ID.
-        // There is no separate merchant-assigned ID visible in the webhook payload.
-        Ok(Some(WebhookResourceReference::Payment(
-            PaymentWebhookReference {
-                connector_transaction_id: Some(webhook_object.order_id.to_string()),
-                merchant_transaction_id: None,
-                connector_preprocessing_id: None,
-            },
-        )))
+        // Noon's order_id is the connector transaction ID and the only identifier covered by
+        // the v1 signature. A refund event also echoes the refund's merchant reference
+        // (merchantTxnRef), but that field is NOT in the signed preimage, so it can be edited
+        // on a validly signed body and is never used to pick a refund. Noon documents no
+        // chargeback / dispute event, so no dispute reference is produced.
+        let connector_transaction_id = Some(webhook_object.order_id.to_string());
+        match webhook_object.event_type {
+            noon::NoonWebhookEventTypes::Refund => Ok(Some(WebhookResourceReference::Refund(
+                RefundWebhookReference {
+                    connector_refund_id: None,
+                    merchant_refund_id: None,
+                    connector_transaction_id,
+                    merchant_transaction_id: None,
+                },
+            ))),
+            noon::NoonWebhookEventTypes::ThreeDs
+            | noon::NoonWebhookEventTypes::Authenticate
+            | noon::NoonWebhookEventTypes::Authorize
+            | noon::NoonWebhookEventTypes::Cancel
+            | noon::NoonWebhookEventTypes::Capture
+            | noon::NoonWebhookEventTypes::Fail
+            | noon::NoonWebhookEventTypes::Lock
+            | noon::NoonWebhookEventTypes::Reject
+            | noon::NoonWebhookEventTypes::Reverse
+            | noon::NoonWebhookEventTypes::Review
+            | noon::NoonWebhookEventTypes::Sale
+            | noon::NoonWebhookEventTypes::Unknown => Ok(Some(WebhookResourceReference::Payment(
+                PaymentWebhookReference {
+                    connector_transaction_id,
+                    merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
+                },
+            ))),
+        }
     }
 
     fn process_payment_webhook(
@@ -235,76 +342,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-        event_context: Option<EventContext>,
-    ) -> Result<
-        domain_types::connector_types::WebhookDetailsResponse,
-        error_stack::Report<WebhookError>,
-    > {
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let webhook_object: noon::NoonWebhookObject = request
             .body
             .parse_struct("NoonWebhookObject")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse payment webhook details from Noon webhook body")?;
 
-        let status = match webhook_object.order_status {
-            noon::NoonPaymentStatus::Authorized => {
-                let capture_method = event_context
-                    .and_then(|ctx| ctx.capture_method)
-                    .ok_or_else(|| {
-                        error_stack::report!(WebhookError::WebhookMissingRequiredContext {
-                            field: "capture_method",
-                            origin: "payment authorize",
-                        })
-                        .attach_printable(
-                            "Noon webhook status 'Authorized' is ambiguous without capture_method: \
-                             AUTOMATIC capture means the payment was Charged, MANUAL means Authorized. \
-                             Pass EventContext.payment.capture_method from your original authorize request.",
-                        )
-                    })?;
-                match capture_method {
-                    CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic => {
-                        AttemptStatus::Charged
-                    }
-                    _ => AttemptStatus::Authorized,
-                }
-            }
-            noon::NoonPaymentStatus::Captured
-            | noon::NoonPaymentStatus::PartiallyCaptured
-            | noon::NoonPaymentStatus::PartiallyRefunded
-            | noon::NoonPaymentStatus::Refunded => AttemptStatus::Charged,
-            noon::NoonPaymentStatus::Reversed | noon::NoonPaymentStatus::PartiallyReversed => {
-                AttemptStatus::Voided
-            }
-            noon::NoonPaymentStatus::Cancelled | noon::NoonPaymentStatus::Expired => {
-                AttemptStatus::AuthenticationFailed
-            }
-            noon::NoonPaymentStatus::ThreeDsEnrollInitiated
-            | noon::NoonPaymentStatus::ThreeDsEnrollChecked => AttemptStatus::AuthenticationPending,
-            noon::NoonPaymentStatus::ThreeDsResultVerified => {
-                AttemptStatus::AuthenticationSuccessful
-            }
-            noon::NoonPaymentStatus::Failed | noon::NoonPaymentStatus::Rejected => {
-                AttemptStatus::Failure
-            }
-            noon::NoonPaymentStatus::Pending | noon::NoonPaymentStatus::MarkedForReview => {
-                AttemptStatus::Pending
-            }
-            noon::NoonPaymentStatus::Initiated
-            | noon::NoonPaymentStatus::PaymentInfoAdded
-            | noon::NoonPaymentStatus::Authenticated => AttemptStatus::Started,
-            noon::NoonPaymentStatus::Locked => AttemptStatus::Unspecified,
-        };
+        // Same mapping as PSync, which reports PARTIALLY_CAPTURED as PartialCharged: the
+        // webhook carries no currency and no order total, so it must not imply the full
+        // authorised amount was captured. AUTHORIZED is Authorized whatever the capture
+        // method; LOCKED / unknown statuses are never terminal.
+        let status =
+            noon::get_payment_status(webhook_object.order_status, AttemptStatus::Unspecified);
 
         let connector_order_id = webhook_object.order_id.to_string();
-        Ok(domain_types::connector_types::WebhookDetailsResponse {
+        Ok(WebhookDetailsResponse {
             connector_returned_payment_method_details: None,
-            resource_id: Some(
-                domain_types::connector_types::ResponseId::ConnectorTransactionId(
-                    connector_order_id.clone(),
-                ),
-            ),
+            resource_id: Some(ResponseId::ConnectorTransactionId(
+                connector_order_id.clone(),
+            )),
             status,
             connector_response_reference_id: Some(connector_order_id.clone()),
+            // The signed v1 preimage is orderId, orderStatus, eventId, eventType, timeStamp.
+            // merchantOrderRef is NOT in it, so it can be edited on a validly signed body and
+            // must not be what a payment is correlated by -- the signed orderId is used for
+            // both references, as it was before this flow was reworked.
             connector_request_reference_id: Some(connector_order_id),
             error_code: None,
             error_message: None,
@@ -317,6 +381,52 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let webhook_object: noon::NoonWebhookObject = request
+            .body
+            .parse_struct("NoonWebhookObject")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse refund webhook details from Noon webhook body")?;
+
+        // The signed fields (eventType, orderStatus, orderId) say that some refund on the order
+        // changed, never which one: merchantTxnRef is unsigned. The webhook is therefore a
+        // trigger only. It reports Pending with no refund identity, so no refund can be moved
+        // to a terminal state from it; the outcome is confirmed by RSync (getbyreference).
+        // Anything other than a Refund event on a refund status is not a refund outcome.
+        let status = match (&webhook_object.event_type, &webhook_object.order_status) {
+            (
+                noon::NoonWebhookEventTypes::Refund,
+                noon::NoonPaymentStatus::Refunded
+                | noon::NoonPaymentStatus::PartiallyRefunded
+                | noon::NoonPaymentStatus::Pending,
+            ) => RefundStatus::Pending,
+            (event_type, order_status) => {
+                return Err(
+                    report!(WebhookError::WebhookEventTypeNotFound).attach_printable(format!(
+                        "Noon webhook {event_type}/{order_status} is not a refund outcome"
+                    )),
+                );
+            }
+        };
+
+        Ok(RefundWebhookDetailsResponse {
+            connector_refund_id: None,
+            merchant_transaction_id: None,
+            status,
+            connector_response_reference_id: None,
+            error_code: None,
+            error_message: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
         })
     }
 
@@ -371,7 +481,7 @@ macros::create_all_prerequisites!(
         (
             flow: Void,
             request_body: NoonPaymentsCancelRequest,
-            response_body: NoonPaymentsVoidResponse,
+            response_body: NoonVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
@@ -484,36 +594,51 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: NoonErrorResponse =
-            res.response
-                .parse_struct("NoonErrorResponse")
-                .map_err(|_| {
-                    crate::utils::response_deserialization_fail(
-                        res.status_code,
-                    "noon: response body did not match the expected format; confirm API version and connector documentation.")
-                })?;
+        // Noon sometimes answers an error status with no body at all.
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            });
+        }
+
+        // A body that is not Noon's error envelope: an HTML / plain-text gateway page (WAF,
+        // 5xx) becomes an ErrorResponse carrying the HTTP status and the raw body, while JSON
+        // of an unexpected shape stays a deserialization failure (Hyperswitch parity).
+        let response: NoonErrorResponse = match res.response.parse_struct("NoonErrorResponse") {
+            Ok(response) => response,
+            Err(_) => {
+                return crate::utils::handle_json_response_deserialization_failure(res, "noon");
+            }
+        };
 
         with_error_response_body!(event_builder, response);
 
-        // Adding in case of timeouts, if psync gives 4xx with this code, fail the payment
-        let attempt_status = if response.result_code == 19001 {
-            Some(AttemptStatus::Failure)
-        } else {
-            None
-        };
-
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+        // attempt_status stays None here: what an error envelope means for the attempt is
+        // flow-specific, so a flow that needs a status sets it in its own error handler.
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.result_code.to_string(),
             message: response.message.clone(),
             reason: Some(response.message),
-            attempt_status: attempt_status.map(FlowStatus::Payment),
+            attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
-            network_error_message: None,
+            network_error_message: response.raw_external_message,
             typed_connector_response: typed,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -580,7 +705,7 @@ macros::macro_connector_implementation!(
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Noon,
     curl_response: NoonPaymentsSyncResponse,
     flow_name: PSync,
@@ -606,6 +731,23 @@ macros::macro_connector_implementation!(
             self.connector_base_url_payments(req),
             req.resource_common_data.connector_request_reference_id,
         ))
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            // resultCode 19001 = "order referenced in the request does not exist": the order was
+            // never created (e.g. Authorize timed out before Noon recorded it), so a sync that
+            // gets it is a definitive answer and the attempt is failed. Every other error leaves
+            // the attempt status untouched.
+            if error.code == ORDER_NOT_FOUND_RESULT_CODE {
+                error.attempt_status = Some(FlowStatus::Payment(AttemptStatus::Failure));
+            }
+            Ok(error)
         }
     }
 );
@@ -643,7 +785,7 @@ macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Noon,
     curl_request: Json(NoonPaymentsCancelRequest),
-    curl_response: NoonPaymentsVoidResponse,
+    curl_response: NoonVoidResponse,
     flow_name: Void,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentVoidData,
@@ -719,12 +861,16 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-        let request_ref_id = req.resource_common_data.connector_request_reference_id.clone();
-        Ok(format!(
-            "{}payment/v1/order/getbyreference/{}",
-            self.connector_base_url_refunds(req),
-            request_ref_id,
-        ))
+            // getbyreference is keyed by the payment's merchant reference, never the refund id.
+            let order_reference = noon::get_refund_sync_order_reference(
+                &req.request,
+                &req.resource_common_data.connector_request_reference_id,
+            )?;
+            Ok(format!(
+                "{}payment/v1/order/getbyreference/{}",
+                self.connector_base_url_refunds(req),
+                order_reference,
+            ))
         }
     }
 );
@@ -805,6 +951,10 @@ macros::macro_connector_flow_status_impls!(
         CreateOrder,
         ServerSessionAuthenticationToken,
         PaymentMethodToken,
+        // 3DS needs no separate authentication leg on Noon (zero-leg shape): the charging
+        // INITIATE call (Authorize) itself returns `checkoutData.postUrl` for the cardholder
+        // challenge, the browser returns to `returnUrl`, and PSync reads the final status.
+        // Noon has no pre-authenticate, authenticate or post-authenticate endpoint.
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,

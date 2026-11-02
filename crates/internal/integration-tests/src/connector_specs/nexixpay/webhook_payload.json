@@ -1,0 +1,215 @@
+{
+  "_webhook_config": {
+    "webhook_secret_key": "nexixpay_fixture_security_token",
+    "note": "Nexi XPay notifications carry no signature header, and the only authenticity anchor XPay documents is a per-transaction securityToken issued at order initialisation through HPP / Build / PayByLink / googlepay (techspec Webhook Events, Webhook Authentication & Signature Verification). The S2S 3steps flow returns no such token and UCS holds no per-transaction state, so the connector cannot verify a notification statelessly: source_verified is always false and Hyperswitch confirms state via PSync / RSync. Bodies are the documented notification example (techspec Webhook Payload Structure) with operationType/operationResult varied per scenario. In the three positive scenarios webhook_secrets.secret equals the body securityToken (the documented example value, a published sample and not a credential) to pin that a matching static secret does NOT verify; invalid_signature sends a securityToken that differs from it. webhook_secret_key names a key absent from creds.json so the harness never injects a secret.",
+    "signature_algorithm": "none (Nexi signs nothing; per-transaction securityToken not available to UCS, so source_verified is always false)"
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/nexixpay",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "eventId": "554ccc00-28fb-4344-a3fa-4bb8d1999bd5",
+          "eventTime": "2022-09-01T01:20:00.001Z",
+          "securityToken": "2f0ea5059b41414ca3744fe672327d85",
+          "operation": {
+            "orderId": "btid2384983",
+            "operationId": "3470744",
+            "channel": "ECOMMERCE",
+            "operationType": "CAPTURE",
+            "operationResult": "EXECUTED",
+            "operationTime": "2022-09-01T01:20:00.001Z",
+            "paymentMethod": "CARD",
+            "paymentCircuit": "VISA",
+            "paymentInstrumentInfo": "***6152",
+            "paymentEndToEndId": "e723hedsdew",
+            "cancelledOperationId": "",
+            "operationAmount": "3545",
+            "operationCurrency": "EUR",
+            "customerInfo": {
+              "cardHolderName": "Mauro Morandi",
+              "cardHolderEmail": "mauro.morandi@nexi.it"
+            },
+            "warnings": [
+              {
+                "code": "TRA001",
+                "description": "3DS warning"
+              }
+            ],
+            "paymentLinkId": "234244353",
+            "additionalData": {
+              "authorizationCode": "647189",
+              "cardCountry": "ITA",
+              "threeDS": "FULL_SECURE",
+              "schemaTID": "MCS01198U"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "nexixpay_webhook_payment_succeeded",
+      "webhook_secrets": {
+        "secret": "2f0ea5059b41414ca3744fe672327d85"
+      }
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/nexixpay",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "eventId": "554ccc00-28fb-4344-a3fa-4bb8d1999bd5",
+          "eventTime": "2022-09-01T01:20:00.001Z",
+          "securityToken": "2f0ea5059b41414ca3744fe672327d85",
+          "operation": {
+            "orderId": "btid2384983",
+            "operationId": "3470744",
+            "channel": "ECOMMERCE",
+            "operationType": "AUTHORIZATION",
+            "operationResult": "DECLINED",
+            "operationTime": "2022-09-01T01:20:00.001Z",
+            "paymentMethod": "CARD",
+            "paymentCircuit": "VISA",
+            "paymentInstrumentInfo": "***6152",
+            "paymentEndToEndId": "e723hedsdew",
+            "cancelledOperationId": "",
+            "operationAmount": "3545",
+            "operationCurrency": "EUR",
+            "customerInfo": {
+              "cardHolderName": "Mauro Morandi",
+              "cardHolderEmail": "mauro.morandi@nexi.it"
+            },
+            "warnings": [
+              {
+                "code": "TRA001",
+                "description": "3DS warning"
+              }
+            ],
+            "paymentLinkId": "234244353",
+            "additionalData": {
+              "authorizationCode": "647189",
+              "cardCountry": "ITA",
+              "threeDS": "FULL_SECURE",
+              "schemaTID": "MCS01198U"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "nexixpay_webhook_payment_failed",
+      "webhook_secrets": {
+        "secret": "2f0ea5059b41414ca3744fe672327d85"
+      }
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/nexixpay",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "eventId": "554ccc00-28fb-4344-a3fa-4bb8d1999bd5",
+          "eventTime": "2022-09-01T01:20:00.001Z",
+          "securityToken": "2f0ea5059b41414ca3744fe672327d85",
+          "operation": {
+            "orderId": "btid2384983",
+            "operationId": "3470745",
+            "channel": "ECOMMERCE",
+            "operationType": "REFUND",
+            "operationResult": "EXECUTED",
+            "operationTime": "2022-09-01T01:20:00.001Z",
+            "paymentMethod": "CARD",
+            "paymentCircuit": "VISA",
+            "paymentInstrumentInfo": "***6152",
+            "paymentEndToEndId": "e723hedsdew",
+            "cancelledOperationId": "",
+            "operationAmount": "3545",
+            "operationCurrency": "EUR",
+            "customerInfo": {
+              "cardHolderName": "Mauro Morandi",
+              "cardHolderEmail": "mauro.morandi@nexi.it"
+            },
+            "warnings": [
+              {
+                "code": "TRA001",
+                "description": "3DS warning"
+              }
+            ],
+            "paymentLinkId": "234244353",
+            "additionalData": {
+              "authorizationCode": "647189",
+              "cardCountry": "ITA",
+              "threeDS": "FULL_SECURE",
+              "schemaTID": "MCS01198U"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "nexixpay_webhook_refund_succeeded",
+      "webhook_secrets": {
+        "secret": "2f0ea5059b41414ca3744fe672327d85"
+      }
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/nexixpay",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "eventId": "554ccc00-28fb-4344-a3fa-4bb8d1999bd5",
+          "eventTime": "2022-09-01T01:20:00.001Z",
+          "securityToken": "00000000000000000000000000000000",
+          "operation": {
+            "orderId": "btid2384983",
+            "operationId": "3470744",
+            "channel": "ECOMMERCE",
+            "operationType": "CAPTURE",
+            "operationResult": "EXECUTED",
+            "operationTime": "2022-09-01T01:20:00.001Z",
+            "paymentMethod": "CARD",
+            "paymentCircuit": "VISA",
+            "paymentInstrumentInfo": "***6152",
+            "paymentEndToEndId": "e723hedsdew",
+            "cancelledOperationId": "",
+            "operationAmount": "3545",
+            "operationCurrency": "EUR",
+            "customerInfo": {
+              "cardHolderName": "Mauro Morandi",
+              "cardHolderEmail": "mauro.morandi@nexi.it"
+            },
+            "warnings": [
+              {
+                "code": "TRA001",
+                "description": "3DS warning"
+              }
+            ],
+            "paymentLinkId": "234244353",
+            "additionalData": {
+              "authorizationCode": "647189",
+              "cardCountry": "ITA",
+              "threeDS": "FULL_SECURE",
+              "schemaTID": "MCS01198U"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "nexixpay_webhook_invalid_signature",
+      "webhook_secrets": {
+        "secret": "2f0ea5059b41414ca3744fe672327d85"
+      }
+    }
+  }
+}

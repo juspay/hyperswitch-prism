@@ -35,6 +35,9 @@ tema = "tema" # "banca-tema" — lowercase form in TrueLayer provider ids
 Institutionnels = "Institutionnels" # French "Arkéa Banque Entreprises et Institutionnels"
 Imagin = "Imagin" # "imaginBank" — CaixaBank mobile-only brand
 regio = "regio" # "Regio Bank" — Dutch bank
+Compre = "Compre" # Brazilian Portuguese — ClearSale's "Compre e Confie" opt-in program name and API field
+compre = "compre" # Brazilian Portuguese — lowercase form of the above
+cliente = "cliente" # Brazilian Portuguese "customer" — ClearSale status description "Cancelado pelo Cliente"
 
 [default.extend-identifiers]
 ACI = "ACI" # Name of a connector

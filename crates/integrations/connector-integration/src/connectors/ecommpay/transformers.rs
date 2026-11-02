@@ -1090,7 +1090,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request.amount.amount, request.amount.currency)
+            .convert(&request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
@@ -1333,6 +1333,8 @@ fn wallet_source<T: PaymentMethodDataTypes>(
         | WalletData::PaymayaRedirect(_)
         | WalletData::PayhereRedirect {}
         | WalletData::QwikcilverWalletDirect(_)
+        | WalletData::SatispayIntent(_)
+        | WalletData::SatispayQr(_)
         | WalletData::Skrill(_)
         | WalletData::Neteller(_) => Err(unimplemented_payment_method(
             SALE_DOC_URL,
@@ -2662,7 +2664,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request.amount.amount, request.amount.currency)
+            .convert(&request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
@@ -2860,7 +2862,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(amount_to_capture, currency)
+            .convert(&request.amount_to_capture)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
@@ -3149,7 +3151,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(refund_amount, currency)
+            .convert(&request.refund_amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,

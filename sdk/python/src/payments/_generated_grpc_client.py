@@ -11,7 +11,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
-from payments.generated import events_pb2, frm_pb2, payment_pb2, payouts_pb2, surcharge_pb2
+from payments.generated import dispute_pb2, events_pb2, frm_pb2, payment_pb2, payouts_pb2, surcharge_pb2
 
 
 @dataclass
@@ -130,33 +130,33 @@ class GrpcDisputeClient:
         self._ffi    = ffi
         self._config = config
 
-    def submit_evidence(self, req: payment_pb2.DisputeServiceSubmitEvidenceRequest) -> payment_pb2.DisputeServiceSubmitEvidenceResponse:
+    def submit_evidence(self, req: dispute_pb2.DisputeServiceSubmitEvidenceRequest) -> dispute_pb2.DisputeServiceSubmitEvidenceResponse:
         """DisputeService.SubmitEvidence — Upload evidence to dispute customer chargeback. Provides documentation like receipts and delivery proof to contest fraudulent transaction claims."""
         return _call_grpc(
             self._ffi, self._config,
             "dispute/submit_evidence",
-            req, payment_pb2.DisputeServiceSubmitEvidenceResponse,
+            req, dispute_pb2.DisputeServiceSubmitEvidenceResponse,
         )
-    def dispute_get(self, req: payment_pb2.DisputeServiceGetRequest) -> payment_pb2.DisputeResponse:
+    def dispute_get(self, req: dispute_pb2.DisputeServiceGetRequest) -> payment_pb2.DisputeResponse:
         """DisputeService.Get — Retrieve dispute status and evidence submission state. Tracks dispute progress through bank review process for informed decision-making."""
         return _call_grpc(
             self._ffi, self._config,
             "dispute/dispute_get",
             req, payment_pb2.DisputeResponse,
         )
-    def defend(self, req: payment_pb2.DisputeServiceDefendRequest) -> payment_pb2.DisputeServiceDefendResponse:
+    def defend(self, req: dispute_pb2.DisputeServiceDefendRequest) -> dispute_pb2.DisputeServiceDefendResponse:
         """DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation."""
         return _call_grpc(
             self._ffi, self._config,
             "dispute/defend",
-            req, payment_pb2.DisputeServiceDefendResponse,
+            req, dispute_pb2.DisputeServiceDefendResponse,
         )
-    def accept(self, req: payment_pb2.DisputeServiceAcceptRequest) -> payment_pb2.DisputeServiceAcceptResponse:
+    def accept(self, req: dispute_pb2.DisputeServiceAcceptRequest) -> dispute_pb2.DisputeServiceAcceptResponse:
         """DisputeService.Accept — Concede dispute and accepts chargeback loss. Acknowledges liability and stops dispute defense process when evidence is insufficient."""
         return _call_grpc(
             self._ffi, self._config,
             "dispute/accept",
-            req, payment_pb2.DisputeServiceAcceptResponse,
+            req, dispute_pb2.DisputeServiceAcceptResponse,
         )
 
 class GrpcEventClient:

@@ -110,6 +110,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Jpmorgan<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        JpmorganSyncResource::from_request(data).map(|_| ())
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Jpmorgan<T>
@@ -134,13 +141,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Jpmorgan<T>
 {
-    fn validate_psync_reference_id(
-        &self,
-        data: &PaymentsSyncData,
-        _payment_flow_data: &PaymentFlowData,
-    ) -> CustomResult<(), IntegrationError> {
-        JpmorganSyncResource::from_request(data).map(|_| ())
-    }
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
         true
     }

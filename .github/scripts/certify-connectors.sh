@@ -73,6 +73,14 @@ is_spec_modified() {
 # lookups and file paths, so keep them to the shape a connector name can have.
 valid_name() { [[ "$1" =~ ^[a-z0-9_]+$ ]]; }
 
+print_reproduction_command() {
+  local name="$1" suite="$2" scenario="$3"
+  printf 'Reproduce locally: test-prism --connector %q --suite %q --scenario %q\n' \
+    "${name}" "${suite}" "${scenario}"
+  printf 'Masked local evidence: test-prism --connector %q --suite %q --scenario %q --local-debug-report\n' \
+    "${name}" "${suite}" "${scenario}"
+}
+
 # Only the sources are swapped for arbitration, never the tooling: this script
 # and scripts/run-tests must stay at their HEAD versions. A full checkout would
 # rewrite this file while bash is still reading it, and would revert run-tests
@@ -358,6 +366,7 @@ for target in ${FAILED[@]+"${FAILED[@]}"}; do
   fi
 
   echo "::group::Re-check ${name} (${suite} / ${scenario})"
+  print_reproduction_command "${name}" "${suite}" "${scenario}"
   if run_scenario "${name}" "${suite}" "${scenario}"; then
     echo "Passed on re-check — treating the first failure as a flake."
     FLAKY+=("${name} (${suite} / ${scenario})")

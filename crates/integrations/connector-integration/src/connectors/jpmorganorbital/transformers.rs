@@ -310,7 +310,10 @@ fn build_amount(
 ) -> Result<StringTwoDecimalUnit, error_stack::Report<IntegrationError>> {
     let minor = minor_amount.get_amount_as_i64();
     let amount = StringTwoDecimalUnitForConnector
-        .convert(minor_amount, currency)
+        .convert(&common_utils::types::Money {
+            amount: minor_amount,
+            currency,
+        })
         .map_err(|_| {
             invalid_amount(format!(
                 "{currency} has more than two decimal places, so {minor} minor units cannot be \

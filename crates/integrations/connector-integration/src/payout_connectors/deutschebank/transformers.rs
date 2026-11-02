@@ -604,8 +604,10 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
 
         let amount = utils::convert_amount(
             &FloatMajorUnitForConnector,
-            req.request.amount,
-            req.request.destination_currency,
+            &common_utils::types::Money {
+                amount: req.request.amount,
+                currency: req.request.destination_currency,
+            },
         )?;
         let purpose_code = req
             .resource_common_data

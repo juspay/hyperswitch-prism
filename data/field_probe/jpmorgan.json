@@ -47,7 +47,7 @@
             "request-id": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"ach\":{\"accountNumber\":\"000123456789\",\"financialInstitutionRoutingNumber\":\"110000000\",\"accountType\":\"CHECKING\"}},\"accountHolder\":{\"firstName\":\"\",\"lastName\":\"\"},\"statementDescriptor\":\"PROBE\"}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"ach\":{\"accountNumber\":\"000123456789\",\"financialInstitutionRoutingNumber\":\"110000000\",\"accountType\":\"CHECKING\"}},\"accountHolder\":{\"firstName\":\"\",\"lastName\":\"\"},\"partialAuthorizationSupport\":\"NOT_SUPPORTED\"}"
         }
       },
       "AchBankTransfer": {
@@ -133,7 +133,7 @@
             "request-id": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"DEVICE_TOKEN\",\"walletProvider\":\"APPLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}},\"merchantOrderNumber\":\"probetxn001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"DEVICE_TOKEN\",\"walletProvider\":\"APPLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}},\"merchantOrderNumber\":\"probetxn001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true,\"partialAuthorizationSupport\":\"NOT_SUPPORTED\"}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -229,7 +229,7 @@
             "request-id": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\"}},\"merchantOrderNumber\":\"probetxn001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\"}},\"merchantOrderNumber\":\"probetxn001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true,\"partialAuthorizationSupport\":\"NOT_SUPPORTED\"}"
         }
       },
       "CashappQr": {
@@ -359,7 +359,7 @@
             "request-id": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"DEVICE_TOKEN\",\"walletProvider\":\"GOOGLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}},\"merchantOrderNumber\":\"probetxn001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"DEVICE_TOKEN\",\"walletProvider\":\"GOOGLE_PAY\",\"authentication\":{\"tokenAuthenticationValue\":\"AAAAAA==\",\"electronicCommerceIndicator\":\"05\"}}},\"merchantOrderNumber\":\"probetxn001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true,\"partialAuthorizationSupport\":\"NOT_SUPPORTED\"}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -866,7 +866,7 @@
             "request-id": "probe_proxy_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"{{$card_number}}\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\"}},\"merchantOrderNumber\":\"probeproxytxn001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"{{$card_number}}\",\"expiry\":{\"month\":3,\"year\":2030},\"accountNumberType\":\"PAN\"}},\"merchantOrderNumber\":\"probeproxytxn001\",\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"NOT_STORED\",\"isAmountFinal\":true,\"partialAuthorizationSupport\":\"NOT_SUPPORTED\"}"
         }
       }
     },
@@ -965,7 +965,7 @@
             "request-id": "",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"originalNetworkTransactionId\":\"probe_network_txn_001\"}},\"initiatorType\":\"MERCHANT\",\"accountOnFile\":\"STORED\",\"isAmountFinal\":true}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030},\"originalNetworkTransactionId\":\"probe_network_txn_001\"}},\"initiatorType\":\"MERCHANT\",\"accountOnFile\":\"STORED\",\"isAmountFinal\":true,\"partialAuthorizationSupport\":\"NOT_SUPPORTED\"}"
         }
       }
     },
@@ -1111,7 +1111,7 @@
             "request-id": "probe_tokenized_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"token\":\"pm_1AbcXyzStripeTestToken\"},\"accountHolder\":{\"firstName\":\"NA\",\"lastName\":\"NA\"},\"statementDescriptor\":\"Statement Descriptor\"}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"token\":\"pm_1AbcXyzStripeTestToken\"},\"accountHolder\":{\"firstName\":\"NA\",\"lastName\":\"NA\"},\"partialAuthorizationSupport\":\"NOT_SUPPORTED\"}"
         }
       }
     },

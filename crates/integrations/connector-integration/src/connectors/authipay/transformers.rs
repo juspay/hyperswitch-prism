@@ -198,11 +198,11 @@ impl<T: PaymentMethodDataTypes>
     ) -> Result<Self, Self::Error> {
         // Use FloatMajorUnitForConnector to properly convert minor to major unit
         let converter = FloatMajorUnitForConnector;
-        let amount_major = converter
-            .convert(item.request.amount.amount, item.request.currency)
-            .change_context(IntegrationError::RequestEncodingFailed {
+        let amount_major = converter.convert(&item.request.amount).change_context(
+            IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
-            })?;
+            },
+        )?;
 
         let transaction_amount = TransactionAmount {
             total: amount_major,
@@ -301,7 +301,10 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         // Convert amount to FloatMajorUnit format
         let converter = FloatMajorUnitForConnector;
         let amount_major = converter
-            .convert(capture_amount, item.request.currency)
+            .convert(&common_utils::types::Money {
+                amount: capture_amount,
+                currency: item.request.currency,
+            })
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -805,7 +808,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         // Convert refund amount to major unit format
         let converter = FloatMajorUnitForConnector;
         let amount_major = converter
-            .convert(item.request.refund_amount.amount, item.request.currency)
+            .convert(&item.request.refund_amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1145,7 +1148,7 @@ impl
             .as_ref()
             .map(|amount| {
                 FloatMajorUnitForConnector
-                    .convert(amount.amount, amount.currency)
+                    .convert(amount)
                     .change_context(IntegrationError::RequestEncodingFailed {
                         context: Default::default(),
                     })

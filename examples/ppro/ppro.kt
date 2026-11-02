@@ -16,6 +16,7 @@ import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.AuthenticationType
 import payments.CaptureMethod
+import payments.CountryAlpha2
 import payments.Currency
 import payments.HttpMethod
 import payments.PaymentMethodType
@@ -58,6 +59,7 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
+                countryAlpha2Code = CountryAlpha2.US
             }
         }
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details.

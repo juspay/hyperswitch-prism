@@ -1,0 +1,64 @@
+{
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "mid": "RDPTMnM0001",
+          "order_id": "a94eefa4482d4a71",
+          "transaction_id": "a94eefa4482d4a71_975212608306613",
+          "merchant_reference": "azharamin-1790059187-1",
+          "response_code": 0,
+          "response_msg": "Approved",
+          "authorized_amount": "1100.00",
+          "authorized_ccy": "SGD",
+          "response_status": "success",
+          "request_mid": "RDPTMnM0001",
+          "request_amount": "1100.00",
+          "request_ccy": "SGD",
+          "acquirer_transaction_id": "975212608306613",
+          "acquirer_authorized_amount": "1100.00",
+          "acquirer_authorized_ccy": "SGD",
+          "acquirer_response_code": "00",
+          "acquirer_response_msg": "Approved",
+          "acquirer_authorization_code": "831200",
+          "acquirer_mpi_eci": "07",
+          "created_timestamp": "2026-09-22 14:42:35",
+          "acquirer_created_timestamp": "2026-09-22 14:42:35",
+          "request_timestamp": "2026-09-22 14:42:35",
+          "transaction_type": "S",
+          "payment_mode": "CC",
+          "signature": "692e27e0c1577e784706317b89bb2170"
+        }
+      },
+      "merchant_event_id": "reddot_webhook_payment_succeeded"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "mid": "RDPTMnM0001",
+          "order_id": "a94eefa4482d4a71",
+          "transaction_id": "a94eefa4482d4a71_975212608306614",
+          "merchant_reference": "azharamin-1790059187-2",
+          "response_code": "-1003",
+          "response_msg": "Transaction failed",
+          "authorized_amount": "1100.00",
+          "authorized_ccy": "SGD",
+          "response_status": "error",
+          "request_mid": "RDPTMnM0001",
+          "request_amount": "1100.00",
+          "request_ccy": "SGD",
+          "created_timestamp": "2026-09-22 14:42:35",
+          "request_timestamp": "2026-09-22 14:42:35",
+          "transaction_type": "S",
+          "payment_mode": "CC",
+          "signature": "58d1c1e0b2467d674615206a78ac3261"
+        }
+      },
+      "merchant_event_id": "reddot_webhook_payment_failed"
+    }
+  }
+}

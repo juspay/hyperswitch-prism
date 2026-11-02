@@ -205,10 +205,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let amount = item
                     .connector
                     .amount_converter
-                    .convert(
-                        item.router_data.request.amount.amount,
-                        item.router_data.request.currency,
-                    )
+                    .convert(&item.router_data.request.amount)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?;

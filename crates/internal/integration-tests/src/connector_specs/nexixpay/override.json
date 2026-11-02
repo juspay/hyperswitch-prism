@@ -2,7 +2,6 @@
   "PaymentMethodAuthenticationService/PreAuthenticate": {
     "threeds_card_pre_authenticate": {
       "grpc_req": {
-        "merchant_order_id": "pay_1234",
         "amount": {
           "minor_amount": 100,
           "currency": "EUR"
@@ -22,6 +21,20 @@
               "value": "123"
             }
           }
+        }
+      },
+      "assert": {
+        "redirection_data.form.endpoint": {
+          "must_exist": true
+        },
+        "redirection_data.form.form_fields.ThreeDsRequest": {
+          "must_exist": true
+        },
+        "redirection_data.form.form_fields.ReturnUrl": {
+          "must_exist": true
+        },
+        "redirection_data.form.form_fields.transactionId": {
+          "must_exist": true
         }
       }
     }
@@ -85,10 +98,23 @@
     }
   },
   "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        }
+      },
+      "assert": {
+        "status": null,
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        }
+      }
+    },
     "threeds_manual_capture_credit_card": {
       "grpc_req": {
-        "merchant_transaction_id": "pay_1234",
-        "merchant_order_id": "pay_1234",
         "amount": {
           "minor_amount": 100,
           "currency": "EUR"
@@ -96,21 +122,18 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4349940199004549"
+              "value": "4111111111111111"
             },
             "card_exp_month": {
-              "value": "12"
+              "value": "08"
             },
             "card_exp_year": {
-              "value": "30"
+              "value": "35"
             },
             "card_cvc": {
-              "value": "123"
+              "value": "999"
             }
           }
-        },
-        "authentication_data": {
-          "connector_transaction_id": "pay_1234"
         }
       }
     }
@@ -136,7 +159,6 @@
   "PaymentService/CompleteAuthorize": {
     "threeds_complete_authorize_credit_card": {
       "grpc_req": {
-        "merchant_transaction_id": "pay_1234567890",
         "amount": {
           "minor_amount": 100,
           "currency": "EUR"
@@ -156,16 +178,87 @@
               "value": "123"
             }
           }
+        }
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "auth_type": "THREE_DS",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "amount": {
+          "currency": "EUR"
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "auth_type": "THREE_DS",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "amount": {
+          "currency": "EUR"
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "auth_type": "THREE_DS",
+        "complete_authorize_url": "https://example.com/payment/complete",
+        "amount": {
+          "currency": "EUR"
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "source_verified": {
+          "must_not_exist": true
         },
-        "authentication_data": {
-          "connector_transaction_id": "auto_generate"
+        "event_status": null,
+        "event_content.payments_response.status": {
+          "one_of": [
+            "CHARGED"
+          ]
+        }
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "source_verified": {
+          "must_not_exist": true
         },
-        "redirection_response": {
-          "params": "auto_generate",
-          "payload": {
-            "PaRes": "auto_generate",
-            "paymentId": "auto_generate"
-          }
+        "event_status": null,
+        "event_content.payments_response.status": {
+          "one_of": [
+            "FAILURE"
+          ]
+        }
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "event_status": null,
+        "event_content.refunds_response.status": {
+          "one_of": [
+            "REFUND_SUCCESS"
+          ]
+        }
+      }
+    },
+    "invalid_signature": {
+      "assert": {
+        "event_status": null,
+        "event_type": {
+          "one_of": [
+            "PAYMENT_INTENT_SUCCESS",
+            "PAYMENT_INTENT_CAPTURE_SUCCESS"
+          ]
         }
       }
     }

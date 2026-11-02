@@ -1,4 +1,5 @@
-use axum::{body::Body, extract::Request, http::StatusCode, response::Response};
+use axum::{body::Body, extract::Request, http::StatusCode, middleware::Next, response::Response};
+use common_utils::{consts::X_OUTGOING_API_OVERHEAD, request_metrics::ConnectorLatencyTracker};
 use std::{
     future::Future,
     pin::Pin,
@@ -93,4 +94,21 @@ where
             Ok(response)
         })
     }
+}
+
+pub async fn track_composite_outgoing_latency(mut request: Request, next: Next) -> Response {
+    if !request.uri().path().starts_with("/composite/") {
+        return next.run(request).await;
+    }
+
+    let tracker = ConnectorLatencyTracker::default();
+    request.extensions_mut().insert(tracker.clone());
+
+    let mut response = next.run(request).await;
+    if let Ok(value) = tracker.connector_time().as_millis().to_string().parse() {
+        response
+            .headers_mut()
+            .insert(X_OUTGOING_API_OVERHEAD, value);
+    }
+    response
 }

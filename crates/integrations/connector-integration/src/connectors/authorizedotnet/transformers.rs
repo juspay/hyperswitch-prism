@@ -511,6 +511,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<&WalletData> for PaymentDetails<T> {
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
+            | WalletData::SatispayIntent(_)
+            | WalletData::SatispayQr(_)
             | WalletData::Wero(_)
             | WalletData::LazyPayRedirect(_)
             | WalletData::PhonePeRedirect(_)
@@ -611,6 +613,8 @@ fn get_decrypted_wallet_card(
         | WalletData::RevolutPay(_)
         | WalletData::MbWay(_)
         | WalletData::Satispay(_)
+        | WalletData::SatispayIntent(_)
+        | WalletData::SatispayQr(_)
         | WalletData::Wero(_)
         | WalletData::LazyPayRedirect(_)
         | WalletData::PhonePeRedirect(_)
@@ -1281,7 +1285,7 @@ fn create_regular_transaction_request<
         |amount: MinorUnit, currency: enums::Currency| -> Result<FloatMajorUnit, Error> {
             item.connector
                 .amount_converter
-                .convert(amount, currency)
+                .convert(&common_utils::types::Money { amount, currency })
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: IntegrationErrorContext {
                         suggested_action: None,
@@ -1444,10 +1448,7 @@ fn create_regular_transaction_request<
         amount: Some(
             item.connector
                 .amount_converter
-                .convert(
-                    item.router_data.request.amount.amount,
-                    item.router_data.request.currency,
-                )
+                .convert(&item.router_data.request.amount)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })
@@ -1805,10 +1806,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: item
                 .connector
                 .amount_converter
-                .convert(
-                    item.router_data.request.amount.amount,
-                    item.router_data.request.currency,
-                )
+                .convert(&item.router_data.request.amount)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })
@@ -1908,10 +1906,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: item
                 .connector
                 .amount_converter
-                .convert(
-                    item.router_data.request.amount_to_capture.amount,
-                    item.router_data.request.currency,
-                )
+                .convert(&item.router_data.request.amount_to_capture)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })
@@ -2459,10 +2454,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: item
                 .connector
                 .amount_converter
-                .convert(
-                    item.router_data.request.refund_amount.amount,
-                    item.router_data.request.currency,
-                )
+                .convert(&item.router_data.request.refund_amount)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })

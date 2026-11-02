@@ -8,6 +8,7 @@
 package examples.stripe
 
 import types.Payment.*
+import types.Dispute.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient

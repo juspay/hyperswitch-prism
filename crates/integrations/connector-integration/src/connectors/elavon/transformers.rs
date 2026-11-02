@@ -240,7 +240,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let amount = item
                     .connector
                     .amount_converter
-                    .convert(request_data.amount.amount, request_data.currency)
+                    .convert(&request_data.amount)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: IntegrationErrorContext {
                             additional_context: Some(format!(
@@ -853,10 +853,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.amount_to_capture.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount_to_capture)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
@@ -1051,7 +1048,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request_data.refund_amount.amount, request_data.currency)
+            .convert(&request_data.refund_amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
@@ -1568,7 +1565,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.amount.amount, request.currency)
+            .convert(&request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(

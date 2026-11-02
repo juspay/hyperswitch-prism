@@ -18,6 +18,7 @@ syntax = "proto3";
 package types;
 
 import "common_types.proto";
+import "domain.proto";
 import "payment.proto";
 import "payment_methods.proto";
 
@@ -65,6 +66,17 @@ message FrmServicePreRiskCheckRequest {
 
   // Merchant details (id + MCC) for risk scoring.
   optional MerchantDetails merchant_details = 13;
+
+  // Billing-side identity document (CPF/CNPJ).
+  optional CustomerDocumentDetails billing_document_data = 14;
+
+  // Shipping/buyer identity document.
+  // Falls back to the billing document when absent.
+  optional CustomerDocumentDetails shipping_document_data = 15;
+
+  // Domain-specific order context (travel, hotel, airline…) as a typed object.
+  // Producers populate the blocks they have data for.
+  optional DomainData domain_data = 16;
 }
 
 // Response for FrmService.PreRiskCheck
@@ -139,6 +151,19 @@ message FrmServicePostRiskCheckRequest {
 
   // Billing / shipping address information
   optional PaymentAddress address = 13;
+
+  // Billing-side identity document (CPF/CNPJ).
+  optional CustomerDocumentDetails billing_document_data = 14;
+
+  // Shipping/buyer identity document.
+  optional CustomerDocumentDetails shipping_document_data = 15;
+
+  // Browser/device information for risk scoring (same as PreRiskCheck).
+  optional BrowserInformation browser_info = 16;
+
+  // Domain-specific order context (travel, hotel, airline…) as a typed object
+  // (same as PreRiskCheck). Re-analysis must replay the same order body.
+  optional DomainData domain_data = 17;
 }
 
 // Response for FrmService.PostRiskCheck

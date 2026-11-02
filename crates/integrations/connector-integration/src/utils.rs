@@ -225,7 +225,7 @@ pub fn integration_ctx(
     }
 }
 
-/// Use at `.convert(minor_amount, currency)` failures. `flow` should name the **payment operation**
+/// Use at `.convert(money)` failures. `flow` should name the **payment operation**
 pub fn amount_conversion_ctx(
     flow: &'static str,
     minor_amount: &impl std::fmt::Debug,
@@ -269,29 +269,25 @@ where
     AC: AmountConvertor + ?Sized,
 {
     let connector_name = connector.to_string();
-    let amount = amount_converter
+    amount_converter
         .convert_back(amount, currency)
         .change_context(response_handling_fail_for_connector(
             http_status,
             &connector_name,
-        ))?;
-
-    Ok(Money { amount, currency })
+        ))
 }
 
 /// Converts a webhook amount conversion result into domain money while preserving parsing failures.
 pub fn webhook_amount_to_money(
-    amount: Result<MinorUnit, Report<ParsingError>>,
+    amount: Result<Money, Report<ParsingError>>,
     currency: enums::Currency,
 ) -> Result<Money, Report<errors::WebhookError>> {
-    let amount = amount.change_context(errors::WebhookError::WebhookAmountConversionFailed {
+    amount.change_context(errors::WebhookError::WebhookAmountConversionFailed {
         reason: format!(
             "Failed to convert amount to minor units: currency={}",
             currency
         ),
-    })?;
-
-    Ok(Money { amount, currency })
+    })
 }
 
 /// Response bytes could not be parsed into the expected response type (JSON/XML, schema drift).

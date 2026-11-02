@@ -90,7 +90,7 @@ generate-proto: install-deps
 		-I $(PROTO_DIR) \
 		--python_out=$(GENERATED_OUT) \
 		$(PROTO_DIR)/common_types.proto $(PROTO_DIR)/domain.proto \
-		$(PROTO_DIR)/payment.proto $(PROTO_DIR)/events.proto $(PROTO_DIR)/payouts.proto \
+		$(PROTO_DIR)/payment.proto $(PROTO_DIR)/dispute.proto $(PROTO_DIR)/events.proto $(PROTO_DIR)/payouts.proto \
 		$(PROTO_DIR)/frm.proto $(PROTO_DIR)/surcharge.proto \
 		$(PROTO_DIR)/payment_methods.proto $(PROTO_DIR)/sdk_config.proto
 	@# TODO: protoc --python_out generates bare imports (e.g. "import payment_methods_pb2")

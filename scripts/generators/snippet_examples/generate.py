@@ -3297,6 +3297,11 @@ def render_consolidated_kotlin(
         grpc_req = flow_metadata.get(flow_key, {}).get("grpc_request", "")
         if grpc_req and grpc_req not in grpc_req_types:
             grpc_req_types.append(grpc_req)
+    dispute_proto_import = (
+        "import types.Dispute.*\n"
+        if any(req.startswith("DisputeService") for req in grpc_req_types)
+        else ""
+    )
 
     # Collect enum types used in payload fields (for Currency.USD, CaptureMethod.MANUAL, etc.)
     enum_types: set[str] = set()
@@ -3547,7 +3552,7 @@ def render_consolidated_kotlin(
 package examples.{connector_name}
 
 import types.Payment.*
-import types.Events.*
+{dispute_proto_import}import types.Events.*
 import types.PaymentMethods.*
 {imports}
 import payments.ConnectorConfig

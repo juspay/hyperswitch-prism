@@ -23,7 +23,14 @@ impl<T> InterfaceRequestData<T> {
     ) -> common_utils::errors::CustomResult<Self, domain_types::errors::IntegrationError> {
         let (metadata, extensions, payload) = request.into_parts();
 
-        let metadata_payload = get_metadata_payload(&metadata, config.clone())?;
+        let mut metadata_payload = get_metadata_payload(&metadata, config.clone())?;
+        // Composite services forward the same request-scoped tracker through tonic
+        // extensions. Reuse it so all granular connector calls contribute to one sum.
+        if let Some(connector_latency) =
+            extensions.get::<common_utils::request_metrics::ConnectorLatencyTracker>()
+        {
+            metadata_payload.connector_latency = connector_latency.clone();
+        }
 
         let masked_metadata = MaskedMetadata::new(metadata, config.unmasked_headers.clone());
 
