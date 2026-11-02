@@ -110,6 +110,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `PaysafePaymentMethodDetails::get_account_id` (domain_types/router_data.rs).
     config.type_attribute(".types.PaysafePaymentMethodDetails", "#[serde(default)]");
 
+    // WorldpayvantivConfig.merchant_id_by_currency is the BodyKey alternative to the
+    // single `merchant_id`; existing x-connector-config headers omit it. Without a default,
+    // serde rejects a missing (non-optional proto map) field and every SignatureKey /
+    // MultiAuthKey Worldpay Vantiv header would fail to parse.
+    config.field_attribute(
+        ".types.WorldpayvantivConfig.merchant_id_by_currency",
+        "#[serde(default)]",
+    );
+
     // These are proto `string`s, so masked_serialize would write signing secrets into request
     // logs and events. Serializing through `Secret` masks them there and nowhere else.
     for (field, serializer) in [

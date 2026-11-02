@@ -769,7 +769,10 @@ pub enum ConnectorSpecificConfig {
     Worldpayvantiv {
         user: Secret<String>,
         password: Secret<String>,
-        merchant_id: Secret<String>,
+        /// Single merchant ID used for every currency.
+        merchant_id: Option<Secret<String>>,
+        /// Merchant IDs keyed by currency; used when `merchant_id` is not set.
+        merchant_id_by_currency: Option<HashMap<common_enums::Currency, Secret<String>>>,
         base_url: Option<String>,
         secondary_base_url: Option<String>,
         report_group: Option<String>,
@@ -2576,7 +2579,19 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Worldpayvantiv(worldpayvantiv) => Ok(Self::Worldpayvantiv {
                 user: worldpayvantiv.user.ok_or_else(err)?,
                 password: worldpayvantiv.password.ok_or_else(err)?,
-                merchant_id: worldpayvantiv.merchant_id.ok_or_else(err)?,
+                merchant_id: worldpayvantiv.merchant_id,
+                merchant_id_by_currency: if worldpayvantiv.merchant_id_by_currency.is_empty() {
+                    None
+                } else {
+                    Some(
+                        serde_json::to_value(worldpayvantiv.merchant_id_by_currency)
+                            .and_then(serde_json::from_value)
+                            .change_context(errors::IntegrationError::InvalidConnectorConfig {
+                                config: "merchant_id_by_currency",
+                                context: Default::default(),
+                            })?,
+                    )
+                },
                 base_url: worldpayvantiv.base_url,
                 secondary_base_url: worldpayvantiv.secondary_base_url,
                 report_group: worldpayvantiv.report_group,
@@ -3902,7 +3917,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     } => Ok(Self::Worldpayvantiv {
                         user: api_key.clone(),
                         password: api_secret.clone(),
-                        merchant_id: key1.clone(),
+                        merchant_id: Some(key1.clone()),
+                        merchant_id_by_currency: None,
                         base_url: None,
                         secondary_base_url: None,
                         report_group: None,
@@ -3916,7 +3932,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     } => Ok(Self::Worldpayvantiv {
                         user: api_key.clone(),
                         password: api_secret.clone(),
-                        merchant_id: key1.clone(),
+                        merchant_id: Some(key1.clone()),
+                        merchant_id_by_currency: None,
                         base_url: None,
                         secondary_base_url: None,
                         report_group: None,
