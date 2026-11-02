@@ -230,9 +230,7 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayraftAuthType {
 #[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftErrorInformation {
     pub field_in_error: Option<String>,
-    // ErrorText contains a portion of the invalid field value. Keep it secret-wrapped and do not
-    // copy it into merchant-facing error messages, where it could expose payment data.
-    pub error_text: Option<Secret<String>>,
+    pub error_text: Option<String>,
 }
 
 /// Worldpay RAFT error response body.
@@ -266,69 +264,29 @@ impl WorldpayraftErrorResponse {
             return None;
         }
 
-        let return_code_failed = self
+        let code = self
             .return_code
-            .as_deref()
-            .is_some_and(|code| code != RETURN_CODE_SUCCESS);
-        let response_code_failed = self
+            .as_ref()
+            .filter(|code| code.as_str() != RETURN_CODE_SUCCESS)
+            .or_else(|| {
+                self.response_code
+                    .as_ref()
+                    .filter(|code| code.as_str() != RESPONSE_CODE_SUCCESS)
+            })
+            .cloned()
+            .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string());
+
+        let response_code_message = self
             .response_code
             .as_deref()
-            .is_some_and(|code| code != RESPONSE_CODE_SUCCESS);
-        let code = if return_code_failed {
-            self.return_code
-                .clone()
-                .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string())
-        } else if response_code_failed {
-            self.response_code
-                .clone()
-                .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string())
-        } else {
-            common_utils::consts::NO_ERROR_CODE.to_string()
-        };
-
-        let response_code_message = response_code_failed
-            .then(|| {
-                self.response_code
-                    .as_deref()
-                    .and_then(worldpayraft_response_code_message)
-            })
-            .flatten();
+            .filter(|code| *code != RESPONSE_CODE_SUCCESS)
+            .and_then(worldpayraft_response_code_message);
         let message = self
             .return_text
-            .as_ref()
-            .filter(|message| !message.trim().is_empty())
-            .cloned()
-            .or_else(|| {
-                return_code_failed
-                    .then(|| {
-                        self.return_code
-                            .as_deref()
-                            .and_then(worldpayraft_return_code_message)
-                    })
-                    .flatten()
-                    .map(str::to_string)
-            })
-            .or_else(|| response_code_message.map(str::to_string))
-            .or_else(|| {
-                return_code_failed
-                    .then_some(self.return_code.as_ref())
-                    .flatten()
-                    .map(|return_code| {
-                        format!(
-                            "Worldpay RAFT returned an unrecognized ReturnCode {return_code}"
-                        )
-                    })
-            })
-            .or_else(|| {
-                response_code_failed
-                    .then_some(self.response_code.as_ref())
-                    .flatten()
-                    .map(|response_code| {
-                        format!(
-                            "Worldpay RAFT declined the transaction with unrecognized response code {response_code}"
-                        )
-                    })
-            })
+            .as_deref()
+            .filter(|text| !text.trim().is_empty())
+            .map(str::to_owned)
+            .or_else(|| response_code_message.map(str::to_owned))
             .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
         let message = self
             .error_information
@@ -360,16 +318,6 @@ impl WorldpayraftErrorResponse {
             network_error_message,
             ..ErrorResponse::default()
         })
-    }
-}
-
-fn worldpayraft_return_code_message(code: &str) -> Option<&'static str> {
-    match code {
-        "0000" => Some("Successful"),
-        "0004" => Some("Edit error on input"),
-        "0008" => Some("Logic error"),
-        "0012" => Some("System issue"),
-        _ => None,
     }
 }
 
