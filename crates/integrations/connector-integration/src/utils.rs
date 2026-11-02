@@ -24,7 +24,7 @@ use domain_types::{
     router_data::ErrorResponse,
     router_response_types::Response,
 };
-use error_stack::{Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde_json::Value;
 use std::{collections::HashMap, str::FromStr};
@@ -33,6 +33,11 @@ pub use xml_utils::preprocess_xml_response_bytes;
 type Error = Report<IntegrationError>;
 use common_enums::enums;
 use serde::{Deserialize, Serialize};
+
+/// For example, 2.5 with a multiplier of 100.0 becomes "250".
+pub fn scaled_percentage_to_string(percentage: f64, multiplier: f64) -> String {
+    format!("{:.0}", percentage * multiplier)
+}
 
 pub fn build_form_from_struct<T: Serialize>(
     data: T,
@@ -172,6 +177,41 @@ pub fn missing_field_err(
     })
 }
 
+/// A card expiry month given as `"1"`..`"12"` (a leading zero is allowed), as a number.
+pub fn parse_expiry_month(month: &str, field_name: &'static str) -> Result<u8, Error> {
+    month
+        .trim()
+        .parse::<u8>()
+        .ok()
+        .filter(|month| (1..=12).contains(month))
+        .ok_or_else(|| {
+            report!(IntegrationError::InvalidDataFormat {
+                field_name,
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some("Expected a month between 1 and 12".to_owned()),
+                    ..Default::default()
+                },
+            })
+        })
+}
+
+/// A card expiry year given as four digits, as a number.
+pub fn parse_expiry_year_four_digit(year: &str, field_name: &'static str) -> Result<u16, Error> {
+    let year = year.trim();
+    year.parse::<u16>()
+        .ok()
+        .filter(|_| year.len() == 4)
+        .ok_or_else(|| {
+            report!(IntegrationError::InvalidDataFormat {
+                field_name,
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some("Expected a four-digit year".to_owned()),
+                    ..Default::default()
+                },
+            })
+        })
+}
+
 /// Build [`errors::IntegrationErrorContext`] with explicit `additional_context` and `suggested_action`
 /// at the call site (no hidden defaults).
 pub fn integration_ctx(
@@ -185,7 +225,7 @@ pub fn integration_ctx(
     }
 }
 
-/// Use at `.convert(minor_amount, currency)` failures. `flow` should name the **payment operation**
+/// Use at `.convert(money)` failures. `flow` should name the **payment operation**
 pub fn amount_conversion_ctx(
     flow: &'static str,
     minor_amount: &impl std::fmt::Debug,
@@ -229,29 +269,25 @@ where
     AC: AmountConvertor + ?Sized,
 {
     let connector_name = connector.to_string();
-    let amount = amount_converter
+    amount_converter
         .convert_back(amount, currency)
         .change_context(response_handling_fail_for_connector(
             http_status,
             &connector_name,
-        ))?;
-
-    Ok(Money { amount, currency })
+        ))
 }
 
 /// Converts a webhook amount conversion result into domain money while preserving parsing failures.
 pub fn webhook_amount_to_money(
-    amount: Result<MinorUnit, Report<ParsingError>>,
+    amount: Result<Money, Report<ParsingError>>,
     currency: enums::Currency,
 ) -> Result<Money, Report<errors::WebhookError>> {
-    let amount = amount.change_context(errors::WebhookError::WebhookAmountConversionFailed {
+    amount.change_context(errors::WebhookError::WebhookAmountConversionFailed {
         reason: format!(
             "Failed to convert amount to minor units: currency={}",
             currency
         ),
-    })?;
-
-    Ok(Money { amount, currency })
+    })
 }
 
 /// Response bytes could not be parsed into the expected response type (JSON/XML, schema drift).

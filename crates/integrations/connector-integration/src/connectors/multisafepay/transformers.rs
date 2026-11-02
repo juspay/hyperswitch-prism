@@ -117,6 +117,8 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
+            | WalletData::SatispayIntent(_)
+            | WalletData::SatispayQr(_)
             | WalletData::Wero(_)
             | WalletData::LazyPayRedirect(_)
             | WalletData::PhonePeRedirect(_)
@@ -141,6 +143,8 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             BankRedirectData::Eps { .. } => Type::Redirect,
             BankRedirectData::Sofort { .. } => Type::Redirect,
             BankRedirectData::BancontactCard { .. }
+            | BankRedirectData::BancontactIntent { .. }
+            | BankRedirectData::BancontactQr { .. }
             | BankRedirectData::Bizum { .. }
             | BankRedirectData::Blik { .. }
             | BankRedirectData::Eft { .. }
@@ -277,6 +281,8 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             BankRedirectData::Eps { .. } => Gateway::Eps,
             BankRedirectData::Sofort { .. } => Gateway::Sofort,
             BankRedirectData::BancontactCard { .. }
+            | BankRedirectData::BancontactIntent { .. }
+            | BankRedirectData::BancontactQr { .. }
             | BankRedirectData::Bizum { .. }
             | BankRedirectData::Blik { .. }
             | BankRedirectData::Eft { .. }
@@ -332,6 +338,8 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
+            | WalletData::SatispayIntent(_)
+            | WalletData::SatispayQr(_)
             | WalletData::Wero(_)
             | WalletData::LazyPayRedirect(_)
             | WalletData::PhonePeRedirect(_)

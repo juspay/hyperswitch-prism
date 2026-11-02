@@ -287,6 +287,7 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
     metadata.insert("connector_metadata".to_string(), connector_metadata_json);
 
     PaymentServiceRefundRequest {
+        currency_conversion_data: None,
         refund_id: format!("refund_{}", get_timestamp()),
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),

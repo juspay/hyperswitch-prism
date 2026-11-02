@@ -71,6 +71,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Zift<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        Ok(())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -121,13 +128,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Zift<T>
 {
-    fn validate_psync_reference_id(
-        &self,
-        _data: &PaymentsSyncData,
-        _payment_flow_data: &PaymentFlowData,
-    ) -> CustomResult<(), IntegrationError> {
-        Ok(())
-    }
 }
 
 macros::create_amount_converter_wrapper!(connector_name: Zift, amount_type: StringMinorUnit);

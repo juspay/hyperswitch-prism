@@ -334,6 +334,7 @@ impl
             merchant_order_id: item.merchant_order_id.clone(),
             setup_future_usage: item.setup_future_usage,
             off_session: item.off_session,
+            is_stored_credential: item.is_stored_credential,
             request_incremental_authorization: item.request_incremental_authorization,
             request_extended_authorization: item.request_extended_authorization,
             enable_partial_authorization: item.enable_partial_authorization,
@@ -509,6 +510,7 @@ impl
             connector_order_id: item.connector_order_id.clone(),
             payment_method: item.payment_method.clone(),
             split_refunds: item.split_refunds.clone(),
+            currency_conversion_data: item.currency_conversion_data.clone(),
         }
     }
 }
@@ -862,6 +864,7 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             order_tax_amount: item.order_tax_amount,
             split_payments: item.split_payments.clone(),
+            currency_conversion_data: item.currency_conversion_data.clone(),
         }
     }
 }
@@ -1279,6 +1282,7 @@ impl
             order_category: request.order_category.clone(),
             setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
+            is_stored_credential: request.is_stored_credential,
             request_incremental_authorization: request.request_incremental_authorization,
             request_extended_authorization: request.request_extended_authorization,
             enable_partial_authorization: request.enable_partial_authorization,
@@ -1408,6 +1412,9 @@ impl
             }),
             merchant_details: item.merchant_details.clone(),
             mandate_details: item.mandate_details.clone(),
+            billing_document_data: item.billing_document_data.clone(),
+            shipping_document_data: item.shipping_document_data.clone(),
+            domain_data: item.domain_data.clone(),
         }
     }
 }
@@ -1496,6 +1503,7 @@ impl
             amount: item.amount,
             customer_info: item.customer_info.clone(),
             payment_method: item.payment_method.clone(),
+            browser_info: item.browser_info.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             order_details: item.order_details.clone(),
             metadata: item.metadata.clone(),
@@ -1505,6 +1513,9 @@ impl
             connector_transaction_id: item.connector_transaction_id.clone(),
             payment_connector: item.payment_connector,
             address: item.address.clone(),
+            billing_document_data: item.billing_document_data.clone(),
+            shipping_document_data: item.shipping_document_data.clone(),
+            domain_data: item.domain_data.clone(),
             state: Some(ConnectorState {
                 access_token,
                 connector_customer_id,

@@ -185,7 +185,6 @@ Options:
   -u <path>    Path to file containing URLs to scrape
   -f <path>    Path to folder with local docs (PDF, HTML)
   -e           Enable enhanced mode (Claude Agent SDK enhancement)
-  -m           Enable mock server generation for testing
   -v           Verbose output
   -o <dir>     Output directory for generated specs
 
@@ -236,7 +235,6 @@ Subagent prompt:
 
 - Scraping uses WebFetch which may not handle JavaScript-rendered pages as well as Firecrawl
 - Processing is sequential (one URL at a time) rather than parallel
-- No mock server generation (the `-m` flag equivalent is not supported)
 
 ---
 

@@ -10,31 +10,31 @@
     "authorize": {
       "Ach": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. AchBankDebit is not supported by Noon"
       },
       "AchBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. AchBankTransfer is not supported by Noon"
       },
       "Affirm": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. AffirmRedirect is not supported by Noon"
       },
       "Afterpay": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. AfterpayClearpayRedirect is not supported by Noon"
       },
       "Alfamart": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Alfamart is not supported by Noon"
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. AliPayRedirect is not supported by Noon"
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. AmazonPayRedirect is not supported by Noon"
       },
       "ApplePay": {
         "status": "supported",
@@ -78,60 +78,60 @@
         }
       },
       "ApplePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
+        "status": "not_supported",
+        "error": "Selected payment method through Noon is not supported by Noon. Apple Pay with a pre-decrypted token is not supported by Noon"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. ApplePayThirdPartySdk is not supported by Noon"
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. BacsBankDebit is not supported by Noon"
       },
       "BacsBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. BacsBankTransfer is not supported by Noon"
       },
       "BancontactCard": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. BancontactCard is not supported by Noon"
       },
       "BcaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. BcaBankTransfer is not supported by Noon"
       },
       "Becs": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. BecsBankDebit is not supported by Noon"
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. BillDeskRedirect is not supported by Noon"
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Bizum is not supported by Noon"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Blik is not supported by Noon"
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Bluecode is not supported by Noon"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. BniVaBankTransfer is not supported by Noon"
       },
       "Boleto": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Boleto is not supported by Noon"
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. BriVaBankTransfer is not supported by Noon"
       },
       "Card": {
         "status": "supported",
@@ -172,19 +172,19 @@
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. CashappQr is not supported by Noon"
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. CashfreeRedirect is not supported by Noon"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. CimbVaBankTransfer is not supported by Noon"
       },
       "ClassicReward": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Reward is not supported by Noon"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -192,11 +192,11 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. DanaRedirect is not supported by Noon"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. DanamonVaBankTransfer is not supported by Noon"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -204,35 +204,35 @@
       },
       "EVoucher": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Reward is not supported by Noon"
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. EaseBuzzRedirect is not supported by Noon"
       },
       "Efecty": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Efecty is not supported by Noon"
       },
       "Eft": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Eft is not supported by Noon"
       },
       "Eps": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Eps is not supported by Noon"
       },
       "FamilyMart": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. FamilyMart is not supported by Noon"
       },
       "GCash": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. GcashRedirect is not supported by Noon"
       },
       "Giropay": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Giropay is not supported by Noon"
       },
       "Givex": {
         "status": "not_implemented",
@@ -240,7 +240,7 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. GoPayRedirect is not supported by Noon"
       },
       "GooglePay": {
         "status": "supported",
@@ -283,127 +283,84 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"GOOGLEPAY\",\"data\":{\"apiVersionMinor\":0,\"apiVersion\":2,\"paymentMethodData\":{\"type\":\"CARD\",\"description\":\"Visa 1111\",\"info\":{\"card_network\":\"VISA\",\"card_details\":\"1111\",\"assurance_details\":null},\"tokenization_data\":{\"type\":\"PAYMENT_GATEWAY\",\"token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}}}},\"subscription\":null,\"billing\":null}"
+          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"GOOGLEPAY\",\"data\":{\"apiVersionMinor\":0,\"apiVersion\":2,\"paymentMethodData\":{\"type\":\"CARD\",\"description\":\"Visa 1111\",\"info\":{\"card_network\":\"VISA\",\"card_details\":\"1111\",\"assurance_details\":null},\"tokenizationData\":{\"type\":\"PAYMENT_GATEWAY\",\"token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}}}},\"subscription\":null,\"billing\":null}"
         }
       },
       "GooglePayDecrypted": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "google_pay_sdk": {
-              "type": "CARD",
-              "description": "Visa 1111",
-              "info": {
-                "card_network": "VISA",
-                "card_details": "1111"
-              },
-              "tokenization_data": {
-                "decrypted_data": {
-                  "card_exp_month": "03",
-                  "card_exp_year": "2030",
-                  "application_primary_account_number": "4111111111111111",
-                  "cryptogram": "AAAAAA==",
-                  "eci_indicator": "05"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "order_category": "mobile",
-          "description": "Probe payment"
-        },
-        "sample": {
-          "url": "https://api-test.noonpayments.com/payment/v1/order",
-          "method": "Post",
-          "headers": {
-            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"GOOGLEPAY\",\"data\":{\"apiVersionMinor\":0,\"apiVersion\":2,\"paymentMethodData\":{\"type\":\"CARD\",\"description\":\"Visa 1111\",\"info\":{\"card_network\":\"VISA\",\"card_details\":\"1111\",\"assurance_details\":null},\"tokenization_data\":{\"cardExpMonth\":\"03\",\"cardExpYear\":\"2030\",\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"cryptogram\":\"AAAAAA==\",\"eciIndicator\":\"05\"}}}},\"subscription\":null,\"billing\":null}"
-        }
+        "status": "not_supported",
+        "error": "Selected payment method through Noon is not supported by Noon. Google Pay with a pre-decrypted token is not supported by Noon"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. GooglePayThirdPartySdk is not supported by Noon"
       },
       "Ideal": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Ideal is not supported by Noon"
       },
       "Indomaret": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Indomaret is not supported by Noon"
       },
       "IndonesianBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. IndonesianBankTransfer is not supported by Noon"
       },
       "InstantBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. InstantBankTransfer is not supported by Noon"
       },
       "InstantBankTransferFinland": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. InstantBankTransferFinland is not supported by Noon"
       },
       "InstantBankTransferPoland": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. InstantBankTransferPoland is not supported by Noon"
       },
       "Interac": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Interac is not supported by Noon"
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. KakaoPayRedirect is not supported by Noon"
       },
       "Klarna": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. KlarnaRedirect is not supported by Noon"
       },
       "Lawson": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Lawson is not supported by Noon"
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. LazyPayRedirect is not supported by Noon"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. LocalBankRedirect is not supported by Noon"
       },
       "LocalBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. LocalBankTransfer is not supported by Noon"
       },
       "MandiriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. MandiriVaBankTransfer is not supported by Noon"
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. MbWay is not supported by Noon"
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Mifinity is not supported by Noon"
       },
       "MiniStop": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. MiniStop is not supported by Noon"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -411,43 +368,43 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. MomoRedirect is not supported by Noon"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. MultibancoBankTransfer is not supported by Noon"
       },
       "Netbanking": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Netbanking is not supported by Noon"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. OnlineBankingCzechRepublic is not supported by Noon"
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. OnlineBankingFinland is not supported by Noon"
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. OnlineBankingFpx is not supported by Noon"
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. OnlineBankingPoland is not supported by Noon"
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. OnlineBankingSlovakia is not supported by Noon"
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. OnlineBankingThailand is not supported by Noon"
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. OpenBanking is not supported by Noon"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -455,27 +412,27 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. OpenBankingUk is not supported by Noon"
       },
       "Oxxo": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Oxxo is not supported by Noon"
       },
       "PagoEfectivo": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. PagoEfectivo is not supported by Noon"
       },
       "PayEasy": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. PayEasy is not supported by Noon"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. PaySafeCar is not supported by Noon"
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. PayURedirect is not supported by Noon"
       },
       "PaypalRedirect": {
         "status": "supported",
@@ -512,7 +469,7 @@
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. PaypalSdk is not supported by Noon"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -524,115 +481,115 @@
       },
       "PermataBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. PermataBankTransfer is not supported by Noon"
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. PhonePeRedirect is not supported by Noon"
       },
       "Pix": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Pix is not supported by Noon"
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Przelewy24 is not supported by Noon"
       },
       "Pse": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Pse is not supported by Noon"
       },
       "RedCompra": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. RedCompra is not supported by Noon"
       },
       "RedPagos": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. RedPagos is not supported by Noon"
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. RevolutPay is not supported by Noon"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. SamsungPay is not supported by Noon"
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Satispay is not supported by Noon"
       },
       "Seicomart": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Seicomart is not supported by Noon"
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. SepaBankDebit is not supported by Noon"
       },
       "SepaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. SepaBankTransfer is not supported by Noon"
       },
       "SepaGuaranteedDebit": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. SepaGuaranteedBankDebit is not supported by Noon"
       },
       "SevenEleven": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. SevenEleven is not supported by Noon"
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Skrill is not supported by Noon"
       },
       "Sofort": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Sofort is not supported by Noon"
       },
       "Swish": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. SwishQr is not supported by Noon"
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. TouchNGoRedirect is not supported by Noon"
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Trustly is not supported by Noon"
       },
       "Twint": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. TwintRedirect is not supported by Noon"
       },
       "UpiCollect": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Upi is not supported by Noon"
       },
       "UpiIntent": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Upi is not supported by Noon"
       },
       "UpiQr": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Upi is not supported by Noon"
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. VippsRedirect is not supported by Noon"
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. WeChatPayQr is not supported by Noon"
       },
       "Webpay": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. CardRedirect is not supported by Noon"
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. Wero is not supported by Noon"
       }
     },
     "capture": {
@@ -755,14 +712,14 @@
             "method": "HTTP_METHOD_POST",
             "uri": "https://example.com/webhook",
             "headers": {},
-            "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"SALE\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}"
+            "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}"
           }
         },
         "sample": {
           "url": "",
           "method": "Post",
           "headers": {},
-          "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"SALE\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}"
+          "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}"
         }
       }
     },
@@ -780,14 +737,14 @@
             "method": "HTTP_METHOD_POST",
             "uri": "https://example.com/webhook",
             "headers": {},
-            "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"SALE\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}"
+            "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}"
           }
         },
         "sample": {
           "url": "",
           "method": "Post",
           "headers": {},
-          "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"SALE\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}"
+          "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}"
         }
       }
     },
@@ -866,13 +823,22 @@
           "address": {
             "billing_address": {}
           },
-          "metadata": "{\"order_category\":\"mobile\",\"description\":\"purchase desc\"}",
+          "metadata": "{\"description\":\"Probe mandate setup\"}",
+          "setup_mandate_details": {
+            "mandate_type": {
+              "multi_use": {
+                "amount": 10000,
+                "currency": "AED"
+              }
+            }
+          },
           "customer_acceptance": {
             "acceptance_type": "OFFLINE",
             "accepted_at": 0
           },
           "auth_type": "NO_THREE_DS",
-          "setup_future_usage": "OFF_SESSION"
+          "setup_future_usage": "OFF_SESSION",
+          "order_category": "pay"
         },
         "sample": {
           "url": "https://api-test.noonpayments.com/payment/v1/order",
@@ -882,7 +848,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"0.01\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_proxy_mandate_001\",\"name\":\"purchase desc\",\"nvp\":{\"1\":\"description=purchase desc\",\"2\":\"order_category=mobile\"},\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":null},\"paymentData\":{\"type\":\"CARD\",\"data\":{\"nameOnCard\":null,\"numberPlain\":\"{{$card_number}}\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvv\":\"{{$card_cvc}}\"}},\"subscription\":null,\"billing\":null}"
+          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"0.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"pay\",\"reference\":\"probe_proxy_mandate_001\",\"name\":\"Probe mandate setup\",\"nvp\":{\"1\":\"description=Probe mandate setup\"},\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":true,\"paymentAction\":\"AUTHORIZE\",\"returnUrl\":null},\"paymentData\":{\"type\":\"CARD\",\"data\":{\"nameOnCard\":null,\"numberPlain\":\"{{$card_number}}\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvv\":\"{{$card_cvc}}\"}},\"subscription\":{\"type\":\"UNSCHEDULED\",\"name\":\"Probe mandate setup\",\"maxAmount\":\"100.00\"},\"billing\":null}"
         }
       }
     },
@@ -980,10 +946,12 @@
         "proto_request": {
           "merchant_refund_id": "probe_refund_001",
           "connector_transaction_id": "probe_connector_txn_001",
-          "refund_id": "probe_refund_id_001"
+          "refund_id": "probe_refund_id_001",
+          "connector_refund_id": "probe_refund_id_001",
+          "connector_order_id": "probe_order_ref_001"
         },
         "sample": {
-          "url": "https://api-test.noonpayments.com/payment/v1/order/getbyreference/probe_refund_001",
+          "url": "https://api-test.noonpayments.com/payment/v1/order/getbyreference/probe_order_ref_001",
           "method": "Get",
           "headers": {
             "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
@@ -1002,20 +970,67 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: description — Missing required field: description"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "metadata": "{\"description\":\"Probe mandate setup\"}",
+          "return_url": "https://example.com/mandate-return",
+          "order_category": "pay",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "setup_mandate_details": {
+            "mandate_type": {
+              "multi_use": {
+                "amount": 10000,
+                "currency": "AED"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-test.noonpayments.com/payment/v1/order",
+          "method": "Post",
+          "headers": {
+            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"0.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"pay\",\"reference\":\"probe_mandate_001\",\"name\":\"Probe mandate setup\",\"nvp\":{\"1\":\"description=Probe mandate setup\"},\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":true,\"paymentAction\":\"AUTHORIZE\",\"returnUrl\":\"https://example.com/mandate-return\"},\"paymentData\":{\"type\":\"CARD\",\"data\":{\"nameOnCard\":null,\"numberPlain\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvv\":\"737\"}},\"subscription\":{\"type\":\"UNSCHEDULED\",\"name\":\"Probe mandate setup\",\"maxAmount\":\"100.00\"},\"billing\":null}"
+        }
       }
     },
     "token_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. PaymentMethodToken is not supported by Noon"
       }
     },
     "token_setup_recurring": {
       "default": {
         "status": "not_supported",
-        "error": "Selected payment method through Noon is not supported by Noon"
+        "error": "Selected payment method through Noon is not supported by Noon. PaymentMethodToken is not supported by Noon"
       }
     },
     "verify_redirect": {

@@ -487,10 +487,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let metadata = router_data.request.metadata.clone().expose_option();
 
         // Convert amount using PayloadAmountConvertor
-        let amount = PayloadAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = PayloadAmountConvertor::convert(&router_data.request.amount)?;
 
         match &router_data.request.payment_method_data {
             PaymentMethodData::Card(_) => {
@@ -649,10 +646,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         // Convert amount using PayloadAmountConvertor
-        let amount = PayloadAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = PayloadAmountConvertor::convert(&router_data.request.amount)?;
 
         // For manual capture, set status to "authorized"
         let status = if is_manual_capture(router_data.request.capture_method) {
@@ -721,10 +715,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_transaction_id = router_data.request.connector_transaction_id.clone();
 
         // Convert amount using PayloadAmountConvertor
-        let amount = PayloadAmountConvertor::convert(
-            router_data.request.refund_amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = PayloadAmountConvertor::convert(&router_data.request.refund_amount)?;
 
         Ok(Self {
             transaction_type: requests::TransactionTypes::Refund,
@@ -1153,10 +1144,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
 
-        let amount = PayloadAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = PayloadAmountConvertor::convert(&router_data.request.amount)?;
 
         let description = router_data
             .resource_common_data

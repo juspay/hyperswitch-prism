@@ -7,7 +7,7 @@
 
 import { PaymentClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "reverse", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -74,16 +74,16 @@ function _buildIncrementalAuthorizationRequest(): types.IPaymentServiceIncrement
             "minorAmount": 100,
             "currency": Currency.USD
         },
-        "networkTransactionId": "probe_network_txn_001",  // Network transaction ID returned by the original authorization.
+        "networkTransactionId": "263010131742906",  // Network transaction ID returned by the original authorization.
         "paymentMethod": {  // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
             "cardWithNoCvc": {  // Card payment where CVC is not required.
                 "cardNumber": {"value": "4111111111111111"},  // Card Identification.
                 "cardExpMonth": {"value": "03"},
                 "cardExpYear": {"value": "2030"},
-                "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
                 "cardNetwork": CardNetwork.VISA
             }
-        }
+        },
+        "connectorFeatureData": {"value": "{\"api_transaction_id\":\"probe_auth_001\",\"original_authorized_amount\":{\"amount\":1000,\"currency\":\"USD\"},\"terminal_data\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"ecommerce_data\":{\"E-commerceIndicator\":\"07\"},\"proc_flags_indicators\":{\"EstimatedAuth\":\"Y\"},\"brand_specific_data\":{\"VisaSpecificData\":{\"VisaTransactionId\":\"263010131742906\"}}}"}
     };
 }
 
@@ -179,6 +179,26 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
                 "cardNetwork": CardNetwork.VISA
             }
         }
+    };
+}
+
+function _buildReverseRequest(connectorTransactionId: string): types.IPaymentServiceReverseRequest {
+    return {
+        "merchantReverseId": "probe_reverse_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Original payment amount and currency.
+            "minorAmount": 1000,
+            "currency": Currency.USD
+        },
+        "paymentMethod": {  // Original payment method for connectors that require PAN and expiry again.
+            "cardWithNoCvc": {  // Card payment where CVC is not required.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardNetwork": CardNetwork.VISA
+            }
+        },
+        "captureMethod": CaptureMethod.MANUAL  // Original payment's capture method, not the reversal's disposition. Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at different endpoints.
     };
 }
 
@@ -384,6 +404,15 @@ async function refund(merchantTransactionId: string, config: types.IConnectorCon
     return refundResponse;
 }
 
+// Flow: PaymentService.Reverse
+async function reverse(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const reverseResponse = await paymentClient.reverse(_buildReverseRequest('C|123456|123456789012|000001'));
+
+    return reverseResponse;
+}
+
 // Flow: PaymentService.SetupRecurring
 async function setupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -405,7 +434,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, incrementalAuthorization, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildIncrementalAuthorizationRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, incrementalAuthorization, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, reverse, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildIncrementalAuthorizationRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildReverseRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

@@ -90,7 +90,8 @@ export function renderConnectorMarkdown(name: string, leaves: Leaf[]): string {
     const status = deriveStatus(l);
     const pr = l.linkedPRs[0];
     const prCell = pr ? `${pr.repo}#${pr.number} (${pr.state})` : "—";
-    lines.push(`| #${l.number} | ${l.flow} | ${l.title.replace(/\|/g, "\\|").slice(0, 80)} | ${status} | ${prCell} | ${l.createdAt.slice(0, 10)} |`);
+    const title = l.title.slice(0, 80).replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/[\r\n]/g, " ");
+    lines.push(`| #${l.number} | ${l.flow} | ${title} | ${status} | ${prCell} | ${l.createdAt.slice(0, 10)} |`);
   }
   lines.push("");
   const escalations = leaves.filter((l) => l.labels.includes("parity:blocked"));

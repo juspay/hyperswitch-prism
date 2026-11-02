@@ -1490,10 +1490,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         )?;
 
         // Convert amount using the connector's amount converter
-        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let converted_amount =
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.amount)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1665,15 +1663,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let info_3d_secure =
             get_worldpayxml_info_3d_secure(router_data.request.authentication_data.as_ref())?;
 
-        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data
-                .request
-                .amount
-                .as_ref()
-                .map(|money| money.amount)
-                .unwrap_or_else(common_utils::types::MinorUnit::zero),
-            router_data.request.currency,
-        )?;
+        let converted_amount =
+            super::WorldpayxmlAmountConvertor::convert(&common_utils::types::Money {
+                amount: router_data
+                    .request
+                    .amount
+                    .as_ref()
+                    .map(|money| money.amount)
+                    .unwrap_or_else(common_utils::types::MinorUnit::zero),
+                currency: router_data.request.currency,
+            })?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1840,10 +1839,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let authenticated_shopper_id =
             get_worldpayxml_authenticated_shopper_id(&router_data.resource_common_data, true)?;
 
-        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let converted_amount =
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.amount)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1944,10 +1941,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
 
         // Convert amount using the connector's amount converter
-        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data.request.amount_to_capture.amount,
-            router_data.request.currency,
-        )?;
+        let converted_amount =
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.amount_to_capture)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -2026,10 +2021,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let connector_transaction_id = router_data.request.connector_transaction_id.clone();
 
         // Convert refund amount using the connector's amount converter
-        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data.request.refund_amount.amount,
-            router_data.request.currency,
-        )?;
+        let converted_amount =
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.refund_amount)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -3500,6 +3493,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // connector_transaction_id is a String directly in PaymentsCancelPostCaptureData
         let order_code = router_data.request.connector_transaction_id.clone();
+        let amount = router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| {
+                Ok::<_, Self::Error>(requests::WorldpayxmlAmount {
+                    value: super::WorldpayxmlAmountConvertor::convert(amount)?,
+                    currency_code: amount.currency,
+                    exponent: get_worldpayxml_exponent(amount.currency)?,
+                })
+            })
+            .transpose()?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -3507,7 +3512,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             modify: requests::WorldpayxmlVoidPCModify {
                 order_modification: requests::WorldpayxmlVoidPCOrderModification {
                     order_code,
-                    cancel_or_refund: requests::WorldpayxmlCancelOrRefund {},
+                    cancel_or_refund: requests::WorldpayxmlCancelOrRefund { amount },
                 },
             },
         })
@@ -3526,18 +3531,25 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidPCResponse, Self>>
         let response = &item.response;
         let router_data = &item.router_data;
 
-        // Map a top-level <error> reply to PostCaptureVoidResponse with Failed status,
-        // surfacing the connector's error message via `description` (per WorldpayVantiv /
-        // Payload convention for VoidPC).
+        // A top-level <error> reply is a declined void; return it as an ErrorResponse.
         if let Some(error) = &response.reply.error {
-            let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
-                post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
-                connector_reference_id: Some(router_data.request.connector_transaction_id.clone()),
-                description: Some(error.message.clone()),
+            let error_response = ErrorResponse {
+                code: error.code.clone(),
+                message: error.message.clone(),
+                reason: Some(error.message.clone()),
                 status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
             return Ok(Self {
-                response: Ok(payments_response_data),
+                response: Err(error_response),
                 ..router_data.clone()
             });
         }
@@ -3575,7 +3587,6 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidPCResponse, Self>>
         let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
             post_capture_void_status: common_enums::PostCaptureVoidStatus::Succeeded,
             connector_reference_id: Some(order_code.clone()),
-            description: None,
             status_code: item.http_code,
         };
 

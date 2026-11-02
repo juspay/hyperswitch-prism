@@ -404,6 +404,7 @@ async fn test_payment_authorization_manual_capture() {
 // Helper function to create a refund request
 fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
     PaymentServiceRefundRequest {
+        currency_conversion_data: None,
         refund_id: format!("refund_{}", get_timestamp()),
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),
