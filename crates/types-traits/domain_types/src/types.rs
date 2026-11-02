@@ -477,6 +477,7 @@ pub struct Connectors {
     pub globalpayments_realex: ConnectorParams,
     pub payhere: ConnectorParams,
     pub betterpayment: ConnectorParams,
+    pub reddot: ConnectorParams,
     pub ecommpay: ConnectorParams,
 }
 
@@ -882,6 +883,9 @@ impl Connectors {
             }
             ConnectorEnum::Betterpayment => {
                 patched.betterpayment.apply(params_patch);
+            }
+            ConnectorEnum::Reddot => {
+                patched.reddot.apply(params_patch);
             }
             ConnectorEnum::Ecommpay => {
                 patched.ecommpay.apply(params_patch);
