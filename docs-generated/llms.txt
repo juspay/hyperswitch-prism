@@ -291,7 +291,7 @@ connector_id: elavon_pg
 doc: docs/connectors/elavon_pg.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, create_order, get, pre_authenticate, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, create_order, get, pre_authenticate, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/elavon_pg/elavon_pg.py
 
 ## Elavonpg
