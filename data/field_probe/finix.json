@@ -3,8 +3,34 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "authenticate flow not supported by finix connector"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "PIprobe0000000000000000"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "return_url": "https://example.com/3ds-return"
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/3d_secure_sessions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "finix-version": "2022-02-01",
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"merchant_id\":\"probe_merchant\",\"payment_instrument_id\":\"PIprobe0000000000000000\",\"redirect_url\":\"https://example.com/3ds-return\"}"
+        }
       }
     },
     "authorize": {
@@ -470,6 +496,7 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
+            "finix-version": "2022-02-01",
             "via": "HyperSwitch",
             "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
@@ -516,6 +543,7 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
+            "finix-version": "2022-02-01",
             "via": "HyperSwitch",
             "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
@@ -531,14 +559,47 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: accept_dispute flow for finix"
+        "status": "supported",
+        "proto_request": {
+          "merchant_dispute_id": "probe_dispute_001",
+          "connector_transaction_id": "probe_txn_001",
+          "dispute_id": "probe_dispute_id_001"
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/disputes/probe_dispute_id_001/accept",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "finix-version": "2022-02-01",
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
+          },
+          "body": "{\"note\":\"Accepting dispute probe_dispute_id_001\"}"
+        }
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: defend_dispute flow for finix"
+        "status": "supported",
+        "proto_request": {
+          "merchant_dispute_id": "probe_dispute_001",
+          "connector_transaction_id": "probe_txn_001",
+          "dispute_id": "probe_dispute_id_001",
+          "reason_code": "probe_reason"
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/disputes/probe_dispute_id_001/submit",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "finix-version": "2022-02-01",
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
+          },
+          "body": "{\"note\":\"probe_reason\"}"
+        }
       }
     },
     "dispute_get": {
@@ -548,8 +609,30 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: submit_evidence flow for finix"
+        "status": "supported",
+        "proto_request": {
+          "merchant_dispute_id": "probe_dispute_001",
+          "connector_transaction_id": "probe_txn_001",
+          "dispute_id": "probe_dispute_id_001",
+          "evidence_documents": [
+            {
+              "evidence_type": "SERVICE_DOCUMENTATION",
+              "file_content": "probe evidence content",
+              "file_mime_type": "application/pdf"
+            }
+          ]
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/disputes/probe_dispute_id_001/evidence",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "finix-version": "2022-02-01",
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
+          },
+          "body": ""
+        }
       }
     },
     "eligibility": {
@@ -575,6 +658,7 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
+            "finix-version": "2022-02-01",
             "via": "HyperSwitch",
             "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
@@ -634,8 +718,38 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "post_authenticate flow not supported by finix connector"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "connector_order_reference_id": "3d_secure_session_probe0000000000000"
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/3d_secure_sessions/3d_secure_session_probe0000000000000",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "finix-version": "2022-02-01",
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
+          },
+          "body": null
+        }
       }
     },
     "pre_authenticate": {
@@ -686,6 +800,7 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
+            "finix-version": "2022-02-01",
             "via": "HyperSwitch",
             "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
@@ -724,6 +839,7 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
+            "finix-version": "2022-02-01",
             "via": "HyperSwitch",
             "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
@@ -761,7 +877,9 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "finix-version": "2022-02-01",
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": "{\"refund_amount\":1000}"
         }
@@ -781,7 +899,9 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "finix-version": "2022-02-01",
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": null
         }
@@ -833,6 +953,7 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
+            "finix-version": "2022-02-01",
             "via": "HyperSwitch",
             "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
@@ -862,6 +983,7 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
+            "finix-version": "2022-02-01",
             "via": "HyperSwitch",
             "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
@@ -893,6 +1015,7 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
+            "finix-version": "2022-02-01",
             "via": "HyperSwitch",
             "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },

@@ -8,10 +8,13 @@
 package examples.finix
 
 import types.Payment.*
+import types.Dispute.*
 import types.Events.*
 import types.PaymentMethods.*
+import payments.PaymentMethodAuthenticationClient
 import payments.PaymentClient
 import payments.CustomerClient
+import payments.DisputeClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
@@ -30,7 +33,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.FinixConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "customer_create", "get", "parse_event", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authenticate", "capture", "customer_create", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "get", "parse_event", "post_authenticate", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -91,6 +94,29 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     }.build()
 }
 
+// Flow: PaymentMethodAuthenticationService.Authenticate
+fun authenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodAuthenticationClient(config)
+    val request = PaymentMethodAuthenticationServiceAuthenticateRequest.newBuilder().apply {
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L
+            currency = Currency.USD
+        }
+        paymentMethodBuilder.apply {  // Payment Method.
+            tokenBuilder.apply {  // Payment tokens.
+                tokenBuilder.value = "PIprobe0000000000000000"  // The token string representing a payment method.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
+    }.build()
+    val response = client.authenticate(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Capture
 fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -112,6 +138,44 @@ fun customerCreate(txnId: String, config: ConnectorConfig = _defaultConfig) {
     }.build()
     val response = client.customer_create(request)
     println("Customer: ${response.connectorCustomerId}")
+}
+
+// Flow: DisputeService.Accept
+fun disputeAccept(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = DisputeClient(config)
+    val request = DisputeServiceAcceptRequest.newBuilder().apply {
+        merchantDisputeId = "probe_dispute_001"  // Identification.
+        connectorTransactionId = "probe_txn_001"
+        disputeId = "probe_dispute_id_001"
+    }.build()
+    val response = client.accept(request)
+    println("Dispute status: ${response.disputeStatus.name}")
+}
+
+// Flow: DisputeService.Defend
+fun disputeDefend(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = DisputeClient(config)
+    val request = DisputeServiceDefendRequest.newBuilder().apply {
+        merchantDisputeId = "probe_dispute_001"  // Identification.
+        connectorTransactionId = "probe_txn_001"
+        disputeId = "probe_dispute_id_001"
+        reasonCode = "probe_reason"  // Defend Details.
+    }.build()
+    val response = client.defend(request)
+    println("Dispute status: ${response.disputeStatus.name}")
+}
+
+// Flow: DisputeService.SubmitEvidence
+fun disputeSubmitEvidence(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = DisputeClient(config)
+    val request = DisputeServiceSubmitEvidenceRequest.newBuilder().apply {
+        merchantDisputeId = "probe_dispute_001"  // Identification.
+        connectorTransactionId = "probe_txn_001"
+        disputeId = "probe_dispute_id_001"
+        // evidenceDocuments: [{"evidence_type": "SERVICE_DOCUMENTATION", "file_content": "probe evidence content", "file_mime_type": "application/pdf"}]  // Collection of evidence documents.
+    }.build()
+    val response = client.submit_evidence(request)
+    println("Dispute status: ${response.disputeStatus.name}")
 }
 
 // Flow: PaymentService.Get
@@ -151,6 +215,33 @@ fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     }.build()
     val response = client.parse_event(request)
     println("Webhook parsed: type=${response.eventType.name}")
+}
+
+// Flow: PaymentMethodAuthenticationService.PostAuthenticate
+fun postAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodAuthenticationClient(config)
+    val request = PaymentMethodAuthenticationServicePostAuthenticateRequest.newBuilder().apply {
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L
+            currency = Currency.USD
+        }
+        paymentMethodBuilder.apply {  // Payment Method.
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        connectorOrderReferenceId = "3d_secure_session_probe0000000000000"
+    }.build()
+    val response = client.post_authenticate(request)
+    println("Status: ${response.status.name}")
 }
 
 // Flow: PaymentService.ProxySetupRecurring
@@ -317,13 +408,18 @@ fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
-    val flow = args.firstOrNull() ?: "capture"
+    val flow = args.firstOrNull() ?: "authenticate"
     when (flow) {
+        "authenticate" -> authenticate(txnId)
         "capture" -> capture(txnId)
         "customerCreate" -> customerCreate(txnId)
+        "disputeAccept" -> disputeAccept(txnId)
+        "disputeDefend" -> disputeDefend(txnId)
+        "disputeSubmitEvidence" -> disputeSubmitEvidence(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
         "parseEvent" -> parseEvent(txnId)
+        "postAuthenticate" -> postAuthenticate(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
@@ -331,6 +427,6 @@ fun main(args: Array<String>) {
         "setupRecurring" -> setupRecurring(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, customerCreate, get, handleEvent, parseEvent, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: authenticate, capture, customerCreate, disputeAccept, disputeDefend, disputeSubmitEvidence, get, handleEvent, parseEvent, postAuthenticate, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, void")
     }
 }

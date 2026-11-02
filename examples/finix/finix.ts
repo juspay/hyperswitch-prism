@@ -5,9 +5,9 @@
 // Finix — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx finix.ts checkout_autocapture
 
-import { PaymentClient, CustomerClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["capture", "customer_create", "get", "parse_event", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void"];
+import { PaymentMethodAuthenticationClient, PaymentClient, CustomerClient, DisputeClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, EvidenceType, FutureUsage, HttpMethod, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["authenticate", "capture", "customer_create", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "get", "parse_event", "post_authenticate", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -24,6 +24,25 @@ const _defaultConfig: types.IConnectorConfig = {
     },
 };
 
+
+function _buildAuthenticateRequest(): types.IPaymentMethodAuthenticationServiceAuthenticateRequest {
+    return {
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,
+            "currency": Currency.USD
+        },
+        "paymentMethod": {  // Payment Method.
+            "token": {  // Payment tokens.
+                "token": {"value": "PIprobe0000000000000000"}  // The token string representing a payment method.
+            }
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
+        },
+        "returnUrl": "https://example.com/3ds-return"  // URLs for Redirection.
+    };
+}
 
 function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentServiceCaptureRequest {
     return {
@@ -42,6 +61,38 @@ function _buildCustomerCreateRequest(): types.ICustomerServiceCreateRequest {
         "customerName": "John Doe",  // Name of the customer.
         "email": {"value": "test@example.com"},  // Email address of the customer.
         "phoneNumber": {"value": "4155552671"}  // Phone number of the customer.
+    };
+}
+
+function _buildDisputeAcceptRequest(): types.IDisputeServiceAcceptRequest {
+    return {
+        "merchantDisputeId": "probe_dispute_001",  // Identification.
+        "connectorTransactionId": "probe_txn_001",
+        "disputeId": "probe_dispute_id_001"
+    };
+}
+
+function _buildDisputeDefendRequest(): types.IDisputeServiceDefendRequest {
+    return {
+        "merchantDisputeId": "probe_dispute_001",  // Identification.
+        "connectorTransactionId": "probe_txn_001",
+        "disputeId": "probe_dispute_id_001",
+        "reasonCode": "probe_reason"  // Defend Details.
+    };
+}
+
+function _buildDisputeSubmitEvidenceRequest(): types.IDisputeServiceSubmitEvidenceRequest {
+    return {
+        "merchantDisputeId": "probe_dispute_001",  // Identification.
+        "connectorTransactionId": "probe_txn_001",
+        "disputeId": "probe_dispute_id_001",
+        "evidenceDocuments": [  // Collection of evidence documents.
+            {
+                "evidenceType": EvidenceType.SERVICE_DOCUMENTATION,  // Type of the evidence.
+                "fileContent": new Uint8Array(Buffer.from("probe evidence content", "utf-8")),  // Content Options Content of the document, if it's a file.
+                "fileMimeType": "application/pdf"  // MIME type of the file (e.g., "application/pdf", "image/png"), if file_content is provided.
+            }
+        ]
     };
 }
 
@@ -78,6 +129,29 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
             },
             "body": new Uint8Array(Buffer.from("{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}", "utf-8"))  // Body of the HTTP request.
         }
+    };
+}
+
+function _buildPostAuthenticateRequest(): types.IPaymentMethodAuthenticationServicePostAuthenticateRequest {
+    return {
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,
+            "currency": Currency.USD
+        },
+        "paymentMethod": {  // Payment Method.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
+        },
+        "connectorOrderReferenceId": "3d_secure_session_probe0000000000000"
     };
 }
 
@@ -214,6 +288,15 @@ function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServic
 
 
 // ANCHOR: scenario_functions
+// Flow: PaymentMethodAuthenticationService.Authenticate
+async function authenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
+
+    const authenticateResponse = await paymentMethodAuthenticationClient.authenticate(_buildAuthenticateRequest());
+
+    return authenticateResponse;
+}
+
 // Flow: PaymentService.Capture
 async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -230,6 +313,33 @@ async function customerCreate(merchantTransactionId: string, config: types.IConn
     const customerResponse = await customerClient.customerCreate(_buildCustomerCreateRequest());
 
     return customerResponse;
+}
+
+// Flow: DisputeService.Accept
+async function disputeAccept(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const disputeClient = new DisputeClient(config);
+
+    const disputeResponse = await disputeClient.accept(_buildDisputeAcceptRequest());
+
+    return disputeResponse;
+}
+
+// Flow: DisputeService.Defend
+async function disputeDefend(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const disputeClient = new DisputeClient(config);
+
+    const disputeResponse = await disputeClient.defend(_buildDisputeDefendRequest());
+
+    return disputeResponse;
+}
+
+// Flow: DisputeService.SubmitEvidence
+async function disputeSubmitEvidence(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const disputeClient = new DisputeClient(config);
+
+    const disputeResponse = await disputeClient.submitEvidence(_buildDisputeSubmitEvidenceRequest());
+
+    return disputeResponse;
 }
 
 // Flow: PaymentService.Get
@@ -257,6 +367,15 @@ async function parseEvent(merchantTransactionId: string, config: types.IConnecto
     const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
 
     return parseResponse;
+}
+
+// Flow: PaymentMethodAuthenticationService.PostAuthenticate
+async function postAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
+
+    const postResponse = await paymentMethodAuthenticationClient.postAuthenticate(_buildPostAuthenticateRequest());
+
+    return postResponse;
 }
 
 // Flow: PaymentService.ProxySetupRecurring
@@ -325,7 +444,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, customerCreate, get, handleEvent, parseEvent, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, voidPayment, _buildCaptureRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    authenticate, capture, customerCreate, disputeAccept, disputeDefend, disputeSubmitEvidence, get, handleEvent, parseEvent, postAuthenticate, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, voidPayment, _buildAuthenticateRequest, _buildCaptureRequest, _buildCustomerCreateRequest, _buildDisputeAcceptRequest, _buildDisputeDefendRequest, _buildDisputeSubmitEvidenceRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildPostAuthenticateRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner
