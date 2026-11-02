@@ -12,7 +12,7 @@ from payments import DisputeClient
 from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
-from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
+from payments.generated import common_types_pb2, dispute_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
 SUPPORTED_FLOWS = ["authorize", "capture", "dispute_accept", "dispute_defend", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring", "void"]
 
@@ -87,17 +87,17 @@ def _build_capture_request(connector_transaction_id: str):
     )
 
 def _build_dispute_accept_request():
-    return payment_pb2.DisputeServiceAcceptRequest(
+    return dispute_pb2.DisputeServiceAcceptRequest(
         merchant_dispute_id="probe_dispute_001",  # Identification.
         connector_transaction_id="probe_txn_001",
-        dispute_id="probe_dispute_id_001",
+        connector_dispute_id="probe_dispute_id_001",
     )
 
 def _build_dispute_defend_request():
-    return payment_pb2.DisputeServiceDefendRequest(
+    return dispute_pb2.DisputeServiceDefendRequest(
         merchant_dispute_id="probe_dispute_001",  # Identification.
         connector_transaction_id="probe_txn_001",
-        dispute_id="probe_dispute_id_001",
+        connector_dispute_id="probe_dispute_id_001",
         reason_code="probe_reason",  # Defend Details.
     )
 

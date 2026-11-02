@@ -136,7 +136,7 @@ pub fn build_dispute_accept_request() -> DisputeServiceAcceptRequest {
     DisputeServiceAcceptRequest {
         merchant_dispute_id: Some("probe_dispute_001".to_string()), // Identification.
         connector_transaction_id: "probe_txn_001".to_string(),
-        dispute_id: "probe_dispute_id_001".to_string(),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
     }
 }
 
@@ -144,7 +144,7 @@ pub fn build_dispute_defend_request() -> DisputeServiceDefendRequest {
     DisputeServiceDefendRequest {
         merchant_dispute_id: Some("probe_dispute_001".to_string()), // Identification.
         connector_transaction_id: "probe_txn_001".to_string(),
-        dispute_id: "probe_dispute_id_001".to_string(),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
         reason_code: Some("probe_reason".to_string()), // Defend Details.
     }
 }

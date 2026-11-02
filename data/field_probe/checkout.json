@@ -753,7 +753,7 @@
         "proto_request": {
           "merchant_dispute_id": "probe_dispute_001",
           "connector_transaction_id": "probe_txn_001",
-          "dispute_id": "probe_dispute_id_001"
+          "connector_dispute_id": "probe_dispute_id_001"
         },
         "sample": {
           "url": "https://api.sandbox.checkout.com/disputes/probe_dispute_id_001/accept",
@@ -773,7 +773,7 @@
         "proto_request": {
           "merchant_dispute_id": "probe_dispute_001",
           "connector_transaction_id": "probe_txn_001",
-          "dispute_id": "probe_dispute_id_001",
+          "connector_dispute_id": "probe_dispute_id_001",
           "reason_code": "probe_reason"
         },
         "sample": {
