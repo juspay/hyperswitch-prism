@@ -2267,7 +2267,7 @@
         "proto_request": {
           "merchant_dispute_id": "probe_dispute_001",
           "connector_transaction_id": "probe_txn_001",
-          "dispute_id": "probe_dispute_id_001"
+          "connector_dispute_id": "probe_dispute_id_001"
         },
         "sample": {
           "url": "https://ca-test.adyen.com/ca/services/DisputeService/v30/acceptDispute",
@@ -2287,7 +2287,7 @@
         "proto_request": {
           "merchant_dispute_id": "probe_dispute_001",
           "connector_transaction_id": "probe_txn_001",
-          "dispute_id": "probe_dispute_id_001",
+          "connector_dispute_id": "probe_dispute_id_001",
           "reason_code": "probe_reason"
         },
         "sample": {
@@ -2313,7 +2313,7 @@
         "proto_request": {
           "merchant_dispute_id": "probe_dispute_001",
           "connector_transaction_id": "probe_txn_001",
-          "dispute_id": "probe_dispute_id_001",
+          "connector_dispute_id": "probe_dispute_id_001",
           "evidence_documents": [
             {
               "evidence_type": "SERVICE_DOCUMENTATION",

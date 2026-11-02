@@ -161,6 +161,7 @@ pub enum ConnectorEnum {
     Qwikcilver,
     Flywire,
     Affirm,
+    Reddot,
     Givepayments,
     Grabpay,
     Tesouro,
@@ -551,6 +552,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::Maya => Ok(Self::Maya),
+            grpc_api_types::payments::Connector::Reddot => Ok(Self::Reddot),
             grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
             grpc_api_types::payments::Connector::GlobalpaymentsRealex => {
                 Ok(Self::GlobalpaymentsRealex)
@@ -1808,6 +1810,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub mandate_id: Option<MandateIds>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    /// Whether this payment uses a previously stored credential.
+    pub is_stored_credential: Option<bool>,
     pub browser_info: Option<BrowserInformation>,
     pub order_category: Option<String>,
     pub session_token: Option<String>,
@@ -3908,6 +3912,8 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub mandate_id: Option<MandateIds>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    /// Whether this payment uses a previously stored credential.
+    pub is_stored_credential: Option<bool>,
     pub setup_mandate_details: Option<MandateData>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
@@ -6547,6 +6553,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
             AuthType::Grabpay(_) => Ok(Self::Payment(ConnectorEnum::Grabpay)),
             AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
+            AuthType::Reddot(_) => Ok(Self::Payment(ConnectorEnum::Reddot)),
             AuthType::Tesouro(_) => Ok(Self::Payment(ConnectorEnum::Tesouro)),
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
             AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),

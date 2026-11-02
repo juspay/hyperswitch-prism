@@ -119,8 +119,17 @@ default = '{}'
 "connector_transaction_id" = "12345"
 
 # RAFT follow-up requests carry the credit/debit prefix and authorization traces.
-[connector_overrides."capture,void,refund,incremental_authorization".worldpayraft]
+[connector_overrides."capture,void,refund".worldpayraft]
 "connector_transaction_id" = "C|123456|123456789012|000001"
+
+# An incremental authorization continues an estimated Visa authorization. The
+# connector metadata matches the original response; 1100 is the new cumulative
+# amount and 100 is the additional amount to authorize.
+[connector_overrides.incremental_authorization.worldpayraft]
+"connector_transaction_id" = "C|123456|123456789012|000001"
+"additional_amount" = { minor_amount = 100, currency = "USD" }
+"network_transaction_id" = "263010131742906"
+"payment_method" = { payment_method = { card_with_no_cvc = { card_number = "4111111111111111", card_exp_month = "03", card_exp_year = "2030", card_network = "VISA" } } }
 
 # Reverse probes a prior-auth completion reversal with the original payment context.
 [connector_overrides.reverse.worldpayraft]

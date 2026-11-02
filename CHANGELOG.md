@@ -19,6 +19,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.02.2
+
+### Features
+
+- **connector:** [JPMorgan] support stored credential and additional fixes ([#2663](https://github.com/juspay/connector-service/pull/2663)) ([`aa5ed61`](https://github.com/juspay/connector-service/commit/aa5ed61d35c1ea812ed2905705e431ecafd87e9b))
+
+**Full Changelog:** [`2026.11.02.1...2026.11.02.2`](https://github.com/juspay/connector-service/compare/2026.11.02.1...2026.11.02.2)
+
+- - -
+
+## 2026.11.02.1
+
+### Bug Fixes
+
+- Align dispute IDs and connector payloads with service conventions ([#2661](https://github.com/juspay/connector-service/pull/2661)) ([`e8ac485`](https://github.com/juspay/connector-service/commit/e8ac4854d58267404f700e6be883aabc6ab13b82))
+
+**Full Changelog:** [`2026.11.02.0...2026.11.02.1`](https://github.com/juspay/connector-service/compare/2026.11.02.0...2026.11.02.1)
+
+- - -
+
+## 2026.11.02.0
+
+### Features
+
+- **reddot:** Add Red Dot Payment connector ([#2334](https://github.com/juspay/connector-service/pull/2334)) ([`b9ab759`](https://github.com/juspay/connector-service/commit/b9ab759f72a609c808002058b021dbf8433d52b9))
+- Move dispute messages into dispute.proto ([#2643](https://github.com/juspay/connector-service/pull/2643)) ([`e2625fc`](https://github.com/juspay/connector-service/commit/e2625fc4e5abfa26a34a868f62def7931c38eb58))
+
+**Full Changelog:** [`2026.10.30.1...2026.11.02.0`](https://github.com/juspay/connector-service/compare/2026.10.30.1...2026.11.02.0)
+
+- - -
+
+## 2026.10.30.1
+
+### Features
+
+- **connector:** [Nexixpay] add 9 flows (ThreeDS, IncomingWebhook, PSync, Capture, Void, ...) ([#2601](https://github.com/juspay/connector-service/pull/2601)) ([`e8105aa`](https://github.com/juspay/connector-service/commit/e8105aababe560fdde15efdbe67397a462b59feb))
+
+### Bug Fixes
+
+- **connector:**
+  - Worldpay RAFT partial-approval handling and Mastercard TLID lifecycle metadata ([#2652](https://github.com/juspay/connector-service/pull/2652)) ([`d87626e`](https://github.com/juspay/connector-service/commit/d87626e343743d80bd4e03c053b73fe7e772c653))
+  - [Ilixium] send billing province as ISO 3166-2 code ([#2651](https://github.com/juspay/connector-service/pull/2651)) ([`025f91d`](https://github.com/juspay/connector-service/commit/025f91dc761f45b258569de5b0df6f6480c4698f))
+
+**Full Changelog:** [`2026.10.30.0...2026.10.30.1`](https://github.com/juspay/connector-service/compare/2026.10.30.0...2026.10.30.1)
+
+- - -
+
 ## 2026.10.30.0
 
 ### Features
