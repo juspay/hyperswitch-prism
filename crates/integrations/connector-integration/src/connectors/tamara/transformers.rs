@@ -239,7 +239,8 @@ fn tamara_location(address: &AddressDetails) -> Option<String> {
         address
             .state
             .as_ref()
-            .map(|state| state.as_secret().peek().clone()),
+            .and_then(|state| state.code_or_name())
+            .map(|state| state.peek().clone()),
         address.zip.as_ref().map(|zip| zip.peek().clone()),
         address.country.map(|country| country.to_string()),
     ];

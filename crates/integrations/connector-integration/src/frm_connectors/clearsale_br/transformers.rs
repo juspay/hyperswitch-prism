@@ -14,7 +14,7 @@ use domain_types::{
         PostRiskCheckResponse, PreRiskCheckRequest, PreRiskCheckResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_address::{OrderDetailsWithAmount, State},
+    payment_address::OrderDetailsWithAmount,
     payment_method_data::{
         BankTransferData, Card, CardWithNoCvc, CustomerDocumentDetails, DefaultPCIHolder,
         DocumentKind, PaymentMethodData, PaymentMethodDataTypes, VoucherData, WalletData,
@@ -1165,7 +1165,7 @@ pub(crate) fn build_clear_sale_address(
         n_state,
         address_details
             .and_then(|d| d.state.as_ref())
-            .map(State::as_secret),
+            .and_then(domain_types::payment_address::StateDetails::code),
     )?;
     let zipcode = required_value(n_zipcode, address_details.and_then(|d| d.zip.as_ref()))?;
     // Spec §5.1: `state` is the 2-char UF. `"Acre"` must go on the wire as `AC`.

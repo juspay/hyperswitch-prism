@@ -1349,6 +1349,15 @@ impl PaymentFlowData {
             })
     }
 
+    pub fn get_optional_billing_state_code_or_name(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.address.as_ref())
+            .and_then(|billing_details| billing_details.state.as_ref())
+            .and_then(crate::payment_address::StateDetails::code_or_name)
+            .cloned()
+    }
+
     pub fn get_optional_billing_state_code_iso(&self) -> Option<Secret<String>> {
         self.address
             .get_payment_method_billing()

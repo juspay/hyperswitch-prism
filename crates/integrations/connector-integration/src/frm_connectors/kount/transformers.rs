@@ -1405,7 +1405,8 @@ fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
         region: details
             .state
             .as_ref()
-            .map(|state| Secret::new(state.as_secret().peek().to_string())),
+            .and_then(|state| state.code_or_name())
+            .map(|state| Secret::new(state.peek().to_string())),
         country_code: details.country.map(|country| country.to_string()),
         postal_code: details
             .zip

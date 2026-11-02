@@ -186,12 +186,9 @@ impl requests::RedsysEmvThreeDsRequestData {
                 address.address.as_ref().map(|address_details| {
                     let state = address_details
                         .state
-                        .clone()
-                        .map(|state| {
-                            domain_types::utils::convert_spain_state_to_code(
-                                state.into_secret().peek(),
-                            )
-                        })
+                        .as_ref()
+                        .and_then(|state| state.code_or_name())
+                        .map(|state| domain_types::utils::convert_spain_state_to_code(state.peek()))
                         .transpose();
 
                     match state {
@@ -226,12 +223,9 @@ impl requests::RedsysEmvThreeDsRequestData {
                 address.address.as_ref().map(|address_details| {
                     let state = address_details
                         .state
-                        .clone()
-                        .map(|state| {
-                            domain_types::utils::convert_spain_state_to_code(
-                                state.into_secret().peek(),
-                            )
-                        })
+                        .as_ref()
+                        .and_then(|state| state.code_or_name())
+                        .map(|state| domain_types::utils::convert_spain_state_to_code(state.peek()))
                         .transpose();
 
                     match state {

@@ -329,9 +329,13 @@ impl<T: PaymentMethodDataTypes>
 
         // Bambora requires province/state for US and CA addresses in 2-letter format
         // Convert full state names (e.g., "California", "New York") to 2-letter codes (e.g., "CA", "NY")
-        let province = billing_address.state.clone().and_then(|state| {
-            crate::utils::get_state_code_for_country(state.as_secret(), billing_address.country)
-        });
+        let province = billing_address
+            .state
+            .as_ref()
+            .and_then(|state| state.code_or_name())
+            .and_then(|state| {
+                crate::utils::get_state_code_for_country(state, billing_address.country)
+            });
 
         let billing = BamboraBillingAddress {
             name: billing_address
