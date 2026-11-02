@@ -624,18 +624,31 @@ macros::create_all_prerequisites!(
 
         /// [`Self::build_headers`] plus `Cko-Idempotency-Key` for a money-moving `POST`.
         ///
-        /// The key is `<scope>_<connector_request_reference_id>` (see
-        /// [`transformers::CheckoutIdempotencyScope`]) so a retry of the same request replays
-        /// Checkout's cached `2xx` instead of moving money twice. It is omitted when the
-        /// reference id is empty — never sent empty, never a fresh UUID.
+        /// The key is `<scope>_<reference>` (see [`transformers::CheckoutIdempotencyScope`]) so a
+        /// retry of the same request replays Checkout's cached `2xx` instead of moving money
+        /// twice. It is omitted when the reference is empty — never sent empty, never a fresh
+        /// UUID, since a fresh UUID would defeat retry safety.
+        ///
+        /// `merchant_request_id` is the caller's own per-request token and wins when set — the
+        /// same precedence `shift4` uses. `connector_request_reference_id` is only the fallback,
+        /// and is not always attempt-unique: it is the attempt id for most merchants, but the
+        /// *payment* id for merchants configured to send one, and payment-level by default in v2.
+        /// For those, keying on it alone would give two attempts on one payment the same key, and
+        /// Checkout would replay the first attempt's response for the second attempt's card or
+        /// amount.
         pub fn build_headers_with_idempotency<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
             scope: transformers::CheckoutIdempotencyScope,
+            merchant_request_id: Option<&str>,
             connector_request_reference_id: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = self.build_headers(req)?;
-            if let Some(key) = scope.idempotency_key(connector_request_reference_id) {
+            let reference = merchant_request_id
+                .map(str::trim)
+                .filter(|id| !id.is_empty())
+                .unwrap_or(connector_request_reference_id);
+            if let Some(key) = scope.idempotency_key(reference) {
                 header.push((headers::CKO_IDEMPOTENCY_KEY.to_string(), key.into()));
             }
             Ok(header)
@@ -879,6 +892,7 @@ macros::macro_connector_implementation!(
             self.build_headers_with_idempotency(
                 req,
                 transformers::CheckoutIdempotencyScope::Payment,
+                req.resource_common_data.merchant_request_id.as_deref(),
                 &req.resource_common_data.connector_request_reference_id,
             )
         }
@@ -919,6 +933,7 @@ macros::macro_connector_implementation!(
             self.build_headers_with_idempotency(
                 req,
                 transformers::CheckoutIdempotencyScope::Payment,
+                req.resource_common_data.merchant_request_id.as_deref(),
                 &req.resource_common_data.connector_request_reference_id,
             )
         }
@@ -1018,6 +1033,7 @@ macros::macro_connector_implementation!(
             self.build_headers_with_idempotency(
                 req,
                 transformers::CheckoutIdempotencyScope::Capture,
+                req.resource_common_data.merchant_request_id.as_deref(),
                 reference,
             )
         }
@@ -1071,6 +1087,7 @@ macros::macro_connector_implementation!(
             self.build_headers_with_idempotency(
                 req,
                 transformers::CheckoutIdempotencyScope::Refund,
+                req.resource_common_data.merchant_request_id.as_deref(),
                 &req.resource_common_data.connector_request_reference_id,
             )
         }
@@ -1137,6 +1154,7 @@ macros::macro_connector_implementation!(
             self.build_headers_with_idempotency(
                 req,
                 transformers::CheckoutIdempotencyScope::Void,
+                req.resource_common_data.merchant_request_id.as_deref(),
                 &req.resource_common_data.connector_request_reference_id,
             )
         }
@@ -1179,6 +1197,7 @@ macros::macro_connector_implementation!(
             self.build_headers_with_idempotency(
                 req,
                 transformers::CheckoutIdempotencyScope::Payment,
+                req.resource_common_data.merchant_request_id.as_deref(),
                 &req.resource_common_data.connector_request_reference_id,
             )
         }

@@ -969,8 +969,8 @@ impl CheckoutIdempotencyScope {
 
     /// `<scope>_<reference>`, or `None` when the reference is empty — the header is then omitted
     /// rather than sent empty or with a fresh UUID (a fresh UUID would defeat retry safety).
-    pub fn idempotency_key(self, connector_request_reference_id: &str) -> Option<String> {
-        let reference = connector_request_reference_id.trim();
+    pub fn idempotency_key(self, reference: &str) -> Option<String> {
+        let reference = reference.trim();
         (!reference.is_empty()).then(|| format!("{}_{reference}", self.as_str()))
     }
 }
@@ -3617,7 +3617,7 @@ pub struct CheckoutEvidenceRequest {
     pub recurring_transaction_agreement_file: Option<String>,
     pub additional_evidence_file: Option<String>,
     pub refund_or_cancellation_policy_text: Option<String>,
-    pub additional_evidence_text: Option<String>,
+    pub additional_evidence_text: Option<Secret<String>>,
 }
 
 /// `Some` only for a non-empty string, so an empty id or text is never put on the wire.
@@ -3668,7 +3668,7 @@ const CHECKOUT_EVIDENCE_TEXT_MAX_CHARS: usize = 500;
 /// request is refused rather than truncating or dropping evidence.
 fn additional_evidence_text(
     request: &SubmitEvidenceData,
-) -> Result<Option<String>, error_stack::Report<IntegrationError>> {
+) -> Result<Option<Secret<String>>, error_stack::Report<IntegrationError>> {
     let customer_email_address = request
         .customer_email_address
         .as_ref()
@@ -3727,7 +3727,9 @@ fn additional_evidence_text(
             },
         }));
     }
-    Ok(Some(text))
+    // The joined text carries the customer's name, email, IP and addresses, so it is
+    // masked in the request log even though Checkout receives it in clear.
+    Ok(Some(Secret::new(text)))
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -3896,18 +3898,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Checkout answers `422 no_evidence_provided` to an empty body; refuse before the call.
         let has_evidence = [
-            &evidence.proof_of_delivery_or_service_file,
-            &evidence.invoice_or_receipt_file,
-            &evidence.invoice_showing_distinct_transactions_file,
-            &evidence.customer_communication_file,
-            &evidence.refund_or_cancellation_policy_file,
-            &evidence.recurring_transaction_agreement_file,
-            &evidence.additional_evidence_file,
-            &evidence.refund_or_cancellation_policy_text,
-            &evidence.additional_evidence_text,
+            evidence.proof_of_delivery_or_service_file.is_some(),
+            evidence.invoice_or_receipt_file.is_some(),
+            evidence
+                .invoice_showing_distinct_transactions_file
+                .is_some(),
+            evidence.customer_communication_file.is_some(),
+            evidence.refund_or_cancellation_policy_file.is_some(),
+            evidence.recurring_transaction_agreement_file.is_some(),
+            evidence.additional_evidence_file.is_some(),
+            evidence.refund_or_cancellation_policy_text.is_some(),
+            evidence.additional_evidence_text.is_some(),
         ]
-        .iter()
-        .any(|field| field.is_some());
+        .into_iter()
+        .any(|present| present);
         if !has_evidence {
             return Err(error_stack::report!(
                 IntegrationError::MissingRequiredField {
