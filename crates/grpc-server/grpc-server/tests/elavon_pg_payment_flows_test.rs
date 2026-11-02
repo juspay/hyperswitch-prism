@@ -33,8 +33,8 @@ use grpc_api_types::payments::{
     CardDetails, Currency, Money, PaymentAddress, PaymentMethod,
     PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentServiceAuthorizeRequest,
     PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest, PaymentServiceGetRequest,
-    PaymentServiceRefundRequest, PaymentServiceVoidRequest, PaymentStatus,
-    RecurringPaymentServiceChargeRequest, RefundServiceGetRequest, RefundStatus,
+    PaymentServiceRefundRequest, PaymentServiceSetupRecurringRequest, PaymentServiceVoidRequest,
+    PaymentStatus, RecurringPaymentServiceChargeRequest, RefundServiceGetRequest, RefundStatus,
     TokenPaymentMethodType,
 };
 use grpc_server::app;
@@ -112,6 +112,20 @@ async fn elavon_mock(
                 "href": SESSION_HREF,
                 "url": HOSTED_PAGE_URL,
                 "expiresAt": "2030-01-01T00:00:00Z"
+            })),
+        )
+            .into_response();
+    }
+
+    if method == Method::POST && original_url.ends_with("/card-verifications") {
+        return (
+            StatusCode::CREATED,
+            Json(json!({
+                "id": "verification_123",
+                "isVerified": true,
+                "credentialOnFileData": COF_DATA,
+                "schemeReference": null,
+                "failures": []
             })),
         )
             .into_response();
@@ -851,7 +865,7 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             );
         }
 
-        // EPG has no recurring on wallets: the request is refused, not silently downgraded.
+        // A wallet sale with setup_future_usage opens an agreement like a card sale does.
         let mut wallet_agreement = Request::new(
             serde_json::from_value::<PaymentServiceAuthorizeRequest>(authorize_request(
                 google_pay_json(),
@@ -860,14 +874,44 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             .expect("wallet request should deserialize"),
         );
         add_elavon_metadata(&mut wallet_agreement, "wallet_recurring");
-        let rejection = Box::pin(payment_client.authorize(wallet_agreement))
+        let wallet_cit = Box::pin(payment_client.authorize(wallet_agreement))
             .await
-            .expect_err("recurring on a wallet must be refused");
-        assert!(
-            rejection
-                .message()
-                .contains("Recurring payments on wallets"),
-            "{rejection}"
+            .expect("recurring wallet sale should succeed")
+            .into_inner();
+        assert_eq!(
+            wallet_cit
+                .mandate_reference_details
+                .and_then(|mandate| mandate.connector_mandate_id)
+                .as_deref(),
+            Some(COF_DATA)
+        );
+
+        // A zero-amount agreement goes to card-verifications and yields the same mandate.
+        let mut setup = Request::new(
+            serde_json::from_value::<PaymentServiceSetupRecurringRequest>(json!({
+                "merchant_recurring_payment_id": "setup_123",
+                "amount": { "minor_amount": 0, "currency": "USD" },
+                "payment_method": { "payment_method": card_json() },
+                "address": {},
+                "auth_type": "NO_THREE_DS",
+                "enrolled_for_3ds": false,
+                "request_incremental_authorization": false,
+                "test_mode": true
+            }))
+            .expect("setup request should deserialize"),
+        );
+        add_elavon_metadata(&mut setup, "setup_recurring");
+        let setup = Box::pin(payment_client.setup_recurring(setup))
+            .await
+            .expect("setup mandate should succeed")
+            .into_inner();
+        assert_eq!(setup.status, i32::from(PaymentStatus::Charged));
+        assert_eq!(
+            setup
+                .mandate_reference_details
+                .and_then(|mandate| mandate.connector_mandate_id)
+                .as_deref(),
+            Some(COF_DATA)
         );
 
         let requests = request_log
@@ -879,8 +923,8 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             .filter(|request| request.original_url.ends_with("/transactions"))
             .map(|request| &request.body)
             .collect();
-        // CIT, 1 repeat, 3 wallets; the two refused requests never reached EPG.
-        assert_eq!(sales.len(), 5, "{sales:?}");
+        // CIT, 1 repeat, 3 wallets, 1 wallet CIT; the refused request never reached EPG.
+        assert_eq!(sales.len(), 6, "{sales:?}");
 
         assert_eq!(sales[0]["credentialOnFileType"], json!("recurring"));
         assert_eq!(sales[0]["shopperInteraction"], json!("ecommerce"));
@@ -909,6 +953,25 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             assert!(wallet["card"].get("securityCode").is_none());
             assert!(wallet.get("credentialOnFileType").is_none());
         }
+
+        let wallet_agreement = sales[5];
+        assert_eq!(wallet_agreement["credentialOnFileType"], json!("recurring"));
+        assert_eq!(wallet_agreement["shopperInteraction"], json!("ecommerce"));
+        assert_eq!(wallet_agreement["paymentMethodOrigin"], json!("Google Pay"));
+        assert_eq!(
+            wallet_agreement["cryptogramSecurity"]["cryptogram"],
+            json!("AgAAAAAAAIR8CQrXcIhbQAAAAAA=")
+        );
+
+        let verification = requests
+            .iter()
+            .find(|request| request.original_url.ends_with("/card-verifications"))
+            .map(|request| &request.body)
+            .expect("setup mandate should call card-verifications");
+        assert_eq!(verification["credentialOnFileType"], json!("recurring"));
+        assert_eq!(verification["shopperInteraction"], json!("ecommerce"));
+        assert_eq!(verification["card"]["securityCode"], json!("123"));
+        assert!(verification.get("total").is_none());
 
         // The Mastercard token carried an empty eciIndicator: it reaches EPG as the
         // unauthenticated default rather than failing the sale or being sent through blank.
