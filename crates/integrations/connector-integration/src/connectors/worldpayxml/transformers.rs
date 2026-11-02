@@ -1271,7 +1271,7 @@ fn build_worldpayxml_sender_funding_address(
 
 /// Builds the sender `fundingParty` from `sender_details`. Without `sender_details`, the sender is
 /// the individual on the billing address, exactly as before sender details existed.
-fn build_worldpayxml_sender_party(
+pub(super) fn build_worldpayxml_sender_party(
     resource_common_data: &PaymentFlowData,
     sender_details: Option<&SenderDetails>,
     customer: Option<&CustomerInfo>,

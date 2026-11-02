@@ -314,3 +314,286 @@ fn card_bin_parses_country_codes_and_leaves_unknown_codes_absent() {
         assert_eq!(issuer_country, expected_country);
     }
 }
+
+mod sender_party {
+    use domain_types::{
+        connector_types::{
+            CorporateSenderDetails, CustomerInfo, IndividualSenderDetails, PaymentFlowData,
+            SenderAddress, SenderDetails,
+        },
+        errors::IntegrationError,
+        payment_address::{Address, AddressDetails, PaymentAddress, PhoneDetails},
+        types::Connectors,
+    };
+    use hyperswitch_masking::Secret;
+
+    use super::super::transformers::build_worldpayxml_sender_party;
+
+    const ACCOUNT_REFERENCE: &str =
+        r#"<accountReference accountType="03">4111111111111111</accountReference>"#;
+    const SENDER_ADDRESS_XML: &str = "<fundingAddress><address1>10 Downing St</address1>\
+        <postalCode>SW1A 2AA</postalCode><city>London</city><state>Westminster</state>\
+        <countryCode>GB</countryCode></fundingAddress>";
+    const BILLING_ADDRESS_XML: &str = "<fundingAddress><address1>1 Billing St</address1>\
+        <postalCode>10001</postalCode><city>New York</city><state>NY</state>\
+        <countryCode>US</countryCode></fundingAddress>";
+
+    fn secret(value: &str) -> Secret<String> {
+        Secret::new(value.to_string())
+    }
+
+    /// A complete US billing address (Jane Doe, New York) with a phone number.
+    fn billing_address() -> Address {
+        Address {
+            address: Some(AddressDetails {
+                first_name: Some(secret("Jane")),
+                last_name: Some(secret("Doe")),
+                line1: Some(secret("1 Billing St")),
+                line2: None,
+                line3: None,
+                city: Some(secret("New York")),
+                state: Some(secret("NY")),
+                zip: Some(secret("10001")),
+                country: Some(common_enums::CountryAlpha2::US),
+                origin_zip: None,
+            }),
+            phone: Some(PhoneDetails {
+                number: Some(secret("2125550100")),
+                country_code: Some("+1".to_string()),
+            }),
+            email: None,
+        }
+    }
+
+    /// Payment flow data whose only meaningful content is the given billing address.
+    fn payment_flow_data(billing: Option<Address>) -> PaymentFlowData {
+        PaymentFlowData {
+            merchant_id: common_utils::id_type::MerchantId::default(),
+            customer_id: None,
+            connector_customer: None,
+            payment_id: "pay_test".to_string(),
+            attempt_id: "attempt_test".to_string(),
+            status: common_enums::AttemptStatus::Pending,
+            payment_method: common_enums::PaymentMethod::Card,
+            payment_method_type: None,
+            description: None,
+            return_url: None,
+            address: PaymentAddress::new(None, billing, None, None),
+            auth_type: common_enums::AuthenticationType::NoThreeDs,
+            connector_feature_data: None,
+            amount_captured: None,
+            amount_capturable: None,
+            amount: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            connector_order_id: None,
+            preprocessing_id: None,
+            connector_api_version: None,
+            connector_request_reference_id: "ref_test".to_string(),
+            test_mode: None,
+            connector_http_status_code: None,
+            connector_response_headers: None,
+            external_latency: None,
+            connectors: Connectors::default().into(),
+            raw_connector_response: None,
+            typed_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+            vault_headers: None,
+            connector_response: None,
+            recurring_mandate_payment_data: None,
+            order_details: None,
+            amount_authorized: None,
+            l2_l3_data: None,
+            merchant_request_id: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+            settlement_status: None,
+            raw_connector_status: None,
+        }
+    }
+
+    fn sender_address() -> SenderAddress {
+        SenderAddress {
+            line1: Some(secret("10 Downing St")),
+            line2: None,
+            city: Some(secret("London")),
+            state: Some(secret("Westminster")),
+            zip: Some(secret("SW1A 2AA")),
+            country: Some(common_enums::CountryAlpha2::GB),
+        }
+    }
+
+    fn customer(date_of_birth: Option<time::Date>) -> CustomerInfo {
+        CustomerInfo {
+            customer_id: None,
+            customer_email: None,
+            customer_name: None,
+            first_name: None,
+            last_name: None,
+            customer_phone_number: None,
+            customer_phone_country_code: None,
+            salutation: None,
+            date_of_birth: date_of_birth.map(Secret::new),
+        }
+    }
+
+    fn corporate(company_name: &str, phone_number: Option<&str>) -> SenderDetails {
+        SenderDetails::Corporate(CorporateSenderDetails {
+            company_name: secret(company_name),
+            address: Some(sender_address()),
+            email: None,
+            phone_number: phone_number.map(secret),
+            phone_country_code: None,
+        })
+    }
+
+    fn sender_party_xml(
+        sender_details: Option<&SenderDetails>,
+        customer: Option<&CustomerInfo>,
+    ) -> Result<String, error_stack::Report<IntegrationError>> {
+        build_worldpayxml_sender_party(
+            &payment_flow_data(Some(billing_address())),
+            sender_details,
+            customer,
+            secret("4111111111111111"),
+        )
+        .map(|party| {
+            quick_xml::se::to_string_with_root("fundingParty", &party)
+                .expect("funding party serializes")
+        })
+    }
+
+    fn expected_xml(full_name: &str, funding_address: &str, funding_data: &str) -> String {
+        format!(
+            r#"<fundingParty type="sender">{ACCOUNT_REFERENCE}<fullName>{full_name}</fullName>{funding_address}{funding_data}</fundingParty>"#
+        )
+    }
+
+    fn missing_field(error: &error_stack::Report<IntegrationError>) -> &'static str {
+        match error.current_context() {
+            IntegrationError::MissingRequiredField { field_name, .. } => field_name,
+            other => panic!("expected a missing field error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn individual_from_sender_details() {
+        let sender = SenderDetails::Individual(IndividualSenderDetails {
+            first_name: secret("John"),
+            last_name: secret("Smith"),
+            date_of_birth: Some(Secret::new(time::macros::date!(1985 - 04 - 12))),
+            address: Some(sender_address()),
+            email: None,
+            phone_number: Some(secret("7700900000")),
+            phone_country_code: None,
+        });
+        assert_eq!(
+            sender_party_xml(Some(&sender), None).expect("sender builds"),
+            expected_xml(
+                "<first>John</first><last>Smith</last>",
+                SENDER_ADDRESS_XML,
+                r#"<fundingData><birthDate><date dayOfMonth="12" month="4" year="1985"/></birthDate><telephoneNumber>7700900000</telephoneNumber></fundingData>"#,
+            )
+        );
+    }
+
+    #[test]
+    fn individual_falls_back_to_customer_date_of_birth_and_billing_phone() {
+        let sender = SenderDetails::Individual(IndividualSenderDetails {
+            first_name: secret("John"),
+            last_name: secret("Smith"),
+            date_of_birth: None,
+            address: Some(sender_address()),
+            email: None,
+            phone_number: None,
+            phone_country_code: None,
+        });
+        let customer = customer(Some(time::macros::date!(1970 - 01 - 02)));
+        assert_eq!(
+            sender_party_xml(Some(&sender), Some(&customer)).expect("sender builds"),
+            expected_xml(
+                "<first>John</first><last>Smith</last>",
+                SENDER_ADDRESS_XML,
+                r#"<fundingData><birthDate><date dayOfMonth="2" month="1" year="1970"/></birthDate><telephoneNumber>2125550100</telephoneNumber></fundingData>"#,
+            )
+        );
+    }
+
+    #[test]
+    fn corporate_with_phone_number() {
+        assert_eq!(
+            sender_party_xml(
+                Some(&corporate("Example Trading Ltd", Some("7700900000"))),
+                None
+            )
+            .expect("sender builds"),
+            expected_xml(
+                "<first>Example</first><middle>Trading</middle><last>Ltd</last>",
+                SENDER_ADDRESS_XML,
+                "<fundingData><telephoneNumber>7700900000</telephoneNumber></fundingData>",
+            )
+        );
+    }
+
+    #[test]
+    fn corporate_without_phone_number_has_no_funding_data() {
+        // No billing phone fallback and no date of birth for corporate senders.
+        let customer = customer(Some(time::macros::date!(1970 - 01 - 02)));
+        assert_eq!(
+            sender_party_xml(
+                Some(&corporate("Example  Global   Trading Ltd", None)),
+                Some(&customer)
+            )
+            .expect("sender builds"),
+            expected_xml(
+                "<first>Example</first><middle>Global Trading</middle><last>Ltd</last>",
+                SENDER_ADDRESS_XML,
+                "",
+            )
+        );
+    }
+
+    #[test]
+    fn single_word_company_name_has_no_last_name() {
+        let error = sender_party_xml(Some(&corporate("Acme", None)), None)
+            .expect_err("last name is required");
+        assert_eq!(missing_field(&error), "sender_details.company_name");
+    }
+
+    #[test]
+    fn without_sender_details_the_request_is_unchanged() {
+        let customer = customer(Some(time::macros::date!(1985 - 04 - 12)));
+        assert_eq!(
+            sender_party_xml(None, Some(&customer)).expect("sender builds"),
+            expected_xml(
+                "<first>Jane</first><last>Doe</last>",
+                BILLING_ADDRESS_XML,
+                r#"<fundingData><birthDate><date dayOfMonth="12" month="4" year="1985"/></birthDate><telephoneNumber>2125550100</telephoneNumber></fundingData>"#,
+            )
+        );
+        // The date of birth stays optional.
+        assert_eq!(
+            sender_party_xml(None, None).expect("sender builds"),
+            expected_xml(
+                "<first>Jane</first><last>Doe</last>",
+                BILLING_ADDRESS_XML,
+                "<fundingData><telephoneNumber>2125550100</telephoneNumber></fundingData>",
+            )
+        );
+    }
+
+    #[test]
+    fn sender_details_require_an_address() {
+        let sender = SenderDetails::Corporate(CorporateSenderDetails {
+            company_name: secret("Acme Ltd"),
+            address: None,
+            email: None,
+            phone_number: None,
+            phone_country_code: None,
+        });
+        let error = sender_party_xml(Some(&sender), None).expect_err("address is required");
+        assert_eq!(missing_field(&error), "sender_details.address");
+    }
+}

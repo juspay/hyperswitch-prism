@@ -475,7 +475,7 @@ fn build_checkout_recipient(
     })
 }
 
-fn build_checkout_sender_address(
+pub(super) fn build_checkout_sender_address(
     address: &SenderAddress,
 ) -> Result<CheckoutAddress, error_stack::Report<IntegrationError>> {
     let country = address
@@ -513,7 +513,7 @@ fn build_checkout_sender_address(
 
 /// Builds the AFT sender from `sender_details`. Without `sender_details`, the sender is the
 /// individual named on the billing address, exactly as before sender details existed.
-fn build_checkout_sender(
+pub(super) fn build_checkout_sender(
     resource_common_data: &PaymentFlowData,
     sender_details: Option<&SenderDetails>,
     customer: Option<&CustomerInfo>,
