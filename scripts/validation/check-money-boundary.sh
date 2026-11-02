@@ -92,7 +92,7 @@ check boundary_expect_scope clippy::disallowed_methods,clippy::disallowed_types
 check obsolete_boundary_expect unfulfilled_lint_expectations
 check boundary_allow E0453
 check boundary_in_tests clippy::disallowed_methods,clippy::disallowed_types
-check private_constructor E0624
+check private_constructor E0599
 check private_fields E0451
 check boundary_direct clippy::disallowed_methods,clippy::disallowed_types
 check boundary_alias clippy::disallowed_methods,clippy::disallowed_types
