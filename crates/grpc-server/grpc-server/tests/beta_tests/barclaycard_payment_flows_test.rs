@@ -146,7 +146,6 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             line1: Some(format!("{random_street_num} Main St").into()),
             city: Some("San Francisco".to_string().into()),
             state: Some("CA".to_string().into()),
-            state_name: None,
             state_code_iso: None,
             zip_code: Some(format!("{random_zip_suffix}").into()),
             country_alpha2_code: Some(i32::from(CountryAlpha2::Us)),

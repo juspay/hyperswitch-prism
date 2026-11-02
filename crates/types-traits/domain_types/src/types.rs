@@ -6425,8 +6425,6 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
         value: grpc_api_types::payments::Address,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let country_code = value.country_alpha2_code();
-        #[allow(deprecated)]
-        let legacy_state = value.state;
         let country = if matches!(
             country_code,
             grpc_api_types::payments::CountryAlpha2::Unspecified
@@ -6435,8 +6433,8 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
         } else {
             Some(CountryAlpha2::foreign_try_from(country_code)?)
         };
-        let state = match (value.state_name, value.state_code_iso) {
-            (None, None) => legacy_state.map(StateDetails::from_name),
+        let state = match (value.state, value.state_code_iso) {
+            (None, None) => None,
             (state_name, state_code_iso) => Some(StateDetails::foreign_try_from((
                 state_name,
                 state_code_iso,

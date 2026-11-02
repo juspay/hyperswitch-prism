@@ -182,7 +182,6 @@ fn create_payment_authorize_request(
             line3: None,
             city: Some(Secret::new("Pecan Springs".to_string())),
             state: Some(Secret::new("TX".to_string())),
-            state_name: None,
             state_code_iso: None,
             zip_code: Some(Secret::new("44628".to_string())),
             country_alpha2_code: Some(i32::from(CountryAlpha2::Us)),

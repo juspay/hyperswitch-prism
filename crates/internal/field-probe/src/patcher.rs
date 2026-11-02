@@ -36,7 +36,6 @@ fn full_address() -> grpc_api_types::payments::Address {
         email: Some(Secret::new("test@example.com".to_string())),
         phone_number: Some(Secret::new("4155552671".to_string())),
         phone_country_code: Some("+1".to_string()),
-        state_name: None,
         state_code_iso: None,
     }
 }
