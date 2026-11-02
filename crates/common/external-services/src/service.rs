@@ -1028,7 +1028,6 @@ where
                         },
                     );
                     let external_service_start_latency = tokio::time::Instant::now();
-                    external_call_attempted = true;
                     tracing::Span::current().record(
                         "request.url",
                         tracing::field::display(connector.sanitize_url_for_logs(&url)),
@@ -1102,6 +1101,7 @@ where
                         );
 
                         // New injector handles HTTP request internally and returns enhanced response
+                        external_call_attempted = true;
                         let injector_response =
                             call_injector_core(injector_request).await.change_context(
                                 ConnectorFlowError::from(IntegrationError::RequestEncodingFailed {
@@ -1153,6 +1153,7 @@ where
                         }))
                     } else {
                         let test_mode = test_context.is_some();
+                        external_call_attempted = true;
                         call_connector_api(
                             proxy,
                             request,
@@ -1269,7 +1270,6 @@ where
                         },
                     );
                     let external_service_start_latency = tokio::time::Instant::now();
-                    external_call_attempted = true;
 
                     let topic = record.topic.clone();
                     tracing::Span::current().record("request.url", tracing::field::display(&topic));
@@ -1283,6 +1283,7 @@ where
                     let masked_request = mask_connector_request(&record.payload);
                     record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
+                    external_call_attempted = true;
                     let response = publish_connector_record(record)
                         .await
                         .map_err(report_kafka_client_to_flow)
