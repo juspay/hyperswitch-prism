@@ -656,13 +656,13 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   FfiResult: { "httpRequest": "FfiConnectorHttpRequest", "httpResponse": "FfiConnectorHttpResponse", "integrationError": "IntegrationError", "connectorError": "ConnectorError" },
   SurchargeServiceCalculateRequest: { "amount": "Money" },
   SurchargeServiceCalculateResponse: { "surchargeAmount": "Money", "error": "ErrorInfo" },
+  SurchargeServiceSurchargeRefundInitRequest: { "amount": "Money" },
+  SurchargeServiceSurchargeRefundInitResponse: { "refundAmount": "Money", "originalTransactionFee": "Money", "previouslyRefundedTransactionFees": "Money", "error": "ErrorInfo" },
+  SurchargeServiceSurchargeRefundCompleteResponse: { "error": "ErrorInfo" },
   DisputeServiceSubmitEvidenceRequest: { "evidenceDocuments": "EvidenceDocument", "billingAddress": "Address", "shippingAddress": "Address" },
   DisputeServiceSubmitEvidenceResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   DisputeServiceDefendResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   DisputeServiceAcceptResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
-  SurchargeServiceSurchargeRefundInitRequest: { "amount": "Money" },
-  SurchargeServiceSurchargeRefundInitResponse: { "refundAmount": "Money", "originalTransactionFee": "Money", "previouslyRefundedTransactionFees": "Money", "error": "ErrorInfo" },
-  SurchargeServiceSurchargeRefundCompleteResponse: { "error": "ErrorInfo" },
 };
 
 function _wrapSecretStrings(obj: unknown, msgName: string): unknown {

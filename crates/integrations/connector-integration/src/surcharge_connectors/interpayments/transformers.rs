@@ -326,12 +326,10 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             s_tx_id: data.request.connector_surcharge_id.clone(),
-            amount: super::InterPaymentsAmountConvertor::convert(
-                &common_utils::types::Money {
-                    amount: data.request.amount,
-                    currency: data.request.currency,
-                },
-            )?,
+            amount: super::InterPaymentsAmountConvertor::convert(&common_utils::types::Money {
+                amount: data.request.amount,
+                currency: data.request.currency,
+            })?,
         })
     }
 }
