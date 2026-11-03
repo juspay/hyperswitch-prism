@@ -1427,48 +1427,210 @@ where
     R: RefundService + Clone + Send + Sync + 'static,
     A: PaymentMethodAuthenticationService + Clone + Send + Sync + 'static,
 {
+    #[tracing::instrument(name = "composite_payments_authorize", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn authorize(
         &self,
         request: tonic::Request<CompositeAuthorizeRequest>,
     ) -> Result<tonic::Response<CompositeAuthorizeResponse>, tonic::Status> {
-        Box::pin(self.process_composite_authorize(request)).await
+        Box::pin(crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::Authorize,
+            |request| async move { Box::pin(self.process_composite_authorize(request)).await },
+        ))
+        .await
     }
 
+    #[tracing::instrument(name = "composite_payments_pre_authenticate", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn pre_authenticate(
         &self,
         request: tonic::Request<CompositePreAuthenticateRequest>,
     ) -> Result<tonic::Response<CompositePreAuthenticateResponse>, tonic::Status> {
-        self.process_pre_authenticate(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::PreAuthenticate,
+            |request| async move { self.process_pre_authenticate(request).await },
+        )
+        .await
     }
 
+    #[tracing::instrument(name = "composite_payments_get", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn get(
         &self,
         request: tonic::Request<CompositeGetRequest>,
     ) -> Result<tonic::Response<CompositeGetResponse>, tonic::Status> {
-        self.process_composite_get(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::Psync,
+            |request| async move { self.process_composite_get(request).await },
+        )
+        .await
     }
 
+    #[tracing::instrument(name = "composite_payments_refund", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn refund(
         &self,
         request: tonic::Request<CompositeRefundRequest>,
     ) -> Result<tonic::Response<CompositeRefundResponse>, tonic::Status> {
-        self.process_composite_refund(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::Refund,
+            |request| async move { self.process_composite_refund(request).await },
+        )
+        .await
     }
 
+    #[tracing::instrument(name = "composite_payments_void", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn void(
         &self,
         request: tonic::Request<CompositeVoidRequest>,
     ) -> Result<tonic::Response<CompositeVoidResponse>, tonic::Status> {
-        self.process_composite_void(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::Void,
+            |request| async move { self.process_composite_void(request).await },
+        )
+        .await
     }
 
+    #[tracing::instrument(name = "composite_payments_capture", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn capture(
         &self,
         request: tonic::Request<CompositeCaptureRequest>,
     ) -> Result<tonic::Response<CompositeCaptureResponse>, tonic::Status> {
-        self.process_composite_capture(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::Capture,
+            |request| async move { self.process_composite_capture(request).await },
+        )
+        .await
     }
 
+    #[tracing::instrument(name = "composite_payments_verify_redirect_response", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn verify_redirect_response(
         &self,
         request: tonic::Request<grpc_api_types::payments::CompositeVerifyRedirectResponseRequest>,
@@ -1476,7 +1638,15 @@ where
         tonic::Response<grpc_api_types::payments::CompositeVerifyRedirectResponseResponse>,
         tonic::Status,
     > {
-        Box::pin(self.process_composite_verify_redirect_response(request)).await
+        Box::pin(crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::VerifyRedirectResponse,
+            |request| async move {
+                Box::pin(self.process_composite_verify_redirect_response(request)).await
+            },
+        ))
+        .await
     }
 }
 
@@ -1489,10 +1659,34 @@ where
     R: RefundService + Clone + Send + Sync + 'static,
     A: PaymentMethodAuthenticationService + Clone + Send + Sync + 'static,
 {
+    #[tracing::instrument(name = "composite_payments_get", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn get(
         &self,
         request: tonic::Request<CompositeRefundGetRequest>,
     ) -> Result<tonic::Response<CompositeRefundGetResponse>, tonic::Status> {
-        self.process_composite_refund_get(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositeRefundService",
+            common_utils::events::FlowName::Rsync,
+            |request| async move { self.process_composite_refund_get(request).await },
+        )
+        .await
     }
 }
