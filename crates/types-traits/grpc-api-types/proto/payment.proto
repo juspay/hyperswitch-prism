@@ -2579,6 +2579,9 @@ message PaymentServiceAuthorizeRequest {
 
  // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 59;
+
+  // Whether the payment uses a previously stored credential.
+  optional bool is_stored_credential = 60;
 }
 
 // Customer risk-assessment signals supplied by the merchant, used by
@@ -3560,6 +3563,8 @@ message DisputeResponse {
   // Raw Request for debugging
   optional SecretString raw_connector_request = 18;
   optional SecretString typed_connector_request = 20;
+  optional SecretString raw_connector_response = 22;
+  optional SecretString typed_connector_response = 23;
 
   // Another reference for the connector's transaction, returned in the connector's response.
   optional string connector_reference_id = 19;
@@ -3712,6 +3717,9 @@ message PaymentServiceSetupRecurringRequest {
   // for on_behalf_of on a destination charge, and to echo the charge details back
   // as mandate_reference.mandate_metadata.
   optional SplitPaymentsDetails split_payments = 43;
+
+  // Whether the payment uses a previously stored credential.
+  optional bool is_stored_credential = 44;
 }
 
 // Response message for a mandate setup operation
@@ -5307,7 +5315,10 @@ message WellsfargoConfig {
 message WorldpayvantivConfig {
   SecretString user = 1;
   SecretString password = 2;
+  // Single merchant ID used for every currency. Set this or merchant_id_by_currency.
   SecretString merchant_id = 3;
+  // Merchant IDs keyed by ISO 4217 currency code, e.g. USD, CAD. Used when merchant_id is not set.
+  map<string, SecretString> merchant_id_by_currency = 4;
   optional string base_url = 50;
   optional string report_group = 51;
   optional string merchant_config_currency = 52;

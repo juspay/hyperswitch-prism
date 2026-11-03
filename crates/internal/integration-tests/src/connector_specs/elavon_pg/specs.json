@@ -8,6 +8,7 @@
     "PaymentService/Void",
     "RecurringPaymentService/Charge",
     "PaymentService/Refund",
+    "PaymentService/SetupRecurring",
     "RefundService/Get",
     "PaymentMethodAuthenticationService/PreAuthenticate"
   ]

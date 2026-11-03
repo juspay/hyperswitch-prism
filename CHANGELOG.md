@@ -19,6 +19,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.03.0
+
+### Features
+
+- **connector:**
+  - [Worldpayvantiv] support per-currency merchant IDs via merchant_id_by_currency ([#2659](https://github.com/juspay/connector-service/pull/2659)) ([`8083883`](https://github.com/juspay/connector-service/commit/8083883a29cd729750e65be0def6a4dea3dbce55))
+  - Handle 2xx error response for raft ([#2667](https://github.com/juspay/connector-service/pull/2667)) ([`199bb0e`](https://github.com/juspay/connector-service/commit/199bb0e708429e18bd363056071d3115c632fa72))
+  - Upgrade adyen version from 68 to 72 ([#2539](https://github.com/juspay/connector-service/pull/2539)) ([`ea01201`](https://github.com/juspay/connector-service/commit/ea01201a87b7184eef4a08409d5495ac2bbfed4e))
+
+### Bug Fixes
+
+- **grace:** Add fail-closed checks to public GitHub output ([#2666](https://github.com/juspay/connector-service/pull/2666)) ([`a982f5b`](https://github.com/juspay/connector-service/commit/a982f5b80db41834e52be555130ce8d813b994b4))
+
+**Full Changelog:** [`2026.11.02.3...2026.11.03.0`](https://github.com/juspay/connector-service/compare/2026.11.02.3...2026.11.03.0)
+
+- - -
+
+## 2026.11.02.3
+
+### Features
+
+- **connector:** [Stripe] send decrypted Apple Pay / Google Pay as network tokens in Authorize and SetupRecurring ([#2645](https://github.com/juspay/connector-service/pull/2645)) ([`688ed59`](https://github.com/juspay/connector-service/commit/688ed599272b034bfb7b880cd229deb21f059847))
+
+### Miscellaneous Tasks
+
+- **superposition:** Bump superposition_provider to 0.118.2 and use millisecond polling config ([#2567](https://github.com/juspay/connector-service/pull/2567)) ([`14dfe97`](https://github.com/juspay/connector-service/commit/14dfe97fbcde565b609ad14e2d7a167882a05cfb))
+
+**Full Changelog:** [`2026.11.02.2...2026.11.02.3`](https://github.com/juspay/connector-service/compare/2026.11.02.2...2026.11.02.3)
+
+- - -
+
+## 2026.11.02.2
+
+### Features
+
+- **connector:** [JPMorgan] support stored credential and additional fixes ([#2663](https://github.com/juspay/connector-service/pull/2663)) ([`aa5ed61`](https://github.com/juspay/connector-service/commit/aa5ed61d35c1ea812ed2905705e431ecafd87e9b))
+
+**Full Changelog:** [`2026.11.02.1...2026.11.02.2`](https://github.com/juspay/connector-service/compare/2026.11.02.1...2026.11.02.2)
+
+- - -
+
+## 2026.11.02.1
+
+### Bug Fixes
+
+- Align dispute IDs and connector payloads with service conventions ([#2661](https://github.com/juspay/connector-service/pull/2661)) ([`e8ac485`](https://github.com/juspay/connector-service/commit/e8ac4854d58267404f700e6be883aabc6ab13b82))
+
+**Full Changelog:** [`2026.11.02.0...2026.11.02.1`](https://github.com/juspay/connector-service/compare/2026.11.02.0...2026.11.02.1)
+
+- - -
+
+## 2026.11.02.0
+
+### Features
+
+- **reddot:** Add Red Dot Payment connector ([#2334](https://github.com/juspay/connector-service/pull/2334)) ([`b9ab759`](https://github.com/juspay/connector-service/commit/b9ab759f72a609c808002058b021dbf8433d52b9))
+- Move dispute messages into dispute.proto ([#2643](https://github.com/juspay/connector-service/pull/2643)) ([`e2625fc`](https://github.com/juspay/connector-service/commit/e2625fc4e5abfa26a34a868f62def7931c38eb58))
+
+**Full Changelog:** [`2026.10.30.1...2026.11.02.0`](https://github.com/juspay/connector-service/compare/2026.10.30.1...2026.11.02.0)
+
+- - -
+
 ## 2026.10.30.1
 
 ### Features

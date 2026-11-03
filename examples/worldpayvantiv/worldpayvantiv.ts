@@ -18,6 +18,7 @@ const _defaultConfig: types.IConnectorConfig = {
             user: { value: 'YOUR_USER' },
             password: { value: 'YOUR_PASSWORD' },
             merchantId: { value: 'YOUR_MERCHANT_ID' },
+            merchantIdByCurrency: { USD: { value: 'YOUR_USD_MERCHANT_ID_BY_CURRENCY' } },
             baseUrl: 'YOUR_BASE_URL',
             reportGroup: 'YOUR_REPORT_GROUP',
             merchantConfigCurrency: 'YOUR_MERCHANT_CONFIG_CURRENCY',

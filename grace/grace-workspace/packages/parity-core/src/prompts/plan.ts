@@ -41,6 +41,7 @@ prism | hyperswitch-bridge
 ### Plan Confidence: 100%
 
 Hard rules:
+- Your output and any code comment you write are published in a PUBLIC repository. Never write merchant, org or profile names/IDs, payment/request/connector-transaction IDs, occurrence counts, fingerprints, environment names (prod) or links/numbers of the tracker issue. Say "a merchant" and describe the diff by field path only.
 - Show CURRENT code (quoted from the file) AND PROPOSED code (full replacement). Never show diffs.
 - Every file path must be exact and exist (you read it in Understand).
 - For prism: changes must be in crates/integrations/connector-integration/ — never in crates/types-traits/.

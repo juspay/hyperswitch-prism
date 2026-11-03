@@ -1,4 +1,5 @@
 import { execa, type ExecaError } from "execa";
+import { credNeedles, describeLeaks, findLeaks, issueNeedles } from "@10xgrace/core";
 import type { ParityConfig } from "../config.js";
 import { commentIssue, createPrDraft } from "../github/client.js";
 import { LABELS, transition } from "../github/labels.js";
@@ -28,11 +29,10 @@ function renderPrBody(opts: {
 }): string {
   const { leaf, understanding, planMarkdown, exec, verify } = opts;
   return [
+    // Public repo: nothing from the private tracker issue (title, URL, number,
+    // merchant, counts). The issue links back to this PR via handoff's comment.
     "## Summary",
-    `Parity fix for ${leaf.connector}/${leaf.flow} per #${leaf.number}.`,
-    "",
-    "## Linked Issue",
-    `Closes-when-merged: ${leaf.url} (autopilot will close after merge; re-open if the shadow-validation service re-files this fingerprint).`,
+    `Parity fix for ${leaf.connector}/${leaf.flow}: align the UCS response with hyperswitch.`,
     "",
     understanding.markdown ?? "",
     "",
@@ -85,6 +85,28 @@ export async function runHandoff(opts: {
     return { ok: false, escalation: { blocker: "Cannot hand off failed execute", tried: "runHandoff guard", question: "Should not reach here." } };
   }
 
+  // Never derived from leaf.title: tracker titles carry the merchant ("[prod] … bu_xx / stripe / …").
+  const commitMsg = `parity(${leaf.connector}/${leaf.flow}): align response with hyperswitch`;
+  const body = renderPrBody({
+    leaf,
+    understanding: opts.understanding,
+    planMarkdown: opts.planMarkdown,
+    exec,
+    verify: opts.verify,
+  });
+  // The PR lands in a public repo, the leaf comes from a private one: fail closed.
+  const needles = [...issueNeedles(`${leaf.title}\n${leaf.body}`, [leaf.connector, leaf.flow]), ...credNeedles(cfg.credsPath)];
+  const scrubEscalation = (tried: string) => ({
+    ok: false,
+    escalation: {
+      blocker: "public-output scrub gate",
+      tried,
+      question: "Remove the private identifiers / secrets from the summary, plan or diff, then re-run handoff.",
+    },
+  });
+  const textLeaks = findLeaks(`${commitMsg}\n${body}`, needles);
+  if (textLeaks.length > 0) return scrubEscalation(describeLeaks(textLeaks));
+
   if (opts.dryRun) {
     // Dry-run: agents + cargo + grpc verify all ran. We do NOT commit, push, open a PR,
     // or transition any GitHub label. The execute branch is left checked out in the local
@@ -92,12 +114,16 @@ export async function runHandoff(opts: {
     return { ok: true, prUrl: "(dry-run — no PR created)" };
   }
 
-  const oneLiner = leaf.title.replace(/^\[parity\]\s*/i, "").slice(0, 60);
-  const commitMsg = `parity(${leaf.connector}/${leaf.flow}): ${oneLiner} (#${leaf.number})`;
-
-  const addAll = await git(exec.repoRoot, ["add", ...exec.changedFiles]);
+  const addAll = await git(exec.repoRoot, ["add", "--", ...exec.changedFiles]);
   if (addAll.exitCode !== 0) {
     return { ok: false, escalation: { blocker: "git add failed", tried: addAll.stderr, question: "Inspect repo state." } };
+  }
+
+  const staged = await git(exec.repoRoot, ["diff", "--cached"]);
+  const diffLeaks = findLeaks(staged.stdout, needles);
+  if (staged.exitCode !== 0 || diffLeaks.length > 0) {
+    await git(exec.repoRoot, ["reset", "-q", "--", ...exec.changedFiles]);
+    return scrubEscalation(staged.exitCode !== 0 ? `git diff --cached failed: ${staged.stderr}` : describeLeaks(diffLeaks));
   }
   const commit = await git(exec.repoRoot, ["commit", "-m", commitMsg]);
   if (commit.exitCode !== 0) {
@@ -115,13 +141,6 @@ export async function runHandoff(opts: {
     return { ok: false, escalation: { blocker: "git push failed", tried: push.stderr, question: "Inspect remote." } };
   }
 
-  const body = renderPrBody({
-    leaf,
-    understanding: opts.understanding,
-    planMarkdown: opts.planMarkdown,
-    exec,
-    verify: opts.verify,
-  });
   const prUrl = await createPrDraft({
     repo: targetRepo(exec.target),
     title: commitMsg,

@@ -104,14 +104,14 @@ def _build_dispute_accept_request():
     return dispute_pb2.DisputeServiceAcceptRequest(
         merchant_dispute_id="probe_dispute_001",  # Identification.
         connector_transaction_id="probe_txn_001",
-        dispute_id="probe_dispute_id_001",
+        connector_dispute_id="probe_dispute_id_001",
     )
 
 def _build_dispute_defend_request():
     return dispute_pb2.DisputeServiceDefendRequest(
         merchant_dispute_id="probe_dispute_001",  # Identification.
         connector_transaction_id="probe_txn_001",
-        dispute_id="probe_dispute_id_001",
+        connector_dispute_id="probe_dispute_id_001",
         reason_code="probe_reason",  # Defend Details.
     )
 
@@ -119,7 +119,7 @@ def _build_dispute_submit_evidence_request():
     return dispute_pb2.DisputeServiceSubmitEvidenceRequest(
         merchant_dispute_id="probe_dispute_001",  # Identification.
         connector_transaction_id="probe_txn_001",
-        dispute_id="probe_dispute_id_001",
+        connector_dispute_id="probe_dispute_id_001",
         # evidence_documents: [{"evidence_type": "SERVICE_DOCUMENTATION", "file_content": "probe evidence content", "file_mime_type": "application/pdf"}]  # Collection of evidence documents.
     )
 

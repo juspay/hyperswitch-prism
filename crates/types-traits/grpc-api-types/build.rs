@@ -123,6 +123,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
+    // WorldpayvantivConfig.merchant_id_by_currency is the BodyKey alternative to the
+    // single `merchant_id`; existing x-connector-config headers omit it. Without a default,
+    // serde rejects a missing (non-optional proto map) field and every SignatureKey /
+    // MultiAuthKey Worldpay Vantiv header would fail to parse.
+    config.field_attribute(
+        ".types.WorldpayvantivConfig.merchant_id_by_currency",
+        "#[serde(default)]",
+    );
+
     // Use compile_protos_with_config which handles everything internally
     // including string enum support, serde derives, and descriptor set writing
     bridge_generator.compile_protos_with_config(
