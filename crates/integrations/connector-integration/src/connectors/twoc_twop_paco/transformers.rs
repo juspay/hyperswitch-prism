@@ -1747,11 +1747,17 @@ where
             router_data,
             http_code,
         } = item;
-        let result = response.flat_data_block();
+        let result = response.merged_result();
         let api_response = response.api_response.clone();
         let approval_code = result
-            .as_ref()
-            .and_then(|block| block.approval_code.clone());
+            .and_then(|block| block.approval_code.clone())
+            .or_else(|| {
+                response
+                    .data
+                    .as_ref()
+                    .and_then(|d| d.psp_response.as_ref())
+                    .and_then(|r| r.approval_code.clone())
+            });
 
         let (status, redirection_data, connector_txn_id, connector_response_reference_id, prior) =
             match result.as_ref() {

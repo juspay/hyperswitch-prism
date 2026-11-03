@@ -764,7 +764,7 @@ mod tests {
             line1: Some(Secret::new("Rua Augusta, 1234".to_owned())),
             line2: Some(Secret::new("Consolação".to_owned())),
             city: Some(Secret::new("Rio Branco".to_owned())),
-            state: Some(StateDetails::from_code(Secret::new("AC".to_owned()))),
+            state: Some(StateDetails::from_name(Secret::new("Acre".to_owned()))),
             zip: Some(Secret::new("69900-000".to_owned())),
             country: Some(common_enums::CountryAlpha2::BR),
             ..AddressDetails::default()
