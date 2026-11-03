@@ -1781,8 +1781,6 @@ impl PaymentsCancelPostCaptureData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
-    /// Whether the caller explicitly supplied an authentication type, before defaulting.
-    pub auth_type_is_specified: bool,
     pub payment_method_data: PaymentMethodData<T>,
     /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
     /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately

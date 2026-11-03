@@ -1566,7 +1566,6 @@ mod satispay_request_tests {
                 webhook_secret: None,
             },
             request: PaymentsAuthorizeData {
-                auth_type_is_specified: true,
                 customer_document_details: None,
                 authentication_data: None,
                 connector_testing_data: None,

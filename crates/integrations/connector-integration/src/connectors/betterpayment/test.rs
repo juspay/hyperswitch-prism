@@ -401,7 +401,6 @@ fn payment_flow() -> PaymentFlowData {
 
 fn authorize_request() -> PaymentsAuthorizeData<DefaultPCIHolder> {
     PaymentsAuthorizeData {
-        auth_type_is_specified: true,
         payment_method_data: domain_types::payment_method_data::PaymentMethodData::Wallet(
             domain_types::payment_method_data::WalletData::Wero(
                 domain_types::payment_method_data::WeroData {},

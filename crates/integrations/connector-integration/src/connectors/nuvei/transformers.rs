@@ -2806,14 +2806,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &router_data.request;
         let resource = &router_data.resource_common_data;
 
-        if !request.auth_type_is_specified {
-            return Err(nuvei_missing_field(
-                "auth_type",
-                "Send explicit auth_type THREE_DS or NO_THREE_DS",
-            )
-            .into());
-        }
-
         // Extract auth data
         let auth = NuveiAuthType::try_from(&router_data.connector_config)?;
 
