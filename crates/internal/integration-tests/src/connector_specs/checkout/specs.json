@@ -20,7 +20,10 @@
   ],
   "unsupported_scenarios": {
     "PaymentService/Authorize": {
-      "no3ds_manual_capture_incremental_auth": "FLOW_NOT_IN_SCOPE: spec Other documented endpoints (POST /payments/{id}/authorizations) — IncrementalAuthorization is not in this run's units"
+      "no3ds_manual_capture_incremental_auth": "FLOW_NOT_IN_SCOPE: spec Other documented endpoints (POST /payments/{id}/authorizations) — IncrementalAuthorization is not in this run's units",
+      "threeds_manual_capture_credit_card": "SANDBOX_NOT_PROVISIONED: Checkout-hosted 3DS — the sandbox processing channel has no 3DS processor configured, so every POST /payments with 3ds.enabled=true answers 422 no_processor_configured_for_card_scheme for Visa and Mastercard (probed directly against the sandbox on 2026-10-21, also without UCS). External 3DS is implemented and certified by checkout_external_3ds. Remove once 3DS is enabled on the sandbox channel.",
+      "checkout_google_pay_decrypted_pan_only_3ds": "SANDBOX_NOT_PROVISIONED: Google Pay PAN_ONLY with 3DS — the same sandbox gap as threeds_manual_capture_credit_card (422 no_processor_configured_for_card_scheme when 3ds.enabled=true). The PAN_ONLY no-3DS path is certified by checkout_google_pay_decrypted_pan_only.",
+      "no3ds_auto_capture_google_pay_encrypted": "SANDBOX_NOT_PROVISIONED / OPERATOR_GAP: Google Pay PSP decryption is implemented, live verification blocked — it needs a real device-minted ECv2 token signed for this merchant, and the shared scenario carries a placeholder token that Checkout refuses with token_data_invalid. Google Pay Hyperswitch-decryption is certified by checkout_google_pay_decrypted_pan_only."
     },
     "PaymentService/Get": {
       "sync_upi_collect": "PM_NOT_OFFERED: spec Complete Endpoint Inventory (source variants card/token/network_token/id/customer) - UPI is not a Checkout payment method",
@@ -28,7 +31,15 @@
       "sync_upi_qr": "PM_NOT_OFFERED: spec Complete Endpoint Inventory (source variants card/token/network_token/id/customer) - UPI is not a Checkout payment method"
     },
     "PaymentMethodService/Tokenize": {
-      "tokenize_fail_expired_card": "CONNECTOR_BEHAVIOUR: Checkout POST /tokens does not validate card expiry. The live sandbox answered 201 with a tok_ for card 4242424242424242 expiring 01/2020 (2026-10-21); the expired card is refused only when the token is used in POST /payments. There is no tokenization-time refusal to assert."
+      "tokenize_fail_expired_card": "CONNECTOR_BEHAVIOUR: Checkout POST /tokens does not validate card expiry. The live sandbox answered 201 with a tok_ for card 4242424242424242 expiring 01/2020 (2026-10-21); the expired card is refused only when the token is used in POST /payments. There is no tokenization-time refusal to assert.",
+      "checkout_tokenize_apple_pay_wire": "SANDBOX_NOT_PROVISIONED / OPERATOR_GAP: Apple Pay PSP decryption is implemented, live verification blocked — POST /tokens needs a real device-minted Apple Pay token for a merchant identity registered with Checkout, and the placeholder token is refused with 422 token_data_invalid. Apple Pay Hyperswitch-decryption is certified.",
+      "checkout_tokenize_google_pay_wire": "SANDBOX_NOT_PROVISIONED / OPERATOR_GAP: Google Pay PSP decryption is implemented, live verification blocked — POST /tokens needs a real device-minted Google Pay token and there is none for this sandbox account. Google Pay Hyperswitch-decryption is certified."
+    },
+    "EventService/HandleEvent": {
+      "payment_succeeded": "SANDBOX_NOT_PROVISIONED: implemented but not verified against the live sandbox — no Checkout-delivered webhook can reach a CI runner and the CI credentials carry no signing secret under creds key webhook_secret, so source verification cannot be certified. Parsing and cko-signature HMAC-SHA256 verification of the vendor-documented payloads were checked locally against a run-generated secret.",
+      "payment_failed": "SANDBOX_NOT_PROVISIONED: implemented but not verified against the live sandbox — no Checkout-delivered webhook can reach a CI runner and the CI credentials carry no signing secret under creds key webhook_secret, so source verification cannot be certified. Parsing and cko-signature HMAC-SHA256 verification of the vendor-documented payloads were checked locally against a run-generated secret.",
+      "refund_succeeded": "SANDBOX_NOT_PROVISIONED: implemented but not verified against the live sandbox — no Checkout-delivered webhook can reach a CI runner and the CI credentials carry no signing secret under creds key webhook_secret, so source verification cannot be certified. Parsing and cko-signature HMAC-SHA256 verification of the vendor-documented payloads were checked locally against a run-generated secret.",
+      "invalid_signature": "SANDBOX_NOT_PROVISIONED: implemented but not verified against the live sandbox — the CI credentials carry no signing secret under creds key webhook_secret; without it the source is reported unverified before any HMAC comparison, so the scenario would not prove signature rejection. Checked locally against a run-generated secret."
     }
   }
 }
