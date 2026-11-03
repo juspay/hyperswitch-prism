@@ -2417,6 +2417,50 @@ message RecipientDetails {
   optional Address address = 4;
 }
 
+// Address of the party providing the funds in an AFT. Location only, no names.
+message SenderAddress {
+  // First line of the street address (e.g. house number and street).
+  optional SecretString line1 = 1;
+  // Second line of the street address (e.g. flat, suite or building).
+  optional SecretString line2 = 2;
+  // City or locality.
+  optional SecretString city = 3;
+  // State, province or region. Some connectors require it for US and CA addresses.
+  optional SecretString state = 4;
+  // Postal or ZIP code.
+  optional SecretString zip_code = 5;
+  // Country, as an ISO 3166-1 alpha-2 code.
+  optional CountryAlpha2 country_alpha2_code = 6;
+}
+
+// An individual (natural person) providing the funds in an AFT.
+message IndividualSenderDetails {
+  SecretString first_name = 1;               // Mandatory, enforced in conversion
+  SecretString last_name = 2;                // Mandatory, enforced in conversion
+  optional SecretString date_of_birth = 3;   // ISO 8601: yyyy-MM-dd
+  optional SenderAddress address = 4;
+  optional SecretString email = 5;
+  optional SecretString phone_number = 6;
+  optional string phone_country_code = 7;
+}
+
+// A company (legal entity) providing the funds in an AFT.
+message CorporateSenderDetails {
+  SecretString company_name = 1;             // Mandatory, enforced in conversion
+  optional SenderAddress address = 2;
+  optional SecretString email = 3;
+  optional SecretString phone_number = 4;
+  optional string phone_country_code = 5;
+}
+
+// Details of the party providing the funds in an AFT.
+message SenderDetails {
+  oneof sender_type {
+    IndividualSenderDetails individual = 1;
+    CorporateSenderDetails corporate = 2;
+  }
+}
+
 // ============================================================================
 // PAYMENT SERVICE REQUESTS
 // ============================================================================
@@ -2580,6 +2624,9 @@ message PaymentServiceAuthorizeRequest {
 
   // Whether the payment uses a previously stored credential.
   optional bool is_stored_credential = 60;
+
+  // Details about the sender of funds for account funding transactions.
+  optional SenderDetails sender_details = 61;
 }
 
 // Customer risk-assessment signals supplied by the merchant, used by
@@ -3717,6 +3764,9 @@ message PaymentServiceSetupRecurringRequest {
 
   // Whether the payment uses a previously stored credential.
   optional bool is_stored_credential = 44;
+
+  // Details about the sender of funds for account funding transactions.
+  optional SenderDetails sender_details = 45;
 }
 
 // Response message for a mandate setup operation
@@ -3907,6 +3957,9 @@ message RecurringPaymentServiceChargeRequest {
     // Currency conversion quote and decision data passed through the
   // recurring flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 45;
+
+  // Details about the sender of funds for account funding transactions.
+  optional SenderDetails sender_details = 46;
 }
 
 // Response message for repeat payment operation

@@ -1,5 +1,9 @@
 pub mod transformers;
 
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::panic)]
+mod test;
+
 use std::fmt::Debug;
 
 use common_utils::{
