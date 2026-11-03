@@ -31,6 +31,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+betterpayment.base_url = "https://api.betterpayment.de"
 ecommpay.base_url = "https://api.ecommpay.com/"
 payhere.base_url = "https://www.payhere.lk"
 travelhub.base_url = "https://prod.travel.worldline-solutions.com/travelhub"
@@ -43,6 +44,9 @@ paydotcom.base_url = "https://api.pay.com"
 ilixium.base_url = "https://processing.ilixium.com/platform/itix"
 globalpayments_heartland.base_url = "https://api2.heartlandportico.com/Hps.Exchange.PosGateway/PosGatewayService.asmx"
 worldpayraft.base_url = "https://ws.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
+reddot.base_url = "https://secure.reddotpayment.com"
+# Merchant API family (refund + merchant enquiry)
+reddot.secondary_base_url = "https://connect.reddotpayment.com"
 grabpay.base_url = "https://partner-api.grab.com/grabpay/partner/v2"
 maya.base_url = "https://pg.maya.ph"
 boost.base_url = "https://api.boostconnect.biz/gateway"
@@ -50,6 +54,7 @@ tesouro.base_url = "https://api.tesouro.com"
 kount.base_url = "https://api.kount.com"
 kount.secondary_base_url = "https://login.equifax.com"
 nsure.base_url = "https://service.nsureapi.com"
+clearsale_br.base_url = "https://api.clearsale.com.br"
 plaid.base_url = "https://production.plaid.com"
 glomopay.base_url = "https://api.glomopay.com/api/v1/"
 hyperswitch.base_url = "https://api.hyperswitch.io"
@@ -229,7 +234,7 @@ enabled = false
 # --- Superposition: where policy comes from ---------------------------------
 # source = "file" (default): the baked config/superposition.toml, watched for
 # changes. source = "remote": the same provider over a remote workspace, polled
-# every polling_interval seconds, with the baked file as the provider's init-time
+# every polling_interval_milliseconds, with the baked file as the provider's init-time
 # fallback. Boot never fails because of Superposition: a remote source without
 # endpoint/token/org/workspace, or an unreachable workspace, is reported and the
 # baked file serves policy.
@@ -240,8 +245,8 @@ endpoint = ""                   # e.g. http://superposition.<ns>.svc.cluster.loc
 token = ""                      # secret: CS__SUPERPOSITION__TOKEN from the k8s secret
 org_id = "hyperswitch"
 workspace_id = ""               # the prism workspace
-polling_interval = 15           # seconds
-# request_timeout = 60          # parity with hyperswitch; the provider only logs it today
+polling_interval_milliseconds = 15000   # milliseconds
+# request_timeout_milliseconds = 60000  # milliseconds; bounds each poll (default: no timeout)
 # backup_file_path = ""         # default: the baked config/superposition.toml
 
 # --- Déjà record/replay ---------------------------------------------------------

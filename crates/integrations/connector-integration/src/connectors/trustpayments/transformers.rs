@@ -445,10 +445,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1226,10 +1223,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             let amount = item
                 .connector
                 .amount_converter
-                .convert(
-                    router_data.request.refund_amount.amount,
-                    router_data.request.currency,
-                )
+                .convert(&router_data.request.refund_amount)
                 .map_err(|_| IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?;
@@ -1576,10 +1570,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let base_amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -1767,7 +1758,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(minor_amount, router_data.request.currency)
+            .convert(&common_utils::types::Money {
+                amount: minor_amount,
+                currency: router_data.request.currency,
+            })
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1984,10 +1978,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .map_err(|_| IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

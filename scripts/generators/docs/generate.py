@@ -350,7 +350,7 @@ def _build_proto_metadata(proto_dir: Path) -> tuple[list[dict], dict]:
     from google.protobuf.descriptor_pb2 import FileDescriptorSet, FieldDescriptorProto
 
     grpc_include = os.path.join(os.path.dirname(protoc.__file__), "_proto")
-    protos = ["services.proto", "payment.proto", "payment_methods.proto",
+    protos = ["services.proto", "dispute.proto", "payment.proto", "payment_methods.proto",
               "sdk_config.proto", "payouts.proto", "composite_payment.proto",
               "composite_services.proto"]
 

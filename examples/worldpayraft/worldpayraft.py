@@ -75,16 +75,16 @@ def _build_incremental_authorization_request():
             minor_amount=100,
             currency=common_types_pb2.Currency.Value("USD"),
         ),
-        network_transaction_id="probe_network_txn_001",  # Network transaction ID returned by the original authorization.
+        network_transaction_id="263010131742906",  # Network transaction ID returned by the original authorization.
         payment_method=payment_methods_pb2.PaymentMethod(  # Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
             card_with_no_cvc=payment_methods_pb2.CardDetailsWithNoCvc(
                 card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
                 card_exp_month=payment_methods_pb2.SecretString(value="03"),
                 card_exp_year=payment_methods_pb2.SecretString(value="2030"),
-                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
                 card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
             ),
         ),
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"api_transaction_id\":\"probe_auth_001\",\"original_authorized_amount\":{\"amount\":1000,\"currency\":\"USD\"},\"terminal_data\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"ecommerce_data\":{\"E-commerceIndicator\":\"07\"},\"proc_flags_indicators\":{\"EstimatedAuth\":\"Y\"},\"brand_specific_data\":{\"VisaSpecificData\":{\"VisaTransactionId\":\"263010131742906\"}}}"),
     )
 
 def _build_proxy_authorize_request():

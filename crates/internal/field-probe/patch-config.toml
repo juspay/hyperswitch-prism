@@ -57,6 +57,14 @@ patches = [
   { path = "connector_feature_data", type = "secret_string", value = '{"api_transaction_id":"0000000000000001"}' },
 ]
 
+# An RAFT incremental authorization needs the original authorization's POS
+# fields and scheme identifier. Patch the serialized metadata once this nested
+# requirement is discovered, so it also appears in the generated proto request.
+["incremental_authorization.connector_feature_data"]
+aliases = ["connector_feature_data.terminal_data"]
+type = "secret_string"
+value = '{"api_transaction_id":"probe_auth_001","original_authorized_amount":{"amount":1000,"currency":"USD"},"terminal_data":{"EntryMode":"KEYED","POSConditionCode":"59","TerminalEntryCap":"0"},"ecommerce_data":{"E-commerceIndicator":"07"},"proc_flags_indicators":{"EstimatedAuth":"Y"},"brand_specific_data":{"VisaSpecificData":{"VisaTransactionId":"263010131742906"}}}'
+
 [payment_method]
 aliases = ["payment_method", "payment_method_data"]
 type = "card_with_no_cvc"
