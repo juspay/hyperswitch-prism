@@ -978,6 +978,30 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
         );
         assert!(setup_mandate.mandate_metadata.is_some());
 
+        // A non-zero setup is refused: card-verifications carries no total, so it would report
+        // a charge EPG never made.
+        let mut paid_setup = Request::new(
+            serde_json::from_value::<PaymentServiceSetupRecurringRequest>(json!({
+                "merchant_recurring_payment_id": "setup_paid",
+                "amount": { "minor_amount": 1000, "currency": "USD" },
+                "payment_method": { "payment_method": card_json() },
+                "address": {},
+                "auth_type": "NO_THREE_DS",
+                "enrolled_for_3ds": false,
+                "request_incremental_authorization": false,
+                "test_mode": true
+            }))
+            .expect("setup request should deserialize"),
+        );
+        add_elavon_metadata(&mut paid_setup, "setup_paid");
+        let paid_rejection = Box::pin(payment_client.setup_recurring(paid_setup))
+            .await
+            .expect_err("a non-zero setup mandate must be refused");
+        assert!(
+            paid_rejection.message().contains("Non-zero amount"),
+            "{paid_rejection}"
+        );
+
         let requests = request_log
             .lock()
             .expect("mock request log lock must not be poisoned")
@@ -1040,11 +1064,14 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             json!("AgAAAAAAAIR8CQrXcIhbQAAAAAA=")
         );
 
-        let verification = requests
+        // Only the zero-amount setup reached EPG.
+        let verifications: Vec<&Value> = requests
             .iter()
-            .find(|request| request.original_url.ends_with("/card-verifications"))
+            .filter(|request| request.original_url.ends_with("/card-verifications"))
             .map(|request| &request.body)
-            .expect("setup mandate should call card-verifications");
+            .collect();
+        assert_eq!(verifications.len(), 1, "{verifications:?}");
+        let verification = verifications[0];
         assert_eq!(verification["credentialOnFileType"], json!("recurring"));
         assert_eq!(verification["shopperInteraction"], json!("ecommerce"));
         assert_eq!(verification["card"]["securityCode"], json!("123"));

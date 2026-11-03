@@ -11,7 +11,11 @@
 
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
-    consts, errors::CustomResult, pii::Email, request::Method, types::StringMajorUnit,
+    consts,
+    errors::CustomResult,
+    pii::Email,
+    request::Method,
+    types::{MinorUnit, StringMajorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -2013,6 +2017,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
+        // `/card-verifications` carries no total, so a non-zero amount would be reported as a
+        // charge EPG never made.
+        if router_data
+            .request
+            .amount
+            .as_ref()
+            .is_some_and(|money| money.amount > MinorUnit::zero())
+        {
+            return Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Non-zero amount on SetupMandate".to_string(),
+                connector: ELAVON_PG_CONNECTOR_ID,
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use Authorize with setup_future_usage OFF_SESSION".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }));
+        }
         let card = get_card(&router_data.request.payment_method_data)?;
         Ok(Self {
             card: ElavonPgCard {
