@@ -3013,7 +3013,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"reference\":\"\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"737\",\"holderName\":\"John Doe\"},\"returnUrl\":\"https://example.com/3ds-return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"channel\":\"Web\",\"origin\":\"https://example.com\",\"authenticationData\":{\"authenticationOnly\":true},\"shopperIP\":\"1.2.3.4\"}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"reference\":\"\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"737\",\"holderName\":\"John Doe\"},\"returnUrl\":\"https://example.com/3ds-return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"channel\":\"Web\",\"origin\":\"https://example.com\",\"authenticationData\":{\"authenticationOnly\":true,\"threeDSRequestData\":{\"nativeThreeDS\":\"preferred\"}},\"shopperIP\":\"1.2.3.4\"}"
         }
       }
     },
