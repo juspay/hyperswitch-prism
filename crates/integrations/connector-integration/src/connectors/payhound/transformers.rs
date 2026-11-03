@@ -16,7 +16,7 @@ use common_utils::{
     crypto::{self, GenerateDigest, SignMessage},
     errors::CustomResult,
     pii,
-    types::{MinorUnit, StringMajorUnit},
+    types::{Money, StringMajorUnit},
 };
 use domain_types::{
     connector_flow::Authorize,
@@ -577,7 +577,7 @@ impl TryFrom<common_enums::Currency> for PayhoundSettlementCurrency {
             common_enums::Currency::TTD | common_enums::Currency::TWD | common_enums::Currency::TZS | common_enums::Currency::UGX | common_enums::Currency::UYU |
             common_enums::Currency::UZS | common_enums::Currency::VES | common_enums::Currency::VUV | common_enums::Currency::WST | common_enums::Currency::XAF |
             common_enums::Currency::XCD | common_enums::Currency::XOF | common_enums::Currency::XPF | common_enums::Currency::YER | common_enums::Currency::ZMW |
-            common_enums::Currency::ZWL => {
+            common_enums::Currency::ZWL | common_enums::Currency::Unspecified => {
                 Err(report!(IntegrationError::CurrencyNotSupported {
                     message: currency.to_string(),
                     connector: PAYHOUND_CONNECTOR_DISPLAY,
@@ -831,7 +831,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let currency = PayhoundSettlementCurrency::try_from(request.currency)?;
         // Payhound's `price` is a decimal major-unit string ("266.45"); minor units would be
         // rejected as a wildly different amount.
-        let price = PayhoundAmountConvertor::convert(request.minor_amount, request.currency)?;
+        let price = PayhoundAmountConvertor::convert(&request.amount)?;
 
         Ok(Self {
             currency,
@@ -1028,7 +1028,7 @@ pub(super) struct PayhoundInvoiceOutcome {
     /// Mapped attempt status.
     pub(super) status: common_enums::AttemptStatus,
     /// Settlement amount, populated only when the status is `Charged`.
-    pub(super) minor_amount_captured: Option<MinorUnit>,
+    pub(super) amount_captured: Option<Money>,
     /// Failure message when the mapped status is a terminal failure, otherwise `None`. Payhound
     /// supplies no code or reason on a status-driven failure, so the message comes from a const.
     pub(super) failure_message: Option<&'static str>,
@@ -1060,7 +1060,7 @@ pub(super) fn payhound_invoice_outcome(
     // Only the settlement leg the merchant actually receives is reported as captured, and only once
     // the invoice is fully paid. `invoice_amount`/`paid_amount` are crypto-denominated and cannot
     // be expressed as a `common_enums::Currency` amount.
-    let minor_amount_captured = match (&response.merchant_amount, status) {
+    let amount_captured = match (&response.merchant_amount, status) {
         (Some(amount), common_enums::AttemptStatus::Charged) => {
             match response.merchant_currency.or(fallback_currency) {
                 Some(currency) => Some(
@@ -1087,7 +1087,7 @@ pub(super) fn payhound_invoice_outcome(
 
     Ok(PayhoundInvoiceOutcome {
         status,
-        minor_amount_captured,
+        amount_captured,
         failure_message,
     })
 }
@@ -1187,10 +1187,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: outcome.status,
-                amount_captured: outcome
-                    .minor_amount_captured
-                    .map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured: outcome.minor_amount_captured,
+                amount_captured: outcome.amount_captured,
                 ..router_data.resource_common_data
             },
             response,
@@ -1231,10 +1228,7 @@ impl<F> TryFrom<ResponseRouterData<PayhoundInvoiceResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: outcome.status,
-                amount_captured: outcome
-                    .minor_amount_captured
-                    .map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured: outcome.minor_amount_captured,
+                amount_captured: outcome.amount_captured,
                 ..router_data.resource_common_data
             },
             response,
@@ -1284,10 +1278,7 @@ pub(super) fn payhound_webhook_details(
         error_code,
         error_message,
         error_reason,
-        amount_captured: outcome
-            .minor_amount_captured
-            .map(|amount| amount.get_amount_as_i64()),
-        minor_amount_captured: outcome.minor_amount_captured,
+        amount_captured: outcome.amount_captured,
         raw_connector_response: None,
         response_headers: None,
         network_txn_id: None,
