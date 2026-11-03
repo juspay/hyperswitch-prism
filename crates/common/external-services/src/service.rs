@@ -834,6 +834,7 @@ where
         + SetIntegrityFailureStatus,
 {
     let start = tokio::time::Instant::now();
+    let mut external_call_attempted = false;
     tracing::Span::current().record(
         "api_tag",
         api_tag
@@ -1100,6 +1101,7 @@ where
                         );
 
                         // New injector handles HTTP request internally and returns enhanced response
+                        external_call_attempted = true;
                         let injector_response =
                             call_injector_core(injector_request).await.change_context(
                                 ConnectorFlowError::from(IntegrationError::RequestEncodingFailed {
@@ -1151,6 +1153,7 @@ where
                         }))
                     } else {
                         let test_mode = test_context.is_some();
+                        external_call_attempted = true;
                         call_connector_api(
                             proxy,
                             request,
@@ -1280,6 +1283,7 @@ where
                     let masked_request = mask_connector_request(&record.payload);
                     record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
+                    external_call_attempted = true;
                     let response = publish_connector_record(record)
                         .await
                         .map_err(report_kafka_client_to_flow)
@@ -1408,7 +1412,9 @@ where
     let elapsed_millis = u64::try_from(elapsed).unwrap_or(u64::MAX);
     tracing::Span::current().record("latency_ms", elapsed_millis);
     #[cfg(feature = "log-transformations")]
-    if event_params.log_fields_enabled || event_params.masking_keys.enabled {
+    if external_call_attempted
+        && (event_params.log_fields_enabled || event_params.masking_keys.enabled)
+    {
         apply_log_fields(
             event_params.log_fields,
             connector_reply
@@ -1421,7 +1427,11 @@ where
                 }),
         );
     }
-    tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
+    if external_call_attempted {
+        tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
+    } else {
+        tracing::debug!("Connector processing completed without an external call");
+    }
     result_with_integrity_check
 }
 
