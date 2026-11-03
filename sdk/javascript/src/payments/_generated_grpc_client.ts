@@ -645,7 +645,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   EventServiceHandleRequest: { "requestDetails": "RequestDetails", "webhookSecrets": "WebhookSecrets", "accessToken": "AccessToken", "eventContext": "EventContext" },
   EventAckResponse: { "headers": "HeadersEntry" },
   EventContent: { "paymentsResponse": "PaymentServiceGetResponse", "refundsResponse": "RefundResponse", "disputesResponse": "DisputeResponse", "payoutsResponse": "PayoutServiceGetResponse" },
-  EventServiceHandleResponse: { "eventContent": "EventContent", "eventAckResponse": "EventAckResponse", "amount": "Money" },
+  EventServiceHandleResponse: { "eventContent": "EventContent", "eventAckResponse": "EventAckResponse" },
   ConnectorConfig: { "connectorConfig": "ConnectorSpecificConfig", "options": "SdkOptions" },
   RequestConfig: { "http": "HttpConfig", "vault": "VaultOptions" },
   HttpConfig: { "proxy": "ProxyOptions", "caCert": "CaCert" },
