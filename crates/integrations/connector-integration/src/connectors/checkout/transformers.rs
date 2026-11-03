@@ -2595,17 +2595,37 @@ fn get_connector_meta(
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<PaymentsResponse, Self>>
+    TryFrom<ResponseRouterData<PaymentsResponse, CheckoutRouterData<Self, T>>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<PaymentsResponse, CheckoutRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = get_attempt_status_cap((
             item.response.status,
             item.router_data.request.capture_method,
         ));
 
         if status == common_enums::AttemptStatus::Failure {
+            let network_advice_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+                .cloned();
+            let network_decline_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_response_code.as_ref())
+                .cloned();
             let error_response = ErrorResponse {
                 status_code: item.http_code,
                 code: item
@@ -2620,8 +2640,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
-                network_advice_code: None,
-                network_decline_code: None,
+                network_advice_code,
+                network_decline_code,
                 network_error_message: None,
                 typed_connector_response: None,
                 raw_connector_response: None,
@@ -2697,13 +2717,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let currency = item.router_data.request.currency;
-        let to_money = |amount| common_utils::types::Money { amount, currency };
+        let to_money = |amount| {
+            crate::utils::response_amount_to_money(
+                &connector,
+                amount,
+                currency,
+                item.http_code,
+                domain_types::connector_types::ConnectorEnum::Checkout,
+            )
+        };
         let (amount_captured, amount_capturable) = match item.router_data.request.capture_method {
             Some(common_enums::CaptureMethod::Manual)
             | Some(common_enums::CaptureMethod::ManualMultiple) => {
-                (None, item.response.amount.map(to_money))
+                (None, item.response.amount.map(to_money).transpose()?)
             }
-            _ => (item.response.amount.map(to_money), None),
+            _ => (item.response.amount.map(to_money).transpose()?, None),
         };
 
         let amount_authorized = item
@@ -2712,7 +2740,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .enable_partial_authorization
             .filter(|flag| *flag)
             .and(item.response.amount)
-            .map(to_money);
+            .map(to_money)
+            .transpose()?;
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2731,11 +2760,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 impl<
         T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize + Serialize,
-    > TryFrom<ResponseRouterData<PaymentsResponse, Self>>
+    > TryFrom<ResponseRouterData<PaymentsResponse, CheckoutRouterData<Self, T>>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<PaymentsResponse, CheckoutRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = get_attempt_status_cap((
             item.response.status,
             item.router_data.request.capture_method,
@@ -2743,6 +2780,18 @@ impl<
 
         match status {
             common_enums::AttemptStatus::Failure => {
+                let network_advice_code = item
+                    .response
+                    .processing
+                    .as_ref()
+                    .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+                    .cloned();
+                let network_decline_code = item
+                    .response
+                    .processing
+                    .as_ref()
+                    .and_then(|processing| processing.partner_response_code.as_ref())
+                    .cloned();
                 let error_response = ErrorResponse {
                     status_code: item.http_code,
                     code: item
@@ -2757,8 +2806,8 @@ impl<
                     reason: item.response.response_summary,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.id.clone()),
-                    network_advice_code: None,
-                    network_decline_code: None,
+                    network_advice_code,
+                    network_decline_code,
                     network_error_message: None,
                     typed_connector_response: None,
                     raw_connector_response: None,
@@ -2832,14 +2881,22 @@ impl<
                 };
 
                 let currency = item.router_data.request.currency;
-                let to_money = |amount| common_utils::types::Money { amount, currency };
+                let to_money = |amount| {
+                    crate::utils::response_amount_to_money(
+                        &connector,
+                        amount,
+                        currency,
+                        item.http_code,
+                        domain_types::connector_types::ConnectorEnum::Checkout,
+                    )
+                };
                 let (amount_captured, amount_capturable) =
                     match item.router_data.request.capture_method {
                         Some(common_enums::CaptureMethod::Manual)
                         | Some(common_enums::CaptureMethod::ManualMultiple) => {
-                            (None, item.response.amount.map(to_money))
+                            (None, item.response.amount.map(to_money).transpose()?)
                         }
-                        _ => (item.response.amount.map(to_money), None),
+                        _ => (item.response.amount.map(to_money).transpose()?, None),
                     };
 
                 let amount_authorized = item
@@ -2848,7 +2905,8 @@ impl<
                     .enable_partial_authorization
                     .filter(|flag| *flag)
                     .and(item.response.amount)
-                    .map(to_money);
+                    .map(to_money)
+                    .transpose()?;
 
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
@@ -2895,12 +2953,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .response
             .processing
             .as_ref()
-            .and_then(|processing| {
-                processing
-                    .partner_merchant_advice_code
-                    .as_ref()
-                    .or(processing.partner_response_code.as_ref())
-            })
+            .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+            .cloned();
+        let network_decline_code = item
+            .response
+            .processing
+            .as_ref()
+            .and_then(|processing| processing.partner_response_code.as_ref())
             .cloned();
         let error_response = if status == common_enums::AttemptStatus::Failure {
             Some(ErrorResponse {
@@ -2918,7 +2977,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_advice_code,
-                network_decline_code: None,
+                network_decline_code,
                 network_error_message: None,
                 typed_connector_response: None,
                 raw_connector_response: None,
@@ -3018,6 +3077,18 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
 
         let status = get_attempt_status_intent((item.response.status, checkout_meta.psync_flow));
         let error_response = if status == common_enums::AttemptStatus::Failure {
+            let network_advice_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+                .cloned();
+            let network_decline_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_response_code.as_ref())
+                .cloned();
             Some(ErrorResponse {
                 status_code: item.http_code,
                 code: item
@@ -3032,8 +3103,8 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
-                network_advice_code: None,
-                network_decline_code: None,
+                network_advice_code,
+                network_decline_code,
                 network_error_message: None,
                 typed_connector_response: None,
                 raw_connector_response: None,
@@ -3588,6 +3659,13 @@ fn convert_to_additional_payment_method_connector_response(
                 card_network: None,
                 domestic_network: None,
                 auth_code,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             })
         }
     }

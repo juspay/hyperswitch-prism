@@ -63,6 +63,8 @@ pub(crate) mod headers {
 
 // Type alias for non-generic trait implementations
 
+macros::create_amount_converter_wrapper!(connector_name: Checkout, amount_type: MinorUnit);
+
 macros::macro_connector_payout_implementation!(
     connector: Checkout,
     generic_type: T,
@@ -80,6 +82,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Checkout<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Checkout<T>
@@ -232,6 +241,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentWebhookReference {
                 connector_transaction_id,
                 merchant_transaction_id: body.data.reference,
+                connector_preprocessing_id: None,
             },
         )))
     }
@@ -353,8 +363,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = convert_amount_for_webhook(
             &StringMinorUnitForConnector,
-            body.data.amount.unwrap_or_default(),
-            currency,
+            &common_utils::types::Money {
+                amount: body.data.amount.unwrap_or_default(),
+                currency,
+            },
         )?;
 
         Ok(DisputeWebhookDetailsResponse {
@@ -401,6 +413,7 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: PaymentsRequest<T>,
             response_body: PaymentsResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
@@ -430,6 +443,7 @@ macros::create_all_prerequisites!(
             flow: RepeatPayment,
             request_body: RepeatPaymentRequest<T>,
             response_body: RepeatPaymentResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
         (

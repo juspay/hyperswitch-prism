@@ -36,12 +36,13 @@ typealias PaymentServiceVerifyRedirectResponseRequest = types.Payment.PaymentSer
 typealias PaymentServiceVerifyRedirectResponseResponse = types.Payment.PaymentServiceVerifyRedirectResponseResponse
 typealias PaymentServiceDisputeRequest = types.Payment.PaymentServiceDisputeRequest
 typealias DisputeResponse = types.Payment.DisputeResponse
-typealias DisputeServiceAcceptRequest = types.Payment.DisputeServiceAcceptRequest
-typealias DisputeServiceAcceptResponse = types.Payment.DisputeServiceAcceptResponse
-typealias DisputeServiceDefendRequest = types.Payment.DisputeServiceDefendRequest
-typealias DisputeServiceDefendResponse = types.Payment.DisputeServiceDefendResponse
-typealias DisputeServiceSubmitEvidenceRequest = types.Payment.DisputeServiceSubmitEvidenceRequest
-typealias DisputeServiceSubmitEvidenceResponse = types.Payment.DisputeServiceSubmitEvidenceResponse
+typealias DisputeServiceAcceptRequest = types.Dispute.DisputeServiceAcceptRequest
+typealias DisputeServiceAcceptResponse = types.Dispute.DisputeServiceAcceptResponse
+typealias DisputeServiceDefendRequest = types.Dispute.DisputeServiceDefendRequest
+typealias DisputeServiceDefendResponse = types.Dispute.DisputeServiceDefendResponse
+typealias DisputeServiceGetRequest = types.Dispute.DisputeServiceGetRequest
+typealias DisputeServiceSubmitEvidenceRequest = types.Dispute.DisputeServiceSubmitEvidenceRequest
+typealias DisputeServiceSubmitEvidenceResponse = types.Dispute.DisputeServiceSubmitEvidenceResponse
 
 // Proxy and token flows
 typealias PaymentServiceProxyAuthorizeRequest = types.Payment.PaymentServiceProxyAuthorizeRequest
@@ -89,11 +90,11 @@ typealias CustomerServiceCreateResponse = types.Payment.CustomerServiceCreateRes
 // ---------------------------------------------------------------------------
 // Data types
 // ---------------------------------------------------------------------------
-typealias Money = types.Payment.Money
+typealias Money = types.CommonTypes.Money
 typealias ErrorInfo = types.Payment.ErrorInfo
-typealias Customer = types.Payment.Customer
+typealias Customer = types.CommonTypes.Customer
 typealias PaymentAddress = types.Payment.PaymentAddress
-typealias Address = types.Payment.Address
+typealias Address = types.CommonTypes.Address
 typealias Identifier = types.Payment.Identifier
 typealias ConnectorState = types.Payment.ConnectorState
 typealias AccessToken = types.Payment.AccessToken
@@ -110,10 +111,10 @@ typealias ConnectorSpecificConfig = types.Payment.ConnectorSpecificConfig
 // ---------------------------------------------------------------------------
 // Enums
 // ---------------------------------------------------------------------------
-typealias Currency = types.Payment.Currency
+typealias Currency = types.CommonTypes.Currency
 typealias CaptureMethod = types.Payment.CaptureMethod
 typealias AuthenticationType = types.Payment.AuthenticationType
-typealias DocumentKind = types.Payment.DocumentKind
+typealias DocumentKind = types.CommonTypes.DocumentKind
 typealias PaymentMethodType = types.Payment.PaymentMethodType
 typealias PaymentStatus = types.Payment.PaymentStatus
 typealias RefundStatus = types.Payment.RefundStatus

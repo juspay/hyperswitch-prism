@@ -65,6 +65,50 @@ pub struct EncryptedCardData {
     pub encryption_block_fields: String,
 }
 
+fn encrypt_fiserv_block(
+    public_key_der: &[u8],
+    plaintext: &[u8],
+    field_name: &'static str,
+    doc_url: &'static str,
+    additional_context: &'static str,
+) -> Result<Vec<u8>, error_stack::Report<errors::IntegrationError>> {
+    RsaOaepSha256::encrypt(public_key_der, plaintext).map_err(|error| {
+        let integration_error = match error.current_context() {
+            common_utils::errors::CryptoError::PlaintextTooLong {
+                max_length,
+                actual_length,
+            } => errors::IntegrationError::MaxFieldLengthViolated {
+                connector: "fiservcommercehub".to_string(),
+                field_name: field_name.to_string(),
+                max_length: *max_length,
+                received_length: *actual_length,
+                context: errors::IntegrationErrorContext {
+                    doc_url: Some(doc_url.to_string()),
+                    suggested_action: Some(
+                        "Reduce the UTF-8 byte length of the payment data included in the Fiserv encryption block"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "The combined payment data exceeds the RSA-OAEP-SHA256 capacity of the active Fiserv public key"
+                            .to_string(),
+                    ),
+                },
+            },
+            _ => errors::IntegrationError::RequestEncodingFailed {
+                context: errors::IntegrationErrorContext {
+                    doc_url: Some(doc_url.to_string()),
+                    suggested_action: Some(
+                        "Ensure the RSA public key is correctly configured and valid".to_string(),
+                    ),
+                    additional_context: Some(additional_context.to_string()),
+                },
+            },
+        };
+
+        error.change_context(integration_error)
+    })
+}
+
 fn encrypt_card_data<T: PaymentMethodDataTypes>(
     card: &domain_types::payment_method_data::Card<T>,
     key_id: String,
@@ -100,19 +144,14 @@ fn encrypt_card_data<T: PaymentMethodDataTypes>(
         "card.cardData:{card_data_len},card.nameOnCard:{name_on_card_len},card.expirationMonth:{expiration_month_len},card.expirationYear:{expiration_year_len},card.securityCode:{security_code_len}"
     );
 
-    let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
-        .change_context(errors::IntegrationError::RequestEncodingFailed {
-            context: errors::IntegrationErrorContext {
-                doc_url: Some(FISERV_PAYMENT_METHOD_ENCRYPTION_URL.to_string()),
-                suggested_action: Some(
-                    "Ensure the RSA public key is correctly configured and valid".to_string(),
-                ),
-                additional_context: Some(
-                    "RSA OAEP-SHA256 encryption for card data failed".to_string(),
-                ),
-            },
-        })
-        .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
+    let encrypted_bytes = encrypt_fiserv_block(
+        public_key_der,
+        plain_block.as_bytes(),
+        "payment_method_data.card",
+        FISERV_PAYMENT_METHOD_ENCRYPTION_URL,
+        "RSA OAEP-SHA256 encryption for card data failed",
+    )
+    .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
 
     let encryption_block = Secret::new(general_purpose::STANDARD.encode(&encrypted_bytes));
 
@@ -233,21 +272,14 @@ fn encrypt_decrypted_wallet_data(
 
     let encryption_block_fields = field_descriptors.join(",");
 
-    let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
-        .change_context(errors::IntegrationError::RequestEncodingFailed {
-            context: errors::IntegrationErrorContext {
-                doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
-                suggested_action: Some(
-                    "Ensure the MUPK RSA public key is correctly configured for wallet encryption"
-                        .to_string(),
-                ),
-                additional_context: Some(
-                    "RSA OAEP-SHA256 encryption of decrypted wallet payment data failed"
-                        .to_string(),
-                ),
-            },
-        })
-        .attach_printable("RSA OAEP-SHA256 encryption of decrypted wallet data failed")?;
+    let encrypted_bytes = encrypt_fiserv_block(
+        public_key_der,
+        plain_block.as_bytes(),
+        "payment_method_data.decrypted_wallet",
+        FISERV_DECRYPTED_WALLET_DOC_URL,
+        "RSA OAEP-SHA256 encryption of decrypted wallet payment data failed",
+    )
+    .attach_printable("RSA OAEP-SHA256 encryption of decrypted wallet data failed")?;
 
     let encrypted_block = Secret::new(general_purpose::STANDARD.encode(&encrypted_bytes));
 
@@ -299,19 +331,14 @@ fn encrypt_card_data_no_cvc(
         "card.cardData:{card_data_len},card.nameOnCard:{name_on_card_len},card.expirationMonth:{expiration_month_len},card.expirationYear:{expiration_year_len}"
     );
 
-    let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
-        .change_context(errors::IntegrationError::RequestEncodingFailed {
-            context: errors::IntegrationErrorContext {
-                doc_url: Some(FISERV_PAYMENT_METHOD_ENCRYPTION_URL.to_string()),
-                suggested_action: Some(
-                    "Ensure the RSA public key is correctly configured and valid".to_string(),
-                ),
-                additional_context: Some(
-                    "RSA OAEP-SHA256 encryption for card data failed".to_string(),
-                ),
-            },
-        })
-        .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
+    let encrypted_bytes = encrypt_fiserv_block(
+        public_key_der,
+        plain_block.as_bytes(),
+        "payment_method_data.card",
+        FISERV_PAYMENT_METHOD_ENCRYPTION_URL,
+        "RSA OAEP-SHA256 encryption for card data failed",
+    )
+    .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
 
     let encryption_block = Secret::new(general_purpose::STANDARD.encode(&encrypted_bytes));
 
@@ -1014,8 +1041,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let currency = router_data.request.currency;
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            router_data.request.amount.amount,
-            currency,
+            &common_utils::types::Money {
+                amount: router_data.request.amount.amount,
+                currency,
+            },
         )?;
 
         let access_token = router_data.resource_common_data.get_access_token()?;
@@ -1321,6 +1350,13 @@ fn build_connector_response(
                 card_network: None,
                 domestic_network: None,
                 auth_code,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             };
         Some(
             domain_types::router_data::ConnectorResponseData::with_additional_payment_method_data(
@@ -1654,8 +1690,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            router_data.request.refund_amount.amount,
-            router_data.request.currency,
+            &router_data.request.refund_amount,
         )?;
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
         Ok(Self {
@@ -1869,8 +1904,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             router_data.request.currency,
         ) {
             (Some(minor_amount), Some(currency)) => {
-                let total =
-                    utils::convert_amount(item.connector.amount_converter, minor_amount, currency)?;
+                let total = utils::convert_amount(
+                    item.connector.amount_converter,
+                    &common_utils::types::Money {
+                        amount: minor_amount,
+                        currency,
+                    },
+                )?;
                 Some(FiservcommercehubAuthorizeAmount { currency, total })
             }
             _ => None,
@@ -2086,8 +2126,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            router_data.request.amount_to_capture.amount,
-            router_data.request.currency,
+            &router_data.request.amount_to_capture,
         )?;
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
         let connector_transaction_id = router_data
@@ -2223,11 +2262,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
 
-        let total = utils::convert_amount(
-            item.connector.amount_converter,
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let total =
+            utils::convert_amount(item.connector.amount_converter, &router_data.request.amount)?;
 
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
 

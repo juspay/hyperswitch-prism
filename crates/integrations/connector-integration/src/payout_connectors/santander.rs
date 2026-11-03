@@ -35,7 +35,7 @@ use domain_types::{
             PayoutVoidResponse,
         },
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -122,7 +122,8 @@ impl ConnectorCommon for SantanderPayouts {
                     code: error_res.code,
                     message: error_res.message,
                     reason: error_res.details,
-                    attempt_status: None,
+                    attempt_status: (res.status_code < 500)
+                        .then_some(FlowStatus::Payout(common_enums::PayoutStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -145,7 +146,8 @@ impl ConnectorCommon for SantanderPayouts {
                     code: res.status_code.to_string(),
                     message: "Failed to parse error response from connector".to_string(),
                     reason: Some(format!("Raw response: {:?}", res.response)),
-                    attempt_status: None,
+                    attempt_status: (res.status_code < 500)
+                        .then_some(FlowStatus::Payout(common_enums::PayoutStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,

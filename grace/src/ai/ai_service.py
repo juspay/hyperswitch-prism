@@ -254,24 +254,3 @@ Instructions:
         except Exception as e:
             return base_name
 
-    def generate_mock_server(
-        self, tech_spec: str
-    ) -> Tuple[bool, Optional[dict], Optional[str]]:
-        try:
-            prompt = (
-                prompt_config().get_with_values(
-                    "techspecMockServerPrompt", {"tech_spec": tech_spec or ""}
-                )
-                or ""
-            )
-            messages = [
-                {"role": "user", "content": prompt},
-            ]
-            response, success, error = self.generate(messages)
-            if not success:
-                return False, None, error
-
-            return True, response, None
-
-        except Exception as e:
-            return False, None, str(e)

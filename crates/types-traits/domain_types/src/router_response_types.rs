@@ -71,6 +71,13 @@ pub enum RedirectForm {
     Script {
         script_data: String, // A standalone script snippet
     },
+    Qr {
+        payload: Option<String>,
+        image_base64: Option<String>,
+        image_url: Option<String>,
+        fallback_url: Option<String>,
+        expires_at: Option<i64>,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {

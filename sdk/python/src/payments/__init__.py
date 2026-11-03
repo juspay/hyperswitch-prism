@@ -20,6 +20,8 @@ from payments._generated_service_clients import (
 from payments.grpc_client import GrpcClient, GrpcConfig
 
 # Direct access to all types via wildcard imports
+from payments.generated.common_types_pb2 import *
+from payments.generated.domain_pb2 import *
 from payments.generated.payment_pb2 import *
 from payments.generated.payment_methods_pb2 import *
 from payments.generated.sdk_config_pb2 import *

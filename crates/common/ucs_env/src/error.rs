@@ -10,6 +10,27 @@ use tonic::Status;
 use crate::logger;
 use prost::Message;
 
+/// Map tonic status codes to HTTP for the HTTP adapter and incoming audit logs.
+/// Parsed connector HTTP errors are carried in successful flow responses instead.
+pub fn http_status_for_tonic_status(status: &Status) -> u16 {
+    match status.code() {
+        tonic::Code::Ok => 200,
+        tonic::Code::Cancelled => 408,
+        tonic::Code::InvalidArgument => 400,
+        tonic::Code::DeadlineExceeded => 504,
+        tonic::Code::NotFound => 404,
+        tonic::Code::AlreadyExists | tonic::Code::Aborted => 409,
+        tonic::Code::PermissionDenied => 403,
+        tonic::Code::ResourceExhausted => 429,
+        tonic::Code::FailedPrecondition => 412,
+        tonic::Code::OutOfRange => 416,
+        tonic::Code::Unimplemented => 501,
+        tonic::Code::Unavailable => 503,
+        tonic::Code::Unauthenticated => 401,
+        tonic::Code::Unknown | tonic::Code::Internal | tonic::Code::DataLoss => 500,
+    }
+}
+
 pub trait IntoGrpcStatus {
     fn into_grpc_status(self) -> Status;
 }

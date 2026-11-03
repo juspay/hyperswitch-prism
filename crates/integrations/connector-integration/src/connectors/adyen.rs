@@ -84,6 +84,8 @@ pub(crate) mod headers {
 
 // Type alias for non-generic trait implementations
 
+macros::create_amount_converter_wrapper!(connector_name: Adyen, amount_type: MinorUnit);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ClientAuthentication for Adyen<T>
 {
@@ -105,6 +107,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Adyen<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        if data.encoded_data.is_some() {
+            return Ok(());
+        }
+        Err(IntegrationError::MissingRequiredField {
+            field_name: "encoded_data",
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -168,12 +184,14 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: AdyenPaymentRequest<T>,
             response_body: AdyenPaymentResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
             request_body: AdyenRedirectRequest,
             response_body: AdyenPSyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
@@ -198,12 +216,14 @@ macros::create_all_prerequisites!(
             flow: SetupMandate,
             request_body: SetupMandateRequest<T>,
             response_body: SetupMandateResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
         (
             flow: RepeatPayment,
             request_body: AdyenRepeatPaymentRequest,
             response_body: AdyenRepeatPaymentResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
         (
@@ -423,9 +443,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-const ADYEN_API_VERSION: &str = "v68";
+const ADYEN_API_VERSION: &str = "v72";
 const ADYEN_AMOUNT_UPDATES_DOC_URL: &str =
-    "https://docs.adyen.com/api-explorer/Checkout/68/post/payments/-paymentPspReference-/amountUpdates";
+    "https://docs.adyen.com/api-explorer/Checkout/72/post/payments/_paymentPspReference_/amountUpdates";
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -632,20 +652,6 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Adyen<T>
 {
-    fn validate_psync_reference_id(
-        &self,
-        data: &PaymentsSyncData,
-        _payment_flow_data: &PaymentFlowData,
-    ) -> CustomResult<(), IntegrationError> {
-        if data.encoded_data.is_some() {
-            return Ok(());
-        }
-        Err(IntegrationError::MissingRequiredField {
-            field_name: "encoded_data",
-            context: Default::default(),
-        }
-        .into())
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -922,6 +928,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: notif.original_reference,
                     merchant_transaction_id: Some(notif.merchant_reference),
+                    connector_preprocessing_id: None,
                 })
             }
             // AUTHORISATION-like events carry both the Adyen PSP reference and
@@ -933,6 +940,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: Some(notif.psp_reference),
                     merchant_transaction_id: Some(notif.merchant_reference),
+                    connector_preprocessing_id: None,
                 })
             }
             // Refund events carry the refund PSP reference, merchant refund
@@ -1099,8 +1107,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = utils::convert_amount_for_webhook(
             self.amount_converter_webhooks,
-            notif.amount.value,
-            notif.amount.currency,
+            &common_utils::types::Money {
+                amount: notif.amount.value,
+                currency: notif.amount.currency,
+            },
         )?;
 
         Ok(

@@ -8,7 +8,7 @@
 import asyncio
 import sys
 from payments import PaymentMethodAuthenticationClient
-from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
+from payments.generated import common_types_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
 SUPPORTED_FLOWS = ["authenticate", "post_authenticate", "pre_authenticate"]
 
@@ -31,9 +31,9 @@ _default_config = sdk_config_pb2.ConnectorConfig(
 
 def _build_authenticate_request():
     return payment_pb2.PaymentMethodAuthenticationServiceAuthenticateRequest(
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
             card=payment_methods_pb2.CardDetails(
@@ -45,16 +45,16 @@ def _build_authenticate_request():
             ),
         ),
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(),
+            billing_address=common_types_pb2.Address(),
         ),
         return_url="https://example.com/3ds-return",  # URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
     )
 
 def _build_post_authenticate_request():
     return payment_pb2.PaymentMethodAuthenticationServicePostAuthenticateRequest(
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
             card=payment_methods_pb2.CardDetails(
@@ -66,15 +66,15 @@ def _build_post_authenticate_request():
             ),
         ),
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(),
+            billing_address=common_types_pb2.Address(),
         ),
     )
 
 def _build_pre_authenticate_request():
     return payment_pb2.PaymentMethodAuthenticationServicePreAuthenticateRequest(
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
             card=payment_methods_pb2.CardDetails(
@@ -86,7 +86,7 @@ def _build_pre_authenticate_request():
             ),
         ),
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(),
+            billing_address=common_types_pb2.Address(),
         ),
         enrolled_for_3ds=False,  # Authentication Details.
         return_url="https://example.com/3ds-return",  # URLs for Redirection.

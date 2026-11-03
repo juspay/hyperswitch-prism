@@ -775,6 +775,9 @@ fn get_payments_response(
                 connector_feature_data: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 status_code: http_code,
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
             })
         };
 
@@ -811,6 +814,9 @@ fn get_payments_response(
                 connector_feature_data: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 status_code: http_code,
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
             })
         };
 
@@ -869,16 +875,15 @@ where
         let card_data =
             requests::RedsysCardData::try_from(&router_data.request.payment_method_data.clone())?;
         let is_auto_capture = router_data.request.is_auto_capture()?;
-        let amount = RedsysAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data
-                .request
-                .currency
-                .ok_or(IntegrationError::MissingRequiredField {
+        let amount = RedsysAmountConvertor::convert(&common_utils::types::Money {
+            amount: router_data.request.amount.amount,
+            currency: router_data.request.currency.ok_or(
+                IntegrationError::MissingRequiredField {
                     field_name: "currency",
                     context: Default::default(),
-                })?,
-        )?;
+                },
+            )?,
+        })?;
 
         let ds_merchant_emv3ds = Some(requests::RedsysEmvThreeDsRequestData::new(
             requests::RedsysThreeDsInfo::CardData,
@@ -1095,16 +1100,15 @@ where
         .set_shipping_data(router_data.resource_common_data.get_optional_shipping())?;
 
         let payment_request = requests::RedsysPaymentRequest {
-            ds_merchant_amount: RedsysAmountConvertor::convert(
-                router_data.request.amount.amount,
-                router_data
-                    .request
-                    .currency
-                    .ok_or(IntegrationError::MissingRequiredField {
+            ds_merchant_amount: RedsysAmountConvertor::convert(&common_utils::types::Money {
+                amount: router_data.request.amount.amount,
+                currency: router_data.request.currency.ok_or(
+                    IntegrationError::MissingRequiredField {
                         field_name: "currency",
                         context: Default::default(),
-                    })?,
-            )?,
+                    },
+                )?,
+            })?,
             ds_merchant_currency: router_data
                 .request
                 .currency
@@ -1443,10 +1447,7 @@ where
         )?;
 
         let payment_request = requests::RedsysPaymentRequest {
-            ds_merchant_amount: RedsysAmountConvertor::convert(
-                router_data.request.amount.amount,
-                router_data.request.currency,
-            )?,
+            ds_merchant_amount: RedsysAmountConvertor::convert(&router_data.request.amount)?,
             ds_merchant_currency: router_data.request.currency.iso_4217().to_owned(),
             ds_merchant_cvv2: card_data.cvv2,
             ds_merchant_emv3ds,
@@ -1572,10 +1573,10 @@ where
         let amount_to_capture = router_data.request.amount_to_capture.amount;
 
         let capture_request = requests::RedsysOperationRequest {
-            ds_merchant_amount: RedsysAmountConvertor::convert(
-                amount_to_capture,
-                router_data.request.currency,
-            )?,
+            ds_merchant_amount: RedsysAmountConvertor::convert(&common_utils::types::Money {
+                amount: amount_to_capture,
+                currency: router_data.request.currency,
+            })?,
             ds_merchant_currency: router_data.request.currency.iso_4217().to_owned(),
             ds_merchant_merchantcode: auth.merchant_id.clone(),
             ds_merchant_order: connector_transaction_id,
@@ -1705,7 +1706,10 @@ where
                 })?;
 
         let void_request = requests::RedsysOperationRequest {
-            ds_merchant_amount: RedsysAmountConvertor::convert(amount.amount, currency)?,
+            ds_merchant_amount: RedsysAmountConvertor::convert(&common_utils::types::Money {
+                amount: amount.amount,
+                currency,
+            })?,
             ds_merchant_currency: currency.iso_4217().to_owned(),
             ds_merchant_merchantcode: auth.merchant_id.clone(),
             ds_merchant_order: connector_transaction_id,
@@ -2049,10 +2053,10 @@ where
         let refund_amount = router_data.request.refund_amount.amount;
 
         let refund_request = requests::RedsysOperationRequest {
-            ds_merchant_amount: RedsysAmountConvertor::convert(
-                refund_amount,
-                router_data.request.currency,
-            )?,
+            ds_merchant_amount: RedsysAmountConvertor::convert(&common_utils::types::Money {
+                amount: refund_amount,
+                currency: router_data.request.currency,
+            })?,
             ds_merchant_currency: router_data.request.currency.iso_4217().to_owned(),
             ds_merchant_merchantcode: auth.merchant_id.clone(),
             ds_merchant_order: router_data.request.connector_transaction_id.clone(),

@@ -4,7 +4,7 @@ use common_enums::{AttemptStatus, CountryAlpha2, Currency};
 use common_utils::{
     pii::{self, Email},
     request::Method,
-    types::FloatMajorUnit,
+    types::{AmountConvertor, FloatMajorUnit},
 };
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
@@ -27,10 +27,7 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    connectors::d24::{D24AmountConvertor, D24RouterData},
-    types::ResponseRouterData,
-};
+use crate::{connectors::d24::D24RouterData, types::ResponseRouterData};
 
 /// The Directa24 `payment_method` codes this integration can emit.
 ///
@@ -783,11 +780,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )));
         }
 
-        let amount = utils::convert_amount(
-            item.connector.amount_converter,
-            request.amount.amount,
-            request.currency,
-        )?;
+        let amount = utils::convert_amount(item.connector.amount_converter, &request.amount)?;
 
         let document = request.get_customer_document_details()?;
         let (document_type, document_number) = d24_payer_document(&document, country)?;
@@ -1134,12 +1127,21 @@ fn d24_settled_amount(response: &D24SyncResponse, requested: Currency) -> Option
     }
 }
 
-impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<D24SyncResponse, D24RouterData<Self, T>>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(item: ResponseRouterData<D24SyncResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<D24SyncResponse, D24RouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let response = item.response;
         let raw_status = response.status.to_string();
 
@@ -1159,12 +1161,13 @@ impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
         // partial payment or stranding the poll.
         let requested_currency = item.router_data.request.currency;
         let settled_amount = d24_settled_amount(&response, requested_currency)
-            .and_then(|amount| D24AmountConvertor::convert_back(amount, requested_currency).ok());
+            .and_then(|amount| connector.convert_back(amount, requested_currency).ok());
 
         let mut status = AttemptStatus::from(response.status);
         if status == AttemptStatus::Charged
             && settled_amount
-                .is_some_and(|settled| settled < item.router_data.request.amount.amount)
+                .as_ref()
+                .is_some_and(|settled| settled.amount < item.router_data.request.amount.amount)
         {
             status = AttemptStatus::PartialCharged;
         }
@@ -1177,11 +1180,7 @@ impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
             AttemptStatus::Charged | AttemptStatus::PartialCharged
         )
         .then_some(settled_amount)
-        .flatten()
-        .map(|amount| common_utils::types::Money {
-            amount,
-            currency: requested_currency,
-        });
+        .flatten();
 
         // A DECLINED deposit is reported through `status`, not by returning an
         // Err: the UCS PSync convention is that the sync response carries the
@@ -1398,11 +1397,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ));
         }
 
-        let amount = utils::convert_amount(
-            item.connector.amount_converter,
-            request.refund_amount.amount,
-            request.currency,
-        )?;
+        let amount =
+            utils::convert_amount(item.connector.amount_converter, &request.refund_amount)?;
 
         let comments = request.reason.as_ref().and_then(|reason| {
             let trimmed: String = reason.chars().take(D24_REFUND_COMMENTS_MAX_LEN).collect();

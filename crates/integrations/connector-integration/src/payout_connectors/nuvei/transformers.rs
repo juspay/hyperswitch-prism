@@ -107,7 +107,10 @@ fn convert_payout_amount(
     destination_currency: common_enums::Currency,
 ) -> Result<StringMajorUnit, Report<IntegrationError>> {
     StringMajorUnitForConnector
-        .convert(amount, destination_currency)
+        .convert(&common_utils::types::Money {
+            amount,
+            currency: destination_currency,
+        })
         .change_context(IntegrationError::InvalidDataFormat {
             field_name: "amount",
             context: nuvei_context(
@@ -264,15 +267,20 @@ impl NuveiPayoutResponse {
     fn payout_status(&self, status_code: u16) -> Result<PayoutStatus, Report<ConnectorError>> {
         match self.status {
             NuveiPaymentStatus::Failed | NuveiPaymentStatus::Error => Ok(PayoutStatus::Failure),
-            NuveiPaymentStatus::Processing => Ok(PayoutStatus::Pending),
+            // An unrecognised envelope status is not terminal; a later sync settles it.
+            NuveiPaymentStatus::Processing | NuveiPaymentStatus::Unknown => {
+                Ok(PayoutStatus::Pending)
+            }
             NuveiPaymentStatus::Success => match self.transaction_status {
                 Some(NuveiTransactionStatus::Approved) => Ok(PayoutStatus::Success),
                 Some(NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error) => {
                     Ok(PayoutStatus::Failure)
                 }
-                Some(NuveiTransactionStatus::Pending | NuveiTransactionStatus::Processing) => {
-                    Ok(PayoutStatus::Pending)
-                }
+                Some(
+                    NuveiTransactionStatus::Pending
+                    | NuveiTransactionStatus::Processing
+                    | NuveiTransactionStatus::Unknown,
+                ) => Ok(PayoutStatus::Pending),
                 Some(NuveiTransactionStatus::Redirect) => Ok(PayoutStatus::Ineligible),
                 None => Err(Report::new(
                     crate::utils::response_handling_fail_for_connector(status_code, "nuvei"),
