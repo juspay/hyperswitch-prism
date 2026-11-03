@@ -3006,7 +3006,7 @@
           }
         },
         "sample": {
-          "url": "https://checkout-test.adyen.com/v71/payments",
+          "url": "https://checkout-test.adyen.com/v72/payments",
           "method": "Post",
           "headers": {
             "content-type": "application/json",

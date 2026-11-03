@@ -7301,7 +7301,7 @@ const ADYEN_PAYLOAD_KEY: &str = "payload";
 const ADYEN_MD_KEY: &str = "MD";
 const ADYEN_PA_RES_KEY: &str = "PaRes";
 const ADYEN_PAYMENTS_DETAILS_DOC_URL: &str =
-    "https://docs.adyen.com/api-explorer/Checkout/71/post/payments/details";
+    "https://docs.adyen.com/api-explorer/Checkout/72/post/payments/details";
 
 /// One documented `/payments/details` return shape, picked from a shopper return.
 #[derive(Debug, Clone)]
@@ -10025,15 +10025,15 @@ const ADYEN_REDIRECT_RESULT_KEY: &str = "redirectResult";
 // (https://docs.adyen.com/online-payments/3d-secure/standalone-authentication). Three legs that
 // move no money, then the existing Authorize, which is the only money call:
 //
-// 1. PreAuthenticate: `POST v71/payments` with the card and
+// 1. PreAuthenticate: `POST v72/payments` with the card and
 //    `authenticationData.threeDSRequestData.nativeThreeDS = preferred`. Adyen answers
 //    `IdentifyShopper` + a `threeDS2` / `fingerprint` action, `ChallengeShopper` + a
 //    `threeDS2` / `challenge` action, or a frictionless `AuthenticationFinished` +
 //    `threeDS2Result`.
-// 2. Authenticate: `POST v71/payments/details` with `details["threeds2.fingerprint"]` and the
+// 2. Authenticate: `POST v72/payments/details` with `details["threeds2.fingerprint"]` and the
 //    `paymentData` carried over from leg 1. Answers `ChallengeShopper` or
 //    `AuthenticationFinished`.
-// 3. PostAuthenticate: `POST v71/payments/details` with `details.threeDSResult`, carrying the
+// 3. PostAuthenticate: `POST v72/payments/details` with `details.threeDSResult`, carrying the
 //    challenge outcome and the `authorisationToken` taken from the challenge action.
 // 4. Authorize (unchanged) sends the resulting `threeDS2Result` as `mpiData`.
 
@@ -10133,7 +10133,7 @@ fn native_three_ds_request_data(
     })
 }
 
-/// `POST v71/payments` body for the PreAuthenticate leg: standalone authentication, so it
+/// `POST v72/payments` body for the PreAuthenticate leg: standalone authentication, so it
 /// carries no capture intent and cannot settle a payment.
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
@@ -10156,7 +10156,7 @@ pub struct AdyenPreAuthenticateRequest<
     shopper_ip: Option<Secret<String, common_utils::pii::IpAddress>>,
 }
 
-/// `details` of a `v71/payments/details` call. `paymentData` is a *sibling* of `details` in
+/// `details` of a `v72/payments/details` call. `paymentData` is a *sibling* of `details` in
 /// Adyen's body, never a member of it, so it lives on [`AdyenDetailsRequest`].
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -10174,7 +10174,7 @@ pub enum AdyenPostAuthenticateDetails {
     },
 }
 
-/// `POST v71/payments/details` body, shared by the Authenticate and PostAuthenticate legs.
+/// `POST v72/payments/details` body, shared by the Authenticate and PostAuthenticate legs.
 /// No amount and no capture flag: nothing here can settle a payment.
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]

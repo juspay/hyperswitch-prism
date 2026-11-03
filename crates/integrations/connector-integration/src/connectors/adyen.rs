@@ -702,9 +702,6 @@ const ADYEN_IDEMPOTENCY_OP_CANCELS: &str = "cancels";
 const ADYEN_IDEMPOTENCY_OP_REFUNDS: &str = "refunds";
 const ADYEN_CANCELS_DOC_URL: &str =
     "https://docs.adyen.com/api-explorer/Checkout/72/post/payments/_paymentPspReference_/cancels";
-/// Checkout version the standalone authentication legs are verified on. v68 has no
-/// `authenticationData` (measured: Adyen answers `702 ... unknown fields: [authenticationData]`).
-const ADYEN_AUTHENTICATION_API_VERSION: &str = "v71";
 const ADYEN_AMOUNT_UPDATES_DOC_URL: &str =
     "https://docs.adyen.com/api-explorer/Checkout/72/post/payments/_paymentPspReference_/amountUpdates";
 
@@ -799,7 +796,7 @@ macros::macro_connector_implementation!(
                 req.resource_common_data.test_mode,
                 &req.connector_config,
             )?;
-            Ok(format!("{endpoint}{ADYEN_AUTHENTICATION_API_VERSION}/payments"))
+            Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments"))
         }
         fn get_error_response_v2(
             &self,
@@ -850,7 +847,7 @@ macros::macro_connector_implementation!(
                 req.resource_common_data.test_mode,
                 &req.connector_config,
             )?;
-            Ok(format!("{endpoint}{ADYEN_AUTHENTICATION_API_VERSION}/payments/details"))
+            Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments/details"))
         }
         fn get_error_response_v2(
             &self,
@@ -901,7 +898,7 @@ macros::macro_connector_implementation!(
                 req.resource_common_data.test_mode,
                 &req.connector_config,
             )?;
-            Ok(format!("{endpoint}{ADYEN_AUTHENTICATION_API_VERSION}/payments/details"))
+            Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments/details"))
         }
         fn get_error_response_v2(
             &self,
