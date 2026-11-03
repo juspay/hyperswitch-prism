@@ -1615,12 +1615,12 @@ where
         &self,
         request: tonic::Request<CompositeCaptureRequest>,
     ) -> Result<tonic::Response<CompositeCaptureResponse>, tonic::Status> {
-        crate::utils::composite_grpc_logging_wrapper(
+        Box::pin(crate::utils::composite_grpc_logging_wrapper(
             request,
             "CompositePaymentService",
             common_utils::events::FlowName::Capture,
-            |request| async move { self.process_composite_capture(request).await },
-        )
+            |request| async move { Box::pin(self.process_composite_capture(request)).await },
+        ))
         .await
     }
 
