@@ -313,41 +313,22 @@ macros::create_all_prerequisites!(
             Ok(header)
         }
 
-        /// `build_headers` plus an `Idempotency-Key` derived from the request's own reference, so a
-        /// retry of the same logical request reuses the key and Adyen replays the first response
-        /// instead of acting twice (https://docs.adyen.com/development-resources/api-idempotency).
-        /// The key is the lowercase hex SHA-256 of `"{operation}:{reference}"`: exactly 64
-        /// characters (Adyen's maximum), and `operation` is a per-endpoint constant so two different
-        /// calls sharing one attempt reference never share a key. Not sent on `/payments/details`.
+        /// `build_headers` plus an `Idempotency-Key`, so a retry of the same logical request reuses
+        /// the key and Adyen replays the first response instead of acting twice
+        /// (https://docs.adyen.com/development-resources/api-idempotency). No key is sent when
+        /// there is no stable identity to derive one from (see `adyen_idempotency_key`). Not sent
+        /// on `/payments/details`.
         pub fn build_headers_with_idempotency<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
             operation: &str,
+            merchant_request_id: Option<&str>,
             reference: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = self.build_headers(req)?;
-            // An empty reference (merchant_capture_id / merchant_void_id / merchant_refund_id
-            // unset) would give every such call on the merchant account the same key, and
-            // Adyen would replay the first stored response. Without a caller-supplied id there
-            // is no stable per-operation identity, so no key is sent.
-            if reference.trim().is_empty() {
-                return Ok(header);
+            if let Some(key) = adyen_idempotency_key(operation, merchant_request_id, reference)? {
+                header.push((headers::IDEMPOTENCY_KEY.to_string(), key.into()));
             }
-            let digest = crypto::Sha256
-                .generate_digest(format!("{operation}:{reference}").as_bytes())
-                .change_context(IntegrationError::RequestEncodingFailed {
-                    context: IntegrationErrorContext {
-                        suggested_action: None,
-                        doc_url: Some(ADYEN_IDEMPOTENCY_DOC_URL.to_string()),
-                        additional_context: Some(
-                            "failed to derive the Adyen Idempotency-Key digest".to_string(),
-                        ),
-                    },
-                })?;
-            header.push((
-                headers::IDEMPOTENCY_KEY.to_string(),
-                hex::encode(digest).into(),
-            ));
             Ok(header)
         }
 
@@ -476,6 +457,44 @@ const ADYEN_ERROR_CODE_RATE_LIMITED: &str = "705";
 const ADYEN_IDEMPOTENCY_DOC_URL: &str =
     "https://docs.adyen.com/development-resources/api-idempotency";
 
+/// The `Idempotency-Key` for one Adyen call: the lowercase hex SHA-256 of
+/// `"{operation}:{identity}"`, exactly 64 characters (Adyen's maximum). `operation` is a
+/// per-endpoint constant so two different calls sharing one identity never share a key.
+///
+/// `merchant_request_id` is the caller's own per-request token and wins when set, the same
+/// precedence `checkout` and `shift4` use. `reference` is only the fallback, and is not always
+/// attempt-unique: `connector_request_reference_id` can be the payment id, which would give two
+/// attempts on one payment the same key and replay the first attempt's response for the second.
+///
+/// With neither set there is no stable identity, so `None`: an empty reference (for example
+/// merchant_capture_id / merchant_void_id / merchant_refund_id unset) would give every such call
+/// on the merchant account the same key.
+fn adyen_idempotency_key(
+    operation: &str,
+    merchant_request_id: Option<&str>,
+    reference: &str,
+) -> CustomResult<Option<String>, IntegrationError> {
+    let identity = merchant_request_id
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .unwrap_or(reference);
+    if identity.trim().is_empty() {
+        return Ok(None);
+    }
+    let digest = crypto::Sha256
+        .generate_digest(format!("{operation}:{identity}").as_bytes())
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                suggested_action: None,
+                doc_url: Some(ADYEN_IDEMPOTENCY_DOC_URL.to_string()),
+                additional_context: Some(
+                    "failed to derive the Adyen Idempotency-Key digest".to_string(),
+                ),
+            },
+        })?;
+    Ok(Some(hex::encode(digest)))
+}
+
 /// `attempt_status` for an Authorize (`POST /payments`) error, decided by HTTP status and whether
 /// the body carried a `ServiceError` `errorCode`, never by `errorType`
 /// (https://docs.adyen.com/development-resources/response-handling):
@@ -514,7 +533,7 @@ fn adyen_authorize_error_attempt_status(
 /// Authorize is delegated to `adyen_authorize_error_attempt_status`.
 /// - `704` (already processed / in progress): the original request may still succeed, so the
 ///   money-moving flows stay pending; Sync and Authentication stay unset.
-/// - HTTP 429 / 5xx, `703` or `errorType: internal`: transient, nothing is known to have failed.
+/// - HTTP 429 / 5xx, `703`, `705` or `errorType: internal`: transient, nothing is known to have failed.
 /// - `errorType` validation / security / configuration on a 4xx: Adyen rejected the request and
 ///   did not act on it, so it is a terminal failure of that flow. Sync never fails the payment.
 /// - anything else stays unset (non-terminal).
@@ -546,7 +565,10 @@ fn adyen_error_attempt_status(
     }
     let is_transient = status_code == 429
         || (500..=599).contains(&status_code)
-        || error_code == Some(ADYEN_ERROR_CODE_IDEMPOTENCY_UNAVAILABLE)
+        || matches!(
+            error_code,
+            Some(ADYEN_ERROR_CODE_IDEMPOTENCY_UNAVAILABLE | ADYEN_ERROR_CODE_RATE_LIMITED)
+        )
         || matches!(error_type, Some(adyen::AdyenErrorType::Internal));
     if is_transient {
         return pending();
@@ -706,6 +728,7 @@ macros::macro_connector_implementation!(
             self.build_headers_with_idempotency(
                 req,
                 ADYEN_IDEMPOTENCY_OP_PAYMENTS,
+                req.resource_common_data.merchant_request_id.as_deref(),
                 &req.resource_common_data.connector_request_reference_id,
             )
         }
@@ -763,6 +786,7 @@ macros::macro_connector_implementation!(
             self.build_headers_with_idempotency(
                 req,
                 ADYEN_IDEMPOTENCY_OP_AUTHN,
+                req.resource_common_data.merchant_request_id.as_deref(),
                 &req.resource_common_data.connector_request_reference_id,
             )
         }
@@ -1001,7 +1025,8 @@ macros::macro_connector_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
-        // The Idempotency-Key reference is the same `reference` the capture body sends: the
+        // Without a merchant_request_id, the Idempotency-Key reference is the same `reference` the
+        // capture body sends: the
         // capture id for a multiple capture, else the attempt reference. A retried capture
         // therefore replays the first `/captures` response instead of capturing twice.
         fn get_headers(
@@ -1014,7 +1039,12 @@ macros::macro_connector_implementation!(
                 .as_ref()
                 .map(|data| data.capture_reference.as_str())
                 .unwrap_or(req.resource_common_data.connector_request_reference_id.as_str());
-            self.build_headers_with_idempotency(req, ADYEN_IDEMPOTENCY_OP_CAPTURES, reference)
+            self.build_headers_with_idempotency(
+                req,
+                ADYEN_IDEMPOTENCY_OP_CAPTURES,
+                req.resource_common_data.merchant_request_id.as_deref(),
+                reference,
+            )
         }
         // A 4xx validation/security/configuration error on `/captures` means Adyen did not act
         // on the capture (CaptureFailed); `704`, 429 and 5xx leave it Pending.
@@ -1111,50 +1141,10 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Adyen<T>
 {
-    /// Routes a 3DS card payment through the native 3DS2 ladder.
-    ///
-    /// Both client returns (the 3DS method iframe and the ACS challenge) come back "with
-    /// params", so `redirect_state` alone cannot tell leg 2 from leg 3; `completed_step` is the
-    /// disambiguator. The flag cannot be read here: this method gets no connector config, and
-    /// `Adyen<T>` (generated by `create_all_prerequisites!`) holds only bridges and amount
-    /// converters. The request builders are therefore the place that decides whether
-    /// `nativeThreeDS: preferred` is sent.
-    fn next_authentication_step(
-        &self,
-        auth_type: common_enums::AuthenticationType,
-        payment_method: PaymentMethod,
-        redirect_state: connector_types::RedirectState,
-        completed_step: Option<connector_types::AuthenticationStep>,
-    ) -> connector_types::AuthenticationStep {
-        use connector_types::{AuthenticationStep, RedirectState};
-        if auth_type == common_enums::AuthenticationType::ThreeDs
-            && payment_method == PaymentMethod::Card
-        {
-            match (redirect_state, completed_step) {
-                // Entering the ladder is deliberately left to an explicit PreAuthenticate call,
-                // for two reasons. This hook receives no connector config, so it cannot tell
-                // whether `native_three_ds` is on for the merchant; and `completed_step` does
-                // not survive between composite requests - `AuthorizeCompositeState::default()`
-                // is rebuilt per request in composite-service/src/payments.rs - so the shopper's
-                // second and third returns both arrive as `(RedirectWithParams, None)` and would
-                // fall through to Authorize, authorising without the authentication result.
-                // Hyperswitch does not use the composite service: it drives these legs through
-                // its own ConnectorSpecifications predicates and the PaymentMethodAuthentication
-                // RPCs, which is the path this flow is verified on. Routing from here needs the
-                // composite loop to carry `completed_step` across requests first.
-                (RedirectState::InitialRequest, None) => AuthenticationStep::Authorize,
-                (RedirectState::RedirectWithParams, Some(AuthenticationStep::PreAuthenticate)) => {
-                    AuthenticationStep::Authenticate
-                }
-                (RedirectState::RedirectWithParams, Some(AuthenticationStep::Authenticate)) => {
-                    AuthenticationStep::PostAuthenticate
-                }
-                _ => AuthenticationStep::Authorize,
-            }
-        } else {
-            AuthenticationStep::Authorize
-        }
-    }
+    // `next_authentication_step` keeps the default on purpose. It receives no connector config,
+    // so it cannot tell whether `native_three_ds` is on, and `completed_step` does not survive
+    // between composite requests. Hyperswitch drives the native 3DS2 legs itself through its
+    // ConnectorSpecifications predicates and the PaymentMethodAuthentication RPCs.
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1223,10 +1213,11 @@ macros::macro_connector_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
-        // The Idempotency-Key reference is the same `reference` the cancel body sends (seeded
+        // Without a merchant_request_id, the Idempotency-Key reference is the same `reference` the
+        // cancel body sends (seeded
         // from merchant_void_id), so a retried cancel replays the first `/cancels` response.
-        // With merchant_void_id unset the reference is empty and no key is sent (guard in
-        // build_headers_with_idempotency).
+        // With merchant_request_id and merchant_void_id both unset no key is sent (see
+        // adyen_idempotency_key).
         fn get_headers(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
@@ -1234,6 +1225,7 @@ macros::macro_connector_implementation!(
             self.build_headers_with_idempotency(
                 req,
                 ADYEN_IDEMPOTENCY_OP_CANCELS,
+                req.resource_common_data.merchant_request_id.as_deref(),
                 &req.resource_common_data.connector_request_reference_id,
             )
         }
@@ -1860,11 +1852,12 @@ macros::macro_connector_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
-        // The Idempotency-Key reference is the same `reference` the refund body sends (the
+        // Without a merchant_request_id, the Idempotency-Key reference is the same `reference` the
+        // refund body sends (the
         // refund id), so a retried refund replays the first `/refunds` response instead of
         // refunding twice, while two partial refunds of one payment get distinct keys.
-        // With merchant_refund_id unset the reference is empty and no key is sent (guard in
-        // build_headers_with_idempotency).
+        // With merchant_request_id and merchant_refund_id both unset no key is sent (see
+        // adyen_idempotency_key).
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -1872,6 +1865,7 @@ macros::macro_connector_implementation!(
             self.build_headers_with_idempotency(
                 req,
                 ADYEN_IDEMPOTENCY_OP_REFUNDS,
+                req.resource_common_data.merchant_request_id.as_deref(),
                 &req.request.refund_id,
             )
         }
@@ -1931,6 +1925,7 @@ macros::macro_connector_implementation!(
             self.build_headers_with_idempotency(
                 req,
                 ADYEN_IDEMPOTENCY_OP_SETUP,
+                req.resource_common_data.merchant_request_id.as_deref(),
                 &req.resource_common_data.connector_request_reference_id,
             )
         }
@@ -2046,6 +2041,7 @@ macros::macro_connector_implementation!(
             self.build_headers_with_idempotency(
                 req,
                 ADYEN_IDEMPOTENCY_OP_MIT,
+                req.resource_common_data.merchant_request_id.as_deref(),
                 &req.resource_common_data.connector_request_reference_id,
             )
         }

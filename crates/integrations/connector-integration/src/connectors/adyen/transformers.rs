@@ -1804,7 +1804,7 @@ fn get_amount_data<
     >,
 ) -> Amount {
     Amount {
-        currency: item.router_data.request.currency,
+        currency: item.router_data.request.amount.currency,
         value: item.router_data.request.amount.amount.to_owned(),
     }
 }
@@ -2785,29 +2785,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let mpi_data =
             if let Some(auth_data) = item.router_data.request.authentication_data.as_ref() {
-                // G-Authorize-02: an external 3DS result is only sent as mpiData when its ECI
-                // corroborates the transaction status (see is_three_ds_outcome_corroborated).
-                if !is_three_ds_outcome_corroborated(
-                    auth_data.trans_status.as_ref(),
-                    auth_data.eci.as_deref(),
-                ) {
-                    return Err(IntegrationError::InvalidDataFormat {
-                    field_name: "authentication_data.trans_status",
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "send trans_status Y with ECI 05/02, A with 06/02/01 or I with 07/02, \
-                                 or omit authentication_data"
-                                .to_string(),
-                        ),
-                        doc_url: Some(ADYEN_MPI_DATA_DOC_URL.to_string()),
-                        additional_context: Some(format!(
-                            "external 3DS outcome is not corroborated: trans_status={:?}, eci={:?}",
-                            auth_data.trans_status, auth_data.eci
-                        )),
-                    },
-                }
-                .into());
-                }
                 let (cavv_algorithm, challenge_cancel, risk_score) =
                     match &item.router_data.request.payment_method_data {
                         PaymentMethodData::Card(card)
@@ -4273,11 +4250,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // G-Authorize-01 (every arm): refuse a capture method Adyen cannot honour before any
         // request is built.
         validate_adyen_capture_method(item.router_data.request.capture_method)?;
-        // G-Authorize-03: arms that cannot carry an external 3DS result as mpiData.
-        validate_external_three_ds_arm(
-            &item.router_data.request.payment_method_data,
-            item.router_data.request.authentication_data.is_some(),
-        )?;
         let (billing_state_code, delivery_state_code) =
             checkout_v72_state_codes(&item.router_data.resource_common_data)?;
 
@@ -5538,16 +5510,15 @@ pub(crate) fn get_adyen_holder_name(
         .or(billing_full_name))
 }
 
-/// Whether an external 3DS result may be sent to Adyen as authenticated `mpiData`: the ECI must
-/// corroborate the transaction status, for every status accepted. Per Adyen's MPI data
-/// combinations (https://docs.adyen.com/online-payments/3d-secure/authorize-mpidata):
+/// Whether a native 3DS2 `threeDS2Result` counts as an authenticated outcome: the ECI must
+/// corroborate the transaction status, for every status accepted.
 /// - `Y` (authenticated): ECI `05` (Visa/Amex/JCB/CUP) or `02` (Mastercard/BCMC)
-/// - `A` (attempt): ECI `06` (Visa/Amex/JCB/CUP), `02` (Adyen table) or `01` (Mastercard
-///   attempt; Adyen authorises it with liability shift)
+/// - `A` (attempt): ECI `06` (Visa/Amex/JCB/CUP), `02` or `01` (Mastercard attempt)
 /// - `I` (3DS2 exemption): ECI `07` or `02`
 ///
 /// Every other status (N, U, R, C, D, S) and any accepted status with a missing or different
-/// ECI is not an authentication outcome Adyen can authorise against.
+/// ECI is not an authentication outcome to authorise against. Applies only to results read from
+/// Adyen's own legs; an external 3DS result from the caller is passed through as `mpiData`.
 pub(crate) fn is_three_ds_outcome_corroborated(
     trans_status: Option<&common_enums::TransactionStatus>,
     eci: Option<&str>,
@@ -5571,8 +5542,6 @@ pub(crate) fn is_three_ds_outcome_corroborated(
         .is_some_and(|eci| accepted_eci.contains(&eci))
 }
 
-const ADYEN_MPI_DATA_DOC_URL: &str =
-    "https://docs.adyen.com/online-payments/3d-secure/authorize-mpidata";
 const ADYEN_CAPTURE_DOC_URL: &str = "https://docs.adyen.com/online-payments/capture";
 const ADYEN_WALLET_DECRYPTION_DOC_URL: &str =
     "https://docs.adyen.com/payment-methods/apple-pay/api-only/apple-pay-token-decryption";
@@ -5600,41 +5569,6 @@ fn missing_wallet_token_source_error() -> Error {
 /// Adyen captures automatically (optionally delayed by `captureDelayHours`) or manually via
 /// `/captures`; it has no scheduled capture, so `Scheduled` is refused before any request is
 /// built instead of silently falling into automatic capture.
-/// External 3DS (`authentication_data`) is only mapped to `mpiData` on the raw card arm. Apple
-/// Pay / Google Pay (PSP-encrypted or decrypted), network tokens and stored-token payments carry
-/// their own cryptogram or none, so an external 3DS result sent with them is refused rather than
-/// silently dropped. Every other arm is unaffected.
-fn validate_external_three_ds_arm<
-    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
->(
-    payment_method_data: &PaymentMethodData<T>,
-    has_authentication_data: bool,
-) -> Result<(), Error> {
-    let cannot_carry_mpi_data = match payment_method_data {
-        // ApplePay + ApplePayDecrypted, GooglePay + GooglePayDecrypted
-        PaymentMethodData::Wallet(WalletData::ApplePay(_) | WalletData::GooglePay(_))
-        | PaymentMethodData::NetworkToken(_)
-        | PaymentMethodData::PaymentMethodToken(_) => true,
-        _ => false,
-    };
-    if has_authentication_data && cannot_carry_mpi_data {
-        return Err(IntegrationError::NotSupported {
-            message: "external 3DS authentication data for this payment method".to_string(),
-            connector: "adyen",
-            context: IntegrationErrorContext {
-                suggested_action: Some(
-                    "omit authentication_data; external 3DS is supported for raw cards only"
-                        .to_string(),
-                ),
-                doc_url: Some(ADYEN_MPI_DATA_DOC_URL.to_string()),
-                additional_context: None,
-            },
-        }
-        .into());
-    }
-    Ok(())
-}
-
 pub(crate) fn validate_adyen_capture_method(
     capture_method: Option<common_enums::CaptureMethod>,
 ) -> Result<(), Error> {
@@ -7371,7 +7305,7 @@ const ADYEN_PAYMENTS_DETAILS_DOC_URL: &str =
 
 /// One documented `/payments/details` return shape, picked from a shopper return.
 #[derive(Debug, Clone)]
-enum AdyenRedirectReturn {
+pub(crate) enum AdyenRedirectReturn {
     RedirectResult(String),
     ThreeDsResult(String),
     Payload(String),
@@ -7384,9 +7318,9 @@ enum AdyenRedirectReturn {
 /// Field names reported when only one member of the MD/PaRes pair is present; the caller names
 /// them after the request field the return came from (e.g. `encoded_data.PaRes`).
 #[derive(Debug, Clone, Copy)]
-struct AdyenMdPaResFieldNames {
-    md: &'static str,
-    pa_res: &'static str,
+pub(crate) struct AdyenMdPaResFieldNames {
+    pub(crate) md: &'static str,
+    pub(crate) pa_res: &'static str,
 }
 
 fn adyen_incomplete_md_pa_res(field_name: &'static str) -> Error {
@@ -7414,7 +7348,7 @@ fn adyen_incomplete_md_pa_res(field_name: &'static str) -> Error {
 /// the `MD` + `PaRes` pair, so exactly one shape is sent. Exactly one of `MD` / `PaRes` is refused
 /// before any connector call (Adyen `14_0392`); no shape at all is `Ok(None)`. Values are passed
 /// through as given.
-fn get_adyen_redirect_return(
+pub(crate) fn get_adyen_redirect_return(
     lookup: impl Fn(&str) -> Option<String>,
     allow_payload: bool,
     field_names: AdyenMdPaResFieldNames,
@@ -7562,7 +7496,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             amount: Amount {
-                currency: item.router_data.request.currency,
+                currency: item.router_data.request.refund_amount.currency,
                 value: item.router_data.request.refund_amount.amount,
             },
             merchant_refund_reason: item
@@ -7652,7 +7586,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant_account: auth_type.merchant_account,
             reference,
             amount: Amount {
-                currency: item.router_data.request.currency,
+                currency: item.router_data.request.amount_to_capture.currency,
                 value: item.router_data.request.amount_to_capture.amount.to_owned(),
             },
         })
@@ -8418,7 +8352,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         validate_adyen_capture_method(item.router_data.request.capture_method)?;
         let mandate_ref_id = item.router_data.request.mandate_reference.clone();
         let amount = Amount {
-            currency: item.router_data.request.currency,
+            currency: item.router_data.request.amount.currency,
             value: item.router_data.request.amount.amount,
         };
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
@@ -9425,7 +9359,8 @@ fn get_shopper_name(
     let billing = address.and_then(|billing| billing.address.as_ref());
     let first_name = billing.and_then(|a| a.first_name.clone());
     let last_name = billing.and_then(|a| a.last_name.clone());
-    // Adyen requires both names when `shopperName` is sent; never send an empty object.
+    // Never send an empty object. Adyen's schema requires both names, so a request carrying only
+    // one is left to Adyen's validation.
     (first_name.is_some() || last_name.is_some()).then_some(ShopperName {
         first_name,
         last_name,
@@ -9664,7 +9599,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth_type = AdyenAuthType::try_from(&router_data.connector_config)?;
 
         let amount = Amount {
-            currency: router_data.request.currency,
+            currency: router_data.request.amount.currency,
             value: router_data.request.amount.amount,
         };
 
@@ -9794,7 +9729,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = AdyenAuthType::try_from(&router_data.connector_config)?;
 
         let amount = Amount {
-            currency: router_data.request.currency,
+            currency: router_data.request.amount.currency,
             value: router_data.request.amount.amount,
         };
 
@@ -9939,7 +9874,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             amount: Amount {
-                currency: item.router_data.request.currency,
+                currency: item.router_data.request.amount.currency,
                 value: item.router_data.request.amount.amount.to_owned(),
             },
             reference: Some(reference),
@@ -10177,6 +10112,9 @@ pub struct AdyenAuthenticationData {
     #[serde(rename = "threeDSRequestData")]
     three_ds_request_data: Option<AdyenThreeDsRequestData>,
 }
+
+const ADYEN_NATIVE_THREE_DS_DOC_URL: &str =
+    "https://docs.adyen.com/online-payments/3d-secure/native-3ds2/api-integration";
 
 /// `native_three_ds` opt-in on the Adyen connector config. Absent or `false` leaves
 /// `threeDSRequestData` off the request, so Adyen keeps answering the redirect variant.
@@ -10820,6 +10758,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
+        // Without the opt-in Adyen answers the redirect variant, which these legs cannot drive:
+        // the call would mint a pspReference and could only end AuthenticationFailed.
+        let three_ds_request_data = native_three_ds_request_data(&router_data.connector_config)
+            .ok_or_else(|| IntegrationError::NotSupported {
+                message: "PreAuthenticate without native_three_ds".to_string(),
+                connector: "adyen",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "set native_three_ds on the Adyen connector config, or send the payment \
+                         to Authorize for redirect 3DS"
+                            .to_string(),
+                    ),
+                    doc_url: Some(ADYEN_NATIVE_THREE_DS_DOC_URL.to_string()),
+                    additional_context: None,
+                },
+            })?;
         let request = &router_data.request;
 
         // Standalone 3DS2 authenticates raw card details only.
@@ -10913,7 +10867,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             origin,
             authentication_data: AdyenAuthenticationData {
                 authentication_only: true,
-                three_ds_request_data: native_three_ds_request_data(&router_data.connector_config),
+                three_ds_request_data: Some(three_ds_request_data),
             },
             billing_address,
             shopper_email: request.email.clone(),

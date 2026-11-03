@@ -452,14 +452,6 @@
         }
       }
     },
-    "payment_failed": {
-      "assert": {
-        "event_status": null,
-        "event_content.payments_response.status": {
-          "equals": "FAILURE"
-        }
-      }
-    },
     "refund_succeeded": {
       "assert": {
         "event_status": null,
@@ -468,14 +460,6 @@
         }
       }
     },
-    "invalid_signature": {
-      "assert": {
-        "event_status": null,
-        "event_type": {
-          "equals": "PAYMENT_INTENT_SUCCESS"
-        }
-      }
-    }
   },
   "PaymentMethodAuthenticationService/PreAuthenticate": {
     "threeds_card_pre_authenticate": {
