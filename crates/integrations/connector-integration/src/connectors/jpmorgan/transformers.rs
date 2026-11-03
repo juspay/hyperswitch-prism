@@ -256,24 +256,106 @@ fn build_retail_addenda(
     (!all_none).then_some(addenda)
 }
 
-/// `shipTo.shippingAddress.postalCode` — required by American Express for
-/// Level 2 and optional on the other networks, so it is sent whenever the
-/// merchant supplied a shipping address.
+fn build_address(
+    details: Option<&domain_types::payment_address::AddressDetails>,
+    postal_code: Option<Secret<String>>,
+) -> Option<requests::JpmorganAddress> {
+    let address = requests::JpmorganAddress {
+        line1: details.and_then(|details| details.line1.clone()),
+        line2: details.and_then(|details| details.line2.clone()),
+        city: details.and_then(|details| details.city.clone()),
+        state: details.and_then(|details| {
+            details
+                .to_state_code_as_optional()
+                .ok()
+                .flatten()
+                .or_else(|| details.state.clone())
+        }),
+        postal_code: postal_code.or_else(|| details.and_then(|details| details.zip.clone())),
+        country_code: details
+            .and_then(|details| details.country)
+            .map(common_enums::CountryAlpha2::from_alpha2_to_alpha3),
+    };
+    (address.line1.is_some()
+        || address.line2.is_some()
+        || address.city.is_some()
+        || address.state.is_some()
+        || address.postal_code.is_some()
+        || address.country_code.is_some())
+    .then_some(address)
+}
+
+fn build_phone(
+    phone: Option<&domain_types::payment_address::PhoneDetails>,
+) -> Option<requests::JpmorganPhone> {
+    let phone = phone?;
+    let phone_number = phone.number.clone()?;
+    Some(requests::JpmorganPhone {
+        country_code: phone
+            .country_code
+            .as_deref()
+            .and_then(|code| code.trim_start_matches('+').parse::<u16>().ok())
+            .filter(|code| (1..=999).contains(code)),
+        phone_number,
+    })
+}
+
+fn build_account_holder(
+    resource: &PaymentFlowData,
+    email: Option<&common_utils::Email>,
+) -> Option<requests::JpmorganAccountHolder> {
+    let billing = resource.address.get_payment_method_billing();
+    let details = billing
+        .and_then(|billing| billing.address.as_ref())
+        .or_else(|| {
+            resource
+                .l2_l3_data
+                .as_deref()
+                .and_then(|data| data.billing_details.as_ref())
+        });
+    let holder = requests::JpmorganAccountHolder {
+        first_name: details.and_then(|details| details.first_name.clone()),
+        last_name: details.and_then(|details| details.last_name.clone()),
+        billing_address: build_address(details, None),
+        email: billing
+            .and_then(|billing| billing.email.clone())
+            .or_else(|| email.cloned()),
+        phone: build_phone(billing.and_then(|billing| billing.phone.as_ref())),
+    };
+    (holder.first_name.is_some()
+        || holder.last_name.is_some()
+        || holder.billing_address.is_some()
+        || holder.email.is_some()
+        || holder.phone.is_some())
+    .then_some(holder)
+}
+
+/// Shipping details are independent of Level 2 data. Keep the Level 2 ZIP
+/// fallback for callers that supply their shipping destination there.
 fn build_ship_to(
     l2_l3_data: Option<&L2L3Data>,
     address: &domain_types::payment_address::PaymentAddress,
 ) -> Option<requests::JpmorganShipTo> {
-    l2_l3_data
-        .and_then(|l2_l3_data| l2_l3_data.get_shipping_zip())
-        .or_else(|| {
-            address
-                .get_shipping()
-                .and_then(|shipping| shipping.address.as_ref())
-                .and_then(|details| details.zip.clone())
-        })
-        .map(|postal_code| requests::JpmorganShipTo {
-            shipping_address: requests::JpmorganShippingAddress { postal_code },
-        })
+    let shipping = address.get_shipping();
+    let details = shipping
+        .and_then(|shipping| shipping.address.as_ref())
+        .or_else(|| l2_l3_data.and_then(|l2_l3_data| l2_l3_data.shipping_details.as_ref()));
+    let ship_to = requests::JpmorganShipTo {
+        shipping_address: build_address(
+            details,
+            l2_l3_data.and_then(|l2_l3_data| l2_l3_data.get_shipping_zip()),
+        ),
+        first_name: details.and_then(|details| details.first_name.clone()),
+        last_name: details.and_then(|details| details.last_name.clone()),
+        email: shipping.and_then(|shipping| shipping.email.clone()),
+        phone: build_phone(shipping.and_then(|shipping| shipping.phone.as_ref())),
+    };
+    (ship_to.shipping_address.is_some()
+        || ship_to.first_name.is_some()
+        || ship_to.last_name.is_some()
+        || ship_to.email.is_some()
+        || ship_to.phone.is_some())
+    .then_some(ship_to)
 }
 
 /// Level 2 data and the independently supplied shipping destination for an
@@ -1007,6 +1089,7 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
             )?),
             merchant_sales_channel_name:
                 map_payment_channel_to_jpmorgan_merchant_sales_channel_name(payment_channel),
+            cvv: None,
         })
     }
 
@@ -1061,6 +1144,7 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
             authentication,
             merchant_sales_channel_name:
                 map_payment_channel_to_jpmorgan_merchant_sales_channel_name(payment_channel),
+            cvv: None,
         })
     }
 }
@@ -1068,7 +1152,9 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
 impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
     fn supports_initial_storage(payment_method: &PaymentMethodData<T>) -> bool {
         match payment_method {
-            PaymentMethodData::Card(_) | PaymentMethodData::NetworkToken(_) => true,
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardWithNoCvc(_)
+            | PaymentMethodData::NetworkToken(_) => true,
             PaymentMethodData::Wallet(WalletData::ApplePay(wallet)) => {
                 matches!(wallet.payment_data, ApplePayPaymentData::Decrypted(_))
             }
@@ -1089,8 +1175,13 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
         ),
         Error,
     > {
-        if request.setup_future_usage != Some(common_enums::FutureUsage::OffSession) {
-            return Ok((requests::JpmorganAccountOnFile::NotStored, None));
+        if !request.is_customer_initiated_mandate_payment() {
+            let account_on_file = if request.is_stored_credential == Some(true) {
+                requests::JpmorganAccountOnFile::Stored
+            } else {
+                requests::JpmorganAccountOnFile::NotStored
+            };
+            return Ok((account_on_file, None));
         }
         requests::JpmorganCard::validate_apple_pay_storage(&request.payment_method_data)?;
         let recurring = match request.mit_category {
@@ -1101,11 +1192,9 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
                 agreement_id: None,
                 is_variable_amount: Some(true),
             }),
-            Some(
-                common_enums::MitCategory::Installment | common_enums::MitCategory::Resubmission,
-            ) => {
+            Some(common_enums::MitCategory::Installment) => {
                 return Err(IntegrationError::NotSupported {
-                    message: "Installment or resubmission agreements".to_owned(),
+                    message: "Installment agreements".to_owned(),
                     connector: "jpmorgan",
                     context: Default::default(),
                 }
@@ -1113,7 +1202,12 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
             }
             _ => None,
         };
-        Ok((requests::JpmorganAccountOnFile::ToBeStored, recurring))
+        let account_on_file = if request.is_stored_credential == Some(true) {
+            requests::JpmorganAccountOnFile::Stored
+        } else {
+            requests::JpmorganAccountOnFile::ToBeStored
+        };
+        Ok((account_on_file, recurring))
     }
 
     fn from_decrypted_wallet(
@@ -1153,7 +1247,10 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganPaymentsRequest<T> {
                 googlepay: None,
                 token: None,
             },
-            account_holder: None,
+            account_holder: build_account_holder(
+                &router_data.resource_common_data,
+                router_data.request.email.as_ref(),
+            ),
             statement_descriptor: get_statement_descriptor(
                 router_data.request.billing_descriptor.as_ref(),
             ),
@@ -1212,7 +1309,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             .into());
         }
-        if router_data.request.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+        if router_data.request.is_customer_initiated_mandate_payment()
+            && router_data.request.is_stored_credential != Some(true)
             && !Self::supports_initial_storage(&router_data.request.payment_method_data)
         {
             return Err(IntegrationError::NotSupported {
@@ -1275,6 +1373,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         map_payment_channel_to_jpmorgan_merchant_sales_channel_name(
                             router_data.request.payment_channel.as_ref(),
                         ),
+                    cvv: Some(card_data.card_cvc.clone()),
                 };
 
                 let (account_on_file, recurring) = Self::prepare_cit(&router_data.request)?;
@@ -1294,7 +1393,119 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     amount,
                     merchant,
                     payment_method_type,
-                    account_holder: None,
+                    account_holder: build_account_holder(
+                        &router_data.resource_common_data,
+                        router_data.request.email.as_ref(),
+                    ),
+                    statement_descriptor: get_statement_descriptor(
+                        router_data.request.billing_descriptor.as_ref(),
+                    ),
+                    merchant_order_number: merchant_order_number(
+                        router_data.request.merchant_order_id.as_deref(),
+                        &router_data
+                            .resource_common_data
+                            .connector_request_reference_id,
+                    ),
+                    initiator_type: Some(requests::JpmorganInitiatorType::Cardholder),
+                    account_on_file: Some(account_on_file),
+                    is_amount_final: Some(true),
+                    recurring,
+                    retail_addenda,
+                    ship_to,
+                    partial_authorization_support: Some(map_partial_authorization_support(
+                        router_data.request.enable_partial_authorization,
+                    )),
+                };
+                Ok(request)
+            }
+            PaymentMethodData::CardWithNoCvc(card_data) => {
+                // JPMorgan doesn't support 3DS for card payments
+                if router_data.resource_common_data.auth_type
+                    == common_enums::AuthenticationType::ThreeDs
+                {
+                    return Err(IntegrationError::NotImplemented(
+                        JPMORGAN_THREE_DS_NOT_IMPLEMENTED.to_string(),
+                        Default::default(),
+                    )
+                    .into());
+                }
+                let capture_method = map_capture_method(router_data.request.capture_method)?;
+
+                let authentication = requests::JpmorganCard::<T>::card_authentication(
+                    router_data.request.authentication_data.as_ref(),
+                    router_data.resource_common_data.auth_type,
+                    card_data.card_network.as_ref(),
+                )?;
+
+                let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
+
+                let merchant = requests::JpmorganMerchant::try_from(&auth)?;
+
+                let exp_month_str = card_data.card_exp_month.peek().to_string();
+                let exp_year_str = card_data.get_expiry_year_4_digit().peek().to_string();
+
+                // Vault token placeholders (e.g. "{{$card_exp_month}}") cannot be parsed as i32.
+                // JPMorgan requires numeric expiry values, so proxy flows are not supported.
+                when(
+                    exp_month_str.contains("{{") || exp_year_str.contains("{{"),
+                    || {
+                        Err(error_stack::report!(IntegrationError::NotSupported {
+                            message: "JPMorgan requires numeric expiry values; vault token placeholders are not supported for proxy flows".to_string(),
+                            connector: "Jpmorgan",
+                            context: Default::default(),
+                        }))
+                    },
+                )?;
+
+                let expiry = requests::Expiry {
+                    month: Secret::new(exp_month_str.parse::<i32>().change_context(
+                        IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        },
+                    )?),
+                    year: Secret::new(exp_year_str.parse::<i32>().change_context(
+                        IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        },
+                    )?),
+                };
+
+                let card = requests::JpmorganCard {
+                    account_number: RawCardNumber(T::inner_from_card_number(
+                        card_data.card_number.clone(),
+                    )),
+                    expiry,
+                    account_number_type: Some(requests::JpmorganAccountNumberType::Pan),
+                    wallet_provider: None,
+                    authentication,
+                    merchant_sales_channel_name:
+                        map_payment_channel_to_jpmorgan_merchant_sales_channel_name(
+                            router_data.request.payment_channel.as_ref(),
+                        ),
+                    cvv: None,
+                };
+
+                let (account_on_file, recurring) = Self::prepare_cit(&router_data.request)?;
+                let payment_method_type = requests::JpmorganPaymentMethodType {
+                    card: Some(card),
+                    ach: None,
+                    googlepay: None,
+                    token: None,
+                };
+
+                let amount = JpmorganAmountConvertor::convert(&router_data.request.amount)?;
+
+                let (retail_addenda, ship_to) = authorize_level2_data(router_data);
+                let request = Self {
+                    capture_method,
+                    currency: router_data.request.currency,
+                    amount,
+                    merchant,
+                    payment_method_type,
+                    account_holder: build_account_holder(
+                        &router_data.resource_common_data,
+                        router_data.request.email.as_ref(),
+                    ),
                     statement_descriptor: get_statement_descriptor(
                         router_data.request.billing_descriptor.as_ref(),
                     ),
@@ -1389,6 +1600,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         map_payment_channel_to_jpmorgan_merchant_sales_channel_name(
                             router_data.request.payment_channel.as_ref(),
                         ),
+                    cvv: None,
                 };
 
                 let (account_on_file, recurring) = Self::prepare_cit(&router_data.request)?;
@@ -1408,7 +1620,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     amount,
                     merchant,
                     payment_method_type,
-                    account_holder: None,
+                    account_holder: build_account_holder(
+                        &router_data.resource_common_data,
+                        router_data.request.email.as_ref(),
+                    ),
                     statement_descriptor: get_statement_descriptor(
                         router_data.request.billing_descriptor.as_ref(),
                     ),
@@ -1447,10 +1662,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let (first_name, last_name) =
                     extract_account_holder_names(router_data, bank_account_holder_name)?;
 
-                let account_holder = requests::JpmorganAccountHolder {
-                    first_name,
-                    last_name,
-                };
+                let mut account_holder = build_account_holder(
+                    &router_data.resource_common_data,
+                    router_data.request.email.as_ref(),
+                )
+                .unwrap_or_default();
+                account_holder.first_name.get_or_insert(first_name);
+                account_holder.last_name.get_or_insert(last_name);
 
                 // Determine account type based on bank_type field, default to Checking
                 let account_type = requests::JpmorganAchAccountType::try_from(*bank_type)?;
@@ -1486,7 +1704,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     account_on_file: None,
                     is_amount_final: None,
                     retail_addenda: None,
-                    ship_to: None,
+                    ship_to: build_ship_to(
+                        router_data.resource_common_data.l2_l3_data.as_deref(),
+                        &router_data.resource_common_data.address,
+                    ),
                     recurring: None,
                     partial_authorization_support: Some(map_partial_authorization_support(
                         router_data.request.enable_partial_authorization,
@@ -1513,10 +1734,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let amount = JpmorganAmountConvertor::convert(&router_data.request.amount)?;
 
-                let account_holder = requests::JpmorganAccountHolder {
-                    first_name: Secret::new("NA".to_string()),
-                    last_name: Secret::new("NA".to_string()),
-                };
+                let account_holder = build_account_holder(
+                    &router_data.resource_common_data,
+                    router_data.request.email.as_ref(),
+                );
                 let statement_descriptor =
                     get_statement_descriptor(router_data.request.billing_descriptor.as_ref());
 
@@ -1527,11 +1748,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     amount,
                     merchant,
                     payment_method_type,
-                    account_holder: Some(account_holder),
+                    account_holder,
                     statement_descriptor,
                     merchant_order_number: None,
                     initiator_type: None,
-                    account_on_file: None,
+                    account_on_file: (router_data.request.is_stored_credential == Some(true))
+                        .then_some(requests::JpmorganAccountOnFile::Stored),
                     is_amount_final: None,
                     retail_addenda,
                     ship_to,
@@ -1666,15 +1888,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 amount,
                                 merchant,
                                 payment_method_type,
-                                // account_holder and statement_descriptor are not required
-                                // for Google Pay encrypted flow
-                                account_holder: None,
+                                account_holder: build_account_holder(
+                                    &router_data.resource_common_data,
+                                    router_data.request.email.as_ref(),
+                                ),
                                 statement_descriptor: get_statement_descriptor(
                                     router_data.request.billing_descriptor.as_ref(),
                                 ),
                                 merchant_order_number: None,
                                 initiator_type: None,
-                                account_on_file: None,
+                                account_on_file: (router_data.request.is_stored_credential
+                                    == Some(true))
+                                .then_some(requests::JpmorganAccountOnFile::Stored),
                                 is_amount_final: None,
                                 retail_addenda,
                                 ship_to,
@@ -2468,11 +2693,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(
                 common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
             ) => Some(requests::JpmorganRecurringSequence::First),
-            Some(
-                common_enums::MitCategory::Installment | common_enums::MitCategory::Resubmission,
-            ) => {
+            Some(common_enums::MitCategory::Installment) => {
                 return Err(IntegrationError::NotSupported {
-                    message: "Installment or resubmission agreements".to_owned(),
+                    message: "Installment agreements".to_owned(),
                     connector: "jpmorgan",
                     context: Default::default(),
                 }
@@ -2481,48 +2704,42 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => None,
         };
         let card = match &request.payment_method_data {
-            PaymentMethodData::Card(card) => requests::JpmorganSetupMandateCard {
-                card: requests::JpmorganCard {
-                    account_number: card.card_number.clone(),
-                    expiry: build_jpmorgan_expiry(
-                        card.card_exp_month.peek(),
-                        card.get_expiry_year_4_digit().peek(),
-                    )?,
-                    account_number_type: Some(requests::JpmorganAccountNumberType::Pan),
-                    wallet_provider: None,
-                    authentication: requests::JpmorganCard::<T>::card_authentication(
-                        request.authentication_data.as_ref(),
-                        router_data.resource_common_data.auth_type,
-                        card.card_network.as_ref(),
-                    )?,
-                    merchant_sales_channel_name:
-                        map_payment_channel_to_jpmorgan_merchant_sales_channel_name(
-                            request.payment_channel.as_ref(),
-                        ),
-                },
+            PaymentMethodData::Card(card) => requests::JpmorganCard {
+                account_number: card.card_number.clone(),
+                expiry: build_jpmorgan_expiry(
+                    card.card_exp_month.peek(),
+                    card.get_expiry_year_4_digit().peek(),
+                )?,
+                account_number_type: Some(requests::JpmorganAccountNumberType::Pan),
+                wallet_provider: None,
+                authentication: requests::JpmorganCard::<T>::card_authentication(
+                    request.authentication_data.as_ref(),
+                    router_data.resource_common_data.auth_type,
+                    card.card_network.as_ref(),
+                )?,
+                merchant_sales_channel_name:
+                    map_payment_channel_to_jpmorgan_merchant_sales_channel_name(
+                        request.payment_channel.as_ref(),
+                    ),
                 cvv: Some(card.get_card_cvc_required()?),
             },
-            PaymentMethodData::CardWithNoCvc(card) => requests::JpmorganSetupMandateCard {
-                card: requests::JpmorganCard {
-                    account_number: RawCardNumber(T::inner_from_card_number(
-                        card.card_number.clone(),
-                    )),
-                    expiry: build_jpmorgan_expiry(
-                        card.card_exp_month.peek(),
-                        card.get_expiry_year_4_digit().peek(),
-                    )?,
-                    account_number_type: Some(requests::JpmorganAccountNumberType::Pan),
-                    wallet_provider: None,
-                    authentication: requests::JpmorganCard::<T>::card_authentication(
-                        request.authentication_data.as_ref(),
-                        router_data.resource_common_data.auth_type,
-                        card.card_network.as_ref(),
-                    )?,
-                    merchant_sales_channel_name:
-                        map_payment_channel_to_jpmorgan_merchant_sales_channel_name(
-                            request.payment_channel.as_ref(),
-                        ),
-                },
+            PaymentMethodData::CardWithNoCvc(card) => requests::JpmorganCard {
+                account_number: RawCardNumber(T::inner_from_card_number(card.card_number.clone())),
+                expiry: build_jpmorgan_expiry(
+                    card.card_exp_month.peek(),
+                    card.get_expiry_year_4_digit().peek(),
+                )?,
+                account_number_type: Some(requests::JpmorganAccountNumberType::Pan),
+                wallet_provider: None,
+                authentication: requests::JpmorganCard::<T>::card_authentication(
+                    request.authentication_data.as_ref(),
+                    router_data.resource_common_data.auth_type,
+                    card.card_network.as_ref(),
+                )?,
+                merchant_sales_channel_name:
+                    map_payment_channel_to_jpmorgan_merchant_sales_channel_name(
+                        request.payment_channel.as_ref(),
+                    ),
                 cvv: None,
             },
             PaymentMethodData::Wallet(WalletData::ApplePay(_))
@@ -2537,13 +2754,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .into());
             }
             PaymentMethodData::Wallet(WalletData::ApplePay(wallet)) => match &wallet.payment_data {
-                ApplePayPaymentData::Decrypted(data) => requests::JpmorganSetupMandateCard {
-                    card: requests::JpmorganCard::from_apple_pay(
-                        data,
-                        request.payment_channel.as_ref(),
-                    )?,
-                    cvv: None,
-                },
+                ApplePayPaymentData::Decrypted(data) => {
+                    requests::JpmorganCard::from_apple_pay(data, request.payment_channel.as_ref())?
+                }
                 ApplePayPaymentData::Encrypted(_) => {
                     return Err(IntegrationError::NotSupported {
                         message: "Encrypted Apple Pay verification".to_owned(),
@@ -2556,13 +2769,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Wallet(WalletData::GooglePay(wallet)) => {
                 match &wallet.tokenization_data {
                     domain_types::payment_method_data::GpayTokenizationData::Decrypted(data) => {
-                        requests::JpmorganSetupMandateCard {
-                            card: requests::JpmorganCard::from_google_pay(
-                                data,
-                                request.payment_channel.as_ref(),
-                            )?,
-                            cvv: None,
-                        }
+                        requests::JpmorganCard::from_google_pay(
+                            data,
+                            request.payment_channel.as_ref(),
+                        )?
                     }
                     domain_types::payment_method_data::GpayTokenizationData::Encrypted(_) => {
                         return Err(IntegrationError::NotSupported {
@@ -2588,6 +2798,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             currency: request.currency,
             merchant: requests::JpmorganMerchant::try_from(&auth)?,
             payment_method_type: requests::JpmorganSetupMandatePaymentMethodType { card },
+            account_holder: build_account_holder(
+                &router_data.resource_common_data,
+                request.email.as_ref(),
+            ),
             recurring_sequence,
             merchant_order_number: merchant_order_number(
                 request.merchant_order_id.as_deref(),
@@ -2596,7 +2810,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector_request_reference_id,
             ),
             initiator_type: requests::JpmorganInitiatorType::Cardholder,
-            account_on_file: requests::JpmorganAccountOnFile::ToBeStored,
+            account_on_file: if request.is_stored_credential == Some(true) {
+                requests::JpmorganAccountOnFile::Stored
+            } else {
+                requests::JpmorganAccountOnFile::ToBeStored
+            },
             statement_descriptor: get_statement_descriptor(
                 router_data.request.billing_descriptor.as_ref(),
             ),
@@ -2667,7 +2885,9 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
         request: &RepeatPaymentData<T>,
     ) -> Result<Option<requests::JpmorganRecurring>, Error> {
         match request.mit_category {
-            Some(common_enums::MitCategory::Unscheduled) => Ok(None),
+            Some(
+                common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission,
+            ) => Ok(None),
             Some(
                 common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
             ) => Ok(Some(requests::JpmorganRecurring {
@@ -2680,11 +2900,9 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                 context: Default::default(),
             }
             .into()),
-            Some(
-                common_enums::MitCategory::Installment | common_enums::MitCategory::Resubmission,
-            ) => Err(Self::unsupported(
-                "Installment and resubmission merchant-initiated payments",
-            )),
+            Some(common_enums::MitCategory::Installment) => {
+                Err(Self::unsupported("Installment merchant-initiated payments"))
+            }
         }
     }
 
@@ -2877,6 +3095,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant,
             payment_method_type,
             recurring,
+            authorization_purpose: (request.mit_category
+                == Some(common_enums::MitCategory::Resubmission))
+            .then_some(requests::JpmorganAuthorizationPurpose::Resubmission),
+            account_holder: build_account_holder(
+                &router_data.resource_common_data,
+                request.email.as_ref(),
+            ),
+            ship_to: build_ship_to(
+                router_data.resource_common_data.l2_l3_data.as_deref(),
+                &router_data.resource_common_data.address,
+            ),
             merchant_order_number: merchant_order_number(
                 request.merchant_order_id.as_deref(),
                 &router_data

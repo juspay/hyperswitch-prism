@@ -12,7 +12,7 @@ from payments import MerchantAuthenticationClient
 from payments import DisputeClient
 from payments import EventClient
 from payments import RecurringPaymentClient
-from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
+from payments.generated import common_types_pb2, dispute_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
 SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "incremental_authorization", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "reverse", "setup_recurring", "token_authorize", "void"]
 
@@ -101,25 +101,25 @@ def _build_create_order_request():
     )
 
 def _build_dispute_accept_request():
-    return payment_pb2.DisputeServiceAcceptRequest(
+    return dispute_pb2.DisputeServiceAcceptRequest(
         merchant_dispute_id="probe_dispute_001",  # Identification.
         connector_transaction_id="probe_txn_001",
-        dispute_id="probe_dispute_id_001",
+        connector_dispute_id="probe_dispute_id_001",
     )
 
 def _build_dispute_defend_request():
-    return payment_pb2.DisputeServiceDefendRequest(
+    return dispute_pb2.DisputeServiceDefendRequest(
         merchant_dispute_id="probe_dispute_001",  # Identification.
         connector_transaction_id="probe_txn_001",
-        dispute_id="probe_dispute_id_001",
+        connector_dispute_id="probe_dispute_id_001",
         reason_code="probe_reason",  # Defend Details.
     )
 
 def _build_dispute_submit_evidence_request():
-    return payment_pb2.DisputeServiceSubmitEvidenceRequest(
+    return dispute_pb2.DisputeServiceSubmitEvidenceRequest(
         merchant_dispute_id="probe_dispute_001",  # Identification.
         connector_transaction_id="probe_txn_001",
-        dispute_id="probe_dispute_id_001",
+        connector_dispute_id="probe_dispute_id_001",
         # evidence_documents: [{"evidence_type": "SERVICE_DOCUMENTATION", "file_content": "probe evidence content", "file_mime_type": "application/pdf"}]  # Collection of evidence documents.
     )
 

@@ -173,6 +173,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: Some(BrowserInformation {
                         color_depth: None,
                         java_enabled: Some(false),
@@ -393,6 +394,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: None,
                     order_category: None,
                     session_token: None,
@@ -565,6 +567,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: None,
                     order_category: None,
                     session_token: None,
@@ -762,6 +765,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: Some(BrowserInformation {
                         color_depth: None,
                         java_enabled: Some(false),
@@ -1156,6 +1160,7 @@ mod tests {
                 mandate_id: None,
                 setup_future_usage: None,
                 off_session: None,
+                is_stored_credential: None,
                 browser_info: Some(BrowserInformation {
                     color_depth: None,
                     java_enabled: Some(false),
@@ -1385,6 +1390,7 @@ mod tests {
                 mandate_id: None,
                 setup_future_usage: None,
                 off_session: None,
+                is_stored_credential: None,
                 browser_info: Some(BrowserInformation {
                     color_depth: None,
                     java_enabled: Some(false),
@@ -1894,6 +1900,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: None,
                     order_category: None,
                     session_token: None,

@@ -62,6 +62,30 @@ use crate::{
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, IntegrationErrorContext, WebhookError};
 
+const ADYEN_CONNECTOR_NAME: &str = "Adyen";
+const CHECKOUT_V72_BILLING_POSTAL_CODE_FIELD: &str = "billingAddress.postalCode";
+const CHECKOUT_V72_DELIVERY_POSTAL_CODE_FIELD: &str = "deliveryAddress.postalCode";
+const CHECKOUT_V72_POSTAL_CODE_MAX_LENGTH: usize = 10;
+const CHECKOUT_V72_REFERENCE_FIELD: &str = "reference";
+const CHECKOUT_V72_REFERENCE_MAX_LENGTH: usize = 80;
+const CHECKOUT_V72_RETURN_URL_FIELD: &str = "returnUrl";
+const CHECKOUT_V72_RETURN_URL_MAX_LENGTH: usize = 1024;
+const CHECKOUT_V72_SHOPPER_IP_FIELD: &str = "shopperIP";
+const CHECKOUT_V72_SHOPPER_IP_MAX_LENGTH: usize = 256;
+const CHECKOUT_V72_SHOPPER_FIRST_NAME_FIELD: &str = "shopperName.firstName";
+const CHECKOUT_V72_SHOPPER_LAST_NAME_FIELD: &str = "shopperName.lastName";
+const CHECKOUT_V72_SHOPPER_NAME_MAX_LENGTH: usize = 100;
+const CHECKOUT_V72_TELEPHONE_NUMBER_FIELD: &str = "telephoneNumber";
+const CHECKOUT_V72_TELEPHONE_NUMBER_MAX_LENGTH: usize = 64;
+const CHECKOUT_V72_SOCIAL_SECURITY_NUMBER_FIELD: &str = "socialSecurityNumber";
+const CHECKOUT_V72_SOCIAL_SECURITY_NUMBER_MAX_LENGTH: usize = 50;
+const CHECKOUT_V72_METADATA_KEY_FIELD: &str = "metadata key";
+const CHECKOUT_V72_METADATA_KEY_MAX_LENGTH: usize = 20;
+const CHECKOUT_V72_METADATA_VALUE_FIELD: &str = "metadata value";
+const CHECKOUT_V72_METADATA_VALUE_MAX_LENGTH: usize = 80;
+const CHECKOUT_V72_SHOPPER_EMAIL_FIELD: &str = "shopperEmail";
+const CHECKOUT_V72_SHOPPER_EMAIL_MAX_LENGTH: usize = 256;
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub enum Currency {
     #[default]
@@ -1303,6 +1327,284 @@ pub struct AdyenPaymentRequest<
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     session_validity: Option<PrimitiveDateTime>,
     application_info: Option<ApplicationInfo>,
+}
+
+fn validate_checkout_v72_field_length(
+    value: &str,
+    field_name: &str,
+    max_length: usize,
+) -> Result<(), Error> {
+    let received_length = value.chars().count();
+    if received_length > max_length {
+        return Err(IntegrationError::MaxFieldLengthViolated {
+            connector: ADYEN_CONNECTOR_NAME.to_string(),
+            field_name: field_name.to_string(),
+            max_length,
+            received_length,
+            context: Default::default(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+// Adyen requires a state for US and CA addresses. For every country, a state
+// that is sent must be a two-letter code; other unmappable states are optional.
+fn normalize_checkout_v72_state(
+    country: common_enums::CountryAlpha2,
+    provided_state: Option<Secret<String>>,
+    mapped_state: Option<Secret<String>>,
+    field_name: &'static str,
+) -> Result<Option<Secret<String>>, Error> {
+    let is_required = matches!(
+        country,
+        common_enums::CountryAlpha2::US | common_enums::CountryAlpha2::CA
+    );
+    match mapped_state.or(provided_state) {
+        Some(state) => {
+            let code = state.peek().to_ascii_uppercase();
+            if is_two_letter_state_code(&code) {
+                Ok(Some(Secret::new(code)))
+            } else if is_required {
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name,
+                    context: Default::default(),
+                }
+                .into())
+            } else {
+                Ok(None)
+            }
+        }
+        None if is_required => Err(IntegrationError::MissingRequiredField {
+            field_name,
+            context: Default::default(),
+        }
+        .into()),
+        None => Ok(None),
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    AdyenPaymentRequest<T>
+{
+    // Apply the v72 address requirements to the shared /payments request.
+    // Adyen's upgrade guide calls the state field stateOrProvinceCode, but the /payments
+    // request model serializes it as stateOrProvince.
+    fn prepare_checkout_v72_addresses(
+        &mut self,
+        billing_state_code: Option<Secret<String>>,
+        delivery_state_code: Option<Secret<String>>,
+    ) -> Result<(), Error> {
+        if let Some(billing) = self.billing_address.as_mut() {
+            billing.state_or_province = normalize_checkout_v72_state(
+                billing.country,
+                billing.state_or_province.take(),
+                billing_state_code,
+                "billingAddress.stateOrProvince",
+            )?;
+            validate_checkout_v72_field_length(
+                billing.postal_code.peek(),
+                CHECKOUT_V72_BILLING_POSTAL_CODE_FIELD,
+                CHECKOUT_V72_POSTAL_CODE_MAX_LENGTH,
+            )?;
+        }
+
+        if let Some(delivery) = self.delivery_address.as_mut() {
+            delivery.state_or_province = normalize_checkout_v72_state(
+                delivery.country,
+                delivery.state_or_province.take(),
+                delivery_state_code,
+                "deliveryAddress.stateOrProvince",
+            )?;
+            validate_checkout_v72_field_length(
+                delivery.postal_code.peek(),
+                CHECKOUT_V72_DELIVERY_POSTAL_CODE_FIELD,
+                CHECKOUT_V72_POSTAL_CODE_MAX_LENGTH,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn validate_checkout_v72_fields(&self) -> Result<(), Error> {
+        validate_checkout_v72_field_length(
+            &self.reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
+        validate_checkout_v72_return_url(&self.return_url)?;
+
+        if let Some(metadata) = self.metadata.as_ref() {
+            validate_checkout_v72_metadata(metadata.peek())?;
+        }
+        if let Some(email) = self.shopper_email.as_ref() {
+            validate_checkout_v72_email(email.peek())?;
+        }
+        if let Some(ip) = self.shopper_ip.as_ref() {
+            validate_checkout_v72_field_length(
+                ip.peek(),
+                CHECKOUT_V72_SHOPPER_IP_FIELD,
+                CHECKOUT_V72_SHOPPER_IP_MAX_LENGTH,
+            )?;
+        }
+        if let Some(name) = self.shopper_name.as_ref() {
+            if let Some(first_name) = name.first_name.as_ref() {
+                validate_checkout_v72_field_length(
+                    first_name.peek(),
+                    CHECKOUT_V72_SHOPPER_FIRST_NAME_FIELD,
+                    CHECKOUT_V72_SHOPPER_NAME_MAX_LENGTH,
+                )?;
+            }
+            if let Some(last_name) = name.last_name.as_ref() {
+                validate_checkout_v72_field_length(
+                    last_name.peek(),
+                    CHECKOUT_V72_SHOPPER_LAST_NAME_FIELD,
+                    CHECKOUT_V72_SHOPPER_NAME_MAX_LENGTH,
+                )?;
+            }
+        }
+        if let Some(phone) = self.telephone_number.as_ref() {
+            validate_checkout_v72_field_length(
+                phone.peek(),
+                CHECKOUT_V72_TELEPHONE_NUMBER_FIELD,
+                CHECKOUT_V72_TELEPHONE_NUMBER_MAX_LENGTH,
+            )?;
+        }
+        if let Some(ssn) = self.social_security_number.as_ref() {
+            validate_checkout_v72_field_length(
+                ssn.peek(),
+                CHECKOUT_V72_SOCIAL_SECURITY_NUMBER_FIELD,
+                CHECKOUT_V72_SOCIAL_SECURITY_NUMBER_MAX_LENGTH,
+            )?;
+        }
+        if self
+            .additional_data
+            .as_ref()
+            .and_then(|data| data.capture_delay_hours)
+            .is_some_and(|hours| hours > 672)
+        {
+            return Err(IntegrationError::InvalidDataFormat {
+                field_name: "additionalData.captureDelayHours",
+                context: Default::default(),
+            }
+            .into());
+        }
+        Ok(())
+    }
+}
+
+fn is_two_letter_state_code(value: &str) -> bool {
+    value.len() == 2
+        && value
+            .bytes()
+            .all(|character| character.is_ascii_uppercase())
+}
+
+fn validate_checkout_v72_metadata(metadata: &serde_json::Value) -> Result<(), Error> {
+    let entries = metadata
+        .as_object()
+        .ok_or(IntegrationError::InvalidDataFormat {
+            field_name: "metadata",
+            context: Default::default(),
+        })?;
+    if entries.len() > 20 {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "metadata",
+            context: Default::default(),
+        }
+        .into());
+    }
+    for (key, value) in entries {
+        validate_checkout_v72_field_length(
+            key,
+            CHECKOUT_V72_METADATA_KEY_FIELD,
+            CHECKOUT_V72_METADATA_KEY_MAX_LENGTH,
+        )?;
+        let value = value.as_str().ok_or(IntegrationError::InvalidDataFormat {
+            field_name: CHECKOUT_V72_METADATA_VALUE_FIELD,
+            context: Default::default(),
+        })?;
+        validate_checkout_v72_field_length(
+            value,
+            CHECKOUT_V72_METADATA_VALUE_FIELD,
+            CHECKOUT_V72_METADATA_VALUE_MAX_LENGTH,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_checkout_v72_return_url(return_url: &str) -> Result<(), Error> {
+    validate_checkout_v72_field_length(
+        return_url,
+        CHECKOUT_V72_RETURN_URL_FIELD,
+        CHECKOUT_V72_RETURN_URL_MAX_LENGTH,
+    )?;
+    if return_url
+        .chars()
+        .any(|character| !character.is_ascii() || character.is_whitespace())
+        || Url::parse(return_url).is_err()
+    {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: CHECKOUT_V72_RETURN_URL_FIELD,
+            context: Default::default(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+fn validate_checkout_v72_email(email: &str) -> Result<(), Error> {
+    validate_checkout_v72_field_length(
+        email,
+        CHECKOUT_V72_SHOPPER_EMAIL_FIELD,
+        CHECKOUT_V72_SHOPPER_EMAIL_MAX_LENGTH,
+    )?;
+    let valid_parts = email.split_once('@').is_some_and(|(name, domain)| {
+        !name.is_empty()
+            && !domain.is_empty()
+            && !domain.starts_with('.')
+            && !domain.contains('@')
+            && (!name.contains('"') || (name.starts_with('"') && name.ends_with('"')))
+    });
+    if email.chars().any(char::is_whitespace) || !valid_parts {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: CHECKOUT_V72_SHOPPER_EMAIL_FIELD,
+            context: Default::default(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+type CheckoutV72StateCodes = (Option<Secret<String>>, Option<Secret<String>>);
+
+fn checkout_v72_state_codes(flow_data: &PaymentFlowData) -> Result<CheckoutV72StateCodes, Error> {
+    let billing_state_code = flow_data
+        .get_optional_billing()
+        .and_then(|billing| billing.address.as_ref())
+        .map(|address| {
+            address.to_state_code_as_optional().change_context(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "billingAddress.stateOrProvince",
+                    context: Default::default(),
+                },
+            )
+        })
+        .transpose()?
+        .flatten();
+    let delivery_state_code = flow_data
+        .get_optional_shipping()
+        .and_then(|shipping| shipping.address.as_ref())
+        .map(|address| {
+            address.to_state_code_as_optional().change_context(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "deliveryAddress.stateOrProvince",
+                    context: Default::default(),
+                },
+            )
+        })
+        .transpose()?
+        .flatten();
+    Ok((billing_state_code, delivery_state_code))
 }
 
 #[serde_with::skip_serializing_none]
@@ -3806,7 +4108,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        match item
+        let (billing_state_code, delivery_state_code) =
+            checkout_v72_state_codes(&item.router_data.resource_common_data)?;
+
+        let mut request = match item
             .router_data
             .request
             .mandate_id
@@ -3956,7 +4261,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
                 .into()),
             },
-        }
+        }?;
+        request.prepare_checkout_v72_addresses(billing_state_code, delivery_state_code)?;
+        request.validate_checkout_v72_fields()?;
+        Ok(request)
     }
 }
 
@@ -4034,13 +4342,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
+        let reference = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        validate_checkout_v72_field_length(
+            &reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
-            reference: item
-                .router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            reference,
         })
     }
 }
@@ -4692,14 +5006,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
+        let reference = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        validate_checkout_v72_field_length(
+            &reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
-            reference: Some(
-                item.router_data
-                    .resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            ),
+            reference: Some(reference),
         })
     }
 }
@@ -6057,8 +6376,15 @@ fn get_recurring_processing_model_for_repeat_payment<
     let shopper_reference = item.resource_common_data.get_connector_customer_id().ok();
 
     match item.request.off_session {
-        // Off-session payment
-        Some(true) => {
+        // Shopper-initiated stored-card payments use CardOnFile.
+        Some(false) => Ok((
+            Some(AdyenRecurringModel::CardOnFile),
+            None,
+            shopper_reference,
+        )),
+        // RepeatPayment is a merchant-initiated charge by default. Without a
+        // shopper-provided CVC, Adyen requires UnscheduledCardOnFile.
+        _ => {
             let shopper_reference =
                 shopper_reference.ok_or(IntegrationError::MissingRequiredField {
                     field_name: "connector_customer_id",
@@ -6070,8 +6396,6 @@ fn get_recurring_processing_model_for_repeat_payment<
                 Some(shopper_reference),
             ))
         }
-        // On-session payment
-        _ => Ok((None, None, shopper_reference)),
     }
 }
 
@@ -6416,6 +6740,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
         };
 
+        validate_checkout_v72_field_length(
+            &item.router_data.request.refund_id,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
+
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             amount: Amount {
@@ -6495,6 +6825,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
         };
+        validate_checkout_v72_field_length(
+            &reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             reference,
@@ -6945,7 +7280,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        match item
+        let (billing_state_code, delivery_state_code) =
+            checkout_v72_state_codes(&item.router_data.resource_common_data)?;
+        let mut request = match item
             .router_data
             .request
             .mandate_id
@@ -6983,7 +7320,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .into(),
                 ),
             },
-        }
+        }?;
+        request
+            .0
+            .prepare_checkout_v72_addresses(billing_state_code, delivery_state_code)?;
+        request.0.validate_checkout_v72_fields()?;
+        Ok(request)
     }
 }
 
@@ -7417,7 +7759,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .get_optional_billing_phone_number();
 
-        Ok(Self(AdyenPaymentRequest {
+        let (billing_state_code, delivery_state_code) =
+            checkout_v72_state_codes(&item.router_data.resource_common_data)?;
+        let mut payment = AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -7464,7 +7808,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .partner_merchant_identifier_details
                     .as_ref(),
             ),
-        }))
+        };
+        payment.prepare_checkout_v72_addresses(billing_state_code, delivery_state_code)?;
+        payment.validate_checkout_v72_fields()?;
+        Ok(Self(payment))
     }
 }
 
@@ -8086,6 +8433,8 @@ fn get_adyen_metadata(metadata: Option<serde_json::Value>) -> AdyenMetadata {
 fn filter_adyen_metadata(metadata: serde_json::Value) -> serde_json::Value {
     if let serde_json::Value::Object(mut map) = metadata.clone() {
         // Remove the fields that are specific to Adyen and should not be passed in metadata
+        // riskdata.* is mapped into additionalData; its keys exceed the v72 metadata limit.
+        map.retain(|key, _| !key.starts_with("riskdata."));
         map.remove("device_fingerprint");
         map.remove("deviceFingerprint");
         map.remove("platform_chargeback_logic");
@@ -8434,12 +8783,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .connector_request_reference_id
             .clone();
+        validate_checkout_v72_field_length(
+            &reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
 
         let return_url = router_data
             .resource_common_data
             .return_url
             .clone()
             .unwrap_or_else(|| "https://hyperswitch.io".to_string());
+        validate_checkout_v72_return_url(&return_url)?;
 
         Ok(Self {
             amount,
@@ -8494,7 +8849,7 @@ impl TryFrom<ResponseRouterData<AdyenClientAuthResponse, Self>>
 
 // ===== OrderCreate (Sessions) Flow =====
 
-/// Adyen CreateSession request (POST /v68/sessions)
+/// Adyen CreateSession request (POST /v72/sessions)
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenOrderCreateRequest {
@@ -8558,6 +8913,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .connector_request_reference_id
             .clone();
+        validate_checkout_v72_field_length(
+            &reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
 
         let country_code = router_data
             .resource_common_data
@@ -8629,11 +8989,11 @@ impl TryFrom<ResponseRouterData<AdyenOrderCreateResponse, Self>>
 }
 
 // ==================== Incremental Authorization ====================
-// Adyen endpoint: POST /v68/payments/{paymentPspReference}/amountUpdates
+// Adyen endpoint: POST /v72/payments/{paymentPspReference}/amountUpdates
 // The `amount.value` is the new total authorized amount (replaces original).
 // Response HTTP 201 indicates the adjustment request was accepted; the final
 // outcome is delivered asynchronously via the AUTHORISATION_ADJUSTMENT webhook.
-// Ref: https://docs.adyen.com/api-explorer/Checkout/68/post/payments/-paymentPspReference-/amountUpdates
+// Ref: https://docs.adyen.com/api-explorer/Checkout/72/post/payments/_paymentPspReference_/amountUpdates
 
 // Adyen's /amountUpdates endpoint is documented to return exactly one synchronous
 // status value — `"received"` — acknowledging that the adjustment has been queued.
@@ -8677,18 +9037,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
+        let reference = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        validate_checkout_v72_field_length(
+            &reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             amount: Amount {
                 currency: item.router_data.request.currency,
                 value: item.router_data.request.amount.amount.to_owned(),
             },
-            reference: Some(
-                item.router_data
-                    .resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            ),
+            reference: Some(reference),
         })
     }
 }

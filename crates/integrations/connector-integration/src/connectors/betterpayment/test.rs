@@ -423,6 +423,7 @@ fn authorize_request() -> PaymentsAuthorizeData<DefaultPCIHolder> {
         mandate_id: None,
         setup_future_usage: None,
         off_session: None,
+        is_stored_credential: None,
         browser_info: None,
         order_category: None,
         session_token: None,
