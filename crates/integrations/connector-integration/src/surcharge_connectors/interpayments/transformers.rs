@@ -327,8 +327,10 @@ impl
         Ok(Self {
             s_tx_id: data.request.connector_surcharge_id.clone(),
             amount: super::InterPaymentsAmountConvertor::convert(
-                data.request.amount,
-                data.request.currency,
+                &common_utils::types::Money {
+                    amount: data.request.amount,
+                    currency: data.request.currency,
+                },
             )?,
         })
     }
@@ -370,9 +372,12 @@ impl TryFrom<ResponseRouterData<InterPaymentsSurchargeRefundInitResponse, Self>>
         }
         let currency = item.router_data.request.currency;
         let convert = |amount| {
-            super::InterPaymentsAmountConvertor::convert_back(amount, currency).change_context(
-                utils::response_handling_fail_for_connector(item.http_code, "interpayments"),
-            )
+            super::InterPaymentsAmountConvertor::convert_back(amount, currency)
+                .map(|money| money.amount)
+                .change_context(utils::response_handling_fail_for_connector(
+                    item.http_code,
+                    "interpayments",
+                ))
         };
         let refund_amount = convert(response.refund)?;
         let original_transaction_fee = convert(response.original_transaction_fee)?;
