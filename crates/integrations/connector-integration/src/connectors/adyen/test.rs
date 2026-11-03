@@ -4,7 +4,7 @@
 #[allow(clippy::panic)]
 #[allow(clippy::indexing_slicing)]
 #[allow(clippy::print_stdout)]
-#[allow(clippy::panic_in_result_fn)]
+#[allow(clippy::unwrap_in_result)]
 mod tests {
     pub mod authorize {
         use std::{borrow::Cow, marker::PhantomData, str::FromStr};
