@@ -293,8 +293,12 @@ fn build_nuvei_wallet_card(
                 token.application_primary_account_number.clone(),
                 token.card_exp_month.clone(),
                 token.get_four_digit_expiry_year().change_context(
-                    IntegrationError::RequestEncodingFailed {
-                        context: Default::default(),
+                    IntegrationError::InvalidDataFormat {
+                        field_name: "card_exp_year",
+                        context: nuvei_error_context(
+                            "Send a two- or four-digit expiry year in the decrypted Google Pay token",
+                            "Nuvei could not convert the decrypted Google Pay card_exp_year to a four-digit expiry year",
+                        ),
                     },
                 )?,
                 token.cryptogram.clone(),
