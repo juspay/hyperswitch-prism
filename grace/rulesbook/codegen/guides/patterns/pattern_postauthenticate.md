@@ -207,7 +207,7 @@ fields PostAuthenticate is normally expected to populate:
 
 | Field | Meaning after PostAuthenticate |
 | --- | --- |
-| `trans_status` | EMV 3DS `transStatus` (Y/A/N/U/C/D/I/R). |
+| `trans_status` | EMV 3DS `transStatus` (Y/A/N/U/C/D/I/R/S). |
 | `eci` | Electronic Commerce Indicator returned by the ACS. |
 | `cavv` | Cardholder Authentication Verification Value (liability-shift proof). |
 | `threeds_server_transaction_id` | XID equivalent — identifies this EMV 3DS transaction. |
@@ -488,7 +488,7 @@ pub struct CybersourceAuthValidateRequest<
 5. **Problem:** Reaching for a request-side error variant (`MissingRequiredField`, `NotImplemented`, `InvalidDataFormat`, …) on `ConnectorError` — **E0599**.
    **Solution:** The two error enums in `crates/types-traits/domain_types/src/errors.rs` split by phase. `pub enum ConnectorError` has exactly five, all response-side, variants: `ResponseDeserializationFailed { context }`, `ResponseHandlingFailed { context }`, `UnexpectedResponseError { context }`, `IntegrityCheckFailed { context, field_names, connector_transaction_id }`, `ConnectorErrorResponse(Box<ErrorResponse>)`. Everything request-side (`MissingRequiredField { field_name, context }`, `NotImplemented(..)`, `InvalidDataFormat { .. }`, `BodySerializationFailed { context }`, …) belongs to `IntegrationError` in the same file. Use `ConnectorError` when parsing the CRes response and `IntegrationError` when building the request.
 6. **Problem:** `common_enums::TransactionStatus` parsing fails on lowercase strings.
-   **Solution:** Normalise the case on the connector payload before calling `.parse::<TransactionStatus>()`. Nexixpay accepts the value as-is because the gateway returns the EMV 3DS single-letter codes verbatim. `pub enum TransactionStatus` lives in `crates/common/common_enums/src/enums.rs` and has eight variants, each `#[serde(rename = ..)]`d to its letter: `Y` Success, `N` Failure, `U` VerificationNotPerformed, `A` NotVerified, `R` Rejected, `C` ChallengeRequired, `D` ChallengeRequiredDecoupledAuthentication, `I` InformationOnly. `Failure` is the `#[default]`.
+   **Solution:** Normalise the case on the connector payload before calling `.parse::<TransactionStatus>()`. Nexixpay accepts the value as-is because the gateway returns the EMV 3DS single-letter codes verbatim. `pub enum TransactionStatus` lives in `crates/common/common_enums/src/enums.rs` and has nine variants, each `#[serde(rename = ..)]`d to its letter: `Y` Success, `N` Failure, `U` VerificationNotPerformed, `A` NotVerified, `R` Rejected, `C` ChallengeRequired, `D` ChallengeRequiredDecoupledAuthentication, `I` InformationOnly, `S` SecurePaymentConfirmationRequired. `Failure` is the `#[default]`.
 7. **Problem:** Authoring a PostAuthenticate impl for a connector whose trio is only two legs.
    **Solution:** Do not register a macro wiring and do not add the marker trait. Declare `PostAuthenticate` in `macros::macro_connector_flow_status_impls!` under `not_implemented:` or `not_supported:` (Redsys, `connectors/redsys.rs`).
 

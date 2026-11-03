@@ -3,7 +3,7 @@
 SDK Code Generator — Generates type-safe client methods for all SDKs.
 
 This generator cross-references:
-  1. services.proto (via protoc descriptor) → RPC definitions with types and docs
+  1. Service definitions across public protos (via protoc descriptor) → RPCs with types and docs
   2. services/*.rs → which flows have req_transformer implementations
 
 Generates flow methods (authorize, capture, refund, etc.) for each SDK,
@@ -37,18 +37,18 @@ FFI_SERVICES_DIR = REPO_ROOT / "crates/ffi/ffi/src/services"
 
 PROTO_DIR = REPO_ROOT / "crates/types-traits/grpc-api-types/proto"
 
-# Auto-discover proto files, excluding internal/non-public protos
-# services.proto is loaded last since it imports the others
+# Auto-discover proto files, excluding internal/non-public protos.
 PROTO_EXCLUDES = {
     "health_check.proto",  # Internal health check service
     "composite_payment.proto",  # Composite payment implementation
     "composite_services.proto",  # Composite services implementation
 }
 
-# Auto-discover all proto files and sort with services.proto last
+# Auto-discover all public proto files.
 _all_proto_files = sorted(p.name for p in PROTO_DIR.glob("*.proto") if p.name not in PROTO_EXCLUDES)
-# Move services.proto to the end since it imports others
-PROTO_FILES = [f for f in _all_proto_files if f != "services.proto"] + ["services.proto"]
+# Keep the central services first; dispute.proto supplies its message types.
+# The parser gives duplicate RPC names (such as Get) to the first service seen.
+PROTO_FILES = [f for f in _all_proto_files if f not in {"services.proto", "dispute.proto"}] + ["services.proto", "dispute.proto"]
 
 RUST_HANDLERS_OUT = REPO_ROOT / "crates/ffi/ffi/src/handlers/_generated_flow_registrations.rs"
 RUST_FFI_FLOWS_OUT = REPO_ROOT / "crates/ffi/ffi/src/bindings/_generated_ffi_flows.rs"

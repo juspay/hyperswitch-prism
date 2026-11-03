@@ -4,12 +4,17 @@ environment = "sandbox"
 # WARNING: Enabling this can produce large gRPC error trailers. Client applications
 # and intermediate proxies must support a sufficiently large HTTP/2 maximum
 # header-list size.
-return_raw_and_typed_connector_data = true
+return_raw_connector_data = true
+return_typed_connector_data = true
 
 [log.console]
 enabled = true
-level = "TRACE"
-log_format = "default"
+# TRACE emits every span and event on every request, which is far more than a
+# deployed environment needs and expensive at payment volumes. `json` keeps the
+# output parseable by log aggregators; `default` is the human-readable format
+# and is kept in development.toml.
+level = "DEBUG"
+log_format = "json"
 
 [server]
 host = "0.0.0.0"
@@ -26,6 +31,8 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+betterpayment.base_url = "https://testapi.betterpayment.de"
+ecommpay.base_url = "https://api.ecommpay.com/"
 payhere.base_url = "https://sandbox.payhere.lk"
 travelhub.base_url = "https://preprod.travel.worldline-solutions.com/travelhub"
 d24.base_url = "https://api-stg.directa24.com"
@@ -37,6 +44,10 @@ paydotcom.base_url = "https://api.sandbox.pay.com"
 ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"
 globalpayments_heartland.base_url = "https://cert.api2.heartlandportico.com/Hps.Exchange.PosGateway/PosGatewayService.asmx"
 worldpayraft.base_url = "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
+# Redirect/Payment API family (authorize + payment enquiry)
+reddot.base_url = "https://secure-dev.reddotpayment.com"
+# Merchant API family (refund + merchant enquiry) — RDP serves it on a separate host
+reddot.secondary_base_url = "https://test.reddotpayment.com"
 payhound.base_url = "https://sandbox-api.payhound.com"
 grabpay.base_url = "https://partner-api.stg-myteksi.com/grabpay/partner/v2"
 maya.base_url = "https://pg-sandbox.paymaya.com"
@@ -45,6 +56,7 @@ tesouro.base_url = "https://api.sandbox.tesouro.com"
 kount.base_url = "https://api-sandbox.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
 nsure.base_url = "https://sandbox.nsureapi.com"
+clearsale_br.base_url = "https://homologacao.clearsale.com.br/api"
 plaid.base_url = "https://sandbox.plaid.com"
 glomopay.base_url = "https://api.glomopay.com/api/v1/"
 hyperswitch.base_url = "https://sandbox.hyperswitch.io"
@@ -79,8 +91,8 @@ iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 imerchantsolutions.base_url = "https://imerchantsolutions.com/api"
 interpayments.base_url = "https://api-test.interpayments.com/v1"
 twoc_twop_paco.base_url = "https://core.demo-paco.2c2p.com"
-jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
-jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
+jpmorgan.base_url = "https://api-ms-test.payments.jpmorgan.com/api/v2"
+jpmorgan.secondary_base_url = "https://idag2.jpmorganchase.com"
 jpmorganorbital.base_url = "https://orbitalvar1.chasepaymentech.com/gwapi/v4/gateway"
 nmi.base_url = "https://secure.nmi.com"
 nmi.secondary_base_url = "https://sandbox.nmi.com"
@@ -107,9 +119,8 @@ checkout.base_url = "https://api.sandbox.checkout.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 phonepe.base_url = "https://api-preprod.phonepe.com/apis/hermes/"
 cashfree.base_url = "https://sandbox.cashfree.com/"
-fiuu.base_url = "https://sandbox.merchant.razer.com/"
-fiuu.secondary_base_url = "https://sandbox.merchant.razer.com/"
-fiuu.third_base_url = "https://api.merchant.razer.com/"
+fiuu.base_url = "https://sandbox-payment.fiuu.com/"
+fiuu.secondary_base_url = "https://sandbox-api.fiuu.com/"
 payload.base_url = "https://api.payload.com"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 payu.base_url = "https://secure.snd.payu.com/"
@@ -204,7 +215,7 @@ enqueue_timeout_ms = 5000
 # sasl_password = ""
 
 [unmasked_headers]
-keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name"]
+keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name","x-payment-method","x-payment-method-type"]
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
@@ -217,7 +228,7 @@ enabled = false
 # --- Superposition: where policy comes from ---------------------------------
 # source = "file" (default): the baked config/superposition.toml, watched for
 # changes. source = "remote": the same provider over a remote workspace, polled
-# every polling_interval seconds, with the baked file as the provider's init-time
+# every polling_interval_milliseconds, with the baked file as the provider's init-time
 # fallback. Boot never fails because of Superposition: a remote source without
 # endpoint/token/org/workspace, or an unreachable workspace, is reported and the
 # baked file serves policy.
@@ -228,8 +239,8 @@ endpoint = ""                   # e.g. http://superposition.<ns>.svc.cluster.loc
 token = ""                      # secret: CS__SUPERPOSITION__TOKEN from the k8s secret
 org_id = "hyperswitch"
 workspace_id = ""               # the prism workspace
-polling_interval = 15           # seconds
-# request_timeout = 60          # parity with hyperswitch; the provider only logs it today
+polling_interval_milliseconds = 15000   # milliseconds
+# request_timeout_milliseconds = 60000  # milliseconds; bounds each poll (default: no timeout)
 # backup_file_path = ""         # default: the baked config/superposition.toml
 
 # --- Déjà record/replay ---------------------------------------------------------

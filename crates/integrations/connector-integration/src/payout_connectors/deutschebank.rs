@@ -80,13 +80,13 @@ macros::create_all_prerequisites!(
             flow: PayoutEligibility,
             request_body: DeutschebankVopRequest,
             response_body: DeutschebankVopResponse,
-            router_data: RouterDataV2<PayoutEligibility, PayoutFlowData, PayoutEligibilityRequest, PayoutEligibilityResponse>,
+            router_data: RouterDataV2<PayoutEligibility, PayoutFlowData, PayoutEligibilityRequest<T>, PayoutEligibilityResponse>,
         ),
         (
             flow: PayoutTransfer,
             request_body: DeutschebankSepaPaymentRequest,
             response_body: DeutschebankSepaPaymentResponse,
-            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,
         ),
         (
             flow: PayoutGet,
@@ -417,17 +417,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== PAYOUT SERVICE TRAIT + REAL-FLOW MARKERS =====
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutServiceTrait
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutServiceTrait<T>
     for DeutschebankPayouts<T>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutEligibilityV2
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutEligibilityV2<T>
     for DeutschebankPayouts<T>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutTransferV2
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutTransferV2<T>
     for DeutschebankPayouts<T>
 {
 }
@@ -497,7 +497,7 @@ macros::macro_connector_implementation!(
     curl_response: DeutschebankVopResponse,
     flow_name: PayoutEligibility,
     resource_common_data: PayoutFlowData,
-    flow_request: PayoutEligibilityRequest,
+    flow_request: PayoutEligibilityRequest<T>,
     flow_response: PayoutEligibilityResponse,
     http_method: Post,
     generic_type: T,
@@ -508,7 +508,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<
                 PayoutEligibility,
                 PayoutFlowData,
-                PayoutEligibilityRequest,
+                PayoutEligibilityRequest<T>,
                 PayoutEligibilityResponse,
             >,
         ) -> CustomResult<String, IntegrationError> {
@@ -523,7 +523,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<
                 PayoutEligibility,
                 PayoutFlowData,
-                PayoutEligibilityRequest,
+                PayoutEligibilityRequest<T>,
                 PayoutEligibilityResponse,
             >,
         ) -> CustomResult<Option<Request>, IntegrationError> {
@@ -539,7 +539,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<
                 PayoutEligibility,
                 PayoutFlowData,
-                PayoutEligibilityRequest,
+                PayoutEligibilityRequest<T>,
                 PayoutEligibilityResponse,
             >,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
@@ -551,7 +551,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<
                 PayoutEligibility,
                 PayoutFlowData,
-                PayoutEligibilityRequest,
+                PayoutEligibilityRequest<T>,
                 PayoutEligibilityResponse,
             >,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
@@ -563,7 +563,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<
                 PayoutEligibility,
                 PayoutFlowData,
-                PayoutEligibilityRequest,
+                PayoutEligibilityRequest<T>,
                 PayoutEligibilityResponse,
             >,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
@@ -581,7 +581,7 @@ macros::macro_connector_implementation!(
     curl_response: DeutschebankSepaPaymentResponse,
     flow_name: PayoutTransfer,
     resource_common_data: PayoutFlowData,
-    flow_request: PayoutTransferRequest,
+    flow_request: PayoutTransferRequest<T>,
     flow_response: PayoutTransferResponse,
     http_method: Post,
     generic_type: T,
@@ -592,7 +592,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
         ) -> CustomResult<String, IntegrationError> {
@@ -607,7 +607,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
         ) -> CustomResult<Option<Request>, IntegrationError> {
@@ -637,7 +637,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
@@ -649,7 +649,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
@@ -661,7 +661,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
         ) -> CustomResult<Option<Secret<String>>, IntegrationError> {

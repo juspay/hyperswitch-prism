@@ -391,6 +391,8 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         merchant_id: Secret<String>,
         base_url: Option<String>,
+        /// HMAC-SHA256 webhook signing secret used to verify the `ppro-signature` header.
+        webhook_secret: Option<Secret<String>>,
     },
     Easebuzz {
         api_key: Secret<String>,
@@ -470,7 +472,10 @@ pub enum ConnectorSpecificConfig {
     },
     Jpmorgan {
         client_id: Secret<String>,
-        client_secret: Secret<String>,
+        thumbprint: Secret<String>,
+        private_key: Secret<String>,
+        resource_id: Secret<String>,
+        merchant_id: HashMap<common_enums::Currency, Secret<String>>,
         base_url: Option<String>,
         secondary_base_url: Option<String>,
         company_name: Option<Secret<String>>,
@@ -764,7 +769,10 @@ pub enum ConnectorSpecificConfig {
     Worldpayvantiv {
         user: Secret<String>,
         password: Secret<String>,
-        merchant_id: Secret<String>,
+        /// Single merchant ID used for every currency.
+        merchant_id: Option<Secret<String>>,
+        /// Merchant IDs keyed by currency; used when `merchant_id` is not set.
+        merchant_id_by_currency: Option<HashMap<common_enums::Currency, Secret<String>>>,
         base_url: Option<String>,
         secondary_base_url: Option<String>,
         report_group: Option<String>,
@@ -981,6 +989,11 @@ pub enum ConnectorSpecificConfig {
     },
     Kount {
         api_key: Secret<String>,
+        /// Kount-assigned merchant CID, used as the DDC Web SDK `clientID`.
+        /// Only the Device Data Collection flow needs it; other Kount flows
+        /// work without one. Presence is validated where DDC builds the
+        /// script, not here.
+        client_id: Option<String>,
         /// Kount OAuth authorization-server id; account/environment specific.
         /// Falls back to the sandbox auth server when `None`.
         auth_server_id: Option<String>,
@@ -998,6 +1011,19 @@ pub enum ConnectorSpecificConfig {
         app_id: Option<String>,
         /// `x-nsure-api-version` value; defaults to 2.0.0 when `None`.
         api_version: Option<String>,
+        base_url: Option<String>,
+    },
+    ClearSaleBr {
+        /// ClearSale account username, sent as `name` on `POST /v1/authenticate`.
+        /// Carried under this name in the RiskManagementAccount `accountDetailsJson`.
+        username: Secret<String>,
+        /// ClearSale account password, sent as `password` on `POST /v1/authenticate`.
+        password: Secret<String>,
+        /// Customer type for the order `b2bB2c` field ("b2b"/"b2c");
+        /// merchant-specific, stored on the RiskManagementAccount.
+        b2b_b2c: Option<String>,
+        /// ClearSale product id for the order `product` field, when the
+        product: Option<i32>,
         base_url: Option<String>,
     },
     Grabpay {
@@ -1132,6 +1158,28 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    Betterpayment {
+        api_key: Secret<String>,
+        api_password: Secret<String>,
+        webhook_key: Option<Secret<String>>,
+        base_url: Option<String>,
+    },
+    Reddot {
+        mid: Secret<String>,
+        secret: Secret<String>,
+        acquirer_cybersource: String,
+        base_url: Option<String>,
+    },
+    /// Ecommpay Gate API v2.
+    /// `project_id` = `general.project_id`, the project identifier; sent on the wire as an
+    ///                integer (1–4294967295), so it must be numeric.
+    /// `secret_key` = the HMAC-SHA512 signing key for `general.signature` and for verifying
+    ///                response/callback signatures. Never transmitted.
+    Ecommpay {
+        project_id: Secret<String>,
+        secret_key: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Payhound — hosted crypto invoice gateway. HMAC-SHA512 signed requests, so the
     /// credentials are an API key plus the signing secret; there is no third credential.
     Payhound {
@@ -1164,6 +1212,7 @@ fn connector_patch_key(variant: &str) -> String {
         "GlobalpaymentsHeartland" => "globalpayments_heartland",
         "ElavonPg" => "elavon_pg",
         "GlobalpaymentsRealex" => "globalpayments_realex",
+        "ClearSaleBr" => "clearsale_br",
         other => return other.to_ascii_lowercase(),
     }
     .to_string()
@@ -1229,7 +1278,9 @@ impl ConnectorSpecificConfig {
             },
             Jpmorgan {
                 client_id,
-                client_secret
+                thumbprint,
+                private_key,
+                resource_id
             },
             Loonio {
                 merchant_id,
@@ -1519,6 +1570,7 @@ impl ConnectorSpecificConfig {
             Tamara { api_key },
             Kount { api_key },
             Nsure { api_key },
+            ClearSaleBr { username, password },
             Hyperswitch { api_key },
             Grabpay {
                 partner_id,
@@ -1579,6 +1631,21 @@ impl ConnectorSpecificConfig {
                 app_secret,
                 merchant_secret,
                 base_url
+            },
+            Betterpayment {
+                api_key,
+                api_password,
+                webhook_key
+            },
+            Reddot {
+                mid,
+                secret,
+                acquirer_cybersource,
+                base_url
+            },
+            Ecommpay {
+                project_id,
+                secret_key
             },
             Payhound {
                 api_key,
@@ -1769,7 +1836,9 @@ impl ConnectorSpecificConfig {
                 },
                 Jpmorgan {
                     client_id,
-                    client_secret
+                    thumbprint,
+                    private_key,
+                    resource_id
                 },
                 Loonio {
                     merchant_id,
@@ -2060,6 +2129,7 @@ impl ConnectorSpecificConfig {
                 Tamara { api_key },
                 Kount { api_key },
                 Nsure { api_key },
+                ClearSaleBr { username, password },
                 Hyperswitch { api_key },
                 Grabpay {
                     partner_id,
@@ -2120,6 +2190,21 @@ impl ConnectorSpecificConfig {
                     app_secret,
                     merchant_secret,
                     base_url
+                },
+                Betterpayment {
+                    api_key,
+                    api_password,
+                    webhook_key
+                },
+                Reddot {
+                    mid,
+                    secret,
+                    acquirer_cybersource,
+                    base_url
+                },
+                Ecommpay {
+                    project_id,
+                    secret_key
                 },
                 Payhound {
                     api_key,
@@ -2336,7 +2421,15 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             }),
             AuthType::Jpmorgan(jpmorgan) => Ok(Self::Jpmorgan {
                 client_id: jpmorgan.client_id.ok_or_else(err)?,
-                client_secret: jpmorgan.client_secret.ok_or_else(err)?,
+                thumbprint: jpmorgan.thumbprint.ok_or_else(err)?,
+                private_key: jpmorgan.private_key.ok_or_else(err)?,
+                resource_id: jpmorgan.resource_id.ok_or_else(err)?,
+                merchant_id: serde_json::to_value(jpmorgan.merchant_id)
+                    .and_then(serde_json::from_value)
+                    .change_context(errors::IntegrationError::InvalidConnectorConfig {
+                        config: "merchant_id",
+                        context: Default::default(),
+                    })?,
                 base_url: jpmorgan.base_url,
                 secondary_base_url: jpmorgan.secondary_base_url,
                 company_name: jpmorgan.company_name,
@@ -2501,7 +2594,19 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Worldpayvantiv(worldpayvantiv) => Ok(Self::Worldpayvantiv {
                 user: worldpayvantiv.user.ok_or_else(err)?,
                 password: worldpayvantiv.password.ok_or_else(err)?,
-                merchant_id: worldpayvantiv.merchant_id.ok_or_else(err)?,
+                merchant_id: worldpayvantiv.merchant_id,
+                merchant_id_by_currency: if worldpayvantiv.merchant_id_by_currency.is_empty() {
+                    None
+                } else {
+                    Some(
+                        serde_json::to_value(worldpayvantiv.merchant_id_by_currency)
+                            .and_then(serde_json::from_value)
+                            .change_context(errors::IntegrationError::InvalidConnectorConfig {
+                                config: "merchant_id_by_currency",
+                                context: Default::default(),
+                            })?,
+                    )
+                },
                 base_url: worldpayvantiv.base_url,
                 secondary_base_url: worldpayvantiv.secondary_base_url,
                 report_group: worldpayvantiv.report_group,
@@ -2712,6 +2817,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: ppro.api_key.ok_or_else(err)?,
                 merchant_id: ppro.merchant_id.ok_or_else(err)?,
                 base_url: ppro.base_url,
+                webhook_secret: ppro.webhook_secret,
             }),
             AuthType::PinelabsOnline(pinelabs_online) => Ok(Self::PinelabsOnline {
                 client_id: pinelabs_online.client_id.ok_or_else(err)?,
@@ -2748,6 +2854,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             }),
             AuthType::Kount(kount) => Ok(Self::Kount {
                 api_key: kount.api_key.ok_or_else(err)?,
+                // A blank CID renders `clientID: ""` — a DDC script that loads and
+                // silently collects nothing. Treat empty/whitespace as missing, the
+                // same way the Paysafe account ids do in `get_account_id` above.
+                // Absence itself is fine here: only the DDC flow needs a CID, and
+                // it validates that when it builds the script.
+                client_id: kount.client_id.filter(|id| !id.trim().is_empty()),
                 auth_server_id: kount.auth_server_id,
                 khash_config_key: kount.khash_config_key,
                 base_url: kount.base_url,
@@ -2757,6 +2869,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 app_id: nsure.app_id,
                 api_version: nsure.api_version,
                 base_url: nsure.base_url,
+            }),
+            AuthType::ClearsaleBr(clearsale_br) => Ok(Self::ClearSaleBr {
+                username: clearsale_br.username.ok_or_else(err)?,
+                password: clearsale_br.password.ok_or_else(err)?,
+                b2b_b2c: clearsale_br.b2b_b2c,
+                product: clearsale_br.product,
+                base_url: clearsale_br.base_url,
             }),
             AuthType::Hyperswitch(hyperswitch) => Ok(Self::Hyperswitch {
                 api_key: hyperswitch.api_key.ok_or_else(err)?,
@@ -2850,6 +2969,23 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 app_secret: payhere.app_secret.ok_or_else(err)?,
                 merchant_secret: payhere.merchant_secret.ok_or_else(err)?,
                 base_url: payhere.base_url,
+            }),
+            AuthType::Betterpayment(betterpayment) => Ok(Self::Betterpayment {
+                api_key: betterpayment.api_key.ok_or_else(err)?,
+                api_password: betterpayment.api_password.ok_or_else(err)?,
+                webhook_key: betterpayment.webhook_key,
+                base_url: betterpayment.base_url,
+            }),
+            AuthType::Reddot(reddot) => Ok(Self::Reddot {
+                mid: reddot.mid.ok_or_else(err)?,
+                secret: reddot.secret.ok_or_else(err)?,
+                acquirer_cybersource: reddot.acquirer_cybersource,
+                base_url: reddot.base_url,
+            }),
+            AuthType::Ecommpay(ecommpay) => Ok(Self::Ecommpay {
+                project_id: ecommpay.project_id.ok_or_else(err)?,
+                secret_key: ecommpay.secret_key.ok_or_else(err)?,
+                base_url: ecommpay.base_url,
             }),
             AuthType::Payhound(payhound) => Ok(Self::Payhound {
                 api_key: payhound.api_key.ok_or_else(err)?,
@@ -3221,9 +3357,17 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::Jpmorgan => match auth {
-                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Jpmorgan {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Jpmorgan {
                         client_id: api_key.clone(),
-                        client_secret: key1.clone(),
+                        thumbprint: key1.clone(),
+                        private_key: api_secret.clone(),
+                        resource_id: key2.clone(),
+                        merchant_id: HashMap::new(),
                         base_url: None,
                         secondary_base_url: None,
                         company_name: None,
@@ -3793,7 +3937,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     } => Ok(Self::Worldpayvantiv {
                         user: api_key.clone(),
                         password: api_secret.clone(),
-                        merchant_id: key1.clone(),
+                        merchant_id: Some(key1.clone()),
+                        merchant_id_by_currency: None,
                         base_url: None,
                         secondary_base_url: None,
                         report_group: None,
@@ -3807,7 +3952,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     } => Ok(Self::Worldpayvantiv {
                         user: api_key.clone(),
                         password: api_secret.clone(),
-                        merchant_id: key1.clone(),
+                        merchant_id: Some(key1.clone()),
+                        merchant_id_by_currency: None,
                         base_url: None,
                         secondary_base_url: None,
                         report_group: None,
@@ -4051,6 +4197,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                             api_key: api_key.clone(),
                             merchant_id: key1.clone(),
                             base_url: None,
+                            webhook_secret: None,
                         })
                     }
                     _ => Err(err().into()),
@@ -4115,15 +4262,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
                         api_key: api_key.clone(),
                         account_id: key1.clone(),
-                        base_url: None,
-                    }),
-                    _ => Err(err().into()),
-                },
-                ConnectorEnum::Kount => match auth {
-                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
-                        api_key: api_key.clone(),
-                        auth_server_id: None,
-                        khash_config_key: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -4273,6 +4411,46 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Betterpayment => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Betterpayment {
+                        api_key: api_key.clone(),
+                        api_password: key1.clone(),
+                        webhook_key: Some(api_secret.clone()),
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Betterpayment {
+                        api_key: api_key.clone(),
+                        api_password: key1.clone(),
+                        webhook_key: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Reddot => Err(errors::IntegrationError::FailedToObtainAuthType {
+                    context: crate::errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Legacy RedDot auth cannot specify acquirer_cybersource".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Use typed RedDot config with mid, secret, and acquirer_cybersource"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into()),
+                ConnectorEnum::Ecommpay => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
+                        secret_key: api_key.clone(),
+                        project_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 // Payhound signs every request with an HMAC-SHA512 secret, so it is configured as
                 // a SignatureKey pair; `key1` is unused because Payhound has no third credential.
                 ConnectorEnum::Payhound => match auth {
@@ -4397,6 +4575,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 connector_types::FrmConnectorEnum::Kount => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
                         api_key: api_key.clone(),
+                        client_id: None,
                         auth_server_id: None,
                         khash_config_key: None,
                         base_url: None,
@@ -4422,6 +4601,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                connector_types::FrmConnectorEnum::ClearsaleBr => match auth {
+                    // ClearSale logs in with a name + password pair. The legacy
+                    // BodyKey creds.json shape carries it as api_key/key1; map
+                    // those onto the connector's own username/password fields.
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::ClearSaleBr {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        b2b_b2c: None,
+                        product: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
             connector_types::ConnectorVariant::Authenticator(connector_enum) => {
                 match connector_enum {
@@ -4437,6 +4629,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 }
             }
             connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
+                PayoutConnectorEnum::Nuvei => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Nuvei {
+                        merchant_id: api_key.clone(),
+                        merchant_site_id: key1.clone(),
+                        merchant_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Loonio => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
                         merchant_id: api_key.clone(),
@@ -4482,6 +4687,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         client_secret: key1.clone(),
                         certificates: Some(api_secret.clone()),
                         private_key: Some(key2.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Stripe => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Stripe {
+                        api_key: api_key.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -4532,6 +4744,20 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                PayoutConnectorEnum::Gigadat => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Gigadat {
+                        security_token: api_secret.clone(),
+                        access_token: api_key.clone(),
+                        campaign_id: key1.clone(),
+                        base_url: None,
+                        site: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Santander => Err(err().into()),
                 PayoutConnectorEnum::GotymeSanlam => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::GotymeSanlam {
@@ -4542,6 +4768,15 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 PayoutConnectorEnum::Truelayer => Err(err().into()),
+                PayoutConnectorEnum::Mifinity => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Mifinity {
+                        key: api_key.clone(),
+                        base_url: None,
+                        brand_id: None,
+                        destination_account_number: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Trustly => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
@@ -4814,6 +5049,13 @@ impl ConnectorResponseData {
                 card_network: None,
                 domestic_network: None,
                 auth_code: Some(auth_code),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             },
         };
         Self {
@@ -4867,6 +5109,21 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         domestic_network: Option<String>,
         /// auth code returned by the processor
         auth_code: Option<String>,
+        /// Normalized card network returned by the processor. `card_network` retains the
+        /// connector-specific spelling used by later calls to the same connector.
+        processor_card_network: Option<common_enums::CardNetwork>,
+        /// The card's product/subtype, as returned by the connector
+        card_subtype: Option<String>,
+        /// The card's segment type (consumer vs commercial)
+        card_segment_type: Option<common_enums::CardSegmentType>,
+        /// The card's funding source type
+        funding_source: Option<common_enums::FundingSource>,
+        /// The card type (credit, debit, prepaid, charge)
+        card_type: Option<common_enums::CardType>,
+        /// The name of the card issuer
+        issuer_name: Option<String>,
+        /// The country of the card issuer
+        issuer_country: Option<common_enums::CountryAlpha2>,
     },
     Upi {
         /// UPI source detected from the connector response

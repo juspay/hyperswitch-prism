@@ -88,6 +88,12 @@ impl BrowserInformation {
             .clone()
             .ok_or_else(utils::missing_field_err("browser_info.referer"))
     }
+    /// `"<width>x<height>"` when both screen dimensions are present.
+    pub fn get_optional_screen_resolution(&self) -> Option<String> {
+        self.screen_width
+            .zip(self.screen_height)
+            .map(|(width, height)| format!("{width}x{height}"))
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -99,7 +105,6 @@ pub enum SyncRequestType {
 
 #[derive(Debug, Default, Clone)]
 pub struct PaymentsCancelData {
-    pub amount: Option<i64>,
     pub currency: Option<Currency>,
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
@@ -237,7 +242,7 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
                 field_name: "transaction_status",
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(format!(
-                        "Invalid transaction status format. Expected one of: Y, N, U, A, R, C, D, I. Provided: '{}'",
+                        "Invalid transaction status format. Expected one of: Y, N, U, A, R, C, D, I, S. Provided: '{}'",
                         trans_status
                     )),
                     ..Default::default()
@@ -411,7 +416,7 @@ pub struct SetupMandateIntegrityObject {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RepeatPaymentIntegrityObject {
     /// Payment amount
-    pub amount: i64,
+    pub amount: MinorUnit,
     /// Payment currency
     pub currency: Currency,
     /// Mandate reference

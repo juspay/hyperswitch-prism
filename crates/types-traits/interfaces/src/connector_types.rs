@@ -165,18 +165,20 @@ pub trait FrmServiceTrait:
 {
 }
 
-pub trait PayoutServiceTrait:
+pub trait PayoutServiceTrait<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorCommon
     + ServerAuthentication
-    + PayoutCreateV2
-    + PayoutTransferV2
+    + PayoutCreateV2<T>
+    + PayoutTransferV2<T>
     + PayoutGetV2
     + PayoutVoidV2
-    + PayoutStageV2
-    + PayoutCreateLinkV2
-    + PayoutCreateRecipientV2
-    + PayoutEnrollDisburseAccountV2
-    + PayoutEligibilityV2
+    + PayoutStageV2<T>
+    + PayoutCreateLinkV2<T>
+    + PayoutCreateRecipientV2<T>
+    + PayoutEnrollDisburseAccountV2<T>
+    + PayoutEligibilityV2<T>
 {
 }
 
@@ -206,7 +208,12 @@ pub trait PaymentMethodEligibilityV2:
 }
 
 pub trait AuthenticatorServiceTrait<T: PaymentMethodDataTypes>:
-    ConnectorCommon + ValidationTrait + ClientAuthentication + PaymentTokenV2<T> + GetPaymentMethodV2
+    ConnectorCommon
+    + ValidationTrait
+    + ClientAuthentication
+    + PaymentTokenV2<T>
+    + GetPaymentMethodV2
+    + PaymentMethodEligibilityV2
 {
 }
 
@@ -216,12 +223,33 @@ pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Syn
 
 pub type BoxedFrmConnector = Box<&'static (dyn FrmServiceTrait + Sync)>;
 
-pub type BoxedPayoutConnector = Box<&'static (dyn PayoutServiceTrait + Sync)>;
+pub type BoxedPayoutConnector<T = domain_types::payment_method_data::DefaultPCIHolder> =
+    Box<&'static (dyn PayoutServiceTrait<T> + Sync)>;
 
 pub type BoxedAuthenticatorConnector = Box<
     &'static (dyn AuthenticatorServiceTrait<domain_types::payment_method_data::DefaultPCIHolder>
                   + Sync),
 >;
+
+/// Validate the common PSync contract used by connectors whose lookup requires a
+/// connector-generated transaction id.
+///
+/// This is a helper rather than the default implementation of
+/// [`PaymentSyncV2::validate_psync_reference_id`]. Each connector must choose its
+/// PSync lookup contract explicitly so merchant-reference, encoded-data, and other
+/// connector-specific lookup mechanisms are not rejected accidentally.
+pub fn validate_psync_connector_transaction_id(
+    data: &PaymentsSyncData,
+) -> CustomResult<(), domain_types::errors::IntegrationError> {
+    data.connector_transaction_id
+        .get_connector_transaction_id()
+        .change_context(
+            domain_types::errors::IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            },
+        )
+        .map(|_| ())
+}
 
 pub trait ValidationTrait: ConnectorCommon {
     fn should_do_order_create(&self) -> bool {
@@ -254,30 +282,6 @@ pub trait ValidationTrait: ConnectorCommon {
         _is_wallet_decrypted_network_token: bool,
     ) -> bool {
         false
-    }
-
-    /// Pre-flight check run by the server before a PSync is dispatched to the connector.
-    ///
-    /// Mirrors hyperswitch's direct-integration path, which skips the connector call when
-    /// this fails instead of sending a request the connector cannot serve. The default
-    /// requires a connector transaction id; connectors that sync on other data (for example
-    /// Adyen, which needs `encoded_data`) override it. Takes the full `PaymentFlowData`
-    /// (rather than picking fields out at the call site) so a connector can read whatever
-    /// it needs — `auth_type`, `status`, or anything added later — without another
-    /// signature change.
-    fn validate_psync_reference_id(
-        &self,
-        data: &PaymentsSyncData,
-        _payment_flow_data: &PaymentFlowData,
-    ) -> CustomResult<(), domain_types::errors::IntegrationError> {
-        data.connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(
-                domain_types::errors::IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
-                },
-            )
-            .map(|_| ())
     }
 
     /// Returns true if this connector is in the config set of connectors that require
@@ -450,6 +454,16 @@ pub trait PaymentSyncV2:
     PaymentsResponseData,
 >
 {
+    /// Pre-flight check run before dispatching a payment sync.
+    ///
+    /// Each payment-sync implementation must explicitly choose its lookup contract:
+    /// connector transaction ID, merchant reference, encoded data, or another key.
+    /// There is no default so new implementations cannot silently inherit a policy.
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), domain_types::errors::IntegrationError>;
 }
 
 pub trait RefundV2:
@@ -592,11 +606,13 @@ pub trait VerifyWebhookSourceV2:
 {
 }
 
-pub trait PayoutCreateV2:
+pub trait PayoutCreateV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutCreate,
     PayoutFlowData,
-    PayoutCreateRequest,
+    PayoutCreateRequest<T>,
     PayoutCreateResponse,
 >
 {
@@ -908,11 +924,13 @@ pub fn is_mandate_supported<T: PaymentMethodDataTypes>(
 
 // --- GENERATED PAYOUT TRAITS ---
 
-pub trait PayoutTransferV2:
+pub trait PayoutTransferV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutTransfer,
     PayoutFlowData,
-    PayoutTransferRequest,
+    PayoutTransferRequest<T>,
     PayoutTransferResponse,
 >
 {
@@ -938,51 +956,61 @@ pub trait PayoutVoidV2:
 {
 }
 
-pub trait PayoutStageV2:
+pub trait PayoutStageV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutStage,
     PayoutFlowData,
-    PayoutStageRequest,
+    PayoutStageRequest<T>,
     PayoutStageResponse,
 >
 {
 }
 
-pub trait PayoutCreateLinkV2:
+pub trait PayoutCreateLinkV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutCreateLink,
     PayoutFlowData,
-    PayoutCreateLinkRequest,
+    PayoutCreateLinkRequest<T>,
     PayoutCreateLinkResponse,
 >
 {
 }
 
-pub trait PayoutCreateRecipientV2:
+pub trait PayoutCreateRecipientV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutCreateRecipient,
     PayoutFlowData,
-    PayoutCreateRecipientRequest,
+    PayoutCreateRecipientRequest<T>,
     PayoutCreateRecipientResponse,
 >
 {
 }
 
-pub trait PayoutEnrollDisburseAccountV2:
+pub trait PayoutEnrollDisburseAccountV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutEnrollDisburseAccount,
     PayoutFlowData,
-    PayoutEnrollDisburseAccountRequest,
+    PayoutEnrollDisburseAccountRequest<T>,
     PayoutEnrollDisburseAccountResponse,
 >
 {
 }
 
-pub trait PayoutEligibilityV2:
+pub trait PayoutEligibilityV2<
+    T: PaymentMethodDataTypes = domain_types::payment_method_data::DefaultPCIHolder,
+>:
     ConnectorIntegrationV2<
     connector_flow::PayoutEligibility,
     PayoutFlowData,
-    PayoutEligibilityRequest,
+    PayoutEligibilityRequest<T>,
     PayoutEligibilityResponse,
 >
 {

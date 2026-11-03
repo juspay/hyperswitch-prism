@@ -20,7 +20,6 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "recurring_charge",
     "refund",
     "refund_get",
-    "void",
 ];
 
 #[allow(dead_code)]
@@ -34,6 +33,9 @@ fn build_client() -> ConnectorClient {
                     "YOUR_MERCHANT_ID".to_string(),
                 )), // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                webhook_secret: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_WEBHOOK_SECRET".to_string(),
+                )), // Authentication credential
                 ..Default::default()
             })),
         }),
@@ -49,8 +51,8 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         merchant_transaction_id: Some("probe_txn_001".to_string()), // Identification.
         amount: Some(Money {
             // The amount for the payment.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         payment_method: Some(PaymentMethod {
             // Payment method to be used.
@@ -67,6 +69,7 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
+                country_alpha2_code: Some(CountryAlpha2::Us.into()),
                 ..Default::default()
             }),
             ..Default::default()
@@ -84,8 +87,8 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
         connector_transaction_id: connector_transaction_id.to_string(),
         amount_to_capture: Some(Money {
             // Capture Details.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         ..Default::default()
     }
@@ -97,8 +100,8 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
         connector_transaction_id: connector_transaction_id.to_string(),
         amount: Some(Money {
             // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         ..Default::default()
     }
@@ -140,8 +143,8 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
         }),
         amount: Some(Money {
             // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         payment_method: Some(PaymentMethod {
             // Optional payment Method Information (for network transaction flows).
@@ -167,8 +170,8 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
         connector_transaction_id: connector_transaction_id.to_string(),
         payment_amount: 1000, // Amount Information.
         refund_amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         reason: Some("customer_request".to_string()), // Reason for the refund.
         ..Default::default()
@@ -187,19 +190,6 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
 #[allow(dead_code)]
 pub fn build_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRequest {
     PaymentServiceVerifyRedirectResponseRequest {
-        ..Default::default()
-    }
-}
-
-pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
-    PaymentServiceVoidRequest {
-        merchant_void_id: Some("probe_void_001".to_string()), // Identification.
-        connector_transaction_id: connector_transaction_id.to_string(),
-        amount: Some(Money {
-            // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
         ..Default::default()
     }
 }
@@ -307,22 +297,6 @@ pub async fn process_refund_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.Void
-#[allow(dead_code)]
-pub async fn process_void(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .void(
-            build_void_request("probe_connector_txn_001"),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 #[allow(dead_code)]
 #[tokio::main]
 async fn main() {
@@ -338,9 +312,8 @@ async fn main() {
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund" => process_refund(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
-        "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_authorize, process_capture, process_get, process_parse_event, process_recurring_charge, process_refund, process_refund_get, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_authorize, process_capture, process_get, process_parse_event, process_recurring_charge, process_refund, process_refund_get", flow);
             return;
         }
     };

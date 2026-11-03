@@ -30,6 +30,30 @@ mod tests {
         fn test_build_request_valid() {
             let api_key = "test_adyen_api_key".to_string(); // Hardcoded dummy value
             let key1 = "test_adyen_key1".to_string(); // Hardcoded dummy value
+            let address_with_full_state = domain_types::payment_address::Address {
+                address: Some(domain_types::payment_address::AddressDetails {
+                    city: Some(Secret::new("London".to_string())),
+                    country: Some(common_enums::CountryAlpha2::GB),
+                    line1: Some(Secret::new("10".to_string())),
+                    line2: Some(Secret::new("Main Street".to_string())),
+                    zip: Some(Secret::new("SW1A 1AA".to_string())),
+                    state: Some(Secret::new("A Region With A Long Name".to_string())),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
+            let address_with_short_state = domain_types::payment_address::Address {
+                address: Some(domain_types::payment_address::AddressDetails {
+                    city: Some(Secret::new("Zurich".to_string())),
+                    country: Some(common_enums::CountryAlpha2::CH),
+                    line1: Some(Secret::new("1".to_string())),
+                    line2: Some(Secret::new("Main Street".to_string())),
+                    zip: Some(Secret::new("8001".to_string())),
+                    state: Some(Secret::new("ZH".to_string())),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
             let req: RouterDataV2<
                 Authorize,
                 PaymentFlowData,
@@ -48,16 +72,18 @@ mod tests {
                     payment_method: common_enums::PaymentMethod::Card,
                     payment_method_type: None,
                     description: Some("Payment for order #12345".to_string()),
-                    return_url: Some("www.google.com".to_string()),
+                    return_url: Some("https://example.com/return".to_string()),
                     order_details: None,
                     address: domain_types::payment_address::PaymentAddress::new(
-                        None, None, None, None,
+                        Some(address_with_short_state),
+                        Some(address_with_full_state),
+                        None,
+                        None,
                     ),
                     auth_type: common_enums::AuthenticationType::ThreeDs,
                     connector_feature_data: None,
                     amount_captured: None,
-                    minor_amount_captured: None,
-                    minor_amount_authorized: None,
+                    amount_authorized: None,
                     access_token: None,
                     session_token: None,
                     reference_id: None,
@@ -81,7 +107,7 @@ mod tests {
                     vault_headers: None,
                     raw_connector_request: None,
                     typed_connector_request: None,
-                    minor_amount_capturable: None,
+                    amount_capturable: None,
                     amount: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
@@ -101,6 +127,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -120,7 +147,7 @@ mod tests {
                             ..Default::default()
                         },
                     ),
-                    amount: MinorUnit::new(1000),
+                    amount: common_utils::types::Money { amount: MinorUnit::new(1000), currency: common_enums::Currency::USD },
                     order_tax_amount: None,
                     surcharge_amount: None,
                     email: Some(
@@ -132,12 +159,13 @@ mod tests {
                     confirm: true,
                     capture_method: None,
                     integrity_object: None,
-                    router_return_url: Some("www.google.com".to_string()),
+                    router_return_url: Some("https://example.com/return".to_string()),
                     webhook_url: None,
                     complete_authorize_url: None,
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: Some(
                         domain_types::router_request_types::BrowserInformation {
                             color_depth: Some(24),
@@ -176,7 +204,6 @@ mod tests {
                     ),
                     request_incremental_authorization: Some(false),
                     metadata: None,
-                    minor_amount: MinorUnit::new(1000),
                     merchant_order_id: None,
                     shipping_cost: None,
                     merchant_account_id: None,
@@ -188,6 +215,7 @@ mod tests {
                     request_extended_authorization: None,
                     setup_mandate_details: None,
                     enable_overcapture: None,
+                    integrity_specifications: None,
                     connector_feature_data: None,
                     billing_descriptor: None,
                     enable_partial_authorization: None,
@@ -202,6 +230,7 @@ mod tests {
                     is_account_funding_transaction: None,
                     recipient_details: None,
                     business_country: None,
+                    enable_avs_check: None,
                     additional_connector_details: None,
                     customer: None,
 },
@@ -223,6 +252,10 @@ mod tests {
             > = connector_data.connector.get_connector_integration_v2();
 
             let request = connector_integration.build_request_v2(&req).unwrap();
+            assert_eq!(
+                request.as_ref().unwrap().url,
+                "https://checkout-test.adyen.com/v72/payments"
+            );
             let req_body = request.as_ref().map(|request_val| {
                 let masked_request = match request_val.body.as_ref() {
                     Some(request_content) => match request_content {
@@ -243,6 +276,14 @@ mod tests {
                 req_body.as_ref().unwrap()["reference"],
                 "conn_ref_123456789"
             );
+            assert_eq!(
+                req_body.as_ref().unwrap()["returnUrl"],
+                "https://example.com/return"
+            );
+            let body = req_body.as_ref().unwrap();
+            assert_eq!(body["billingAddress"]["country"], "GB");
+            assert!(body["billingAddress"].get("stateOrProvince").is_none());
+            assert!(body["deliveryAddress"]["stateOrProvince"].is_string());
         }
         #[test]
         fn test_build_request_missing() {
@@ -274,8 +315,7 @@ mod tests {
                     auth_type: common_enums::AuthenticationType::ThreeDs,
                     connector_feature_data: None,
                     amount_captured: None,
-                    minor_amount_captured: None,
-                    minor_amount_authorized: None,
+                    amount_authorized: None,
                     access_token: None,
                     session_token: None,
                     reference_id: None,
@@ -299,7 +339,7 @@ mod tests {
                     vault_headers: None,
                     raw_connector_request: None,
                     typed_connector_request: None,
-                    minor_amount_capturable: None,
+                    amount_capturable: None,
                     amount: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
@@ -319,6 +359,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                    risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
                     customer_date_of_birth: None,
@@ -327,7 +368,7 @@ mod tests {
                     connector_testing_data: None,
                     currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Default::default()),
-                    amount: MinorUnit::new(1000),
+                    amount: common_utils::types::Money { amount: MinorUnit::new(1000), currency: common_enums::Currency::USD },
                     order_tax_amount: None,
                     surcharge_amount: None,
                     email: None,
@@ -341,6 +382,7 @@ mod tests {
                     mandate_id: None,
                     setup_future_usage: None,
                     off_session: None,
+                    is_stored_credential: None,
                     browser_info: None,
                     integrity_object: None,
                     order_category: None,
@@ -352,7 +394,6 @@ mod tests {
                     customer_id: None,
                     request_incremental_authorization: Some(false),
                     metadata: None,
-                    minor_amount: MinorUnit::new(0),
                     merchant_order_id: None,
                     shipping_cost: None,
                     merchant_account_id: None,
@@ -364,6 +405,7 @@ mod tests {
                     request_extended_authorization: None,
                     setup_mandate_details: None,
                     enable_overcapture: None,
+                    integrity_specifications: None,
                     connector_feature_data: None,
                     billing_descriptor: None,
                     enable_partial_authorization: None,
@@ -378,6 +420,7 @@ mod tests {
                     is_account_funding_transaction: None,
                     recipient_details: None,
                     business_country: None,
+                    enable_avs_check: None,
                     additional_connector_details: None,
                     customer: None,
 },
@@ -431,7 +474,7 @@ mod tests {
         //             auth_type: common_enums::AuthenticationType::ThreeDs,
         //             connector_meta_data: None,
         //             amount_captured: None,
-        //             minor_amount_captured: None,
+        //             amount_authorized: None,
         //             access_token: None,
         //             session_token: None,
         //             reference_id: None,
@@ -496,7 +539,7 @@ mod tests {
         //             customer_id: None,
         //             request_incremental_authorization: Some(false),
         //             metadata: None,
-        //             minor_amount: MinorUnit::new(100),
+        //             minor_amount: common_utils::types::Money { amount: MinorUnit::new(100), currency: common_enums::Currency::USD },
         //             merchant_order_id: None,
         //             shipping_cost: None,
         //             merchant_account_id: None,

@@ -18,6 +18,7 @@ const _defaultConfig: types.IConnectorConfig = {
             apiKey: { value: 'YOUR_API_KEY' },
             authServerId: 'YOUR_AUTH_SERVER_ID',
             khashConfigKey: { value: 'YOUR_KHASH_CONFIG_KEY' },
+            clientId: 'YOUR_CLIENT_ID',
             baseUrl: 'YOUR_BASE_URL',
         }
     },

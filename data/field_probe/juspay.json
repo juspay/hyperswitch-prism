@@ -1012,7 +1012,7 @@
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Trustly { country: None }"
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Trustly { country: None, account_holder_name: None, bank_name: None, additional_details: None, bank_last_digits: None, connector_instrument_id: None }"
       },
       "Twint": {
         "status": "not_implemented",

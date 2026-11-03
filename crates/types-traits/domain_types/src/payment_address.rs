@@ -2,8 +2,9 @@ use common_enums::ProductType;
 use common_utils::{ext_traits::ConfigExt, Email, MinorUnit};
 use hyperswitch_masking::{PeekInterface, Secret, SerializableSecret};
 
-use crate::utils::{
-    convert_canada_state_to_code, convert_us_state_to_code, missing_field_err, Error,
+use crate::{
+    state_codes::convert_state_to_code,
+    utils::{convert_canada_state_to_code, convert_us_state_to_code, missing_field_err, Error},
 };
 
 #[derive(Clone, Default, Debug)]
@@ -171,6 +172,12 @@ impl Address {
         self.address
             .as_ref()
             .and_then(|billing_address| billing_address.get_optional_last_name())
+    }
+
+    /// Phone number in E.123 international format (`+<country><number>`).
+    /// `None` when the address has no phone or no number.
+    pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
+        self.phone.as_ref()?.get_e123_phone_number()
     }
 }
 
@@ -371,7 +378,9 @@ impl AddressDetails {
             common_enums::CountryAlpha2::CA => Ok(Secret::new(
                 convert_canada_state_to_code(&state.peek().to_string()).to_string(),
             )),
-            _ => Ok(state.clone()),
+            country => Ok(convert_state_to_code(*country, state.peek())
+                .map(|code| Secret::new(code.to_string()))
+                .unwrap_or_else(|| state.clone())),
         }
     }
 
@@ -429,6 +438,42 @@ impl PhoneDetails {
             number_without_plus,
             number.peek()
         )))
+    }
+
+    /// Format a phone number in E.123 international notation (`+<country><number>`).
+    /// Fails soft: an unusable part yields the best string available rather than
+    /// erroring or dropping the number.
+    ///
+    /// The number is emitted *compact* (`+447700900123`), without E.123's optional
+    /// visual separators — grouping digits correctly is country-specific and there's
+    /// no phone-number library here. The `+` and country code are the parts that
+    /// typically carry meaning downstream.
+    ///
+    /// A national trunk `0` is deliberately **not** stripped, so a caller sending
+    /// country code `44` with number `07700900123` yields `+4407700900123`. Dropping
+    /// the zero is wrong for the countries that keep it (Italy, notably), and a
+    /// separate country-code field implies callers send the national significant
+    /// number rather than the dialling form.
+    pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
+        self.number
+            .as_ref()
+            .map(|number| number.peek().trim())
+            .filter(|number| !number.is_empty())
+            .map(|number| {
+                // `+44`, `44` and `0044` all mean the same country; normalise to bare digits.
+                let country_code = self
+                    .country_code
+                    .as_deref()
+                    .map(str::trim)
+                    .map(|code| code.trim_start_matches('+'))
+                    .map(|code| code.strip_prefix("00").unwrap_or(code))
+                    .filter(|code| !code.is_empty());
+                Secret::new(match country_code {
+                    Some(code) if !number.starts_with('+') => format!("+{code}{number}"),
+                    // Already international, or no country to prefix — send as-is.
+                    _ => number.to_owned(),
+                })
+            })
     }
 }
 
@@ -490,3 +535,70 @@ pub struct OrderDetailsWithAmount {
 }
 
 impl SerializableSecret for OrderDetailsWithAmount {}
+
+impl OrderDetailsWithAmount {
+    /// Product name (`name` on most connector line items).
+    pub fn get_product_name(&self) -> String {
+        self.product_name.clone()
+    }
+
+    /// Quantity of the product (`quantity` on most connector line items).
+    pub fn get_quantity(&self) -> u16 {
+        self.quantity
+    }
+
+    /// Merchant product reference (`reference_id` on most connector line items).
+    pub fn get_product_id(&self) -> Result<String, Error> {
+        self.product_id
+            .clone()
+            .ok_or_else(missing_field_err("order_details[].product_id"))
+    }
+
+    /// Stock keeping unit (`sku` on most connector line items).
+    pub fn get_sku(&self) -> Result<String, Error> {
+        self.sku
+            .clone()
+            .ok_or_else(missing_field_err("order_details[].sku"))
+    }
+
+    /// Line total in minor units: the explicit `total_amount` when present, else the unit
+    /// `amount`.
+    pub fn get_total_amount(&self) -> MinorUnit {
+        self.total_amount.unwrap_or(self.amount)
+    }
+
+    /// Product type (`item_type`/`type` on most connector line items).
+    pub fn get_product_type(&self) -> Result<ProductType, Error> {
+        self.product_type
+            .clone()
+            .ok_or_else(missing_field_err("order_details[].product_type"))
+    }
+
+    /// Product page URL (`item_url` on most connector line items).
+    pub fn get_optional_product_link(&self) -> Option<String> {
+        self.product_link.clone()
+    }
+
+    /// Product image URL (`image_url` on most connector line items).
+    pub fn get_optional_product_img_link(&self) -> Option<String> {
+        self.product_img_link.clone()
+    }
+
+    /// Unit price in minor units (`amount` is per-quantity, `unit_price` on most connector
+    /// line items).
+    pub fn get_unit_amount(&self) -> MinorUnit {
+        self.amount
+    }
+
+    /// Discount amount on the unit, in minor units (`discount_amount` on most connector
+    /// line items).
+    pub fn get_optional_unit_discount_amount(&self) -> Option<MinorUnit> {
+        self.unit_discount_amount
+    }
+
+    /// Total tax amount for the line, in minor units (`tax_amount` on most connector
+    /// line items).
+    pub fn get_optional_total_tax_amount(&self) -> Option<MinorUnit> {
+        self.total_tax_amount
+    }
+}

@@ -4,10 +4,8 @@
 // File: services.proto
 //
 // Overview:
-//   This file exposes the gRPC service interfaces that serve as the primary entry
-//   point for consuming the Unified Connector Service (UCS) API. You interact with
-//   these services to process payments, manage refunds, handle disputes, and
-//   authenticate payment methods across 50+ payment connectors.
+//   This file exposes the main gRPC service interfaces for the Unified Connector
+//   Service (UCS) API. Dispute request/response messages are defined in dispute.proto.
 //
 //   You import payment.proto for all shared message types and enumerations.
 //
@@ -63,6 +61,7 @@
 //
 // Related Files:
 //   - payment.proto         — All shared message and enum definitions
+//   - dispute.proto         — Dispute request/response messages
 //   - payment_methods.proto — Payment method data types
 
 syntax = "proto3";
@@ -70,6 +69,7 @@ syntax = "proto3";
 package types;
 
 import "payment.proto";
+import "dispute.proto";
 import "events.proto";
 import "payouts.proto";
 import "surcharge.proto";

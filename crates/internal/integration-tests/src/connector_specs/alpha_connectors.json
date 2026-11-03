@@ -5,17 +5,11 @@
   ],
   "connectors": {
     "absa_sanlam": {},
-    "aci": {},
     "affirm": {},
-    "airwallex": {},
-    "authipay": {},
-    "authorizedotnet": {},
     "axisbank": {},
-    "bambora": {},
-    "bamboraapac": {},
-    "bankofamerica": {},
-    "barclaycard": {},
-    "billwerk": {},
+    "betterpayment": {
+      "reason": "Betterpayment sandbox credentials (api_key, api_password, and webhook_key) are not configured in CI, so live Wero certification cannot run. Connector regression tests and spec coverage checks pass; live sandbox behavior remains unverified. Remove this entry once CI credentials are configured so certification runs."
+    },
     "bluesnap": {},
     "boost": {},
     "braintree": {},
@@ -23,25 +17,23 @@
     "cashfree": {},
     "cashtocode": {},
     "celero": {},
-    "checkout": {},
-    "cryptopay": {},
     "d24": {
       "reason": "No Directa24 sandbox credentials are configured in CI, so certification cannot run; WebPay Authorize, PSync, Refund and RSync were validated end to end against a local mock Directa24 server instead (HMAC signature, X-Login write/read-only key split, all 8 deposit statuses and all 6 refund statuses). Remove this entry once credentials are added so CI starts certifying it."
     },
-    "datatrans": {},
     "dlocal": {},
     "easebuzz": {},
-    "etisalat": {
-      "reason": "Etisalat sandbox Authorize calls require a card-network roundtrip that exceeds the 30s connector_request_timeout from US-based CI runners; Capture and Void reach the gateway fine. Remove this entry once CI is run from a UAE-proximate host or the sandbox latency is resolved."
+    "ecommpay": {
+      "reason": "Ecommpay staging credentials are not configured in CI, so certification cannot run. The sandbox forces a 3DS challenge on card payments that the harness cannot complete, so Capture, Void and Refund suites cannot reach a settled payment. Authorize, PSync, Capture, Void, Refund, RSync, SetupMandate, RepeatPayment and webhooks were exercised through Hyperswitch, UCS and the Ecommpay sandbox in the GRACE run; Apple Pay and Google Pay were not verified (no live wallet tokens). Remove this entry once credentials are added so CI starts certifying."
     },
-    "elavon": {},
     "elavon_pg": {
       "reason": "No Elavon Payment Gateway sandbox credentials exist for this integration yet; sandbox access has not been provisioned. The request the connector emits is proven against a local mock EPG server, driven end to end from Hyperswitch through UCS: card no-3DS settles, and the hosted-payment-page 3DS chain (CreateOrder, PaymentSession, shopper redirect) is exercised from HS with the settle proven at the UCS boundary. Live certification will follow once credentials are available."
+    },
+    "etisalat": {
+      "reason": "Etisalat sandbox Authorize calls require a card-network roundtrip that exceeds the 30s connector_request_timeout from US-based CI runners; Capture and Void reach the gateway fine. Remove this entry once CI is run from a UAE-proximate host or the sandbox latency is resolved."
     },
     "finix": {},
     "fiservcommercehub": {},
     "fiservemea": {},
-    "fiuu": {},
     "flywire": {},
     "forte": {},
     "getnet": {},
@@ -50,6 +42,9 @@
     "globalpay": {},
     "globalpayments_heartland": {
       "reason": "Heartland Portico CERT credentials are not in the CI credentials file. All six declared suites were verified manually against the Portico CERT gateway (SOAP/XML PosGateway) during integration. Remove this entry once CI credentials are added."
+    },
+    "globalpayments_realex": {
+      "reason": "GlobalpaymentsRealex sandbox credentials are not configured in CI; live sandbox verification for the six XML flows is attached to PR #2204. The 3DS2 legs past /protocol-versions cannot be exercised: the sandbox account is not entitled for 3D Secure."
     },
     "glomopay": {},
     "grabpay": {},
@@ -72,17 +67,23 @@
     "loonio": {},
     "maya": {},
     "merchante": {
-      "reason": "No Merchante (MerchantE by Omise, cert.merchante-solutions.com) sandbox credentials are configured in CI yet — merchant onboarding is pending. Authorize (Sale/Preauth), Capture (Settle), Void, Refund, PSync/RSync (via retry_id Inquiry), SetupRecurring (Verify $0 with store_card=Y) and RepeatPayment (MIT with card_id + cit_mit_indicator=M101) were designed against the documented certification endpoint during development. Remove this entry once credentials are added so CI starts certifying it."
+      "reason": "No Merchante (MerchantE by Omise, cert.merchante-solutions.com) sandbox credentials are configured in CI yet \u2014 merchant onboarding is pending. Authorize (Sale/Preauth), Capture (Settle), Void, Refund, PSync/RSync (via retry_id Inquiry), SetupRecurring (Verify $0 with store_card=Y) and RepeatPayment (MIT with card_id + cit_mit_indicator=M101) were designed against the documented certification endpoint during development. Remove this entry once credentials are added so CI starts certifying it."
     },
     "mifinity": {},
     "mollie": {},
     "multisafepay": {},
     "netcetera": {},
     "nexinets": {},
-    "nexixpay": {},
+    "nexixpay": {
+      "reason": "No Nexi XPay sandbox API key is configured in CI, so certification cannot run. CI also cannot cover what the server-to-server API itself rules out: card payments are 3DS-only (3-step init, browser ACS, validation, payment), so the no-3DS global suites cannot chain; Nexi sends notifications only for Hosted Payment Page, Pay-by-Link and Build orders, so webhooks are checked against fixtures, not live delivery; and Nexi has no dispute API. Adding a sandbox key to CI, together with a 3DS-aware Authorize scenario that depends on PreAuthenticate, would close the card flows; the webhook and dispute gaps are properties of the Nexi API."
+    },
     "nmi": {},
-    "noon": {},
-    "novalnet": {},
+    "noon": {
+      "reason": "No Noon sandbox credentials are configured in CI, so certification cannot run. Also uncovered: the positive webhook scenarios are unsigned because Noon signs a field inside the body rather than a header; Google Pay needs a test-token credential (noon.metadata.google_pay); network-transaction-id MIT, external 3DS pass-through, pre-decrypted Apple Pay / Google Pay and disputes have no Noon API. Add Noon sandbox credentials, including the webhook secret and metadata.google_pay, to CI to close this, then remove the entry."
+    },
+    "novalnet": {
+      "reason": "No Novalnet credentials are configured in the CI creds file, so certification cannot run. Card Authorize (automatic and manual capture, 3DS redirect), PayPal redirect, PSync, Capture, Void, Refund and RSync were verified manually against a Novalnet test account. Still uncovered: Google Pay and Apple Pay need real device tokens encrypted for the Novalnet merchant, and webhook source verification needs a configured webhook secret plus a harness signer for Novalnet's body checksum. Remove this entry once CI credentials are added."
+    },
     "nuvei": {},
     "paybox": {},
     "payconex": {},
@@ -114,6 +115,9 @@
     "rapyd": {},
     "razorpay": {},
     "razorpayv2": {},
+    "reddot": {
+      "reason": "RedDot sandbox credentials are not configured in the CI credentials registry, so automated live sandbox certification cannot run. Remove this entry once credentials are provisioned in CI so the declared connector scenarios are verified."
+    },
     "redsys": {},
     "revolut": {},
     "revolv3": {},
@@ -126,10 +130,8 @@
     "tamara": {},
     "tesouro": {},
     "travelhub": {
-      "reason": "new connector; no CI credentials yet (username/password/merchant_id for Worldline preprod not provisioned, and the current test merchant returns INVALID on authorize \u2014 see travelhub-authorize-issue.md); remove from this list once credentials are added so CI starts certifying it"
+      "reason": "new connector; no CI credentials yet (username/password/merchant_id for Worldline preprod not provisioned, and the current test merchant returns INVALID on authorize); remove from this list once credentials are added so CI starts certifying it"
     },
-    "truelayer": {},
-    "trustly": {},
     "trustpay": {},
     "trustpayments": {},
     "tsys_transit": {},
@@ -138,6 +140,9 @@
     "wellsfargo": {},
     "worldpay": {},
     "worldpayvantiv": {},
+    "worldpayraft": {
+      "reason": "Only temporary sandbox credentials are available for WorldpayRaft in CI; these credentials do not support all flows (e.g. refunds, captures, and void require a settled transaction that cannot be produced with the temporary access). Remove this entry once full sandbox credentials are provisioned so CI can certify all flows."
+    },
     "worldpayxml": {},
     "xendit": {},
     "zift": {}

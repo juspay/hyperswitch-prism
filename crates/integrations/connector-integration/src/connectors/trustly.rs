@@ -315,6 +315,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     domain_types::connector_types::PaymentWebhookReference {
                         connector_transaction_id: Some(order_id),
                         merchant_transaction_id: None,
+                        connector_preprocessing_id: None,
                     },
                 ),
             ));
@@ -367,9 +368,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             &details.method,
             &details.params.data.messageid.clone().expose(),
         )?;
-
+        let connector_returned_payment_method_details =
+            trustly::extract_returned_bank_details(&details.params.data);
         Ok(domain_types::connector_types::WebhookDetailsResponse {
-            connector_returned_payment_method_details: None,
+            connector_returned_payment_method_details,
             resource_id: Some(
                 domain_types::connector_types::ResponseId::ConnectorTransactionId(
                     details.params.data.orderid.clone(),
@@ -386,7 +388,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: details.params.data.accountid.clone(),

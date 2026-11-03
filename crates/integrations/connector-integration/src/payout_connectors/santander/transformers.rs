@@ -1,5 +1,9 @@
 use crate::types::ResponseRouterData;
-use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
+use common_utils::{
+    errors::CustomResult,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
+use domain_types::payment_method_data::PaymentMethodDataTypes;
 use domain_types::{
     connector_flow::{PayoutCreate, PayoutGet, PayoutTransfer, ServerAuthenticationToken},
     connector_types::{
@@ -10,6 +14,7 @@ use domain_types::{
     payouts::{
         payout_method_data::{
             Bank, PayoutMethodData, PixBankTransfer, PixEmvBankTransfer, PixKeyBankTransfer,
+            TedBankTransfer,
         },
         payouts_types::{
             PayoutCreateRequest, PayoutCreateResponse, PayoutFlowData, PayoutGetRequest,
@@ -20,11 +25,64 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 pub(super) const SANTANDER_PIX_DOCS_URL: &str =
     "https://developer.santander.com.br/api/user-guide/transfers-pix";
+
+pub(super) const SANTANDER_TED_DOCS_URL: &str =
+    "https://developer.santander.com.br/api/user-guide/ted-transfers";
+
+pub(super) fn santander_doc_url_from_method_type(
+    pmt: Option<common_enums::PaymentMethodType>,
+) -> CustomResult<&'static str, IntegrationError> {
+    match pmt {
+        Some(common_enums::PaymentMethodType::Ted) => Ok(SANTANDER_TED_DOCS_URL),
+        Some(common_enums::PaymentMethodType::Pix) => Ok(SANTANDER_PIX_DOCS_URL),
+        other => Err(IntegrationError::NotSupported {
+            message: "unsupported payout method type for Santander".to_string(),
+            connector: "santander",
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "payout_method_type {other:?} is not supported; expected Pix or Ted"
+                )),
+                suggested_action: Some(
+                    "Use a PIX or TED bank transfer as the payout method".to_string(),
+                ),
+                doc_url: None,
+            },
+        }
+        .into()),
+    }
+}
+
+pub(super) fn santander_doc_url<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize,
+>(
+    payout_method_data: &Option<PayoutMethodData<T>>,
+) -> CustomResult<&'static str, IntegrationError> {
+    match payout_method_data {
+        Some(PayoutMethodData::Bank(Bank::Ted(_))) => Ok(SANTANDER_TED_DOCS_URL),
+        Some(PayoutMethodData::Bank(Bank::Pix(_)))
+        | Some(PayoutMethodData::Bank(Bank::PixKey(_)))
+        | Some(PayoutMethodData::Bank(Bank::PixEmv(_))) => Ok(SANTANDER_PIX_DOCS_URL),
+        other => Err(IntegrationError::NotSupported {
+            message: "unsupported payout method type for Santander".to_string(),
+            connector: "santander",
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "payout_method_data {other:?} is not supported; expected Pix, PixKey, PixEmv, or Ted"
+                )),
+                suggested_action: Some(
+                    "Use a PIX or TED bank transfer as the payout method".to_string(),
+                ),
+                doc_url: None,
+            },
+        }
+        .into()),
+    }
+}
 
 // ===== AUTH TYPE =====
 
@@ -180,6 +238,7 @@ pub fn detect_dict_code_type(key: &str) -> SantanderDictCodeType {
 fn parse_digits_i64(
     value: &str,
     field_name: &'static str,
+    doc_url: &'static str,
 ) -> Result<i64, error_stack::Report<IntegrationError>> {
     let digits: String = value.chars().filter(|ch| ch.is_ascii_digit()).collect();
 
@@ -191,7 +250,7 @@ fn parse_digits_i64(
                 suggested_action: Some(format!(
                     "Provide a non-empty numeric value for '{field_name}'"
                 )),
-                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                doc_url: Some(doc_url.to_string()),
             },
         }
         .into());
@@ -208,7 +267,7 @@ fn parse_digits_i64(
                 suggested_action: Some(format!(
                     "Ensure '{field_name}' contains only numeric characters"
                 )),
-                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                doc_url: Some(doc_url.to_string()),
             },
         })
 }
@@ -255,6 +314,42 @@ impl TryFrom<common_enums::BankType> for SantanderAccountType {
 }
 
 #[derive(Debug, Serialize)]
+pub enum SantanderTedAccountType {
+    #[serde(rename = "CC")]
+    Checking,
+    #[serde(rename = "PP")]
+    Savings,
+    #[serde(rename = "PG")]
+    Payment,
+}
+
+impl TryFrom<common_enums::BankType> for SantanderTedAccountType {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(bank_type: common_enums::BankType) -> Result<Self, Self::Error> {
+        match bank_type {
+            common_enums::BankType::Checking => Ok(Self::Checking),
+            common_enums::BankType::Savings => Ok(Self::Savings),
+            common_enums::BankType::Payment => Ok(Self::Payment),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "unsupported bank account type for TED transfer".to_string(),
+                connector: "santander",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "bank_account_type {bank_type:?} is not supported by Santander TED"
+                    )),
+                    suggested_action: Some(
+                        "Use one of: Checking, Savings, or Payment bank account types for TED transfers"
+                            .to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            })),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub enum SantanderDocumentType {
     CPF,
     CNPJ,
@@ -270,14 +365,48 @@ pub struct SantanderBeneficiary {
     pub document_type: SantanderDocumentType,
     pub document_number: Secret<String>,
     pub name: Secret<String>,
-    pub bank_code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ispb: Option<Secret<String>>,
 }
 
+fn pix_bank_identifiers(
+    bank_code: Option<String>,
+    ispb: Option<Secret<String>>,
+) -> CustomResult<(Option<String>, Option<Secret<String>>), IntegrationError> {
+    let ispb = ispb
+        .map(|value| {
+            value
+                .expose()
+                .chars()
+                .filter(char::is_ascii_digit)
+                .collect::<String>()
+        })
+        .filter(|value| !value.is_empty())
+        .map(Secret::new);
+    match (ispb, bank_code.filter(|value| !value.trim().is_empty())) {
+        (Some(ispb), _) => Ok((None, Some(ispb))),
+        (None, Some(bank_code)) => Ok((Some(bank_code), None)),
+        (None, None) => Err(IntegrationError::MissingRequiredField {
+            field_name: "payout_method_data.ispb or payout_method_data.bank_code",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Pix bank transfers require either ISPB or bank code".to_string(),
+                ),
+                suggested_action: Some(
+                    "Provide ispb or the COMPE bank_code in payout_method_data".to_string(),
+                ),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+            },
+        }
+        .into()),
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SantanderCreateRequest {
+pub struct SantanderPixPayoutCreateRequest {
     pub payment_value: StringMajorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dict_code: Option<Secret<String>>,
@@ -297,17 +426,27 @@ pub struct SantanderCreateRequest {
     pub beneficiary: Option<SantanderBeneficiary>,
 }
 
-impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
-    for SantanderCreateRequest
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<
+        &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>,
+    > for SantanderPixPayoutCreateRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        req: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest<T>,
+            PayoutCreateResponse,
+        >,
     ) -> Result<Self, Self::Error> {
         let converter = StringMajorUnitForConnector;
         let payment_value = converter
-            .convert(req.request.amount, req.request.source_currency)
+            .convert(&common_utils::types::Money {
+                amount: req.request.amount,
+                currency: req.request.source_currency,
+            })
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -414,14 +553,7 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                         .collect::<String>(),
                 );
 
-                let ispb_str = ispb.clone().expose_option().map(|ispb_raw| {
-                    Secret::new(
-                        ispb_raw
-                            .chars()
-                            .filter(|ch| ch.is_ascii_digit())
-                            .collect::<String>(),
-                    )
-                });
+                let (bank_code, ispb_str) = pix_bank_identifiers(bank_code, ispb)?;
 
                 let name = account_holder_name.ok_or(IntegrationError::MissingRequiredField {
                     field_name: "payout_method_data.account_holder_name",
@@ -432,17 +564,6 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                         suggested_action: Some(
                             "Provide the beneficiary account holder name in payout_method_data"
                                 .to_string(),
-                        ),
-                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
-                    },
-                })?;
-
-                let bank_code = bank_code.ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "payout_method_data.bank_code",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("missing required field: bank_code".to_string()),
-                        suggested_action: Some(
-                            "Provide the COMPE bank code in payout_method_data for Pix bank transfers".to_string(),
                         ),
                         doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                     },
@@ -477,21 +598,19 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
 
                 (None, None, None, Some(beneficiary))
             }
-            _ => {
-                return Err(IntegrationError::NotSupported {
-                    message: "payout method not supported".to_string(),
-                    connector: "santander",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("unsupported payout method type".to_string()),
-                        suggested_action: Some(
-                            "Use Pix (bank transfer, pix key, or pix EMV) as the payout method"
-                                .to_string(),
-                        ),
-                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
-                    },
-                }
-                .into())
+            _ => return Err(IntegrationError::NotSupported {
+                message: "payout method not supported".to_string(),
+                connector: "santander",
+                context: IntegrationErrorContext {
+                    additional_context: Some("unsupported payout method type".to_string()),
+                    suggested_action: Some(
+                        "Use Pix (bank transfer, pix key, or pix EMV) or Ted as the payout method"
+                            .to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                },
             }
+            .into()),
         };
 
         Ok(Self {
@@ -504,6 +623,252 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
             ibge_town_code: None,
             tags: None,
             beneficiary,
+        })
+    }
+}
+
+// ===== PAYOUT CREATE REQUEST ENVELOPE =====
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum SantanderPayoutCreateRequest {
+    Pix(Box<SantanderPixPayoutCreateRequest>),
+    Ted(Box<SantanderTedPayoutCreateRequest>),
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<
+        &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>,
+    > for SantanderPayoutCreateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        req: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest<T>,
+            PayoutCreateResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match &req.request.payout_method_data {
+            Some(PayoutMethodData::Bank(Bank::Ted(_))) => {
+                SantanderTedPayoutCreateRequest::try_from(req).map(|r| Self::Ted(Box::new(r)))
+            }
+            Some(PayoutMethodData::Bank(Bank::Pix(_)))
+            | Some(PayoutMethodData::Bank(Bank::PixKey(_)))
+            | Some(PayoutMethodData::Bank(Bank::PixEmv(_))) => {
+                SantanderPixPayoutCreateRequest::try_from(req).map(|r| Self::Pix(Box::new(r)))
+            }
+            other => Err(IntegrationError::NotSupported {
+                message: "unsupported payout method type for Santander".to_string(),
+                connector: "santander",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "payout_method_data {other:?} is not supported; expected Pix, PixKey, PixEmv, or Ted"
+                    )),
+                    suggested_action: Some(
+                        "Use a PIX or TED bank transfer as the payout method".to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                },
+            }
+            .into()),
+        }
+    }
+}
+
+// ===== TED CREATE REQUEST =====
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderTedPayoutDestinationAccount {
+    pub bank_code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ispb_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch_code: Option<String>,
+    pub account_number: Secret<String>,
+    #[serde(rename = "typeAccount")]
+    pub account_type: SantanderTedAccountType,
+    pub legal_entity_identifier: SantanderDocumentType,
+    pub document_identifier_number: Secret<String>,
+    pub name: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderTedPayoutCreateRequest {
+    pub payment_value: StringMajorUnit,
+    pub destination_account: SantanderTedPayoutDestinationAccount,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<
+        &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>,
+    > for SantanderTedPayoutCreateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        req: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest<T>,
+            PayoutCreateResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let converter = StringMajorUnitForConnector;
+        let payment_value = converter
+            .convert(&common_utils::types::Money {
+                amount: req.request.amount,
+                currency: req.request.source_currency,
+            })
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert payout amount to string major unit".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Verify the payout amount and currency are valid".to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            })?;
+
+        let ted = match req.request.payout_method_data.clone() {
+            Some(PayoutMethodData::Bank(Bank::Ted(ted))) => ted,
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "payout method not supported for TED".to_string(),
+                    connector: "santander",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Expected TED bank transfer payout method data".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Use TED bank transfer as the payout method".to_string(),
+                        ),
+                        doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                    },
+                }
+                .into())
+            }
+        };
+
+        let bank_code = ted
+            .bank_code
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payout_method_data.bank_code",
+                context: IntegrationErrorContext {
+                    additional_context: Some("missing required field: bank_code".to_string()),
+                    suggested_action: Some(
+                        "Provide the COMPE bank code in payout_method_data for TED transfers"
+                            .to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            })?;
+
+        let tax_id = ted
+            .tax_id
+            .as_ref()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payout_method_data.tax_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("missing required field: tax_id".to_string()),
+                    suggested_action: Some(
+                        "Provide a valid CPF or CNPJ tax_id in payout_method_data".to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            })?;
+
+        let legal_entity_identifier = if cpf_cnpj::cpf::validate(tax_id.peek()) {
+            SantanderDocumentType::CPF
+        } else if cpf_cnpj::cnpj::validate(tax_id.peek()) {
+            SantanderDocumentType::CNPJ
+        } else {
+            return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "payout_method_data.tax_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("tax_id failed CPF and CNPJ validation".to_string()),
+                    suggested_action: Some(
+                        "Provide a valid 11-digit CPF or 14-digit CNPJ as tax_id".to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            }));
+        };
+
+        let document_identifier_number = Secret::new(
+            tax_id
+                .peek()
+                .chars()
+                .filter(|ch| ch.is_ascii_digit())
+                .collect::<String>(),
+        );
+
+        let name = ted
+            .account_holder_name
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payout_method_data.account_holder_name",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "missing required field: account_holder_name".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide the beneficiary account holder name in payout_method_data"
+                            .to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                },
+            })?;
+
+        let account_type = ted
+            .bank_account_type
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "payout_method_data.bank_account_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "missing required field: bank_account_type".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Provide a valid bank_account_type (Checking, Savings, or Payment)"
+                                .to_string(),
+                        ),
+                        doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
+                    },
+                })
+            })
+            .and_then(SantanderTedAccountType::try_from)?;
+
+        let ispb_code = ted.ispb.map(|ispb_raw| {
+            Secret::new(
+                ispb_raw
+                    .expose()
+                    .chars()
+                    .filter(|ch| ch.is_ascii_digit())
+                    .collect::<String>(),
+            )
+        });
+
+        Ok(Self {
+            payment_value,
+            destination_account: SantanderTedPayoutDestinationAccount {
+                bank_code,
+                ispb_code,
+                branch_code: ted.bank_branch,
+                account_number: ted.bank_account_number,
+                account_type,
+                legal_entity_identifier,
+                document_identifier_number,
+                name,
+            },
+            purpose: req.resource_common_data.description.clone(),
         })
     }
 }
@@ -532,12 +897,12 @@ pub struct SantanderTransferRequest {
     pub status: SantanderTransferStatus,
 }
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
     TryFrom<
         &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     > for SantanderTransferRequest
@@ -548,13 +913,17 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> Result<Self, Self::Error> {
+        let doc_url = santander_doc_url(&req.request.payout_method_data)?;
         let converter = StringMajorUnitForConnector;
         let payment_value = converter
-            .convert(req.request.amount, req.request.source_currency)
+            .convert(&common_utils::types::Money {
+                amount: req.request.amount,
+                currency: req.request.source_currency,
+            })
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -563,7 +932,7 @@ impl
                     suggested_action: Some(
                         "Verify the payout amount and currency are valid".to_string(),
                     ),
-                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                    doc_url: Some(doc_url.to_string()),
                 },
             })?;
 
@@ -580,14 +949,42 @@ impl
                         suggested_action: Some(
                             "Provide the source bank branch in source_bank_data".to_string(),
                         ),
-                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                        doc_url: Some(doc_url.to_string()),
                     },
                 })?;
-                let branch = parse_digits_i64(&bank_branch, "source_bank_data.bank_branch")?;
+                let branch =
+                    parse_digits_i64(&bank_branch, "source_bank_data.bank_branch", doc_url)?;
                 let bank_account_number = bank_account_number.expose();
-                let number =
-                    parse_digits_i64(&bank_account_number, "source_bank_data.bank_account_number")?;
-
+                let number = parse_digits_i64(
+                    &bank_account_number,
+                    "source_bank_data.bank_account_number",
+                    doc_url,
+                )?;
+                Some(SantanderDebitAccount { branch, number })
+            }
+            Some(Bank::Ted(TedBankTransfer {
+                bank_branch,
+                bank_account_number,
+                ..
+            })) => {
+                let bank_branch = bank_branch.ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "source_bank_data.bank_branch",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("missing required field: bank_branch".to_string()),
+                        suggested_action: Some(
+                            "Provide the source bank branch in source_bank_data".to_string(),
+                        ),
+                        doc_url: Some(doc_url.to_string()),
+                    },
+                })?;
+                let branch =
+                    parse_digits_i64(&bank_branch, "source_bank_data.bank_branch", doc_url)?;
+                let bank_account_number = bank_account_number.expose();
+                let number = parse_digits_i64(
+                    &bank_account_number,
+                    "source_bank_data.bank_account_number",
+                    doc_url,
+                )?;
                 Some(SantanderDebitAccount { branch, number })
             }
             Some(_) => {
@@ -597,9 +994,9 @@ impl
                     context: IntegrationErrorContext {
                         additional_context: Some("unsupported source bank data type".to_string()),
                         suggested_action: Some(
-                            "Use Pix bank transfer as the source bank data type".to_string(),
+                            "Use Pix or TED bank transfer as the source bank data type".to_string(),
                         ),
-                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                        doc_url: Some(doc_url.to_string()),
                     },
                 }
                 .into());
@@ -634,12 +1031,16 @@ pub enum SantanderPayoutStatus {
     PendingConfirmation,
     Payed,
     Rejected,
+    #[serde(other)]
+    Unknown,
 }
 
 impl SantanderPayoutStatus {
     pub fn get_payout_status(&self) -> common_enums::PayoutStatus {
         match self {
-            Self::Authorized | Self::PendingConfirmation => common_enums::PayoutStatus::Pending,
+            Self::Authorized | Self::PendingConfirmation | Self::Unknown => {
+                common_enums::PayoutStatus::Pending
+            }
             Self::ReadyToPay => common_enums::PayoutStatus::RequiresFulfillment,
             Self::Payed => common_enums::PayoutStatus::Success,
             Self::Rejected => common_enums::PayoutStatus::Failure,
@@ -657,11 +1058,11 @@ pub struct SantanderStatusResponse {
 
 // ===== RESPONSE TRANSFORMER IMPLS =====
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
     TryFrom<
         &ResponseRouterData<
             SantanderPayoutResponse,
-            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Self>,
+            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, Self>,
         >,
     > for PayoutCreateResponse
 {
@@ -670,7 +1071,7 @@ impl
     fn try_from(
         item: &ResponseRouterData<
             SantanderPayoutResponse,
-            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Self>,
+            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, Self>,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -682,11 +1083,11 @@ impl
     }
 }
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
     TryFrom<
         &ResponseRouterData<
             SantanderPayoutResponse,
-            RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, Self>,
+            RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, Self>,
         >,
     > for PayoutTransferResponse
 {
@@ -695,7 +1096,7 @@ impl
     fn try_from(
         item: &ResponseRouterData<
             SantanderPayoutResponse,
-            RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, Self>,
+            RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, Self>,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -732,8 +1133,9 @@ impl
     }
 }
 
-impl TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
-    for RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
+    for RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -749,8 +1151,14 @@ impl TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
     }
 }
 
-impl TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 

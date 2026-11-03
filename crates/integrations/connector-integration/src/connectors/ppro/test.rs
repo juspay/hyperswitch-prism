@@ -5,7 +5,9 @@ mod tests {
     use domain_types::{
         connector_types::{EventType, HttpMethod, RequestDetails},
         payment_method_data::DefaultPCIHolder,
+        router_data::ConnectorSpecificConfig,
     };
+    use hyperswitch_masking::Secret;
     use interfaces::{api::ConnectorCommon, connector_types::IncomingWebhook};
 
     use crate::connectors;
@@ -375,21 +377,35 @@ mod tests {
 
     // ── Webhook: verify_webhook_source ───────────────────────────────────────
 
-    /// Helper: compute SHA256(body + "." + secret) and return hex-encoded signature.
-    fn sign_body(secret: &[u8], body: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
-        use common_utils::crypto::GenerateDigest;
-        let mut message = body.to_vec();
+    /// Helper: build a `ppro-signature` header value matching PPRO's scheme:
+    /// `t=<unix_ts>,s=<hex(HMAC-SHA256(secret, t + "." + raw_body))>`.
+    fn sign_ppro_webhook(
+        secret: &[u8],
+        timestamp: &str,
+        body: &[u8],
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        use common_utils::crypto::SignMessage;
+        let mut message = timestamp.as_bytes().to_vec();
         message.push(b'.');
-        message.extend_from_slice(secret);
-        let digest = common_utils::crypto::Sha256
-            .generate_digest(&message)
-            .map_err(|e| format!("SHA256 digest failed: {e:?}"))?;
-        Ok(hex::encode(digest))
+        message.extend_from_slice(body);
+        let signature = common_utils::crypto::HmacSha256
+            .sign_message(secret, &message)
+            .map_err(|e| format!("HMAC-SHA256 signing failed: {e:?}"))?;
+        Ok(format!("t={timestamp},s={}", hex::encode(signature)))
+    }
+
+    fn ppro_connector_config(webhook_secret: &str) -> Option<ConnectorSpecificConfig> {
+        Some(ConnectorSpecificConfig::Ppro {
+            api_key: Secret::new("test_api_key".to_string()),
+            merchant_id: Secret::new("test_merchant_id".to_string()),
+            base_url: None,
+            webhook_secret: Some(Secret::new(webhook_secret.to_string())),
+        })
     }
 
     fn make_signed_request(body: &[u8], signature: &str) -> RequestDetails {
         let mut headers = HashMap::new();
-        headers.insert("Webhook-Signature".to_string(), signature.to_string());
+        headers.insert("ppro-signature".to_string(), signature.to_string());
         RequestDetails {
             method: HttpMethod::Post,
             uri: None,
@@ -404,67 +420,63 @@ mod tests {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let secret = b"my_webhook_secret";
         let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
-        let signature = sign_body(secret, &body)?;
+        let signature = sign_ppro_webhook(secret, "1700000000", &body)?;
         let request = make_signed_request(&body, &signature);
 
-        let secrets = domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: secret.to_vec(),
-            additional_secret: None,
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        )?;
+        ensure!(result, "valid HMAC-SHA256 signature should verify as true");
+        Ok(())
+    }
+
+    #[test]
+    fn test_verify_webhook_source_case_insensitive_header() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let secret = b"my_webhook_secret";
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        let signature = sign_ppro_webhook(secret, "1700000000", &body)?;
+        // HTTP intermediaries may normalise header casing
+        let mut headers = HashMap::new();
+        headers.insert("PPRO-SIGNATURE".to_string(), signature);
+        let request = RequestDetails {
+            method: HttpMethod::Post,
+            uri: None,
+            headers,
+            body: body.to_vec(),
+            query_params: None,
         };
 
-        let result = connector.verify_webhook_source(request, Some(secrets), None)?;
-        ensure!(result, "valid SHA256 signature should verify as true");
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        )?;
+        ensure!(result, "signature header lookup must be case-insensitive");
         Ok(())
     }
 
     #[test]
     fn test_verify_webhook_source_invalid_signature() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
-        let secret = b"my_webhook_secret";
         let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
         // Sign with a different secret
-        let wrong_signature = sign_body(b"wrong_secret", &body)?;
+        let wrong_signature = sign_ppro_webhook(b"wrong_secret", "1700000000", &body)?;
         let request = make_signed_request(&body, &wrong_signature);
 
-        let secrets = domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: secret.to_vec(),
-            additional_secret: None,
-        };
-
-        let result = connector.verify_webhook_source(request, Some(secrets), None)?;
-        ensure!(!result, "invalid SHA256 signature should verify as false");
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        )?;
+        ensure!(
+            !result,
+            "signature from a different secret should verify as false"
+        );
         Ok(())
-    }
-
-    #[test]
-    fn test_verify_webhook_source_missing_header() {
-        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
-        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
-        // No Webhook-Signature header
-        let request = make_request(&body);
-        let secrets = domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: b"my_webhook_secret".to_vec(),
-            additional_secret: None,
-        };
-
-        let result = connector.verify_webhook_source(request, Some(secrets), None);
-        assert!(
-            result.is_err(),
-            "missing Webhook-Signature header should return an error"
-        );
-    }
-
-    #[test]
-    fn test_verify_webhook_source_no_secret_returns_error() {
-        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
-        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
-        let request = make_request(&body);
-
-        let result = connector.verify_webhook_source(request, None, None);
-        assert!(
-            result.is_err(),
-            "missing connector_webhook_secret should return NotImplemented error"
-        );
     }
 
     #[test]
@@ -472,20 +484,206 @@ mod tests {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let secret = b"my_webhook_secret";
         let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
-        let signature = sign_body(secret, &body)?;
+        let signature = sign_ppro_webhook(secret, "1700000000", &body)?;
 
         // Tamper with the body after signing
         let tampered_body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "FAILED");
         let request = make_signed_request(&tampered_body, &signature);
 
-        let secrets = domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: secret.to_vec(),
-            additional_secret: None,
-        };
-
-        let result = connector.verify_webhook_source(request, Some(secrets), None)?;
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        )?;
         ensure!(!result, "tampered body should fail signature verification");
         Ok(())
+    }
+
+    #[test]
+    fn test_verify_webhook_source_tampered_timestamp() -> Result<(), Box<dyn std::error::Error>> {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let secret = b"my_webhook_secret";
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        let signature = sign_ppro_webhook(secret, "1700000000", &body)?;
+
+        // Replay the same signature with a different timestamp: `t` is part of
+        // the signed message, so this must fail.
+        let tampered_signature = signature.replacen("t=1700000000", "t=1700000001", 1);
+        let request = make_signed_request(&body, &tampered_signature);
+
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        )?;
+        ensure!(
+            !result,
+            "tampered timestamp should fail signature verification"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_verify_webhook_source_missing_header() {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        // No ppro-signature header
+        let request = make_request(&body);
+
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        );
+        assert!(
+            result.is_err(),
+            "missing ppro-signature header should return an error"
+        );
+    }
+
+    #[test]
+    fn test_verify_webhook_source_missing_timestamp_element() {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        // Header without the `t` element
+        let request = make_signed_request(&body, "s=deadbeef");
+
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        );
+        assert!(
+            result.is_err(),
+            "missing timestamp element should return an error"
+        );
+    }
+
+    #[test]
+    fn test_verify_webhook_source_missing_signature_element() {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        // Header without the `s` element
+        let request = make_signed_request(&body, "t=1700000000");
+
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        );
+        assert!(
+            result.is_err(),
+            "missing signature element should return an error"
+        );
+    }
+
+    #[test]
+    fn test_verify_webhook_source_invalid_hex_signature() {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        // `s` element is not valid hex
+        let request = make_signed_request(&body, "t=1700000000,s=not_hex");
+
+        let result = connector.verify_webhook_source(
+            request,
+            None,
+            ppro_connector_config("my_webhook_secret"),
+        );
+        assert!(
+            result.is_err(),
+            "non-hex signature element should return an error"
+        );
+    }
+
+    #[test]
+    fn test_verify_webhook_source_no_secret_returns_error() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        let signature = sign_ppro_webhook(b"my_webhook_secret", "1700000000", &body)?;
+        let request = make_signed_request(&body, &signature);
+
+        let result = connector.verify_webhook_source(request, None, None);
+        ensure!(
+            result.is_err(),
+            "missing webhook_secret in connector config should return an error"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_verify_webhook_source_rpc_webhook_secrets_fallback(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
+        let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
+        let signature = sign_ppro_webhook(b"my_webhook_secret", "1700000000", &body)?;
+        let request = make_signed_request(&body, &signature);
+
+        // With no connector config `webhook_secret`, the RPC `webhook_secrets`
+        // field must be used (legacy callers can only set the RPC secret).
+        let rpc_secrets = domain_types::connector_types::ConnectorWebhookSecrets {
+            secret: b"my_webhook_secret".to_vec(),
+            additional_secret: None,
+        };
+        let result = connector.verify_webhook_source(request, Some(rpc_secrets), None);
+        ensure!(
+            result?,
+            "RPC webhook_secrets should be used when the config field is absent"
+        );
+        Ok(())
+    }
+
+    // ── Webhook: get_ppro_signature_elements_from_header ─────────────────────
+
+    #[test]
+    fn test_get_ppro_signature_elements_from_header_parses_elements(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "ppro-signature".to_string(),
+            "t=1700000000,s=deadbeef".to_string(),
+        );
+        let elements =
+            connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers)?;
+        ensure_eq!(elements.get("t").map(String::as_str), Some("1700000000"));
+        ensure_eq!(elements.get("s").map(String::as_str), Some("deadbeef"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_ppro_signature_elements_from_header_case_insensitive() {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "PPRO-Signature".to_string(),
+            "t=1700000000,s=deadbeef".to_string(),
+        );
+        let result =
+            connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers);
+        assert!(result.is_ok(), "header lookup must be case-insensitive");
+    }
+
+    #[test]
+    fn test_get_ppro_signature_elements_from_header_missing() {
+        let headers = HashMap::new();
+        let result =
+            connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers);
+        assert!(result.is_err(), "missing header should return an error");
+    }
+
+    #[test]
+    fn test_get_ppro_signature_elements_from_header_malformed_element() {
+        let mut headers = HashMap::new();
+        // Element without `=`
+        headers.insert(
+            "ppro-signature".to_string(),
+            "t=1700000000,deadbeef".to_string(),
+        );
+        let result =
+            connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers);
+        assert!(
+            result.is_err(),
+            "element without '=' should return an error"
+        );
     }
 
     // ── Webhook: get_webhook_resource_object ─────────────────────────────────
@@ -736,6 +934,7 @@ mod tests {
 mod transformer_tests {
     use super::super::transformers::*;
     use common_utils::MinorUnit;
+    use domain_types::router_response_types::RedirectForm;
 
     macro_rules! ensure_eq {
         ($left:expr, $right:expr $(,)?) => {{
@@ -843,7 +1042,8 @@ mod transformer_tests {
         Ok(())
     }
 
-    /// A captured response carries the instrument_id for mandate storage.
+    /// A captured charge response carries the instrument_id. It is deserialized but
+    /// deliberately not surfaced as a mandate reference -- see PproPaymentsResponse.
     #[test]
     fn test_authorize_response_captured_with_instrument_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -1012,7 +1212,12 @@ mod transformer_tests {
         ensure_eq!(
             resp.instrument_id.as_deref(),
             Some("instr_mandate_001"),
-            "instrumentId should be stored as mandate reference"
+            "instrumentId should be deserialized"
+        );
+        ensure_eq!(
+            resp.id,
+            "agr_xyz456",
+            "the agreement id -- not instrumentId -- is what becomes connector_mandate_id"
         );
         Ok(())
     }
@@ -1043,5 +1248,525 @@ mod transformer_tests {
         ensure_eq!(resp.status, 422);
         ensure_eq!(resp.failure_message, "Validation failed");
         Ok(())
+    }
+
+    // ── build_auth_redirect: Satispay's 3-way auth flow resolution ───────────
+
+    fn auth_response(
+        r#type: PproAuthenticationType,
+        details: Option<PproAuthDetailsResponse>,
+    ) -> PproAuthenticationResponse {
+        PproAuthenticationResponse { r#type, details }
+    }
+
+    fn empty_details() -> PproAuthDetailsResponse {
+        PproAuthDetailsResponse {
+            request_url: None,
+            request_method: None,
+            code_type: None,
+            code_image: None,
+            code_payload: None,
+            code_document: None,
+            scan_by: None,
+            mobile_intent_uri: None,
+        }
+    }
+
+    #[test]
+    fn test_build_auth_redirect_satispay_intent_builds_uri(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let methods = vec![auth_response(
+            PproAuthenticationType::AppIntent,
+            Some(PproAuthDetailsResponse {
+                mobile_intent_uri: Some("satispay://intent/xyz".to_string()),
+                ..empty_details()
+            }),
+        )];
+        let redirect = build_auth_redirect(
+            &methods,
+            Some(common_enums::PaymentMethodType::SatispayIntent),
+        );
+        match redirect {
+            Some(RedirectForm::Uri { uri }) => {
+                ensure_eq!(uri, "satispay://intent/xyz".to_string())
+            }
+            other => return Err(format!("expected RedirectForm::Uri, got {other:?}").into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_auth_redirect_satispay_qr_builds_qr_form(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let methods = vec![auth_response(
+            PproAuthenticationType::ScanCode,
+            Some(PproAuthDetailsResponse {
+                code_payload: Some("qr_payload_abc".to_string()),
+                code_image: Some("https://images.ppro.com/qr/abc.png".to_string()),
+                scan_by: Some("2026-07-23T12:00:00Z".to_string()),
+                ..empty_details()
+            }),
+        )];
+        let redirect =
+            build_auth_redirect(&methods, Some(common_enums::PaymentMethodType::SatispayQr));
+        match redirect {
+            Some(RedirectForm::Qr {
+                payload,
+                image_base64,
+                image_url,
+                expires_at,
+                ..
+            }) => {
+                ensure_eq!(payload, Some("qr_payload_abc".to_string()));
+                ensure_eq!(image_base64, None);
+                ensure_eq!(
+                    image_url,
+                    Some("https://images.ppro.com/qr/abc.png".to_string())
+                );
+                ensure!(expires_at.is_some(), "expires_at should have parsed");
+            }
+            other => return Err(format!("expected RedirectForm::Qr, got {other:?}").into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_auth_redirect_satispay_plain_still_uses_uri_redirect(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // Plain Satispay (PPRO's normal REDIRECT flow) is unaffected by the new variants.
+        let methods = vec![auth_response(
+            PproAuthenticationType::Redirect,
+            Some(PproAuthDetailsResponse {
+                request_url: Some("https://redirect.ppro.com/satispay".to_string()),
+                ..empty_details()
+            }),
+        )];
+        let redirect =
+            build_auth_redirect(&methods, Some(common_enums::PaymentMethodType::Satispay));
+        match redirect {
+            Some(RedirectForm::Uri { uri }) => {
+                ensure_eq!(uri, "https://redirect.ppro.com/satispay".to_string())
+            }
+            other => return Err(format!("expected RedirectForm::Uri, got {other:?}").into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_auth_redirect_satispay_intent_no_match_returns_none(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // Only an unrelated auth type is present; SatispayIntent should not match it.
+        let methods = vec![auth_response(PproAuthenticationType::ScanCode, None)];
+        let redirect = build_auth_redirect(
+            &methods,
+            Some(common_enums::PaymentMethodType::SatispayIntent),
+        );
+        ensure!(redirect.is_none(), "expected no redirect to be built");
+        Ok(())
+    }
+
+    /// Regression: UPI Intent's pre-existing `Uri`-based behavior must be unaffected by
+    /// the addition of Satispay's `SatispayIntent`/`SatispayQr` variants.
+    #[test]
+    fn test_build_auth_redirect_upi_intent_still_builds_uri(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let methods = vec![auth_response(
+            PproAuthenticationType::AppIntent,
+            Some(PproAuthDetailsResponse {
+                mobile_intent_uri: Some("upi://pay?xyz".to_string()),
+                ..empty_details()
+            }),
+        )];
+        let redirect =
+            build_auth_redirect(&methods, Some(common_enums::PaymentMethodType::UpiIntent));
+        match redirect {
+            Some(RedirectForm::Uri { uri }) => ensure_eq!(uri, "upi://pay?xyz".to_string()),
+            other => return Err(format!("expected RedirectForm::Uri, got {other:?}").into()),
+        }
+        Ok(())
+    }
+
+    /// UPI QR now shares Satispay QR's `Qr` form: `code_payload` lands in `payload`
+    /// instead of the old `Uri`-from-`code_payload` shape.
+    #[test]
+    fn test_build_auth_redirect_upi_qr_builds_qr_form() -> Result<(), Box<dyn std::error::Error>> {
+        let methods = vec![auth_response(
+            PproAuthenticationType::ScanCode,
+            Some(PproAuthDetailsResponse {
+                code_payload: Some("upi_qr_payload".to_string()),
+                ..empty_details()
+            }),
+        )];
+        let redirect = build_auth_redirect(&methods, Some(common_enums::PaymentMethodType::UpiQr));
+        match redirect {
+            Some(RedirectForm::Qr {
+                payload,
+                image_base64,
+                expires_at,
+                ..
+            }) => {
+                ensure_eq!(payload, Some("upi_qr_payload".to_string()));
+                ensure_eq!(image_base64, None);
+                ensure_eq!(expires_at, None);
+            }
+            other => return Err(format!("expected RedirectForm::Qr, got {other:?}").into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_auth_redirect_upi_intent_unaffected_by_satispay_change(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // UPI Intent must still only match AppIntent, not ScanCode.
+        let methods = vec![auth_response(
+            PproAuthenticationType::ScanCode,
+            Some(PproAuthDetailsResponse {
+                code_payload: Some("should_not_match".to_string()),
+                ..empty_details()
+            }),
+        )];
+        let redirect =
+            build_auth_redirect(&methods, Some(common_enums::PaymentMethodType::UpiIntent));
+        ensure!(
+            redirect.is_none(),
+            "UPI Intent should not match a ScanCode entry"
+        );
+        Ok(())
+    }
+}
+
+// ── Satispay authentication_settings selection (request builder) ─────────────
+//
+// These tests exercise `PproPaymentsRequest::try_from` directly, covering the
+// 3-way flow-selection logic driven by `PaymentMethodType::{Satispay, SatispayIntent,
+// SatispayQr}` -- mirroring the pre-existing `UpiIntent`/`UpiQr` precedent exactly.
+#[cfg(test)]
+mod satispay_request_tests {
+    use std::marker::PhantomData;
+
+    use common_utils::types::{MinorUnit, Money};
+    use domain_types::{
+        connector_flow::Authorize,
+        connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData},
+        payment_address::{Address, AddressDetails, PaymentAddress},
+        payment_method_data::{DefaultPCIHolder, PaymentMethodData, SatispayData, WalletData},
+        router_data::{ConnectorSpecificConfig, ErrorResponse},
+        router_data_v2::RouterDataV2,
+        types::{ConnectorParams, Connectors},
+    };
+    use hyperswitch_masking::Secret;
+
+    use super::super::transformers::{PproAuthenticationType, PproPaymentsRequest};
+    use super::super::PproRouterData;
+    use crate::connectors::Ppro;
+
+    macro_rules! ensure_eq {
+        ($left:expr, $right:expr $(,)?) => {{
+            let left = &$left;
+            let right = &$right;
+            if left != right {
+                return Err(format!("assertion failed: {left:?} != {right:?}").into());
+            }
+        }};
+    }
+
+    macro_rules! ensure {
+        ($cond:expr $(,)?) => {{
+            if !($cond) {
+                return Err(concat!("assertion failed: ", stringify!($cond)).into());
+            }
+        }};
+        ($cond:expr, $($msg:tt)+) => {{
+            if !($cond) {
+                return Err(format!($($msg)+).into());
+            }
+        }};
+    }
+
+    fn base_router_data(
+        payment_method_type: common_enums::PaymentMethodType,
+        router_return_url: Option<String>,
+    ) -> RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<DefaultPCIHolder>,
+        PaymentsResponseData,
+    > {
+        RouterDataV2 {
+            flow: PhantomData::<Authorize>,
+            resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
+                vault_headers: None,
+                merchant_id: common_utils::id_type::MerchantId::default(),
+                customer_id: None,
+                connector_customer: None,
+                payment_id: "pay_satispay_test".to_string(),
+                attempt_id: "attempt_satispay_test".to_string(),
+                status: common_enums::AttemptStatus::Pending,
+                payment_method: common_enums::PaymentMethod::Wallet,
+                payment_method_type: Some(payment_method_type),
+                description: None,
+                return_url: router_return_url.clone(),
+                order_details: None,
+                address: PaymentAddress::new(
+                    None,
+                    Some(Address {
+                        address: Some(AddressDetails {
+                            country: Some(common_enums::CountryAlpha2::NL),
+                            ..Default::default()
+                        }),
+                        phone: None,
+                        email: None,
+                    }),
+                    None,
+                    None,
+                ),
+                auth_type: common_enums::AuthenticationType::NoThreeDs,
+                connector_feature_data: None,
+                amount_captured: None,
+                amount_capturable: None,
+                amount_authorized: None,
+                access_token: None,
+                session_token: None,
+                reference_id: None,
+                connector_order_id: None,
+                preprocessing_id: None,
+                connector_api_version: None,
+                connector_request_reference_id: "conn_ref_satispay_test".to_string(),
+                test_mode: None,
+                connector_http_status_code: None,
+                connectors: Connectors {
+                    ppro: ConnectorParams {
+                        base_url: "https://api.sandbox.eu.ppro.com/".to_string(),
+                        dispute_base_url: None,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+                .into(),
+                external_latency: None,
+                connector_response_headers: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                amount: None,
+                connector_response: None,
+                typed_connector_response: None,
+                typed_connector_request: None,
+                recurring_mandate_payment_data: None,
+                l2_l3_data: None,
+                merchant_request_id: None,
+                sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
+                settlement_status: None,
+            },
+            connector_config: ConnectorSpecificConfig::Ppro {
+                api_key: Secret::new("test_api_key".to_string()),
+                merchant_id: Secret::new("test_merchant_id".to_string()),
+                base_url: None,
+                webhook_secret: None,
+            },
+            request: PaymentsAuthorizeData {
+                customer_document_details: None,
+                authentication_data: None,
+                connector_testing_data: None,
+                access_token: None,
+                payment_method_data: PaymentMethodData::Wallet(WalletData::Satispay(
+                    SatispayData {},
+                )),
+                amount: Money {
+                    amount: MinorUnit::new(1000),
+                    currency: common_enums::Currency::EUR,
+                },
+                order_tax_amount: None,
+                surcharge_amount: None,
+                email: None,
+                customer_name: None,
+                customer_date_of_birth: None,
+                currency: common_enums::Currency::EUR,
+                confirm: true,
+                capture_method: None,
+                integrity_object: None,
+                integrity_specifications: None,
+                router_return_url,
+                webhook_url: Some("https://example.com/webhook".to_string()),
+                complete_authorize_url: None,
+                mandate_id: None,
+                setup_future_usage: None,
+                off_session: None,
+                is_stored_credential: None,
+                browser_info: None,
+                order_category: None,
+                session_token: None,
+                enrolled_for_3ds: Some(false),
+                related_transaction_id: None,
+                payment_experience: None,
+                payment_method_type: Some(payment_method_type),
+                customer_id: None,
+                request_incremental_authorization: Some(false),
+                metadata: None,
+                merchant_order_id: None,
+                shipping_cost: None,
+                merchant_account_id: None,
+                merchant_config_currency: None,
+                all_keys_required: None,
+                customer_acceptance: None,
+                split_payments: None,
+                split_settlement: None,
+                request_extended_authorization: None,
+                setup_mandate_details: None,
+                enable_overcapture: None,
+                connector_feature_data: None,
+                billing_descriptor: None,
+                enable_partial_authorization: None,
+                locale: None,
+                continue_redirection_url: None,
+                redirect_response: None,
+                threeds_method_comp_ind: None,
+                tokenization: None,
+                mit_category: None,
+                payment_channel: None,
+                domain_data: None,
+                risk_assessment_data: None,
+                partner_merchant_identifier_details: None,
+                currency_conversion_data: None,
+                is_account_funding_transaction: None,
+                recipient_details: None,
+                additional_connector_details: None,
+                customer: None,
+                business_country: None,
+                enable_avs_check: None,
+            },
+            response: Err(ErrorResponse::default()),
+        }
+    }
+
+    fn build_request(
+        payment_method_type: common_enums::PaymentMethodType,
+        router_return_url: Option<String>,
+    ) -> Result<PproPaymentsRequest, Box<dyn std::error::Error>> {
+        let router_data = base_router_data(payment_method_type, router_return_url);
+        let ppro_router_data = PproRouterData {
+            connector: (*Ppro::<DefaultPCIHolder>::new()).clone(),
+            router_data,
+        };
+        PproPaymentsRequest::try_from(ppro_router_data)
+            .map_err(|err| format!("Satispay request should build successfully: {err:?}").into())
+    }
+
+    /// `PaymentMethodType::SatispayIntent` selects PPRO's `APP_INTENT` auth type, sourcing
+    /// `mobileIntentUri` from the generic `router_return_url` -- exactly like `UpiIntent`.
+    #[test]
+    fn test_satispay_intent_selects_app_intent() -> Result<(), Box<dyn std::error::Error>> {
+        let req = build_request(
+            common_enums::PaymentMethodType::SatispayIntent,
+            Some("https://example.com/return".to_string()),
+        )?;
+        let settings = req
+            .authentication_settings
+            .as_ref()
+            .and_then(|v| v.first())
+            .ok_or("expected authentication_settings to be present")?;
+        ensure_eq!(settings.r#type, PproAuthenticationType::AppIntent);
+        let details = settings
+            .settings
+            .as_ref()
+            .ok_or("expected settings details")?;
+        ensure_eq!(
+            details.mobile_intent_uri,
+            Some("https://example.com/return".to_string())
+        );
+        Ok(())
+    }
+
+    /// `PaymentMethodType::SatispayQr` selects PPRO's `SCAN_CODE` auth type with no extra
+    /// settings payload -- exactly like `UpiQr`.
+    #[test]
+    fn test_satispay_qr_selects_scan_code() -> Result<(), Box<dyn std::error::Error>> {
+        let req = build_request(common_enums::PaymentMethodType::SatispayQr, None)?;
+        let settings = req
+            .authentication_settings
+            .as_ref()
+            .and_then(|v| v.first())
+            .ok_or("expected authentication_settings to be present")?;
+        ensure_eq!(settings.r#type, PproAuthenticationType::ScanCode);
+        ensure!(
+            settings.settings.is_none(),
+            "SatispayQr should not carry a settings payload, matching UpiQr"
+        );
+        Ok(())
+    }
+
+    /// Plain `PaymentMethodType::Satispay` is untouched: it still falls into the generic
+    /// `_` catch-all and resolves to `REDIRECT` via `router_return_url`.
+    #[test]
+    fn test_satispay_plain_falls_back_to_redirect() -> Result<(), Box<dyn std::error::Error>> {
+        let req = build_request(
+            common_enums::PaymentMethodType::Satispay,
+            Some("https://example.com/return".to_string()),
+        )?;
+        let settings = req
+            .authentication_settings
+            .as_ref()
+            .and_then(|v| v.first())
+            .ok_or("expected authentication_settings to be present")?;
+        ensure_eq!(settings.r#type, PproAuthenticationType::Redirect);
+        let details = settings
+            .settings
+            .as_ref()
+            .ok_or("expected settings details")?;
+        ensure_eq!(
+            details.return_url,
+            Some("https://example.com/return".to_string())
+        );
+        Ok(())
+    }
+
+    /// Regression: `UpiIntent`'s existing `authentication_settings` behavior is unaffected.
+    #[test]
+    fn test_upi_intent_still_selects_app_intent() -> Result<(), Box<dyn std::error::Error>> {
+        let req = build_request(
+            common_enums::PaymentMethodType::UpiIntent,
+            Some("https://example.com/upi-return".to_string()),
+        )?;
+        let settings = req
+            .authentication_settings
+            .as_ref()
+            .and_then(|v| v.first())
+            .ok_or("expected authentication_settings to be present")?;
+        ensure_eq!(settings.r#type, PproAuthenticationType::AppIntent);
+        Ok(())
+    }
+
+    /// Regression: `UpiQr`'s existing `authentication_settings` behavior is unaffected.
+    #[test]
+    fn test_upi_qr_still_selects_scan_code() -> Result<(), Box<dyn std::error::Error>> {
+        let req = build_request(common_enums::PaymentMethodType::UpiQr, None)?;
+        let settings = req
+            .authentication_settings
+            .as_ref()
+            .and_then(|v| v.first())
+            .ok_or("expected authentication_settings to be present")?;
+        ensure_eq!(settings.r#type, PproAuthenticationType::ScanCode);
+        Ok(())
+    }
+
+    /// PPRO requires a consumer country for every payment method: a request with no
+    /// billing country must be rejected regardless of the payment method.
+    #[test]
+    fn test_missing_billing_country_is_rejected() {
+        let mut router_data = base_router_data(
+            common_enums::PaymentMethodType::SatispayIntent,
+            Some("https://example.com/return".to_string()),
+        );
+        router_data.resource_common_data.address = PaymentAddress::new(None, None, None, None);
+        let ppro_router_data = PproRouterData {
+            connector: (*Ppro::<DefaultPCIHolder>::new()).clone(),
+            router_data,
+        };
+        let result = PproPaymentsRequest::try_from(ppro_router_data);
+        assert!(
+            result.is_err(),
+            "request without a billing country should be rejected"
+        );
     }
 }

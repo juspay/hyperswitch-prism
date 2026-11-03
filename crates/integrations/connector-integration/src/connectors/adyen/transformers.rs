@@ -62,6 +62,30 @@ use crate::{
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, IntegrationErrorContext, WebhookError};
 
+const ADYEN_CONNECTOR_NAME: &str = "Adyen";
+const CHECKOUT_V72_BILLING_POSTAL_CODE_FIELD: &str = "billingAddress.postalCode";
+const CHECKOUT_V72_DELIVERY_POSTAL_CODE_FIELD: &str = "deliveryAddress.postalCode";
+const CHECKOUT_V72_POSTAL_CODE_MAX_LENGTH: usize = 10;
+const CHECKOUT_V72_REFERENCE_FIELD: &str = "reference";
+const CHECKOUT_V72_REFERENCE_MAX_LENGTH: usize = 80;
+const CHECKOUT_V72_RETURN_URL_FIELD: &str = "returnUrl";
+const CHECKOUT_V72_RETURN_URL_MAX_LENGTH: usize = 1024;
+const CHECKOUT_V72_SHOPPER_IP_FIELD: &str = "shopperIP";
+const CHECKOUT_V72_SHOPPER_IP_MAX_LENGTH: usize = 256;
+const CHECKOUT_V72_SHOPPER_FIRST_NAME_FIELD: &str = "shopperName.firstName";
+const CHECKOUT_V72_SHOPPER_LAST_NAME_FIELD: &str = "shopperName.lastName";
+const CHECKOUT_V72_SHOPPER_NAME_MAX_LENGTH: usize = 100;
+const CHECKOUT_V72_TELEPHONE_NUMBER_FIELD: &str = "telephoneNumber";
+const CHECKOUT_V72_TELEPHONE_NUMBER_MAX_LENGTH: usize = 64;
+const CHECKOUT_V72_SOCIAL_SECURITY_NUMBER_FIELD: &str = "socialSecurityNumber";
+const CHECKOUT_V72_SOCIAL_SECURITY_NUMBER_MAX_LENGTH: usize = 50;
+const CHECKOUT_V72_METADATA_KEY_FIELD: &str = "metadata key";
+const CHECKOUT_V72_METADATA_KEY_MAX_LENGTH: usize = 20;
+const CHECKOUT_V72_METADATA_VALUE_FIELD: &str = "metadata value";
+const CHECKOUT_V72_METADATA_VALUE_MAX_LENGTH: usize = 80;
+const CHECKOUT_V72_SHOPPER_EMAIL_FIELD: &str = "shopperEmail";
+const CHECKOUT_V72_SHOPPER_EMAIL_MAX_LENGTH: usize = 256;
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub enum Currency {
     #[default]
@@ -875,6 +899,24 @@ pub enum AdyenShopperInteraction {
     Pos,
 }
 
+fn shopper_interaction(
+    off_session: Option<bool>,
+    payment_channel: &Option<common_enums::PaymentChannel>,
+) -> AdyenShopperInteraction {
+    match off_session {
+        Some(true) => AdyenShopperInteraction::ContinuedAuthentication,
+        _ => match payment_channel {
+            Some(
+                common_enums::PaymentChannel::MailOrder
+                | common_enums::PaymentChannel::TelephoneOrder,
+            ) => AdyenShopperInteraction::Moto,
+            Some(common_enums::PaymentChannel::Ecommerce) | None => {
+                AdyenShopperInteraction::Ecommerce
+            }
+        },
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     From<&RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>
     for AdyenShopperInteraction
@@ -887,10 +929,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> Self {
-        match item.request.off_session {
-            Some(true) => Self::ContinuedAuthentication,
-            _ => Self::Ecommerce,
-        }
+        shopper_interaction(item.request.off_session, &item.request.payment_channel)
     }
 }
 
@@ -1290,6 +1329,284 @@ pub struct AdyenPaymentRequest<
     application_info: Option<ApplicationInfo>,
 }
 
+fn validate_checkout_v72_field_length(
+    value: &str,
+    field_name: &str,
+    max_length: usize,
+) -> Result<(), Error> {
+    let received_length = value.chars().count();
+    if received_length > max_length {
+        return Err(IntegrationError::MaxFieldLengthViolated {
+            connector: ADYEN_CONNECTOR_NAME.to_string(),
+            field_name: field_name.to_string(),
+            max_length,
+            received_length,
+            context: Default::default(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+// Adyen requires a state for US and CA addresses. For every country, a state
+// that is sent must be a two-letter code; other unmappable states are optional.
+fn normalize_checkout_v72_state(
+    country: common_enums::CountryAlpha2,
+    provided_state: Option<Secret<String>>,
+    mapped_state: Option<Secret<String>>,
+    field_name: &'static str,
+) -> Result<Option<Secret<String>>, Error> {
+    let is_required = matches!(
+        country,
+        common_enums::CountryAlpha2::US | common_enums::CountryAlpha2::CA
+    );
+    match mapped_state.or(provided_state) {
+        Some(state) => {
+            let code = state.peek().to_ascii_uppercase();
+            if is_two_letter_state_code(&code) {
+                Ok(Some(Secret::new(code)))
+            } else if is_required {
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name,
+                    context: Default::default(),
+                }
+                .into())
+            } else {
+                Ok(None)
+            }
+        }
+        None if is_required => Err(IntegrationError::MissingRequiredField {
+            field_name,
+            context: Default::default(),
+        }
+        .into()),
+        None => Ok(None),
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    AdyenPaymentRequest<T>
+{
+    // Apply the v72 address requirements to the shared /payments request.
+    // Adyen's upgrade guide calls the state field stateOrProvinceCode, but the /payments
+    // request model serializes it as stateOrProvince.
+    fn prepare_checkout_v72_addresses(
+        &mut self,
+        billing_state_code: Option<Secret<String>>,
+        delivery_state_code: Option<Secret<String>>,
+    ) -> Result<(), Error> {
+        if let Some(billing) = self.billing_address.as_mut() {
+            billing.state_or_province = normalize_checkout_v72_state(
+                billing.country,
+                billing.state_or_province.take(),
+                billing_state_code,
+                "billingAddress.stateOrProvince",
+            )?;
+            validate_checkout_v72_field_length(
+                billing.postal_code.peek(),
+                CHECKOUT_V72_BILLING_POSTAL_CODE_FIELD,
+                CHECKOUT_V72_POSTAL_CODE_MAX_LENGTH,
+            )?;
+        }
+
+        if let Some(delivery) = self.delivery_address.as_mut() {
+            delivery.state_or_province = normalize_checkout_v72_state(
+                delivery.country,
+                delivery.state_or_province.take(),
+                delivery_state_code,
+                "deliveryAddress.stateOrProvince",
+            )?;
+            validate_checkout_v72_field_length(
+                delivery.postal_code.peek(),
+                CHECKOUT_V72_DELIVERY_POSTAL_CODE_FIELD,
+                CHECKOUT_V72_POSTAL_CODE_MAX_LENGTH,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn validate_checkout_v72_fields(&self) -> Result<(), Error> {
+        validate_checkout_v72_field_length(
+            &self.reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
+        validate_checkout_v72_return_url(&self.return_url)?;
+
+        if let Some(metadata) = self.metadata.as_ref() {
+            validate_checkout_v72_metadata(metadata.peek())?;
+        }
+        if let Some(email) = self.shopper_email.as_ref() {
+            validate_checkout_v72_email(email.peek())?;
+        }
+        if let Some(ip) = self.shopper_ip.as_ref() {
+            validate_checkout_v72_field_length(
+                ip.peek(),
+                CHECKOUT_V72_SHOPPER_IP_FIELD,
+                CHECKOUT_V72_SHOPPER_IP_MAX_LENGTH,
+            )?;
+        }
+        if let Some(name) = self.shopper_name.as_ref() {
+            if let Some(first_name) = name.first_name.as_ref() {
+                validate_checkout_v72_field_length(
+                    first_name.peek(),
+                    CHECKOUT_V72_SHOPPER_FIRST_NAME_FIELD,
+                    CHECKOUT_V72_SHOPPER_NAME_MAX_LENGTH,
+                )?;
+            }
+            if let Some(last_name) = name.last_name.as_ref() {
+                validate_checkout_v72_field_length(
+                    last_name.peek(),
+                    CHECKOUT_V72_SHOPPER_LAST_NAME_FIELD,
+                    CHECKOUT_V72_SHOPPER_NAME_MAX_LENGTH,
+                )?;
+            }
+        }
+        if let Some(phone) = self.telephone_number.as_ref() {
+            validate_checkout_v72_field_length(
+                phone.peek(),
+                CHECKOUT_V72_TELEPHONE_NUMBER_FIELD,
+                CHECKOUT_V72_TELEPHONE_NUMBER_MAX_LENGTH,
+            )?;
+        }
+        if let Some(ssn) = self.social_security_number.as_ref() {
+            validate_checkout_v72_field_length(
+                ssn.peek(),
+                CHECKOUT_V72_SOCIAL_SECURITY_NUMBER_FIELD,
+                CHECKOUT_V72_SOCIAL_SECURITY_NUMBER_MAX_LENGTH,
+            )?;
+        }
+        if self
+            .additional_data
+            .as_ref()
+            .and_then(|data| data.capture_delay_hours)
+            .is_some_and(|hours| hours > 672)
+        {
+            return Err(IntegrationError::InvalidDataFormat {
+                field_name: "additionalData.captureDelayHours",
+                context: Default::default(),
+            }
+            .into());
+        }
+        Ok(())
+    }
+}
+
+fn is_two_letter_state_code(value: &str) -> bool {
+    value.len() == 2
+        && value
+            .bytes()
+            .all(|character| character.is_ascii_uppercase())
+}
+
+fn validate_checkout_v72_metadata(metadata: &serde_json::Value) -> Result<(), Error> {
+    let entries = metadata
+        .as_object()
+        .ok_or(IntegrationError::InvalidDataFormat {
+            field_name: "metadata",
+            context: Default::default(),
+        })?;
+    if entries.len() > 20 {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "metadata",
+            context: Default::default(),
+        }
+        .into());
+    }
+    for (key, value) in entries {
+        validate_checkout_v72_field_length(
+            key,
+            CHECKOUT_V72_METADATA_KEY_FIELD,
+            CHECKOUT_V72_METADATA_KEY_MAX_LENGTH,
+        )?;
+        let value = value.as_str().ok_or(IntegrationError::InvalidDataFormat {
+            field_name: CHECKOUT_V72_METADATA_VALUE_FIELD,
+            context: Default::default(),
+        })?;
+        validate_checkout_v72_field_length(
+            value,
+            CHECKOUT_V72_METADATA_VALUE_FIELD,
+            CHECKOUT_V72_METADATA_VALUE_MAX_LENGTH,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_checkout_v72_return_url(return_url: &str) -> Result<(), Error> {
+    validate_checkout_v72_field_length(
+        return_url,
+        CHECKOUT_V72_RETURN_URL_FIELD,
+        CHECKOUT_V72_RETURN_URL_MAX_LENGTH,
+    )?;
+    if return_url
+        .chars()
+        .any(|character| !character.is_ascii() || character.is_whitespace())
+        || Url::parse(return_url).is_err()
+    {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: CHECKOUT_V72_RETURN_URL_FIELD,
+            context: Default::default(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+fn validate_checkout_v72_email(email: &str) -> Result<(), Error> {
+    validate_checkout_v72_field_length(
+        email,
+        CHECKOUT_V72_SHOPPER_EMAIL_FIELD,
+        CHECKOUT_V72_SHOPPER_EMAIL_MAX_LENGTH,
+    )?;
+    let valid_parts = email.split_once('@').is_some_and(|(name, domain)| {
+        !name.is_empty()
+            && !domain.is_empty()
+            && !domain.starts_with('.')
+            && !domain.contains('@')
+            && (!name.contains('"') || (name.starts_with('"') && name.ends_with('"')))
+    });
+    if email.chars().any(char::is_whitespace) || !valid_parts {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: CHECKOUT_V72_SHOPPER_EMAIL_FIELD,
+            context: Default::default(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+type CheckoutV72StateCodes = (Option<Secret<String>>, Option<Secret<String>>);
+
+fn checkout_v72_state_codes(flow_data: &PaymentFlowData) -> Result<CheckoutV72StateCodes, Error> {
+    let billing_state_code = flow_data
+        .get_optional_billing()
+        .and_then(|billing| billing.address.as_ref())
+        .map(|address| {
+            address.to_state_code_as_optional().change_context(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "billingAddress.stateOrProvince",
+                    context: Default::default(),
+                },
+            )
+        })
+        .transpose()?
+        .flatten();
+    let delivery_state_code = flow_data
+        .get_optional_shipping()
+        .and_then(|shipping| shipping.address.as_ref())
+        .map(|address| {
+            address.to_state_code_as_optional().change_context(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "deliveryAddress.stateOrProvince",
+                    context: Default::default(),
+                },
+            )
+        })
+        .transpose()?
+        .flatten();
+    Ok((billing_state_code, delivery_state_code))
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1354,7 +1671,7 @@ fn get_amount_data<
 ) -> Amount {
     Amount {
         currency: item.router_data.request.currency,
-        value: item.router_data.request.minor_amount.to_owned(),
+        value: item.router_data.request.amount.amount.to_owned(),
     }
 }
 
@@ -1409,7 +1726,12 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::Interac
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
-        | common_enums::CardNetwork::Dinacard => None,
+        | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::AirPlus
+        | common_enums::CardNetwork::Aurore
+        | common_enums::CardNetwork::EftposAustralia
+        | common_enums::CardNetwork::GeCapital
+        | common_enums::CardNetwork::Uatp => None,
     }
 }
 
@@ -1572,6 +1894,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::BluecodeRedirect { .. }
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
+            | WalletData::SatispayIntent(_)
+            | WalletData::SatispayQr(_)
             | WalletData::Wero(_)
             | WalletData::LazyPayRedirect(_)
             | WalletData::PhonePeRedirect(_)
@@ -1801,6 +2125,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             BankRedirectData::Trustly { .. } => Ok(Self::Trustly),
             BankRedirectData::Giropay { .. }
+            | BankRedirectData::BancontactIntent { .. }
+            | BankRedirectData::BancontactQr { .. }
             | BankRedirectData::Eft { .. }
             | BankRedirectData::Interac { .. }
             | BankRedirectData::LocalBankRedirect {}
@@ -3782,7 +4108,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        match item
+        let (billing_state_code, delivery_state_code) =
+            checkout_v72_state_codes(&item.router_data.resource_common_data)?;
+
+        let mut request = match item
             .router_data
             .request
             .mandate_id
@@ -3932,7 +4261,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
                 .into()),
             },
-        }
+        }?;
+        request.prepare_checkout_v72_addresses(billing_state_code, delivery_state_code)?;
+        request.validate_checkout_v72_fields()?;
+        Ok(request)
     }
 }
 
@@ -4010,13 +4342,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
+        let reference = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        validate_checkout_v72_field_length(
+            &reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
-            reference: item
-                .router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            reference,
         })
     }
 }
@@ -4301,10 +4639,15 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for AttemptStatus {
     }
 }
 
+const ADYEN_FRAUD_CANCELLED_CODE: &str = "22";
+const ADYEN_FRAUD_CANCELLED_REASON: &str = "FRAUD-CANCELLED";
+
 fn get_adyen_payment_status(
     is_manual_capture: bool,
     adyen_status: AdyenStatus,
     pmt: Option<common_enums::PaymentMethodType>,
+    refusal_reason_code: Option<&str>,
+    refusal_reason: Option<&str>,
 ) -> AttemptStatus {
     match adyen_status {
         AdyenStatus::AuthenticationFinished => AttemptStatus::AuthenticationSuccessful,
@@ -4314,7 +4657,12 @@ fn get_adyen_payment_status(
             // In case of Automatic capture Authorized is the final status of the payment
             false => AttemptStatus::Charged,
         },
-        AdyenStatus::Cancelled => AttemptStatus::Voided,
+        AdyenStatus::Cancelled => match (refusal_reason_code, refusal_reason) {
+            (Some(ADYEN_FRAUD_CANCELLED_CODE), _) | (_, Some(ADYEN_FRAUD_CANCELLED_REASON)) => {
+                AttemptStatus::Failure
+            }
+            _ => AttemptStatus::Voided,
+        },
         AdyenStatus::ChallengeShopper
         | AdyenStatus::RedirectShopper
         | AdyenStatus::PresentToShopper => AttemptStatus::AuthenticationPending,
@@ -4332,9 +4680,9 @@ fn get_adyen_payment_status(
 }
 
 // Unified ForeignTryFrom for Authorize and Psync Responses
-impl<F, Req>
+impl<F, Req, T>
     ForeignTryFrom<(
-        ResponseRouterData<AdyenPaymentResponse, Self>,
+        ResponseRouterData<AdyenPaymentResponse, AdyenRouterData<Self, T>>,
         Option<common_enums::CaptureMethod>,
         bool, // is_multiple_capture_psync_flow
         Option<common_enums::PaymentMethodType>,
@@ -4342,12 +4690,13 @@ impl<F, Req>
 where
     F: Clone,
     Req: Clone,
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn foreign_try_from(
         (value, capture_method, is_multiple_capture_psync_flow, payment_method_type): (
-            ResponseRouterData<AdyenPaymentResponse, Self>,
+            ResponseRouterData<AdyenPaymentResponse, AdyenRouterData<Self, T>>,
             Option<common_enums::CaptureMethod>,
             bool,
             Option<common_enums::PaymentMethodType>,
@@ -4358,6 +4707,8 @@ where
             router_data,
             http_code,
         } = value;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
         let is_manual_capture = is_manual_capture(capture_method);
         let pmt = payment_method_type;
 
@@ -4385,12 +4736,29 @@ where
             )?,
         };
 
-        let minor_amount_captured = match adyen_payments_response_data.status {
+        let amount_captured = match adyen_payments_response_data.status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
             _ => None,
-        };
+        }
+        .map(|amount| {
+            let currency = router_data
+                .resource_common_data
+                .amount
+                .as_ref()
+                .map(|money| money.currency)
+                .unwrap_or_default();
+
+            utils::response_amount_to_money(
+                &connector,
+                amount,
+                currency,
+                http_code,
+                connector_types::ConnectorEnum::Adyen,
+            )
+        })
+        .transpose()?;
 
         Ok(Self {
             response: adyen_payments_response_data.error.map_or_else(
@@ -4399,8 +4767,7 @@ where
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured,
+                amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
             },
@@ -4410,17 +4777,17 @@ where
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<AdyenPaymentResponse, Self>>
+    TryFrom<ResponseRouterData<AdyenPaymentResponse, AdyenRouterData<Self, T>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 where
     F: Clone,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        value: ResponseRouterData<AdyenPaymentResponse, Self>,
+        value: ResponseRouterData<AdyenPaymentResponse, AdyenRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
-        let capture_method = value.router_data.request.capture_method;
-        let payment_method_type = value.router_data.request.payment_method_type;
+        let capture_method = value.router_data.router_data.request.capture_method;
+        let payment_method_type = value.router_data.router_data.request.payment_method_type;
         Self::foreign_try_from((
             value,
             capture_method,
@@ -4430,24 +4797,27 @@ where
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<AdyenPSyncResponse, Self>>
+impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<AdyenPSyncResponse, AdyenRouterData<Self, T>>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 where
     F: Clone,
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(value: ResponseRouterData<AdyenPSyncResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: ResponseRouterData<AdyenPSyncResponse, AdyenRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
         // Extract the inner AdyenPaymentResponse from AdyenPSyncResponse
         let adyen_payment_response = value.response.0;
 
         // Check if this is a multiple capture sync flow
-        let is_multiple_capture_psync_flow = match value.router_data.request.sync_type {
+        let is_multiple_capture_psync_flow = match value.router_data.router_data.request.sync_type {
             SyncRequestType::MultipleCaptureSync => true,
             SyncRequestType::SinglePaymentSync => false,
         };
 
-        let capture_method = value.router_data.request.capture_method;
-        let payment_method_type = value.router_data.request.payment_method_type;
+        let capture_method = value.router_data.router_data.request.capture_method;
+        let payment_method_type = value.router_data.router_data.request.payment_method_type;
 
         let converted_value = ResponseRouterData {
             response: adyen_payment_response,
@@ -4466,18 +4836,20 @@ where
 
 // Response transformer for RepeatPayment - similar to Cybersource/other connectors pattern
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<AdyenRepeatPaymentResponse, Self>>
+    TryFrom<ResponseRouterData<AdyenRepeatPaymentResponse, AdyenRouterData<Self, T>>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        value: ResponseRouterData<AdyenRepeatPaymentResponse, Self>,
+        value: ResponseRouterData<AdyenRepeatPaymentResponse, AdyenRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response: repeat_response,
             router_data,
             http_code,
         } = value;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
         // Unwrap the response wrapper to get AdyenPaymentResponse
         let response = repeat_response.0;
         let is_manual_capture = is_manual_capture(router_data.request.capture_method);
@@ -4508,12 +4880,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )?,
         };
 
-        let minor_amount_captured = match adyen_payments_response_data.status {
+        let amount_captured = match adyen_payments_response_data.status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
             _ => None,
-        };
+        }
+        .map(|amount| {
+            utils::response_amount_to_money(
+                &connector,
+                amount,
+                router_data.request.currency,
+                http_code,
+                connector_types::ConnectorEnum::Adyen,
+            )
+        })
+        .transpose()?;
 
         Ok(Self {
             response: adyen_payments_response_data.error.map_or_else(
@@ -4522,8 +4904,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured,
+                amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
             },
@@ -4625,14 +5006,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
+        let reference = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        validate_checkout_v72_field_length(
+            &reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
-            reference: Some(
-                item.router_data
-                    .resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            ),
+            reference: Some(reference),
         })
     }
 }
@@ -4679,20 +5065,39 @@ impl TryFrom<ResponseRouterData<AdyenReversalResponse, Self>>
             } else {
                 common_enums::PostCaptureVoidStatus::Pending
             };
-        let description = post_capture_void_status
-            .is_post_capture_void_failure()
-            .then(|| response.refusal_reason.clone())
-            .flatten();
+        let response = if post_capture_void_status.is_post_capture_void_failure() {
+            let message = response.refusal_reason.clone();
 
-        let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
-            post_capture_void_status,
-            connector_reference_id: Some(response.payment_psp_reference),
-            description,
-            status_code: http_code,
+            Err(ErrorResponse {
+                code: response
+                    .refusal_reason_code
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: message
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: message,
+                status_code: http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(response.payment_psp_reference),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(response.payment_psp_reference),
+                status_code: http_code,
+            })
         };
 
         Ok(Self {
-            response: Ok(payments_response_data),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..router_data.resource_common_data
@@ -4710,7 +5115,13 @@ pub fn get_adyen_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_capture_manual, response.result_code, pmt);
+    let status = get_adyen_payment_status(
+        is_capture_manual,
+        response.result_code,
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == AttemptStatus::Failure
@@ -4849,7 +5260,13 @@ pub fn get_present_to_shopper_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == AttemptStatus::Failure
@@ -4927,7 +5344,13 @@ pub fn get_redirection_error_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code, pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code,
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = {
         let (network_decline_code, network_error_message) = response
             .additional_data
@@ -5005,7 +5428,13 @@ pub fn get_qr_code_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == AttemptStatus::Failure
@@ -5286,7 +5715,13 @@ pub fn get_redirection_response(
     status_code: u16,
     pmt: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<AdyenPaymentsResponseData, ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        response.refusal_reason_code.as_deref(),
+        response.refusal_reason.as_deref(),
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == AttemptStatus::Failure
@@ -5512,6 +5947,19 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    RequestForInformation,
+    NotificationOfFraud,
+    InformationSupplied,
+    PrearbitrationOpen,
+    PrearbitrationAccepted,
+    PrearbitrationDeclined,
+    PrearbitrationIssuerWithdrawn,
+    SchemeArbitration,
+    SchemeArbitrationWon,
+    SchemeArbitrationLost,
+    DisputeDefensePeriodEnded,
+    IssuerResponseTimeframeExpired,
+    IssuerComments,
     OfferClosed,
     RecurringContract,
     #[serde(other)]
@@ -5525,6 +5973,9 @@ pub enum DisputeStatus {
     Lost,
     Accepted,
     Won,
+    Responded,
+    Expired,
+    Unresponded,
     #[serde(other)]
     Unknown,
 }
@@ -5705,30 +6156,92 @@ pub(crate) fn get_adyen_refund_webhook_event(
 
 pub(crate) fn get_adyen_webhook_event_type(
     code: WebhookEventCode,
+    is_success: String,
+    dispute_status: Option<DisputeStatus>,
 ) -> Result<EventType, WebhookError> {
     match code {
+        // Adyen sends the same AUTHORISATION eventCode for both success and
+        // failure, distinguished only by `success` -- mirrors
+        // get_adyen_payment_webhook_event's Authorized/Failure split below.
+        // Most Adyen integrations auto-capture, so a successful AUTHORISATION
+        // is the final settlement signal, not just an intermediate auth step.
         WebhookEventCode::Authorisation | WebhookEventCode::RecurringContract => {
-            Ok(EventType::PaymentIntentAuthorizationSuccess)
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentSuccess)
+            } else {
+                Ok(EventType::PaymentIntentFailure)
+            }
         }
         WebhookEventCode::AuthorisationAdjustment => {
-            Ok(EventType::PaymentIntentAuthorizationSuccess)
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentExtendAuthorizationSuccess)
+            } else {
+                Ok(EventType::PaymentIntentExtendAuthorizationFailure)
+            }
         }
-        WebhookEventCode::Cancellation => Ok(EventType::PaymentIntentCancelled),
-        WebhookEventCode::Capture => Ok(EventType::PaymentIntentCaptureSuccess),
+        WebhookEventCode::Cancellation => {
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentCancelled)
+            } else {
+                Ok(EventType::PaymentIntentCancelFailure)
+            }
+        }
+        WebhookEventCode::Capture => {
+            if is_success_scenario(&is_success) {
+                Ok(EventType::PaymentIntentCaptureSuccess)
+            } else {
+                Ok(EventType::PaymentIntentCaptureFailure)
+            }
+        }
         WebhookEventCode::CaptureFailed => Ok(EventType::PaymentIntentCaptureFailure),
         WebhookEventCode::OfferClosed => Ok(EventType::PaymentIntentExpired),
-        WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => Ok(EventType::RefundSuccess),
-        WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {
-            Ok(EventType::RefundFailure)
+        WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => {
+            if is_success_scenario(&is_success) {
+                Ok(EventType::RefundSuccess)
+            } else {
+                Ok(EventType::RefundFailure)
+            }
         }
-        WebhookEventCode::NotificationOfChargeback | WebhookEventCode::Chargeback => {
-            Ok(EventType::DisputeOpened)
-        }
-        WebhookEventCode::ChargebackReversed | WebhookEventCode::PrearbitrationWon => {
-            Ok(EventType::DisputeWon)
-        }
+        WebhookEventCode::RefundFailed => Ok(EventType::RefundFailure),
+        WebhookEventCode::RefundReversed => Ok(EventType::RefundReview),
+        WebhookEventCode::NotificationOfChargeback => Ok(EventType::DisputeOpened),
+        WebhookEventCode::Chargeback => match dispute_status {
+            Some(DisputeStatus::Won) => Ok(EventType::DisputeWon),
+            Some(DisputeStatus::Lost) | None => Ok(EventType::DisputeLost),
+            Some(DisputeStatus::Accepted) => Ok(EventType::DisputeAccepted),
+            _ => Ok(EventType::DisputeOpened),
+        },
+        WebhookEventCode::RequestForInformation => match dispute_status {
+            Some(DisputeStatus::Expired) => Ok(EventType::DisputeExpired),
+            _ => Ok(EventType::DisputeOpened),
+        },
+        WebhookEventCode::InformationSupplied => match dispute_status {
+            Some(DisputeStatus::Responded) => Ok(EventType::DisputeChallenged),
+            _ => Ok(EventType::DisputeOpened),
+        },
+        WebhookEventCode::ChargebackReversed => match dispute_status {
+            Some(DisputeStatus::Pending) => Ok(EventType::DisputeChallenged),
+            _ => Ok(EventType::DisputeWon),
+        },
+        WebhookEventCode::PrearbitrationWon => Ok(EventType::DisputeWon),
         WebhookEventCode::SecondChargeback | WebhookEventCode::PrearbitrationLost => {
             Ok(EventType::DisputeLost)
+        }
+        WebhookEventCode::PrearbitrationOpen | WebhookEventCode::SchemeArbitration => {
+            Ok(EventType::DisputeOpened)
+        }
+        WebhookEventCode::PrearbitrationAccepted => Ok(EventType::DisputeAccepted),
+        WebhookEventCode::PrearbitrationDeclined => Ok(EventType::DisputeChallenged),
+        WebhookEventCode::PrearbitrationIssuerWithdrawn
+        | WebhookEventCode::SchemeArbitrationWon
+        | WebhookEventCode::IssuerResponseTimeframeExpired => Ok(EventType::DisputeWon),
+        WebhookEventCode::SchemeArbitrationLost => Ok(EventType::DisputeLost),
+        WebhookEventCode::DisputeDefensePeriodEnded => match dispute_status {
+            Some(DisputeStatus::Accepted) => Ok(EventType::DisputeAccepted),
+            _ => Ok(EventType::DisputeLost),
+        },
+        WebhookEventCode::NotificationOfFraud | WebhookEventCode::IssuerComments => {
+            Ok(EventType::IncomingWebhookEventUnspecified)
         }
         WebhookEventCode::Unknown => {
             tracing::warn!(
@@ -5863,8 +6376,15 @@ fn get_recurring_processing_model_for_repeat_payment<
     let shopper_reference = item.resource_common_data.get_connector_customer_id().ok();
 
     match item.request.off_session {
-        // Off-session payment
-        Some(true) => {
+        // Shopper-initiated stored-card payments use CardOnFile.
+        Some(false) => Ok((
+            Some(AdyenRecurringModel::CardOnFile),
+            None,
+            shopper_reference,
+        )),
+        // RepeatPayment is a merchant-initiated charge by default. Without a
+        // shopper-provided CVC, Adyen requires UnscheduledCardOnFile.
+        _ => {
             let shopper_reference =
                 shopper_reference.ok_or(IntegrationError::MissingRequiredField {
                     field_name: "connector_customer_id",
@@ -5876,8 +6396,6 @@ fn get_recurring_processing_model_for_repeat_payment<
                 Some(shopper_reference),
             ))
         }
-        // On-session payment
-        _ => Ok((None, None, shopper_reference)),
     }
 }
 
@@ -6222,11 +6740,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
         };
 
+        validate_checkout_v72_field_length(
+            &item.router_data.request.refund_id,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
+
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.minor_refund_amount,
+                value: item.router_data.request.refund_amount.amount,
             },
             merchant_refund_reason: item.router_data.request.reason.clone(),
             reference: item.router_data.request.refund_id.clone(),
@@ -6301,12 +6825,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
         };
+        validate_checkout_v72_field_length(
+            &reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             reference,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.minor_amount_to_capture.to_owned(),
+                value: item.router_data.request.amount_to_capture.amount.to_owned(),
             },
         })
     }
@@ -6490,10 +7019,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .get_optional_billing_phone_number(),
             shopper_name: get_shopper_name(
-                item.router_data
-                    .resource_common_data
-                    .address
-                    .get_payment_billing(),
+                item.router_data.resource_common_data.get_optional_billing(),
             ),
             shopper_email: item
                 .router_data
@@ -6688,12 +7214,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .router_data
                 .resource_common_data
                 .get_optional_billing_phone_number(),
-            shopper_name: get_shopper_name(
-                item.router_data
-                    .resource_common_data
-                    .address
-                    .get_payment_billing(),
-            ),
+            // Hyperswitch does not send shopperName for wallet setup mandates.
+            shopper_name: None,
             shopper_email: item
                 .router_data
                 .resource_common_data
@@ -6758,7 +7280,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        match item
+        let (billing_state_code, delivery_state_code) =
+            checkout_v72_state_codes(&item.router_data.resource_common_data)?;
+        let mut request = match item
             .router_data
             .request
             .mandate_id
@@ -6796,23 +7320,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .into(),
                 ),
             },
-        }
+        }?;
+        request
+            .0
+            .prepare_checkout_v72_addresses(billing_state_code, delivery_state_code)?;
+        request.0.validate_checkout_v72_fields()?;
+        Ok(request)
     }
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
+    TryFrom<ResponseRouterData<SetupMandateResponse, AdyenRouterData<Self, T>>>
     for RouterDataV2<F, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        value: ResponseRouterData<SetupMandateResponse, Self>,
+        value: ResponseRouterData<SetupMandateResponse, AdyenRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
             http_code,
         } = value;
+        let connector = router_data.connector;
+        let router_data = router_data.router_data;
         let pmt = router_data.request.payment_method_type;
         let is_manual_capture = false;
         // Unwrap the response wrapper to get AdyenPaymentResponse
@@ -6843,12 +7374,22 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             )?,
         };
 
-        let minor_amount_captured = match adyen_payments_response_data.status {
+        let amount_captured = match adyen_payments_response_data.status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => adyen_payments_response_data.txn_amount,
             _ => None,
-        };
+        }
+        .map(|amount| {
+            utils::response_amount_to_money(
+                &connector,
+                amount,
+                router_data.request.currency,
+                http_code,
+                connector_types::ConnectorEnum::Adyen,
+            )
+        })
+        .transpose()?;
 
         Ok(Self {
             response: adyen_payments_response_data.error.map_or_else(
@@ -6857,8 +7398,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured,
+                amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
             },
@@ -6882,7 +7422,13 @@ fn get_amount_data_for_setup_mandate<
 ) -> Amount {
     Amount {
         currency: item.router_data.request.currency,
-        value: MinorUnit::new(item.router_data.request.amount.unwrap_or(0)),
+        value: item
+            .router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
+            .unwrap_or_else(MinorUnit::zero),
     }
 }
 
@@ -6904,10 +7450,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> Self {
-        match item.request.off_session {
-            Some(true) => Self::ContinuedAuthentication,
-            _ => Self::Ecommerce,
-        }
+        shopper_interaction(item.request.off_session, &item.request.payment_channel)
     }
 }
 
@@ -7058,7 +7601,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let mandate_ref_id = item.router_data.request.mandate_reference.clone();
         let amount = Amount {
             currency: item.router_data.request.currency,
-            value: item.router_data.request.minor_amount,
+            value: item.router_data.request.amount.amount,
         };
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::ContinuedAuthentication;
@@ -7119,7 +7662,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .resource_common_data
                             .get_optional_billing_full_name();
                         let raw_card_number = RawCardNumber(
-                            card_details_for_network_transaction_id.card_number.clone(),
+                            card_details_for_network_transaction_id
+                                .card_number
+                                .try_card_number("Adyen")?,
                         );
                         let adyen_card = AdyenCard {
                             number: raw_card_number,
@@ -7214,7 +7759,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .get_optional_billing_phone_number();
 
-        Ok(Self(AdyenPaymentRequest {
+        let (billing_state_code, delivery_state_code) =
+            checkout_v72_state_codes(&item.router_data.resource_common_data)?;
+        let mut payment = AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
@@ -7261,7 +7808,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .partner_merchant_identifier_details
                     .as_ref(),
             ),
-        }))
+        };
+        payment.prepare_checkout_v72_addresses(billing_state_code, delivery_state_code)?;
+        payment.validate_checkout_v72_fields()?;
+        Ok(Self(payment))
     }
 }
 
@@ -7717,18 +8267,21 @@ pub(crate) fn get_dispute_stage_and_status(
 > {
     use common_enums::{DisputeStage, DisputeStatus as HSDisputeStatus};
 
+    // Stage and status mirror HS direct Adyen behavior:
+    // - stage: `impl From<WebhookEventCode> for DisputeStage` in the
+    //   hyperswitch Adyen connector (PreDispute is never produced there)
+    // - status: the dispute event produced by `get_adyen_webhook_event`,
+    //   which HS core converts 1:1 into `DisputeStatus`
     match code {
+        // Stage::Dispute
         WebhookEventCode::NotificationOfChargeback => {
-            Ok((DisputeStage::PreDispute, HSDisputeStatus::DisputeOpened))
+            Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeOpened))
         }
         WebhookEventCode::Chargeback => {
             let status = match dispute_status {
-                Some(DisputeStatus::Undefended) | Some(DisputeStatus::Pending) => {
-                    HSDisputeStatus::DisputeOpened
-                }
+                Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
                 Some(DisputeStatus::Lost) | None => HSDisputeStatus::DisputeLost,
                 Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
-                Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
                 Some(DisputeStatus::Unknown) => {
                     return Err(
                         error_stack::report!(WebhookError::WebhookBodyDecodingFailed)
@@ -7738,6 +8291,21 @@ pub(crate) fn get_dispute_stage_and_status(
                             ),
                     );
                 }
+                Some(_) => HSDisputeStatus::DisputeOpened,
+            };
+            Ok((DisputeStage::Dispute, status))
+        }
+        WebhookEventCode::RequestForInformation => {
+            let status = match dispute_status {
+                Some(DisputeStatus::Expired) => HSDisputeStatus::DisputeExpired,
+                _ => HSDisputeStatus::DisputeOpened,
+            };
+            Ok((DisputeStage::Dispute, status))
+        }
+        WebhookEventCode::InformationSupplied => {
+            let status = match dispute_status {
+                Some(DisputeStatus::Responded) => HSDisputeStatus::DisputeChallenged,
+                _ => HSDisputeStatus::DisputeOpened,
             };
             Ok((DisputeStage::Dispute, status))
         }
@@ -7755,27 +8323,52 @@ pub(crate) fn get_dispute_stage_and_status(
             };
             Ok((DisputeStage::Dispute, status))
         }
+        WebhookEventCode::DisputeDefensePeriodEnded => {
+            let status = match dispute_status {
+                Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
+                _ => HSDisputeStatus::DisputeLost,
+            };
+            Ok((DisputeStage::Dispute, status))
+        }
+        WebhookEventCode::IssuerResponseTimeframeExpired => {
+            Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeWon))
+        }
+        // Stage::PreArbitration
         WebhookEventCode::SecondChargeback => {
             Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
         }
         WebhookEventCode::PrearbitrationWon => {
-            if let Some(DisputeStatus::Unknown) = dispute_status {
-                return Err(
-                    error_stack::report!(WebhookError::WebhookBodyDecodingFailed).attach_printable(
-                        "Received unknown Adyen dispute status in PrearbitrationWon event",
-                    ),
-                );
-            }
-            let status = match dispute_status {
-                Some(DisputeStatus::Pending) => HSDisputeStatus::DisputeOpened,
-                _ => HSDisputeStatus::DisputeWon,
-            };
-            Ok((DisputeStage::PreArbitration, status))
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeWon))
         }
         WebhookEventCode::PrearbitrationLost => {
             Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
         }
-        _ => Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeOpened)),
+        WebhookEventCode::PrearbitrationOpen | WebhookEventCode::SchemeArbitration => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeOpened))
+        }
+        WebhookEventCode::PrearbitrationAccepted => Ok((
+            DisputeStage::PreArbitration,
+            HSDisputeStatus::DisputeAccepted,
+        )),
+        WebhookEventCode::PrearbitrationDeclined => Ok((
+            DisputeStage::PreArbitration,
+            HSDisputeStatus::DisputeChallenged,
+        )),
+        WebhookEventCode::PrearbitrationIssuerWithdrawn
+        | WebhookEventCode::SchemeArbitrationWon => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeWon))
+        }
+        WebhookEventCode::SchemeArbitrationLost => {
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
+        }
+        // Dispute stage/status must only be resolved for dispute events;
+        // refuse to guess for anything else.
+        _ => Err(
+            error_stack::report!(WebhookError::WebhookProcessingFailed).attach_printable(format!(
+                "Received non-dispute Adyen webhook event code {code:?}; \
+                 cannot resolve dispute stage and status"
+            )),
+        ),
     }
 }
 
@@ -7840,6 +8433,8 @@ fn get_adyen_metadata(metadata: Option<serde_json::Value>) -> AdyenMetadata {
 fn filter_adyen_metadata(metadata: serde_json::Value) -> serde_json::Value {
     if let serde_json::Value::Object(mut map) = metadata.clone() {
         // Remove the fields that are specific to Adyen and should not be passed in metadata
+        // riskdata.* is mapped into additionalData; its keys exceed the v72 metadata limit.
+        map.retain(|key, _| !key.starts_with("riskdata."));
         map.remove("device_fingerprint");
         map.remove("deviceFingerprint");
         map.remove("platform_chargeback_logic");
@@ -7873,6 +8468,10 @@ fn get_browser_info<
         PaymentsResponseData,
     >,
 ) -> Result<Option<AdyenBrowserInfo>, Error> {
+    if router_data.request.payment_method_type == Some(common_enums::PaymentMethodType::ApplePay) {
+        return Ok(None);
+    }
+
     if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::ThreeDs
         || router_data.resource_common_data.payment_method == common_enums::PaymentMethod::Card
         || router_data.resource_common_data.payment_method
@@ -7907,6 +8506,10 @@ fn get_browser_info_for_setup_mandate<
         PaymentsResponseData,
     >,
 ) -> Result<Option<AdyenBrowserInfo>, Error> {
+    if router_data.request.payment_method_type == Some(common_enums::PaymentMethodType::ApplePay) {
+        return Ok(None);
+    }
+
     if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::ThreeDs
         || router_data.resource_common_data.payment_method == common_enums::PaymentMethod::Card
         || router_data.resource_common_data.payment_method
@@ -7971,8 +8574,8 @@ fn get_line_items<
             .collect(),
         None => {
             let line_item = LineItem {
-                amount_including_tax: Some(item.router_data.request.amount),
-                amount_excluding_tax: Some(item.router_data.request.amount),
+                amount_including_tax: Some(item.router_data.request.amount.amount),
+                amount_excluding_tax: Some(item.router_data.request.amount.amount),
                 description: item.router_data.resource_common_data.description.clone(),
                 id: Some(String::from("Items #1")),
                 tax_amount: None,
@@ -8173,19 +8776,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = Amount {
             currency: router_data.request.currency,
-            value: router_data.request.amount,
+            value: router_data.request.amount.amount,
         };
 
         let reference = router_data
             .resource_common_data
             .connector_request_reference_id
             .clone();
+        validate_checkout_v72_field_length(
+            &reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
 
         let return_url = router_data
             .resource_common_data
             .return_url
             .clone()
             .unwrap_or_else(|| "https://hyperswitch.io".to_string());
+        validate_checkout_v72_return_url(&return_url)?;
 
         Ok(Self {
             amount,
@@ -8240,7 +8849,7 @@ impl TryFrom<ResponseRouterData<AdyenClientAuthResponse, Self>>
 
 // ===== OrderCreate (Sessions) Flow =====
 
-/// Adyen CreateSession request (POST /v68/sessions)
+/// Adyen CreateSession request (POST /v72/sessions)
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenOrderCreateRequest {
@@ -8297,13 +8906,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = Amount {
             currency: router_data.request.currency,
-            value: router_data.request.amount,
+            value: router_data.request.amount.amount,
         };
 
         let reference = router_data
             .resource_common_data
             .connector_request_reference_id
             .clone();
+        validate_checkout_v72_field_length(
+            &reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
 
         let country_code = router_data
             .resource_common_data
@@ -8375,11 +8989,11 @@ impl TryFrom<ResponseRouterData<AdyenOrderCreateResponse, Self>>
 }
 
 // ==================== Incremental Authorization ====================
-// Adyen endpoint: POST /v68/payments/{paymentPspReference}/amountUpdates
+// Adyen endpoint: POST /v72/payments/{paymentPspReference}/amountUpdates
 // The `amount.value` is the new total authorized amount (replaces original).
 // Response HTTP 201 indicates the adjustment request was accepted; the final
 // outcome is delivered asynchronously via the AUTHORISATION_ADJUSTMENT webhook.
-// Ref: https://docs.adyen.com/api-explorer/Checkout/68/post/payments/-paymentPspReference-/amountUpdates
+// Ref: https://docs.adyen.com/api-explorer/Checkout/72/post/payments/_paymentPspReference_/amountUpdates
 
 // Adyen's /amountUpdates endpoint is documented to return exactly one synchronous
 // status value — `"received"` — acknowledging that the adjustment has been queued.
@@ -8423,18 +9037,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
+        let reference = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        validate_checkout_v72_field_length(
+            &reference,
+            CHECKOUT_V72_REFERENCE_FIELD,
+            CHECKOUT_V72_REFERENCE_MAX_LENGTH,
+        )?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.minor_amount.to_owned(),
+                value: item.router_data.request.amount.amount.to_owned(),
             },
-            reference: Some(
-                item.router_data
-                    .resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            ),
+            reference: Some(reference),
         })
     }
 }

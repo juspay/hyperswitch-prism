@@ -499,7 +499,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         })?;
 
-        let amount = SaferpayAmountConvertor::convert(request.minor_amount, request.currency)?;
+        let amount = SaferpayAmountConvertor::convert(&request.amount)?;
 
         let description = common
             .description
@@ -992,10 +992,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         })?;
 
-        let amount = SaferpayAmountConvertor::convert(
-            request.amount,
-            request.currency.ok_or_else(|| missing_field("currency"))?,
-        )?;
+        let amount = SaferpayAmountConvertor::convert(&common_utils::types::Money {
+            amount: request.amount.amount,
+            currency: request.currency.ok_or_else(|| missing_field("currency"))?,
+        })?;
 
         // `continue_redirection_url` first, deliberately. It is the URL that routes the
         // returning shopper into the caller's complete-authorize path, which is what
@@ -1143,8 +1143,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_connector_transaction_id()
             .map_err(|_| missing_field("connector_transaction_id"))?;
 
-        let amount =
-            SaferpayAmountConvertor::convert(request.minor_amount_to_capture, request.currency)?;
+        let amount = SaferpayAmountConvertor::convert(&request.amount_to_capture)?;
 
         Ok(Self {
             request_header: SaferpayRequestHeader::new(
@@ -1223,7 +1222,7 @@ impl TryFrom<ResponseRouterData<SaferpayCaptureResponse, Self>> for CaptureRoute
             .map(|money| money.amount)
             .or_else(|| authorized_amount_from_metadata(request));
         let is_partial = authorized_amount
-            .map(|amount| amount > request.minor_amount_to_capture)
+            .map(|amount| amount > request.amount_to_capture.amount)
             .unwrap_or(true);
 
         let status = response.attempt_status(is_partial);
@@ -1406,8 +1405,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let capture_id = extract_capture_id(request)
             .ok_or_else(|| missing_field("refund_metadata.capture_id"))?;
 
-        let amount =
-            SaferpayAmountConvertor::convert(request.minor_refund_amount, request.currency)?;
+        let amount = SaferpayAmountConvertor::convert(&request.refund_amount)?;
 
         Ok(Self {
             request_header: SaferpayRequestHeader::new(

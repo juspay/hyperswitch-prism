@@ -110,3 +110,19 @@ val response = client.authorize(request)
 {% endtab %}
 
 {% endtabs %}
+
+## Token decryption paths
+
+Google encrypts the token to whichever key the session asked it to, so `tokenizationSpecification.type` in the session token decides who can decrypt it — and therefore which payload the processor receives.
+
+### PSP decrypts — `PAYMENT_GATEWAY`
+
+The token is encrypted to the processor's gateway key and forwarded unchanged. No call to Google is made while building the session; the whole session is assembled from the stored connector wallet details.
+
+![Google Pay, encrypted token — the PSP decrypts](assets/3-google-pay-encrypted.png)
+
+### Hyperswitch decrypts — `DIRECT` or `INTERNAL_GATEWAY`
+
+The token is encrypted to a key Hyperswitch controls. The ECv2 payload is verified and decrypted before authorization: `CRYPTOGRAM_3DS` yields a DPAN with cryptogram and ECI, `PAN_ONLY` yields the real card PAN and no cryptogram.
+
+![Google Pay, decrypted token — Hyperswitch decrypts](assets/4-google-pay-decrypted.png)

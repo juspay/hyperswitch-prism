@@ -141,7 +141,6 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Qwikcilver => Box::new(connectors::Qwikcilver::<T>::new()),
             ConnectorEnum::Flywire => Box::new(connectors::Flywire::new()),
             ConnectorEnum::Affirm => Box::new(connectors::Affirm::<T>::new()),
-            ConnectorEnum::Kount => Box::new(connectors::Kount::<T>::new()),
             ConnectorEnum::Givepayments => Box::new(connectors::Givepayments::<T>::new()),
             ConnectorEnum::Grabpay => Box::new(connectors::Grabpay::<T>::new()),
             ConnectorEnum::Tesouro => Box::new(connectors::Tesouro::<T>::new()),
@@ -164,6 +163,9 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             }
             ConnectorEnum::Payhere => Box::new(connectors::Payhere::<T>::new()),
             ConnectorEnum::Merchante => Box::new(connectors::Merchante::<T>::new()),
+            ConnectorEnum::Betterpayment => Box::new(connectors::Betterpayment::<T>::new()),
+            ConnectorEnum::Reddot => Box::new(connectors::Reddot::<T>::new()),
+            ConnectorEnum::Ecommpay => Box::new(connectors::Ecommpay::<T>::new()),
             ConnectorEnum::Payhound => Box::new(connectors::Payhound::<T>::new()),
         }
     }
@@ -203,17 +205,18 @@ impl FrmConnectorData {
     }
 
     fn convert_connector(connector_name: FrmConnectorEnum) -> BoxedFrmConnector {
+        // FRM connectors live in `frm_connectors`, alongside the
+        // `surcharge_connectors` / `payout_connectors` / `authenticator_connectors`
+        // split. Kount is FRM-only: PreAuthenticate DDC and ServerAuthenticationToken
+        // requests must now be addressed via `x-frm-connector: kount`.
         match connector_name {
-            // FRM-only connectors live in `frm_connectors`, alongside the
-            // `surcharge_connectors` / `payout_connectors` / `authenticator_connectors`
-            // split. Kount is the exception: it is dual-registered as a payment
-            // connector too (`ConnectorEnum::Kount`, for its PreAuthenticate DDC
-            // and ServerAuthenticationToken flows), so it stays in `connectors`
-            // and is reached from both dispatch tables.
-            FrmConnectorEnum::Kount => Box::new(connectors::Kount::<
+            FrmConnectorEnum::Kount => Box::new(frm_connectors::Kount::<
                 domain_types::payment_method_data::DefaultPCIHolder,
             >::new()),
             FrmConnectorEnum::Nsure => Box::new(frm_connectors::Nsure::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
+            FrmConnectorEnum::ClearsaleBr => Box::new(frm_connectors::ClearSaleBr::<
                 domain_types::payment_method_data::DefaultPCIHolder,
             >::new()),
         }
@@ -231,12 +234,16 @@ impl ConnectorDataProvider for FrmConnectorData {
 }
 
 #[derive(Clone)]
-pub struct PayoutConnectorData {
-    pub connector: BoxedPayoutConnector,
+pub struct PayoutConnectorData<
+    T: PaymentMethodDataTypes + 'static = domain_types::payment_method_data::DefaultPCIHolder,
+> {
+    pub connector: BoxedPayoutConnector<T>,
     pub connector_name: PayoutConnectorEnum,
 }
 
-impl PayoutConnectorData {
+impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
+    PayoutConnectorData<T>
+{
     pub fn get_connector_by_name(connector_name: &PayoutConnectorEnum) -> Self {
         let connector = Self::convert_connector(*connector_name);
         Self {
@@ -245,15 +252,15 @@ impl PayoutConnectorData {
         }
     }
 
-    fn convert_connector(connector_name: PayoutConnectorEnum) -> BoxedPayoutConnector {
+    fn convert_connector(connector_name: PayoutConnectorEnum) -> BoxedPayoutConnector<T> {
         match connector_name {
+            PayoutConnectorEnum::Nuvei => Box::new(payout_connectors::NuveiPayouts::<T>::new()),
             PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
             PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
             PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),
+            PayoutConnectorEnum::Stripe => Box::new(payout_connectors::StripePayouts::<T>::new()),
             PayoutConnectorEnum::Deutschebank => {
-                Box::new(payout_connectors::DeutschebankPayouts::<
-                    domain_types::payment_method_data::DefaultPCIHolder,
-                >::new())
+                Box::new(payout_connectors::DeutschebankPayouts::<T>::new())
             }
             PayoutConnectorEnum::Worldpayxml => {
                 Box::new(payout_connectors::WorldpayxmlPayouts::new())
@@ -261,15 +268,15 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Cybersource => {
                 Box::new(payout_connectors::CybersourcePayouts::new())
             }
+            PayoutConnectorEnum::Gigadat => Box::new(payout_connectors::GigadatPayouts::<T>::new()),
             PayoutConnectorEnum::Santander => Box::new(payout_connectors::SantanderPayouts::new()),
             PayoutConnectorEnum::Truelayer => Box::new(payout_connectors::TruelayerPayouts::new()),
-            PayoutConnectorEnum::Trustly => Box::new(payout_connectors::TrustlyPayouts::<
-                domain_types::payment_method_data::DefaultPCIHolder,
-            >::new()),
+            PayoutConnectorEnum::Mifinity => {
+                Box::new(payout_connectors::MifinityPayouts::<T>::new())
+            }
+            PayoutConnectorEnum::Trustly => Box::new(payout_connectors::TrustlyPayouts::<T>::new()),
             PayoutConnectorEnum::GotymeSanlam => {
-                Box::new(payout_connectors::GotymeSanlamPayouts::<
-                    domain_types::payment_method_data::DefaultPCIHolder,
-                >::new())
+                Box::new(payout_connectors::GotymeSanlamPayouts::<T>::new())
             }
         }
     }
@@ -311,7 +318,9 @@ impl ConnectorDataProvider for SurchargeConnectorData {
     }
 }
 
-impl ConnectorDataProvider for PayoutConnectorData {
+impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
+    ConnectorDataProvider for PayoutConnectorData<T>
+{
     type ConnectorEnumType = PayoutConnectorEnum;
 
     fn from_connector_variant(

@@ -66,6 +66,9 @@ pub trait CompositePreAuthenticatePayload {
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        session_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+        >,
         create_order_response: Option<&PaymentServiceCreateOrderResponse>,
     ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest;
 }
@@ -133,11 +136,15 @@ impl CompositePreAuthenticatePayload for CompositeAuthorizeRequest {
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        session_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+        >,
         create_order_response: Option<&PaymentServiceCreateOrderResponse>,
     ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
         PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
             self,
             access_token_response,
+            session_token_response,
             create_order_response,
         ))
     }
@@ -148,6 +155,11 @@ impl CompositePreAuthenticatePayload for CompositePreAuthenticateRequest {
         &self,
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+        // Standalone PreAuthenticate mints no session token; the caller's
+        // request.session_token is copied by the builder.
+        _session_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
         >,
         create_order_response: Option<&PaymentServiceCreateOrderResponse>,
     ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
@@ -371,9 +383,10 @@ where
                     ))
                 })?;
             // Resolve across every family this connector might be registered under
-            // (e.g. Kount is both a payment connector and an FRM connector) — same
-            // "try each family, no hand-written match on `ConnectorVariant`"
-            // primitive used elsewhere; `should_do_access_token` isn't a
+            // (a connector such as an FRM provider is looked up in the FRM
+            // dispatch table, not the payment one) — same "try each family, no
+            // hand-written match on `ConnectorVariant`" primitive used
+            // elsewhere; `should_do_access_token` isn't a
             // `ConnectorIntegrationV2` flow, so it can't go through
             // `resolve_connector_integration!` directly, but the pattern is the same.
             ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::from_connector_variant(connector)
@@ -661,6 +674,9 @@ where
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        session_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+        >,
         create_order_response: Option<&PaymentServiceCreateOrderResponse>,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
@@ -668,8 +684,11 @@ where
     where
         Req: CompositePreAuthenticatePayload,
     {
-        let pre_auth_payload =
-            payload.build_pre_authenticate_request(access_token_response, create_order_response);
+        let pre_auth_payload = payload.build_pre_authenticate_request(
+            access_token_response,
+            session_token_response,
+            create_order_response,
+        );
         let mut pre_auth_request = tonic::Request::new(pre_auth_payload);
         *pre_auth_request.metadata_mut() = metadata.clone();
         *pre_auth_request.extensions_mut() = extensions.clone();
@@ -838,6 +857,7 @@ where
                         self.pre_authenticate(
                             &payload,
                             access_token_response.as_ref(),
+                            session_token_response.as_ref(),
                             create_order_response.as_ref(),
                             &metadata,
                             &extensions,
@@ -1008,8 +1028,8 @@ where
 
         // Unlike the other composite flows below, pre-authenticate can target
         // either a payment connector (`x-connector`) or an FRM connector
-        // (`x-frm-connector`) — e.g. Kount is dual-registered as both while its
-        // FRM registration is being rolled out — so this resolves the full
+        // (`x-frm-connector`) — Kount, for one, is FRM-only and is reached only
+        // through `x-frm-connector` — so this resolves the full
         // `ConnectorVariant` instead of requiring `x-connector`.
         let connector = connector_variant_from_composite_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
@@ -1019,6 +1039,9 @@ where
             .pre_authenticate(
                 &payload,
                 access_token_response.as_ref(),
+                // Standalone PreAuthenticate mints no session token (the caller's
+                // request.session_token is forwarded by the request builder).
+                None,
                 // Standalone PreAuthenticate: no CreateOrder runs in this path, so the
                 // order reference can only come from the caller's own request.
                 None,

@@ -424,13 +424,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let metadata = router_data.request.metadata.clone().expose_option();
 
-        match router_data.request.amount {
-            Some(amount) if amount > 0 => Err(IntegrationError::FlowNotSupported {
-                flow: "Setup mandate with non zero amount".to_string(),
-                connector: "Payload".to_string(),
-                context: Default::default(),
+        match router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
+        {
+            Some(amount) if amount > common_utils::types::MinorUnit::zero() => {
+                Err(IntegrationError::FlowNotSupported {
+                    flow: "Setup mandate with non zero amount".to_string(),
+                    connector: "Payload".to_string(),
+                    context: Default::default(),
+                }
+                .into())
             }
-            .into()),
             // NOTE: prism's SetupMandate is card-only today. If an ACH (bank
             // account) setup-mandate flow is ever added, its /payment_methods
             // request must NOT carry description/descriptor/attrs (HS PR #12710).
@@ -480,10 +487,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let metadata = router_data.request.metadata.clone().expose_option();
 
         // Convert amount using PayloadAmountConvertor
-        let amount = PayloadAmountConvertor::convert(
-            router_data.request.minor_amount,
-            router_data.request.currency,
-        )?;
+        let amount = PayloadAmountConvertor::convert(&router_data.request.amount)?;
 
         match &router_data.request.payment_method_data {
             PaymentMethodData::Card(_) => {
@@ -642,10 +646,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         // Convert amount using PayloadAmountConvertor
-        let amount = PayloadAmountConvertor::convert(
-            router_data.request.minor_amount,
-            router_data.request.currency,
-        )?;
+        let amount = PayloadAmountConvertor::convert(&router_data.request.amount)?;
 
         // For manual capture, set status to "authorized"
         let status = if is_manual_capture(router_data.request.capture_method) {
@@ -714,10 +715,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_transaction_id = router_data.request.connector_transaction_id.clone();
 
         // Convert amount using PayloadAmountConvertor
-        let amount = PayloadAmountConvertor::convert(
-            router_data.request.minor_refund_amount,
-            router_data.request.currency,
-        )?;
+        let amount = PayloadAmountConvertor::convert(&router_data.request.refund_amount)?;
 
         Ok(Self {
             transaction_type: requests::TransactionTypes::Refund,
@@ -782,6 +780,13 @@ fn handle_payment_response<F, T>(
                         card_network: None,
                         domestic_network: None,
                         auth_code: None,
+                        processor_card_network: None,
+                        card_subtype: None,
+                        card_segment_type: None,
+                        funding_source: None,
+                        card_type: None,
+                        issuer_name: None,
+                        issuer_country: None,
                     }
                 })
                 .map(ConnectorResponseData::with_additional_payment_method_data);
@@ -1139,10 +1144,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
 
-        let amount = PayloadAmountConvertor::convert(
-            router_data.request.amount,
-            router_data.request.currency,
-        )?;
+        let amount = PayloadAmountConvertor::convert(&router_data.request.amount)?;
 
         let description = router_data
             .resource_common_data

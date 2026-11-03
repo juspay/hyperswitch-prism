@@ -49,6 +49,9 @@ jobs:
       contents: read
       packages: write
     strategy:
+      # An arm64 failure must not cancel the amd64 leg; a tag with only the
+      # amd64 image is still usable, a tag with no image is not.
+      fail-fast: false
       matrix:
         include:
           - platform: linux/amd64
@@ -122,7 +125,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          push: true
+          # Branch dispatches are dry runs: the image is built (which is where
+          # the arm64 memory failures surface) but never uploaded. Only tag
+          # pushes publish, so nothing branch-named lands in the public package.
+          push: ${{ github.ref_type == 'tag' }}
         env:
           CARGO_INCREMENTAL: "0"
           SCCACHE_ENABLE: "true"
@@ -133,6 +139,8 @@ jobs:
 
   create-manifest:
     needs: [build-and-push-dockerfile]
+    # Nothing is pushed on a branch dispatch, so there is nothing to stitch.
+    if: ${{ github.ref_type == 'tag' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

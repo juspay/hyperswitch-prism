@@ -297,9 +297,6 @@ pub use self::moneris::Moneris;
 pub mod etisalat;
 pub use self::etisalat::Etisalat;
 
-pub mod kount;
-pub use self::kount::Kount;
-
 pub mod givepayments;
 pub use self::givepayments::Givepayments;
 
@@ -343,5 +340,14 @@ pub use self::globalpayments_heartland::GlobalpaymentsHeartland;
 
 pub mod merchante;
 pub use self::merchante::Merchante;
+
+pub mod betterpayment;
+pub use self::betterpayment::Betterpayment;
+
+pub mod reddot;
+pub use self::reddot::Reddot;
+
+pub mod ecommpay;
+pub use self::ecommpay::Ecommpay;
 pub mod payhound;
 pub use self::payhound::Payhound;

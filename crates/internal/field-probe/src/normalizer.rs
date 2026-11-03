@@ -5,7 +5,18 @@ use crate::types::SamplePayload;
 /// Normalize content for stable output - replaces dynamic values with placeholders.
 /// Applied to HTTP request headers and body strings so that docs are stable across runs.
 pub(crate) fn normalize_content(s: &str) -> String {
-    let mut result = s.to_string();
+    // OAuth assertions contain fresh timestamps, IDs and signatures on each run.
+    let mut result = s
+        .split('&')
+        .map(|field| {
+            if field.starts_with("client_assertion=") {
+                "client_assertion=YOUR_SIGNED_JWT"
+            } else {
+                field
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("&");
 
     // 1. Datetime strings (date headers, ISO 8601 timestamps in bodies)
     result = replace_datetimes(&result);

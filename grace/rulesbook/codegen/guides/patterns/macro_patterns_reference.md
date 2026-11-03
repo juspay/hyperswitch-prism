@@ -320,7 +320,7 @@ macros::macro_connector_local_flow_implementation!(
 );
 ```
 
-**Real invocation** (`connectors/kount.rs:390`):
+**Real invocation** (`frm_connectors/kount.rs`):
 ```rust
 macros::macro_connector_local_flow_implementation!(
     connector: Kount,
@@ -345,7 +345,7 @@ flows (`macros.rs:1460-1470`): `PayoutCreate`, `PayoutTransfer`, `PayoutGet`, `P
 `PayoutStage`, `PayoutCreateLink`, `PayoutCreateRecipient`, `PayoutEnrollDisburseAccount`,
 `PayoutEligibility`.
 
-**Real invocation, all payout flows stubbed** (`connectors/travelhub.rs:187`, `connectors/kount.rs:402`):
+**Real invocation, all payout flows stubbed** (`connectors/travelhub.rs:187`; Kount's old payment-registry payout stub no longer applies after FRM moved to `frm_connectors/`):
 ```rust
 macros::macro_connector_payout_implementation!(
     connector: {{ConnectorName}},

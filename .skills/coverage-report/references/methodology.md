@@ -110,5 +110,7 @@ The repo tags a daily CalVer release `YYYY.MM.DD.N` (weekdays only) at each `cho
 Use the **`prism` remote** → `gh pr list --repo juspay/hyperswitch-prism`. (`origin` =
 `juspay/connector-service` has 0 PRs — wrong repo.) Categorize primarily by conventional-commit title prefix
 (`feat(connector)` / `fix(connector)` are the strongest, most reliably present signal); labels
-(`integration`, `PMT`, `API-FLOW`, `GRACE`) are secondary because only ~50% of PRs are labeled. Exclude
+(`integration`, `PMT`, `API-FLOW`, `GRACE-auto`) are secondary because only ~50% of PRs are labeled.
+`GRACE-auto` marks a pipeline-raised PR and is the current name; PRs older than it carry `GRACE`, so a
+label query that must span the whole history asks for both. Exclude
 `chore(version)` release-bump PRs from feature counts.
