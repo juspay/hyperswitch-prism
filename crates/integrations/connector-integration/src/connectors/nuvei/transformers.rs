@@ -2016,9 +2016,6 @@ pub(super) fn build_nuvei_transaction_response(
     let resource_id = if matches!(
         response.transaction_type,
         Some(NuveiTransactionType::Auth3D) | Some(NuveiTransactionType::InitAuth3D)
-    ) || matches!(
-        response.transaction_status,
-        Some(NuveiTransactionStatus::Redirect)
     ) {
         ResponseId::NoResponseId
     } else {
@@ -3619,9 +3616,9 @@ struct NuveiAcsResponse {
 
 #[derive(Debug, Deserialize, PartialEq)]
 enum NuveiAcsTransStatus {
-    #[serde(rename = "Y")]
+    #[serde(rename = "Y", alias = "1", alias = "y")]
     Success,
-    #[serde(rename = "N")]
+    #[serde(rename = "N", alias = "0", alias = "n")]
     Failed,
     #[serde(other)]
     Unknown,
