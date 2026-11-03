@@ -98,15 +98,7 @@ pub fn process_webhook_event<
         body: ack.body.unwrap_or_default(),
     });
 
-    let amount = match event_content.content.as_ref() {
-        Some(grpc_api_types::payments::event_content::Content::PaymentsResponse(response)) => {
-            response.amount
-        }
-        _ => None,
-    };
-
     Ok(EventServiceHandleResponse {
-        amount,
         event_type: api_event_type.into(),
         event_content: Some(event_content),
         source_verified,

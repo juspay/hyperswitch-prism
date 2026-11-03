@@ -4137,6 +4137,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         });
 
     PaymentsAuthorizeData {
+        auth_type_is_specified: false,
         payment_method_data: req.payment_method_data.clone(),
         amount: req.amount.clone(),
         order_tax_amount: None,

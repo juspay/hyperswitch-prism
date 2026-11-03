@@ -243,6 +243,40 @@ struct NuveiWalletExternalToken {
     eci_provider: Option<String>,
 }
 
+/// Only SDK wallets without authentication evidence need Nuvei-managed 3DS.
+pub(super) fn nuvei_wallet_requires_authentication(
+    payment_method: Option<&grpc_api_types::payments::PaymentMethod>,
+) -> bool {
+    use grpc_api_types::payments::{
+        apple_wallet::payment_data::PaymentData,
+        google_wallet::tokenization_data::TokenizationData, payment_method::PaymentMethod,
+    };
+
+    match payment_method.and_then(|method| method.payment_method.as_ref()) {
+        Some(PaymentMethod::GooglePaySdk(data)) => {
+            let has_cryptogram = matches!(
+                data.tokenization_data.as_ref().and_then(|data| data.tokenization_data.as_ref()),
+                Some(TokenizationData::DecryptedData(token))
+                    if token.cryptogram.as_ref().is_some_and(|value| !value.peek().is_empty())
+            );
+            let card_holder_authenticated = data
+                .info
+                .as_ref()
+                .and_then(|info| info.assurance_details.as_ref())
+                .is_some_and(|details| details.card_holder_authenticated);
+            !(has_cryptogram && card_holder_authenticated)
+        }
+        Some(PaymentMethod::ApplePaySdk(data)) => !matches!(
+            data.payment_data.as_ref().and_then(|data| data.payment_data.as_ref()),
+            Some(PaymentData::DecryptedData(token))
+                if token.payment_data.as_ref()
+                    .and_then(|data| data.online_payment_cryptogram.as_ref())
+                    .is_some_and(|value| !value.peek().is_empty())
+        ),
+        _ => false,
+    }
+}
+
 fn build_nuvei_wallet_card(
     wallet: &WalletData,
 ) -> Result<NuveiWalletCard, Report<IntegrationError>> {
@@ -2767,6 +2801,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let request = &router_data.request;
         let resource = &router_data.resource_common_data;
+
+        if !request.auth_type_is_specified {
+            return Err(nuvei_missing_field(
+                "auth_type",
+                "Send explicit auth_type THREE_DS or NO_THREE_DS",
+            )
+            .into());
+        }
 
         // Extract auth data
         let auth = NuveiAuthType::try_from(&router_data.connector_config)?;

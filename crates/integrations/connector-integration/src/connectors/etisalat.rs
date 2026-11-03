@@ -98,7 +98,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _payment_method: common_enums::PaymentMethod,
         _redirect_state: RedirectState,
         _completed_step: Option<AuthenticationStep>,
-        _context: &connector_types::AuthenticationContext<'_>,
+        _payment_method_data: Option<&grpc_api_types::payments::PaymentMethod>,
+        _authentication_data: Option<&grpc_api_types::payments::AuthenticationData>,
     ) -> AuthenticationStep {
         AuthenticationStep::Authorize
     }

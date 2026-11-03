@@ -515,13 +515,6 @@ impl Payments {
                 })
             })?;
 
-        connector_data
-            .connector
-            .validate_auth_type(
-                payload.auth_type != grpc_api_types::payments::AuthenticationType::Unspecified,
-            )
-            .map_err(|error| ucs_env::error::GrpcError::from(error.current_context().clone()))?;
-
         // Get connector integration
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,

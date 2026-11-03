@@ -202,7 +202,4 @@ message EventServiceHandleResponse {
 
   // Integrity fields that downstream can use to verify the webhook payload.
   repeated IntegrityCheck supported_integrity_checks = 6;
-
-  // Provider-reported money, also exposed at the top level for tracker verification.
-  optional Money amount = 7;
 }

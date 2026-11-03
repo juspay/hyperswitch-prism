@@ -131,7 +131,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         payment_method: common_enums::PaymentMethod,
         redirect_state: connector_types::RedirectState,
         completed_step: Option<connector_types::AuthenticationStep>,
-        _context: &connector_types::AuthenticationContext<'_>,
+        _payment_method_data: Option<&grpc_api_types::payments::PaymentMethod>,
+        _authentication_data: Option<&grpc_api_types::payments::AuthenticationData>,
     ) -> connector_types::AuthenticationStep {
         use connector_types::{AuthenticationStep, RedirectState};
         if auth_type == common_enums::AuthenticationType::ThreeDs

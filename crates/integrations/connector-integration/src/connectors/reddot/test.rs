@@ -283,6 +283,7 @@ fn authorize_data() -> AuthorizeData {
         resource_common_data: payment_sync_data().resource_common_data,
         connector_config: config(),
         request: PaymentsAuthorizeData {
+            auth_type_is_specified: true,
             payment_method_data: PaymentMethodData::Card(Card::default()),
             amount: Default::default(),
             order_tax_amount: Default::default(),

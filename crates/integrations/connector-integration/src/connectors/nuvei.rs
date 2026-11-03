@@ -56,8 +56,8 @@ use transformers::{
 use super::macros;
 use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
+use domain_types::errors::IntegrationError;
 use domain_types::errors::WebhookError;
-use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 
 /// Header carrying the chargeback DMN checksum.
 const NUVEI_CHARGEBACK_CHECKSUM_HEADER: &str = "checksum";
@@ -125,22 +125,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Nuvei<T>
 {
-    fn validate_auth_type(&self, is_specified: bool) -> CustomResult<(), IntegrationError> {
-        if !is_specified {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "auth_type",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Nuvei requires explicit auth_type THREE_DS or NO_THREE_DS".to_owned(),
-                    ),
-                    ..Default::default()
-                },
-            }
-            .into());
-        }
-        Ok(())
-    }
-
     fn should_do_session_token(
         &self,
         connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
@@ -149,10 +133,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn requires_authorize_post_redirect(&self) -> bool {
-        true
-    }
-
-    fn requires_authentication_payment_method_data(&self) -> bool {
         true
     }
 
@@ -170,15 +150,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         payment_method: common_enums::PaymentMethod,
         redirect_state: connector_types::RedirectState,
         completed_step: Option<connector_types::AuthenticationStep>,
-        context: &connector_types::AuthenticationContext<'_>,
+        payment_method_data: Option<&grpc_api_types::payments::PaymentMethod>,
+        authentication_data: Option<&grpc_api_types::payments::AuthenticationData>,
     ) -> connector_types::AuthenticationStep {
         use connector_types::{AuthenticationStep, RedirectState};
 
         if auth_type == common_enums::AuthenticationType::ThreeDs
-            && !context.has_external_authentication
-            && !matches!(context.payment_method_data, Some(domain_types::payment_method_data::PaymentMethodData::Wallet(wallet)) if wallet.is_authenticated())
+            && !authentication_data.is_some_and(|data| data.has_external_authentication())
             && (payment_method == common_enums::PaymentMethod::Card
-                || matches!(context.payment_method_data, Some(domain_types::payment_method_data::PaymentMethodData::Wallet(wallet)) if matches!(wallet, domain_types::payment_method_data::WalletData::GooglePay(_) | domain_types::payment_method_data::WalletData::ApplePay(_))))
+                || transformers::nuvei_wallet_requires_authentication(payment_method_data))
         {
             match (redirect_state, completed_step) {
                 (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,

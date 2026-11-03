@@ -31,7 +31,6 @@ use grpc_api_types::payments::{
     RefundResponse, RefundServiceGetRequest,
 };
 use interfaces::connector_types::AuthenticationStep;
-use ucs_env::error::ResultExtGrpc;
 
 use crate::transformers::{ForeignFrom, ForeignTryFrom};
 use crate::utils::{
@@ -809,13 +808,6 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
-        connector_data
-            .connector
-            .validate_auth_type(
-                payload.auth_type() != grpc_api_types::payments::AuthenticationType::Unspecified,
-            )
-            .into_grpc_status()?;
-
         let access_token_response = self
             .create_server_authentication_token(
                 &ConnectorVariant::Payment(connector),
@@ -853,34 +845,6 @@ where
 
         let mut state = AuthorizeCompositeState::default();
 
-        // Decode wallet data only when the connector needs it for authentication routing.
-        let payment_method_data = if connector_data
-            .connector
-            .requires_authentication_payment_method_data()
-            && payment_method == common_enums::PaymentMethod::Wallet
-        {
-            payload
-                .payment_method
-                .clone()
-                .map(
-                    domain_types::payment_method_data::PaymentMethodData::<
-                        domain_types::payment_method_data::DefaultPCIHolder,
-                    >::convert_to_domain_model_for_non_card_payment_methods,
-                )
-                .transpose()
-                .map_err(|err| {
-                    tonic::Status::invalid_argument(format!("invalid payment_method: {err}"))
-                })?
-        } else {
-            None
-        };
-        let authentication_context = interfaces::connector_types::AuthenticationContext {
-            payment_method_data: payment_method_data.as_ref(),
-            has_external_authentication: payload.authentication_data.as_ref().is_some_and(|data| {
-                data.cavv.is_some() || data.eci.is_some() || data.ds_transaction_id.is_some()
-            }),
-        };
-
         // Authentication loop - connector controls flow via next_authentication_step
         loop {
             let next_step = connector_data.connector.next_authentication_step(
@@ -888,7 +852,8 @@ where
                 payment_method,
                 redirect_state,
                 state.completed_step,
-                &authentication_context,
+                payload.payment_method.as_ref(),
+                payload.authentication_data.as_ref(),
             );
 
             match next_step {

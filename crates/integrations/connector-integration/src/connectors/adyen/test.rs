@@ -100,6 +100,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                    auth_type_is_specified: true,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -320,6 +321,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                    auth_type_is_specified: true,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,

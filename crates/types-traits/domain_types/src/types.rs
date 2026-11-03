@@ -5736,6 +5736,8 @@ impl<
         };
 
         Ok(Self {
+            auth_type_is_specified: value.auth_type
+                != grpc_payment_types::AuthenticationType::Unspecified,
             split_settlement: value
                 .split_settlement
                 .clone()

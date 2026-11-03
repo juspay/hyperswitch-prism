@@ -117,7 +117,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         payment_method: common_enums::PaymentMethod,
         redirect_state: RedirectState,
         completed_step: Option<AuthenticationStep>,
-        _context: &connector_types::AuthenticationContext<'_>,
+        _payment_method_data: Option<&grpc_api_types::payments::PaymentMethod>,
+        _authentication_data: Option<&grpc_api_types::payments::AuthenticationData>,
     ) -> AuthenticationStep {
         if auth_type == common_enums::AuthenticationType::ThreeDs
             && matches!(payment_method, common_enums::PaymentMethod::Card)
