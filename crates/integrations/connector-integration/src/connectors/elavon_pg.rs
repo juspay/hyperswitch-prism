@@ -11,7 +11,8 @@
 //! `POST /transactions {"paymentSession": …, "total": …}`. Also: recurring cards and pre-decrypted
 //! Apple Pay / Google Pay (an Authorize with `setup_future_usage` opens the agreement), a
 //! zero-amount SetupMandate for cards via `POST /card-verifications`, and RepeatPayment, which
-//! replays `credentialOnFileData` as a merchant-initiated sale by connector mandate id. Plus the
+//! replays `credentialOnFileData` as a merchant-initiated sale by connector mandate id, with the
+//! card or with the `panToken` saved in the mandate metadata. Plus the
 //! companion PSync / Capture / Void / Refund / RSync flows so that a manual-capture
 //! authorization always has a settle and a release path.
 

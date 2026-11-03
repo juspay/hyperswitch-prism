@@ -124,6 +124,11 @@ async fn elavon_mock(
                 "id": "verification_123",
                 "isVerified": true,
                 "credentialOnFileData": COF_DATA,
+                "card": {
+                    "panToken": { "token": "1111222233334444", "provider": "SYNTHETIC", "type": "pan" },
+                    "expirationMonth": 12,
+                    "expirationYear": 2030
+                },
                 "schemeReference": null,
                 "failures": []
             })),
@@ -176,6 +181,11 @@ async fn elavon_mock(
                         json!(COF_DATA)
                     } else {
                         Value::Null
+                    },
+                    "card": {
+                        "panToken": { "token": "1111222233334444", "provider": "SYNTHETIC", "type": "pan" },
+                        "expirationMonth": 12,
+                        "expirationYear": 2030
                     },
                     "schemeReference": json!(SCHEME_REF),
                     "failures": []
@@ -779,10 +789,22 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             .into_inner();
         assert_eq!(cit.status, i32::from(PaymentStatus::Charged));
         assert_eq!(cit.network_transaction_id.as_deref(), Some(SCHEME_REF));
-        let mandate_id = cit
+        let cit_mandate = cit
             .mandate_reference_details
-            .and_then(|mandate| mandate.connector_mandate_id);
-        assert_eq!(mandate_id.as_deref(), Some(COF_DATA));
+            .expect("recurring CIT should return a mandate");
+        assert_eq!(cit_mandate.connector_mandate_id.as_deref(), Some(COF_DATA));
+        let stored_card = cit_mandate
+            .mandate_metadata
+            .map(|metadata| metadata.expose())
+            .expect("CIT should save the card token");
+        assert_eq!(
+            serde_json::from_str::<Value>(&stored_card).expect("metadata should be JSON"),
+            json!({
+                "panToken": { "token": "1111222233334444", "provider": "SYNTHETIC", "type": "pan" },
+                "expirationMonth": 12,
+                "expirationYear": 2030
+            })
+        );
 
         // Merchant-initiated repeat by connector mandate id: replays the
         // credentialOnFileData with the card and no CVC.
@@ -810,6 +832,46 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             assert_eq!(charge.status, i32::from(PaymentStatus::Charged), "{suffix}");
             assert_eq!(charge.connector_transaction_id.as_deref(), Some("txn_mit"));
         }
+
+        // A repeat with no card replays the panToken saved in the CIT's mandate metadata.
+        let cardless_charge = |merchant_charge_id: &str, mandate_metadata: Option<&str>| {
+            let mut mandate = json!({ "connector_mandate_id": COF_DATA });
+            if let Some(mandate_metadata) = mandate_metadata {
+                mandate["mandate_metadata"] = json!(mandate_metadata);
+            }
+            serde_json::from_value::<RecurringPaymentServiceChargeRequest>(json!({
+                "merchant_charge_id": merchant_charge_id,
+                "connector_recurring_payment_id": {
+                    "mandate_id_type": { "ConnectorMandateId": mandate }
+                },
+                "amount": { "minor_amount": 3500, "currency": "USD" },
+                "capture_method": "AUTOMATIC",
+                "off_session": true,
+                "test_mode": true
+            }))
+            .expect("charge request should deserialize")
+        };
+        let mut charge = Request::new(cardless_charge(
+            "charge_stored_card",
+            Some(stored_card.as_str()),
+        ));
+        add_elavon_metadata(&mut charge, "recurring_stored_card");
+        let charge = Box::pin(recurring_client.charge(charge))
+            .await
+            .expect("repeat with a saved token should succeed")
+            .into_inner();
+        assert_eq!(charge.status, i32::from(PaymentStatus::Charged));
+
+        // A mandate opened before the token was saved has nothing to replay.
+        let mut charge = Request::new(cardless_charge("charge_no_metadata", None));
+        add_elavon_metadata(&mut charge, "recurring_no_metadata");
+        let rejection = Box::pin(recurring_client.charge(charge))
+            .await
+            .expect_err("a repeat with neither card nor token must be refused");
+        assert!(
+            rejection.message().contains("without the card"),
+            "{rejection}"
+        );
 
         // A repeat addressed by network transaction id is refused rather than sent: EPG has
         // no request field for a scheme NTID, only its own credentialOnFileData, so the
@@ -878,13 +940,14 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             .await
             .expect("recurring wallet sale should succeed")
             .into_inner();
+        let wallet_mandate = wallet_cit
+            .mandate_reference_details
+            .expect("recurring wallet sale should return a mandate");
         assert_eq!(
-            wallet_cit
-                .mandate_reference_details
-                .and_then(|mandate| mandate.connector_mandate_id)
-                .as_deref(),
+            wallet_mandate.connector_mandate_id.as_deref(),
             Some(COF_DATA)
         );
+        assert!(wallet_mandate.mandate_metadata.is_some());
 
         // A zero-amount agreement goes to card-verifications and yields the same mandate.
         let mut setup = Request::new(
@@ -906,13 +969,14 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             .expect("setup mandate should succeed")
             .into_inner();
         assert_eq!(setup.status, i32::from(PaymentStatus::Charged));
+        let setup_mandate = setup
+            .mandate_reference_details
+            .expect("setup mandate should return a mandate");
         assert_eq!(
-            setup
-                .mandate_reference_details
-                .and_then(|mandate| mandate.connector_mandate_id)
-                .as_deref(),
+            setup_mandate.connector_mandate_id.as_deref(),
             Some(COF_DATA)
         );
+        assert!(setup_mandate.mandate_metadata.is_some());
 
         let requests = request_log
             .lock()
@@ -923,8 +987,8 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             .filter(|request| request.original_url.ends_with("/transactions"))
             .map(|request| &request.body)
             .collect();
-        // CIT, 1 repeat, 3 wallets, 1 wallet CIT; the refused request never reached EPG.
-        assert_eq!(sales.len(), 6, "{sales:?}");
+        // CIT, 2 repeats, 3 wallets, 1 wallet CIT; the refused requests never reached EPG.
+        assert_eq!(sales.len(), 7, "{sales:?}");
 
         assert_eq!(sales[0]["credentialOnFileType"], json!("recurring"));
         assert_eq!(sales[0]["shopperInteraction"], json!("ecommerce"));
@@ -939,7 +1003,20 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             assert!(repeat["card"].get("securityCode").is_none());
         }
 
-        for (wallet, origin) in sales[2..4].iter().zip(["Google Pay", "Apple Pay"]) {
+        let tokenized_repeat = sales[2];
+        assert_eq!(
+            tokenized_repeat["shopperInteraction"],
+            json!("merchantInitiated")
+        );
+        assert_eq!(tokenized_repeat["credentialOnFileData"], json!(COF_DATA));
+        assert_eq!(
+            tokenized_repeat["card"]["panToken"]["token"],
+            json!("1111222233334444")
+        );
+        assert_eq!(tokenized_repeat["card"]["expirationYear"], json!(2030));
+        assert!(tokenized_repeat["card"].get("number").is_none());
+
+        for (wallet, origin) in sales[3..5].iter().zip(["Google Pay", "Apple Pay"]) {
             assert_eq!(wallet["paymentMethodOrigin"], json!(origin));
             assert_eq!(
                 wallet["cryptogramSecurity"],
@@ -954,7 +1031,7 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
             assert!(wallet.get("credentialOnFileType").is_none());
         }
 
-        let wallet_agreement = sales[5];
+        let wallet_agreement = sales[6];
         assert_eq!(wallet_agreement["credentialOnFileType"], json!("recurring"));
         assert_eq!(wallet_agreement["shopperInteraction"], json!("ecommerce"));
         assert_eq!(wallet_agreement["paymentMethodOrigin"], json!("Google Pay"));
@@ -975,7 +1052,7 @@ async fn recurring_cards_and_decrypted_wallets_cross_the_grpc_boundary() {
 
         // The Mastercard token carried an empty eciIndicator: it reaches EPG as the
         // unauthenticated default rather than failing the sale or being sent through blank.
-        let mastercard = sales[4];
+        let mastercard = sales[5];
         assert_eq!(mastercard["paymentMethodOrigin"], json!("Google Pay"));
         assert_eq!(mastercard["card"]["number"], json!("5555555555554444"));
         assert_eq!(
