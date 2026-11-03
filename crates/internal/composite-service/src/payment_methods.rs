@@ -494,36 +494,132 @@ where
     /// Create a payment method (e.g. provision a wallet). Bootstraps the
     /// connector session token when needed, then forwards to the underlying
     /// `PaymentMethodService.Create`.
+    #[tracing::instrument(name = "composite_payment_methods_create", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn create(
         &self,
         request: tonic::Request<CompositePaymentMethodCreateRequest>,
     ) -> Result<tonic::Response<CompositePaymentMethodCreateResponse>, tonic::Status> {
-        self.process_create(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentMethodService",
+            common_utils::events::FlowName::CreatePaymentMethod,
+            |request| async move { self.process_create(request).await },
+        )
+        .await
     }
 
     /// Look up a payment method (e.g. fetch wallet details). Same bootstrap +
     /// forward pattern.
+    #[tracing::instrument(name = "composite_payment_methods_get", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn get(
         &self,
         request: tonic::Request<CompositePaymentMethodGetRequest>,
     ) -> Result<tonic::Response<CompositePaymentMethodGetResponse>, tonic::Status> {
-        self.process_get(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentMethodService",
+            common_utils::events::FlowName::GetPaymentMethod,
+            |request| async move { self.process_get(request).await },
+        )
+        .await
     }
 
     /// Recharge a payment method (e.g. credit value to a wallet).
+    #[tracing::instrument(name = "composite_payment_methods_recharge", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn recharge(
         &self,
         request: tonic::Request<CompositePaymentMethodRechargeRequest>,
     ) -> Result<tonic::Response<CompositePaymentMethodRechargeResponse>, tonic::Status> {
-        self.process_recharge(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentMethodService",
+            common_utils::events::FlowName::Recharge,
+            |request| async move { self.process_recharge(request).await },
+        )
+        .await
     }
 
     /// Check payment method eligibility (e.g. gift-card/wallet status, performing the same
     /// connector call as `get`). Same bootstrap + forward pattern.
+    #[tracing::instrument(name = "composite_payment_methods_eligibility", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn eligibility(
         &self,
         request: tonic::Request<CompositePaymentMethodEligibilityRequest>,
     ) -> Result<tonic::Response<CompositePaymentMethodEligibilityResponse>, tonic::Status> {
-        self.process_eligibility(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentMethodService",
+            common_utils::events::FlowName::PaymentMethodEligibility,
+            |request| async move { self.process_eligibility(request).await },
+        )
+        .await
     }
 }
