@@ -16,15 +16,14 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PaymentMethodToken, PSync, RSync, Refund,
-        Void,
+        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund, Void,
     },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        PaymentVoidData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RefundWebhookReference, ResponseId, WebhookResourceReference,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookReference, RefundsData,
+        RefundsResponseData, ResponseId, WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -323,7 +322,6 @@ pub type KgpSyncResponse = KgpCharge;
 pub type KgpCaptureResponse = KgpCharge;
 pub type KgpVoidResponse = KgpCharge;
 
-
 /// Refund object — shared by Refund / RSync responses.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct KgpRefund {
@@ -360,13 +358,8 @@ pub struct KgpToken {
 /// `POST {vault}/tokens` — raw card → `tokn_…`.
 /// Field names are Omise's literal bracket syntax.
 #[derive(Debug, Clone, Serialize)]
-pub struct KgpTokenRequest<
-    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
-> {
-    #[serde(
-        rename = "card[name]",
-        skip_serializing_if = "Option::is_none"
-    )]
+pub struct KgpTokenRequest<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
+    #[serde(rename = "card[name]", skip_serializing_if = "Option::is_none")]
     pub card_name: Option<Secret<String>>,
     #[serde(rename = "card[number]")]
     pub card_number: RawCardNumber<T>,
@@ -424,7 +417,10 @@ pub struct KgpRefundRequest {
     /// Minor units. Omitted = full remaining refundable.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
-    #[serde(rename = "metadata[refund_id]", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "metadata[refund_id]",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub metadata_refund_id: Option<String>,
     /// Set `true` to also void an uncaptured charge in one call.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -443,7 +439,10 @@ pub struct KgpCustomerRequest {
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
-    #[serde(rename = "metadata[customer_id]", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "metadata[customer_id]",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub metadata_customer_id: Option<String>,
     #[serde(rename = "metadata[name]", skip_serializing_if = "Option::is_none")]
     pub metadata_name: Option<String>,
@@ -537,7 +536,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 PaymentMethodTokenResponse,
             >,
         >,
-    > for RouterDataV2<
+    >
+    for RouterDataV2<
         PaymentMethodToken,
         PaymentFlowData,
         PaymentMethodTokenizationData<T>,
@@ -650,8 +650,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         ),
                         doc_url: Some("https://docs.omise.co/charges-api".to_string()),
                         additional_context: Some(
-                            "Only card token / card id is accepted on POST /charges."
-                                .to_string(),
+                            "Only card token / card id is accepted on POST /charges.".to_string(),
                         ),
                     },
                 }
@@ -807,12 +806,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // PSYNC  (GET {api}/charges/{id})
 // ============================================================================
 
-impl TryFrom<
-    ResponseRouterData<
-        KgpSyncResponse,
-        RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-    >,
-> for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData> {
+impl
+    TryFrom<
+        ResponseRouterData<
+            KgpSyncResponse,
+            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        >,
+    > for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+{
     type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
@@ -907,12 +908,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-impl TryFrom<
-    ResponseRouterData<
-        KgpCaptureResponse,
-        RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-    >,
-> for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData> {
+impl
+    TryFrom<
+        ResponseRouterData<
+            KgpCaptureResponse,
+            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        >,
+    > for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+{
     type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
@@ -958,7 +961,11 @@ impl TryFrom<
                     .captured_amount
                     .or(response.amount)
                     .unwrap_or_else(|| {
-                        router_data.request.amount_to_capture.amount.get_amount_as_i64()
+                        router_data
+                            .request
+                            .amount_to_capture
+                            .amount
+                            .get_amount_as_i64()
                     }),
             ),
             currency: router_data.request.currency,
@@ -985,7 +992,10 @@ impl TryFrom<
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        KgpRouterData<RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>, T>,
+        KgpRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
     > for KgpVoidRequest
 {
     type Error = Report<IntegrationError>;
@@ -1000,12 +1010,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-impl TryFrom<
-    ResponseRouterData<
-        KgpVoidResponse,
-        RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-    >,
-> for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData> {
+impl
+    TryFrom<
+        ResponseRouterData<
+            KgpVoidResponse,
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        >,
+    > for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+{
     type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
@@ -1093,12 +1105,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-impl TryFrom<
-    ResponseRouterData<
-        KgpRefundResponse,
-        RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-    >,
-> for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData> {
+impl
+    TryFrom<
+        ResponseRouterData<
+            KgpRefundResponse,
+            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        >,
+    > for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+{
     type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
@@ -1125,16 +1139,13 @@ impl TryFrom<
             })
         };
 
-        let response_integrity_object = Some(RefundIntegrityObject {
-            refund_amount: MinorUnit::new(response.amount.unwrap_or_else(|| {
-                router_data
-                    .request
-                    .refund_amount
-                    .amount
-                    .get_amount_as_i64()
-            })),
-            currency: router_data.request.currency,
-        });
+        let response_integrity_object =
+            Some(RefundIntegrityObject {
+                refund_amount: MinorUnit::new(response.amount.unwrap_or_else(|| {
+                    router_data.request.refund_amount.amount.get_amount_as_i64()
+                })),
+                currency: router_data.request.currency,
+            });
 
         Ok(Self {
             response: refund_response,
@@ -1151,12 +1162,14 @@ impl TryFrom<
 // RSYNC  (GET {api}/charges/{charge_id}/refunds/{refund_id})
 // ============================================================================
 
-impl TryFrom<
-    ResponseRouterData<
-        KgpRefundSyncResponse,
-        RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-    >,
-> for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData> {
+impl
+    TryFrom<
+        ResponseRouterData<
+            KgpRefundSyncResponse,
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        >,
+    > for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+{
     type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
@@ -1252,10 +1265,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             card,
             description: request.description.clone(),
             email,
-            metadata_customer_id: request
-                .customer_id
-                .as_ref()
-                .map(|id| id.peek().clone()),
+            metadata_customer_id: request.customer_id.as_ref().map(|id| id.peek().clone()),
             metadata_name: request.name.as_ref().map(|name| name.peek().clone()),
         })
     }
@@ -1270,9 +1280,7 @@ impl TryFrom<ResponseRouterData<KgpCustomerResponse, Self>>
     >
 {
     type Error = Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<KgpCustomerResponse, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<KgpCustomerResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
@@ -1282,17 +1290,14 @@ impl TryFrom<ResponseRouterData<KgpCustomerResponse, Self>>
         // Keep the default card id on the request so the caller can store it.
         let request = if response.default_card.is_some() || response.cards.is_some() {
             ConnectorCustomerData {
-                preprocessing_id: response
-                    .default_card
-                    .clone()
-                    .or_else(|| {
-                        response
-                            .cards
-                            .as_ref()
-                            .and_then(|list| list.data.as_ref())
-                            .and_then(|cards| cards.first())
-                            .and_then(|card| card.id.clone())
-                    }),
+                preprocessing_id: response.default_card.clone().or_else(|| {
+                    response
+                        .cards
+                        .as_ref()
+                        .and_then(|list| list.data.as_ref())
+                        .and_then(|cards| cards.first())
+                        .and_then(|card| card.id.clone())
+                }),
                 ..router_data.request
             }
         } else {

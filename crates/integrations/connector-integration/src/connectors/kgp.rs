@@ -12,6 +12,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_enums::CurrencyUnit;
+use common_utils::types::MinorUnit;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::SignMessage,
@@ -21,14 +22,13 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PaymentMethodToken, PSync, RSync, Refund,
-        Void,
+        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund, Void,
     },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, ConnectorWebhookSecrets, EventType,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        PaymentVoidData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RequestDetails, WebhookResourceReference,
     },
     errors::{self, IntegrationError},
@@ -38,7 +38,6 @@ use domain_types::{
     router_response_types::Response,
     types::Connectors,
 };
-use common_utils::types::MinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
@@ -47,10 +46,10 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as kgp, KgpAuthorizeResponse, KgpCaptureRequest, KgpCaptureResponse,
-    KgpCustomerRequest, KgpCustomerResponse, KgpPaymentsRequest, KgpRefundRequest,
-    KgpRefundResponse, KgpRefundSyncResponse,
-    KgpSyncResponse, KgpToken, KgpTokenRequest, KgpVoidRequest, KgpVoidResponse,
+    self as kgp, KgpAuthorizeResponse, KgpCaptureRequest, KgpCaptureResponse, KgpCustomerRequest,
+    KgpCustomerResponse, KgpPaymentsRequest, KgpRefundRequest, KgpRefundResponse,
+    KgpRefundSyncResponse, KgpSyncResponse, KgpToken, KgpTokenRequest, KgpVoidRequest,
+    KgpVoidResponse,
 };
 
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
@@ -61,8 +60,7 @@ pub(crate) mod headers {
     pub(crate) const OMISE_SIGNATURE: &str = "Omise-Signature";
 }
 
-pub const BASE64_ENGINE: base64::engine::GeneralPurpose =
-    base64::engine::general_purpose::STANDARD;
+pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 // ============================================================================
 // FOUNDATION SETUP — create_all_prerequisites!
@@ -329,9 +327,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .find(|(name, _)| name.eq_ignore_ascii_case(headers::OMISE_SIGNATURE))
             .map(|(_, value)| value.as_str())
             .and_then(kgp::parse_kgp_signature)
-            .ok_or_else(|| {
-                error_stack::report!(errors::WebhookError::WebhookSignatureNotFound)
-            })?;
+            .ok_or_else(|| error_stack::report!(errors::WebhookError::WebhookSignatureNotFound))?;
 
         // Omise signs "{timestamp}.{raw body}" with HMAC-SHA256, hex-encoded.
         let message = format!(
@@ -660,8 +656,8 @@ macros::macro_connector_implementation!(
 );
 
 // ----- Refund: POST {api}/charges/{id}/refunds -----
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> connector_types::RefundV2
-    for Kgp<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundV2 for Kgp<T>
 {
 }
 
