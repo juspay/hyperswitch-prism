@@ -459,7 +459,7 @@
           "equals": "8535296650153318"
         }
       }
-    },
+    }
   },
   "PaymentMethodAuthenticationService/PreAuthenticate": {
     "threeds_card_pre_authenticate": {

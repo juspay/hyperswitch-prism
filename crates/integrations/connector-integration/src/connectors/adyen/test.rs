@@ -677,11 +677,11 @@ mod tests {
 
         use super::fixtures::{adyen_config, payment_flow_data};
         use crate::{
-            connectors::adyen::AdyenRouterData,
             connectors::adyen::transformers::{
                 AdyenAuthenticationResponse, AdyenPaymentResponse, AdyenPostAuthenticationResponse,
                 AdyenPreAuthenticateRequest, AdyenPreAuthenticationResponse,
             },
+            connectors::adyen::AdyenRouterData,
             types::ResponseRouterData,
         };
 
@@ -777,7 +777,8 @@ mod tests {
             }
         }
 
-        fn adyen_config_without_native_three_ds() -> domain_types::router_data::ConnectorSpecificConfig {
+        fn adyen_config_without_native_three_ds(
+        ) -> domain_types::router_data::ConnectorSpecificConfig {
             match adyen_config() {
                 domain_types::router_data::ConnectorSpecificConfig::Adyen {
                     api_key,
