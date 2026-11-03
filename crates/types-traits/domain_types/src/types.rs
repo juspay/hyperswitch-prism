@@ -3837,9 +3837,9 @@ pub struct AuthorizationRequest {
     pub merchant_transaction_id: Option<String>,
     // Amount Information
     pub amount: Option<grpc_payment_types::Money>,
-    pub order_tax_amount: Option<i64>,
+    pub order_tax_amount: Option<common_utils::MinorUnit>,
     pub surcharge_amount: Option<grpc_payment_types::Money>,
-    pub shipping_cost: Option<i64>,
+    pub shipping_cost: Option<common_utils::MinorUnit>,
     // Payment Method and Capture Settings
     pub payment_method: Option<grpc_payment_types::PaymentMethod>,
     pub capture_method: grpc_payment_types::CaptureMethod,
@@ -3952,8 +3952,8 @@ pub struct SetupRecurringRequest {
     pub is_stored_credential: Option<bool>,
     pub order_category: Option<String>,
     pub order_id: Option<String>,
-    pub order_tax_amount: Option<i64>,
-    pub shipping_cost: Option<i64>,
+    pub order_tax_amount: Option<common_utils::MinorUnit>,
+    pub shipping_cost: Option<common_utils::MinorUnit>,
     pub merchant_order_id: Option<String>,
     pub connector_testing_data: Option<Secret<String>>,
     pub l2_l3_data: Option<grpc_payment_types::L2l3Data>,
@@ -3990,9 +3990,9 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
         Self {
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
-            order_tax_amount: req.order_tax_amount,
+            order_tax_amount: req.order_tax_amount.map(common_utils::MinorUnit::new),
             surcharge_amount: req.surcharge_amount,
-            shipping_cost: req.shipping_cost,
+            shipping_cost: req.shipping_cost.map(common_utils::MinorUnit::new),
             payment_method: req.payment_method.clone(),
             capture_method: req.capture_method(),
             customer: req.customer.clone(),
@@ -4071,7 +4071,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             amount: req.amount,
             order_tax_amount: None,
             surcharge_amount: None,
-            shipping_cost: req.shipping_cost,
+            shipping_cost: req.shipping_cost.map(common_utils::MinorUnit::new),
             payment_method,
             capture_method: req.capture_method(),
             customer: req.customer.clone(),
@@ -4167,8 +4167,8 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             enable_partial_authorization: req.enable_partial_authorization,
             order_category: req.order_category,
             order_id: req.order_id,
-            order_tax_amount: req.order_tax_amount,
-            shipping_cost: req.shipping_cost,
+            order_tax_amount: req.order_tax_amount.map(common_utils::MinorUnit::new),
+            shipping_cost: req.shipping_cost.map(common_utils::MinorUnit::new),
             merchant_order_id: req.merchant_order_id,
             connector_testing_data: req.connector_testing_data,
             l2_l3_data: req.l2_l3_data,
@@ -5646,7 +5646,7 @@ impl<
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
 
-        let shipping_cost = value.shipping_cost.map(common_utils::MinorUnit::new);
+        let shipping_cost = value.shipping_cost;
         // Connector testing data should be sent as a separate field (for adyen) (to be implemented)
         // For now, set to None as Hyperswitch needs to be updated to send this data properly
         let connector_testing_data: Option<Secret<serde_json::Value>> = None;
@@ -5752,7 +5752,7 @@ impl<
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
-            order_tax_amount: value.order_tax_amount.map(common_utils::MinorUnit::new),
+            order_tax_amount: value.order_tax_amount,
             surcharge_money: value
                 .surcharge_amount
                 .map(crate::money::from_proto_money)
@@ -5960,7 +5960,7 @@ impl<
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
             money: Some(crate::money::from_proto_money(amount)?),
-            shipping_cost: value.shipping_cost.map(common_utils::MinorUnit::new),
+            shipping_cost: value.shipping_cost,
             customer_id: value
                 .customer
                 .as_ref()
