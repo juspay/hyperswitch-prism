@@ -15,7 +15,7 @@ use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector, Mon
 
 #[cfg(feature = "domain_boundary")]
 pub fn domain_boundary(amount: MinorUnit, currency: Currency) -> Money {
-    common_utils::types::MoneyBoundary::from_minor_unit(amount, currency)
+    common_utils::types::Money::from_minor_unit(amount, currency)
 }
 
 #[cfg(feature = "connector_pass")]
@@ -32,10 +32,9 @@ pub fn connector_pass(money: &Money) {
 pub fn boundary_expect(amount: MinorUnit, currency: Currency) -> Money {
     #[expect(
         clippy::disallowed_methods,
-        clippy::disallowed_types,
         reason = "Temporary statement-scoped compatibility exception"
     )]
-    let money = common_utils::types::MoneyBoundary::from_minor_unit(amount, currency);
+    let money = common_utils::types::Money::from_minor_unit(amount, currency);
     money
 }
 
@@ -43,11 +42,10 @@ pub fn boundary_expect(amount: MinorUnit, currency: Currency) -> Money {
 pub fn boundary_expect_scope(amount: MinorUnit, currency: Currency) -> (Money, Money) {
     #[expect(
         clippy::disallowed_methods,
-        clippy::disallowed_types,
         reason = "Temporary statement-scoped compatibility exception"
     )]
-    let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(amount, currency);
-    let unapproved_money = common_utils::types::MoneyBoundary::from_minor_unit(amount, currency);
+    let legacy_money = common_utils::types::Money::from_minor_unit(amount, currency);
+    let unapproved_money = common_utils::types::Money::from_minor_unit(amount, currency);
     (legacy_money, unapproved_money)
 }
 
@@ -55,7 +53,6 @@ pub fn boundary_expect_scope(amount: MinorUnit, currency: Currency) -> (Money, M
 pub fn obsolete_boundary_expect(currency: Currency) -> Money {
     #[expect(
         clippy::disallowed_methods,
-        clippy::disallowed_types,
         reason = "An obsolete compatibility exception must fail"
     )]
     let money = Money::zero(currency);
@@ -65,13 +62,13 @@ pub fn obsolete_boundary_expect(currency: Currency) -> Money {
 #[cfg(feature = "boundary_allow")]
 pub fn boundary_allow(amount: MinorUnit, currency: Currency) -> Money {
     #[allow(clippy::disallowed_methods, clippy::disallowed_types)]
-    let money = common_utils::types::MoneyBoundary::from_minor_unit(amount, currency);
+    let money = common_utils::types::Money::from_minor_unit(amount, currency);
     money
 }
 
 #[cfg(all(test, feature = "boundary_in_tests"))]
 pub fn boundary_in_tests(amount: MinorUnit, currency: Currency) -> Money {
-    common_utils::types::MoneyBoundary::from_minor_unit(amount, currency)
+    common_utils::types::Money::from_minor_unit(amount, currency)
 }
 
 #[cfg(feature = "private_constructor")]
@@ -86,31 +83,31 @@ pub fn private_fields(amount: MinorUnit, currency: Currency) -> Money {
 
 #[cfg(feature = "boundary_direct")]
 pub fn boundary_direct(amount: MinorUnit, currency: Currency) -> Money {
-    common_utils::types::MoneyBoundary::from_minor_unit(amount, currency)
+    common_utils::money::Money::from_minor_unit(amount, currency)
 }
 
 #[cfg(feature = "boundary_alias")]
 pub fn boundary_alias(amount: MinorUnit, currency: Currency) -> Money {
-    use common_utils::types::MoneyBoundary as Factory;
+    use common_utils::Money as Factory;
     Factory::from_minor_unit(amount, currency)
 }
 
 #[cfg(feature = "boundary_pointer")]
 pub fn boundary_pointer(amount: MinorUnit, currency: Currency) -> Money {
-    let create = common_utils::types::MoneyBoundary::from_minor_unit;
+    let create = common_utils::types::Money::from_minor_unit;
     create(amount, currency)
 }
 
 #[cfg(feature = "boundary_type_alias")]
 pub fn boundary_type_alias(amount: MinorUnit, currency: Currency) -> Money {
-    type Factory = common_utils::types::MoneyBoundary;
+    type Factory = common_utils::types::Money;
     Factory::from_minor_unit(amount, currency)
 }
 
 #[cfg(feature = "boundary_reexport")]
 pub fn boundary_reexport(amount: MinorUnit, currency: Currency) -> Money {
     mod facade {
-        pub use common_utils::types::MoneyBoundary as Factory;
+        pub use common_utils::types::Money as Factory;
     }
     facade::Factory::from_minor_unit(amount, currency)
 }

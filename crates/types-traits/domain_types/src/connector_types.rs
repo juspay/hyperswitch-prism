@@ -801,7 +801,7 @@ impl Default for PaymentsSyncData {
             mandate_id: Default::default(),
             payment_method_type: Default::default(),
             payment_experience: Default::default(),
-            money: common_utils::types::MoneyBoundary::from_minor_unit(
+            money: common_utils::types::Money::from_minor_unit(
                 MinorUnit::default(),
                 Default::default(),
             ),
@@ -1928,13 +1928,13 @@ pub fn is_customer_initiated_mandate(
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
     pub fn get_shipping_money(&self) -> Option<Money> {
         self.shipping_cost.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(amount, self.money.currency())
+            common_utils::types::Money::from_minor_unit(amount, self.money.currency())
         })
     }
 
     pub fn get_order_tax_money(&self) -> Option<Money> {
         self.order_tax_amount.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(amount, self.money.currency())
+            common_utils::types::Money::from_minor_unit(amount, self.money.currency())
         })
     }
 
@@ -3837,11 +3837,11 @@ impl Default for RefundsData {
             webhook_url: Default::default(),
             connector_feature_data: Default::default(),
             refund_connector_metadata: Default::default(),
-            payment_money: common_utils::types::MoneyBoundary::from_minor_unit(
+            payment_money: common_utils::types::Money::from_minor_unit(
                 MinorUnit::default(),
                 Default::default(),
             ),
-            refund_money: common_utils::types::MoneyBoundary::from_minor_unit(
+            refund_money: common_utils::types::Money::from_minor_unit(
                 MinorUnit::default(),
                 Default::default(),
             ),
@@ -3943,7 +3943,7 @@ impl Default for PaymentsCaptureData {
     fn default() -> Self {
         Self {
             payment_method_data: Default::default(),
-            capture_money: common_utils::types::MoneyBoundary::from_minor_unit(
+            capture_money: common_utils::types::Money::from_minor_unit(
                 MinorUnit::default(),
                 Default::default(),
             ),
@@ -4058,7 +4058,7 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
     pub fn get_shipping_money(&self) -> Option<Money> {
         self.shipping_cost.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(
+            common_utils::types::Money::from_minor_unit(
                 amount,
                 self.money.as_ref().map_or(self.currency, Money::currency),
             )
@@ -4182,7 +4182,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
     pub fn get_shipping_money(&self) -> Option<Money> {
         self.shipping_cost.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(amount, self.money.currency())
+            common_utils::types::Money::from_minor_unit(amount, self.money.currency())
         })
     }
 
@@ -5607,42 +5607,38 @@ pub struct TaxInfo {
 
 impl OrderInfo {
     pub fn get_discount_money(&self, payment: &Money) -> Option<Money> {
-        self.discount_amount.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
-        })
+        self.discount_amount
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 
     pub fn get_shipping_money(&self, payment: &Money) -> Option<Money> {
-        self.shipping_cost.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
-        })
+        self.shipping_cost
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 
     pub fn get_duty_money(&self, payment: &Money) -> Option<Money> {
-        self.duty_amount.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
-        })
+        self.duty_amount
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 }
 
 impl TaxInfo {
     pub fn get_order_tax_money(&self, payment: &Money) -> Option<Money> {
-        self.order_tax_amount.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
-        })
+        self.order_tax_amount
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 }
 
 impl ClientAuthenticationTokenRequestData {
     pub fn get_order_tax_money(&self) -> Option<Money> {
         self.order_tax_amount.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(amount, self.money.currency())
+            common_utils::types::Money::from_minor_unit(amount, self.money.currency())
         })
     }
 
     pub fn get_shipping_money(&self) -> Option<Money> {
         self.shipping_cost.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(amount, self.money.currency())
+            common_utils::types::Money::from_minor_unit(amount, self.money.currency())
         })
     }
 }

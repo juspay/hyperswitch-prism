@@ -602,24 +602,21 @@ impl OrderDetailsWithAmount {
 
     /// Uses the enclosing payment's currency for legacy scalar line-item amounts.
     pub fn get_unit_money(&self, payment: &Money) -> Money {
-        common_utils::types::MoneyBoundary::from_minor_unit(self.amount, payment.currency())
+        common_utils::types::Money::from_minor_unit(self.amount, payment.currency())
     }
 
     pub fn get_total_money(&self, payment: &Money) -> Option<Money> {
-        self.total_amount.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
-        })
+        self.total_amount
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 
     pub fn get_total_tax_money(&self, payment: &Money) -> Option<Money> {
-        self.total_tax_amount.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
-        })
+        self.total_tax_amount
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 
     pub fn get_unit_discount_money(&self, payment: &Money) -> Option<Money> {
-        self.unit_discount_amount.map(|amount| {
-            common_utils::types::MoneyBoundary::from_minor_unit(amount, payment.currency())
-        })
+        self.unit_discount_amount
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 }

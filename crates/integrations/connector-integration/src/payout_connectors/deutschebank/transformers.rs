@@ -605,10 +605,9 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         let amount = utils::convert_amount(&FloatMajorUnitForConnector, &{
             #[expect(
                 clippy::disallowed_methods,
-                clippy::disallowed_types,
                 reason = "Temporary payout currency contract: deutschebank-transfer; see PR #2642"
             )]
-            let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
+            let legacy_money = common_utils::types::Money::from_minor_unit(
                 req.request.money.amount(),
                 req.request.destination_currency,
             );

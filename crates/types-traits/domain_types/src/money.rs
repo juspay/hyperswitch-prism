@@ -1,4 +1,4 @@
-use common_utils::types::{MinorUnit, Money, MoneyBoundary};
+use common_utils::types::{MinorUnit, Money};
 
 use crate::{utils::ForeignTryFrom, IntegrationError};
 
@@ -6,7 +6,7 @@ use crate::{utils::ForeignTryFrom, IntegrationError};
 pub(crate) fn from_proto_money(
     value: grpc_api_types::payments::Money,
 ) -> Result<Money, error_stack::Report<IntegrationError>> {
-    Ok(MoneyBoundary::from_minor_unit(
+    Ok(Money::from_minor_unit(
         MinorUnit::new(value.minor_amount),
         common_enums::Currency::foreign_try_from(value.currency())?,
     ))

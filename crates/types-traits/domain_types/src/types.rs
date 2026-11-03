@@ -9903,12 +9903,10 @@ pub fn generate_payment_sync_response(
                         .integrity_object
                         .as_ref()
                         .map(|integrity_object| {
-                            connector_money_to_grpc(
-                                &common_utils::types::MoneyBoundary::from_minor_unit(
-                                    integrity_object.amount,
-                                    integrity_object.currency,
-                                ),
-                            )
+                            connector_money_to_grpc(&common_utils::types::Money::from_minor_unit(
+                                integrity_object.amount,
+                                integrity_object.currency,
+                            ))
                         })
                         .transpose()?,
                     payment_method_type: None,
@@ -10059,12 +10057,10 @@ pub fn generate_payment_sync_response(
                         .integrity_object
                         .as_ref()
                         .map(|integrity_object| {
-                            connector_money_to_grpc(
-                                &common_utils::types::MoneyBoundary::from_minor_unit(
-                                    integrity_object.amount,
-                                    integrity_object.currency,
-                                ),
-                            )
+                            connector_money_to_grpc(&common_utils::types::Money::from_minor_unit(
+                                integrity_object.amount,
+                                integrity_object.currency,
+                            ))
                         })
                         .transpose()?,
                     payment_method_type: None,
@@ -10188,12 +10184,10 @@ pub fn generate_payment_sync_response(
                     .integrity_object
                     .as_ref()
                     .map(|integrity_object| {
-                        connector_money_to_grpc(
-                            &common_utils::types::MoneyBoundary::from_minor_unit(
-                                integrity_object.amount,
-                                integrity_object.currency,
-                            ),
-                        )
+                        connector_money_to_grpc(&common_utils::types::Money::from_minor_unit(
+                            integrity_object.amount,
+                            integrity_object.currency,
+                        ))
                     })
                     .transpose()?,
                 payment_method_type: None,
@@ -12665,7 +12659,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
 
         let currency = common_enums::Currency::foreign_try_from(refund_amount.currency())?;
         let refund_amount = crate::money::from_proto_money(refund_amount)?;
-        let payment_amount = common_utils::types::MoneyBoundary::from_minor_unit(
+        let payment_amount = common_utils::types::Money::from_minor_unit(
             common_utils::types::MinorUnit::new(value.payment_amount),
             currency,
         );
@@ -13091,7 +13085,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     .transpose()?;
 
                 Ok(Self {
-                    money: common_utils::types::MoneyBoundary::from_minor_unit(
+                    money: common_utils::types::Money::from_minor_unit(
                         common_utils::types::MinorUnit::new(0),
                         common_enums::Currency::USD,
                     ),
@@ -14565,7 +14559,7 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
                         }
                     })?;
 
-                    common_utils::types::MoneyBoundary::from_minor_unit(
+                    common_utils::types::Money::from_minor_unit(
                         common_utils::types::MinorUnit::new(amount),
                         common_enums::Currency::foreign_try_from(
                             grpc_api_types::payments::Currency::try_from(currency).map_err(
@@ -16550,7 +16544,7 @@ impl
             captured_money: None,
             capturable_money: None,
             money: value.amount.map(|amt| {
-                common_utils::types::MoneyBoundary::from_minor_unit(
+                common_utils::types::Money::from_minor_unit(
                     common_utils::types::MinorUnit::new(amt.minor_amount),
                     common_enums::Currency::foreign_try_from(amt.currency())
                         .ok()
@@ -17655,7 +17649,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                             .as_ref()
                             .map(|integrity_object| {
                                 connector_money_to_grpc(
-                                    &common_utils::types::MoneyBoundary::from_minor_unit(
+                                    &common_utils::types::Money::from_minor_unit(
                                         integrity_object.amount,
                                         integrity_object.currency,
                                     ),
@@ -17747,12 +17741,10 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                         .integrity_object
                         .as_ref()
                         .map(|integrity_object| {
-                            connector_money_to_grpc(
-                                &common_utils::types::MoneyBoundary::from_minor_unit(
-                                    integrity_object.amount,
-                                    integrity_object.currency,
-                                ),
-                            )
+                            connector_money_to_grpc(&common_utils::types::Money::from_minor_unit(
+                                integrity_object.amount,
+                                integrity_object.currency,
+                            ))
                         })
                         .transpose()?,
                     incremental_authorization_allowed: None,
