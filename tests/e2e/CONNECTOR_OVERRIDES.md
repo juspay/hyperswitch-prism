@@ -1,5 +1,11 @@
 # Connector override contract
 
+For a compile-checked, non-runnable example containing every currently
+supported connector-definition field, see [`connectors/example.ts`](connectors/example.ts).
+It is deliberately absent from `connectors/index.ts`. Copy only justified
+differences into a real connector rather than registering or duplicating the
+whole example.
+
 This document is the implementation contract for connector-specific differences.
 The shared scenario remains the source of truth for the journey, API-call order,
 base requests, and business assertions. A connector definition contains data

@@ -236,6 +236,7 @@ Operations apply request overrides by stable call ID. They omit configured paths
 | `test-data.ts` | Reusable test-data factories and a default sandbox card; no API calls or shared mutable response state. |
 | `scenarios/**/*.spec.ts` | Own the complete journey, request data, use of responses, and expected results. |
 | `connectors/adyen.ts` | Declare sandbox data, optional request overrides, and reasoned exclusions. |
+| `connectors/example.ts` | Compile-checked reference for all supported connector configuration forms; never registered or executed. |
 | `connectors/index.ts` | Register connector definitions. |
 | `framework/types.ts` | Define scenario metadata and data-only connector configuration types. |
 | `framework/fixtures.ts` | Standard Playwright fixtures apply exclusions, provision context, and release resources. Export a typed public API without internal HTTP/keys/polling. No payment sequence. |
