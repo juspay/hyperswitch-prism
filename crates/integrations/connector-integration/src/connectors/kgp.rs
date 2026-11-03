@@ -525,6 +525,14 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Kgp<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        // PSync looks up the Omise charge by its connector transaction id (`chrg_...`).
+        Ok(())
+    }
 }
 
 macros::macro_connector_implementation!(

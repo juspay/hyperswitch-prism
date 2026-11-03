@@ -1380,6 +1380,7 @@ pub fn kgp_webhook_reference(event: &KgpWebhookEvent) -> Option<WebhookResourceR
         Some(WebhookResourceReference::Payment(PaymentWebhookReference {
             connector_transaction_id: data_id,
             merchant_transaction_id: None,
+            connector_preprocessing_id: None,
         }))
     }
 }
