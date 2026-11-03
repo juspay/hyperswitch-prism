@@ -114,7 +114,7 @@ Use native Playwright `expect` for equality, partial nested objects, arrays, ran
 
 Choose `toMatchObject` for partial nested objects and `toEqual` for exact object/array equality. A range can use `report.check("Amount received > 0", { actual: response.amount_received, expected: 0 }, ({ actual, expected }) => expect(actual).toBeGreaterThan(expected))`. Expected/actual values are explicitly selected for the report: do not attach entire payment responses, credentials or card data. Use boolean presence checks for sensitive references. The scenario still owns all matching logic.
 
-Only `scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm.spec.ts` is implemented. Other specs and reserved directories are empty placeholders. The current sequence is:
+Only `scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm.spec.ts` is implemented. Files ending in `.planned.ts` reserve agreed scenario names and locations but are not executable tests or catalog entries. The current sequence is:
 
 ```text
 POST /payments with confirm:true
@@ -139,15 +139,15 @@ scenarios/
 │   │   │   ├── one-time/
 │   │   │   │   ├── no3ds/
 │   │   │   │   │   ├── create-confirm.spec.ts
-│   │   │   │   │   ├── automatic-capture-create-then-confirm.spec.ts
-│   │   │   │   │   ├── manual-capture-create-confirm.spec.ts
-│   │   │   │   │   └── manual-capture-create-then-confirm.spec.ts
+│   │   │   │   │   ├── automatic-capture-create-then-confirm.planned.ts
+│   │   │   │   │   ├── manual-capture-create-confirm.planned.ts
+│   │   │   │   │   └── manual-capture-create-then-confirm.planned.ts
 │   │   │   │   └── three-ds/
 │   │   │   └── recurring/
 │   │   │       ├── connector-mandate/
 │   │   │       │   ├── no3ds/
-│   │   │       │   │   ├── zero-amount-setup-mandate-then-recurring.spec.ts
-│   │   │       │   │   └── nonzero-amount-setup-mandate-then-recurring.spec.ts
+│   │   │       │   │   ├── zero-amount-setup-mandate-then-recurring.planned.ts
+│   │   │       │   │   └── nonzero-amount-setup-mandate-then-recurring.planned.ts
 │   │   │       │   └── three-ds/
 │   │   │       └── network-transaction-id/
 │   │   │           ├── no3ds/
@@ -158,12 +158,12 @@ scenarios/
 │   │       └── paypal/
 │   ├── retrieve/
 │   ├── capture/
-│   │   └── full-capture.spec.ts
+│   │   └── full-capture.planned.ts
 │   └── cancel/
-│       └── cancel-authorized-payment.spec.ts
+│       └── cancel-authorized-payment.planned.ts
 └── refunds/
     ├── create/
-    │   └── full-refund-after-automatic-capture.spec.ts
+    │   └── full-refund-after-automatic-capture.planned.ts
     └── sync/
 ```
 
@@ -182,12 +182,12 @@ Payment retrieval and forced synchronization share `payments/retrieve/`, followi
 
 SDK-driven journeys can share these same payment groupings. Make SDK execution explicit in the filename, for example `automatic-capture-create-then-confirm-with-sdk.spec.ts`, and exercise the actual browser checkout. Reuse shared setup, API operations and checks; keep browser interactions and the journey visible in the spec. SDK setup and implementation will be introduced with the first such scenario.
 
-Empty specs and `.gitkeep` directories are extension placeholders, not implemented coverage. Add one shared spec per journey; connectors inherit it through the registry.
+Planned files and `.gitkeep` directories are extension placeholders, not implemented coverage. Rename a planned file to `.spec.ts` only when implementing it, add its metadata and setup requirements to `scenarios/catalog.ts`, and import that catalog entry from the spec.
 
 
 Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. Before implementing connector differences, follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md). The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, `expected`, and `report`.
 
-Scenarios belong to the shared superset under `scenarios/`. Connectors automatically inherit all registered scenarios. Keep connector differences in `connectors/`; do not copy scenarios into connector directories.
+Scenarios belong to the shared superset under `scenarios/`. `scenarios/catalog.ts` contains implemented scenario metadata only. Playwright discovers every `.spec.ts` and runs it once for every connector project from `connectors/index.ts`; a connector therefore runs every implemented scenario unless it has a reasoned exclusion. Keep connector differences in `connectors/`; do not copy scenarios into connector directories.
 
 - Add a connector definition and register it in `connectors/index.ts`.
 - Use the shared sandbox card by default; supply optional `card` field overrides only when required by the connector's sandbox.
@@ -199,7 +199,7 @@ Connector overrides are ordinary data, keyed by shared scenario ID:
 
 ```ts
 overrides: {
-  "scenario-id": {
+  "no3ds-create-confirm": {
     requests: {
       createPayment: {
         "initial-payment": {
@@ -216,9 +216,6 @@ overrides: {
     },
   },
 },
-exclude: {
-  "another-scenario-id": { reason: "Explain the unsupported behavior" },
-},
 ```
 
 Operations apply request overrides by stable call ID. They omit configured paths first and then recursively patch objects; arrays, scalar values, and `null` replace the shared value. Specs resolve exact-value expectation differences by stable check ID. Unused overrides, duplicate call-ID consumption, bad omit paths, and empty reasons fail the test. Overrides cannot provide executable code or change the journey. See [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md) for the complete contract.
@@ -234,10 +231,12 @@ Operations apply request overrides by stable call ID. They omit configured paths
 | File | Responsibility |
 | --- | --- |
 | `test-data.ts` | Reusable test-data factories and a default sandbox card; no API calls or shared mutable response state. |
+| `scenarios/catalog.ts` | Define metadata and connector-account setup requirements for implemented scenarios; planned scenarios are absent. |
 | `scenarios/**/*.spec.ts` | Own the complete journey, request data, use of responses, and expected results. |
-| `connectors/adyen.ts` | Declare sandbox data, optional request overrides, and reasoned exclusions. |
+| `scenarios/**/*.planned.ts` | Reserve an agreed scenario name and location without registering executable coverage. |
+| `connectors/*.ts` | Declare sandbox data, optional request overrides, and reasoned exclusions. |
 | `connectors/example.ts` | Compile-checked reference for all supported connector configuration forms; never registered or executed. |
-| `connectors/index.ts` | Register connector definitions. |
+| `connectors/index.ts` | Register connectors and validate that scenario overrides and exclusions are known and non-conflicting. |
 | `framework/types.ts` | Define scenario metadata and data-only connector configuration types. |
 | `framework/fixtures.ts` | Standard Playwright fixtures apply exclusions, provision context, and release resources. Export a typed public API without internal HTTP/keys/polling. No payment sequence. |
 | `framework/payment-operations.ts` | Execute individual payment operations and return responses; expose recorded-payment reads. |
@@ -252,7 +251,7 @@ Operations apply request overrides by stable call ID. They omit configured paths
 | `stack/ucs.Dockerfile` | Add the gRPC health-check executable to the published UCS image. |
 | `stack/stack.mjs` | Prepare matching runtime assets and start or stop Compose. |
 | `scripts/test-with-s3-credentials.sh` | Download/decrypt Jenkins credentials, run tests, and remove temporary credentials. |
-| `playwright.config.ts` | Configure discovery, execution, and reporters. |
+| `playwright.config.ts` | Configure discovery, one project per connector, execution, and reporters. |
 | `package.json`, `package-lock.json`, `tsconfig.json` | Commands, dependencies, and compiler settings. |
 
 Connector credentials are read only at runtime. Do not commit credentials, reports, runtime files, or copied production data. API tracing is disabled because it can capture credentials and payment-method data.

@@ -11,7 +11,7 @@ import type {
   Scenario,
 } from "./types.js";
 
-type ScenarioFixtures = {
+export type ScenarioFixtures = {
   connector: ConnectorDefinition;
   scenario: Scenario;
   merchant: Pick<
@@ -96,7 +96,11 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
   },
   _merchant: async ({ _hs, connector, scenario }, use) => {
     await use(
-      await setupMerchant(_hs, connector, scenario.paymentMethodsEnabled),
+      await setupMerchant(
+        _hs,
+        connector,
+        scenario.requirements.connectorAccount.paymentMethodsEnabled,
+      ),
     );
   },
   merchant: async ({ _merchant }, use) => {

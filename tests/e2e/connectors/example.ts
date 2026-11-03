@@ -1,4 +1,5 @@
 import type { ConnectorDefinition } from "../framework/types.js";
+import type { ScenarioId } from "../scenarios/catalog.js";
 
 /**
  * Compile-checked reference for connector configuration.
@@ -22,14 +23,14 @@ export const exampleConnector = {
   },
 
   overrides: {
-    "example-single-call-scenario": {
+    "no3ds-create-confirm": {
       requests: {
         createPayment: {
           "initial-payment": {
             reason: "Example sandbox requires connector-specific request data",
             // Omission happens before patching. Paths are field-name arrays,
             // so nested boundaries are explicit and validated at runtime.
-            omit: [["shipping", "phone"], ["connector_metadata"]],
+            omit: [["shipping", "phone"]],
             patch: {
               currency: "EUR",
               description: null,
@@ -63,35 +64,19 @@ export const exampleConnector = {
         },
       },
     },
-
-    // Stable call IDs distinguish repeated uses of the same operation.
-    "example-multi-call-scenario": {
-      requests: {
-        createPayment: {
-          "mandate-setup": {
-            reason: "Example mandate setup requires sandbox metadata",
-            patch: {
-              connector_metadata: {
-                synthetic_mode: "setup",
-              },
-            },
-          },
-          "recurring-payment": {
-            reason: "Example recurring charge requires different metadata",
-            patch: {
-              metadata: {
-                test_case: "synthetic-recurring",
-              },
-            },
-          },
-        },
-      },
-    },
   },
+} as const satisfies ConnectorDefinition<ScenarioId>;
 
+/**
+ * Exclusions cannot appear beside an override for the same scenario. Keep this
+ * separate definition as the compile-checked exclusion example; it is also not
+ * registered or executed.
+ */
+export const exampleExcludedConnector = {
+  id: "example-excluded",
   exclude: {
-    "example-unsupported-scenario": {
-      reason: "Example connector sandbox does not support this journey",
+    "no3ds-create-confirm": {
+      reason: "Example connector does not support this documented behavior",
     },
   },
-} as const satisfies ConnectorDefinition;
+} as const satisfies ConnectorDefinition<ScenarioId>;

@@ -30,13 +30,13 @@ export type ScenarioOverrides = {
   expectations?: Record<string, ExpectationOverride>;
 };
 
-export type ConnectorDefinition = {
+export type ConnectorDefinition<TScenarioId extends string = string> = {
   id: string;
   credentialKey?: string;
   credentialEntry?: string;
   card?: Partial<CardData>;
-  overrides?: Record<string, ScenarioOverrides>;
-  exclude?: Record<string, { reason: string }>;
+  overrides?: Partial<Record<TScenarioId, ScenarioOverrides>>;
+  exclude?: Partial<Record<TScenarioId, { reason: string }>>;
 };
 
 export type Scenario = {
@@ -44,5 +44,9 @@ export type Scenario = {
   title: string;
   description: string;
   verifies: string;
-  paymentMethodsEnabled: readonly JsonObject[];
+  requirements: {
+    connectorAccount: {
+      paymentMethodsEnabled: readonly JsonObject[];
+    };
+  };
 };

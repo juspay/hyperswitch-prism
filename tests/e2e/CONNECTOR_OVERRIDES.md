@@ -15,6 +15,11 @@ The framework implements this contract for every operation it currently exposes.
 Add an operation key only when its shared operation method is implemented; do
 not add speculative configuration for endpoints the suite does not call.
 
+Every entry in `scenarios/catalog.ts` runs for every connector registered in
+`connectors/index.ts`. A connector is non-runnable for a catalog scenario only
+when it declares an exclusion with a non-empty reason. Do not repeat runnable
+scenario IDs as empty overrides or maintain a connector-specific scenario list.
+
 ## Identify calls, not only operations
 
 An operation name is not a unique request. A recurring journey can call
@@ -40,6 +45,7 @@ overrides: {
     requests: {
       createPayment: {
         "mandate-setup": {
+          reason: "Example sandbox requires connector program metadata",
           patch: {
             connector_metadata: {
               program: "synthetic-sandbox-program",
@@ -47,6 +53,7 @@ overrides: {
           },
         },
         "recurring-payment": {
+          reason: "Example sandbox omits the shared shipping phone",
           patch: {
             metadata: {
               test_case: "synthetic-recurring-payment",
@@ -58,7 +65,10 @@ overrides: {
     },
     expectations: {
       "recurring-payment-result": {
-        status: "succeeded",
+        reason: "Example sandbox returns a documented exact value",
+        patch: {
+          status: "succeeded",
+        },
       },
     },
   },
@@ -67,6 +77,9 @@ overrides: {
 
 The outer key is the stable scenario ID. Request IDs are stable within their
 operation and scenario. Display titles and report labels are not override keys.
+The catalog-derived `ScenarioId` type rejects misspelled or unimplemented
+scenario IDs at compile time. Registry validation provides the same protection
+when definitions are assembled dynamically.
 
 ## Request transformation rules
 
@@ -133,6 +146,8 @@ a reason. Do not hide a materially different lifecycle in an expectation patch.
 
 The framework must reject:
 
+- an unknown scenario ID in an override or exclusion;
+- a scenario that the same connector both overrides and excludes;
 - a configured request override that no call consumes;
 - a configured expectation override that no check consumes;
 - the same mutation call ID being consumed more than once;

@@ -1,6 +1,8 @@
 import { defineConfig } from "@playwright/test";
+import { connectors } from "./connectors/index.js";
+import type { ScenarioFixtures } from "./framework/fixtures.js";
 
-export default defineConfig({
+export default defineConfig<ScenarioFixtures>({
   testDir: "./scenarios",
   testMatch: "**/*.spec.ts",
   fullyParallel: false,
@@ -13,6 +15,10 @@ export default defineConfig({
     ["html", { open: "never" }],
     ["junit", { outputFile: "test-results/results.xml" }],
   ],
+  projects: connectors.map((connector) => ({
+    name: connector.id,
+    use: { connector },
+  })),
   // API traces may contain credentials or payment-method data.
   use: { trace: "off", screenshot: "off", video: "off" },
 });
