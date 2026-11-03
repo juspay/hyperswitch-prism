@@ -2553,7 +2553,7 @@ pub struct CheckoutAccountNameInquiryDetails {
     pub last_name: Option<CheckoutAccountNameInquiryResult>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CheckoutAccountNameInquiryResult {
     FullMatch,
@@ -2562,13 +2562,8 @@ pub enum CheckoutAccountNameInquiryResult {
     NotSupported,
     NoMatch,
     #[serde(other)]
+    #[default]
     Unknown,
-}
-
-impl Default for CheckoutAccountNameInquiryResult {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -3725,7 +3720,12 @@ fn convert_to_additional_payment_method_connector_response(
                     }
                 }
                 if !ani_result.is_empty() {
-                    payment_checks["account_name_inquiry"] = serde_json::Value::Object(ani_result);
+                    if let Some(payment_checks) = payment_checks.as_object_mut() {
+                        payment_checks.insert(
+                            "account_name_inquiry".to_string(),
+                            serde_json::Value::Object(ani_result),
+                        );
+                    }
                 }
             }
         }
