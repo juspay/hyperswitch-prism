@@ -1432,6 +1432,8 @@ pub struct TamaraWebhookData {
 #[serde(untagged)]
 enum TamaraWebhookDataOrArray {
     Data(TamaraWebhookData),
+    // Tamara sometimes sends `data` as an array; contents are intentionally ignored
+    #[allow(dead_code)]
     Array(Vec<serde::de::IgnoredAny>),
 }
 
