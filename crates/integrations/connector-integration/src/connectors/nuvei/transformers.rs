@@ -1149,7 +1149,10 @@ pub(super) fn build_nuvei_error_response(
 
     let transaction_status = match response.status {
         NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed => Some(response.status.to_string()),
-        _ => response.transaction_status.as_ref().map(ToString::to_string),
+        _ => response
+            .transaction_status
+            .as_ref()
+            .map(ToString::to_string),
     };
     let message = message
         .filter(|value| !value.trim().is_empty())

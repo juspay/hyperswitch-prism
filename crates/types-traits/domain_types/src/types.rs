@@ -11280,7 +11280,11 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             }),
             network_transaction_id: value.network_txn_id,
             network_txn_link_id: None,
-            amount: value.amount.as_ref().map(connector_money_to_grpc).transpose()?,
+            amount: value
+                .amount
+                .as_ref()
+                .map(connector_money_to_grpc)
+                .transpose()?,
             captured_amount: value
                 .amount_captured
                 .as_ref()
