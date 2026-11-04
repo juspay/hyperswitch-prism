@@ -37,7 +37,7 @@
           "must_exist": true
         },
         "connector_transaction_id": {
-          "must_not_exist": true
+          "must_exist": true
         },
         "error.connector_details.message": null,
         "error.connector_details.code": {
@@ -96,7 +96,9 @@
     "threeds_card_pre_authenticate": {
       "assert": {
         "status": {
-          "one_of": ["AUTHENTICATION_PENDING"]
+          "one_of": [
+            "AUTHENTICATION_PENDING"
+          ]
         },
         "redirection_data.form.endpoint": {
           "contains": "3d-secure/start/"

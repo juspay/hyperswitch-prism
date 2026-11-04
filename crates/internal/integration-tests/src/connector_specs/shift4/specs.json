@@ -24,7 +24,11 @@
   ],
   "unsupported_scenarios": {
     "PaymentService/Authorize": {
-      "no3ds_auto_capture_google_pay_encrypted": "SANDBOX_NOT_PROVISIONED: grace/rulesbook/codegen/references/shift4/technical_specification.md (Stored credentials, wallet doc gap) - the scenario needs a browser-generated Google Pay token issued for Shift4's own gateway, which the shift4 creds do not carry"
+      "no3ds_auto_capture_google_pay_encrypted": "SANDBOX_NOT_PROVISIONED: grace/rulesbook/codegen/references/shift4/technical_specification.md (Stored credentials, wallet doc gap) - the scenario needs a browser-generated Google Pay token issued for Shift4's own gateway, which the shift4 creds do not carry",
+      "no3ds_auto_capture_apple_pay_decrypted": "CONNECTOR_API_LACKS: Shift4 accepts Apple Pay only as the encrypted token, so a pre-decrypted payload is refused locally with NOT_SUPPORTED.",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "CONNECTOR_API_LACKS: Shift4 accepts Apple Pay only as the encrypted token, so a pre-decrypted payload is refused locally with NOT_SUPPORTED.",
+      "no3ds_auto_capture_google_pay_decrypted": "CONNECTOR_API_LACKS: Shift4 accepts Google Pay only as the encrypted token, so a pre-decrypted payload is refused locally with NOT_SUPPORTED.",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "CONNECTOR_API_LACKS: Shift4 accepts Google Pay only as the encrypted token, so a pre-decrypted payload is refused locally with NOT_SUPPORTED."
     }
   }
 }
