@@ -101,7 +101,7 @@ fn build_payer_phone_and_address(
         let country = ad.country?;
         Some(DlocalAddress {
             country,
-            state: ad.state.clone().unwrap_or_default(),
+            state: ad.get_optional_state().unwrap_or_default(),
             city: ad.city.clone().unwrap_or_default(),
             zip_code: ad.zip.clone().unwrap_or_default(),
             street: ad.line1.clone().unwrap_or_default(),

@@ -269,7 +269,7 @@ fn build_address(
                 .to_state_code_as_optional()
                 .ok()
                 .flatten()
-                .or_else(|| details.state.clone())
+                .or_else(|| details.get_optional_state())
         }),
         postal_code: postal_code.or_else(|| details.and_then(|details| details.zip.clone())),
         country_code: details

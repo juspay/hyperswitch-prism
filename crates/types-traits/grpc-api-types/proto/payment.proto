@@ -2577,8 +2577,8 @@ message PaymentServiceAuthorizeRequest {
   // into authorization / onboarding decisions.
   optional RiskAssessmentData risk_assessment_data = 58;
 
-  // Opt in to account name inquiry for supported connectors.
-  optional bool enable_ani_check = 61;
+  // Opt in to account name verification for supported connectors.
+  optional bool enable_account_name_verification = 61;
 
  // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 59;
@@ -3723,8 +3723,8 @@ message PaymentServiceSetupRecurringRequest {
   // Whether the payment uses a previously stored credential.
   optional bool is_stored_credential = 44;
 
-  // Opt in to account name inquiry for supported connectors.
-  optional bool enable_ani_check = 45;
+  // Opt in to account name verification for supported connectors.
+  optional bool enable_account_name_verification = 45;
 }
 
 // Response message for a mandate setup operation
