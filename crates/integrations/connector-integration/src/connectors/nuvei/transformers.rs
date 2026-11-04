@@ -1732,7 +1732,7 @@ fn merge_nuvei_capture_ticket(
     };
     let mut addendums = addendums.expose();
     // The optional ticket override may be an object or a JSON-encoded string.
-    // Ignore unparseable metadata and keep the ticket supplied in airline data.
+    // Ignore unparsable metadata and keep the ticket supplied in airline data.
     let decoded = metadata.and_then(|metadata| {
         if let Some(encoded) = metadata.peek().as_str() {
             serde_json::from_str::<serde_json::Value>(encoded).ok()
