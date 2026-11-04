@@ -1512,12 +1512,12 @@ struct NuveiAirlines {
 #[serde(rename_all = "camelCase")]
 struct NuveiReservationDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pnr_code: Option<String>,
+    pnr_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    booking_system_unique_id: Option<String>,
+    booking_system_unique_id: Option<Secret<String>>,
     computerized_reservation_system: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    ticket_number: Option<String>,
+    ticket_number: Option<Secret<String>>,
     document_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     issue_date: Option<String>,
@@ -1537,11 +1537,11 @@ struct NuveiPassengerDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    first_name: Option<String>,
+    first_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    last_name: Option<String>,
+    last_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    passenger_name: Option<String>,
+    passenger_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     date_of_birth: Option<String>,
 }
@@ -1586,15 +1586,9 @@ fn get_nuvei_airline_addendums(
             let customer = passenger.customer.as_ref();
             NuveiPassengerDetails {
                 title: customer.and_then(|customer| customer.salutation.clone()),
-                first_name: customer
-                    .and_then(|customer| customer.first_name.as_ref())
-                    .map(|name| name.peek().clone()),
-                last_name: customer
-                    .and_then(|customer| customer.last_name.as_ref())
-                    .map(|name| name.peek().clone()),
-                passenger_name: customer
-                    .and_then(|customer| customer.get_full_name())
-                    .map(|name| name.expose()),
+                first_name: customer.and_then(|customer| customer.first_name.clone()),
+                last_name: customer.and_then(|customer| customer.last_name.clone()),
+                passenger_name: customer.and_then(|customer| customer.get_full_name()),
                 date_of_birth: passenger
                     .date_of_birth
                     .as_ref()
@@ -1661,14 +1655,16 @@ fn get_nuvei_airline_addendums(
                     .pnr_code
                     .as_ref()
                     .or(data.booking_reference.as_ref())
-                    .cloned(),
+                    .cloned()
+                    .map(Secret::new),
                 booking_system_unique_id: data
                     .booking_system_unique_id
                     .as_ref()
                     .or(data.pnr_code.as_ref())
-                    .cloned(),
+                    .cloned()
+                    .map(Secret::new),
                 computerized_reservation_system: "IBS",
-                ticket_number: data.ticket_number.clone(),
+                ticket_number: data.ticket_number.clone().map(Secret::new),
                 document_type: data
                     .document_type
                     .clone()
@@ -1747,7 +1743,7 @@ fn merge_nuvei_capture_ticket(
         .and_then(|ticket| ticket.as_str())
         .filter(|ticket| !ticket.trim().is_empty())
     {
-        reservation_details.ticket_number = Some(ticket.to_owned());
+        reservation_details.ticket_number = Some(Secret::new(ticket.to_owned()));
     }
     // Preserve the supplied issue date; use capture time only when it is absent.
     if reservation_details.issue_date.is_none() {
