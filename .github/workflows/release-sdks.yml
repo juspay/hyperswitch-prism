@@ -247,10 +247,14 @@ jobs:
           toolchain: stable
           targets: ${{ matrix.target }}
 
-      # Deliberately do not use a writable dependency cache here. A manual
-      # recovery run is scoped to the default branch while executing source
-      # from the selected release tag; caching would let that source write into
-      # the default branch's Actions-cache scope.
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "release-${{ matrix.target }}"
+          cache-directories: |
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
