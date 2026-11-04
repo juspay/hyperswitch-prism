@@ -45,6 +45,8 @@ const FISERV_CHARGES_API_VERSION_URL: &str = "https://developer.fiserv.com/produ
 const FISERV_TOKEN_API_VERSION_URL: &str = "https://developer.fiserv.com/product/CommerceHub/api/post/payments-vas/v1/tokens?branch=active&version=1.26.0602";
 const FISERV_TRANSACTION_DETAILS_DOC_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Reference/Master-Data/Transaction-Details.mdx";
+const FISERV_TRANSACTION_INTERACTION_DOC_URL: &str =
+    "https://developer.fiserv.com/product/CommerceHub/docs/Reference/Master-Data/Transaction-Interaction.mdx?branch=active#electronic-commerce-indicator-eci";
 const FISERV_DECRYPTED_WALLET_DOC_URL: &str = "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Digital-Wallets/Decrypted-Wallet/Decrypted-Wallet.mdx";
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -856,7 +858,50 @@ impl From<Option<&common_enums::PaymentChannel>> for FiservcommercehubOrigin {
 pub struct FiservcommercehubTransactionInteractionReq {
     pub origin: FiservcommercehubOrigin,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub eci_indicator: Option<String>,
+    pub eci_indicator: Option<FiservcommercehubEciIndicator>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FiservcommercehubEciIndicator {
+    SecureEcom,
+    NonAuthEcom,
+    ChannelEncrypted,
+    NonSecureEcom,
+    AmexPaymentToken,
+}
+
+impl TryFrom<&str> for FiservcommercehubEciIndicator {
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(eci: &str) -> Result<Self, Self::Error> {
+        let eci = eci.trim();
+        let normalized_eci = eci.to_ascii_uppercase();
+        let indicator = match normalized_eci.as_str() {
+            // CommerceHub's 3DS table maps Visa/Amex/Discover 5/6/7 and Mastercard 2/1/0.
+            "05" | "5" | "02" | "2" | "SECURE_ECOM" => Some(Self::SecureEcom),
+            "06" | "6" | "01" | "1" | "NON_AUTH_ECOM" => Some(Self::NonAuthEcom),
+            "07" | "7" | "00" | "0" | "CHANNEL_ENCRYPTED" => Some(Self::ChannelEncrypted),
+            "NON_SECURE_ECOM" => Some(Self::NonSecureEcom),
+            "AMEX_PAYMENT_TOKEN" => Some(Self::AmexPaymentToken),
+            _ => None,
+        };
+
+        indicator.ok_or_else(|| {
+            error_stack::report!(errors::IntegrationError::InvalidDataFormat {
+                field_name: "authentication_data.eci",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use network ECI 5/6/7 (Visa, Amex, Discover) or 2/1/0 (Mastercard), or a documented CommerceHub eciIndicator enum".to_string(),
+                    ),
+                    doc_url: Some(FISERV_TRANSACTION_INTERACTION_DOC_URL.to_string()),
+                    additional_context: Some(format!(
+                        "CommerceHub does not accept the provided ECI value: {eci}"
+                    )),
+                },
+            })
+        })
+    }
 }
 
 // =============================================================================
@@ -974,7 +1019,8 @@ impl FiservcommercehubPaymentTokens {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubMpiData {
-    pub cavv: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cavv: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub xid: Option<String>,
 }
@@ -982,32 +1028,72 @@ pub struct FiservcommercehubMpiData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubAdditionalData3DS {
-    pub ds_transaction_id: String,
-    pub mpi_data: FiservcommercehubMpiData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acs_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mpi_data: Option<FiservcommercehubMpiData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version_data: Option<FiservcommercehubVersionData>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubVersionData {
+    pub recommended_version: String,
 }
 
 pub fn build_additional_data_3ds(
     authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
 ) -> Option<FiservcommercehubAdditionalData3DS> {
-    authentication_data.and_then(
-        |auth_data| match (&auth_data.ds_trans_id, &auth_data.cavv) {
-            (Some(ds_trans_id), Some(cavv)) => {
-                let xid = auth_data
-                    .threeds_server_transaction_id
-                    .clone()
-                    .or_else(|| auth_data.ds_trans_id.clone());
+    authentication_data.and_then(|auth_data| {
+        let xid = auth_data.threeds_server_transaction_id.clone();
+        let mpi_data =
+            (auth_data.cavv.is_some() || xid.is_some()).then(|| FiservcommercehubMpiData {
+                cavv: auth_data.cavv.clone(),
+                xid,
+            });
+        let additional_data_3ds = FiservcommercehubAdditionalData3DS {
+            ds_transaction_id: auth_data.ds_trans_id.clone(),
+            authentication_status: auth_data
+                .trans_status
+                .as_ref()
+                .map(fiserv_authentication_status),
+            acs_transaction_id: auth_data.acs_transaction_id.clone(),
+            mpi_data,
+            version_data: auth_data.message_version.as_ref().map(|version| {
+                FiservcommercehubVersionData {
+                    recommended_version: version.to_string(),
+                }
+            }),
+        };
 
-                Some(FiservcommercehubAdditionalData3DS {
-                    ds_transaction_id: ds_trans_id.clone(),
-                    mpi_data: FiservcommercehubMpiData {
-                        cavv: cavv.clone(),
-                        xid,
-                    },
-                })
-            }
-            _ => None,
-        },
-    )
+        (additional_data_3ds.ds_transaction_id.is_some()
+            || additional_data_3ds.authentication_status.is_some()
+            || additional_data_3ds.acs_transaction_id.is_some()
+            || additional_data_3ds.mpi_data.is_some()
+            || additional_data_3ds.version_data.is_some())
+        .then_some(additional_data_3ds)
+    })
+}
+
+// These are the standard EMV 3DS transStatus codes mapped to CommerceHub's authenticationStatus field.
+fn fiserv_authentication_status(status: &common_enums::TransactionStatus) -> String {
+    match status {
+        common_enums::TransactionStatus::Success => "Y",
+        common_enums::TransactionStatus::Failure => "N",
+        common_enums::TransactionStatus::VerificationNotPerformed => "U",
+        common_enums::TransactionStatus::NotVerified => "A",
+        common_enums::TransactionStatus::Rejected => "R",
+        common_enums::TransactionStatus::ChallengeRequired => "C",
+        common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => "D",
+        common_enums::TransactionStatus::InformationOnly => "I",
+        common_enums::TransactionStatus::SecurePaymentConfirmationRequired => "S",
+    }
+    .to_string()
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1178,8 +1264,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .authentication_data
             .as_ref()
-            .and_then(|auth_data| auth_data.eci.clone())
-            .or(wallet_eci);
+            .and_then(|auth_data| auth_data.eci.as_deref())
+            .or(wallet_eci.as_deref())
+            .map(FiservcommercehubEciIndicator::try_from)
+            .transpose()?;
 
         let additional_data_3ds =
             build_additional_data_3ds(router_data.request.authentication_data.as_ref());
