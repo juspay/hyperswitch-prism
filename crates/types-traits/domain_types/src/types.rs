@@ -321,7 +321,7 @@ use crate::{
     mandates::{self, MandateData},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_address::{
-        Address, AddressDetails, OrderDetailsWithAmount, PaymentAddress, PhoneDetails,
+        Address, AddressDetails, OrderDetailsWithAmount, PaymentAddress, PhoneDetails, StateDetails,
     },
     payment_method_data,
     payment_method_data::{
@@ -6456,6 +6456,14 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
         } else {
             Some(CountryAlpha2::foreign_try_from(country_code)?)
         };
+        let state = match (value.state, value.state_code_iso) {
+            (None, None) => None,
+            (state_name, state_code_iso) => Some(StateDetails::foreign_try_from((
+                state_name,
+                state_code_iso,
+                country,
+            ))?),
+        };
 
         Ok(Self {
             country,
@@ -6464,7 +6472,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
             line2: value.line2,
             line3: value.line3,
             zip: value.zip_code,
-            state: value.state,
+            state,
             first_name: value.first_name,
             last_name: value.last_name,
             origin_zip: value.origin_zip,
