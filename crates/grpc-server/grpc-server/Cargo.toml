@@ -116,7 +116,7 @@ connector-sanity-layer = []
 # Push gRPC metrics over OTLP to an OpenTelemetry Collector, in addition to the
 # Prometheus /metrics scrape endpoint.
 otel = ["ucs_env/otel", "external-services/otel"]
-log-transformations = ["common_utils/log-transformations", "external-services/log-transformations", "ucs_env/log-transformations"]
+log-transformations = ["common_utils/log-transformations", "external-services/log-transformations", "ucs_env/log-transformations", "composite-service/log-transformations"]
 # Déjà record/replay (umbrella). Forwards the feature down every instrumented crate.
 # Inert until the boot hook is installed (a later commit): with no hook, every boundary
 # is a pure passthrough, so feature-on is behaviourally identical to feature-off.

@@ -1906,6 +1906,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// Opt in to address verification when billing details are available.
     /// Only `Some(true)` requests AVS; connectors decide how to send it.
     pub enable_avs_check: Option<bool>,
+    /// Opt in to account name inquiry for supported connectors.
+    pub enable_ani_check: Option<bool>,
 }
 
 /// A request sets up a mandate with the customer present when the shopper has
@@ -4033,6 +4035,8 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub integrity_object: Option<SetupMandateIntegrityObject>,
     pub payment_channel: Option<PaymentChannel>,
     pub enable_partial_authorization: Option<bool>,
+    /// Opt in to account name inquiry for supported connectors.
+    pub enable_ani_check: Option<bool>,
     pub locale: Option<String>,
     pub connector_testing_data: Option<SecretSerdeValue>,
     /// Signals the future intended MIT type for this CIT setup (e.g.

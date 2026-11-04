@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.03.0
+
+### Features
+
+- **connector:**
+  - [Worldpayvantiv] support per-currency merchant IDs via merchant_id_by_currency ([#2659](https://github.com/juspay/connector-service/pull/2659)) ([`8083883`](https://github.com/juspay/connector-service/commit/8083883a29cd729750e65be0def6a4dea3dbce55))
+  - Handle 2xx error response for raft ([#2667](https://github.com/juspay/connector-service/pull/2667)) ([`199bb0e`](https://github.com/juspay/connector-service/commit/199bb0e708429e18bd363056071d3115c632fa72))
+  - Upgrade adyen version from 68 to 72 ([#2539](https://github.com/juspay/connector-service/pull/2539)) ([`ea01201`](https://github.com/juspay/connector-service/commit/ea01201a87b7184eef4a08409d5495ac2bbfed4e))
+
+### Bug Fixes
+
+- **grace:** Add fail-closed checks to public GitHub output ([#2666](https://github.com/juspay/connector-service/pull/2666)) ([`a982f5b`](https://github.com/juspay/connector-service/commit/a982f5b80db41834e52be555130ce8d813b994b4))
+
+**Full Changelog:** [`2026.11.02.3...2026.11.03.0`](https://github.com/juspay/connector-service/compare/2026.11.02.3...2026.11.03.0)
+
+- - -
+
 ## 2026.11.02.3
 
 ### Features
