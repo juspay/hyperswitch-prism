@@ -101,6 +101,7 @@ mod void_pc {
                 amount: None,
                 payment_method_data: None,
                 capture_method: None,
+                original_payment_details: None,
             },
             response: Err(ErrorResponse::default()),
         }

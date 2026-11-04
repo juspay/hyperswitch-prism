@@ -2876,6 +2876,18 @@ message PaymentServiceGetResponse {
   optional Money authorized_money = 45;
 }
 
+// Details of the original payment, supplied by the caller for follow-up operations.
+message OriginalPaymentDetails {
+  // The connector_reference_id returned by the original authorization or purchase.
+  optional string connector_reference_id = 1;
+  // The network transaction ID returned by the original authorization or purchase.
+  optional string network_transaction_id = 2;
+  // The network transaction link ID for the authorization being followed up.
+  optional string network_transaction_link_id = 3;
+  // Amount authorized on the original payment; this can differ from amount_to_capture.
+  optional Money authorized_amount = 4;
+}
+
 // Request message for voiding a payment
 message PaymentServiceVoidRequest {
   // Identification
@@ -2914,6 +2926,9 @@ message PaymentServiceVoidRequest {
 
   // Original payment method, for connectors that require it again on void (e.g. Worldpay RAFT).
   optional PaymentMethod payment_method = 14;
+
+  // Original transaction references and authorized amount needed by connectors for this void.
+  optional OriginalPaymentDetails original_payment_details = 15;
 }
 
 // Response message for a payment void operation
@@ -3002,6 +3017,9 @@ message PaymentServiceReverseRequest {
   // Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at
   // different endpoints.
   optional CaptureMethod capture_method = 12;
+
+  // Original transaction references and authorized amount needed by connectors for this reversal.
+  optional OriginalPaymentDetails original_payment_details = 13;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
@@ -3237,6 +3255,9 @@ message PaymentServiceCaptureRequest {
   // Currency conversion quote and decision data passed through the
   // capture flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 19;
+
+  // Original authorization references and authorized amount needed by connectors for this capture.
+  optional OriginalPaymentDetails original_payment_details = 20;
 }
 
 // Response message for a payment capture operation
@@ -4302,6 +4323,9 @@ message PaymentServiceIncrementalAuthorizationRequest {
 
   // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
   optional PaymentMethod payment_method = 10;
+
+  // Original authorization references and authorized amount needed by connectors for this increase.
+  optional OriginalPaymentDetails original_payment_details = 11;
 }
 
 // Response message for incremental authorization

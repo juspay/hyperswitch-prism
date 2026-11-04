@@ -77,7 +77,13 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
             minorAmount = 1000L
             currency = Currency.USD
         }
-        connectorFeatureDataBuilder.value = "{\"api_transaction_id\":\"0000000000000001\"}"  // Connector-specific metadata for the transaction.
+        originalPaymentDetailsBuilder.apply {  // Original authorization references and authorized amount needed by connectors for this capture.
+            connectorReferenceId = "0000000000000001"  // The connector_reference_id returned by the original authorization or purchase.
+            authorizedAmountBuilder.apply {  // Amount authorized on the original payment; this can differ from amount_to_capture.
+                minorAmount = 1000L
+                currency = Currency.USD
+            }
+        }
     }.build()
 }
 
@@ -120,6 +126,13 @@ private fun buildReverseRequest(connectorTransactionIdStr: String): PaymentServi
             }
         }
         captureMethod = CaptureMethod.MANUAL  // Original payment's capture method, not the reversal's disposition. Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at different endpoints.
+        originalPaymentDetailsBuilder.apply {  // Original transaction references and authorized amount needed by connectors for this reversal.
+            connectorReferenceId = "0000000000000001"  // The connector_reference_id returned by the original authorization or purchase.
+            authorizedAmountBuilder.apply {  // Amount authorized on the original payment; this can differ from amount_to_capture.
+                minorAmount = 1000L
+                currency = Currency.USD
+            }
+        }
     }.build()
 }
 
@@ -131,7 +144,9 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
             minorAmount = 1000L
             currency = Currency.USD
         }
-        connectorFeatureDataBuilder.value = "{\"api_transaction_id\":\"0000000000000001\"}"  // Connector-specific metadata for the transaction.
+        originalPaymentDetailsBuilder.apply {  // Original transaction references and authorized amount needed by connectors for this void.
+            connectorReferenceId = "0000000000000001"  // The connector_reference_id returned by the original authorization or purchase.
+        }
     }.build()
 }
 
@@ -259,7 +274,14 @@ fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultCo
                 cardNetwork = CardNetwork.VISA
             }
         }
-        connectorFeatureDataBuilder.value = "{\"api_transaction_id\":\"probe_auth_001\",\"original_authorized_amount\":{\"amount\":1000,\"currency\":\"USD\"},\"terminal_data\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"ecommerce_data\":{\"E-commerceIndicator\":\"07\"},\"proc_flags_indicators\":{\"EstimatedAuth\":\"Y\"},\"brand_specific_data\":{\"VisaSpecificData\":{\"VisaTransactionId\":\"263010131742906\"}}}"
+        originalPaymentDetailsBuilder.apply {  // Original authorization references and authorized amount needed by connectors for this increase.
+            connectorReferenceId = "0000000000000001"  // The connector_reference_id returned by the original authorization or purchase.
+            networkTransactionId = "263010131742906"  // The network transaction ID returned by the original authorization or purchase.
+            authorizedAmountBuilder.apply {  // Amount authorized on the original payment; this can differ from amount_to_capture.
+                minorAmount = 1000L
+                currency = Currency.USD
+            }
+        }
     }.build()
     val response = client.incremental_authorization(request)
     println("Status: ${response.status.name}")

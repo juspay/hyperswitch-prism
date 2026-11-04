@@ -1665,8 +1665,18 @@ impl ConnectorResponseHeaders for PaymentFlowData {
     }
 }
 
+/// Original transaction values supplied explicitly for follow-up operations.
+#[derive(Debug, Clone, Default)]
+pub struct OriginalPaymentDetails {
+    pub connector_reference_id: Option<String>,
+    pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
+    pub authorized_amount: Option<Money>,
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentVoidData {
+    pub original_payment_details: Option<OriginalPaymentDetails>,
     pub payment_method_data:
         Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
     pub connector_transaction_id: String,
@@ -1784,6 +1794,7 @@ pub struct EligibilityErrorInfo {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsCancelPostCaptureData {
+    pub original_payment_details: Option<OriginalPaymentDetails>,
     pub connector_transaction_id: String,
     pub amount: Option<Money>,
     pub cancellation_reason: Option<String>,
@@ -2639,6 +2650,7 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsIncrementalAuthorizationData {
+    pub original_payment_details: Option<OriginalPaymentDetails>,
     pub payment_method_data:
         Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
     /// New total authorized amount, including this increase.
@@ -3872,6 +3884,7 @@ pub struct MultipleCaptureRequestData {
 
 #[derive(Debug, Default, Clone)]
 pub struct PaymentsCaptureData {
+    pub original_payment_details: Option<OriginalPaymentDetails>,
     pub payment_method_data:
         Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
     pub amount_to_capture: Money,

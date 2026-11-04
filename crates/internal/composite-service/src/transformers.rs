@@ -626,6 +626,7 @@ impl
         });
 
         Self {
+            original_payment_details: item.original_payment_details.clone(),
             merchant_void_id: item.merchant_void_id.clone(),
             payment_method: item.payment_method.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
@@ -847,6 +848,7 @@ impl
         });
 
         Self {
+            original_payment_details: item.original_payment_details.clone(),
             integrity_specifications: item.integrity_specifications,
             is_overcapture_enabled: item.is_overcapture_enabled,
             split_settlement: item.split_settlement.clone(),

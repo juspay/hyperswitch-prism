@@ -59,7 +59,13 @@ def _build_capture_request(connector_transaction_id: str):
             minor_amount=1000,
             currency=common_types_pb2.Currency.Value("USD"),
         ),
-        connector_feature_data=payment_methods_pb2.SecretString(value="{\"api_transaction_id\":\"0000000000000001\"}"),  # Connector-specific metadata for the transaction.
+        original_payment_details=payment_pb2.OriginalPaymentDetails(  # Original authorization references and authorized amount needed by connectors for this capture.
+            connector_reference_id="0000000000000001",  # The connector_reference_id returned by the original authorization or purchase.
+            authorized_amount=common_types_pb2.Money(  # Amount authorized on the original payment; this can differ from amount_to_capture.
+                minor_amount=1000,
+                currency=common_types_pb2.Currency.Value("USD"),
+            ),
+        ),
     )
 
 def _build_incremental_authorization_request():
@@ -83,7 +89,14 @@ def _build_incremental_authorization_request():
                 card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
             ),
         ),
-        connector_feature_data=payment_methods_pb2.SecretString(value="{\"api_transaction_id\":\"probe_auth_001\",\"original_authorized_amount\":{\"amount\":1000,\"currency\":\"USD\"},\"terminal_data\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"ecommerce_data\":{\"E-commerceIndicator\":\"07\"},\"proc_flags_indicators\":{\"EstimatedAuth\":\"Y\"},\"brand_specific_data\":{\"VisaSpecificData\":{\"VisaTransactionId\":\"263010131742906\"}}}"),
+        original_payment_details=payment_pb2.OriginalPaymentDetails(  # Original authorization references and authorized amount needed by connectors for this increase.
+            connector_reference_id="0000000000000001",  # The connector_reference_id returned by the original authorization or purchase.
+            network_transaction_id="263010131742906",  # The network transaction ID returned by the original authorization or purchase.
+            authorized_amount=common_types_pb2.Money(  # Amount authorized on the original payment; this can differ from amount_to_capture.
+                minor_amount=1000,
+                currency=common_types_pb2.Currency.Value("USD"),
+            ),
+        ),
     )
 
 def _build_proxy_authorize_request():
@@ -195,6 +208,13 @@ def _build_reverse_request(connector_transaction_id: str):
             ),
         ),
         capture_method=payment_pb2.CaptureMethod.Value("MANUAL"),  # Original payment's capture method, not the reversal's disposition. Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at different endpoints.
+        original_payment_details=payment_pb2.OriginalPaymentDetails(  # Original transaction references and authorized amount needed by connectors for this reversal.
+            connector_reference_id="0000000000000001",  # The connector_reference_id returned by the original authorization or purchase.
+            authorized_amount=common_types_pb2.Money(  # Amount authorized on the original payment; this can differ from amount_to_capture.
+                minor_amount=1000,
+                currency=common_types_pb2.Currency.Value("USD"),
+            ),
+        ),
     )
 
 def _build_setup_recurring_request():
@@ -235,7 +255,9 @@ def _build_void_request(connector_transaction_id: str):
             minor_amount=1000,
             currency=common_types_pb2.Currency.Value("USD"),
         ),
-        connector_feature_data=payment_methods_pb2.SecretString(value="{\"api_transaction_id\":\"0000000000000001\"}"),  # Connector-specific metadata for the transaction.
+        original_payment_details=payment_pb2.OriginalPaymentDetails(  # Original transaction references and authorized amount needed by connectors for this void.
+            connector_reference_id="0000000000000001",  # The connector_reference_id returned by the original authorization or purchase.
+        ),
     )
 async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """One-step Payment (Authorize + Capture)

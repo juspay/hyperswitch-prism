@@ -57,7 +57,13 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
             "minorAmount": 1000,
             "currency": Currency.USD
         },
-        "connectorFeatureData": {"value": "{\"api_transaction_id\":\"0000000000000001\"}"}  // Connector-specific metadata for the transaction.
+        "originalPaymentDetails": {  // Original authorization references and authorized amount needed by connectors for this capture.
+            "connectorReferenceId": "0000000000000001",  // The connector_reference_id returned by the original authorization or purchase.
+            "authorizedAmount": {  // Amount authorized on the original payment; this can differ from amount_to_capture.
+                "minorAmount": 1000,
+                "currency": Currency.USD
+            }
+        }
     };
 }
 
@@ -82,7 +88,14 @@ function _buildIncrementalAuthorizationRequest(): types.IPaymentServiceIncrement
                 "cardNetwork": CardNetwork.VISA
             }
         },
-        "connectorFeatureData": {"value": "{\"api_transaction_id\":\"probe_auth_001\",\"original_authorized_amount\":{\"amount\":1000,\"currency\":\"USD\"},\"terminal_data\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"ecommerce_data\":{\"E-commerceIndicator\":\"07\"},\"proc_flags_indicators\":{\"EstimatedAuth\":\"Y\"},\"brand_specific_data\":{\"VisaSpecificData\":{\"VisaTransactionId\":\"263010131742906\"}}}"}
+        "originalPaymentDetails": {  // Original authorization references and authorized amount needed by connectors for this increase.
+            "connectorReferenceId": "0000000000000001",  // The connector_reference_id returned by the original authorization or purchase.
+            "networkTransactionId": "263010131742906",  // The network transaction ID returned by the original authorization or purchase.
+            "authorizedAmount": {  // Amount authorized on the original payment; this can differ from amount_to_capture.
+                "minorAmount": 1000,
+                "currency": Currency.USD
+            }
+        }
     };
 }
 
@@ -197,7 +210,14 @@ function _buildReverseRequest(connectorTransactionId: string): types.IPaymentSer
                 "cardNetwork": CardNetwork.VISA
             }
         },
-        "captureMethod": CaptureMethod.MANUAL  // Original payment's capture method, not the reversal's disposition. Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at different endpoints.
+        "captureMethod": CaptureMethod.MANUAL,  // Original payment's capture method, not the reversal's disposition. Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at different endpoints.
+        "originalPaymentDetails": {  // Original transaction references and authorized amount needed by connectors for this reversal.
+            "connectorReferenceId": "0000000000000001",  // The connector_reference_id returned by the original authorization or purchase.
+            "authorizedAmount": {  // Amount authorized on the original payment; this can differ from amount_to_capture.
+                "minorAmount": 1000,
+                "currency": Currency.USD
+            }
+        }
     };
 }
 
@@ -241,7 +261,9 @@ function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServic
             "minorAmount": 1000,
             "currency": Currency.USD
         },
-        "connectorFeatureData": {"value": "{\"api_transaction_id\":\"0000000000000001\"}"}  // Connector-specific metadata for the transaction.
+        "originalPaymentDetails": {  // Original transaction references and authorized amount needed by connectors for this void.
+            "connectorReferenceId": "0000000000000001"  // The connector_reference_id returned by the original authorization or purchase.
+        }
     };
 }
 
