@@ -80,6 +80,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Xendit<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Xendit<T>
@@ -623,7 +630,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         // Payment / refund envelopes and the flat dispute body all carry a top-level `event`.
         let envelope = xendit::parse_xendit_webhook_envelope(&request.body)?;
-        xendit::get_xendit_webhook_event_type(envelope.event)
+        xendit::get_xendit_webhook_event_type(envelope)
     }
 
     fn get_webhook_event_reference(

@@ -188,6 +188,8 @@ pub enum WorldpayxmlTransactionStatus {
     ChallengeRequiredDecoupledAuthentication,
     #[serde(rename = "I")]
     InformationOnly,
+    #[serde(rename = "S")]
+    SecurePaymentConfirmationRequired,
 }
 
 /// Flags the authorisation as part of a stored-credential agreement.
@@ -854,7 +856,9 @@ pub struct WorldpayxmlVoidPCOrderModification {
 
 #[derive(Debug, Serialize)]
 pub struct WorldpayxmlCancelOrRefund {
-    // Empty struct - generates <cancelOrRefund/> element
+    // Optional per the paymentService DTD; omitted, it generates <cancelOrRefund/>.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<WorldpayxmlAmount>,
 }
 
 #[derive(Debug, Serialize)]

@@ -13,6 +13,7 @@ import com.sun.jna.ptr.IntByReference
 import java.io.File
 import java.nio.charset.StandardCharsets
 import types.Payment.*
+import types.Dispute.*
 import types.Events.*
 import types.PaymentMethods.*
 import types.Payouts.*
@@ -473,6 +474,16 @@ class GrpcSurchargeClient internal constructor(
      */
     suspend fun calculate(req: SurchargeServiceCalculateRequest): SurchargeServiceCalculateResponse =
         callGrpc(config, "surcharge/calculate", req, SurchargeServiceCalculateResponse.parser())
+    /**
+     * SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund.
+     */
+    suspend fun surcharge_refund_init(req: SurchargeServiceSurchargeRefundInitRequest): SurchargeServiceSurchargeRefundInitResponse =
+        callGrpc(config, "surcharge/surcharge_refund_init", req, SurchargeServiceSurchargeRefundInitResponse.parser())
+    /**
+     * SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund.
+     */
+    suspend fun surcharge_refund_complete(req: SurchargeServiceSurchargeRefundCompleteRequest): SurchargeServiceSurchargeRefundCompleteResponse =
+        callGrpc(config, "surcharge/surcharge_refund_complete", req, SurchargeServiceSurchargeRefundCompleteResponse.parser())
 }
 
 // ── Top-level GrpcClient ──────────────────────────────────────────────────────

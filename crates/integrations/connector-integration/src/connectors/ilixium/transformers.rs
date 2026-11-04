@@ -14,6 +14,7 @@ use domain_types::{
         ResponseId,
     },
     errors,
+    payment_address::{AddressDetails, StateDetails},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -685,7 +686,10 @@ pub(super) fn build_ilixium_payments_request<T: PaymentMethodDataTypes + std::fm
             address: IlixiumAddress {
                 address_line1: common.get_optional_billing_line1(),
                 city: common.get_optional_billing_city(),
-                province: common.get_optional_billing_state(),
+                province: common
+                    .get_billing_address()
+                    .ok()
+                    .and_then(to_iso_3166_2_province),
                 postcode: common.get_optional_billing_zip(),
                 country,
             },
@@ -729,7 +733,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.minor_amount, request.currency)
+            .convert(&request.amount)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -737,7 +741,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert minor_amount {} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.minor_amount.get_amount_as_i64(),
+                        request.amount.amount.get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -830,7 +834,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.amount, currency)
+            .convert(&common_utils::types::Money {
+                amount: request.amount.amount,
+                currency,
+            })
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -838,7 +845,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert amount {} {} into Ilixium's transaction.amount \
                          (minor units, digits only, sent as a JSON string).",
-                        request.amount.get_amount_as_i64(),
+                        request.amount.amount.get_amount_as_i64(),
                         currency
                     )),
                 },
@@ -1048,7 +1055,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.minor_amount_to_capture, request.currency)
+            .convert(&request.amount_to_capture)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -1056,7 +1063,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert minor_amount_to_capture {} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.minor_amount_to_capture.get_amount_as_i64(),
+                        request.amount_to_capture.amount.get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -1117,7 +1124,7 @@ pub struct IlixiumVoidRequest {
 /// wire — a caller may legitimately omit it. Ilixium, however, makes `transaction.amount`
 /// mandatory *and* requires it to equal the original transaction's amount exactly. There is no
 /// second source to fall back on: `PaymentFlowData` is built for the Void flow with `amount`,
-/// `minor_amount_captured`, `minor_amount_capturable` and `minor_amount_authorized` all set to
+/// `amount_captured`, `amount_capturable` and `amount_authorized` all set to
 /// `None`, so `resource_common_data` knows nothing about the payment's value either.
 ///
 /// Every way of papering over that would be worse than failing:
@@ -1175,7 +1182,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         };
 
-        let minor_amount = request.amount.ok_or_else(|| missing("amount", "amount"))?;
+        let minor_amount = request
+            .amount
+            .as_ref()
+            .ok_or_else(|| missing("amount", "amount"))?;
         let currency = request
             .currency
             .ok_or_else(|| missing("currency", "currency"))?;
@@ -1183,7 +1193,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(minor_amount, currency)
+            .convert(&common_utils::types::Money {
+                amount: minor_amount.amount,
+                currency,
+            })
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -1191,7 +1204,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert void amount {} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        minor_amount.get_amount_as_i64(),
+                        minor_amount.amount.get_amount_as_i64(),
                         currency
                     )),
                 },
@@ -1398,7 +1411,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.minor_refund_amount, request.currency)
+            .convert(&request.refund_amount)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -1406,7 +1419,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert minor_refund_amount {} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.minor_refund_amount.get_amount_as_i64(),
+                        request.refund_amount.amount.get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -1886,14 +1899,11 @@ fn build_capture_error_response(
     http_code: u16,
 ) -> ErrorResponse {
     let mut error = build_error_response(response, status, http_code);
-    let hints: Vec<String> = response
-        .reason_codes()
-        .iter()
-        .filter_map(|code| capture_failure_hint(code).map(|hint| format!("{code}: {hint}")))
-        .collect();
-    if !hints.is_empty() {
-        error.reason = Some(hints.join("; "));
-    }
+    error.reason = Some(reason_with_hints(
+        &error.message,
+        &response.reason_codes(),
+        capture_failure_hint,
+    ));
     error
 }
 
@@ -1946,14 +1956,11 @@ fn build_void_error_response(
     http_code: u16,
 ) -> ErrorResponse {
     let mut error = build_error_response(response, status, http_code);
-    let hints: Vec<String> = response
-        .reason_codes()
-        .iter()
-        .filter_map(|code| reversal_failure_hint(code).map(|hint| format!("{code}: {hint}")))
-        .collect();
-    if !hints.is_empty() {
-        error.reason = Some(hints.join("; "));
-    }
+    error.reason = Some(reason_with_hints(
+        &error.message,
+        &response.reason_codes(),
+        reversal_failure_hint,
+    ));
     error
 }
 
@@ -2033,35 +2040,21 @@ fn build_refund_error_response(
     http_code: u16,
 ) -> ErrorResponse {
     let reason_codes = response.reason_codes();
-    let attempt_message = response
-        .latest_attempt()
-        .and_then(|attempt| attempt.message.clone());
-    let message = response
-        .status
-        .message
-        .clone()
-        .or(attempt_message)
-        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string());
-
-    let hints: Vec<String> = reason_codes
-        .iter()
-        .filter_map(|code| refund_failure_hint(code).map(|hint| format!("{code}: {hint}")))
-        .collect();
+    let (code, message) = error_code_and_message(
+        &response.status.code,
+        &reason_codes,
+        response.status.message.as_deref(),
+        response
+            .latest_attempt()
+            .and_then(|attempt| attempt.message.as_deref()),
+    );
+    let reason = reason_with_hints(&message, &reason_codes, refund_failure_hint);
 
     ErrorResponse {
         status_code: http_code,
-        code: reason_codes
-            .first()
-            .cloned()
-            .unwrap_or_else(|| format!("{:?}", response.status.code).to_uppercase()),
+        code,
         message,
-        reason: if !hints.is_empty() {
-            Some(hints.join("; "))
-        } else if reason_codes.is_empty() {
-            response.status.message.clone()
-        } else {
-            Some(reason_codes.join(", "))
-        },
+        reason: Some(reason),
         attempt_status: Some(domain_types::router_data::FlowStatus::Refund(status)),
         connector_transaction_id: response.gateway_ref(),
         network_decline_code: None,
@@ -2209,34 +2202,80 @@ fn build_three_ds_redirect_form(
     })
 }
 
+/// The `(error_code, error_message)` every Ilixium error builder reports.
+///
+/// `code` is the first `status.reasons.reason` entry — the actual Ilixium failure code, e.g.
+/// `136` "Invalid format province" — falling back to the envelope `status.code` when the platform
+/// sends no reasons at all. Generic over the code type because [`IlixiumStatus`] and
+/// [`IlixiumHistoryStatus`] differ in nothing this needs beyond `Debug`.
+///
+/// `message` prefers `status.message`, then the latest payment attempt's message: the `/direct/*`
+/// envelopes carry the ISO-8583-formatted wording there, while a `/history/operations` entry has
+/// no `paymentAttempt` at all, so those callers pass `None`.
+///
+/// Callers put the returned message in **both** [`ErrorResponse::message`] and
+/// [`ErrorResponse::reason`] — they land in separate hyperswitch columns, and echoing the numeric
+/// code into `error_reason`, as this connector used to (storing `error_reason = "136"` beside
+/// `error_code = "136"`), tells the merchant nothing the code had not already said.
+pub(super) fn error_code_and_message(
+    status_code: &impl std::fmt::Debug,
+    reason_codes: &[String],
+    status_message: Option<&str>,
+    attempt_message: Option<&str>,
+) -> (String, String) {
+    let code = reason_codes
+        .first()
+        .cloned()
+        .unwrap_or_else(|| format!("{status_code:?}").to_uppercase());
+    let message = status_message
+        .or(attempt_message)
+        .map(str::to_owned)
+        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string());
+    (code, message)
+}
+
+/// `message` with any documented hints for `reason_codes` appended — the prose for
+/// [`ErrorResponse::reason`].
+///
+/// Ilixium's `status.message` on a rejected operation is generic ("Validation failed",
+/// "Operation rejected") and the actionable detail is the numeric code, which each flow's hint
+/// table spells out. The connector message always comes first, so `error_reason` is never less
+/// informative than `error_message`.
+fn reason_with_hints(
+    message: &str,
+    reason_codes: &[String],
+    hint: fn(&str) -> Option<&'static str>,
+) -> String {
+    let hints = reason_codes
+        .iter()
+        .filter_map(|code| hint(code).map(|text| format!("{code}: {text}")))
+        .collect::<Vec<_>>();
+    if hints.is_empty() {
+        message.to_owned()
+    } else {
+        format!("{message}; {}", hints.join("; "))
+    }
+}
+
 fn build_error_response(
     response: &IlixiumPaymentResponse,
     status: AttemptStatus,
     http_code: u16,
 ) -> ErrorResponse {
-    let reason_codes = response.reason_codes();
-    let attempt_message = response
-        .latest_attempt()
-        .and_then(|attempt| attempt.message.clone());
-    let message = response
-        .status
-        .message
-        .clone()
-        .or(attempt_message)
-        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string());
+    let (code, message) = error_code_and_message(
+        &response.status.code,
+        &response.reason_codes(),
+        response.status.message.as_deref(),
+        response
+            .latest_attempt()
+            .and_then(|attempt| attempt.message.as_deref()),
+    );
 
     ErrorResponse {
         status_code: http_code,
-        code: reason_codes
-            .first()
-            .cloned()
-            .unwrap_or_else(|| format!("{:?}", response.status.code).to_uppercase()),
-        message,
-        reason: if reason_codes.is_empty() {
-            response.status.message.clone()
-        } else {
-            Some(reason_codes.join(", "))
-        },
+        code,
+        message: message.clone(),
+        reason: Some(message),
         attempt_status: Some(domain_types::router_data::FlowStatus::Payment(status)),
         connector_transaction_id: response.gateway_ref(),
         network_decline_code: None,
@@ -3047,18 +3086,20 @@ fn build_history_query_error(
         .iter()
         .filter_map(|code| history_query_failure_hint(code).map(|hint| format!("{code}: {hint}")))
         .collect();
+    let (code, message) = error_code_and_message(
+        &response.status.code,
+        &reason_codes,
+        response.status.message.as_deref(),
+        None,
+    );
 
     ErrorResponse {
         status_code: http_code,
-        code: reason_codes
-            .first()
-            .cloned()
-            .unwrap_or_else(|| format!("{:?}", response.status.code).to_uppercase()),
-        message: response
-            .status
-            .message
-            .clone()
-            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+        code,
+        message,
+        // Unlike every other builder, `reason` here does not echo the connector message: it
+        // explains that the *query* failed and the stored status is therefore unchanged, which
+        // is more use to a merchant than the generic envelope wording.
         reason: Some(if hints.is_empty() {
             format!(
                 "POST /history/operations answered {:?}; the payment's status could not be read \
@@ -3138,22 +3179,20 @@ fn build_history_operation_error(
     gateway_ref: Option<String>,
     http_code: u16,
 ) -> ErrorResponse {
-    let reason_codes = status.reason_codes();
+    // A `/history/operations` entry carries no `paymentAttempt`, so there is no attempt-level
+    // message to fall back to here.
+    let (code, message) = error_code_and_message(
+        &status.code,
+        &status.reason_codes(),
+        status.message.as_deref(),
+        None,
+    );
+
     ErrorResponse {
         status_code: http_code,
-        code: reason_codes
-            .first()
-            .cloned()
-            .unwrap_or_else(|| format!("{:?}", status.code).to_uppercase()),
-        message: status
-            .message
-            .clone()
-            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
-        reason: if reason_codes.is_empty() {
-            status.message.clone()
-        } else {
-            Some(reason_codes.join(", "))
-        },
+        code,
+        message: message.clone(),
+        reason: Some(message),
         attempt_status: Some(domain_types::router_data::FlowStatus::Payment(
             attempt_status,
         )),
@@ -3527,18 +3566,20 @@ fn build_refund_history_query_error(
         .iter()
         .filter_map(|code| history_query_failure_hint(code).map(|hint| format!("{code}: {hint}")))
         .collect();
+    let (code, message) = error_code_and_message(
+        &response.status.code,
+        &reason_codes,
+        response.status.message.as_deref(),
+        None,
+    );
 
     ErrorResponse {
         status_code: http_code,
-        code: reason_codes
-            .first()
-            .cloned()
-            .unwrap_or_else(|| format!("{:?}", response.status.code).to_uppercase()),
-        message: response
-            .status
-            .message
-            .clone()
-            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+        code,
+        message,
+        // Unlike every other builder, `reason` here does not echo the connector message: it
+        // explains that the *query* failed and the stored status is therefore unchanged, which
+        // is more use to a merchant than the generic envelope wording.
         reason: Some(if hints.is_empty() {
             format!(
                 "POST /history/operations answered {:?}; the refund's status could not be read \
@@ -3622,28 +3663,15 @@ fn build_refund_history_operation_error(
     http_code: u16,
 ) -> ErrorResponse {
     let reason_codes = status.reason_codes();
-    let hints: Vec<String> = reason_codes
-        .iter()
-        .filter_map(|code| refund_failure_hint(code).map(|hint| format!("{code}: {hint}")))
-        .collect();
+    let (code, message) =
+        error_code_and_message(&status.code, &reason_codes, status.message.as_deref(), None);
+    let reason = reason_with_hints(&message, &reason_codes, refund_failure_hint);
 
     ErrorResponse {
         status_code: http_code,
-        code: reason_codes
-            .first()
-            .cloned()
-            .unwrap_or_else(|| format!("{:?}", status.code).to_uppercase()),
-        message: status
-            .message
-            .clone()
-            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
-        reason: if !hints.is_empty() {
-            Some(hints.join("; "))
-        } else if reason_codes.is_empty() {
-            status.message.clone()
-        } else {
-            Some(reason_codes.join(", "))
-        },
+        code,
+        message,
+        reason: Some(reason),
         attempt_status: Some(domain_types::router_data::FlowStatus::Refund(refund_status)),
         connector_transaction_id: gateway_ref,
         network_decline_code: None,
@@ -3817,5 +3845,44 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
             },
             ..item.router_data
         })
+    }
+}
+
+/// Ilixium's manual specifies `province` as a full ISO 3166-2 code (`CA-MB`) and rejects anything
+/// it cannot read as a subdivision of `country` with `136` "Invalid format province" — including
+/// an *absent* `province`, so a value that cannot be mapped is still sent rather than dropped,
+/// leaving the rejection to describe what the merchant actually supplied.
+///
+/// A leading `<country>-` is stripped first, so `CA-MB`, `ca-mb`, `MB`, `Manitoba` and
+/// `CA-Manitoba` all become `CA-MB`. The remainder goes through `to_state_code_as_optional`
+/// (2-char codes pass through; full names are mapped for the 42 countries it knows, including
+/// the accented "Québec"). A 1–3 char alphanumeric result is an ISO 3166-2 subdivision code and
+/// gets the country prefix; anything else is sent as the merchant supplied it.
+fn to_iso_3166_2_province(billing: &AddressDetails) -> Option<Secret<String>> {
+    let raw = billing.state.as_ref()?.code_or_name()?.peek().trim();
+    let Some(country) = billing.country else {
+        return Some(Secret::new(raw.to_string()));
+    };
+    let prefix = format!("{country:?}-");
+    let local = raw
+        .get(..prefix.len())
+        .filter(|head| head.eq_ignore_ascii_case(&prefix))
+        .and_then(|_| raw.get(prefix.len()..))
+        .unwrap_or(raw);
+    let code = AddressDetails {
+        state: Some(StateDetails::from_name(Secret::new(local.to_string()))),
+        ..billing.clone()
+    }
+    .to_state_code_as_optional()
+    .ok()
+    .flatten()?;
+    let code = code.peek().trim();
+    if (1..=3).contains(&code.len()) && code.chars().all(|c| c.is_ascii_alphanumeric()) {
+        Some(Secret::new(format!(
+            "{country:?}-{}",
+            code.to_ascii_uppercase()
+        )))
+    } else {
+        Some(Secret::new(raw.to_string()))
     }
 }

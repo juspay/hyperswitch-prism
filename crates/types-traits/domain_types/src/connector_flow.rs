@@ -107,6 +107,12 @@ pub struct PayoutEligibility;
 pub struct SurchargeCalculate;
 
 #[derive(Debug, Clone)]
+pub struct SurchargeRefundInit;
+
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundComplete;
+
+#[derive(Debug, Clone)]
 pub struct SurchargePaymentSucceeded;
 
 #[derive(Debug, Clone)]
@@ -183,6 +189,8 @@ pub enum FlowName {
     PayoutEnrollDisburseAccount,
     PayoutEligibility,
     SurchargeCalculate,
+    SurchargeRefundInit,
+    SurchargeRefundComplete,
     SurchargePaymentSucceeded,
     SurchargeRefundSucceeded,
     Recharge,

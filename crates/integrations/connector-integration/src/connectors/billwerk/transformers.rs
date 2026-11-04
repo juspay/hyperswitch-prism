@@ -311,7 +311,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.router_data.request.amount,
+            amount: item.router_data.request.amount.amount,
             source,
             currency: item.router_data.request.currency,
             customer: BillwerkCustomerObject {
@@ -491,7 +491,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: item.router_data.request.amount_to_capture.amount,
         })
     }
 }
@@ -509,7 +509,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_refund_amount,
+            amount: item.router_data.request.refund_amount.amount,
             invoice: item.router_data.request.connector_transaction_id.clone(),
             text: item.router_data.request.reason.clone(),
         })
@@ -606,7 +606,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .router_data
             .request
-            .minor_amount
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
             .unwrap_or(MinorUnit::new(0));
         Ok(Self {
             handle: item
@@ -706,7 +708,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: router_data.request.minor_amount,
+            amount: router_data.request.amount.amount,
             source,
             currency: router_data.request.currency,
             customer_handle: router_data
@@ -826,7 +828,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             order: BillwerkSessionOrder {
                 handle,
-                amount: router_data.request.amount,
+                amount: router_data.request.amount.amount,
                 currency: router_data.request.currency,
                 customer,
             },

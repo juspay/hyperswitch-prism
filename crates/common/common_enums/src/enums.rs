@@ -30,6 +30,8 @@ pub enum CurrencyError {
 #[serde(rename_all = "UPPERCASE")]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum Currency {
+    #[default]
+    Unspecified,
     AED,
     AFN,
     ALL,
@@ -175,7 +177,6 @@ pub enum Currency {
     TZS,
     UAH,
     UGX,
-    #[default]
     USD,
     UYU,
     UZS,
@@ -1043,6 +1044,7 @@ impl Currency {
 
     pub fn iso_4217(self) -> &'static str {
         match self {
+            Self::Unspecified => "000",
             Self::AED => "784",
             Self::AFN => "971",
             Self::ALL => "008",
@@ -1527,6 +1529,8 @@ pub enum PaymentMethodType {
     Bluecode,
     Bacs,
     BancontactCard,
+    BancontactIntent,
+    BancontactQr,
     Becs,
     Benefit,
     Bizum,
@@ -1599,6 +1603,8 @@ pub enum PaymentMethodType {
     RedPagos,
     SamsungPay,
     Satispay,
+    SatispayIntent,
+    SatispayQr,
     Sepa,
     SepaBankTransfer,
     Sofort,
@@ -1614,6 +1620,7 @@ pub enum PaymentMethodType {
     Venmo,
     Walley,
     WeChatPay,
+    WeChatPayQr,
     Wero,
     Netbanking,
     SevenEleven,
@@ -1655,6 +1662,7 @@ impl PaymentMethodType {
             Self::SamsungPay => "Samsung Pay".to_string(),
             Self::AliPay => "AliPay".to_string(),
             Self::WeChatPay => "WeChat Pay".to_string(),
+            Self::WeChatPayQr => "WeChat Pay QR".to_string(),
             Self::KakaoPay => "Kakao Pay".to_string(),
             Self::GoPay => "GoPay".to_string(),
             Self::Gcash => "GCash".to_string(),
@@ -2134,6 +2142,16 @@ pub enum CardNetwork {
     PrivateLabel,
     #[serde(alias = "DINACARD")]
     Dinacard,
+    #[serde(alias = "AIRPLUS")]
+    AirPlus,
+    #[serde(alias = "AURORE")]
+    Aurore,
+    #[serde(alias = "EFTPOS_AUSTRALIA")]
+    EftposAustralia,
+    #[serde(alias = "GECAPITAL")]
+    GeCapital,
+    #[serde(alias = "UATP")]
+    Uatp,
 }
 
 impl CardNetwork {
@@ -2151,6 +2169,10 @@ impl CardNetwork {
                 | Self::Prop
                 | Self::PrivateLabel
                 | Self::Dinacard
+                | Self::AirPlus
+                | Self::Aurore
+                | Self::GeCapital
+                | Self::Uatp
         )
     }
 
@@ -2905,6 +2927,9 @@ pub enum TransactionStatus {
     /// Informational Only; 3DS Requestor challenge preference acknowledged.
     #[serde(rename = "I")]
     InformationOnly,
+    /// Challenge using Secure Payment Confirmation (SPC); Available for supporting EMV 3DS 2.3.1 and later versions.
+    #[serde(rename = "S")]
+    SecurePaymentConfirmationRequired,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -3240,7 +3265,7 @@ impl CanadaStatesAbbreviation {
             "nunavut" => Some(Self::NU),
             "ontario" => Some(Self::ON),
             "princeedwardisland" => Some(Self::PE),
-            "quebec" => Some(Self::QC),
+            "quebec" | "québec" => Some(Self::QC),
             "saskatchewan" => Some(Self::SK),
             "yukon" => Some(Self::YT),
             _ => None,
@@ -3263,10 +3288,12 @@ pub enum MitCategory {
     Installment,
     /// Merchant-initiated transaction using stored credentials, but not tied to a fixed schedule
     Unscheduled,
-    /// Merchant-initiated payments that happen at regular intervals (usually the same amount each time).
+    /// Merchant-initiated payments at regular intervals with a variable amount, such as utility bills (standing orders).
     Recurring,
     /// A retried MIT after a previous transaction failed or was declined.
     Resubmission,
+    /// Merchant-initiated payments of a fixed amount at a fixed interval, such as a subscription or membership.
+    Subscription,
 }
 
 /// Padding schemes used for cryptographic operations
@@ -3363,6 +3390,51 @@ pub enum TicketRefundability {
     NonRefundable,
 }
 
+/// Room category booked.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoomClass {
+    Standard,
+    Suite,
+    Deluxe,
+}
+
+/// Kind of accommodation unit booked.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AccommodationType {
+    Room,
+    Apartment,
+    Villa,
+    Suite,
+}
+
 /// Ticket medium — electronic vs paper.
 #[derive(
     Clone,
@@ -3403,6 +3475,274 @@ pub enum TicketDeliveryType {
 pub enum CardholderTravelStatus {
     Traveling,
     NotTraveling,
+}
+
+/// Trip itinerary shape for airline bookings.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TripType {
+    OneWay,
+    Return,
+    MultipleDestination,
+}
+
+/// Kind of education product purchased.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EducationType {
+    Course,
+    Workshop,
+    Tutoring,
+}
+
+/// Whether a product (e.g. education) is delivered online or in person.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OnlineStatus {
+    Online,
+    Offline,
+}
+
+/// How a purchase was made.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PurchaseType {
+    Online,
+    Offline,
+}
+
+/// Kind of accommodation host.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum HostType {
+    RentalAgency,
+    Owner,
+    Hotel,
+    Hostel,
+}
+
+/// Mode of ground / sea transport.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TravelMode {
+    Train,
+    Bus,
+    Ferry,
+}
+
+/// Travel cabin / service class.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TravelClass {
+    Economy,
+    PremiumEconomy,
+    Business,
+    First,
+}
+
+/// Passenger / customer gender.
+///
+/// Incoming JSON accepts both the canonical `snake_case` names and the
+/// single-letter wire codes `M` / `F` / `X`; serialization stays `snake_case`.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum Gender {
+    #[serde(alias = "M")]
+    Male,
+    #[serde(alias = "F")]
+    Female,
+    #[serde(alias = "X")]
+    Other,
+}
+
+/// How a rental deposit is funded.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DepositPaymentType {
+    Cash,
+    CreditCard,
+    DebitCard,
+    PrepaidCard,
+}
+
+/// Whether the customer is an individual or a business.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum CustomerType {
+    Individual,
+    Business,
+}
+
+/// Whether the customer is a premium / non-premium customer of the merchant.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PremiumCustomerStatus {
+    PremiumCustomer,
+    NonPremiumCustomer,
+}
+
+/// Unit of distance.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DistanceUnit {
+    Miles,
+    Kilometers,
 }
 
 #[derive(

@@ -69,7 +69,6 @@ impl TryFrom<&ConnectorSpecificConfig> for FlywireAuthType {
 // =============================================================================
 
 const CHECKOUT_SESSION_TYPE: &str = "one_off";
-const CHECKOUT_SESSION_SCHEMA: &str = "cards";
 const CHECKOUT_SESSION_ITEM_ID: &str = "default";
 const FLYWIRE_EVENT_LISTENER_TEMPLATE: &str = r#"window.addEventListener("message", function (e) {
   if (!e.origin || !e.origin.endsWith(".flywire.com")) return;
@@ -88,7 +87,6 @@ const FLYWIRE_EVENT_LISTENER_TEMPLATE: &str = r#"window.addEventListener("messag
 pub struct FlywireCheckoutSessionRequest {
     #[serde(rename = "type")]
     pub type_: &'static str,
-    pub schema: &'static str,
     pub charge_intent: FlywireChargeIntent,
     pub recipient_id: String,
     pub recipient: FlywireRecipient,
@@ -219,7 +217,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             type_: CHECKOUT_SESSION_TYPE,
-            schema: CHECKOUT_SESSION_SCHEMA,
             charge_intent: FlywireChargeIntent {
                 mode: CHECKOUT_SESSION_TYPE,
             },
@@ -229,7 +226,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
             items: vec![FlywireItem {
                 id: CHECKOUT_SESSION_ITEM_ID,
-                amount: router_data.request.amount,
+                amount: router_data.request.amount.amount,
             }],
             payor_id,
             external_reference: payment_ref,
@@ -330,7 +327,7 @@ fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {
         address: address.line1.clone(),
         city: address.city.clone(),
         country: address.country.map(|c| c.to_string()),
-        state: address.state.clone(),
+        state: address.get_optional_state(),
         phone: billing.phone.as_ref().and_then(|p| p.number.clone()),
         email: billing.email.clone(),
         zip: address.zip.clone(),
@@ -421,6 +418,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 authentication_data: None,
                 connector_feature_data: None,
                 status_code: item.http_code,
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Pending,
@@ -612,7 +612,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // to enable round-trip integrity (catches prism/UCS-side tampering,
         // NOT Flywire-side settlement drift — that is caught by PSync).
         let response_integrity_object = Some(AuthoriseIntegrityObject {
-            amount: item.router_data.request.amount,
+            amount: item.router_data.request.amount.amount,
             currency: item.router_data.request.currency,
         });
 
@@ -737,7 +737,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         Ok(Self {
-            amount: router_data.request.minor_refund_amount,
+            amount: router_data.request.refund_amount.amount,
             external_reference: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -1046,7 +1046,6 @@ impl TryFrom<&FlywireWebhookBody> for WebhookDetailsResponse {
             mandate_reference: None,
             raw_connector_response: None,
             response_headers: None,
-            minor_amount_captured: None,
             amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,

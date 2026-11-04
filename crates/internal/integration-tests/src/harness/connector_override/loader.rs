@@ -1,14 +1,32 @@
-use std::{collections::BTreeMap, fs, path::PathBuf};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::{Path, PathBuf},
+};
 
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::harness::{scenario_loader::connector_specs_root, scenario_types::ScenarioError};
+use crate::harness::{
+    scenario_loader::connector_specs_root,
+    scenario_types::{DependencyScope, ScenarioError, ScenarioFile, SuiteDependency},
+};
 
 /// Override patch payload for one specific `(suite, scenario)` pair.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ScenarioOverridePatch {
+    /// Base scenario in the same suite. Defines a new connector-local variant.
+    #[serde(default)]
+    pub extends: Option<String>,
+    /// Replace inherited prerequisites. An empty array runs without prerequisites.
+    #[serde(default)]
+    pub depends_on: Option<Vec<SuiteDependency>>,
+    /// Rerun inherited prerequisites by setting this to `scenario`.
+    #[serde(default)]
+    pub dependency_scope: Option<DependencyScope>,
+    #[serde(default)]
+    pub required_payment_method: Option<String>,
     #[serde(default)]
     pub grpc_req: Option<Value>,
     #[serde(rename = "assert", default)]
@@ -82,24 +100,131 @@ fn legacy_connector_suite_override_file_path(connector: &str, suite: &str) -> Pa
 /// Resolution order:
 /// 1. New unified connector override file (`<connector>/override.json`)
 /// 2. Legacy suite-level override file (`<connector>/overrides/<suite>.overrides.json`)
-pub fn load_scenario_override_patch(
+#[cfg(test)]
+fn load_scenario_override_patch(
     connector: &str,
     suite: &str,
     scenario: &str,
 ) -> Result<Option<ScenarioOverridePatch>, ScenarioError> {
-    if let Some(connector_patch) = load_connector_override_file(connector)? {
-        return Ok(connector_patch
-            .get(suite)
-            .and_then(|suite_patch| suite_patch.get(scenario))
-            .cloned());
-    }
+    Ok(load_suite_override_patches(connector, suite)?.remove(scenario))
+}
 
+fn load_suite_override_patches(
+    connector: &str,
+    suite: &str,
+) -> Result<SuiteOverrideFile, ScenarioError> {
+    if let Some(mut connector_patch) = load_connector_override_file(connector)? {
+        return Ok(connector_patch.remove(suite).unwrap_or_default());
+    }
     // Backward-compatible fallback for suite-level override files.
-    if let Some(suite_patch) = load_legacy_suite_override_file(connector, suite)? {
-        return Ok(suite_patch.get(scenario).cloned());
-    }
+    Ok(load_legacy_suite_override_file(connector, suite)?.unwrap_or_default())
+}
 
-    Ok(None)
+/// Resolves patches base-first, keeping null deletions intact until application.
+pub fn load_scenario_override_chain(
+    connector: &str,
+    suite: &str,
+    scenario: &str,
+) -> Result<Vec<(String, ScenarioOverridePatch)>, ScenarioError> {
+    override_chain(
+        &load_suite_override_patches(connector, suite)?,
+        suite,
+        scenario,
+        &connector_override_file_path(connector),
+    )
+}
+
+fn override_chain(
+    patches: &SuiteOverrideFile,
+    suite: &str,
+    scenario: &str,
+    path: &Path,
+) -> Result<Vec<(String, ScenarioOverridePatch)>, ScenarioError> {
+    let mut chain = Vec::new();
+    let mut visited = BTreeSet::new();
+    let mut current = scenario;
+    loop {
+        if !visited.insert(current) {
+            return Err(ScenarioError::InvalidConnectorSpec {
+                path: path.to_path_buf(),
+                message: format!("cyclic scenario inheritance in {suite}/{scenario}: {current}"),
+            });
+        }
+        let patch = patches.get(current).cloned().unwrap_or_default();
+        chain.push((current.to_string(), patch));
+        match patches
+            .get(current)
+            .and_then(|patch| patch.extends.as_deref())
+        {
+            Some(base) => current = base,
+            None => break,
+        }
+    }
+    chain.reverse();
+    Ok(chain)
+}
+
+/// Adds named variants and resolves their execution metadata. Request/assertion
+/// patches are applied later, after dependency context, just like normal overrides.
+pub fn merge_scenario_variants(
+    connector: &str,
+    suite: &str,
+    scenarios: &mut ScenarioFile,
+) -> Result<usize, ScenarioError> {
+    merge_variants(
+        &load_suite_override_patches(connector, suite)?,
+        suite,
+        scenarios,
+        &connector_override_file_path(connector),
+    )
+}
+
+fn merge_variants(
+    patches: &SuiteOverrideFile,
+    suite: &str,
+    scenarios: &mut ScenarioFile,
+    path: &Path,
+) -> Result<usize, ScenarioError> {
+    let baseline = scenarios.clone();
+    let mut added = 0;
+    for (name, patch) in patches {
+        let invalid = |message| ScenarioError::InvalidConnectorSpec {
+            path: path.to_path_buf(),
+            message,
+        };
+        if patch.extends.is_some() && baseline.contains_key(name) {
+            return Err(invalid(format!(
+                "{suite}/{name}: a named variant cannot shadow an existing scenario"
+            )));
+        }
+        let chain = override_chain(patches, suite, name, path)?;
+        let Some((base, _)) = chain.first() else {
+            continue;
+        };
+        let mut definition = baseline.get(base).cloned().ok_or_else(|| {
+            invalid(format!(
+                "{suite}/{name}: unknown base scenario {base}; new scenarios must specify extends"
+            ))
+        })?;
+        if patch.extends.is_some() {
+            definition.is_default = false;
+            definition.display_name = None;
+            added += 1;
+        }
+        for (_, inherited) in chain {
+            if let Some(dependencies) = inherited.depends_on {
+                definition.depends_on = Some(dependencies);
+            }
+            if let Some(scope) = inherited.dependency_scope {
+                definition.dependency_scope = Some(scope);
+            }
+            if let Some(method) = inherited.required_payment_method {
+                definition.required_payment_method = Some(method);
+            }
+        }
+        scenarios.insert(name.clone(), definition);
+    }
+    Ok(added)
 }
 
 /// Loads the optional `pre_request_http` hook for a scenario override.
@@ -108,8 +233,10 @@ pub fn load_scenario_pre_request_http(
     suite: &str,
     scenario: &str,
 ) -> Result<Option<PreRequestHttpHook>, ScenarioError> {
-    Ok(load_scenario_override_patch(connector, suite, scenario)?
-        .and_then(|patch| patch.pre_request_http))
+    Ok(load_scenario_override_chain(connector, suite, scenario)?
+        .into_iter()
+        .rev()
+        .find_map(|(_, patch)| patch.pre_request_http))
 }
 
 /// Path to `<connector>/webhook_payload.json` under connector override root.
@@ -232,6 +359,161 @@ mod tests {
     };
 
     static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn named_variants_inherit_connector_patches_and_independent_prerequisites() {
+        use super::{merge_variants, override_chain, ScenarioFile, SuiteOverrideFile};
+        use crate::harness::{
+            connector_override::{apply_assertion_patch, json_merge::json_merge_patch},
+            scenario_types::{DependencyScope, FieldAssert, SuiteSpec},
+        };
+
+        let mut scenarios: ScenarioFile = serde_json::from_value(json!({
+            "base": {
+                "is_default": true,
+                "grpc_req": {"amount": {"minor_amount": 6000, "currency": "USD"}, "address": {"zip": "12345"}},
+                "assert": {"status": {"equals": "AUTHORIZED"}, "error": {"must_not_exist": true}}
+            }
+        })).unwrap();
+        // The child sorts before its parent, exercising forward references.
+        let patches: SuiteOverrideFile = serde_json::from_value(json!({
+            "base": {"grpc_req": {"amount": {"currency": "MYR"}}},
+            "z_parent": {
+                "extends": "base",
+                "dependency_scope": "scenario",
+                "grpc_req": {"address": null},
+                "assert": {"status": {"equals": "CHARGED"}},
+                "pre_request_http": {"timeout_secs": 0}
+            },
+            "a_child": {
+                "extends": "z_parent",
+                "depends_on": [{"suite": "PaymentService/Authorize", "scenario": "base",
+                    "context_map": {"connector_transaction_id": "res.connector_transaction_id"}}],
+                "grpc_req": {"amount": {"minor_amount": 3000}},
+                "assert": {"error": null}
+            },
+            "empty_chain": {"extends": "a_child", "depends_on": []},
+            "shared_chain": {"extends": "base"}
+        }))
+        .unwrap();
+        let path = std::path::Path::new("override.json");
+        assert_eq!(
+            merge_variants(&patches, "PaymentService/Capture", &mut scenarios, path).unwrap(),
+            4
+        );
+        let child = scenarios.get("a_child").unwrap();
+        assert!(!child.is_default);
+        let chain = override_chain(&patches, "PaymentService/Capture", "a_child", path).unwrap();
+        assert_eq!(
+            chain
+                .iter()
+                .map(|(name, _)| name.as_str())
+                .collect::<Vec<_>>(),
+            ["base", "z_parent", "a_child"]
+        );
+        let mut req = child.grpc_req.clone();
+        let mut rules = child.assert_rules.clone();
+        for (_, patch) in &chain {
+            if let Some(patch) = &patch.grpc_req {
+                json_merge_patch(&mut req, patch);
+            }
+            if let Some(patch) = &patch.assert_rules {
+                apply_assertion_patch(&mut rules, patch).unwrap();
+            }
+        }
+        assert_eq!(
+            req,
+            json!({"amount": {"minor_amount": 3000, "currency": "MYR"}})
+        );
+        assert!(!rules.contains_key("error"));
+        assert!(
+            matches!(rules.get("status"), Some(FieldAssert::Equals { equals }) if equals == "CHARGED")
+        );
+        assert_eq!(
+            chain
+                .into_iter()
+                .rev()
+                .find_map(|(_, patch)| patch.pre_request_http)
+                .unwrap()
+                .timeout_secs,
+            0
+        );
+
+        let suite: SuiteSpec = serde_json::from_value(json!({
+            "suite": "PaymentService/Capture", "suite_type": "payment_flow",
+            "depends_on": ["CustomerService/Create"], "strict_dependencies": true
+        }))
+        .unwrap();
+        let (dependencies, scope) = child.prerequisites(&suite);
+        assert_eq!(scope, DependencyScope::Scenario);
+        assert_eq!(dependencies.len(), 1);
+        let dependency = dependencies.first().unwrap();
+        assert_eq!(dependency.scenario(), Some("base"));
+        assert_eq!(
+            dependency
+                .context_map()
+                .unwrap()
+                .get("connector_transaction_id")
+                .unwrap(),
+            "res.connector_transaction_id"
+        );
+        let parent = scenarios.get("z_parent").unwrap();
+        assert_eq!(parent.prerequisites(&suite).1, DependencyScope::Scenario);
+        assert_eq!(
+            parent.prerequisites(&suite).0.first().unwrap().suite(),
+            "CustomerService/Create"
+        );
+        assert!(scenarios
+            .get("empty_chain")
+            .unwrap()
+            .prerequisites(&suite)
+            .0
+            .is_empty());
+        assert_eq!(
+            scenarios
+                .get("shared_chain")
+                .unwrap()
+                .prerequisites(&suite)
+                .1,
+            DependencyScope::Suite
+        );
+    }
+
+    #[test]
+    fn invalid_variant_inheritance_fails_with_a_useful_error() {
+        use super::{merge_variants, ScenarioFile};
+        for (patches, expected) in [
+            (
+                json!({"child": {"extends": "missing"}}),
+                "unknown base scenario missing",
+            ),
+            (
+                json!({"a": {"extends": "b"}, "b": {"extends": "a"}}),
+                "cyclic scenario inheritance",
+            ),
+            (
+                json!({"base": {"extends": "base"}}),
+                "cannot shadow an existing scenario",
+            ),
+            (
+                json!({"typo": {"grpc_req": {}}}),
+                "new scenarios must specify extends",
+            ),
+        ] {
+            let mut scenarios: ScenarioFile = serde_json::from_value(json!({
+                "base": {"grpc_req": {}, "assert": {"status": {"must_exist": true}}}
+            }))
+            .unwrap();
+            let error = merge_variants(
+                &serde_json::from_value(patches).unwrap(),
+                "PaymentService/Authorize",
+                &mut scenarios,
+                std::path::Path::new("override.json"),
+            )
+            .unwrap_err();
+            assert!(error.to_string().contains(expected), "{error}");
+        }
+    }
 
     fn unique_temp_dir() -> PathBuf {
         let nanos = SystemTime::now()

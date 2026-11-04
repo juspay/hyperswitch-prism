@@ -425,7 +425,7 @@ pub fn build_refund_request(
     };
 
     // Convert minor units (paise) to rupees with 2 decimal places using integer arithmetic
-    let amount_minor = refunds_data.minor_refund_amount.get_amount_as_i64();
+    let amount_minor = refunds_data.refund_amount.amount.get_amount_as_i64();
     let refund_amount = minor_to_major_amount(amount_minor);
 
     let refund_request = Refund360Request {

@@ -60,7 +60,7 @@ impl AcceptanceProfile {
     /// how the merchant first accepted the card.
     pub fn derive(channel: Option<PaymentChannel>, mit_category: Option<MitCategory>) -> Self {
         match mit_category {
-            Some(MitCategory::Recurring) => return Self::RecurringMit,
+            Some(MitCategory::Recurring | MitCategory::Subscription) => return Self::RecurringMit,
             Some(MitCategory::Installment) => return Self::InstallmentMit,
             _ => {}
         }

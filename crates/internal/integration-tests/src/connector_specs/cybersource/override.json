@@ -12,7 +12,14 @@
           "ip_address": "127.0.0.1",
           "accept_header": "application/json",
           "user_agent": "Mozilla/5.0 (integration-tests)",
-          "accept_language": "en-US"
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": 0,
+          "language": "en-US"
         }
       }
     }
@@ -30,7 +37,14 @@
           "ip_address": "127.0.0.1",
           "accept_header": "application/json",
           "user_agent": "Mozilla/5.0 (integration-tests)",
-          "accept_language": "en-US"
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": 0,
+          "language": "en-US"
         }
       }
     }
@@ -48,7 +62,14 @@
           "ip_address": "127.0.0.1",
           "accept_header": "application/json",
           "user_agent": "Mozilla/5.0 (integration-tests)",
-          "accept_language": "en-US"
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": 0,
+          "language": "en-US"
         }
       }
     }
@@ -141,6 +162,45 @@
       },
       "assert": {
         "error.connector_details.message": { "must_exist": true }
+      }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "grpc_req": {
+        "address": {
+          "shipping_address": null,
+          "billing_address": null
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_exp_year": {
+              "value": "2030"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "extends": "no3ds_auto_capture_credit_card"
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "extends": "no3ds_manual_capture_credit_card",
+      "grpc_req": {
+        "address": {
+          "shipping_address": null,
+          "billing_address": null
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "grpc_req": {
+        "setup_future_usage": "OFF_SESSION"
       }
     }
   },

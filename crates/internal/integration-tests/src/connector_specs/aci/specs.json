@@ -8,5 +8,33 @@
     "PaymentService/Get",
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge"
-  ]
+  ],
+  "supported_payment_methods": [
+    "card",
+    "ideal",
+    "giropay",
+    "eps",
+    "przelewy24",
+    "klarna",
+    "ali_pay_redirect"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "threeds_manual_capture_credit_card": "ACI 3DS test card not yet verified against sandbox credentials — add a card override in override.json once the correct ACI 3DS test card number is confirmed (browser_automation_spec.json is already configured)",
+      "no3ds_manual_capture_incremental_auth": "IncrementalAuthorization is not_implemented for ACI",
+      "no3ds_auto_capture_alipay": "ACI AliPay is a redirect-only flow — browser automation spec not yet configured for ACI redirect flows",
+      "no3ds_auto_capture_eps": "ACI EPS requires the sandbox account to have EPS enabled as a payment brand; redirect-only flow — verify account configuration before enabling",
+      "no3ds_auto_capture_giropay": "ACI Giropay requires the sandbox account to have Giropay enabled as a payment brand; redirect-only flow — verify account configuration before enabling",
+      "no3ds_auto_capture_ideal": "ACI iDEAL requires the sandbox account to have iDEAL enabled as a payment brand; redirect-only flow — verify account configuration before enabling",
+      "no3ds_auto_capture_klarna": "ACI Klarna requires the sandbox account to have Klarna enabled as a payment brand; redirect-only flow — verify account configuration before enabling",
+      "no3ds_auto_capture_przelewy24": "ACI Przelewy24 requires the sandbox account to have P24 enabled as a payment brand; redirect-only flow — verify account configuration before enabling",
+      "no3ds_fail_payment": "ACI sandbox uses a payment-entity-specific decline card; the global decline card 4000000000000002 may not trigger a decline on this entity — add an ACI-specific decline card override once the correct card number is confirmed"
+    },
+    "PaymentService/SetupRecurring": {
+      "PaymentService/SetupRecurring": "ACI mandate setup requires specific recurring payment configuration on the sandbox entity; depends on card authorize working first",
+      "setup_recurring": "ACI mandate setup requires specific recurring payment configuration on the sandbox entity; depends on card authorize working first",
+      "setup_recurring_with_order_context": "ACI mandate setup requires specific recurring payment configuration on the sandbox entity; depends on card authorize working first",
+      "setup_recurring_with_webhook": "ACI mandate setup requires specific recurring payment configuration on the sandbox entity; depends on card authorize working first"
+    }
+  }
 }

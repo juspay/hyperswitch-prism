@@ -570,6 +570,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Fiservcommercehub<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), errors::IntegrationError> {
+        if data
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .is_ok()
+            || !payment_flow_data
+                .connector_request_reference_id
+                .trim()
+                .is_empty()
+        {
+            return Ok(());
+        }
+
+        Err(errors::IntegrationError::MissingRequiredField {
+            field_name: "connector_transaction_id or merchant_transaction_id",
+            context: errors::IntegrationErrorContext {
+                suggested_action: Some(
+                    "Provide either connector_transaction_id or merchant_transaction_id for payment sync."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

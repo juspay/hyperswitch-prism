@@ -39,13 +39,13 @@ utoipa = { version = "4.2.0", features = [
     "preserve_order",
     "preserve_path_order",
 ] }
-time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
+time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "parsing", "macros"] }
 url = { version = "2.5.4", features = ["serde"] }
 http = "1.2.0"
 actix-web = { version = "4.11.0", optional = true }
 tracing = { workspace = true }
 tonic = { workspace = true }
-deja = { git = "https://github.com/juspay/deja", rev = "d587865d876a8e57a7c9a4d52f2293eb6fd8b97e", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "8da135688c353e2536386274819b37de12eb3113", optional = true, default-features = false }
 
 
 [features]

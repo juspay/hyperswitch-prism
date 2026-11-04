@@ -557,6 +557,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Boost<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), errors::IntegrationError> {
+        // Defer reference validation to PSync request construction and the connector.
+        Ok(())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -599,7 +607,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // claimed connector_transaction_id and amount against an authenticated
         // PSync call (GET /v1/payments/refs/{referenceId}) before acting on
         // it. NOT declaring Currency here: WebhookDetailsResponse has no
-        // currency field to expose (only amount_captured/minor_amount_captured),
+        // currency field to expose (only amount_captured),
         // so there is nothing for a caller to actually compare — declaring the
         // check without backing data would be misleading.
         vec![

@@ -217,6 +217,7 @@ pub enum TransactionStatus {
     ChallengeRequiredDecoupledAuthentication, // D
     InformationOnly,                // I
     Rejected,                       // R
+    SecurePaymentConfirmationRequired, // S
 }
 ```
 

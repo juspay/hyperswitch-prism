@@ -1,6 +1,7 @@
 use crate::types::ResponseRouterData;
 use common_enums::PayoutStatus;
 use common_utils::{id_type::CustomerId, pii::Email, types::FloatMajorUnitForConnector};
+use domain_types::payment_method_data::PaymentMethodDataTypes;
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer},
     errors::{ConnectorError, IntegrationError},
@@ -157,12 +158,12 @@ pub struct LoonioPayoutTransferRequest {
     pub webhook_url: Option<String>,
 }
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
     TryFrom<
         &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     > for LoonioPayoutTransferRequest
@@ -173,7 +174,7 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> Result<Self, Self::Error> {
@@ -201,8 +202,10 @@ impl
 
                 let amount = utils::convert_amount(
                     &FloatMajorUnitForConnector,
-                    req.request.amount,
-                    req.request.source_currency,
+                    &common_utils::types::Money {
+                        amount: req.request.amount,
+                        currency: req.request.source_currency,
+                    },
                 )?;
 
                 let customer_id = req.request.get_customer_id()?;
@@ -239,8 +242,14 @@ pub struct LoonioPayoutTransferResponse {
     pub state: LoonioPayoutStatus,
 }
 
-impl TryFrom<ResponseRouterData<LoonioPayoutTransferResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<LoonioPayoutTransferResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 

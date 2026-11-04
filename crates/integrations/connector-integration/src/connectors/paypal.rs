@@ -85,6 +85,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Paypal<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        // Card PSync can use authorize_id or capture_id from feature metadata.
+        Ok(())
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ClientAuthentication for Paypal<T>
@@ -214,7 +222,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -289,15 +296,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
-        let amount_minor = domain_types::utils::convert_back_amount_to_minor_units_for_webhook(
+        let money = domain_types::utils::convert_back_amount_to_money_for_webhook(
             &common_utils::types::StringMajorUnitForConnector,
             dispute.dispute_amount.value,
             dispute.dispute_amount.currency_code,
         )?;
         let amount = domain_types::utils::convert_amount_for_webhook(
             &common_utils::types::StringMinorUnitForConnector,
-            amount_minor,
-            dispute.dispute_amount.currency_code,
+            &money,
         )?;
 
         let status = match details.event_type {
@@ -458,6 +464,7 @@ macros::create_all_prerequisites!(
             flow: Capture,
             request_body: PaypalPaymentsCaptureRequest,
             response_body: PaypalCaptureResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (

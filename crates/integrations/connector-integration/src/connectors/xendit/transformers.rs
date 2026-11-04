@@ -133,7 +133,6 @@ pub enum XenditCardNumber<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     Raw(RawCardNumber<T>),
-    Network(cards::CardNumber),
 }
 
 #[derive(Debug, Serialize)]
@@ -182,12 +181,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     /// Card details for a Model B MIT (spec "#### 13. Model B — PAN MIT"): the full PAN is
     /// resent with the scheme network_transaction_id. The NTI card carries no CVC.
     pub fn from_network_transaction_card(
-        card: &CardDetailsForNetworkTransactionId,
+        card: &CardDetailsForNetworkTransactionId<T>,
         resource_common_data: &PaymentFlowData,
         request_email: Option<pii::Email>,
     ) -> Self {
         Self::build(
-            XenditCardNumber::Network(card.card_number.clone()),
+            XenditCardNumber::Raw(card.card_number.clone()),
             card.card_exp_month.clone(),
             card.get_expiry_year_4_digit(),
             None,
@@ -834,6 +833,13 @@ fn xendit_card_connector_response(
             card_network,
             domestic_network: None,
             auth_code,
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         },
     ))
 }
@@ -848,21 +854,24 @@ pub fn get_card_on_file_type(
         | Some(common_enums::MitCategory::Resubmission) => {
             Ok(XenditCardOnFileType::MerchantUnscheduled)
         }
-        Some(common_enums::MitCategory::Recurring) => Err(IntegrationError::NotSupported {
-            message: "Xendit RECURRING card_on_file_type requires recurring_configuration, which \
+        Some(common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription) => {
+            Err(IntegrationError::NotSupported {
+                message:
+                    "Xendit RECURRING card_on_file_type requires recurring_configuration, which \
                       no UCS field carries"
-                .to_owned(),
-            connector: XENDIT_CONNECTOR_NAME,
-            context: IntegrationErrorContext {
-                suggested_action: Some(
-                    "Send mit_category UNSCHEDULED (or omit it) for Xendit stored credentials"
                         .to_owned(),
-                ),
-                doc_url: Some(XENDIT_DOC_URL_CREATE_PAYMENT_REQUEST.to_owned()),
-                additional_context: None,
-            },
+                connector: XENDIT_CONNECTOR_NAME,
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send mit_category UNSCHEDULED (or omit it) for Xendit stored credentials"
+                            .to_owned(),
+                    ),
+                    doc_url: Some(XENDIT_DOC_URL_CREATE_PAYMENT_REQUEST.to_owned()),
+                    additional_context: None,
+                },
+            }
+            .into())
         }
-        .into()),
         Some(common_enums::MitCategory::Installment) => Err(IntegrationError::NotSupported {
             message: "Xendit has no installment card_on_file_type".to_owned(),
             connector: XENDIT_CONNECTOR_NAME,
@@ -998,7 +1007,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let request_amount = item
                     .connector
                     .amount_converter
-                    .convert(request.minor_amount, request.currency)
+                    .convert(&item.router_data.request.amount)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: IntegrationErrorContext {
                             suggested_action: None,
@@ -1133,8 +1142,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         http_code,
                         XENDIT_CONNECTOR_NAME,
                     ))
-                    .map(|amount| AuthoriseIntegrityObject {
-                        amount,
+                    .map(|money| AuthoriseIntegrityObject {
+                        amount: money.amount,
                         currency: response.currency,
                     })
             })
@@ -1204,8 +1213,8 @@ impl<F> TryFrom<ResponseRouterData<XenditPaymentRequestResponse, Self>>
                         http_code,
                         XENDIT_CONNECTOR_NAME,
                     ))
-                    .map(|amount| PaymentSynIntegrityObject {
-                        amount,
+                    .map(|money| PaymentSynIntegrityObject {
+                        amount: money.amount,
                         currency: response.currency,
                     })
             })
@@ -1461,7 +1470,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // leg never sends CUSTOMER_UNSCHEDULED.
         let card_on_file_type = get_card_on_file_type(request.mit_category.clone())?;
         // request_amount is required and must be > 0 on a MIT.
-        if request.minor_amount.get_amount_as_i64() <= 0 {
+        if request.amount.amount.get_amount_as_i64() <= 0 {
             return Err(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
                 context: IntegrationErrorContext {
@@ -1485,7 +1494,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request_amount = item
             .connector
             .amount_converter
-            .convert(request.minor_amount, request.currency)
+            .convert(&request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     suggested_action: None,
@@ -1751,9 +1760,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .into());
         }
         // Always sent: the full authorized amount or a single partial amount.
-        let capture_amount =
-            XenditAmountConvertor::convert(request.minor_amount_to_capture, request.currency)
-                .change_context(IntegrationError::RequestEncodingFailed {
+        let capture_amount = XenditAmountConvertor::convert(&request.amount_to_capture)
+            .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
                         "Send amount_to_capture in the minor unit of a currency Xendit supports"
@@ -1943,7 +1951,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
         // Xendit's refund amount has exclusiveMinimum 0; refuse before conversion.
-        if request.minor_refund_amount.get_amount_as_i64() <= 0 {
+        if request.refund_amount.amount.get_amount_as_i64() <= 0 {
             return Err(IntegrationError::InvalidDataFormat {
                 field_name: "refund_amount",
                 context: IntegrationErrorContext {
@@ -1959,8 +1967,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             .into());
         }
         // Full refund = the captured amount, partial = less; Xendit enforces the remaining total.
-        let amount = XenditAmountConvertor::convert(request.minor_refund_amount, request.currency)
-            .change_context(IntegrationError::RequestEncodingFailed {
+        let amount = XenditAmountConvertor::convert(&request.refund_amount).change_context(
+            IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
                         "Send refund_amount in the minor unit of a currency Xendit supports"
@@ -1972,7 +1980,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             .to_owned(),
                     ),
                 },
-            })?;
+            },
+        )?;
         Ok(Self {
             reference_id: request.refund_id.clone(),
             payment_request_id: request.connector_transaction_id.clone(),
@@ -2084,7 +2093,7 @@ impl<F> TryFrom<ResponseRouterData<XenditRefundResponse, Self>>
                 ))?;
 
         let response_integrity_object = Some(RefundIntegrityObject {
-            refund_amount: response_amount,
+            refund_amount: response_amount.amount,
             currency: response.currency,
         });
 
@@ -2361,9 +2370,9 @@ fn parse_xendit_webhook_data<D: serde::de::DeserializeOwned>(
 
 /// Spec "#### UCS event mapping (`get_event_type`)". Exhaustive, no catch-all.
 pub fn get_xendit_webhook_event_type(
-    event: XenditWebhookEventType,
+    envelope: XenditWebhookEnvelope,
 ) -> Result<EventType, error_stack::Report<WebhookError>> {
-    match event {
+    match envelope.event {
         // doc: spec "#### UCS event mapping" — payment.capture -> PaymentIntentSuccess
         XenditWebhookEventType::PaymentCapture => Ok(EventType::PaymentIntentSuccess),
         // doc: spec "### Event Types" legacy note — payment.succeeded is the v2 name of payment.capture
@@ -2435,6 +2444,7 @@ pub fn get_xendit_webhook_reference(
                 PaymentWebhookReference {
                     connector_transaction_id: Some(payment_request_id),
                     merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
                 },
             )))
         }
@@ -2452,6 +2462,7 @@ pub fn get_xendit_webhook_reference(
                 PaymentWebhookReference {
                     connector_transaction_id: Some(payment_request_id),
                     merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
                 },
             )))
         }
@@ -2625,7 +2636,6 @@ pub fn build_xendit_payment_webhook_response(
         status_code: 200,
         response_headers: None,
         amount_captured: None,
-        minor_amount_captured: None,
         network_txn_id,
         payment_method_update: None,
         sender_payment_instrument_id: None,
@@ -2691,16 +2701,13 @@ pub fn build_xendit_dispute_webhook_response(
         ))
         .attach_printable("xendit: expected a dispute webhook");
     }
-    let minor_amount = domain_types::utils::convert_back_amount_to_minor_units_for_webhook(
+    let money = domain_types::utils::convert_back_amount_to_money_for_webhook(
         &StringMajorUnitForConnector,
         dispute.amount.initial.clone(),
         dispute.currency,
     )?;
-    let amount = domain_types::utils::convert_amount_for_webhook(
-        &StringMinorUnitForConnector,
-        minor_amount,
-        dispute.currency,
-    )?;
+    let amount =
+        domain_types::utils::convert_amount_for_webhook(&StringMinorUnitForConnector, &money)?;
     Ok(DisputeWebhookDetailsResponse {
         amount,
         currency: dispute.currency,
@@ -2731,7 +2738,7 @@ mod tests {
     //! ErrorResponse fields, with literal expected values.
     use std::{marker::PhantomData, str::FromStr};
 
-    use common_utils::types::MinorUnit;
+    use common_utils::types::{MinorUnit, Money};
     use domain_types::{
         connector_types::ConnectorMandateReferenceId,
         mandates::{AcceptanceType, CustomerAcceptance},
@@ -2771,8 +2778,8 @@ mod tests {
             auth_type,
             connector_feature_data: None,
             amount_captured: None,
-            minor_amount_captured: None,
-            minor_amount_capturable: None,
+            amount_capturable: None,
+            amount_authorized: None,
             amount: None,
             access_token: None,
             session_token: None,
@@ -2794,7 +2801,6 @@ mod tests {
             connector_response: None,
             recurring_mandate_payment_data: None,
             order_details: None,
-            minor_amount_authorized: None,
             l2_l3_data: None,
             merchant_request_id: None,
             sender_payment_instrument_id: None,
@@ -2827,7 +2833,10 @@ mod tests {
             connector_config: connector_config(),
             request: PaymentsAuthorizeData {
                 payment_method_data: card(),
-                amount: MinorUnit::new(1500000),
+                amount: Money {
+                    amount: MinorUnit::new(1500000),
+                    currency: Currency::IDR,
+                },
                 order_tax_amount: None,
                 surcharge_amount: None,
                 email: None,
@@ -2859,7 +2868,6 @@ mod tests {
                 authentication_data: None,
                 split_payments: None,
                 split_settlement: None,
-                minor_amount: MinorUnit::new(1500000),
                 merchant_order_id: None,
                 shipping_cost: None,
                 merchant_account_id: None,
@@ -2887,6 +2895,11 @@ mod tests {
                 additional_connector_details: None,
                 customer: None,
                 partner_merchant_identifier_details: None,
+                is_stored_credential: None,
+                integrity_specifications: None,
+                risk_assessment_data: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
             },
             response: Err(ErrorResponse::default()),
         };
@@ -2914,8 +2927,10 @@ mod tests {
             connector_config: connector_config(),
             request: RepeatPaymentData {
                 mandate_reference,
-                amount: minor_amount,
-                minor_amount: MinorUnit::new(minor_amount),
+                amount: Money {
+                    amount: MinorUnit::new(minor_amount),
+                    currency,
+                },
                 currency,
                 merchant_order_id: None,
                 metadata: None,
@@ -2950,6 +2965,8 @@ mod tests {
                 recipient_details: None,
                 additional_connector_details: None,
                 customer: None,
+                integrity_specifications: None,
+                currency_conversion_data: None,
             },
             response: Err(ErrorResponse::default()),
         };
@@ -3058,8 +3075,11 @@ mod tests {
 
     #[test]
     fn capture_body() {
-        let capture_amount =
-            XenditAmountConvertor::convert(MinorUnit::new(1500000), Currency::IDR).unwrap();
+        let capture_amount = XenditAmountConvertor::convert(&Money {
+            amount: MinorUnit::new(1500000),
+            currency: Currency::IDR,
+        })
+        .unwrap();
         let body = serde_json::to_value(XenditPaymentsCaptureRequest { capture_amount }).unwrap();
         assert_eq!(body["capture_amount"].as_f64(), Some(15000.0));
         assert_eq!(body.as_object().map(|fields| fields.len()), Some(1));
@@ -3071,7 +3091,11 @@ mod tests {
             reference_id: "ref_refund_test".to_string(),
             payment_request_id: "pr-1f2e3d4c-0000-4000-8000-000000000001".to_string(),
             currency: Currency::IDR,
-            amount: XenditAmountConvertor::convert(MinorUnit::new(1500000), Currency::IDR).unwrap(),
+            amount: XenditAmountConvertor::convert(&Money {
+                amount: MinorUnit::new(1500000),
+                currency: Currency::IDR,
+            })
+            .unwrap(),
             reason: XenditRefundReason::from_refund_reason(Some("duplicate")),
         })
         .unwrap();
@@ -3096,6 +3120,8 @@ mod tests {
         let body = repeat_payment_body(
             MandateReferenceId::ConnectorMandateId(ConnectorMandateReferenceId::new(
                 Some("pt-5a6b7c8d-0000-4000-8000-000000000003".to_string()),
+                None,
+                None,
                 None,
                 None,
                 None,

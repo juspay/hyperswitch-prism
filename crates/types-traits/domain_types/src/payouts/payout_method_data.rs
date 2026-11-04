@@ -4,25 +4,26 @@ use error_stack::Report;
 use hyperswitch_masking::Secret;
 
 use crate::errors::IntegrationError;
+use crate::payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes};
 
 /// The payout method information required for carrying out a payout
 #[derive(Debug, Clone)]
-pub enum PayoutMethodData {
-    Card(CardPayout),
+pub enum PayoutMethodData<T: PaymentMethodDataTypes = DefaultPCIHolder> {
+    Card(CardPayout<T>),
     Bank(Bank),
     Wallet(Wallet),
     BankRedirect(BankRedirect),
     Passthrough(Passthrough),
 }
 
-impl Default for PayoutMethodData {
+impl<T: PaymentMethodDataTypes + Default> Default for PayoutMethodData<T> {
     fn default() -> Self {
         Self::Card(CardPayout::default())
     }
 }
 
-impl PayoutMethodData {
-    pub fn get_card(&self) -> Result<&CardPayout, Report<IntegrationError>> {
+impl<T: PaymentMethodDataTypes> PayoutMethodData<T> {
+    pub fn get_card(&self) -> Result<&CardPayout<T>, Report<IntegrationError>> {
         match self {
             Self::Card(card) => Ok(card),
             _ => Err(IntegrationError::MismatchedPaymentData {
@@ -54,9 +55,9 @@ impl PayoutMethodData {
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
-pub struct CardPayout {
+pub struct CardPayout<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     /// The card number
-    pub card_number: CardNumber,
+    pub card_number: T::Inner,
 
     /// The card's expiry month
     pub expiry_month: Secret<String>,
@@ -255,6 +256,7 @@ pub enum Wallet {
     ApplePayDecrypt(ApplePayDecrypt),
     Paypal(Paypal),
     Venmo(Venmo),
+    Mifinity(Mifinity),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -313,6 +315,13 @@ pub struct Paypal {
 pub struct Venmo {
     /// mobile number linked to venmo account
     pub telephone_number: Option<Secret<String>>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct Mifinity {
+    /// The recipient's MiFinity wallet identifier: an email address or a
+    /// MiFinity account number that will receive the funds.
+    pub destination_account: Secret<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]

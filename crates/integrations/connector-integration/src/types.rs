@@ -163,6 +163,9 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             }
             ConnectorEnum::Payhere => Box::new(connectors::Payhere::<T>::new()),
             ConnectorEnum::Merchante => Box::new(connectors::Merchante::<T>::new()),
+            ConnectorEnum::Betterpayment => Box::new(connectors::Betterpayment::<T>::new()),
+            ConnectorEnum::Reddot => Box::new(connectors::Reddot::<T>::new()),
+            ConnectorEnum::Ecommpay => Box::new(connectors::Ecommpay::<T>::new()),
         }
     }
 }
@@ -212,6 +215,9 @@ impl FrmConnectorData {
             FrmConnectorEnum::Nsure => Box::new(frm_connectors::Nsure::<
                 domain_types::payment_method_data::DefaultPCIHolder,
             >::new()),
+            FrmConnectorEnum::ClearsaleBr => Box::new(frm_connectors::ClearSaleBr::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
         }
     }
 }
@@ -227,12 +233,16 @@ impl ConnectorDataProvider for FrmConnectorData {
 }
 
 #[derive(Clone)]
-pub struct PayoutConnectorData {
-    pub connector: BoxedPayoutConnector,
+pub struct PayoutConnectorData<
+    T: PaymentMethodDataTypes + 'static = domain_types::payment_method_data::DefaultPCIHolder,
+> {
+    pub connector: BoxedPayoutConnector<T>,
     pub connector_name: PayoutConnectorEnum,
 }
 
-impl PayoutConnectorData {
+impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
+    PayoutConnectorData<T>
+{
     pub fn get_connector_by_name(connector_name: &PayoutConnectorEnum) -> Self {
         let connector = Self::convert_connector(*connector_name);
         Self {
@@ -241,15 +251,15 @@ impl PayoutConnectorData {
         }
     }
 
-    fn convert_connector(connector_name: PayoutConnectorEnum) -> BoxedPayoutConnector {
+    fn convert_connector(connector_name: PayoutConnectorEnum) -> BoxedPayoutConnector<T> {
         match connector_name {
+            PayoutConnectorEnum::Nuvei => Box::new(payout_connectors::NuveiPayouts::<T>::new()),
             PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
             PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
             PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),
+            PayoutConnectorEnum::Stripe => Box::new(payout_connectors::StripePayouts::<T>::new()),
             PayoutConnectorEnum::Deutschebank => {
-                Box::new(payout_connectors::DeutschebankPayouts::<
-                    domain_types::payment_method_data::DefaultPCIHolder,
-                >::new())
+                Box::new(payout_connectors::DeutschebankPayouts::<T>::new())
             }
             PayoutConnectorEnum::Worldpayxml => {
                 Box::new(payout_connectors::WorldpayxmlPayouts::new())
@@ -257,18 +267,15 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Cybersource => {
                 Box::new(payout_connectors::CybersourcePayouts::new())
             }
-            PayoutConnectorEnum::Gigadat => Box::new(payout_connectors::GigadatPayouts::<
-                domain_types::payment_method_data::DefaultPCIHolder,
-            >::new()),
+            PayoutConnectorEnum::Gigadat => Box::new(payout_connectors::GigadatPayouts::<T>::new()),
             PayoutConnectorEnum::Santander => Box::new(payout_connectors::SantanderPayouts::new()),
             PayoutConnectorEnum::Truelayer => Box::new(payout_connectors::TruelayerPayouts::new()),
-            PayoutConnectorEnum::Trustly => Box::new(payout_connectors::TrustlyPayouts::<
-                domain_types::payment_method_data::DefaultPCIHolder,
-            >::new()),
+            PayoutConnectorEnum::Mifinity => {
+                Box::new(payout_connectors::MifinityPayouts::<T>::new())
+            }
+            PayoutConnectorEnum::Trustly => Box::new(payout_connectors::TrustlyPayouts::<T>::new()),
             PayoutConnectorEnum::GotymeSanlam => {
-                Box::new(payout_connectors::GotymeSanlamPayouts::<
-                    domain_types::payment_method_data::DefaultPCIHolder,
-                >::new())
+                Box::new(payout_connectors::GotymeSanlamPayouts::<T>::new())
             }
         }
     }
@@ -310,7 +317,9 @@ impl ConnectorDataProvider for SurchargeConnectorData {
     }
 }
 
-impl ConnectorDataProvider for PayoutConnectorData {
+impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
+    ConnectorDataProvider for PayoutConnectorData<T>
+{
     type ConnectorEnumType = PayoutConnectorEnum;
 
     fn from_connector_variant(

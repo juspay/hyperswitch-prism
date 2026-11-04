@@ -89,8 +89,10 @@ fn get_connector_payout_or_quote_id(
         })
 }
 
-fn get_psp_token_from_payout_method_data(
-    payout_method_data: &Option<domain_types::payouts::payout_method_data::PayoutMethodData>,
+fn get_psp_token_from_payout_method_data<
+    T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize,
+>(
+    payout_method_data: &Option<domain_types::payouts::payout_method_data::PayoutMethodData<T>>,
 ) -> CustomResult<Secret<String>, IntegrationError> {
     payout_method_data
         .as_ref()
@@ -158,8 +160,8 @@ fn get_psp_token_from_payout_metadata(
         })
 }
 
-fn get_webflow_token(
-    payout_method_data: &Option<domain_types::payouts::payout_method_data::PayoutMethodData>,
+fn get_webflow_token<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>(
+    payout_method_data: &Option<domain_types::payouts::payout_method_data::PayoutMethodData<T>>,
     payout_connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
 ) -> CustomResult<Secret<String>, IntegrationError> {
     get_psp_token_from_payout_method_data(payout_method_data).or_else(|_| {
@@ -197,7 +199,7 @@ macros::create_all_prerequisites!(
             flow: PayoutStage,
             request_body: GigadatPayoutStageRequest,
             response_body: GigadatPayoutStageResponse,
-            router_data: RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>,
+            router_data: RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest<T>, PayoutStageResponse>,
         ),
         (
             flow: PayoutGet,
@@ -207,12 +209,12 @@ macros::create_all_prerequisites!(
         (
             flow: PayoutTransfer,
             response_body: GigadatPayoutTransferResponse,
-            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,
         ),
         (
             flow: PayoutCreate,
             response_body: GigadatPayoutCreateResponse,
-            router_data: RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+            router_data: RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>,
         )
     ],
     amount_converters: [
@@ -245,13 +247,13 @@ macros::create_all_prerequisites!(
 );
 
 // ===== PAYOUT SERVICE TRAIT =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutServiceTrait
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutServiceTrait<T>
     for GigadatPayouts<T>
 {
 }
 
 // ===== PAYOUT FLOW TRAIT IMPLEMENTATIONS =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutStageV2
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutStageV2<T>
     for GigadatPayouts<T>
 {
 }
@@ -261,12 +263,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Payo
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutTransferV2
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutTransferV2<T>
     for GigadatPayouts<T>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutCreateV2
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutCreateV2<T>
     for GigadatPayouts<T>
 {
 }
@@ -301,7 +303,7 @@ macros::macro_connector_implementation!(
     curl_response: GigadatPayoutStageResponse,
     flow_name: PayoutStage,
     resource_common_data: PayoutFlowData,
-    flow_request: PayoutStageRequest,
+    flow_request: PayoutStageRequest<T>,
     flow_response: PayoutStageResponse,
     http_method: Post,
     generic_type: T,
@@ -309,13 +311,13 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>,
+            req: &RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest<T>, PayoutStageResponse>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>,
+            req: &RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest<T>, PayoutStageResponse>,
         ) -> CustomResult<String, IntegrationError> {
             let auth = gigadat::GigadatAuthType::try_from(&req.connector_config)?;
             Ok(format!(
@@ -367,7 +369,7 @@ macros::macro_connector_implementation!(
     curl_response: GigadatPayoutTransferResponse,
     flow_name: PayoutTransfer,
     resource_common_data: PayoutFlowData,
-    flow_request: PayoutTransferRequest,
+    flow_request: PayoutTransferRequest<T>,
     flow_response: PayoutTransferResponse,
     http_method: Get,
     generic_type: T,
@@ -375,13 +377,13 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,
         ) -> CustomResult<String, IntegrationError> {
             let transfer_id = get_connector_payout_id(&req.request.connector_payout_id)?;
 
@@ -410,7 +412,7 @@ macros::macro_connector_implementation!(
     curl_response: GigadatPayoutCreateResponse,
     flow_name: PayoutCreate,
     resource_common_data: PayoutFlowData,
-    flow_request: PayoutCreateRequest,
+    flow_request: PayoutCreateRequest<T>,
     flow_response: PayoutCreateResponse,
     http_method: Post,
     generic_type: T,
@@ -418,13 +420,13 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+            req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+            req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>,
         ) -> CustomResult<String, IntegrationError> {
             let transfer_id = get_connector_payout_or_quote_id(
                 &req.request.connector_payout_id,
