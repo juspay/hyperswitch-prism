@@ -555,7 +555,7 @@ impl From<&domain_types::payment_address::AddressDetails> for CheckoutAddress {
             address_line1: details.line1.clone(),
             address_line2: details.line2.clone(),
             city: details.city.clone(),
-            state: details.state.clone(),
+            state: details.get_optional_state(),
             zip: details.zip.clone(),
             country: details.country,
         }
