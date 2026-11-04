@@ -1,4 +1,4 @@
-use crate::types::ResponseRouterData;
+use crate::{types::ResponseRouterData, utils::response_amount_to_money};
 use base64::{engine::general_purpose, Engine};
 use cards::CardNumber;
 use common_enums::{AttemptStatus, RefundStatus};
@@ -6,6 +6,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::{self, RsaOaepSha256, SignMessage},
     pii::SecretSerdeValue,
+    types::FloatMajorUnitForConnector,
     FloatMajorUnit,
 };
 use domain_types::{
@@ -28,6 +29,7 @@ use domain_types::{
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
+    router_request_types::CaptureIntegrityObject,
     utils,
 };
 use error_stack::ResultExt;
@@ -1392,6 +1394,14 @@ impl FiservcommercehubAuthorizeResponse {
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubPaymentReceipt {
     pub processor_response_details: Option<FiservcommercehubProcessorResponseDetails>,
+    pub approved_amount: Option<FiservcommercehubApprovedAmount>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubApprovedAmount {
+    pub currency: common_enums::Currency,
+    pub total: FloatMajorUnit,
 }
 
 impl FiservcommercehubPaymentReceipt {
@@ -1400,6 +1410,24 @@ impl FiservcommercehubPaymentReceipt {
             .as_ref()
             .and_then(|details| details.approval_code.clone())
     }
+}
+
+fn approved_amount_to_money(
+    payment_receipt: Option<&FiservcommercehubPaymentReceipt>,
+    http_status: u16,
+) -> Result<Option<common_utils::types::Money>, error_stack::Report<errors::ConnectorError>> {
+    payment_receipt
+        .and_then(|receipt| receipt.approved_amount.as_ref())
+        .map(|approved_amount| {
+            response_amount_to_money(
+                &FloatMajorUnitForConnector,
+                approved_amount.total,
+                approved_amount.currency,
+                http_status,
+                domain_types::connector_types::ConnectorEnum::Fiservcommercehub,
+            )
+        })
+        .transpose()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -2291,6 +2319,14 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
             item.response.0.additional_data_3ds.as_ref(),
             item.response.0.approval_code(),
         );
+        let amount_captured =
+            approved_amount_to_money(item.response.0.payment_receipt.as_ref(), item.http_code)?;
+        let integrity_object = amount_captured
+            .as_ref()
+            .map(|amount| CaptureIntegrityObject {
+                amount_to_capture: amount.amount,
+                currency: amount.currency,
+            });
         let response = build_transaction_payment_response(
             status,
             item.http_code,
@@ -2303,8 +2339,18 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
             response,
             resource_common_data: PaymentFlowData {
                 status,
+                amount_captured: amount_captured.or_else(|| {
+                    item.router_data
+                        .resource_common_data
+                        .amount_captured
+                        .clone()
+                }),
                 connector_response,
                 ..item.router_data.resource_common_data
+            },
+            request: PaymentsCaptureData {
+                integrity_object,
+                ..item.router_data.request
             },
             ..item.router_data
         })
