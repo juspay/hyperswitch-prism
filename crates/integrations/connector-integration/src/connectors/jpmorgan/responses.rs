@@ -70,7 +70,7 @@ pub struct JpmorganPaymentsResponse {
     pub response_code: String,
     pub response_message: Option<String>,
     pub host_message: Option<String>,
-    pub amount: Option<common_utils::types::MinorUnit>,
+    pub amount: Option<common_utils::types::ConnectorMinorUnit>,
     pub partial_authorization: Option<bool>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub capture_method: Option<requests::CapMethod>,

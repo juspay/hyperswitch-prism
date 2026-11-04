@@ -4,7 +4,9 @@ use common_utils::{
     ext_traits::Encode,
     pii,
     request::Method,
-    types::{FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, Money, StringMajorUnit},
+    types::{
+        ConnectorMinorUnit, FloatMajorUnit, FloatMajorUnitForConnector, Money, StringMajorUnit,
+    },
 };
 use domain_types::{
     connector_flow::{
@@ -584,7 +586,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // order_category / description.
         let payment_action = get_noon_payment_action(
             item.request.capture_method,
-            item.request.money.amount() == MinorUnit::zero(),
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&item.request.money)
+                == ConnectorMinorUnit::zero(),
         )?;
 
         // 3DS: Noon runs its own 3DS and decides enrolment itself, so there is no
@@ -1872,10 +1875,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // order_category / description.
         let payment_action = get_noon_payment_action(
             item.request.capture_method,
-            item.request
-                .money
-                .as_ref()
-                .is_some_and(|money| money.amount() == MinorUnit::zero()),
+            item.request.money.as_ref().is_some_and(|money| {
+                common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+                    == ConnectorMinorUnit::zero()
+            }),
         )?;
         let payment_data = match &item.request.payment_method_data {
             PaymentMethodData::Wallet(WalletData::PaypalRedirect(_)) => Err(
@@ -2167,7 +2170,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Refusals come first so that no request is built for an input Noon cannot take.
         let payment_action = get_noon_payment_action(
             router_data.request.capture_method,
-            router_data.request.money.amount() == MinorUnit::zero(),
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&router_data.request.money)
+                == ConnectorMinorUnit::zero(),
         )?;
 
         // A Noon MIT charges the subscription created by the mandate setup; Noon has no

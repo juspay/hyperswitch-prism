@@ -5,7 +5,9 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
+use common_utils::{
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::ConnectorMinorUnit,
+};
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, PSync, PaymentMethodToken, PostAuthenticate,
@@ -280,7 +282,7 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: MinorUnit
+        amount_converter: ConnectorMinorUnit
     ],
     member_functions: {
         pub fn build_headers(

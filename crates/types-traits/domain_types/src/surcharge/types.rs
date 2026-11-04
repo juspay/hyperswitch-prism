@@ -220,9 +220,11 @@ pub fn generate_surcharge_calculate_response(
     match surcharge_response {
         Ok(response) => {
             let surcharge_amount = grpc_api_types::surcharge::Money {
-                minor_amount: response.surcharge_amount.get_amount_as_i64(),
-                currency: grpc_api_types::payments::Currency::foreign_try_from(response.currency)?
-                    .into(),
+                minor_amount: response.surcharge_money.amount().get_amount_as_i64(),
+                currency: grpc_api_types::payments::Currency::foreign_try_from(
+                    response.surcharge_money.currency(),
+                )?
+                .into(),
             };
 
             Ok(

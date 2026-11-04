@@ -1,5 +1,5 @@
 use common_enums::{self, AttemptStatus, CaptureMethod, CountryAlpha2, Currency, RefundStatus};
-use common_utils::{consts, errors::ParsingError, pii, types::MinorUnit};
+use common_utils::{consts, errors::ParsingError, pii, types::ConnectorMinorUnit};
 use domain_types::{
     connector_flow::{Authorize, Capture, RSync, Refund, RepeatPayment, Void},
     connector_types::{
@@ -93,7 +93,7 @@ impl TryFrom<&ConnectorSpecificConfig> for ImerchantsolutionsAuthType {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ImerchantsolutionsPaymentsRequestData<T: PaymentMethodDataTypes> {
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     pub currency: Currency,
     reference: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -397,7 +397,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     holder: card_data.get_optional_cardholder_name(),
                 });
                 Ok(Self {
-                    amount: item.router_data.request.money.amount(),
+                    amount: common_utils::types::ConnectorMinorUnitForConnector.convert(&item.router_data.request.money),
                     currency: item.router_data.request.currency,
                     reference: item
                         .router_data
@@ -481,7 +481,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     }?;
                     Ok(Self {
-                        amount: item.router_data.request.money.amount(),
+                        amount: common_utils::types::ConnectorMinorUnitForConnector.convert(&item.router_data.request.money),
                         currency: item.router_data.request.currency,
                         reference: item
                             .router_data
@@ -535,7 +535,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     }?;
                     Ok(Self {
-                        amount: item.router_data.request.money.amount(),
+                        amount: common_utils::types::ConnectorMinorUnitForConnector.convert(&item.router_data.request.money),
                         currency: item.router_data.request.currency,
                         reference: item
                             .router_data
@@ -670,7 +670,7 @@ pub struct ImerchantsolutionsPaymentsResponseData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 struct AmountDetails {
-    value: MinorUnit,
+    value: ConnectorMinorUnit,
     pub currency: Currency,
 }
 
@@ -856,7 +856,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = item.router_data.request.money.amount();
+        let amount = common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.router_data.request.money);
         let currency = item.router_data.request.currency;
         let reference = item
             .router_data
@@ -1076,9 +1077,9 @@ pub struct ImerchantsolutionsPSyncResponseData {
     payment_id: String,
     psp_reference: String,
     merchant_reference: Option<String>,
-    authorized_amount: Option<MinorUnit>,
-    total_captured: Option<MinorUnit>,
-    remaining_amount: Option<MinorUnit>,
+    authorized_amount: Option<ConnectorMinorUnit>,
+    total_captured: Option<ConnectorMinorUnit>,
+    remaining_amount: Option<ConnectorMinorUnit>,
     capture_closed: Option<bool>,
     captures: Vec<Captures>,
     pub currency: Currency,
@@ -1091,7 +1092,7 @@ pub struct ImerchantsolutionsPSyncResponseData {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct Captures {
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: Currency,
     psp_reference: String,
     captured_at: Option<String>,
@@ -1133,7 +1134,9 @@ impl<'a> utils::MultipleCaptureSyncResponse for CaptureWithStatus<'a> {
         Some(self.psp_reference.clone())
     }
 
-    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+    fn get_amount_captured(
+        &self,
+    ) -> Result<Option<ConnectorMinorUnit>, error_stack::Report<ParsingError>> {
         Ok(Some(self.capture.amount))
     }
 }
@@ -1151,11 +1154,11 @@ pub struct ImerchantsolutionsWebhookData {
     pub status: ImerchantsolutionsWebhookStatus,
     pub reason: Option<String>,
     pub error: Option<String>,
-    pub amount: Option<MinorUnit>,
-    pub captured_amount: Option<MinorUnit>,
-    pub total_captured: Option<MinorUnit>,
-    refunded_amount: Option<MinorUnit>,
-    total_refunded: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
+    pub captured_amount: Option<ConnectorMinorUnit>,
+    pub total_captured: Option<ConnectorMinorUnit>,
+    refunded_amount: Option<ConnectorMinorUnit>,
+    total_refunded: Option<ConnectorMinorUnit>,
     pub currency: Currency,
     processor: Option<String>,
     card_last4: Option<String>,
@@ -1258,12 +1261,13 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         })
                         .collect();
 
-                    let capture_sync_response_list =
-                        utils::construct_captures_response_hashmap(wrapped_captures)
-                            .change_context(utils::response_handling_fail_for_connector(
-                                http_code,
-                                IMERCHANTSOLUTIONS,
-                            ))?;
+                    let capture_sync_response_list = utils::construct_captures_response_hashmap(
+                        wrapped_captures,
+                        router_data.request.money.currency(),
+                    )
+                    .change_context(
+                        utils::response_handling_fail_for_connector(http_code, IMERCHANTSOLUTIONS),
+                    )?;
 
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
@@ -1537,7 +1541,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsVoidResponseData, Self>>
 #[serde(rename_all = "camelCase")]
 pub struct ImerchantsolutionsCaptureRequestData {
     psp_reference: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: Currency,
     #[serde(rename = "final")]
     final_capture: bool,
@@ -1584,7 +1588,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             psp_reference,
-            amount: item.router_data.request.capture_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.capture_money),
             currency: item.router_data.request.currency,
             final_capture,
         })
@@ -1597,8 +1602,8 @@ pub struct ImerchantsolutionsCaptureResponseData {
     success: bool,
     psp_reference: String,
     original_reference: String,
-    captured_amount: Option<MinorUnit>,
-    total_captured: Option<MinorUnit>,
+    captured_amount: Option<ConnectorMinorUnit>,
+    total_captured: Option<ConnectorMinorUnit>,
     currency: Currency,
     status: ImerchantsolutionsCaptureStatus,
     capture_closed: Option<bool>,
@@ -1662,7 +1667,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsCaptureResponseData, Self>>
 #[serde(rename_all = "camelCase")]
 pub struct ImerchantsolutionsRefundRequestData {
     psp_reference: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: Currency,
     reference: Option<String>,
     reason: Option<String>,
@@ -1686,7 +1691,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             psp_reference: item.router_data.request.connector_transaction_id.clone(),
-            amount: item.router_data.request.refund_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.refund_money),
             currency: item.router_data.request.currency,
             reference: Some(item.router_data.request.refund_id.clone()),
             reason: item.router_data.request.reason,
@@ -1700,8 +1706,8 @@ pub struct ImerchantsolutionsRefundResponseData {
     success: bool,
     psp_reference: String,
     original_reference: String,
-    refunded_amount: MinorUnit,
-    total_refunded: MinorUnit,
+    refunded_amount: ConnectorMinorUnit,
+    total_refunded: ConnectorMinorUnit,
     currency: Currency,
     status: ImerchantsolutionsRefundStatus,
     message: Option<String>,
@@ -1750,10 +1756,10 @@ pub struct ImerchantsolutionsRsyncResponseData {
     payment_id: String,
     psp_reference: String,
     merchant_reference: Option<String>,
-    payment_amount: Option<MinorUnit>,
-    total_captured: Option<MinorUnit>,
-    total_refunded: Option<MinorUnit>,
-    remaining_amount: Option<MinorUnit>,
+    payment_amount: Option<ConnectorMinorUnit>,
+    total_captured: Option<ConnectorMinorUnit>,
+    total_refunded: Option<ConnectorMinorUnit>,
+    remaining_amount: Option<ConnectorMinorUnit>,
     currency: Currency,
     status: ImerchantsolutionsRefundStatus,
     can_refund: bool,
@@ -1764,7 +1770,7 @@ pub struct ImerchantsolutionsRsyncResponseData {
 #[serde(rename_all = "camelCase")]
 struct Refunds {
     psp_reference: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: Currency,
     reason: Option<String>,
     created_at: Option<String>,

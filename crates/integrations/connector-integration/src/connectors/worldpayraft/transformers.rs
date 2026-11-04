@@ -6,7 +6,7 @@ use common_utils::{
     consts::NO_ERROR_MESSAGE,
     ext_traits::Encode,
     pii::SecretSerdeValue,
-    types::{MinorUnit, Money, StringMajorUnit},
+    types::{ConnectorMinorUnit, Money, StringMajorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -724,7 +724,7 @@ impl WorldpayraftPosData {
     }
 
     fn for_credit(
-        amount: MinorUnit,
+        amount: ConnectorMinorUnit,
         network: Option<&CardNetwork>,
         category: Option<&MitCategory>,
         kind: WorldpayraftPaymentKind,
@@ -752,7 +752,7 @@ impl WorldpayraftPosData {
                 },
                 // RAFT distinguishes zero-amount verification from ordinary e-commerce
                 // authorization, even when both requests include AVS data.
-                pos_condition_code: if amount == MinorUnit::zero() {
+                pos_condition_code: if amount == ConnectorMinorUnit::zero() {
                     WorldpayraftPosConditionCode::VerificationOnly
                 } else if is_mit && !is_installment {
                     WorldpayraftPosConditionCode::MailTelephoneOrder
@@ -1278,7 +1278,7 @@ impl WorldpayraftMandateMetadata {
             WorldpayraftPosData::for_debit(request.is_auto_capture())
         } else {
             WorldpayraftPosData::for_credit(
-                request.money.amount(),
+                common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
                 metadata.connector_metadata.card_network.as_ref(),
                 request.mit_category.as_ref(),
                 kind,
@@ -1303,7 +1303,7 @@ impl WorldpayraftMandateMetadata {
             Some(&request.mandate_reference),
         );
         let pos = WorldpayraftPosData::for_credit(
-            request.money.amount(),
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
             metadata.connector_metadata.card_network.as_ref(),
             request.mit_category.as_ref(),
             WorldpayraftPaymentKind::Mit,
@@ -2084,7 +2084,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_transaction_id.as_deref(),
             )?;
             WorldpayraftPosData::for_credit(
-                request.money.amount(),
+                common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
                 network.as_ref(),
                 request.mit_category.as_ref(),
                 kind,
@@ -3381,7 +3381,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             network_transaction_id.as_deref(),
         )?;
         let pos = WorldpayraftPosData::for_credit(
-            request.money.amount(),
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
             network.as_ref(),
             request.mit_category.as_ref(),
             WorldpayraftPaymentKind::Mit,
@@ -4172,8 +4172,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_ref()
             .ok_or_else(missing_field_err("additional_amount"))?;
         if additional_amount.currency() != request.money.currency()
-            || additional_amount.amount() <= MinorUnit::zero()
-            || additional_amount.amount() > request.money.amount()
+            || common_utils::types::ConnectorMinorUnitForConnector.convert(additional_amount)
+                <= ConnectorMinorUnit::zero()
+            || common_utils::types::ConnectorMinorUnitForConnector.convert(additional_amount)
+                > common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money)
         {
             return Err(errors::IntegrationError::InvalidDataFormat {
                 field_name: "additional_amount",

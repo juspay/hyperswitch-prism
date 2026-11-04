@@ -1020,9 +1020,14 @@ impl TryFrom<ResponseRouterData<MonerisCaptureResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let status = match item.response.payment_status {
             MonerisPaymentStatus::Succeeded => {
-                let captured = item.router_data.request.capture_money.amount();
+                let captured = common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.capture_money);
                 match item.router_data.resource_common_data.capturable_money {
-                    Some(ref authorized) if captured < authorized.amount() => {
+                    Some(ref authorized)
+                        if captured
+                            < common_utils::types::ConnectorMinorUnitForConnector
+                                .convert(authorized) =>
+                    {
                         common_enums::AttemptStatus::PartialCharged
                     }
                     _ => common_enums::AttemptStatus::Charged,

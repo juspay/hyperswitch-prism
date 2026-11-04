@@ -233,7 +233,9 @@ impl PacoTransactionAmount {
                     )),
                 },
             })?;
-        let raw = money.amount().get_amount_as_i64();
+        let raw = common_utils::types::ConnectorMinorUnitForConnector
+            .convert(money)
+            .get_amount_as_i64();
         let amount_text = format!("{raw:0>12}");
         let amount = <FloatMajorUnitForConnector as common_utils::types::AmountConvertor>::convert(
             &FloatMajorUnitForConnector,

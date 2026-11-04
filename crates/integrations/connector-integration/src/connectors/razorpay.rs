@@ -11,7 +11,7 @@ use common_utils::{
     events,
     ext_traits::ByteSliceExt,
     request::{Method, RequestContent},
-    types::{AmountConvertor, MinorUnit},
+    types::{AmountConvertor, ConnectorMinorUnit},
 };
 use domain_types::errors::{IntegrationError, WebhookError};
 use domain_types::{
@@ -65,7 +65,7 @@ pub(crate) mod headers {
 #[derive(Clone)]
 pub struct Razorpay<T> {
     #[allow(dead_code)]
-    pub(crate) amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    pub(crate) amount_converter: &'static (dyn AmountConvertor<Output = ConnectorMinorUnit> + Sync),
     #[allow(dead_code)]
     _phantom: std::marker::PhantomData<T>,
 }
@@ -146,7 +146,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T> Razorpay<T> {
     pub const fn new() -> &'static Self {
         &Self {
-            amount_converter: &common_utils::types::MinorUnitForConnector,
+            amount_converter: &common_utils::types::ConnectorMinorUnitForConnector,
             _phantom: std::marker::PhantomData,
         }
     }

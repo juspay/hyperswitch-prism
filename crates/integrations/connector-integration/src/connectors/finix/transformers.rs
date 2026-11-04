@@ -3,7 +3,7 @@ use common_enums::{AttemptStatus, CountryAlpha2, CountryAlpha3, Currency, Refund
 use common_utils::{
     consts,
     pii::{Email, SecretSerdeValue},
-    types::MinorUnit,
+    types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -368,7 +368,7 @@ pub struct FinixPaymentThreeDSecure {
 
 #[derive(Debug, Serialize)]
 pub struct FinixPaymentsRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub source: String,
     pub merchant: String,
@@ -385,7 +385,7 @@ pub type FinixAuthorizeRequest = FinixPaymentsRequest;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FinixAuthorizeResponse {
     pub id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub state: FinixPaymentStatus,
     #[serde(rename = "_links")]
@@ -540,7 +540,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
-            amount: router_data.request.money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.money),
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -664,7 +665,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FinixPaymentsResponse {
     pub id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     #[serde(alias = "status")]
     pub state: FinixPaymentStatus,
@@ -796,7 +797,7 @@ impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
 
 #[derive(Debug, Serialize)]
 pub struct FinixCaptureRequest {
-    pub capture_amount: MinorUnit,
+    pub capture_amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub idempotency_id: Option<String>,
 }
@@ -823,7 +824,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            capture_amount: item.router_data.request.capture_money.amount(),
+            capture_amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.capture_money),
             idempotency_id: None,
         })
     }
@@ -943,7 +945,7 @@ pub type FinixVoidResponse = FinixPaymentsResponse;
 
 #[derive(Debug, Serialize)]
 pub struct FinixRefundRequest {
-    pub refund_amount: MinorUnit,
+    pub refund_amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub idempotency_id: Option<String>,
 }
@@ -1066,7 +1068,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            refund_amount: item.router_data.request.refund_money.amount(),
+            refund_amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.refund_money),
             idempotency_id: None,
         })
     }
@@ -1785,7 +1788,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
-            amount: router_data.request.money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.money),
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -1958,8 +1962,8 @@ pub struct FinixWebhookPaymentsResponse {
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
     pub application: Option<Secret<String>>,
-    pub amount: MinorUnit,
-    pub captured_amount: Option<MinorUnit>,
+    pub amount: ConnectorMinorUnit,
+    pub captured_amount: Option<ConnectorMinorUnit>,
     pub currency: Currency,
     pub is_void: Option<bool>,
     pub source: Option<Secret<String>>,
@@ -1991,7 +1995,7 @@ pub enum FinixDisputeState {
 pub struct FinixDisputes {
     pub transfer: String,
     pub reason: Option<String>,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub state: FinixDisputeState,
     pub currency: Currency,
     pub id: String,
@@ -2300,7 +2304,7 @@ fn get_finix_webhook_dispute_status(state: &FinixDisputeState) -> common_enums::
 /// transfers. Status mapping ports HS `get_attempt_status` with
 /// `FinixFlow::Auth` / `FinixFlow::Transfer` respectively.
 pub(super) fn build_finix_payment_webhook_response(
-    connector: &dyn common_utils::types::AmountConvertor<Output = MinorUnit>,
+    connector: &dyn common_utils::types::AmountConvertor<Output = ConnectorMinorUnit>,
     body: &FinixWebhookBody,
     raw_body: &[u8],
 ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
@@ -2402,7 +2406,7 @@ pub(super) fn build_finix_dispute_webhook_response(
         amount: domain_types::utils::convert_amount_for_webhook(
             &common_utils::types::StringMinorUnitForConnector,
             &domain_types::utils::convert_back_amount_to_money_for_webhook(
-                &common_utils::types::MinorUnitForConnector,
+                &common_utils::types::ConnectorMinorUnitForConnector,
                 dispute.amount,
                 dispute.currency,
             )?,

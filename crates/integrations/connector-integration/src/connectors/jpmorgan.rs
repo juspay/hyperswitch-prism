@@ -11,7 +11,7 @@ use std::fmt::Debug;
 use bytes::Bytes;
 use common_enums::CurrencyUnit;
 use common_utils::{
-    consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit,
+    consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -157,7 +157,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Jpmorgan<T>
 {
 }
-macros::create_amount_converter_wrapper!(connector_name: Jpmorgan, amount_type: MinorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Jpmorgan, amount_type: ConnectorMinorUnit);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Jpmorgan<T> {
     /// JPMorgan returns malformed JSON for wallet payments where expiry fields are empty
@@ -280,7 +280,7 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: MinorUnit
+        amount_converter: ConnectorMinorUnit
     ],
     member_functions: {
         // Generic header builder that works for both PaymentFlowData and RefundFlowData

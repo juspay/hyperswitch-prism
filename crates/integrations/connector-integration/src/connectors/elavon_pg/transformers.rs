@@ -15,7 +15,7 @@ use common_utils::{
     errors::CustomResult,
     pii::Email,
     request::Method,
-    types::{MinorUnit, StringMajorUnit},
+    types::{ConnectorMinorUnitForConnector, StringMajorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -2019,12 +2019,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         // `/card-verifications` carries no total, so a non-zero amount would be reported as a
         // charge EPG never made.
-        if router_data
-            .request
-            .money
-            .as_ref()
-            .is_some_and(|money| money.amount() > MinorUnit::zero())
-        {
+        if router_data.request.money.as_ref().is_some_and(|money| {
+            ConnectorMinorUnitForConnector
+                .convert(money)
+                .is_greater_than(0)
+        }) {
             return Err(error_stack::report!(IntegrationError::NotSupported {
                 message: "Non-zero amount on SetupMandate".to_string(),
                 connector: ELAVON_PG_CONNECTOR_ID,

@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::LazyLock};
+use std::str::FromStr;
 
 use crate::{
     connectors::redsys::{RedsysAmountConvertor, RedsysRouterData},
@@ -41,8 +41,7 @@ pub const REDSYS_SOAP_ACTION: &str = "consultaOperaciones";
 pub const REDSYS_ORDER_ID_METADATA_KEY: &str = "order_id";
 pub const REDSYS_ORDER_ID_MAX_LENGTH: usize = 12;
 
-static LWV_THRESHOLD: LazyLock<common_utils::types::MinorUnit> =
-    LazyLock::new(|| common_utils::types::MinorUnit::new(3000)); // €30
+const LWV_THRESHOLD: i64 = 3000; // EUR 30 in minor units.
 
 type Error = Report<IntegrationError>;
 type ResponseError = Report<ConnectorError>;
@@ -1214,7 +1213,10 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     {
         return Ok(map_exemption_indicator(
             indicator,
-            request.money.amount() <= *LWV_THRESHOLD,
+            common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&request.money)
+                .get_amount_as_i64()
+                <= LWV_THRESHOLD,
         ));
     }
     // 2. Auto-detect: MIT for stored credential payments
@@ -1230,7 +1232,11 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     }
     // 4. Default: amount-based
     // For Redsys, both LWV and TRA are capped at €30
-    if request.money.amount() <= *LWV_THRESHOLD {
+    if common_utils::types::ConnectorMinorUnitForConnector
+        .convert(&request.money)
+        .get_amount_as_i64()
+        <= LWV_THRESHOLD
+    {
         Ok(requests::RedsysStrongCustomerAuthenticationException::Lwv)
     } else {
         Ok(requests::RedsysStrongCustomerAuthenticationException::Tra)

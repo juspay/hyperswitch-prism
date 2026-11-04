@@ -1,6 +1,6 @@
 use crate::{connectors::getnet::GetnetRouterData, types::ResponseRouterData};
 use common_enums::{AttemptStatus, AuthenticationType, Currency, RefundStatus};
-use common_utils::{request::Method, types::MinorUnit, Email};
+use common_utils::{request::Method, types::ConnectorMinorUnit, Email};
 use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use domain_types::router_request_types::AuthenticationData;
 use domain_types::{
@@ -277,7 +277,7 @@ pub struct GetnetStandardAuthorize<T: PaymentMethodDataTypes> {
 #[derive(Debug, Serialize)]
 pub struct GetnetPaymentData<T: PaymentMethodDataTypes> {
     pub customer_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer: Option<GetnetCustomer>,
@@ -333,7 +333,7 @@ pub struct GetnetBoletoAuthorize {
 
 #[derive(Debug, Serialize)]
 pub struct GetnetBoletoData {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub order: GetnetBoletoOrder,
     pub customer: GetnetBoletoCustomer,
@@ -397,10 +397,10 @@ pub struct GetnetBoletoPayment {
 // Body posted to `/dpm/payments-gwproxy/v2/payments/qrcode/pix`. Unlike the
 // `Standard` and `Boleto` shapes this is *flat* — no `data` wrapper and no
 // `request_id`. `amount` serializes as a JSON integer (cents) thanks to the
-// `MinorUnit` Serialize impl.
+// `ConnectorMinorUnit` Serialize impl.
 #[derive(Debug, Serialize)]
 pub struct GetnetPixAuthorize {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub order_id: String,
     pub customer_id: String,
@@ -699,7 +699,8 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 let payment_id = common_utils::fp_utils::generate_uuid_v4();
                 let customer = build_boleto_customer(item, boleto_data)?;
                 let data = GetnetBoletoData {
-                    amount: item.request.money.amount(),
+                    amount: common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.request.money),
                     // Globalgetnet's boleto endpoint requires BRL — the seller config
                     // dictates this; we don't have a path to remap so propagate as-is
                     // and trust the upstream `currency` choice (the gateway will reject
@@ -758,7 +759,8 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                         .get_string_repr()
                         .to_string();
                     return Ok(Self::Pix(GetnetPixAuthorize {
-                        amount: item.request.money.amount(),
+                        amount: common_utils::types::ConnectorMinorUnitForConnector
+                            .convert(&item.request.money),
                         currency: item.request.currency,
                         order_id: request_ref_id,
                         customer_id,
@@ -891,7 +893,8 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
 
         let data = GetnetPaymentData {
             customer_id,
-            amount: item.request.money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.request.money),
             currency: item.request.currency,
             customer: None,
             payment,
@@ -1121,7 +1124,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
 pub struct GetnetCaptureRequest {
     pub idempotency_key: String,
     pub payment_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1150,7 +1153,8 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             })?;
 
-        let capture_amount_minor = router_data.request.capture_money.amount();
+        let capture_amount_minor = common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&router_data.request.capture_money);
 
         Ok(Self {
             idempotency_key: router_data
@@ -1169,7 +1173,7 @@ pub struct GetnetCaptureResponse {
     pub seller_id: Option<String>,
     pub payment_id: String,
     pub order_id: Option<String>,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Option<Currency>,
     pub status: GetnetPaymentStatus,
     pub reason_code: Option<String>,
@@ -1286,7 +1290,7 @@ impl TryFrom<ResponseRouterData<GetnetSyncResponse, Self>>
 pub struct GetnetRefundRequest {
     pub idempotency_key: String,
     pub payment_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub payment_method: String,
 }
 
@@ -1317,7 +1321,8 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 .connector_request_reference_id
                 .clone(),
             payment_id,
-            amount: router_data.request.refund_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.refund_money),
             payment_method: payment_method.to_string(),
         })
     }
@@ -1329,7 +1334,7 @@ pub struct GetnetRefundResponse {
     pub seller_id: Option<String>,
     pub payment_id: String,
     pub order_id: Option<String>,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub status: GetnetPaymentStatus,
     pub reason_code: Option<String>,
     pub reason_message: Option<String>,
@@ -1493,7 +1498,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 .connector_request_reference_id
                 .clone(),
             payment_id,
-            amount: void_amount.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector.convert(void_amount),
             payment_method: GetnetPaymentMethod::DirectCreditAuthorization.to_string(),
         })
     }
@@ -1558,7 +1563,7 @@ pub struct GetnetPreAuthenticateRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<Currency>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub term_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1759,7 +1764,9 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             operation,
             currency: item.request.currency,
-            amount: Some(item.request.money.amount()),
+            amount: Some(
+                common_utils::types::ConnectorMinorUnitForConnector.convert(&item.request.money),
+            ),
             term_url: item
                 .request
                 .router_return_url

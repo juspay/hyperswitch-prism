@@ -15,7 +15,7 @@ use common_utils::{
     consts,
     date_time::{self, DateFormat},
     pii::SecretSerdeValue,
-    types::{MinorUnit, SemanticVersion},
+    types::{ConnectorMinorUnit, SemanticVersion},
 };
 use domain_types::{
     connector_flow::{
@@ -583,7 +583,7 @@ fn mint_order_id(reference: &str) -> Result<String, error_stack::Report<Integrat
 /// every other zero-exponent currency (tech spec §5.4). This could not be exercised against the
 /// sandbox account, so it is implemented from the documentation and flagged here.
 pub fn format_amount(
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: common_enums::Currency,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
     let raw = amount.get_amount_as_i64();
@@ -731,9 +731,9 @@ pub struct GlobalpaymentsRealexPaymentsRequest {
 /// byte-identical to the `to_string()` that feeds the SHA-1 digest, so the wire form and the hash
 /// input cannot drift apart.
 ///
-/// `value` is deliberately a pre-rendered `String` rather than a [`MinorUnit`]. It is built by
+/// `value` is deliberately a pre-rendered `String` rather than a [`ConnectorMinorUnit`]. It is built by
 /// [`format_amount`], which is not a plain integer rendering: it applies the documented JPY x100
-/// rule and refuses zero/negative amounts. Letting serde render a `MinorUnit` here would silently
+/// rule and refuses zero/negative amounts. Letting serde render a `ConnectorMinorUnit` here would silently
 /// drop both — a JPY payment would go out at a hundredth of its intended value — and would also
 /// break the rule that every digest input is byte-identical to what ends up on the wire.
 #[derive(Debug, Serialize)]
@@ -861,7 +861,10 @@ where
                 .resource_common_data
                 .connector_request_reference_id,
         )?;
-        let amount = format_amount(request.money.amount(), request.currency)?;
+        let amount = format_amount(
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
+            request.currency,
+        )?;
         let currency = request.currency.to_string();
         let card_number = card.card_number.peek().to_string();
         let merchant_id = auth.merchant_id.clone().expose();
@@ -1470,7 +1473,10 @@ where
 
         // Always sent explicitly, so full and partial settles share one code path and one digest
         // blueprint (both verified live — see `build_reference_request_hash`).
-        let amount = format_amount(request.capture_money.amount(), request.currency)?;
+        let amount = format_amount(
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.capture_money),
+            request.currency,
+        )?;
 
         let timestamp = current_timestamp()?;
         let merchant_id = auth.merchant_id.clone().expose();
@@ -2152,7 +2158,10 @@ where
 
         // Minor units, integer, no decimal point. The gateway owns the 115% / 105% over-refund
         // ceiling; no client-side limit is applied so its refusal surfaces verbatim.
-        let amount = format_amount(request.refund_money.amount(), request.currency)?;
+        let amount = format_amount(
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.refund_money),
+            request.currency,
+        )?;
         let currency = request.currency.to_string();
 
         let timestamp = current_timestamp()?;
@@ -4209,7 +4218,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
             order: Gp3ds2Order {
                 date_time_created: format!("{request_timestamp}Z"),
-                amount: format_amount(request.money.amount(), currency)?,
+                amount: format_amount(
+                    common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
+                    currency,
+                )?,
                 currency: currency.to_string(),
                 id: mint_order_id(
                     &router_data
@@ -4617,8 +4629,22 @@ impl Gp3ds2ErrorResponse {
 #[allow(clippy::expect_used)]
 mod tests {
     use domain_types::payment_method_data::DefaultPCIHolder;
+    use domain_types::{payment_address::OrderDetailsWithAmount, utils::ForeignTryFrom};
 
     use super::*;
+
+    fn order_detail(amount: i64, currency: common_enums::Currency) -> OrderDetailsWithAmount {
+        OrderDetailsWithAmount::foreign_try_from((
+            grpc_api_types::payments::OrderDetailsWithAmount {
+                product_name: "amount formatting fixture".to_owned(),
+                quantity: 1,
+                amount,
+                ..Default::default()
+            },
+            currency,
+        ))
+        .expect("valid order fixture")
+    }
 
     fn card(network: CardNetwork, number: &str) -> Card<DefaultPCIHolder> {
         Card {
@@ -4935,7 +4961,14 @@ mod tests {
         for currency in [Currency::EUR, Currency::USD, Currency::GBP, Currency::JPY] {
             let element = GlobalpaymentsRealexAmount {
                 currency,
-                value: format_amount(MinorUnit::new(1001), currency).expect("amount"),
+                value: format_amount(
+                    common_utils::types::ConnectorMinorUnitForConnector.convert(
+                        &order_detail(1001, currency)
+                            .get_unit_money(&common_utils::types::Money::zero(currency)),
+                    ),
+                    currency,
+                )
+                .expect("amount"),
             };
             let xml = quick_xml::se::to_string_with_root("amount", &element).expect("serialise");
             assert_eq!(
@@ -4943,7 +4976,14 @@ mod tests {
                 format!(
                     "<amount currency=\"{}\">{}</amount>",
                     currency,
-                    format_amount(MinorUnit::new(1001), currency).expect("amount")
+                    format_amount(
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(
+                            &order_detail(1001, currency)
+                                .get_unit_money(&common_utils::types::Money::zero(currency))
+                        ),
+                        currency
+                    )
+                    .expect("amount")
                 ),
                 "serde and Display disagree for {currency}"
             );
@@ -4959,26 +4999,61 @@ mod tests {
         // the implemented behaviour so a change is deliberate; it is NOT live-verified evidence
         // that the gateway wants it.
         assert_eq!(
-            format_amount(MinorUnit::new(1000), Currency::JPY).expect("jpy"),
+            format_amount(
+                common_utils::types::ConnectorMinorUnitForConnector.convert(
+                    &order_detail(1000, Currency::JPY)
+                        .get_unit_money(&common_utils::types::Money::zero(Currency::JPY))
+                ),
+                Currency::JPY
+            )
+            .expect("jpy"),
             "100000"
         );
 
         // Every other currency, zero-exponent ones included, is passed through untouched.
         assert_eq!(
-            format_amount(MinorUnit::new(1001), Currency::EUR).expect("eur"),
+            format_amount(
+                common_utils::types::ConnectorMinorUnitForConnector.convert(
+                    &order_detail(1001, Currency::EUR)
+                        .get_unit_money(&common_utils::types::Money::zero(Currency::EUR))
+                ),
+                Currency::EUR
+            )
+            .expect("eur"),
             "1001"
         );
         assert_eq!(
-            format_amount(MinorUnit::new(1000), Currency::KRW).expect("krw"),
+            format_amount(
+                common_utils::types::ConnectorMinorUnitForConnector.convert(
+                    &order_detail(1000, Currency::KRW)
+                        .get_unit_money(&common_utils::types::Money::zero(Currency::KRW))
+                ),
+                Currency::KRW
+            )
+            .expect("krw"),
             "1000"
         );
 
         // The gateway answers `508 Zero, negative or insufficient amount specified`, so these are
         // refused before the request is built.
-        assert!(format_amount(MinorUnit::new(0), Currency::EUR).is_err());
-        assert!(format_amount(MinorUnit::new(-1), Currency::EUR).is_err());
+        assert!(format_amount(ConnectorMinorUnit::zero(), Currency::EUR).is_err());
+        assert!(format_amount(
+            common_utils::types::ConnectorMinorUnitForConnector.convert(
+                &order_detail(-1, Currency::EUR)
+                    .get_unit_money(&common_utils::types::Money::zero(Currency::EUR))
+            ),
+            Currency::EUR
+        )
+        .is_err());
         // The JPY multiply is checked, not wrapping.
-        assert!(format_amount(MinorUnit::new(i64::MAX), Currency::JPY).is_err());
+        assert!(format_amount(
+            common_utils::types::ConnectorMinorUnitForConnector.convert(
+                &order_detail(i64::MAX, Currency::JPY)
+                    .get_unit_money(&common_utils::types::Money::zero(Currency::JPY))
+            ),
+            Currency::JPY
+        )
+        .is_err());
     }
 
     #[test]

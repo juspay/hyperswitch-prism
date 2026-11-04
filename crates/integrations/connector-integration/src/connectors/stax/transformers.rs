@@ -3,7 +3,7 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     consts,
     pii::Email,
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+    types::{AmountConvertor, ConnectorMinorUnit, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{
@@ -219,11 +219,11 @@ impl StaxErrorResponse {
 ///
 /// # Amount Handling
 /// Note: Stax API requires amounts in dollars (major units) rather than cents.
-/// We convert from MinorUnit (cents) to FloatMajorUnit (dollars) at the API boundary.
-/// Example: MinorUnit(1000) -> FloatMajorUnit(10.00) dollars
+/// We convert domain Money to FloatMajorUnit (dollars) at the API boundary.
+/// Example: USD 1000 minor units -> FloatMajorUnit(10.00) dollars
 #[derive(Debug, Serialize)]
 pub struct StaxAuthorizeRequest {
-    /// Amount in dollars (major units). Converted from MinorUnit at boundary.
+    /// Amount in dollars (major units). Converted from Money at the boundary.
     pub total: FloatMajorUnit,
     pub payment_method_id: String,
     pub is_refundable: bool,
@@ -241,7 +241,7 @@ pub struct StaxAuthorizeRequest {
 #[derive(Debug, Serialize)]
 pub struct StaxMeta {
     /// Tax amount in minor units (cents)
-    pub tax: MinorUnit,
+    pub tax: ConnectorMinorUnit,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -304,7 +304,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             is_refundable: true,
             pre_auth: !is_auto_capture,
             meta: StaxMeta {
-                tax: MinorUnit::zero(),
+                tax: ConnectorMinorUnit::zero(),
             },
             idempotency_id: Some(
                 item.router_data
@@ -326,7 +326,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 ///
 /// # Amount Fields
 /// Note: Stax API returns amounts in dollars (f64 major units).
-/// The `total` field is in dollars and needs conversion back to MinorUnit
+/// The `total` field is in dollars and needs conversion back to Money
 /// when mapping to RouterDataV2.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StaxPaymentResponse {
@@ -478,10 +478,10 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
 ///
 /// # Amount Handling
 /// Note: Stax API expects amounts in dollars (major units).
-/// We convert from MinorUnit (cents) to FloatMajorUnit (dollars) at the API boundary.
+/// We convert domain Money to FloatMajorUnit (dollars) at the API boundary.
 #[derive(Debug, Serialize)]
 pub struct StaxCaptureRequest {
-    /// Capture amount in dollars (converted from MinorUnit).
+    /// Capture amount in dollars (converted from Money).
     pub total: FloatMajorUnit,
 }
 
@@ -590,10 +590,10 @@ fn get_capture_status(
 ///
 /// # Amount Handling
 /// Note: Stax API expects amounts in dollars (major units).
-/// We convert from MinorUnit (cents) to FloatMajorUnit (dollars) at the API boundary.
+/// We convert domain Money to FloatMajorUnit (dollars) at the API boundary.
 #[derive(Debug, Serialize)]
 pub struct StaxRefundRequest {
-    /// Refund amount in dollars (converted from MinorUnit).
+    /// Refund amount in dollars (converted from Money).
     pub total: FloatMajorUnit,
 }
 
@@ -1252,7 +1252,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             is_refundable: false,
             pre_auth: true,
             meta: StaxMeta {
-                tax: MinorUnit::zero(),
+                tax: ConnectorMinorUnit::zero(),
             },
             idempotency_id: Some(
                 item.router_data
@@ -1424,7 +1424,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             is_refundable: true,
             pre_auth: !is_auto_capture,
             meta: StaxMeta {
-                tax: MinorUnit::zero(),
+                tax: ConnectorMinorUnit::zero(),
             },
             idempotency_id: Some(
                 item.router_data

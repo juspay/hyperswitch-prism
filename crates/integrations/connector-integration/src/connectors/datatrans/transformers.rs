@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::types::ResponseRouterData;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::{AttemptStatus, Currency, PostCaptureVoidStatus, RefundStatus};
-use common_utils::{pii::Email, request::Method, types::Money, MinorUnit};
+use common_utils::{pii::Email, request::Method, types::Money, ConnectorMinorUnit};
 use domain_types::errors::{
     ConnectorError, IntegrationError, IntegrationErrorContext, ResponseTransformationErrorContext,
 };
@@ -427,7 +427,7 @@ pub struct DatatransMoney<Mcp> {
     pub currency: Currency,
     /// Omitted for zero-auth alias creation.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp: Option<Mcp>,
 }
@@ -437,7 +437,7 @@ pub struct DatatransMoney<Mcp> {
 #[serde(rename_all = "camelCase")]
 pub struct DatatransMcp {
     pub currency: Currency,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub conversion_rate: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -456,7 +456,7 @@ pub struct DatatransMcp {
 #[serde(rename_all = "camelCase")]
 pub struct DatatransMcpAmount {
     pub currency: Currency,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 /// Builds the flow-specific MCP payload after the common money mapping selects a quote.
@@ -474,7 +474,8 @@ impl DatatransMcpPayload for DatatransMcpAmount {
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
         Ok(Self {
             currency: hyperswitch_customer_money.currency(),
-            amount: hyperswitch_customer_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(hyperswitch_customer_money),
         })
     }
 }
@@ -491,7 +492,10 @@ impl<Mcp: DatatransMcpPayload> DatatransMoney<Mcp> {
             .filter(|quote| quote.currency_conversion_type == Some(CurrencyConversionType::Mcp))
         {
             None => Ok(Self {
-                amount: Some(hyperswitch_customer_money.amount()),
+                amount: Some(
+                    common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(hyperswitch_customer_money),
+                ),
                 currency: hyperswitch_customer_money.currency(),
                 mcp: None,
             }),
@@ -505,7 +509,9 @@ impl<Mcp: DatatransMcpPayload> DatatransMoney<Mcp> {
                     })
                 })?;
                 Ok(Self {
-                    amount: Some(settlement.amount()),
+                    amount: Some(
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(settlement),
+                    ),
                     currency: settlement.currency(),
                     mcp: Some(Mcp::from_quote(quote, hyperswitch_customer_money)?),
                 })
@@ -564,7 +570,8 @@ impl DatatransMcpPayload for DatatransMcp {
 
         Ok(Self {
             currency: hyperswitch_customer_money.currency(),
-            amount: hyperswitch_customer_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(hyperswitch_customer_money),
             conversion_rate,
             transaction_date,
             retrieval_reference_number: quote.exchange_rate_id.clone(),
@@ -1769,7 +1776,7 @@ fn sync_attempt_status(
 #[serde(rename_all = "camelCase")]
 pub struct DatatransHistoryEntry {
     pub action: String,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub success: bool,
     pub date: String,
 }
@@ -1834,7 +1841,7 @@ pub struct DatatransActionDetail {
     /// action does include it. `Option` accepts both shapes so PSync deserialization
     /// no longer fails on a card_check sync response.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub acquirer_authorization_code: Option<String>,
 }
@@ -2411,7 +2418,7 @@ impl TryFrom<ResponseRouterData<DatatransVoidPCResponse, Self>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatatransClientAuthRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub return_url: String,
 }
@@ -2444,7 +2451,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         Ok(Self {
-            amount: router_data.request.money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.money),
             currency: router_data.request.currency,
             return_url: router_data
                 .resource_common_data

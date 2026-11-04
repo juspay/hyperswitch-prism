@@ -8,7 +8,7 @@ use cards;
 use common_enums;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    types::{MinorUnit, StringMajorUnit},
+    types::{ConnectorMinorUnit, StringMajorUnit},
     CustomResult, Method,
 };
 use domain_types::{
@@ -142,7 +142,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
         // Hyperswitch treats `shipping_cost` as optional for the Authorize flow,
-        // defaulting to zero when absent (req.request.shipping_cost.as_ref().map(|money| money.amount).unwrap_or(MinorUnit::zero())).
+        // defaulting to zero when absent (req.request.shipping_cost.as_ref().map(|money| money.amount).unwrap_or(ConnectorMinorUnit::zero())).
         // Mirror that here instead of hard-failing with MissingRequiredField, otherwise UCS
         // returns gRPC InvalidArgument for card payments that carry no shipping_cost.
         let shipping_value = item
@@ -3021,8 +3021,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | common_enums::AttemptStatus::Unknown
             | common_enums::AttemptStatus::PartiallyAuthorized => Some(
                 utils::convert_back_amount_to_money(
-                    &common_utils::types::MinorUnitForConnector,
-                    MinorUnit::zero(),
+                    &common_utils::types::ConnectorMinorUnitForConnector,
+                    ConnectorMinorUnit::zero(),
                     item.router_data.request.currency,
                 )
                 .map_err(|_| {
@@ -4254,7 +4254,8 @@ impl TryFrom<ResponseRouterData<PaypalClientAuthTokenResponse, Self>>
                 transaction_info: Some(PaypalTransactionInfoDomain {
                     flow: PaypalFlowDomain::Checkout,
                     currency_code: item.router_data.request.currency,
-                    total_price: item.router_data.request.money.amount(),
+                    total_price: common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.money),
                 }),
             },
         ));

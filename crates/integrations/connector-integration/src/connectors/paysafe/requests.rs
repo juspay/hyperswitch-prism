@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::types::ConnectorMinorUnit;
 use domain_types::payment_method_data::{PaymentMethodDataTypes, RawCardNumber};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaymentsRequest {
     pub merchant_ref_num: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub settle_with_auth: bool,
     pub payment_handle_token: Secret<String>,
     pub currency_code: common_enums::Currency,
@@ -69,28 +69,28 @@ pub struct PaysafeCustomerRequest {
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeCaptureRequest {
     pub merchant_ref_num: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeVoidRequest {
     pub merchant_ref_num: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeRefundRequest {
     pub merchant_ref_num: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeSetupMandateRequest<T: PaymentMethodDataTypes> {
     pub merchant_ref_num: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     // Omitted for redirect wallets (e.g. Skrill) whose verified payment-handle body
     // does not include settleWithAuth.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -291,7 +291,7 @@ pub struct PaysafeApplePayDecryptedData {
     pub currency_code: String,
     // The optional fields below serialize as explicit nulls when absent,
     // mirroring hyperswitch's decryptedData wire shape.
-    pub transaction_amount: Option<MinorUnit>,
+    pub transaction_amount: Option<ConnectorMinorUnit>,
     pub cardholder_name: Option<Secret<String>>,
     pub device_manufacturer_identifier: Option<String>,
     pub payment_data_type: Option<String>,

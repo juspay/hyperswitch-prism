@@ -10,7 +10,7 @@ use common_utils::{
     errors::CustomResult,
     pii,
     request::Method,
-    types::{FloatMajorUnit, MinorUnit, StringMajorUnit},
+    types::{ConnectorMinorUnit, FloatMajorUnit, StringMajorUnit},
     Email,
 };
 use domain_types::{
@@ -2469,15 +2469,18 @@ pub(crate) fn get_apple_pay_session(
                 merchant_capabilities: Some(apple_pay_init_result.merchant_capabilities.clone()),
                 total: AmountInfo {
                     label: apple_pay_init_result.total.label.clone(),
-                    amount: TrustpayAmountConvertor::convert_back(
-                        apple_pay_init_result.total.amount.clone(),
-                        apple_pay_init_result.currency_code,
-                    )
-                    .change_context(IntegrationError::InvalidDataFormat {
-                        field_name: "amount",
-                        context: Default::default(),
-                    })?
-                    .amount(),
+                    amount: common_utils::types::ConnectorMinorUnitForConnector.convert(
+                        &TrustpayAmountConvertor::convert_back(
+                            apple_pay_init_result.total.amount.clone(),
+                            apple_pay_init_result.currency_code,
+                        )
+                        .change_context(
+                            IntegrationError::InvalidDataFormat {
+                                field_name: "amount",
+                                context: Default::default(),
+                            },
+                        )?,
+                    ),
                     total_type: None,
                 },
                 merchant_identifier: None,
@@ -2580,8 +2583,8 @@ impl From<GooglePayTransactionInfo> for domain_types::connector_types::GpayTrans
     fn from(value: GooglePayTransactionInfo) -> Self {
         let total_price =
             TrustpayAmountConvertor::convert_back(value.total_price, value.currency_code)
-                .map(|money| money.amount())
-                .unwrap_or_else(|_| MinorUnit::new(0));
+                .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money))
+                .unwrap_or_else(|_| ConnectorMinorUnit::zero());
 
         Self {
             country_code: value.country_code,

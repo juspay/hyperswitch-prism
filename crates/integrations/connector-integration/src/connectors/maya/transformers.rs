@@ -571,10 +571,7 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
         let integrity_object = match (payment.amount.clone(), payment.currency) {
             (Some(amount), Some(currency)) => {
                 let money = maya_response_amount_to_money(amount, currency, item.http_code)?;
-                Some(PaymentSynIntegrityObject {
-                    amount: money.amount(),
-                    currency: money.currency(),
-                })
+                Some(PaymentSynIntegrityObject { money })
             }
             _ => None,
         };
@@ -802,8 +799,7 @@ impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
             (Some(amount), Some(currency)) => {
                 let money = maya_response_amount_to_money(amount, currency, item.http_code)?;
                 Some(RefundIntegrityObject {
-                    refund_amount: money.amount(),
-                    currency: money.currency(),
+                    refund_money: money,
                 })
             }
             _ => None,

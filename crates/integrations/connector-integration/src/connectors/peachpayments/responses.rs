@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::types::ConnectorMinorUnit;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -162,7 +162,7 @@ pub struct PeachpaymentsCardResponseData {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsAmountDetails {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency_code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_amount: Option<String>,
