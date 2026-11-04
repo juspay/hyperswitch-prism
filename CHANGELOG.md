@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.04.1
+
+### Features
+
+- Add backward compatible billing state details ([#2583](https://github.com/juspay/connector-service/pull/2583)) ([`1bea53f`](https://github.com/juspay/connector-service/commit/1bea53fa893bbd3215a0e083066bb0b437dbdd69))
+
+### Bug Fixes
+
+- **connector:** Tamara array webhook data ([#2674](https://github.com/juspay/connector-service/pull/2674)) ([`4f7614d`](https://github.com/juspay/connector-service/commit/4f7614d7269f5aea16f1f2485a1666f1d85bb572))
+- **core/connector:** Rename enable_ani_check flag to enable_account_name_verification ([#2676](https://github.com/juspay/connector-service/pull/2676)) ([`89b2350`](https://github.com/juspay/connector-service/commit/89b23503ec3d9a4f8a5e7c8019fe35449fe32e63))
+
+**Full Changelog:** [`2026.11.04.0...2026.11.04.1`](https://github.com/juspay/connector-service/compare/2026.11.04.0...2026.11.04.1)
+
+- - -
+
 ## 2026.11.04.0
 
 ### Features
