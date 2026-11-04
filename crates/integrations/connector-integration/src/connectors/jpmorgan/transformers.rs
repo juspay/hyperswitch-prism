@@ -22,8 +22,9 @@ use domain_types::{
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_address::OrderDetailsWithAmount,
     payment_method_data::{
-        ApplePayDecryptedData, ApplePayPaymentData, BankDebitData, GooglePayDecryptedData,
-        PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+        AdditionalPaymentData, ApplePayDecryptedData, ApplePayPaymentData, BankDebitData,
+        GooglePayDecryptedData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -2976,12 +2977,16 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
             )),
             PaymentMethodData::NetworkToken(token) => Ok((
                 requests::JpmorganMitAccountNumber::Card(RawCardNumber(T::inner_from_card_number(
-                    token.token_number.get_card_no().parse::<cards::CardNumber>().map_err(|_| {
+                    token.token_number.get_card_no().parse::<cards::CardNumber>().change_context(
                         IntegrationError::InvalidDataFormat {
                             field_name: "network_token.token_number",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                suggested_action: Some("Provide a valid network token number.".to_owned()),
+                                additional_context: Some("Failed to parse network_token.token_number for a JPMorgan MIT payment.".to_owned()),
+                                doc_url: None,
+                            },
                         }
-                    })?,
+                    )?,
                 ))),
                 build_jpmorgan_expiry(
                     token.get_network_token_expiry_month().peek(),
@@ -3002,12 +3007,16 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                 }?;
                 Ok((
                     requests::JpmorganMitAccountNumber::Card(RawCardNumber(T::inner_from_card_number(
-                        token.decrypted_token.get_card_no().parse::<cards::CardNumber>().map_err(|_| {
+                        token.decrypted_token.get_card_no().parse::<cards::CardNumber>().change_context(
                             IntegrationError::InvalidDataFormat {
                                 field_name: "decrypted_wallet_token.decrypted_token",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    suggested_action: Some("Provide a valid decrypted Apple Pay or Google Pay token number.".to_owned()),
+                                    additional_context: Some("Failed to parse decrypted_wallet_token.decrypted_token for a JPMorgan MIT payment.".to_owned()),
+                                    doc_url: None,
+                                },
                             }
-                        })?,
+                        )?,
                     ))),
                     requests::Expiry {
                         month: Secret::new(i32::from(*token.get_expiry_month_as_i8()?.peek())),
@@ -3016,7 +3025,11 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                                 .peek()
                                 .parse::<i32>()
                                 .change_context(IntegrationError::RequestEncodingFailed {
-                                    context: Default::default(),
+                                    context: IntegrationErrorContext {
+                                        suggested_action: Some("Provide a numeric expiry year in decrypted_wallet_token.token_exp_year.".to_owned()),
+                                        additional_context: Some("Failed to parse the decrypted wallet token expiry year for a JPMorgan MIT payment.".to_owned()),
+                                        doc_url: None,
+                                    },
                                 })?,
                         ),
                     },
@@ -3027,22 +3040,27 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
             PaymentMethodData::MandatePayment => {
                 let reference = match &request.mandate_reference {
                     MandateReferenceId::ConnectorMandateId(reference) => Ok(reference),
-                    _ => Err(IntegrationError::InvalidDataFormat {
-                        field_name: "mandate_reference",
-                        context: Default::default(),
-                    }),
+                    _ => Err(IntegrationError::NotImplemented(
+                        "JPMorgan mandate payments with a network mandate reference".to_owned(),
+                        IntegrationErrorContext {
+                            suggested_action: Some("Use a connector mandate reference containing the Safetech token for MandatePayment, or supply card/network-token data for a network mandate reference.".to_owned()),
+                            additional_context: Some("MandatePayment requires ConnectorMandateId; NetworkMandateId and NetworkTokenWithNTI are not supported with this payment method.".to_owned()),
+                            doc_url: None,
+                        },
+                    )),
                 }?;
                 let token = reference.get_connector_mandate_id().ok_or_else(missing_field_err(
                     "mandate_reference.connector_mandate_id",
                 ))?;
-                let details = reference.get_additional_mandate_details().ok_or_else(missing_field_err(
-                    "mandate_reference.additional_mandate_details",
-                ))?;
+                let details = match request.additional_payment_data.as_ref() {
+                    Some(AdditionalPaymentData::Card(card)) => card,
+                    _ => return Err(missing_field_err("additional_payment_data.card")()),
+                };
                 let month = details.card_exp_month.as_ref().ok_or_else(missing_field_err(
-                    "mandate_reference.additional_mandate_details.card_exp_month",
+                    "additional_payment_data.card.card_exp_month",
                 ))?;
                 let year = details.card_exp_year.as_ref().ok_or_else(missing_field_err(
-                    "mandate_reference.additional_mandate_details.card_exp_year",
+                    "additional_payment_data.card.card_exp_year",
                 ))?;
                 Ok((
                     requests::JpmorganMitAccountNumber::SafetechToken(Secret::new(token)),

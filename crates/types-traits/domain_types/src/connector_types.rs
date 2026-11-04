@@ -613,8 +613,6 @@ pub struct UpdateHistory {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct AdditionalMandateDetails {
-    pub card_exp_month: Option<Secret<String>>,
-    pub card_exp_year: Option<Secret<String>>,
     pub network_transaction_id: Option<String>,
     pub transaction_link_id: Option<String>,
 }

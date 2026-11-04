@@ -129,7 +129,6 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   BillingDescriptor: ["name", "city", "phone"],
   MandateReferenceDetails: ["mandateMetadata"],
   ConnectorMandateReferenceId: ["mandateMetadata"],
-  AdditionalMandateDetails: ["cardExpMonth", "cardExpYear"],
   NetworkTokenWithNTI: ["tokenExpMonth", "tokenExpYear"],
   TaxInfo: ["customerTaxRegistrationId", "merchantTaxRegistrationId", "merchantVatRegistrationId"],
   WorldpayxmlDdcData: ["jwt"],
