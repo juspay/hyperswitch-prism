@@ -1606,13 +1606,20 @@ impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<FiservcommercehubPSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let psync_item = item.response.0.into_iter().next().ok_or_else(|| {
-            error_stack::report!(
-                crate::utils::response_deserialization_fail(
-                    item.http_code
-                , "fiservcommercehub: response body did not match the expected format; confirm API version and connector documentation.")
-            )
-        })?;
+        let Some(psync_item) = item.response.0.into_iter().next() else {
+            return Ok(Self {
+                response: Err(ErrorResponse {
+                    code: "TRANSACTION_NOT_FOUND".to_string(),
+                    message: "No matching transaction found".to_string(),
+                    reason: Some(
+                        "Transaction not found in transaction inquiry results".to_string(),
+                    ),
+                    status_code: item.http_code,
+                    ..Default::default()
+                }),
+                ..item.router_data
+            });
+        };
         let status = AttemptStatus::from(&psync_item.gateway_response.transaction_state);
         let connector_response = build_connector_response(None, psync_item.approval_code());
         let connector_transaction_id = psync_item
