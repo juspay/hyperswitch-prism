@@ -1,5 +1,8 @@
 pub mod transformers;
 
+#[cfg(test)]
+mod test;
+
 use base64::Engine;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMajorUnit};
 use domain_types::{
