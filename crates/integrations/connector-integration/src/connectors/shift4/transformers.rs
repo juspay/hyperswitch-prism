@@ -3860,6 +3860,7 @@ pub struct Shift4WebhookBody<D> {
 #[derive(Debug, Deserialize)]
 pub struct Shift4WebhookRefundRef {
     pub id: Option<String>,
+    pub status: Option<Shift4RefundStatus>,
 }
 
 /// `data.charge` is documented as the parent charge; whether a real event
@@ -3894,6 +3895,24 @@ pub struct Shift4WebhookChargeData {
 }
 
 impl Shift4WebhookChargeData {
+    /// Status of the refund a `CHARGE_REFUNDED` event is about (the last entry
+    /// of `refunds`). The event itself means refunded, so only a status the
+    /// payload actually carries can override that.
+    fn latest_refund_status(&self) -> RefundStatus {
+        match self
+            .refunds
+            .as_ref()
+            .and_then(|refunds| refunds.last())
+            .and_then(|refund| refund.status.as_ref())
+        {
+            Some(Shift4RefundStatus::Failed) => RefundStatus::Failure,
+            Some(Shift4RefundStatus::Processing) => RefundStatus::Pending,
+            Some(Shift4RefundStatus::Successful | Shift4RefundStatus::Unknown) | None => {
+                RefundStatus::Success
+            }
+        }
+    }
+
     /// A `CHARGE_REFUNDED` on a charge that was never captured is Shift4's
     /// release of an authorization (there is no void endpoint or void event;
     /// see "Void / Cancel" in the spec), not money going back to the payer.
@@ -4047,10 +4066,15 @@ pub(crate) fn get_webhook_event_type(
         }
         Shift4WebhookEvent::ChargeFailed => EventType::PaymentIntentFailure,
         Shift4WebhookEvent::ChargeRefunded => {
-            if charge()?.is_released_authorization() {
+            let charge = charge()?;
+            if charge.is_released_authorization() {
                 EventType::PaymentIntentCancelled
             } else {
-                EventType::RefundSuccess
+                match charge.latest_refund_status() {
+                    RefundStatus::Failure => EventType::RefundFailure,
+                    RefundStatus::Pending => EventType::RefundProcessing,
+                    _ => EventType::RefundSuccess,
+                }
             }
         }
         Shift4WebhookEvent::RefundUpdated => {
@@ -4270,6 +4294,7 @@ pub(crate) fn build_webhook_refund_response(
             if charge.is_released_authorization() {
                 return Err(report!(WebhookError::WebhookProcessingFailed));
             }
+            let status = charge.latest_refund_status();
             // Same reasoning as `get_webhook_reference`: the refund this event
             // is about is the most recently added one, not `refunds[0]`.
             let refund_id = charge
@@ -4281,7 +4306,7 @@ pub(crate) fn build_webhook_refund_response(
                         field: "data.refunds[-1].id"
                     })
                 })?;
-            (refund_id, RefundStatus::Success)
+            (refund_id, status)
         }
         Shift4WebhookEvent::RefundUpdated => {
             let refund = parse_webhook_body::<Shift4WebhookRefundData>(
@@ -4422,4 +4447,44 @@ pub(crate) fn build_webhook_dispute_response(
         connector_reason_code: reason.map(str::to_string),
         additional_details: None,
     })
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod webhook_refund_status_tests {
+    use super::*;
+
+    fn charge_refunded(refunds: &str) -> Vec<u8> {
+        format!(
+            r#"{{"type":"CHARGE_REFUNDED","data":{{"id":"char_1","captured":true,"refunded":true,"refunds":[{refunds}]}}}}"#
+        )
+        .into_bytes()
+    }
+
+    #[test]
+    fn charge_refunded_reports_status_of_the_latest_refund() {
+        let cases = [
+            (
+                r#"{"id":"re_1"}"#,
+                RefundStatus::Success,
+                EventType::RefundSuccess,
+            ),
+            (
+                r#"{"id":"re_1","status":"successful"},{"id":"re_2","status":"pending"}"#,
+                RefundStatus::Pending,
+                EventType::RefundProcessing,
+            ),
+            (
+                r#"{"id":"re_1","status":"pending"},{"id":"re_2","status":"failed"}"#,
+                RefundStatus::Failure,
+                EventType::RefundFailure,
+            ),
+        ];
+        for (refunds, status, event) in cases {
+            let body = charge_refunded(refunds);
+            let response = build_webhook_refund_response(&body).unwrap();
+            assert_eq!(response.status, status, "{refunds}");
+            assert_eq!(get_webhook_event_type(&body).unwrap(), event, "{refunds}");
+        }
+    }
 }
