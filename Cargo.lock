@@ -4500,7 +4500,6 @@ dependencies = [
  "bytes",
  "domain_types",
  "error-stack 0.4.1",
- "grpc-api-types",
  "http 1.4.0",
  "hyperswitch_masking",
  "mime",

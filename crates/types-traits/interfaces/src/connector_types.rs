@@ -308,8 +308,10 @@ pub trait ValidationTrait: ConnectorCommon {
         _payment_method: PaymentMethod,
         _redirect_state: RedirectState,
         _completed_step: Option<AuthenticationStep>,
-        _payment_method_data: Option<&grpc_api_types::payments::PaymentMethod>,
-        _authentication_data: Option<&grpc_api_types::payments::AuthenticationData>,
+        _payment_method_data: Option<
+            &PaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>,
+        >,
+        _authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> AuthenticationStep {
         AuthenticationStep::Authorize
     }

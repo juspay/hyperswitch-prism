@@ -150,15 +150,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         payment_method: common_enums::PaymentMethod,
         redirect_state: connector_types::RedirectState,
         completed_step: Option<connector_types::AuthenticationStep>,
-        payment_method_data: Option<&grpc_api_types::payments::PaymentMethod>,
-        authentication_data: Option<&grpc_api_types::payments::AuthenticationData>,
+        payment_method_data: Option<
+            &domain_types::payment_method_data::PaymentMethodData<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >,
+        >,
+        authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> connector_types::AuthenticationStep {
         use connector_types::{AuthenticationStep, RedirectState};
 
         if auth_type == common_enums::AuthenticationType::ThreeDs
             && !authentication_data.is_some_and(|data| data.has_external_authentication())
             && (payment_method == common_enums::PaymentMethod::Card
-                || transformers::nuvei_wallet_requires_authentication(payment_method_data))
+                || matches!(
+                    payment_method_data,
+                    Some(domain_types::payment_method_data::PaymentMethodData::Wallet(wallet))
+                        if matches!(wallet, domain_types::payment_method_data::WalletData::GooglePay(_) | domain_types::payment_method_data::WalletData::ApplePay(_))
+                            && !wallet.is_authenticated()
+                ))
         {
             match (redirect_state, completed_step) {
                 (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,

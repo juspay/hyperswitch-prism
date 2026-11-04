@@ -3232,6 +3232,10 @@ message PaymentServiceCaptureRequest {
   // Currency conversion quote and decision data passed through the
   // capture flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 19;
+
+  // Industry-specific capture data, such as airline reservation, passenger, and
+  // flight details. Populated by the caller (for example, Euler Txns from booking
+  // data) and forwarded by the composite capture flow to the connector.
   optional DomainData domain_data = 20;
 }
 

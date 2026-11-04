@@ -193,7 +193,7 @@ pub struct NuveiPaymentRequest<
     pub time_stamp: common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss>,
     pub checksum: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub addendums: Option<pii::SecretSerdeValue>,
+    pub addendums: Option<Secret<NuveiAddendums>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -243,40 +243,6 @@ struct NuveiWalletExternalToken {
     eci_provider: Option<String>,
 }
 
-/// Only SDK wallets without authentication evidence need Nuvei-managed 3DS.
-pub(super) fn nuvei_wallet_requires_authentication(
-    payment_method: Option<&grpc_api_types::payments::PaymentMethod>,
-) -> bool {
-    use grpc_api_types::payments::{
-        apple_wallet::payment_data::PaymentData,
-        google_wallet::tokenization_data::TokenizationData, payment_method::PaymentMethod,
-    };
-
-    match payment_method.and_then(|method| method.payment_method.as_ref()) {
-        Some(PaymentMethod::GooglePaySdk(data)) => {
-            let has_cryptogram = matches!(
-                data.tokenization_data.as_ref().and_then(|data| data.tokenization_data.as_ref()),
-                Some(TokenizationData::DecryptedData(token))
-                    if token.cryptogram.as_ref().is_some_and(|value| !value.peek().is_empty())
-            );
-            let card_holder_authenticated = data
-                .info
-                .as_ref()
-                .and_then(|info| info.assurance_details.as_ref())
-                .is_some_and(|details| details.card_holder_authenticated);
-            !(has_cryptogram && card_holder_authenticated)
-        }
-        Some(PaymentMethod::ApplePaySdk(data)) => !matches!(
-            data.payment_data.as_ref().and_then(|data| data.payment_data.as_ref()),
-            Some(PaymentData::DecryptedData(token))
-                if token.payment_data.as_ref()
-                    .and_then(|data| data.online_payment_cryptogram.as_ref())
-                    .is_some_and(|value| !value.peek().is_empty())
-        ),
-        _ => false,
-    }
-}
-
 fn build_nuvei_wallet_card(
     wallet: &WalletData,
 ) -> Result<NuveiWalletCard, Report<IntegrationError>> {
@@ -318,7 +284,7 @@ fn build_nuvei_wallet_card(
             (
                 token.application_primary_account_number.clone(),
                 token.application_expiration_month.clone(),
-                token.application_expiration_year.clone(),
+                token.get_four_digit_expiry_year(),
                 Some(token.payment_data.online_payment_cryptogram.clone()),
                 token.payment_data.eci_indicator.clone(),
                 "ApplePay",
@@ -564,30 +530,15 @@ pub struct NuveiExternalMpi {
 fn build_nuvei_external_mpi(
     data: &AuthenticationData,
 ) -> Result<NuveiExternalMpi, Report<IntegrationError>> {
-    let eci = data
-        .eci
-        .clone()
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| nuvei_missing_field("authentication_data.eci", "Send external MPI ECI"))?;
     let cavv = data
         .cavv
         .clone()
         .filter(|value| !value.peek().is_empty())
         .ok_or_else(|| nuvei_missing_field("authentication_data.cavv", "Send external MPI CAVV"))?;
-    let ds_trans_id = data
-        .ds_trans_id
-        .clone()
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| {
-            nuvei_missing_field(
-                "authentication_data.ds_trans_id",
-                "Send external MPI directory-server transaction ID",
-            )
-        })?;
     Ok(NuveiExternalMpi {
-        eci: Some(eci),
+        eci: data.eci.clone(),
         cavv,
-        ds_trans_id: Some(ds_trans_id),
+        ds_trans_id: data.ds_trans_id.clone(),
     })
 }
 
@@ -1544,80 +1495,211 @@ pub(super) fn resolve_session_token(
         })
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct NuveiAddendums {
+    airlines: NuveiAirlines,
+}
+
+impl hyperswitch_masking::SerializableSecret for NuveiAddendums {}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NuveiAirlines {
+    reservation_details: NuveiReservationDetails,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NuveiReservationDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pnr_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    booking_system_unique_id: Option<String>,
+    computerized_reservation_system: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ticket_number: Option<String>,
+    document_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    issue_date: Option<String>,
+    #[serde(rename = "flightDateUTC", skip_serializing_if = "Option::is_none")]
+    flight_date_utc: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    issuing_carrier_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    passengers_count: Option<String>,
+    passenger_details: Vec<NuveiPassengerDetails>,
+    flight_leg_details: Vec<NuveiFlightLegDetails>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NuveiPassengerDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    passenger_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    date_of_birth: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NuveiFlightLegDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    airline_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    flight_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    departure_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    arrival_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    departure_country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    departure_city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    departure_airport: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    destination_country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    destination_city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    destination_airport: Option<String>,
+    stop_over_code: String,
+}
+
 // Airline data is supplied explicitly through domain_data on each request.
 fn get_nuvei_airline_addendums(
     domain: Option<&domain_types::connector_types::DomainData>,
-) -> Result<Option<pii::SecretSerdeValue>, Report<IntegrationError>> {
+) -> Result<Option<Secret<NuveiAddendums>>, Report<IntegrationError>> {
     let Some(data) = domain.and_then(|domain| domain.airline_data.as_ref()) else {
         return Ok(None);
     };
-    let reservation_system = "IBS";
-    let passengers: Vec<_> = data.passengers.iter().map(|passenger| {
-        let customer = passenger.customer.as_ref();
-        serde_json::json!({
-            "title": customer.and_then(|customer| customer.salutation.clone()),
-            "firstName": customer.and_then(|customer| customer.first_name.as_ref()).map(|name| name.peek()),
-            "lastName": customer.and_then(|customer| customer.last_name.as_ref()).map(|name| name.peek()),
-            "passengerName": customer.and_then(|customer| customer.get_full_name()).map(|name| name.expose()),
-            "dateOfBirth": passenger.date_of_birth.as_ref().map(|date| format!("{date} 00:00:00")),
-        })
-    }).collect();
-    let legs: Vec<_> = data.flight_segments.iter().enumerate().map(|(index, segment)| {
-        let departure = segment.departure.as_ref();
-        let arrival = segment.arrival.as_ref();
-        serde_json::json!({
-            "airlineCode": segment.marketing_carrier_code.as_ref().or(data.airline_code.as_ref()),
-            "flightNumber": segment.flight_number.as_deref().map(|number| {
-                let carrier = segment.marketing_carrier_code.as_ref().or(data.airline_code.as_ref());
-                match carrier {
-                    Some(carrier) if !number.starts_with(carrier.as_str()) => format!("{carrier} {number}"),
-                    _ => number.to_owned(),
-                }
-            }),
-            "departureDate": departure.and_then(|location| location.date_time.as_deref()).map(nuvei_airline_date),
-            "arrivalDate": arrival.and_then(|location| location.date_time.as_deref()).map(nuvei_airline_date),
-            "departureCountry": departure.and_then(|location| location.country_code.as_ref()),
-            "departureCity": departure.and_then(|location| location.city_name.as_ref()),
-            "departureAirport": departure.and_then(|location| location.airport_code.as_ref()),
-            "destinationCountry": arrival.and_then(|location| location.country_code.as_ref()),
-            "destinationCity": arrival.and_then(|location| location.city_name.as_ref()),
-            "destinationAirport": arrival.and_then(|location| location.airport_code.as_ref()),
-            "stopOverCode": segment.stopover_code.as_deref().unwrap_or_else(|| {
-                if data.flight_segments.iter().skip(index + 1).any(|next| next.journey_no == segment.journey_no) {
-                    "X"
-                } else {
-                    "O"
-                }
-            }),
-        })
-    }).collect();
-    let mut value = serde_json::json!({"airlines": {"reservationDetails": {
-        "pnrCode": data.pnr_code.as_ref().or(data.booking_reference.as_ref()),
-        "bookingSystemUniqueId": data.booking_system_unique_id.as_ref().or(data.pnr_code.as_ref()),
-        "computerizedReservationSystem": reservation_system,
-        "ticketNumber": data.ticket_number,
-        "documentType": data.document_type.as_deref().unwrap_or("TKT"),
-        "issueDate": data.ticket_issue_date.as_deref().map(nuvei_airline_date),
-        "flightDateUTC": data.flight_date.as_deref().map(|value| time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339).ok().map(|date| date.to_offset(time::UtcOffset::UTC)).and_then(|date| date.format(time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]")).ok()).unwrap_or_else(|| nuvei_airline_date(value))),
-        "issuingCarrierCode": data.issuing_carrier_code.as_ref().or(data.airline_code.as_ref()),
-        "passengersCount": data.number_of_passengers.map(|count| count.to_string()),
-        "passengerDetails": passengers,
-        "flightLegDetails": legs,
-    }}});
-    fn remove_nulls(value: &mut serde_json::Value) {
-        match value {
-            serde_json::Value::Object(fields) => {
-                fields.retain(|_, value| !value.is_null());
-                for value in fields.values_mut() {
-                    remove_nulls(value);
-                }
+    let passengers = data
+        .passengers
+        .iter()
+        .map(|passenger| {
+            let customer = passenger.customer.as_ref();
+            NuveiPassengerDetails {
+                title: customer.and_then(|customer| customer.salutation.clone()),
+                first_name: customer
+                    .and_then(|customer| customer.first_name.as_ref())
+                    .map(|name| name.peek().clone()),
+                last_name: customer
+                    .and_then(|customer| customer.last_name.as_ref())
+                    .map(|name| name.peek().clone()),
+                passenger_name: customer
+                    .and_then(|customer| customer.get_full_name())
+                    .map(|name| name.expose()),
+                date_of_birth: passenger
+                    .date_of_birth
+                    .as_ref()
+                    .map(|date| format!("{date} 00:00:00")),
             }
-            serde_json::Value::Array(values) => values.iter_mut().for_each(remove_nulls),
-            _ => {}
-        }
-    }
-    remove_nulls(&mut value);
-    Ok(Some(pii::SecretSerdeValue::new(value)))
+        })
+        .collect();
+    let legs = data
+        .flight_segments
+        .iter()
+        .enumerate()
+        .map(|(index, segment)| {
+            let departure = segment.departure.as_ref();
+            let arrival = segment.arrival.as_ref();
+            NuveiFlightLegDetails {
+                airline_code: segment
+                    .marketing_carrier_code
+                    .as_ref()
+                    .or(data.airline_code.as_ref())
+                    .cloned(),
+                flight_number: segment.flight_number.as_deref().map(|number| {
+                    let carrier = segment
+                        .marketing_carrier_code
+                        .as_ref()
+                        .or(data.airline_code.as_ref());
+                    match carrier {
+                        Some(carrier) if !number.starts_with(carrier.as_str()) => {
+                            format!("{carrier} {number}")
+                        }
+                        _ => number.to_owned(),
+                    }
+                }),
+                departure_date: departure
+                    .and_then(|location| location.date_time.as_deref())
+                    .map(nuvei_airline_date),
+                arrival_date: arrival
+                    .and_then(|location| location.date_time.as_deref())
+                    .map(nuvei_airline_date),
+                departure_country: departure.and_then(|location| location.country_code.clone()),
+                departure_city: departure.and_then(|location| location.city_name.clone()),
+                departure_airport: departure.and_then(|location| location.airport_code.clone()),
+                destination_country: arrival.and_then(|location| location.country_code.clone()),
+                destination_city: arrival.and_then(|location| location.city_name.clone()),
+                destination_airport: arrival.and_then(|location| location.airport_code.clone()),
+                stop_over_code: segment.stopover_code.clone().unwrap_or_else(|| {
+                    if segment.journey_no.is_some_and(|journey_no| {
+                        data.flight_segments
+                            .iter()
+                            .skip(index + 1)
+                            .any(|next| next.journey_no == Some(journey_no))
+                    }) {
+                        "X".to_owned()
+                    } else {
+                        "O".to_owned()
+                    }
+                }),
+            }
+        })
+        .collect();
+    Ok(Some(Secret::new(NuveiAddendums {
+        airlines: NuveiAirlines {
+            reservation_details: NuveiReservationDetails {
+                pnr_code: data
+                    .pnr_code
+                    .as_ref()
+                    .or(data.booking_reference.as_ref())
+                    .cloned(),
+                booking_system_unique_id: data
+                    .booking_system_unique_id
+                    .as_ref()
+                    .or(data.pnr_code.as_ref())
+                    .cloned(),
+                computerized_reservation_system: "IBS",
+                ticket_number: data.ticket_number.clone(),
+                document_type: data
+                    .document_type
+                    .clone()
+                    .unwrap_or_else(|| "TKT".to_owned()),
+                issue_date: data.ticket_issue_date.as_deref().map(nuvei_airline_date),
+                flight_date_utc: data.flight_date.as_deref().map(|value| {
+                    time::OffsetDateTime::parse(
+                        value,
+                        &time::format_description::well_known::Rfc3339,
+                    )
+                    .ok()
+                    .map(|date| date.to_offset(time::UtcOffset::UTC))
+                    .and_then(|date| {
+                        date.format(time::macros::format_description!(
+                            "[year]-[month]-[day] [hour]:[minute]:[second]"
+                        ))
+                        .ok()
+                    })
+                    .unwrap_or_else(|| nuvei_airline_date(value))
+                }),
+                issuing_carrier_code: data
+                    .issuing_carrier_code
+                    .as_ref()
+                    .or(data.airline_code.as_ref())
+                    .cloned(),
+                passengers_count: data.number_of_passengers.map(|count| count.to_string()),
+                passenger_details: passengers,
+                flight_leg_details: legs,
+            },
+        },
+    })))
 }
 
 fn nuvei_airline_date(value: &str) -> String {
@@ -1634,7 +1716,7 @@ fn nuvei_airline_date(value: &str) -> String {
 
 fn get_nuvei_capture_addendums(
     data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-) -> Result<Option<pii::SecretSerdeValue>, Report<IntegrationError>> {
+) -> Result<Option<Secret<NuveiAddendums>>, Report<IntegrationError>> {
     merge_nuvei_capture_ticket(
         get_nuvei_airline_addendums(data.request.domain_data.as_ref())?,
         data.request.metadata.as_ref(),
@@ -1642,58 +1724,47 @@ fn get_nuvei_capture_addendums(
 }
 
 fn merge_nuvei_capture_ticket(
-    addendums: Option<pii::SecretSerdeValue>,
+    addendums: Option<Secret<NuveiAddendums>>,
     metadata: Option<&pii::SecretSerdeValue>,
-) -> Result<Option<pii::SecretSerdeValue>, Report<IntegrationError>> {
+) -> Result<Option<Secret<NuveiAddendums>>, Report<IntegrationError>> {
     let Some(addendums) = addendums else {
         return Ok(None);
     };
-    let mut value = addendums.expose();
-    // Capture metadata may arrive as JSON or a JSON-encoded string.
-    let decoded = metadata
-        .map(|metadata| {
-            if let Some(encoded) = metadata.peek().as_str() {
-                serde_json::from_str::<serde_json::Value>(encoded).change_context(
-                    IntegrationError::RequestEncodingFailed {
-                        context: Default::default(),
-                    },
-                )
-            } else {
-                Ok(metadata.peek().clone())
-            }
-        })
-        .transpose()?;
-    let reservation_details = value
-        .pointer_mut("/airlines/reservationDetails")
-        .and_then(serde_json::Value::as_object_mut)
-        .ok_or_else(|| IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        })?;
+    let mut addendums = addendums.expose();
+    // The optional ticket override may be an object or a JSON-encoded string.
+    // Ignore unparseable metadata and keep the ticket supplied in airline data.
+    let decoded = metadata.and_then(|metadata| {
+        if let Some(encoded) = metadata.peek().as_str() {
+            serde_json::from_str::<serde_json::Value>(encoded).ok()
+        } else {
+            Some(metadata.peek().clone())
+        }
+    });
+    let reservation_details = &mut addendums.airlines.reservation_details;
     if let Some(ticket) = decoded
         .as_ref()
         .and_then(|metadata| metadata.get("reference_id"))
         .and_then(|ticket| ticket.as_str())
         .filter(|ticket| !ticket.trim().is_empty())
     {
-        reservation_details.insert(
-            "ticketNumber".to_owned(),
-            serde_json::Value::String(ticket.to_owned()),
-        );
+        reservation_details.ticket_number = Some(ticket.to_owned());
     }
-    // The ticket is issued at capture, independently of booking/auth time.
-    reservation_details.insert(
-        "issueDate".to_owned(),
-        serde_json::Value::String(
+    // Preserve the supplied issue date; use capture time only when it is absent.
+    if reservation_details.issue_date.is_none() {
+        reservation_details.issue_date = Some(
             common_utils::date_time::now()
                 .format(time::macros::format_description!(
                     "[year]-[month]-[day] [hour]:[minute]:[second]"
                 ))
                 .change_context(IntegrationError::RequestEncodingFailed {
-                    context: Default::default(),
+                    context: nuvei_error_context(
+                        "Check the server clock and retry the capture; issueDate is generated from the capture time",
+                        "Nuvei could not format the capture timestamp as YYYY-MM-DD HH:mm:ss for addendums.airlines.reservationDetails.issueDate",
+                    ),
                 })?,
-        ),
-    );
-    Ok(Some(pii::SecretSerdeValue::new(value)))
+        );
+    }
+    Ok(Some(Secret::new(addendums)))
 }
 
 fn require_nuvei_three_ds_support(
@@ -2054,6 +2125,13 @@ pub(super) fn build_nuvei_transaction_response(
     ip_address: Option<String>,
     http_code: u16,
 ) -> Result<PaymentsResponseData, Report<ConnectorError>> {
+    let is_apm_redirect = matches!(
+        payment_method,
+        common_enums::PaymentMethod::Wallet | common_enums::PaymentMethod::BankRedirect
+    ) && matches!(
+        response.transaction_status,
+        Some(NuveiTransactionStatus::Redirect)
+    );
     let resource_id = if matches!(
         response.transaction_type,
         Some(NuveiTransactionType::Auth3D) | Some(NuveiTransactionType::InitAuth3D)
@@ -2063,11 +2141,26 @@ pub(super) fn build_nuvei_transaction_response(
         response
             .transaction_id
             .clone()
+            .or_else(|| {
+                // APM redirects may return only orderId until the payment completes.
+                if is_apm_redirect {
+                    response.order_id.clone()
+                } else {
+                    None
+                }
+            })
             .map(ResponseId::ConnectorTransactionId)
             .ok_or_else(|| {
                 Report::new(ConnectorError::response_handling_failed_with_context(
                     http_code,
-                    Some("missing final transactionId in Nuvei payment response".to_string()),
+                    Some(
+                        if is_apm_redirect {
+                            "missing transactionId and orderId in Nuvei APM redirect response"
+                        } else {
+                            "missing final transactionId in Nuvei payment response"
+                        }
+                        .to_string(),
+                    ),
                 ))
             })?
     };
@@ -2434,7 +2527,7 @@ pub struct NuveiCaptureRequest {
     pub time_stamp: common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss>,
     pub checksum: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub addendums: Option<pii::SecretSerdeValue>,
+    pub addendums: Option<Secret<NuveiAddendums>>,
 }
 
 // Refund Request
@@ -2757,7 +2850,7 @@ fn build_nuvei_three_ds_authorize_request<
             .map(|url| url.to_string()),
         return_url: request.router_return_url.clone(),
         amount: request.amount.amount,
-        currency: request.currency,
+        currency: request.amount.currency,
         capture_method: request.capture_method,
         billing_descriptor: request.billing_descriptor.as_ref(),
         l2_l3_data: resource.l2_l3_data.as_deref(),
@@ -3203,7 +3296,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .map(|url| url.to_string()),
                         return_url: request.router_return_url.clone(),
                         amount: request.amount.amount,
-                        currency: request.currency,
+                        currency: request.amount.currency,
                         capture_method: request.capture_method,
                         billing_descriptor: request.billing_descriptor.as_ref(),
                         l2_l3_data: resource.l2_l3_data.as_deref(),
@@ -3412,11 +3505,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .or(request.connector_feature_data.as_ref()),
                 );
                 if let PaymentsResponseData::TransactionResponse {
+                    redirection_data,
                     connector_metadata,
                     connector_response_reference_id,
                     ..
                 } = &mut transaction_response
                 {
+                    if status == AttemptStatus::AuthenticationPending && redirection_data.is_none()
+                    {
+                        return Err(ConnectorError::response_handling_failed_with_context(
+                            item.http_code,
+                            Some("Nuvei challenge response is missing acsUrl or cReq".to_owned()),
+                        )
+                        .into());
+                    }
                     // orderId is Nuvei's order identifier. The caller correlates
                     // merchant_transaction_id with our outgoing clientUniqueId.
                     *connector_response_reference_id =
@@ -4293,7 +4395,7 @@ struct NuveiThreeDsPaymentParams<
     billing_address: NuveiBillingAddress,
     shipping_address: Option<NuveiShippingAddress>,
     client_request_id: String,
-    addendums: Option<pii::SecretSerdeValue>,
+    addendums: Option<Secret<NuveiAddendums>>,
 }
 
 /// Builds the 3DS `/payment.do` body: paymentOption.card.threeD (external MPI
@@ -7410,7 +7512,7 @@ pub fn build_payment_webhook_details(
 
     Ok(WebhookDetailsResponse {
         raw_connector_status: Some(notification.raw_connector_status()),
-        amount: Some(notification.money()?),
+        amount: notification.money().ok(),
         resource_id: Some(ResponseId::ConnectorTransactionId(connector_transaction_id)),
         status,
         connector_response_reference_id: notification.merchant_reference(),

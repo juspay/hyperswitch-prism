@@ -11,13 +11,6 @@ mod types {
 
 pub mod payments {
     pub use super::types::*;
-
-    impl AuthenticationData {
-        /// Whether external authentication values were supplied; this does not establish success.
-        pub fn has_external_authentication(&self) -> bool {
-            self.cavv.is_some() || self.eci.is_some() || self.ds_transaction_id.is_some()
-        }
-    }
 }
 
 pub mod health_check {

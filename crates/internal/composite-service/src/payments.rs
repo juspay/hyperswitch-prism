@@ -843,6 +843,18 @@ where
         let payment_method = self.get_payment_method(&payload)?;
         let redirect_state = self.get_redirect_state(&payload);
 
+        // Routing consumes domain data; granular services retain request validation
+        // and their PCI-specific card/proxy conversion paths.
+        let routing_payment_method_data = payload.payment_method.clone().and_then(|data| {
+            domain_types::payment_method_data::PaymentMethodData::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::foreign_try_from(data)
+            .ok()
+        });
+        let routing_authentication_data = payload.authentication_data.clone().and_then(|data| {
+            domain_types::router_request_types::AuthenticationData::try_from(data).ok()
+        });
+
         let mut state = AuthorizeCompositeState::default();
 
         // Authentication loop - connector controls flow via next_authentication_step
@@ -852,8 +864,8 @@ where
                 payment_method,
                 redirect_state,
                 state.completed_step,
-                payload.payment_method.as_ref(),
-                payload.authentication_data.as_ref(),
+                routing_payment_method_data.as_ref(),
+                routing_authentication_data.as_ref(),
             );
 
             match next_step {

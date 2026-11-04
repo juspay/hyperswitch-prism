@@ -161,6 +161,11 @@ pub struct AuthenticationData {
 }
 
 impl AuthenticationData {
+    /// Whether external authentication values were supplied; this does not establish success.
+    pub fn has_external_authentication(&self) -> bool {
+        self.cavv.is_some() || self.eci.is_some() || self.ds_trans_id.is_some()
+    }
+
     /// Single-digit CAVV algorithm code (`"0".."4"`, `"A"`) from the Cartes Bancaires
     /// network params, as expected by connectors like Travelhub. Returns `None` when
     /// no CAVV algorithm is present.
