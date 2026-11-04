@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{
-    crypto::{self, SignMessage},
+    crypto::{self, VerifySignature},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -14,30 +14,37 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund,
-        RepeatPayment, SetupMandate, Void,
+        Accept, Authenticate, Authorize, Capture, CreateConnectorCustomer, DefendDispute, PSync,
+        PaymentMethodToken, PostAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,
+        SubmitEvidence, Void,
     },
     connector_types::*,
     connector_types::{RefundFlowData, RefundSyncData, RefundsResponseData},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::Maskable;
+use hyperswitch_masking::{Mask, Maskable};
 use interfaces::{
-    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
+    api::ConnectorCommon,
+    connector_integration_v2::ConnectorIntegrationV2,
+    connector_types::{self, AuthenticationStep, RedirectState},
     decode::BodyDecoding,
 };
 use serde::Serialize;
 use transformers::{
-    self as finix, FinixAuthorizeRequest, FinixAuthorizeResponse, FinixCaptureRequest,
+    self as finix, FinixAcceptDisputeRequest, FinixAcceptDisputeResponse,
+    FinixAuthenticateResponse, FinixAuthorizeRequest, FinixAuthorizeResponse, FinixCaptureRequest,
     FinixCaptureResponse, FinixCreateIdentityRequest, FinixCreatePaymentInstrumentRequest,
-    FinixIdentityResponse, FinixInstrumentResponse, FinixPSyncResponse, FinixRSyncResponse,
+    FinixDefendDisputeRequest, FinixDefendDisputeResponse, FinixIdentityResponse,
+    FinixInstrumentResponse, FinixPSyncResponse, FinixPostAuthenticateResponse, FinixRSyncResponse,
     FinixRefundRequest, FinixRefundResponse, FinixRepeatPaymentRequest, FinixRepeatPaymentResponse,
-    FinixSetupMandateRequest, FinixSetupMandateResponse, FinixVoidRequest, FinixVoidResponse,
+    FinixSetupMandateRequest, FinixSetupMandateResponse, FinixSubmitEvidenceRequest,
+    FinixSubmitEvidenceResponse, FinixThreeDSecureSessionRequest, FinixVoidRequest,
+    FinixVoidResponse,
 };
 
 use crate::{types::ResponseRouterData, with_error_response_body};
@@ -48,7 +55,12 @@ use domain_types::errors::WebhookError;
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
+    pub(crate) const FINIX_VERSION: &str = "Finix-Version";
 }
+
+/// Finix API version pinned on every request. Docs: the header "must be included with
+/// every request"; omitted, Finix silently serves base version 2018-01-01.
+const FINIX_VERSION_VALUE: &str = "2022-02-01";
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 const FINIX_REFERRER_SOURCE_HEADER: &str = "X-Finix-Referrer-Source";
@@ -85,7 +97,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let encoded_auth = auth.generate_basic_auth();
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Basic {}", encoded_auth).into(),
+            format!("Basic {}", encoded_auth).into_masked(),
         )])
     }
 
@@ -110,9 +122,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             status_code: res.status_code,
             code: response.get_code(),
             message: response.get_message(),
-            reason: None,
+            reason: response.get_failure_message(),
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.get_resource_id(),
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -152,15 +164,56 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         payment_method_type: Option<PaymentMethodType>,
         _is_wallet_decrypted_network_token: bool,
     ) -> bool {
-        // Check for specific wallet types that need tokenization
-        let is_google_pay_wallet = payment_method == PaymentMethod::Wallet
-            && matches!(payment_method_type, Some(PaymentMethodType::GooglePay));
+        // Apple Pay and Google Pay are vaulted as APPLE_PAY / GOOGLE_PAY Payment
+        // Instruments before the charge, exactly like cards.
+        let is_finix_wallet = payment_method == PaymentMethod::Wallet
+            && matches!(
+                payment_method_type,
+                Some(PaymentMethodType::GooglePay | PaymentMethodType::ApplePay)
+            );
 
         // Card and BankDebit always need tokenization
         matches!(
             payment_method,
             PaymentMethod::Card | PaymentMethod::BankDebit
-        ) || is_google_pay_wallet
+        ) || is_finix_wallet
+    }
+
+    /// Finix 3D Secure Sessions: Authenticate creates the session (POST
+    /// /3d_secure_sessions, redirects the buyer to the hosted page), PostAuthenticate
+    /// reads the trusted result (GET /3d_secure_sessions/{id}), Authorize charges with
+    /// `3d_secure_session`. There is no device-data-collection leg, so no PreAuthenticate.
+    /// Wallet is gated in because a tokenized instrument (the PI Finix needs) arrives
+    /// as PaymentMethod::Wallet.
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: PaymentMethod,
+        redirect_state: RedirectState,
+        completed_step: Option<AuthenticationStep>,
+    ) -> AuthenticationStep {
+        if auth_type != common_enums::AuthenticationType::ThreeDs
+            || !matches!(payment_method, PaymentMethod::Card | PaymentMethod::Wallet)
+        {
+            return AuthenticationStep::Authorize;
+        }
+        match (redirect_state, completed_step) {
+            (RedirectState::InitialRequest, None) => AuthenticationStep::Authenticate,
+            (RedirectState::InitialRequest, Some(AuthenticationStep::Authenticate)) => {
+                AuthenticationStep::PostAuthenticate
+            }
+            (RedirectState::InitialRequest, Some(AuthenticationStep::PostAuthenticate)) => {
+                AuthenticationStep::Authorize
+            }
+            (
+                RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams,
+                Some(AuthenticationStep::PostAuthenticate),
+            ) => AuthenticationStep::Authorize,
+            (RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams, None) => {
+                AuthenticationStep::PostAuthenticate
+            }
+            _ => AuthenticationStep::Authorize,
+        }
     }
 }
 
@@ -197,29 +250,47 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_stack::report!(WebhookError::WebhookVerificationSecretNotFound)
         })?;
 
+        let signature =
+            self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
+        let message =
+            self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
+
+        // Constant-time compare (ring `hmac::verify`), never `Vec::eq`.
+        crypto::HmacSha256
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable("failed to verify the HMAC-SHA256 over the Finix webhook message")
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         let signature_header = finix::decode_finix_signature(&request.headers)?;
 
         // HS hex-decodes the `sig` value before comparing
         // (get_webhook_source_verification_signature).
-        let signature = hex::decode(&signature_header.sig)
+        hex::decode(&signature_header.sig)
             .change_context(WebhookError::WebhookSignatureNotFound)
-            .attach_printable("Finix-Signature `sig` value is not valid hex")?;
+            .attach_printable("Finix-Signature `sig` value is not valid hex")
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        let signature_header = finix::decode_finix_signature(&request.headers)?;
 
         // HS signs `"{timestamp}:{raw body}"` — the RAW request bytes, never a
         // re-serialization (get_webhook_source_verification_message).
-        let message = format!(
+        Ok(format!(
             "{}:{}",
             signature_header.timestamp,
             String::from_utf8_lossy(&request.body)
         )
-        .into_bytes();
-
-        let signed_message = crypto::HmacSha256
-            .sign_message(&connector_webhook_secrets.secret, &message)
-            .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("failed to compute the HMAC-SHA256 over the Finix webhook message")?;
-
-        Ok(signed_message.eq(&signature))
+        .into_bytes())
     }
 
     fn get_event_type(
@@ -301,6 +372,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentAuthenticateV2<T> for Finix<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPostAuthenticateV2<T> for Finix<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Finix<T>
 {
 }
@@ -318,6 +399,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         data: &PaymentsSyncData,
         _payment_flow_data: &PaymentFlowData,
     ) -> CustomResult<(), IntegrationError> {
+        transformers::ensure_not_three_d_secure_session(&data.get_connector_transaction_id()?)?;
         connector_types::validate_psync_connector_transaction_id(data)
     }
 }
@@ -339,6 +421,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Finix<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::AcceptDispute for Finix<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SubmitEvidenceV2 for Finix<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::DisputeDefend for Finix<T>
 {
 }
 
@@ -390,6 +487,17 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
+            flow: Authenticate,
+            request_body: FinixThreeDSecureSessionRequest,
+            response_body: FinixAuthenticateResponse,
+            router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PostAuthenticate,
+            response_body: FinixPostAuthenticateResponse,
+            router_data: RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
             flow: PSync,
             response_body: FinixPSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
@@ -428,29 +536,83 @@ macros::create_all_prerequisites!(
             request_body: FinixRepeatPaymentRequest,
             response_body: FinixRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: Accept,
+            request_body: FinixAcceptDisputeRequest,
+            response_body: FinixAcceptDisputeResponse,
+            router_data: RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+        ),
+        (
+            flow: SubmitEvidence,
+            request_body: FinixSubmitEvidenceRequest,
+            response_body: FinixSubmitEvidenceResponse,
+            router_data: RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+        ),
+        (
+            flow: DefendDispute,
+            request_body: FinixDefendDisputeRequest,
+            response_body: FinixDefendDisputeResponse,
+            router_data: RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
         )
     ],
     amount_converters: [
         amount_converter: MinorUnit
     ],
     member_functions: {
-        pub fn build_headers<F, FCD, Req, Res>(
+        /// Headers every Finix request carries, without a Content-Type (multipart
+        /// requests must let the client set their own boundary).
+        pub fn build_auth_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut headers = vec![
                 (
-                    headers::CONTENT_TYPE.to_string(),
-                    "application/json".to_string().into(),
+                    FINIX_REFERRER_SOURCE_HEADER.to_string(),
+                    FINIX_REFERRER_SOURCE_VALUE.to_string().into(),
                 ),
                 (
-                FINIX_REFERRER_SOURCE_HEADER.to_string(),
-                FINIX_REFERRER_SOURCE_VALUE.to_string().into(),
+                    headers::FINIX_VERSION.to_string(),
+                    FINIX_VERSION_VALUE.to_string().into(),
                 ),
             ];
             let mut auth_headers = self.get_auth_header(&req.connector_config)?;
             headers.append(&mut auth_headers);
             Ok(headers)
+        }
+
+        pub fn build_headers<F, FCD, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, FCD, Req, Res>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let mut headers = vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string().into(),
+            )];
+            headers.append(&mut self.build_auth_headers(req)?);
+            Ok(headers)
+        }
+
+        /// Error response for the charging flows (Authorize, RepeatPayment). A decline
+        /// envelope that names the Transfer / Authorization it created is a terminal
+        /// failure of that resource; any other non-2xx leaves the attempt status unset.
+        pub fn build_charge_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let attempt_status = res
+                .response
+                .parse_struct::<finix::FinixErrorResponse>("FinixErrorResponse")
+                .ok()
+                .and_then(|response| response.get_charge_attempt_status())
+                .map(FlowStatus::Payment);
+            let error_response = self.build_error_response(res, event_builder, connector_config)?;
+            Ok(ErrorResponse {
+                attempt_status,
+                ..error_response
+            })
         }
 
         pub fn connector_base_url_payments<'a, F, Req, Res>(
@@ -463,6 +625,13 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.finix.base_url
+        }
+
+        pub fn connector_base_url_disputes<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, DisputeFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.finix.base_url
         }
@@ -528,7 +697,7 @@ macros::macro_connector_implementation!(
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Finix,
     curl_request: Json(FinixAuthorizeRequest),
     curl_response: FinixAuthorizeResponse,
@@ -547,16 +716,27 @@ macros::macro_connector_implementation!(
             self.build_headers(req)
         }
 
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_charge_error_response(res, event_builder, connector_config)
+        }
+
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Route based on capture_method: AUTOMATIC -> /transfers, MANUAL -> /authorizations
+            // Route based on capture_method: MANUAL -> /authorizations, else /transfers,
+            // the same default as RepeatPayment below and HS (unwrap_or_default -> Automatic).
             let endpoint = match req.request.capture_method {
-                Some(common_enums::CaptureMethod::Automatic) |
-                Some(common_enums::CaptureMethod::SequentialAutomatic) => "transfers",
-                _ => "authorizations"
-};
+                Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled) => "authorizations",
+                _ => "transfers",
+            };
             Ok(format!("{}/{}", self.connector_base_url_payments(req), endpoint))
         }
     }
@@ -586,6 +766,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let connector_transaction_id = req.request.get_connector_transaction_id()?;
+            transformers::ensure_not_three_d_secure_session(&connector_transaction_id)?;
             // Route based on ID type using FinixId enum
             let finix_id = transformers::FinixId::from(connector_transaction_id);
             let endpoint = match finix_id {
@@ -640,15 +821,7 @@ macros::macro_connector_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
         fn get_headers(&self, req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    "application/json".to_string().into(),
-                )
-            ];
-            let mut auth_headers = self.get_auth_header(&req.connector_config)?;
-            headers.append(&mut auth_headers);
-            Ok(headers)
+            self.build_headers(req)
         }
 
         fn get_url(&self, req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>) -> CustomResult<String, IntegrationError> {
@@ -702,15 +875,7 @@ macros::macro_connector_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
         fn get_headers(&self, req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    "application/json".to_string().into(),
-                )
-            ];
-            let mut auth_headers = self.get_auth_header(&req.connector_config)?;
-            headers.append(&mut auth_headers);
-            Ok(headers)
+            self.build_headers(req)
         }
 
         fn get_url(&self, req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>) -> CustomResult<String, IntegrationError> {
@@ -756,7 +921,7 @@ macros::macro_connector_implementation!(
 // Routes to /transfers for auto-capture and /authorizations for manual capture,
 // matching the Authorize flow's behaviour.
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Finix,
     curl_request: Json(FinixRepeatPaymentRequest),
     curl_response: FinixRepeatPaymentResponse,
@@ -775,6 +940,15 @@ macros::macro_connector_implementation!(
             self.build_headers(req)
         }
 
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_charge_error_response(res, event_builder, connector_config)
+        }
+
         fn get_url(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
@@ -790,25 +964,181 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Authenticate - create a 3D Secure Session; the response carries the Finix-hosted
+// authentication URL the buyer is redirected to.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Finix,
+    curl_request: Json(FinixThreeDSecureSessionRequest),
+    curl_response: FinixAuthenticateResponse,
+    flow_name: Authenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/3d_secure_sessions", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+// PostAuthenticate - retrieve the 3D Secure Session after the buyer returns. The
+// redirect's `status` query parameter is browser-supplied, so the result is always
+// confirmed server-side. Read-only: this leg never moves money.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Finix,
+    curl_response: FinixPostAuthenticateResponse,
+    flow_name: PostAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPostAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Get,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let session_id = finix::get_three_d_secure_session_id(&req.request)?;
+            Ok(format!("{}/3d_secure_sessions/{}", self.connector_base_url_payments(req), session_id))
+        }
+    }
+);
+
+// Accept - concede the dispute. Finix answers 202 with the Dispute resource
+// (response_state ACCEPTED); the final state may move asynchronously.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Finix,
+    curl_request: Json(FinixAcceptDisputeRequest),
+    curl_response: FinixAcceptDisputeResponse,
+    flow_name: Accept,
+    resource_common_data: DisputeFlowData,
+    flow_request: AcceptDisputeData,
+    flow_response: DisputeResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_dispute_id = finix::get_connector_dispute_id(&req.request.connector_dispute_id)?;
+            Ok(format!("{}/disputes/{}/accept", self.connector_base_url_disputes(req), connector_dispute_id))
+        }
+    }
+);
+
+// SubmitEvidence - upload one evidence file (multipart field `file`). Finix answers 201
+// with the evidence resource in PENDING; validation to SUCCEEDED is asynchronous.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Finix,
+    curl_request: FormData(FinixSubmitEvidenceRequest),
+    curl_response: FinixSubmitEvidenceResponse,
+    flow_name: SubmitEvidence,
+    resource_common_data: DisputeFlowData,
+    flow_request: SubmitEvidenceData,
+    flow_response: DisputeResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        // No Content-Type here: the HTTP client sets multipart/form-data with its boundary.
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_auth_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_dispute_id = finix::get_connector_dispute_id(&req.request.connector_dispute_id)?;
+            Ok(format!("{}/disputes/{}/evidence", self.connector_base_url_disputes(req), connector_dispute_id))
+        }
+    }
+);
+
+// DefendDispute - submit the uploaded evidence as a challenge. Finix answers 202 with the
+// Dispute resource (response_state RESPONDED), or 422 while any uploaded evidence file is
+// not yet SUCCEEDED.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Finix,
+    curl_request: Json(FinixDefendDisputeRequest),
+    curl_response: FinixDefendDisputeResponse,
+    flow_name: DefendDispute,
+    resource_common_data: DisputeFlowData,
+    flow_request: DisputeDefendData,
+    flow_response: DisputeResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_dispute_id = finix::get_connector_dispute_id(&req.request.connector_dispute_id)?;
+            Ok(format!("{}/disputes/{}/submit", self.connector_base_url_disputes(req), connector_dispute_id))
+        }
+    }
+);
+
 macros::macro_connector_flow_status_impls!(
     connector: Finix,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         GetConnectorCustomer,
-        Accept,
-        DefendDispute,
         VoidPC,
-        SubmitEvidence,
     ],
     not_supported: [
         VoidPostRefund,
         MandateRevoke,
         ServerAuthenticationToken,
-        Authenticate,
         IncrementalAuthorization,
         CreateOrder,
-        PostAuthenticate,
         PreAuthenticate,
         ServerSessionAuthenticationToken,
         ClientAuthenticationToken,

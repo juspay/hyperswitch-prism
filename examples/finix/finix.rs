@@ -15,10 +15,15 @@ use std::str::FromStr;
 
 #[allow(dead_code)]
 pub const SUPPORTED_FLOWS: &[&str] = &[
+    "authenticate",
     "capture",
     "customer_create",
+    "dispute_accept",
+    "dispute_defend",
+    "dispute_submit_evidence",
     "get",
     "parse_event",
+    "post_authenticate",
     "proxy_setup_recurring",
     "recurring_charge",
     "refund",
@@ -57,6 +62,35 @@ fn build_client() -> ConnectorClient {
     ConnectorClient::new(config, None).unwrap()
 }
 
+pub fn build_authenticate_request() -> PaymentMethodAuthenticationServiceAuthenticateRequest {
+    PaymentMethodAuthenticationServiceAuthenticateRequest {
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
+        }),
+        payment_method: Some(PaymentMethod {
+            // Payment Method.
+            payment_method: Some(payment_method::PaymentMethod::Token(
+                TokenPaymentMethodType {
+                    token: Some(Secret::new("PIprobe0000000000000000".to_string())), // The token string representing a payment method.
+                    ..Default::default()
+                },
+            )),
+            ..Default::default()
+        }),
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        return_url: Some("https://example.com/3ds-return".to_string()), // URLs for Redirection.
+        ..Default::default()
+    }
+}
+
 pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCaptureRequest {
     PaymentServiceCaptureRequest {
         merchant_capture_id: Some("probe_capture_001".to_string()), // Identification.
@@ -76,6 +110,33 @@ pub fn build_customer_create_request() -> CustomerServiceCreateRequest {
         customer_name: Some("John Doe".to_string()),              // Name of the customer.
         email: Some(Secret::new("test@example.com".to_string())), // Email address of the customer.
         phone_number: Some(Secret::new("4155552671".to_string())), // Phone number of the customer.
+        ..Default::default()
+    }
+}
+
+pub fn build_dispute_accept_request() -> DisputeServiceAcceptRequest {
+    DisputeServiceAcceptRequest {
+        merchant_dispute_id: Some("probe_dispute_001".to_string()), // Identification.
+        connector_transaction_id: "probe_txn_001".to_string(),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
+    }
+}
+
+pub fn build_dispute_defend_request() -> DisputeServiceDefendRequest {
+    DisputeServiceDefendRequest {
+        merchant_dispute_id: Some("probe_dispute_001".to_string()), // Identification.
+        connector_transaction_id: "probe_txn_001".to_string(),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
+        reason_code: Some("probe_reason".to_string()), // Defend Details.
+    }
+}
+
+pub fn build_dispute_submit_evidence_request() -> DisputeServiceSubmitEvidenceRequest {
+    DisputeServiceSubmitEvidenceRequest {
+        merchant_dispute_id: Some("probe_dispute_001".to_string()), // Identification.
+        connector_transaction_id: Some("probe_txn_001".to_string()),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
+        // evidence_documents: [{"evidence_type": "SERVICE_DOCUMENTATION", "file_content": "probe evidence content", "file_mime_type": "application/pdf"}]  // Collection of evidence documents.
         ..Default::default()
     }
 }
@@ -117,6 +178,38 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
             body: "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}".as_bytes().to_vec(),  // Body of the HTTP request.
             ..Default::default()
         }),
+    }
+}
+
+pub fn build_post_authenticate_request() -> PaymentMethodAuthenticationServicePostAuthenticateRequest
+{
+    PaymentMethodAuthenticationServicePostAuthenticateRequest {
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
+        }),
+        payment_method: Some(PaymentMethod {
+            // Payment Method.
+            payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
+                card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+                card_exp_month: Some(Secret::new("03".to_string())),
+                card_exp_year: Some(Secret::new("2030".to_string())),
+                card_cvc: Some(Secret::new("737".to_string())),
+                card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+                ..Default::default()
+            })),
+            ..Default::default()
+        }),
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        connector_order_reference_id: Some("3d_secure_session_probe0000000000000".to_string()),
+        ..Default::default()
     }
 }
 
@@ -284,6 +377,18 @@ pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidR
     }
 }
 
+// Flow: PaymentMethodAuthenticationService.Authenticate
+#[allow(dead_code)]
+pub async fn process_authenticate(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .authenticate(build_authenticate_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Capture
 #[allow(dead_code)]
 pub async fn process_capture(
@@ -312,6 +417,46 @@ pub async fn process_customer_create(
     Ok(format!("customer_id: {}", response.connector_customer_id))
 }
 
+// Flow: DisputeService.Accept
+#[allow(dead_code)]
+pub async fn process_dispute_accept(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .accept(build_dispute_accept_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("dispute_status: {:?}", response.dispute_status()))
+}
+
+// Flow: DisputeService.Defend
+#[allow(dead_code)]
+pub async fn process_dispute_defend(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .defend(build_dispute_defend_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("dispute_status: {:?}", response.dispute_status()))
+}
+
+// Flow: DisputeService.SubmitEvidence
+#[allow(dead_code)]
+pub async fn process_dispute_submit_evidence(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .submit_evidence(
+            build_dispute_submit_evidence_request(),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+    Ok(format!("dispute_status: {:?}", response.dispute_status()))
+}
+
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn process_get(
@@ -336,6 +481,18 @@ pub async fn process_parse_event(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client.parse_event(build_parse_event_request())?;
     Ok(format!("{response:?}"))
+}
+
+// Flow: PaymentMethodAuthenticationService.PostAuthenticate
+#[allow(dead_code)]
+pub async fn process_post_authenticate(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .post_authenticate(build_post_authenticate_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
 }
 
 // Flow: PaymentService.ProxySetupRecurring
@@ -445,12 +602,19 @@ async fn main() {
     let client = build_client();
     let flow = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "process_capture".to_string());
+        .unwrap_or_else(|| "process_authenticate".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
+        "process_authenticate" => process_authenticate(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
         "process_customer_create" => process_customer_create(&client, "txn_001").await,
+        "process_dispute_accept" => process_dispute_accept(&client, "txn_001").await,
+        "process_dispute_defend" => process_dispute_defend(&client, "txn_001").await,
+        "process_dispute_submit_evidence" => {
+            process_dispute_submit_evidence(&client, "txn_001").await
+        }
         "process_get" => process_get(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
+        "process_post_authenticate" => process_post_authenticate(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund" => process_refund(&client, "txn_001").await,
@@ -459,7 +623,7 @@ async fn main() {
         "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_capture, process_customer_create, process_get, process_parse_event, process_proxy_setup_recurring, process_recurring_charge, process_refund, process_refund_get, process_setup_recurring, process_token_authorize, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_authenticate, process_capture, process_customer_create, process_dispute_accept, process_dispute_defend, process_dispute_submit_evidence, process_get, process_parse_event, process_post_authenticate, process_proxy_setup_recurring, process_recurring_charge, process_refund, process_refund_get, process_setup_recurring, process_token_authorize, process_void", flow);
             return;
         }
     };

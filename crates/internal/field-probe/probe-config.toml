@@ -265,6 +265,15 @@ default = '{}'
 "browser_info.ip_address" = "1.2.3.4"
 "metadata" = '{"device_channel":"BRW"}'
 
+# Finix 3D Secure Sessions authenticate a vaulted Payment Instrument (PI...),
+# never a raw card, so the base card request only reaches the refusal.
+# PostAuthenticate retrieves the session by id (3d_secure_session_<alnum>).
+[connector_overrides.authenticate.finix]
+"payment_method" = { payment_method = { token = { token = "PIprobe0000000000000000" } } }
+
+[connector_overrides.post_authenticate.finix]
+"connector_order_reference_id" = "3d_secure_session_probe0000000000000"
+
 # Authorize.Net sends several request elements only when the caller supplies the
 # optional input behind them (billTo.phoneNumber / email, shipTo, the Level 2/3
 # block, merchantDescriptor, cardholderAuthentication). None of them is a

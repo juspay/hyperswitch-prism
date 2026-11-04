@@ -119,6 +119,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "#[serde(default)]",
     );
 
+    // These are proto `string`s, so masked_serialize would write signing secrets into request
+    // logs and events. Serializing through `Secret` masks them there and nowhere else.
+    for (field, serializer) in [
+        (".types.WebhookSecrets.secret", "string"),
+        (".types.WebhookSecrets.additional_secret", "optional_string"),
+        (".types.RedirectResponseSecrets.secret", "string"),
+        (
+            ".types.RedirectResponseSecrets.additional_secret",
+            "optional_string",
+        ),
+    ] {
+        config.field_attribute(
+            field,
+            format!("#[serde(serialize_with = \"crate::masked_serde::{serializer}\")]"),
+        );
+    }
+
     // Use compile_protos_with_config which handles everything internally
     // including string enum support, serde derives, and descriptor set writing
     bridge_generator.compile_protos_with_config(

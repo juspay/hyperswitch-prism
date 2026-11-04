@@ -4373,6 +4373,7 @@ pub struct DisputeResponseData {
     pub connector_dispute_id: String,
     pub dispute_status: DisputeStatus,
     pub connector_dispute_status: Option<String>,
+    pub submitted_evidence_ids: Vec<String>,
     pub status_code: u16,
 }
 

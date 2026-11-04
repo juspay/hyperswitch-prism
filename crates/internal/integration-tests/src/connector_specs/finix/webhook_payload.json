@@ -1,0 +1,184 @@
+{
+  "_webhook_config": {
+    "signature_header": "Finix-Signature",
+    "signature_format": "timestamp={timestamp}, sig={signature}",
+    "signature_algorithm": "finix_hmac_sha256 over timestamp:body",
+    "signature_encoding": "hex_lowercase",
+    "webhook_secret_key": "webhook_secret",
+    "note": "Bodies are the documented Finix transfer webhook envelope (techspec Webhook Payload Structure) with transfer type/state varied per scenario; no live Finix webhook has been captured because the creds entry carries no webhook_secret. No signature or secret is committed: the harness signs positive fixtures itself, and invalid_signature carries a well-formed header with an all-zero sig."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "id": "event_cgGzzdKrV3fbsd74ugymaX",
+          "type": "updated",
+          "entity": "transfer",
+          "occurred_at": "2023-01-05T21:58:48.022174",
+          "_embedded": {
+            "transfers": [
+              {
+                "fee": 0,
+                "destination": null,
+                "created_at": "2023-01-05T21:58:27.26Z",
+                "failure_message": null,
+                "source": "PI6fBxWjm2GfdhCughovSWQr",
+                "type": "DEBIT",
+                "statement_descriptor": "FNX*FINIX FLOWERS",
+                "updated_at": "2023-01-05T21:58:28.21Z",
+                "subtype": "API",
+                "amount_requested": 662154,
+                "currency": "USD",
+                "id": "TR3CpnVVxM1iapJgxdyb5Hsz",
+                "state": "SUCCEEDED",
+                "idempotency_id": null,
+                "amount": 662154,
+                "failure_code": null,
+                "trace_id": "97083fa0-712f-489d-bf38-bda18825f966",
+                "merchant": "MU7cXuKj2xx41hhZZi6bZ13A",
+                "merchant_identity": "IDvHGrfeVmB3i7uL78xjemNk",
+                "tags": {},
+                "application": "APgPDQrLD52TYvqazjHJJchM",
+                "externally_funded": "UNKNOWN",
+                "messages": []
+              }
+            ]
+          }
+        }
+      },
+      "merchant_event_id": "finix_webhook_payment_succeeded"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "id": "event_cgGzzdKrV3fbsd74ugymaX",
+          "type": "updated",
+          "entity": "transfer",
+          "occurred_at": "2023-01-05T21:58:48.022174",
+          "_embedded": {
+            "transfers": [
+              {
+                "fee": 0,
+                "destination": null,
+                "created_at": "2023-01-05T21:58:27.26Z",
+                "failure_message": null,
+                "source": "PI6fBxWjm2GfdhCughovSWQr",
+                "type": "DEBIT",
+                "statement_descriptor": "FNX*FINIX FLOWERS",
+                "updated_at": "2023-01-05T21:58:28.21Z",
+                "subtype": "API",
+                "amount_requested": 662154,
+                "currency": "USD",
+                "id": "TR3CpnVVxM1iapJgxdyb5Hsz",
+                "state": "FAILED",
+                "idempotency_id": null,
+                "amount": 662154,
+                "failure_code": null,
+                "trace_id": "97083fa0-712f-489d-bf38-bda18825f966",
+                "merchant": "MU7cXuKj2xx41hhZZi6bZ13A",
+                "merchant_identity": "IDvHGrfeVmB3i7uL78xjemNk",
+                "tags": {},
+                "application": "APgPDQrLD52TYvqazjHJJchM",
+                "externally_funded": "UNKNOWN",
+                "messages": []
+              }
+            ]
+          }
+        }
+      },
+      "merchant_event_id": "finix_webhook_payment_failed"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "id": "event_cgGzzdKrV3fbsd74ugymaX",
+          "type": "updated",
+          "entity": "transfer",
+          "occurred_at": "2023-01-05T21:58:48.022174",
+          "_embedded": {
+            "transfers": [
+              {
+                "fee": 0,
+                "destination": "PI6fBxWjm2GfdhCughovSWQr",
+                "created_at": "2023-01-05T21:58:27.26Z",
+                "failure_message": null,
+                "source": null,
+                "type": "REVERSAL",
+                "statement_descriptor": "FNX*FINIX FLOWERS",
+                "updated_at": "2023-01-05T21:58:28.21Z",
+                "subtype": "API",
+                "amount_requested": 662154,
+                "currency": "USD",
+                "id": "TRreversal00000000000000",
+                "state": "SUCCEEDED",
+                "idempotency_id": null,
+                "amount": 662154,
+                "failure_code": null,
+                "trace_id": "97083fa0-712f-489d-bf38-bda18825f966",
+                "merchant": "MU7cXuKj2xx41hhZZi6bZ13A",
+                "merchant_identity": "IDvHGrfeVmB3i7uL78xjemNk",
+                "tags": {},
+                "application": "APgPDQrLD52TYvqazjHJJchM",
+                "externally_funded": "UNKNOWN",
+                "messages": []
+              }
+            ]
+          }
+        }
+      },
+      "merchant_event_id": "finix_webhook_refund_succeeded"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "Finix-Signature": "timestamp=1672955928, sig=0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "body": {
+          "id": "event_cgGzzdKrV3fbsd74ugymaX",
+          "type": "updated",
+          "entity": "transfer",
+          "occurred_at": "2023-01-05T21:58:48.022174",
+          "_embedded": {
+            "transfers": [
+              {
+                "fee": 0,
+                "destination": null,
+                "created_at": "2023-01-05T21:58:27.26Z",
+                "failure_message": null,
+                "source": "PI6fBxWjm2GfdhCughovSWQr",
+                "type": "DEBIT",
+                "statement_descriptor": "FNX*FINIX FLOWERS",
+                "updated_at": "2023-01-05T21:58:28.21Z",
+                "subtype": "API",
+                "amount_requested": 662154,
+                "currency": "USD",
+                "id": "TR3CpnVVxM1iapJgxdyb5Hsz",
+                "state": "SUCCEEDED",
+                "idempotency_id": null,
+                "amount": 662154,
+                "failure_code": null,
+                "trace_id": "97083fa0-712f-489d-bf38-bda18825f966",
+                "merchant": "MU7cXuKj2xx41hhZZi6bZ13A",
+                "merchant_identity": "IDvHGrfeVmB3i7uL78xjemNk",
+                "tags": {},
+                "application": "APgPDQrLD52TYvqazjHJJchM",
+                "externally_funded": "UNKNOWN",
+                "messages": []
+              }
+            ]
+          }
+        }
+      },
+      "merchant_event_id": "finix_webhook_invalid_signature"
+    }
+  }
+}

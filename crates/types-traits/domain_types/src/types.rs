@@ -11000,7 +11000,7 @@ pub fn generate_submit_evidence_response(
             Ok(DisputeServiceSubmitEvidenceResponse {
                 dispute_status: grpc_status.into(),
                 connector_dispute_id: Some(response.connector_dispute_id),
-                submitted_evidence_ids: vec![],
+                submitted_evidence_ids: response.submitted_evidence_ids,
                 connector_status_code: None,
                 error: None,
                 merchant_dispute_id,
@@ -12943,10 +12943,62 @@ impl ForeignTryFrom<grpc_api_types::payments::DisputeServiceSubmitEvidenceReques
         };
 
         // Extract evidence from evidence_documents array
+        let mut seen_evidence_types = std::collections::HashSet::new();
         for document in value.evidence_documents {
             let evidence_type =
                 grpc_api_types::payments::EvidenceType::try_from(document.evidence_type)
                     .unwrap_or(grpc_api_types::payments::EvidenceType::Unspecified);
+
+            // Each evidence type has one slot below, so a repeat would overwrite the earlier document.
+            if evidence_type != grpc_api_types::payments::EvidenceType::Unspecified
+                && !seen_evidence_types.insert(evidence_type)
+            {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "evidence_documents",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Send at most one evidence document per evidence_type.".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into());
+            }
+
+            // An unknown enum value also lands on Unspecified; never drop a document silently.
+            if evidence_type == grpc_api_types::payments::EvidenceType::Unspecified
+                && (document.file_content.is_some()
+                    || document.provider_file_id.is_some()
+                    || document.text_content.is_some())
+            {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "evidence_documents.evidence_type",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Set evidence_type on every evidence document that carries content."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into());
+            }
+
+            // Only UncategorizedFile has a text slot below; never drop text silently.
+            if document.text_content.is_some()
+                && evidence_type != grpc_api_types::payments::EvidenceType::UncategorizedFile
+            {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "evidence_documents.text_content",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Send text_content only on UNCATEGORIZED_FILE.".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into());
+            }
 
             match evidence_type {
                 grpc_api_types::payments::EvidenceType::CancellationPolicy => {
@@ -15242,7 +15294,10 @@ pub fn generate_defend_dispute_response(
         }),
         Err(e) => Ok(DisputeServiceDefendResponse {
             connector_dispute_id,
-            dispute_status: grpc_api_types::payments::DisputeStatus::DisputeLost as i32,
+            dispute_status: e
+                .attempt_status
+                .map(grpc_api_types::payments::DisputeStatus::foreign_from)
+                .unwrap_or_default() as i32,
             connector_status_code: None,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,

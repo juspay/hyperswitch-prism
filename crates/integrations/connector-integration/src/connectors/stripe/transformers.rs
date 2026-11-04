@@ -7641,6 +7641,7 @@ impl<F, Req> TryFrom<ResponseRouterData<DisputeObj, Self>>
                 connector_dispute_id: response.dispute_id,
                 dispute_status,
                 connector_dispute_status: Some(response.status.to_string()),
+                submitted_evidence_ids: vec![],
                 status_code: http_code,
             }),
             ..router_data

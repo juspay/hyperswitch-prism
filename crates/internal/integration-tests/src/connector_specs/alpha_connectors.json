@@ -31,7 +31,9 @@
     "etisalat": {
       "reason": "Etisalat sandbox Authorize calls require a card-network roundtrip that exceeds the 30s connector_request_timeout from US-based CI runners; Capture and Void reach the gateway fine. Remove this entry once CI is run from a UAE-proximate host or the sandbox latency is resolved."
     },
-    "finix": {},
+    "finix": {
+      "reason": "Finix is not certified by CI. In the GRACE run, against the Finix sandbox on a dummy processor: card, mandate, refund and void passed through Hyperswitch and gRPC; dispute Accept, SubmitEvidence and Defend passed over gRPC only, because Hyperswitch has no UCS dispute path and no shared suite exists. Untested: 3D Secure (the sandbox returns HTTP 500 on session create, so no session was authenticated or charged and the Hyperswitch return leg never ran, saved cards included); webhooks signed with a Finix-issued key and the verified HandleEvent path (no signing key, and the shared harness signer has no finix scheme; only unsigned and forged deliveries ran); encrypted Apple Pay and Google Pay (no genuine tokens; wallet MIT and pre-decrypted rows did run); transfer state RETURNED, undocumented states and failed-void error bodies (local stand-in only, no sandbox trigger). Remove this entry once a sandbox session works, a signing key exists and CI credentials are confirmed, so CI starts certifying."
+    },
     "fiservcommercehub": {},
     "fiservemea": {},
     "flywire": {},
