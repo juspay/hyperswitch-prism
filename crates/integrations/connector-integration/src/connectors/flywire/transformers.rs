@@ -330,7 +330,7 @@ fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {
         address: address.line1.clone(),
         city: address.city.clone(),
         country: address.country.map(|c| c.to_string()),
-        state: address.state.clone(),
+        state: address.get_optional_state(),
         phone: billing.phone.as_ref().and_then(|p| p.number.clone()),
         email: billing.email.clone(),
         zip: address.zip.clone(),
