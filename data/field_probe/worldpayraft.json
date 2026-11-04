@@ -786,14 +786,78 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "Connector-token mandates is not supported by worldpayraft. Use a network transaction ID with card or network-token details"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/tokenization/token",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"tokenize\":{\"CardInfo\":{\"PAN\":\"{{$card_number}}\",\"ExpirationDate\":\"3003\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_proxy_mand\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_supported",
-        "error": "Connector-token mandates is not supported by worldpayraft. Use a network transaction ID with card or network-token details"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{},\"EncryptionTokenData\":{\"TokenizedPAN\":\"probe-mandate-123\"},\"TerminalData\":{\"EntryMode\":\"CREDONFL\",\"POSConditionCode\":\"08\",\"TerminalEntryCap\":\"0\",\"POSEnvironment\":\"C\"},\"E-commerceData\":{\"E-commerceIndicator\":\"01\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       }
     },
     "recurring_revoke": {
@@ -888,8 +952,45 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "Connector-token mandates is not supported by worldpayraft. Use a network transaction ID with card or network-token details"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/tokenization/token",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"tokenize\":{\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_mandate_00\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       }
     },
     "token_authorize": {
@@ -900,8 +1001,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "Connector-token mandates is not supported by worldpayraft. Use a network transaction ID with card or network-token details"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT SetupMandate. Provide PaymentMethodData::Card with a PAN and expiry so Worldpay RAFT can create a TokenizedPAN for subsequent payments"
       }
     },
     "verify_redirect": {
