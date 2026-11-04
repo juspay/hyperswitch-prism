@@ -1241,13 +1241,8 @@ message ConnectorMandateReferenceId {
   optional string payment_method_id = 2;
   optional string connector_mandate_request_reference_id = 3;
   optional SecretString mandate_metadata = 4;
-  optional AdditionalMandateDetails additional_mandate_details = 5;
-}
-
-// Original transaction references used for a recurring payment.
-message AdditionalMandateDetails {
-  optional string network_transaction_id = 1;
-  optional string transaction_link_id = 2;
+  optional string network_transaction_id = 5;
+  optional string transaction_link_id = 6;
 }
 
 message NetworkMandateId {

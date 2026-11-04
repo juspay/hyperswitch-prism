@@ -8100,21 +8100,11 @@ impl ForeignFrom<connector_types::MandateReference> for grpc_payment_types::Mand
                         mandate_metadata: mandate_reference
                             .mandate_metadata
                             .map(|metadata| Secret::new(metadata.expose().to_string())),
-                        additional_mandate_details: None,
+                        network_transaction_id: None,
+                        transaction_link_id: None,
                     },
                 ),
             ),
-        }
-    }
-}
-
-impl ForeignFrom<grpc_payment_types::AdditionalMandateDetails>
-    for connector_types::AdditionalMandateDetails
-{
-    fn foreign_from(details: grpc_payment_types::AdditionalMandateDetails) -> Self {
-        Self {
-            network_transaction_id: details.network_transaction_id,
-            transaction_link_id: details.transaction_link_id,
         }
     }
 }
@@ -8144,10 +8134,8 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateReference> for MandateRefer
                     })
                     .transpose()?,
                 connector_mandate_id.connector_mandate_request_reference_id,
-                connector_mandate_id
-                    .additional_mandate_details
-                    .map(connector_types::AdditionalMandateDetails::foreign_from)
-                    .map(Box::new),
+                connector_mandate_id.network_transaction_id,
+                connector_mandate_id.transaction_link_id,
             ))),
             Some(grpc_api_types::payments::mandate_reference::MandateIdType::NetworkMandateId(
                 network_mandate_id,

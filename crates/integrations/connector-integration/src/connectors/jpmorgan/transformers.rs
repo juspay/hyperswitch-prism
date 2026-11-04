@@ -35,9 +35,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::connectors::jpmorgan::{requests, responses, JpmorganAmountConvertor};
 use crate::{connectors::jpmorgan::JpmorganRouterData, types::ResponseRouterData, utils};
-use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
-use domain_types::utils::{
-    expand_expiry_year_to_four_digits, is_payment_failure, missing_field_err,
+use domain_types::{
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    utils::{expand_expiry_year_to_four_digits, is_payment_failure, missing_field_err},
 };
 
 type Error = error_stack::Report<IntegrationError>;
@@ -46,7 +46,8 @@ type ResponseError = error_stack::Report<ConnectorError>;
 const JPMORGAN_GETTING_STARTED_DOC: &str =
     "https://developer.payments.jpmorgan.com/docs/commerce-solutions/online-payments/guides/getting-started";
 const JPMORGAN_THREE_DS_NOT_IMPLEMENTED: &str = "3DS payments";
-
+const TOKEN_TYPE: &str = "SAFETECH";
+const CIT_SUCCESS: &str = "SUCCESS";
 const JPMORGAN_PURCHASE_ORDER_NUMBER_MAX_LENGTH: usize = 17;
 
 const JPMORGAN_MAX_LINE_ITEMS: usize = 998;
@@ -462,8 +463,8 @@ impl responses::Card {
             .as_ref()?
             .iter()
             .filter(|token| {
-                token.token_provider.as_deref() == Some("SAFETECH")
-                    && token.response_status.as_deref() == Some("SUCCESS")
+                token.token_provider.as_deref() == Some(TOKEN_TYPE)
+                    && token.response_status.as_deref() == Some(CIT_SUCCESS)
             })
             .filter_map(|token| token.token_number.as_ref())
             .find(|number| !number.peek().trim().is_empty())
@@ -2906,13 +2907,10 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                 requests::JpmorganMitAccountNumber::SafetechToken(_),
                 MandateReferenceId::ConnectorMandateId(reference),
             ) => {
-                let details = reference.get_additional_mandate_details().ok_or_else(
-                    missing_field_err("mandate_reference.additional_mandate_details"),
-                )?;
-                let ntid = details.network_transaction_id.clone().ok_or_else(missing_field_err(
-                    "mandate_reference.additional_mandate_details.network_transaction_id",
+                let ntid = reference.get_network_transaction_id().ok_or_else(missing_field_err(
+                    "mandate_reference.network_transaction_id",
                 ))?;
-                Ok((ntid, details.transaction_link_id.clone()))
+                Ok((ntid, reference.get_transaction_link_id()))
             }
             _ => Err(Self::unsupported(
                 "Processor tokens without complete Safetech credentials are not supported by this direct network-reference flow",

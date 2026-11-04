@@ -250,7 +250,8 @@ fn create_repeat_payment_request(mandate_id: &str) -> RecurringPaymentServiceCha
                 connector_mandate_id: Some(mandate_id.to_string()),
                 payment_method_id: None,
                 mandate_metadata: None,
-                additional_mandate_details: None,
+                network_transaction_id: None,
+                transaction_link_id: None,
             },
         )),
     };

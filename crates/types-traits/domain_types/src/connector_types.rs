@@ -612,19 +612,14 @@ pub struct UpdateHistory {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
-pub struct AdditionalMandateDetails {
-    pub network_transaction_id: Option<String>,
-    pub transaction_link_id: Option<String>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct ConnectorMandateReferenceId {
     connector_mandate_id: Option<String>,
     payment_method_id: Option<String>,
     update_history: Option<Vec<UpdateHistory>>,
     mandate_metadata: Option<SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
-    additional_mandate_details: Option<Box<AdditionalMandateDetails>>,
+    network_transaction_id: Option<String>,
+    transaction_link_id: Option<String>,
 }
 
 impl ConnectorMandateReferenceId {
@@ -634,7 +629,8 @@ impl ConnectorMandateReferenceId {
         update_history: Option<Vec<UpdateHistory>>,
         mandate_metadata: Option<SecretSerdeValue>,
         connector_mandate_request_reference_id: Option<String>,
-        additional_mandate_details: Option<Box<AdditionalMandateDetails>>,
+        network_transaction_id: Option<String>,
+        transaction_link_id: Option<String>,
     ) -> Self {
         Self {
             connector_mandate_id,
@@ -642,7 +638,8 @@ impl ConnectorMandateReferenceId {
             update_history,
             mandate_metadata,
             connector_mandate_request_reference_id,
-            additional_mandate_details,
+            network_transaction_id,
+            transaction_link_id,
         }
     }
 
@@ -666,8 +663,12 @@ impl ConnectorMandateReferenceId {
         self.connector_mandate_request_reference_id.clone()
     }
 
-    pub fn get_additional_mandate_details(&self) -> Option<&AdditionalMandateDetails> {
-        self.additional_mandate_details.as_deref()
+    pub fn get_network_transaction_id(&self) -> Option<String> {
+        self.network_transaction_id.clone()
+    }
+
+    pub fn get_transaction_link_id(&self) -> Option<String> {
+        self.transaction_link_id.clone()
     }
 }
 
