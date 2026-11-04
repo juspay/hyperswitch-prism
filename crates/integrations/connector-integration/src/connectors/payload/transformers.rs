@@ -210,7 +210,7 @@ fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
                     context: Default::default(),
                 },
             )?,
-            state_province: billing_addr.state.clone().ok_or(
+            state_province: billing_addr.get_optional_state().ok_or(
                 IntegrationError::MissingRequiredField {
                     field_name: "billing.address.state",
                     context: Default::default(),
@@ -342,7 +342,7 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
                         },
                     },
                 )?,
-                state_province: billing_addr.state.clone().ok_or(
+                state_province: billing_addr.get_optional_state().ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "billing.address.state",
                         context: IntegrationErrorContext {

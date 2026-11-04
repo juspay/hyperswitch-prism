@@ -282,13 +282,16 @@ fn build_bill_to(
                         ?err,
                         "Failed to convert state to code, using raw state value"
                     );
-                    addr.state.clone().map(|state| {
-                        Secret::new(format!(
-                            "{:.width$}",
-                            state.expose(),
-                            width = MAX_STATE_LENGTH
-                        ))
-                    })
+                    addr.state
+                        .as_ref()
+                        .and_then(|state| state.code_or_name())
+                        .map(|state| {
+                            Secret::new(format!(
+                                "{:.width$}",
+                                state.clone().expose(),
+                                width = MAX_STATE_LENGTH
+                            ))
+                        })
                 });
 
                 BillTo {
@@ -733,6 +736,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::RevolutPay(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
+                | WalletData::SatispayIntent(_)
+                | WalletData::SatispayQr(_)
                 | WalletData::Wero(_)
                 | WalletData::LazyPayRedirect(_)
                 | WalletData::PhonePeRedirect(_)
@@ -2034,6 +2039,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::RevolutPay(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
+                | WalletData::SatispayIntent(_)
+                | WalletData::SatispayQr(_)
                 | WalletData::Wero(_)
                 | WalletData::LazyPayRedirect(_)
                 | WalletData::PhonePeRedirect(_)

@@ -8,10 +8,11 @@
 //! gateway 3DS, which it runs inside a Hosted Payment Page: CreateOrder
 //! (`POST /orders`) and PreAuthenticate (`POST /payment-sessions`) set the page up,
 //! the shopper enters the card there, and Authorize settles it with
-//! `POST /transactions {"paymentSession": …, "total": …}`. Also: recurring cards (an Authorize
-//! with `setup_future_usage` opens the agreement; RepeatPayment replays `credentialOnFileData`
-//! as a merchant-initiated sale, via connector mandate id or card + NTID) and pre-decrypted
-//! Apple Pay / Google Pay one-time payments. Plus the
+//! `POST /transactions {"paymentSession": …, "total": …}`. Also: recurring cards and pre-decrypted
+//! Apple Pay / Google Pay as one-time sales. A recurring agreement is always a stored card:
+//! CreateConnectorCustomer (`POST /shoppers`), then PaymentMethodToken or a zero-amount
+//! SetupMandate (`POST /stored-cards`). The stored card's href then replaces the card on the sale
+//! and is the connector mandate id RepeatPayment charges. Plus the
 //! companion PSync / Capture / Void / Refund / RSync flows so that a manual-capture
 //! authorization always has a settle and a release path.
 
@@ -27,13 +28,16 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateOrder, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, Void,
+        Authorize, Capture, CreateConnectorCustomer, CreateOrder, PSync, PaymentMethodToken,
+        PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData,
+        ConnectorCustomerData, ConnectorCustomerResponse, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
@@ -55,8 +59,10 @@ use transformers::{
     ElavonPgCreateOrderRequest, ElavonPgCreateOrderResponse, ElavonPgPreAuthenticateRequest,
     ElavonPgPreAuthenticateResponse, ElavonPgPsyncResponse, ElavonPgRefundRequest,
     ElavonPgRefundResponse, ElavonPgRepeatPaymentRequest, ElavonPgRepeatPaymentResponse,
-    ElavonPgRsyncResponse, ElavonPgTransactionResponse, ElavonPgVoidRequest, ElavonPgVoidResponse,
-    ELAVON_PG_ACCEPT_VERSION, ELAVON_PG_CONNECTOR_ID, ELAVON_PG_MEDIA_TYPE,
+    ElavonPgRsyncResponse, ElavonPgSetupMandateRequest, ElavonPgSetupMandateResponse,
+    ElavonPgShopperRequest, ElavonPgShopperResponse, ElavonPgStoredCardRequest,
+    ElavonPgStoredCardResponse, ElavonPgTransactionResponse, ElavonPgVoidRequest,
+    ElavonPgVoidResponse, ELAVON_PG_ACCEPT_VERSION, ELAVON_PG_CONNECTOR_ID, ELAVON_PG_MEDIA_TYPE,
 };
 
 use super::macros;
@@ -83,6 +89,10 @@ pub(crate) mod paths {
     pub(crate) const ORDERS: &str = "orders";
     /// Payment-session collection — step 2 of the hosted-payment-page 3DS flow.
     pub(crate) const PAYMENT_SESSIONS: &str = "payment-sessions";
+    /// Shopper collection; a stored card has to belong to a shopper.
+    pub(crate) const SHOPPERS: &str = "shoppers";
+    /// Stored-card collection. Creating one verifies the card.
+    pub(crate) const STORED_CARDS: &str = "stored-cards";
 }
 
 // ===== MACRO-BASED STRUCT AND BRIDGE SETUP =====
@@ -107,6 +117,24 @@ macros::create_all_prerequisites!(
             request_body: ElavonPgAuthorizeRequest<T>,
             response_body: ElavonPgTransactionResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: CreateConnectorCustomer,
+            request_body: ElavonPgShopperRequest,
+            response_body: ElavonPgShopperResponse,
+            router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ),
+        (
+            flow: PaymentMethodToken,
+            request_body: ElavonPgStoredCardRequest<T>,
+            response_body: ElavonPgStoredCardResponse,
+            router_data: RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: ElavonPgSetupMandateRequest<T>,
+            response_body: ElavonPgSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
         (
             flow: RepeatPayment,
@@ -471,9 +499,126 @@ macros::macro_connector_implementation!(
     }
 );
 
+// ===== SETUP MANDATE =====
+// A zero-amount recurring agreement: `POST /stored-cards` verifies the card and stores it.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for ElavonPg<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: ElavonPg,
+    curl_request: Json(ElavonPgSetupMandateRequest<T>),
+    curl_response: ElavonPgSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/{}",
+                self.connector_base_url_payments(req),
+                paths::STORED_CARDS
+            ))
+        }
+    }
+);
+
+// ===== CREATE CONNECTOR CUSTOMER =====
+// A shopper, which a stored card has to belong to.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::CreateConnectorCustomer for ElavonPg<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: ElavonPg,
+    curl_request: Json(ElavonPgShopperRequest),
+    curl_response: ElavonPgShopperResponse,
+    flow_name: CreateConnectorCustomer,
+    resource_common_data: PaymentFlowData,
+    flow_request: ConnectorCustomerData,
+    flow_response: ConnectorCustomerResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/{}",
+                self.connector_base_url_payments(req),
+                paths::SHOPPERS
+            ))
+        }
+    }
+);
+
+// ===== PAYMENT METHOD TOKEN =====
+// A stored card, whose href the sale then takes in place of the card.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentTokenV2<T> for ElavonPg<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: ElavonPg,
+    curl_request: Json(ElavonPgStoredCardRequest<T>),
+    curl_response: ElavonPgStoredCardResponse,
+    flow_name: PaymentMethodToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentMethodTokenizationData<T>,
+    flow_response: PaymentMethodTokenResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/{}",
+                self.connector_base_url_payments(req),
+                paths::STORED_CARDS
+            ))
+        }
+    }
+);
+
 // ===== REPEAT PAYMENT =====
-// A merchant-initiated sale on the stored credential minted by the initial recurring
-// Authorize: same `POST /transactions` as a card sale, with `credentialOnFileData`.
+// A merchant-initiated sale on a stored card: same `POST /transactions` as a card sale, with
+// `storedCard` in place of the card.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for ElavonPg<T>
 {
@@ -515,6 +660,13 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for ElavonPg<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 
 macros::macro_connector_implementation!(
@@ -751,18 +903,15 @@ macros::macro_connector_implementation!(
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
 // not_implemented: EPG exposes the capability but it is out of scope for this
-//                  integration (cards, one-time payments only).
+//                  integration.
 // not_supported:   EPG's v1 API has no such resource at all.
 macros::macro_connector_flow_status_impls!(
     connector: ElavonPg,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        SetupMandate,
         MandateRevoke,
-        CreateConnectorCustomer,
         GetConnectorCustomer,
-        PaymentMethodToken,
         ClientAuthenticationToken,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,

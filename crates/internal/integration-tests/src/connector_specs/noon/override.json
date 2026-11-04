@@ -59,6 +59,24 @@
             },
             "phone_country_code": "+971"
           }
+        },
+        "setup_future_usage": "OFF_SESSION",
+        "customer_acceptance": {
+          "acceptance_type": "OFFLINE"
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "CHARGED",
+            "AUTHORIZED"
+          ]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
         }
       }
     },
@@ -152,6 +170,29 @@
             },
             "phone_country_code": "+971"
           }
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4000000000001091"
+            }
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHENTICATION_PENDING"
+          ]
+        },
+        "redirection_data": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
         }
       }
     },
@@ -346,5 +387,202 @@
         "merchant_transaction_id": "auto_generate"
       }
     }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "order_category": "pay",
+        "metadata": {
+          "value": "{\"description\":\"Noon mandate setup\"}"
+        },
+        "setup_mandate_details": {
+          "mandate_type": {
+            "mandate_type": {
+              "MultiUse": {
+                "amount": 10000,
+                "currency": "AED"
+              }
+            }
+          }
+        }
+      },
+      "assert": {
+        "mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "order_category": "pay",
+        "metadata": {
+          "value": "{\"description\":\"Noon mandate setup\"}"
+        },
+        "setup_mandate_details": {
+          "mandate_type": {
+            "mandate_type": {
+              "MultiUse": {
+                "amount": 10000,
+                "currency": "AED"
+              }
+            }
+          }
+        }
+      },
+      "assert": {
+        "mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "order_category": "pay",
+        "metadata": {
+          "value": "{\"description\":\"Noon mandate setup\"}"
+        },
+        "setup_mandate_details": {
+          "mandate_type": {
+            "mandate_type": {
+              "MultiUse": {
+                "amount": 10000,
+                "currency": "AED"
+              }
+            }
+          }
+        }
+      },
+      "assert": {
+        "mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "order_category": "pay",
+        "metadata": {
+          "value": "{\"description\":\"Noon mandate setup\"}"
+        },
+        "setup_mandate_details": {
+          "mandate_type": {
+            "mandate_type": {
+              "MultiUse": {
+                "amount": 10000,
+                "currency": "AED"
+              }
+            }
+          }
+        }
+      },
+      "assert": {
+        "mandate_reference.connector_mandate_id.connector_mandate_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "recurring_charge": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "description": "Noon MIT"
+      },
+      "assert": {
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "recurring_charge_low_amount": {
+      "grpc_req": {
+        "amount": {
+          "currency": "AED"
+        },
+        "description": "Noon MIT low amount"
+      },
+      "assert": {
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "recurring_charge_with_order_context": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "description": "Noon MIT"
+      },
+      "assert": {
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "RecurringPaymentService/Charge": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "description": "Noon MIT"
+      },
+      "assert": {
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {"assert": {"event_status": null, "event_type": {"one_of": ["PAYMENT_INTENT_SUCCESS", "PAYMENT_INTENT_AUTHORIZATION_SUCCESS"]}}},
+    "payment_failed": {"assert": {"event_status": null, "event_type": {"one_of": ["PAYMENT_INTENT_FAILURE"]}}},
+    "refund_succeeded": {"assert": {"event_status": null, "event_type": {"one_of": ["WEBHOOK_REFUND_SUCCESS"]}}},
+    "invalid_signature": {"assert": {"event_status": null, "event_type": {"one_of": ["PAYMENT_INTENT_SUCCESS", "PAYMENT_INTENT_AUTHORIZATION_SUCCESS"]}}}
   }
 }

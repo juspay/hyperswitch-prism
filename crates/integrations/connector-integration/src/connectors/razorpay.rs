@@ -73,20 +73,6 @@ pub struct Razorpay<T> {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Razorpay<T>
 {
-    fn validate_psync_reference_id(
-        &self,
-        data: &PaymentsSyncData,
-        _payment_flow_data: &PaymentFlowData,
-    ) -> CustomResult<(), IntegrationError> {
-        if data.encoded_data.is_some() {
-            return Ok(());
-        }
-        Err(IntegrationError::MissingRequiredField {
-            field_name: "encoded_data",
-            context: Default::default(),
-        }
-        .into())
-    }
     fn should_do_order_create(&self) -> bool {
         true
     }
@@ -110,6 +96,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Razorpay<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        if data.encoded_data.is_some() {
+            return Ok(());
+        }
+        Err(IntegrationError::MissingRequiredField {
+            field_name: "encoded_data",
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentOrderCreate for Razorpay<T>

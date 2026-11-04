@@ -161,6 +161,7 @@ pub enum ConnectorEnum {
     Qwikcilver,
     Flywire,
     Affirm,
+    Reddot,
     Givepayments,
     Grabpay,
     Tesouro,
@@ -178,6 +179,7 @@ pub enum ConnectorEnum {
     GlobalpaymentsRealex,
     GlobalpaymentsHeartland,
     Payhere,
+    Betterpayment,
     Ecommpay,
 }
 
@@ -550,6 +552,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::Maya => Ok(Self::Maya),
+            grpc_api_types::payments::Connector::Reddot => Ok(Self::Reddot),
             grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
             grpc_api_types::payments::Connector::GlobalpaymentsRealex => {
                 Ok(Self::GlobalpaymentsRealex)
@@ -580,6 +583,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Paydotcom => Ok(Self::Paydotcom),
             grpc_api_types::payments::Connector::ElavonPg => Ok(Self::ElavonPg),
             grpc_api_types::payments::Connector::Payhere => Ok(Self::Payhere),
+            grpc_api_types::payments::Connector::Betterpayment => Ok(Self::Betterpayment),
             grpc_api_types::payments::Connector::Ecommpay => Ok(Self::Ecommpay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -614,6 +618,8 @@ pub struct ConnectorMandateReferenceId {
     update_history: Option<Vec<UpdateHistory>>,
     mandate_metadata: Option<SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
+    network_transaction_id: Option<String>,
+    transaction_link_id: Option<String>,
 }
 
 impl ConnectorMandateReferenceId {
@@ -623,6 +629,8 @@ impl ConnectorMandateReferenceId {
         update_history: Option<Vec<UpdateHistory>>,
         mandate_metadata: Option<SecretSerdeValue>,
         connector_mandate_request_reference_id: Option<String>,
+        network_transaction_id: Option<String>,
+        transaction_link_id: Option<String>,
     ) -> Self {
         Self {
             connector_mandate_id,
@@ -630,6 +638,8 @@ impl ConnectorMandateReferenceId {
             update_history,
             mandate_metadata,
             connector_mandate_request_reference_id,
+            network_transaction_id,
+            transaction_link_id,
         }
     }
 
@@ -651,6 +661,14 @@ impl ConnectorMandateReferenceId {
 
     pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
         self.connector_mandate_request_reference_id.clone()
+    }
+
+    pub fn get_network_transaction_id(&self) -> Option<String> {
+        self.network_transaction_id.clone()
+    }
+
+    pub fn get_transaction_link_id(&self) -> Option<String> {
+        self.transaction_link_id.clone()
     }
 }
 
@@ -1028,7 +1046,7 @@ impl PaymentFlowData {
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_details| shipping_details.state)
+                .and_then(|shipping_details| shipping_details.get_optional_state())
         })
     }
 
@@ -1235,7 +1253,7 @@ impl PaymentFlowData {
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.state)
+                    .and_then(|billing_details| billing_details.get_optional_state())
             })
             .ok_or_else(missing_field_err(
                 "payment_method_data.billing.address.state",
@@ -1343,8 +1361,24 @@ impl PaymentFlowData {
                 billing_address
                     .clone()
                     .address
-                    .and_then(|billing_details| billing_details.state)
+                    .and_then(|billing_details| billing_details.get_optional_state())
             })
+    }
+
+    pub fn get_optional_billing_state_code_or_name(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.address.as_ref())
+            .and_then(|billing_details| billing_details.state.as_ref())
+            .and_then(crate::payment_address::StateDetails::code_or_name)
+            .cloned()
+    }
+
+    pub fn get_optional_billing_state_code_iso(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.address.as_ref())
+            .and_then(|billing_details| billing_details.get_optional_state_code_iso())
     }
 
     pub fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
@@ -1806,6 +1840,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub mandate_id: Option<MandateIds>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    /// Whether this payment uses a previously stored credential.
+    pub is_stored_credential: Option<bool>,
     pub browser_info: Option<BrowserInformation>,
     pub order_category: Option<String>,
     pub session_token: Option<String>,
@@ -1874,6 +1910,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// Opt in to address verification when billing details are available.
     /// Only `Some(true)` requests AVS; connectors decide how to send it.
     pub enable_avs_check: Option<bool>,
+    /// Opt in to account name verification for supported connectors.
+    pub enable_account_name_verification: Option<bool>,
 }
 
 /// A request sets up a mandate with the customer present when the shopper has
@@ -2819,7 +2857,7 @@ impl ServerSessionAuthenticationTokenRequestData {
             shipping_address
                 .clone()
                 .address
-                .and_then(|shipping_details| shipping_details.state)
+                .and_then(|shipping_details| shipping_details.get_optional_state())
         })
     }
 
@@ -3906,6 +3944,8 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub mandate_id: Option<MandateIds>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    /// Whether this payment uses a previously stored credential.
+    pub is_stored_credential: Option<bool>,
     pub setup_mandate_details: Option<MandateData>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
@@ -3926,6 +3966,8 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub integrity_object: Option<SetupMandateIntegrityObject>,
     pub payment_channel: Option<PaymentChannel>,
     pub enable_partial_authorization: Option<bool>,
+    /// Opt in to account name verification for supported connectors.
+    pub enable_account_name_verification: Option<bool>,
     pub locale: Option<String>,
     pub connector_testing_data: Option<SecretSerdeValue>,
     /// Signals the future intended MIT type for this CIT setup (e.g.
@@ -3943,6 +3985,9 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
+    /// Category of the order/service (proto `order_category`), for connectors that
+    /// require it on the mandate-setup order.
+    pub order_category: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -4503,6 +4548,8 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::RevolutPay(_) => Self::RevolutPay,
                 payment_method_data::WalletData::MbWay(_) => Self::MbWay,
                 payment_method_data::WalletData::Satispay(_) => Self::Satispay,
+                payment_method_data::WalletData::SatispayIntent(_) => Self::Satispay,
+                payment_method_data::WalletData::SatispayQr(_) => Self::Satispay,
                 payment_method_data::WalletData::Wero(_) => Self::Wero,
                 payment_method_data::WalletData::LazyPayRedirect(_) => Self::LazyPayRedirect,
                 payment_method_data::WalletData::PhonePeRedirect(_) => Self::PhonePeRedirect,
@@ -4535,6 +4582,10 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::BankRedirectData::BancontactCard { .. } => {
                     Self::BancontactCard
                 }
+                payment_method_data::BankRedirectData::BancontactIntent { .. } => {
+                    Self::BancontactCard
+                }
+                payment_method_data::BankRedirectData::BancontactQr { .. } => Self::BancontactCard,
                 payment_method_data::BankRedirectData::Bizum {} => Self::Bizum,
                 payment_method_data::BankRedirectData::Blik { .. } => Self::Blik,
                 payment_method_data::BankRedirectData::Eps { .. } => Self::Eps,
@@ -5472,7 +5523,7 @@ pub struct TaxInfo {
     pub vat_invoice_reference_number: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CustomerInfo {
     pub customer_id: Option<CustomerId>,
     pub customer_email: Option<common_utils::pii::Email>,
@@ -5563,7 +5614,7 @@ impl L2L3Data {
     pub fn get_shipping_state(&self) -> Option<Secret<String>> {
         self.shipping_details
             .as_ref()
-            .and_then(|address| address.state.clone())
+            .and_then(|address| address.get_optional_state())
     }
 
     pub fn get_shipping_origin_zip(&self) -> Option<Secret<String>> {
@@ -6536,6 +6587,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
             AuthType::Grabpay(_) => Ok(Self::Payment(ConnectorEnum::Grabpay)),
             AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
+            AuthType::Reddot(_) => Ok(Self::Payment(ConnectorEnum::Reddot)),
             AuthType::Tesouro(_) => Ok(Self::Payment(ConnectorEnum::Tesouro)),
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
             AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
@@ -6552,6 +6604,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Paydotcom(_) => Ok(Self::Payment(ConnectorEnum::Paydotcom)),
             AuthType::ElavonPg(_) => Ok(Self::Payment(ConnectorEnum::ElavonPg)),
             AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
+            AuthType::Betterpayment(_) => Ok(Self::Payment(ConnectorEnum::Betterpayment)),
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
