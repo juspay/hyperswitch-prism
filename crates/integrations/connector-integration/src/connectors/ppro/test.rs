@@ -1635,7 +1635,7 @@ mod satispay_request_tests {
                 customer: None,
                 business_country: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
             },
             response: Err(ErrorResponse::default()),
         }
