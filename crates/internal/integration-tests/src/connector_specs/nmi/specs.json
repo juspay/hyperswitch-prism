@@ -12,6 +12,11 @@
     "PaymentService/Void",
     "EventService/HandleEvent"
   ],
+  "supported_payment_methods": [
+    "card",
+    "google_pay_sdk",
+    "apple_pay_sdk"
+  ],
   "unsupported_scenarios": {
     "PaymentService/Authorize": {
       "no3ds_auto_capture_google_pay_encrypted": "SANDBOX_NOT_PROVISIONED: doc:https://docs.nmi.com/docs/adding-digital-wallet-data-to-the-customer-vault — implemented, live verification blocked: the scenario token is a placeholder, and a CHARGED result needs a Google Pay token minted for a gateway merchant id registered with NMI, which no committed credential provides"

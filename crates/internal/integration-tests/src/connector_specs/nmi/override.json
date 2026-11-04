@@ -303,7 +303,7 @@
       "assert": {
         "event_status": null,
         "source_verified": {
-          "equals": false
+          "must_not_exist": true
         }
       }
     }
