@@ -1722,6 +1722,11 @@ fn get_nuvei_capture_addendums(
     )
 }
 
+#[derive(Deserialize)]
+struct NuveiCaptureMetadata {
+    reference_id: Option<Secret<String>>,
+}
+
 fn merge_nuvei_capture_ticket(
     addendums: Option<Secret<NuveiAddendums>>,
     metadata: Option<&pii::SecretSerdeValue>,
@@ -1734,19 +1739,17 @@ fn merge_nuvei_capture_ticket(
     // Ignore unparsable metadata and keep the ticket supplied in airline data.
     let decoded = metadata.and_then(|metadata| {
         if let Some(encoded) = metadata.peek().as_str() {
-            serde_json::from_str::<serde_json::Value>(encoded).ok()
+            serde_json::from_str::<NuveiCaptureMetadata>(encoded).ok()
         } else {
-            Some(metadata.peek().clone())
+            serde_json::from_value::<NuveiCaptureMetadata>(metadata.peek().clone()).ok()
         }
     });
     let reservation_details = &mut addendums.airlines.reservation_details;
     if let Some(ticket) = decoded
-        .as_ref()
-        .and_then(|metadata| metadata.get("reference_id"))
-        .and_then(|ticket| ticket.as_str())
-        .filter(|ticket| !ticket.trim().is_empty())
+        .and_then(|metadata| metadata.reference_id)
+        .filter(|ticket| !ticket.peek().trim().is_empty())
     {
-        reservation_details.ticket_number = Some(Secret::new(ticket.to_owned()));
+        reservation_details.ticket_number = Some(ticket);
     }
     // Preserve the supplied issue date; use capture time only when it is absent.
     if reservation_details.issue_date.is_none() {
@@ -3887,7 +3890,7 @@ pub(super) fn process_nuvei_redirect(
             )
         }),
     };
-    validate_nuvei_challenge_result(&callback)?;
+    let challenge_status = get_nuvei_challenge_status(&callback)?;
     let mut meta: NuveiMeta = data
         .and_then(|data| serde_json::from_str(data.peek()).ok())
         .ok_or_else(|| {
@@ -3923,12 +3926,16 @@ pub(super) fn process_nuvei_redirect(
         })?;
     Ok(domain_types::connector_types::RedirectDetailsResponse {
         resource_id: None,
-        status: None,
+        status: (challenge_status == NuveiAcsTransStatus::Failed)
+            .then_some(AttemptStatus::AuthenticationFailed),
         response_amount: None,
         connector_response_reference_id: None,
-        error_code: None,
-        error_message: None,
-        error_reason: None,
+        error_code: (challenge_status == NuveiAcsTransStatus::Failed)
+            .then(|| "THREE_DS_AUTHENTICATION_FAILED".to_owned()),
+        error_message: (challenge_status == NuveiAcsTransStatus::Failed)
+            .then(|| "3DS authentication failed".to_owned()),
+        error_reason: (challenge_status == NuveiAcsTransStatus::Failed)
+            .then(|| "ACS returned transStatus=N".to_owned()),
         raw_connector_response: None,
         connector_feature_data: Some(connector_feature_data),
     })
@@ -4002,6 +4009,19 @@ fn decode_nuvei_challenge_field<R: serde::de::DeserializeOwned>(
 fn validate_nuvei_challenge_result(
     redirect_response: &ContinueRedirectionResponse,
 ) -> Result<(), Report<IntegrationError>> {
+    match get_nuvei_challenge_status(redirect_response)? {
+        NuveiAcsTransStatus::Success => Ok(()),
+        status => {
+            Err(nuvei_three_ds_authentication_failed(format!("ACS transStatus {status:?}")).into())
+        }
+    }
+}
+
+// A completed negative challenge is a payment outcome, not malformed input.
+// Direct Authorize still rejects it through validate_nuvei_challenge_result.
+fn get_nuvei_challenge_status(
+    redirect_response: &ContinueRedirectionResponse,
+) -> Result<NuveiAcsTransStatus, Report<IntegrationError>> {
     match get_nuvei_redirection_response(redirect_response) {
         // The caller did send a redirection_response, but it carries neither
         // the `cres` of a completed challenge nor an `error`, so there is no
@@ -4019,8 +4039,9 @@ fn validate_nuvei_challenge_result(
             let acs_response: NuveiAcsResponse =
                 decode_nuvei_challenge_field(&cres, "redirect_response.cres")?;
             match acs_response.trans_status {
-                Some(NuveiAcsTransStatus::Success) => Ok(()),
-                Some(NuveiAcsTransStatus::Failed) | Some(NuveiAcsTransStatus::Unknown) | None => {
+                Some(NuveiAcsTransStatus::Success) => Ok(NuveiAcsTransStatus::Success),
+                Some(NuveiAcsTransStatus::Failed) => Ok(NuveiAcsTransStatus::Failed),
+                Some(NuveiAcsTransStatus::Unknown) | None => {
                     Err(nuvei_three_ds_authentication_failed(format!(
                         "ACS transStatus {:?}",
                         acs_response.trans_status
@@ -6791,7 +6812,11 @@ pub struct PaymentDmnNotification {
     pub ppp_status: DmnApiTransactionStatus,
     #[serde(rename = "PPP_TransactionID")]
     pub ppp_transaction_id: String,
+    // Preserve missing fields as empty checksum components; never invent money.
+    // A valid checksum is still required before the caller consumes the event.
+    #[serde(default)]
     pub total_amount: String,
+    #[serde(default)]
     pub currency: String,
     #[serde(rename = "TransactionID")]
     pub transaction_id: Option<String>,
@@ -7565,3 +7590,7 @@ pub fn build_refund_webhook_details(
         response_headers: None,
     })
 }
+
+#[cfg(test)]
+#[path = "/private/tmp/nuvei_pending_review_unit_tests.rs"]
+mod pending_review_tests;

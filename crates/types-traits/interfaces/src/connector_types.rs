@@ -300,6 +300,18 @@ pub trait ValidationTrait: ConnectorCommon {
             .unwrap_or(false)
     }
 
+    /// Whether authentication routing needs decoded payment-method data.
+    /// The connector selects the categories it needs; PCI-specific request
+    /// conversion remains in the granular service.
+    fn requires_authentication_payment_method_data(&self, _payment_method: PaymentMethod) -> bool {
+        false
+    }
+
+    /// Whether authentication routing needs external authentication data.
+    fn requires_authentication_data(&self) -> bool {
+        false
+    }
+
     /// Returns the next authentication step for composite authorize flow.
     /// The connector examines the current state and returns which step should execute next.
     fn next_authentication_step(

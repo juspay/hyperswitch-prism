@@ -843,17 +843,40 @@ where
         let payment_method = self.get_payment_method(&payload)?;
         let redirect_state = self.get_redirect_state(&payload);
 
-        // Routing consumes domain data; granular services retain request validation
-        // and their PCI-specific card/proxy conversion paths.
-        let routing_payment_method_data = payload.payment_method.clone().and_then(|data| {
-            domain_types::payment_method_data::PaymentMethodData::<
-                domain_types::payment_method_data::DefaultPCIHolder,
-            >::foreign_try_from(data)
-            .ok()
-        });
-        let routing_authentication_data = payload.authentication_data.clone().and_then(|data| {
-            domain_types::router_request_types::AuthenticationData::try_from(data).ok()
-        });
+        // Decode routing inputs only when the connector requests them.
+        // Raw-card and proxy conversion remains in the granular services.
+        let routing_payment_method_data = if connector_data
+            .connector
+            .requires_authentication_payment_method_data(payment_method)
+        {
+            payload
+                .payment_method
+                .clone()
+                .map(
+                    domain_types::payment_method_data::PaymentMethodData::<
+                        domain_types::payment_method_data::DefaultPCIHolder,
+                    >::foreign_try_from,
+                )
+                .transpose()
+                .map_err(|err| {
+                    tonic::Status::invalid_argument(format!("invalid payment_method: {err}"))
+                })?
+        } else {
+            None
+        };
+        let routing_authentication_data = if connector_data.connector.requires_authentication_data()
+        {
+            payload
+                .authentication_data
+                .clone()
+                .map(domain_types::router_request_types::AuthenticationData::try_from)
+                .transpose()
+                .map_err(|err| {
+                    tonic::Status::invalid_argument(format!("invalid authentication_data: {err}"))
+                })?
+        } else {
+            None
+        };
 
         let mut state = AuthorizeCompositeState::default();
 
@@ -1413,6 +1436,47 @@ where
         let connector_data = ConnectorData::<
             domain_types::payment_method_data::DefaultPCIHolder,
         >::get_connector_by_name(&connector);
+
+        // A terminal verification failure must not trigger another authorization.
+        // Return it through the payment response so callers can finalize the attempt.
+        if connector_data.connector.requires_authorize_post_redirect() {
+            if let Some(status) = verify_response
+                .status
+                .filter(|status| is_failure_payment_status(*status))
+            {
+                let raw_connector_status = verify_response
+                    .error
+                    .as_ref()
+                    .and_then(|error| error.connector_details.as_ref())
+                    .map(|error| grpc_api_types::payments::RawConnectorStatus {
+                        code: error.code.clone(),
+                        message: error.message.clone(),
+                        reason: error.reason.clone(),
+                    });
+                let authorize_response = PaymentServiceAuthorizeResponse {
+                    merchant_transaction_id: payload.merchant_transaction_id.clone(),
+                    connector_transaction_id: verify_response.connector_transaction_id.clone(),
+                    status,
+                    error: verify_response.error.clone(),
+                    status_code: 200,
+                    // Request money is round-trip correlation data here, not an
+                    // approved amount or independently reported provider money.
+                    authorized_money: payload.amount,
+                    raw_connector_response: verify_response.raw_connector_response.clone(),
+                    typed_connector_response: verify_response.typed_connector_response.clone(),
+                    connector_feature_data: verify_response.connector_feature_data.clone(),
+                    raw_connector_status,
+                    ..Default::default()
+                };
+                return Ok(tonic::Response::new(
+                    grpc_api_types::payments::CompositeVerifyRedirectResponseResponse {
+                        verify_redirect_response: Some(verify_response),
+                        authorize_response: Some(authorize_response),
+                        ..Default::default()
+                    },
+                ));
+            }
+        }
 
         let (access_token_response, session_token_response, authorize_response) =
             if connector_data.connector.requires_authorize_post_redirect() {

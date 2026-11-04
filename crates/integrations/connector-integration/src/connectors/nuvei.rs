@@ -136,6 +136,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         true
     }
 
+    fn requires_authentication_payment_method_data(
+        &self,
+        payment_method: common_enums::PaymentMethod,
+    ) -> bool {
+        payment_method == common_enums::PaymentMethod::Wallet
+    }
+
+    fn requires_authentication_data(&self) -> bool {
+        true
+    }
+
     /// Nuvei 3DS card payment, matching hyperswitch's direct integration:
     /// PreAuthenticate (/initPayment.do) -> Authorize (/payment.do with threeD
     /// and the initPayment relatedTransactionId; returns the ACS challenge, or
@@ -258,14 +269,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
     }
 
-    fn get_webhook_integrity_checks(&self) -> Vec<connector_types::WebhookIntegrityCheck> {
-        use connector_types::WebhookIntegrityCheck;
-        vec![
-            WebhookIntegrityCheck::ConnectorTransactionId,
-            WebhookIntegrityCheck::Amount,
-            WebhookIntegrityCheck::Currency,
-        ]
-    }
+    // The verified DMN and its payment/refund reference drive the status update.
+    // Use the default empty tracker-check list: optional money must not block
+    // an authenticated event, and refunds do not carry the parent payment ID.
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
         match transformers::parse_nuvei_webhook(&request.body)? {
