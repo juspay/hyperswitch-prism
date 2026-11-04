@@ -618,6 +618,8 @@ pub struct ConnectorMandateReferenceId {
     update_history: Option<Vec<UpdateHistory>>,
     mandate_metadata: Option<SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
+    network_transaction_id: Option<String>,
+    transaction_link_id: Option<String>,
 }
 
 impl ConnectorMandateReferenceId {
@@ -627,6 +629,8 @@ impl ConnectorMandateReferenceId {
         update_history: Option<Vec<UpdateHistory>>,
         mandate_metadata: Option<SecretSerdeValue>,
         connector_mandate_request_reference_id: Option<String>,
+        network_transaction_id: Option<String>,
+        transaction_link_id: Option<String>,
     ) -> Self {
         Self {
             connector_mandate_id,
@@ -634,6 +638,8 @@ impl ConnectorMandateReferenceId {
             update_history,
             mandate_metadata,
             connector_mandate_request_reference_id,
+            network_transaction_id,
+            transaction_link_id,
         }
     }
 
@@ -655,6 +661,14 @@ impl ConnectorMandateReferenceId {
 
     pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
         self.connector_mandate_request_reference_id.clone()
+    }
+
+    pub fn get_network_transaction_id(&self) -> Option<String> {
+        self.network_transaction_id.clone()
+    }
+
+    pub fn get_transaction_link_id(&self) -> Option<String> {
+        self.transaction_link_id.clone()
     }
 }
 
