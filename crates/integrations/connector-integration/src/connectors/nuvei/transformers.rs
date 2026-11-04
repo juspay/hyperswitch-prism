@@ -7590,7 +7590,3 @@ pub fn build_refund_webhook_details(
         response_headers: None,
     })
 }
-
-#[cfg(test)]
-#[path = "/private/tmp/nuvei_pending_review_unit_tests.rs"]
-mod pending_review_tests;
