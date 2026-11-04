@@ -191,6 +191,20 @@ jobs:
             fi
           fi
 
+          # A protected tag is immutable, but immutability alone does not prove
+          # that its source was reviewed. Require every selected release tag to
+          # point to a commit that is already in the protected default branch.
+          if [ -n "${RELEASE_TAG}" ]; then
+            git fetch --no-tags origin \
+              "+refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
+            if ! git merge-base --is-ancestor \
+              "${SOURCE_SHA}" \
+              "refs/remotes/origin/${DEFAULT_BRANCH}"; then
+              echo "::error::release tag '${RELEASE_TAG}' must point to a commit reachable from '${DEFAULT_BRANCH}'"
+              exit 1
+            fi
+          fi
+
           {
             echo "preview_only=${PREVIEW}"
             echo "publish_java=${PUBLISH_JAVA}"
@@ -233,14 +247,10 @@ jobs:
           toolchain: stable
           targets: ${{ matrix.target }}
 
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "release-${{ matrix.target }}"
-          cache-directories: |
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-
+      # Deliberately do not use a writable dependency cache here. A manual
+      # recovery run is scoped to the default branch while executing source
+      # from the selected release tag; caching would let that source write into
+      # the default branch's Actions-cache scope.
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
