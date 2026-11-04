@@ -1,8 +1,7 @@
-import type { ConnectorDefinition } from "../framework/types.js";
+import { connectorFromFile } from "../framework/connector.js";
 import type { ScenarioId } from "../scenarios/catalog.js";
 
-export const fiservcommercehub = {
-  id: "fiservcommercehub",
+export default connectorFromFile<ScenarioId>(import.meta.url, {
   overrides: {
     "payments/create-confirm/card/one-time/no3ds/create-confirm": {
       requests: {
@@ -31,4 +30,4 @@ export const fiservcommercehub = {
       },
     },
   },
-} as const satisfies ConnectorDefinition<ScenarioId>;
+});

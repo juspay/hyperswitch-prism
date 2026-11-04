@@ -1,6 +1,8 @@
 import { defineConfig } from "@playwright/test";
-import { connectors } from "./connectors/index.js";
+import { loadConnectors } from "./framework/connector-registry.js";
 import type { ScenarioFixtures } from "./framework/fixtures.js";
+
+const connectors = await loadConnectors();
 
 export default defineConfig<ScenarioFixtures>({
   testDir: "./scenarios",

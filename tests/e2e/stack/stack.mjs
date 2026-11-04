@@ -10,7 +10,9 @@ import {
 } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { connectors } from "../connectors/index.js";
+import { loadConnectors } from "../framework/connector-registry.js";
+
+const connectors = await loadConnectors();
 
 const e2eRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const runtime = resolve(e2eRoot, ".runtime");

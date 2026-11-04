@@ -23,7 +23,7 @@ function resolveScenarioFromFile<const T extends ScenarioCatalog>(
   const marker = "/scenarios/";
   const markerAt = file.lastIndexOf(marker);
   if (markerAt < 0) {
-    throw new Error(`Scenario spec is outside the scenarios directory: ${file}`);
+    throw new Error("Scenario spec must be located under the scenarios directory");
   }
 
   const relativeFile = file.slice(markerAt + marker.length);

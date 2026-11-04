@@ -1,6 +1,4 @@
-import type { ConnectorDefinition } from "../framework/types.js";
+import { connectorFromFile } from "../framework/connector.js";
 import type { ScenarioId } from "../scenarios/catalog.js";
 
-export const adyen = {
-  id: "adyen",
-} as const satisfies ConnectorDefinition<ScenarioId>;
+export default connectorFromFile<ScenarioId>(import.meta.url, {});
