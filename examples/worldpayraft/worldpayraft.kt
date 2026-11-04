@@ -251,7 +251,6 @@ fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultCo
             minorAmount = 100L
             currency = Currency.USD
         }
-        networkTransactionId = "263010131742906"  // Network transaction ID returned by the original authorization.
         paymentMethodBuilder.apply {  // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
             cardWithNoCvcBuilder.apply {  // Card payment where CVC is not required.
                 cardNumberBuilder.value = "4111111111111111"  // Card Identification.

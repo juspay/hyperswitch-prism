@@ -117,7 +117,6 @@ pub fn build_incremental_authorization_request() -> PaymentServiceIncrementalAut
             minor_amount: 100,
             currency: Currency::Usd.into(),
         }),
-        network_transaction_id: Some("263010131742906".to_string()),  // Network transaction ID returned by the original authorization.
         payment_method: Some(PaymentMethod {  // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
             payment_method: Some(payment_method::PaymentMethod::CardWithNoCvc(CardDetailsWithNoCvc {
                 card_number: Some(CardNumber::from_str("4111111111111111").unwrap()),  // Card Identification.

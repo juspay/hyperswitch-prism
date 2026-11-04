@@ -691,7 +691,6 @@
             "minor_amount": 100,
             "currency": "USD"
           },
-          "network_transaction_id": "263010131742906",
           "payment_method": {
             "card_with_no_cvc": {
               "card_number": "4111111111111111",
