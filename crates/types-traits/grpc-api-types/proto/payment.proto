@@ -1857,6 +1857,7 @@ message GooglePayConnectorResponse {
   optional CardType card_type = 7; // The card type (credit/debit/prepaid/charge)
   optional string issuer_name = 8; // The name of the card issuer
   optional CountryAlpha2 issuer_country = 9; // The country of the card issuer (ISO alpha-2)
+  optional bytes payment_checks = 10; // Payment checks as JSON bytes
 }
 
 // Additional payment method data for Apple Pay
@@ -1870,6 +1871,7 @@ message ApplePayConnectorResponse {
   optional FundingSource funding_source = 6; // The card's funding source type
   optional string issuer_name = 7; // The name of the card issuer
   optional CountryAlpha2 issuer_country = 8; // The country of the card issuer (ISO alpha-2)
+  optional bytes payment_checks = 9; // Payment checks as JSON bytes
 }
 
 // Customer information for payments
@@ -2574,6 +2576,9 @@ message PaymentServiceAuthorizeRequest {
   // history, premium status, etc.) for connectors that factor customer risk
   // into authorization / onboarding decisions.
   optional RiskAssessmentData risk_assessment_data = 58;
+
+  // Opt in to account name inquiry for supported connectors.
+  optional bool enable_ani_check = 61;
 
  // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 59;
@@ -3717,6 +3722,9 @@ message PaymentServiceSetupRecurringRequest {
 
   // Whether the payment uses a previously stored credential.
   optional bool is_stored_credential = 44;
+
+  // Opt in to account name inquiry for supported connectors.
+  optional bool enable_ani_check = 45;
 }
 
 // Response message for a mandate setup operation
@@ -5312,7 +5320,10 @@ message WellsfargoConfig {
 message WorldpayvantivConfig {
   SecretString user = 1;
   SecretString password = 2;
+  // Single merchant ID used for every currency. Set this or merchant_id_by_currency.
   SecretString merchant_id = 3;
+  // Merchant IDs keyed by ISO 4217 currency code, e.g. USD, CAD. Used when merchant_id is not set.
+  map<string, SecretString> merchant_id_by_currency = 4;
   optional string base_url = 50;
   optional string report_group = 51;
   optional string merchant_config_currency = 52;
