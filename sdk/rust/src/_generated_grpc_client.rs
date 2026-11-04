@@ -114,6 +114,10 @@ use grpc_api_types::payments::{
     RefundServiceVoidPostRefundRequest,
     SurchargeServiceCalculateRequest,
     SurchargeServiceCalculateResponse,
+    SurchargeServiceSurchargeRefundCompleteRequest,
+    SurchargeServiceSurchargeRefundCompleteResponse,
+    SurchargeServiceSurchargeRefundInitRequest,
+    SurchargeServiceSurchargeRefundInitResponse,
 };
 use tonic::{
     metadata::{MetadataKey, MetadataValue},
@@ -529,6 +533,18 @@ impl_grpc_client!(
         calculate,
         SurchargeServiceCalculateRequest,
         SurchargeServiceCalculateResponse
+    ),
+    (
+        surcharge_refund_init,
+        surcharge_refund_init,
+        SurchargeServiceSurchargeRefundInitRequest,
+        SurchargeServiceSurchargeRefundInitResponse
+    ),
+    (
+        surcharge_refund_complete,
+        surcharge_refund_complete,
+        SurchargeServiceSurchargeRefundCompleteRequest,
+        SurchargeServiceSurchargeRefundCompleteResponse
     ),
 );
 

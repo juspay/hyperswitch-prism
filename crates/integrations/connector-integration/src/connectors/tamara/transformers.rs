@@ -236,7 +236,11 @@ fn tamara_location(address: &AddressDetails) -> Option<String> {
         address.line2.as_ref().map(|line| line.peek().clone()),
         address.line3.as_ref().map(|line| line.peek().clone()),
         address.city.as_ref().map(|city| city.peek().clone()),
-        address.state.as_ref().map(|state| state.peek().clone()),
+        address
+            .state
+            .as_ref()
+            .and_then(|state| state.code_or_name())
+            .map(|state| state.peek().clone()),
         address.zip.as_ref().map(|zip| zip.peek().clone()),
         address.country.map(|country| country.to_string()),
     ];
@@ -1428,12 +1432,35 @@ pub struct TamaraWebhookData {
     pub refund_id: Option<String>,
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum TamaraWebhookDataOrArray {
+    Data(TamaraWebhookData),
+    // Tamara sometimes sends `data` as an array; contents are intentionally ignored
+    #[allow(dead_code)]
+    Array(Vec<serde::de::IgnoredAny>),
+}
+
+fn deserialize_tamara_webhook_data<'de, D>(
+    deserializer: D,
+) -> Result<Option<TamaraWebhookData>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    match Option::<TamaraWebhookDataOrArray>::deserialize(deserializer)? {
+        None => Ok(None),
+        Some(TamaraWebhookDataOrArray::Data(data)) => Ok(Some(data)),
+        Some(TamaraWebhookDataOrArray::Array(_)) => Ok(None),
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TamaraWebhookEventType {
     pub order_id: String,
     pub order_reference_id: Option<String>,
     pub order_number: Option<String>,
     pub event_type: TamaraWebhookEvent,
+    #[serde(default, deserialize_with = "deserialize_tamara_webhook_data")]
     pub data: Option<TamaraWebhookData>,
 }
 

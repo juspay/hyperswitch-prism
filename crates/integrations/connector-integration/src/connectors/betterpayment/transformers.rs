@@ -193,7 +193,7 @@ impl TryFrom<&Address> for BetterpaymentBillingAddress {
                 .get_zip()
                 .change_context(missing_billing_field("billing.address.zip"))?
                 .clone(),
-            state: address.state.clone(),
+            state: address.get_optional_state(),
             country: *address
                 .get_country()
                 .change_context(missing_billing_field("billing.address.country"))?,

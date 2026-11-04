@@ -1495,9 +1495,11 @@ dependencies = [
  "serde",
  "serde_json",
  "tonic 0.14.5",
+ "tracing",
  "ucs_common_enums",
  "ucs_common_utils",
  "ucs_env",
+ "ucs_interface_common",
 ]
 
 [[package]]

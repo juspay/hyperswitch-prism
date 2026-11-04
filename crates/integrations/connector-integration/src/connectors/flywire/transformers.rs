@@ -69,7 +69,6 @@ impl TryFrom<&ConnectorSpecificConfig> for FlywireAuthType {
 // =============================================================================
 
 const CHECKOUT_SESSION_TYPE: &str = "one_off";
-const CHECKOUT_SESSION_SCHEMA: &str = "cards";
 const CHECKOUT_SESSION_ITEM_ID: &str = "default";
 const FLYWIRE_EVENT_LISTENER_TEMPLATE: &str = r#"window.addEventListener("message", function (e) {
   if (!e.origin || !e.origin.endsWith(".flywire.com")) return;
@@ -88,7 +87,6 @@ const FLYWIRE_EVENT_LISTENER_TEMPLATE: &str = r#"window.addEventListener("messag
 pub struct FlywireCheckoutSessionRequest {
     #[serde(rename = "type")]
     pub type_: &'static str,
-    pub schema: &'static str,
     pub charge_intent: FlywireChargeIntent,
     pub recipient_id: String,
     pub recipient: FlywireRecipient,
@@ -219,7 +217,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             type_: CHECKOUT_SESSION_TYPE,
-            schema: CHECKOUT_SESSION_SCHEMA,
             charge_intent: FlywireChargeIntent {
                 mode: CHECKOUT_SESSION_TYPE,
             },
@@ -330,7 +327,7 @@ fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {
         address: address.line1.clone(),
         city: address.city.clone(),
         country: address.country.map(|c| c.to_string()),
-        state: address.state.clone(),
+        state: address.get_optional_state(),
         phone: billing.phone.as_ref().and_then(|p| p.number.clone()),
         email: billing.email.clone(),
         zip: address.zip.clone(),
