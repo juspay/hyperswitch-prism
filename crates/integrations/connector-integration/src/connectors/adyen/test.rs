@@ -1610,6 +1610,7 @@ mod tests {
                     recipient_details: None,
                     business_country: None,
                     enable_avs_check: None,
+                    enable_ani_check: None,
                     additional_connector_details: None,
                     customer: None,
                     is_stored_credential: None,
