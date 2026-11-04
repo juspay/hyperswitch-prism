@@ -718,7 +718,7 @@ macros::macro_connector_implementation!(
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Fiservcommercehub,
     curl_request: Json(FiservcommercehubPSyncRequest),
     curl_response: FiservcommercehubPSyncResponse,
@@ -730,6 +730,21 @@ macros::macro_connector_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+            let mut error_response =
+                self.build_error_response(res, event_builder, connector_config)?;
+
+            // An inquiry error's transaction ID identifies the failed inquiry,
+            // not the original payment being synchronized.
+            error_response.connector_transaction_id = None;
+            Ok(error_response)
+        }
+
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
