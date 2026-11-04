@@ -11,7 +11,6 @@ import types.Payment.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.PaymentMethodAuthenticationClient
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.CardNetwork
@@ -23,7 +22,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.GlobalpaymentsRealexConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "pre_authenticate", "proxy_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -46,8 +45,8 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
     return PaymentServiceAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_txn_001"  // Identification.
         amountBuilder.apply {  // The amount for the payment.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         paymentMethodBuilder.apply {  // Payment method to be used.
             cardBuilder.apply {  // Generic card payment.
@@ -73,8 +72,8 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
         merchantCaptureId = "probe_capture_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
         amountToCaptureBuilder.apply {  // Capture Details.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
     }.build()
 }
@@ -84,8 +83,8 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
         merchantTransactionId = "probe_merchant_txn_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
         amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
     }.build()
 }
@@ -203,43 +202,14 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
-// Flow: PaymentMethodAuthenticationService.PreAuthenticate
-fun preAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentMethodAuthenticationClient(config)
-    val request = PaymentMethodAuthenticationServicePreAuthenticateRequest.newBuilder().apply {
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {  // Payment Method.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-        enrolledFor3Ds = false  // Authentication Details.
-        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
-        continueRedirectionUrl = "https://example.com/3ds-continue"
-    }.build()
-    val response = client.pre_authenticate(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: PaymentService.ProxyAuthorize
 fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
     val request = PaymentServiceProxyAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_proxy_txn_001"
         amountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         cardProxyBuilder.apply {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
             cardNumberBuilder.value = "4111111111111111"  // Card Identification.
@@ -283,9 +253,8 @@ fun main(args: Array<String>) {
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "get" -> get(txnId)
-        "preAuthenticate" -> preAuthenticate(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processVoidPayment, processGetPayment, authorize, capture, get, preAuthenticate, proxyAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processVoidPayment, processGetPayment, authorize, capture, get, proxyAuthorize, void")
     }
 }

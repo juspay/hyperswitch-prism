@@ -12,9 +12,47 @@
     "RefundService/Get",
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge",
-    "PaymentService/Void"
+    "PaymentService/Void",
+    "EventService/HandleEvent"
   ],
   "request_id_source_field": "merchant_order_id",
   "request_id_prefix": "pay_",
-  "request_id_length": 12
+  "request_id_length": 12,
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_ach_bank_transfer": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_affirm": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_afterpay_clearpay": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_alipay": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_apple_pay_decrypted": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_bacs_bank_transfer": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_bancontact": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_crypto": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_debit_card": "CONNECTOR_API_LACKS: techspec API Call Sequences, ThreeDS (Non-3DS card payments) - Nexi offers no non-3DS e-commerce S2S card endpoint; the connector refuses no-3DS card payments like Hyperswitch does",
+      "no3ds_auto_capture_duitnow_qr": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_eps": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_fpx_maybank": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_giropay": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_google_pay_decrypted": "CONNECTOR_API_LACKS: techspec Requirements Coverage, Google Pay Hyperswitch decryption (source_9.md:68-69) - Nexi rejects DIRECT (decrypted) Google Pay tokenization and the S2S card object has no cryptogram/ECI field; the connector refuses before any HTTP call",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "CONNECTOR_API_LACKS: techspec Requirements Coverage, Google Pay Hyperswitch decryption (source_9.md:68-69) - Nexi rejects DIRECT (decrypted) Google Pay tokenization and the S2S card object has no cryptogram/ECI field; the connector refuses before any HTTP call",
+      "no3ds_auto_capture_google_pay_encrypted": "SANDBOX_NOT_PROVISIONED: techspec API Call Sequences, Google Pay wallet (PSP decryption) - Google Pay PSP decryption is implemented (POST /orders/googlepay) but the run holds no real Google Pay PAYMENT_GATEWAY test token for gateway nexigtw and this terminal's gatewayMerchantId; the harness dummy token returns PS0167 (graded in matrix row ThreeDS/wallet/google_pay_psp_decryption)",
+      "no3ds_auto_capture_ideal": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_klarna": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_przelewy24": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_sepa_bank_transfer": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_upi_collect": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_upi_intent": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_auto_capture_upi_qr": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "no3ds_fail_payment": "CONNECTOR_API_LACKS: techspec API Call Sequences, ThreeDS (Non-3DS card payments) - Nexi offers no non-3DS e-commerce S2S card endpoint; the connector refuses no-3DS card payments like Hyperswitch does",
+      "no3ds_manual_capture_credit_card": "CONNECTOR_API_LACKS: techspec API Call Sequences, ThreeDS (Non-3DS card payments) - Nexi offers no non-3DS e-commerce S2S card endpoint; the connector refuses no-3DS card payments like Hyperswitch does",
+      "no3ds_manual_capture_debit_card": "CONNECTOR_API_LACKS: techspec API Call Sequences, ThreeDS (Non-3DS card payments) - Nexi offers no non-3DS e-commerce S2S card endpoint; the connector refuses no-3DS card payments like Hyperswitch does",
+      "no3ds_manual_capture_incremental_auth": "FLOW_NOT_IN_SCOPE: techspec Complete Endpoint Inventory (POST /incrementals is a Disputeless hospitality product, not implemented) - IncrementalAuthorization stays not_implemented and the scenario is also no-3DS"
+    },
+    "PaymentService/Get": {
+      "sync_upi_collect": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "sync_upi_intent": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method",
+      "sync_upi_qr": "PM_NOT_OFFERED: techspec Overview and Requirements Coverage (server-to-server is cards only; wallets and APMs must use the Hosted Payment Page) - Nexi S2S API has no request shape for this payment method"
+    }
+  }
 }

@@ -8,7 +8,7 @@
 import asyncio
 import sys
 from payments import PaymentClient
-from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
+from payments.generated import common_types_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
 SUPPORTED_FLOWS = ["get"]
 
@@ -30,9 +30,9 @@ def _build_get_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceGetRequest(
         merchant_transaction_id="probe_merchant_txn_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
     )
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

@@ -577,7 +577,7 @@
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "BankRedirect type Trustly { country: None } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type Trustly { country: None, account_holder_name: None, bank_name: None, additional_details: None, bank_last_digits: None, connector_instrument_id: None } is not supported by Shift4 is not supported by Shift4"
       },
       "Twint": {
         "status": "not_implemented",

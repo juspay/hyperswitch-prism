@@ -206,6 +206,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     }
                     BankRedirectData::BancontactCard { .. }
+                    | BankRedirectData::BancontactIntent { .. }
+                    | BankRedirectData::BancontactQr { .. }
                     | BankRedirectData::Bizum {}
                     | BankRedirectData::Blik { .. }
                     | BankRedirectData::Eft { .. }
@@ -232,7 +234,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 }?;
 
-                let amount = item.router_data.request.amount;
+                let amount = item.router_data.request.amount.amount;
                 let internal_reference = item
                     .router_data
                     .resource_common_data
@@ -685,7 +687,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         item: VoltRouterData<RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>, T>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_refund_amount,
+            amount: item.router_data.request.refund_amount.amount,
             external_reference: item.router_data.request.refund_id.clone(),
         })
     }

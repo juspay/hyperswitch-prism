@@ -11,7 +11,7 @@
         { "action": "waitFor", "selector": "div[data-status=\"SUCCESS\"]", "timeoutMs": 30000 },
         { "action": "click",   "selector": "div[data-status=\"SUCCESS\"]" },
         { "action": "fill",    "selector": "#basic-otp", "value": "111000" },
-        { "action": "evaluate", "expression": "if (typeof loadPage === 'function') loadPage();" },
+        { "action": "initializeCashfreeSandbox" },
         { "action": "waitFor", "selector": "#successForm button:not([disabled])", "timeoutMs": 15000 },
         { "action": "click",   "selector": "#successForm button" },
         { "action": "waitFor", "urlContains": "thankyou", "timeoutMs": 30000 }
@@ -28,7 +28,7 @@
         { "action": "waitFor", "selector": "div[data-status=\"SUCCESS\"]", "timeoutMs": 30000 },
         { "action": "click",   "selector": "div[data-status=\"SUCCESS\"]" },
         { "action": "fill",    "selector": "#basic-otp", "value": "111000" },
-        { "action": "evaluate", "expression": "if (typeof loadPage === 'function') loadPage();" },
+        { "action": "initializeCashfreeSandbox" },
         { "action": "waitFor", "selector": "#successForm button:not([disabled])", "timeoutMs": 15000 },
         { "action": "click",   "selector": "#successForm button" },
         { "action": "waitFor", "urlContains": "thankyou", "timeoutMs": 30000 }

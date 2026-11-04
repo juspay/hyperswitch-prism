@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 use common_enums::{self, CountryAlpha2, Currency};
 use common_utils::{id_type::CustomerId, types::MinorUnit, StringMajorUnit};
@@ -12,7 +12,7 @@ use domain_types::{
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -93,6 +93,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth = WorldpayvantivAuthType::try_from(&item.router_data.connector_config)?;
+        let merchant_id = auth.merchant_id_for_currency(Some(item.router_data.request.currency))?;
 
         let authentication = Authentication {
             user: auth.user,
@@ -153,7 +154,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             "transaction_id",
         )?;
-        let amount = item.router_data.request.minor_amount;
+        let amount = item.router_data.request.amount.amount;
 
         // Extract report group from metadata or use default
         let report_group = extract_report_group(&item.router_data.connector_config)
@@ -208,7 +209,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let cnp_request = CnpOnlineRequest {
             version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
             xmlns: worldpayvantiv_constants::XMLNS.to_string(),
-            merchant_id: auth.merchant_id,
+            merchant_id,
             authentication,
             authorization,
             sale,
@@ -246,7 +247,10 @@ pub(super) mod worldpayvantiv_constants {
 pub struct WorldpayvantivAuthType {
     pub user: Secret<String>,
     pub password: Secret<String>,
-    pub merchant_id: Secret<String>,
+    /// Single merchant ID used for every currency (SignatureKey / MultiAuthKey).
+    pub merchant_id: Option<Secret<String>>,
+    /// Merchant IDs keyed by currency (BodyKey); used when `merchant_id` is not set.
+    pub merchant_id_by_currency: Option<HashMap<Currency, Secret<String>>>,
     pub report_group: Option<String>,
     pub merchant_config_currency: Option<String>,
 }
@@ -259,20 +263,91 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayvantivAuthType {
                 user,
                 password,
                 merchant_id,
+                merchant_id_by_currency,
                 report_group,
                 merchant_config_currency,
                 ..
-            } => Ok(Self {
-                user: user.to_owned(),
-                password: password.to_owned(),
-                merchant_id: merchant_id.to_owned(),
-                report_group: report_group.clone(),
-                merchant_config_currency: merchant_config_currency.clone(),
-            }),
+            } => {
+                if merchant_id_by_currency
+                    .as_ref()
+                    .is_some_and(|merchant_ids| merchant_ids.is_empty())
+                {
+                    return Err(IntegrationError::InvalidConnectorConfig {
+                        config: "merchant_id_by_currency",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Set at least one currency in the Worldpay Vantiv merchant_id_by_currency."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    }
+                    .into());
+                }
+                if merchant_id.is_none() && merchant_id_by_currency.is_none() {
+                    return Err(IntegrationError::FailedToObtainAuthType {
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Set either merchant_id or merchant_id_by_currency in the Worldpay Vantiv connector configuration."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    }
+                    .into());
+                }
+                Ok(Self {
+                    user: user.to_owned(),
+                    password: password.to_owned(),
+                    merchant_id: merchant_id.to_owned(),
+                    merchant_id_by_currency: merchant_id_by_currency.to_owned(),
+                    report_group: report_group.clone(),
+                    merchant_config_currency: merchant_config_currency.clone(),
+                })
+            }
             _ => Err(IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
             }
             .into()),
+        }
+    }
+}
+
+impl WorldpayvantivAuthType {
+    pub(super) fn merchant_id_for_currency(
+        &self,
+        currency: Option<Currency>,
+    ) -> Result<Secret<String>, Report<IntegrationError>> {
+        match &self.merchant_id {
+            Some(merchant_id) => Ok(merchant_id.clone()),
+            None => {
+                let currency = currency.ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "currency",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Worldpay Vantiv merchant ID is configured per currency".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
+                self.merchant_id_by_currency
+                    .as_ref()
+                    .and_then(|merchant_ids| merchant_ids.get(&currency))
+                    .cloned()
+                    .ok_or_else(|| {
+                        IntegrationError::CurrencyNotSupported {
+                            message: currency.to_string(),
+                            connector: "Worldpayvantiv",
+                            context: IntegrationErrorContext {
+                                suggested_action: Some(format!(
+                                    "Set a Worldpay Vantiv merchant_id_by_currency.{currency} in the connector configuration."
+                                )),
+                                ..Default::default()
+                            },
+                        }
+                        .into()
+                    })
+            }
         }
     }
 }
@@ -1837,6 +1912,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth = WorldpayvantivAuthType::try_from(&item.router_data.connector_config)?;
+        let merchant_id = auth.merchant_id_for_currency(Some(item.router_data.request.currency))?;
 
         let authentication = Authentication {
             user: auth.user,
@@ -1864,14 +1940,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             id: format!("{}_{}", OperationId::Capture, merchant_txn_id),
             report_group,
             cnp_txn_id,
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: item.router_data.request.amount_to_capture.amount,
             enhanced_data: None,
         };
 
         let cnp_request = CnpOnlineRequest {
             version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
             xmlns: worldpayvantiv_constants::XMLNS.to_string(),
-            merchant_id: auth.merchant_id,
+            merchant_id,
             authentication,
             authorization: None,
             sale: None,
@@ -1903,6 +1979,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth = WorldpayvantivAuthType::try_from(&item.router_data.connector_config)?;
+        let merchant_id = auth.merchant_id_for_currency(item.router_data.request.currency)?;
 
         let authentication = Authentication {
             user: auth.user,
@@ -1931,7 +2008,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let cnp_request = CnpOnlineRequest {
             version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
             xmlns: worldpayvantiv_constants::XMLNS.to_string(),
-            merchant_id: auth.merchant_id,
+            merchant_id,
             authentication,
             authorization: None,
             sale: None,
@@ -1963,6 +2040,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth = WorldpayvantivAuthType::try_from(&item.router_data.connector_config)?;
+        let merchant_id = auth.merchant_id_for_currency(Some(item.router_data.request.currency))?;
 
         // Extract report_group from connector config before moving auth fields
         let report_group = auth.report_group.unwrap_or_else(|| "rtpGrp".to_string());
@@ -1994,13 +2072,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             id: format!("{}_{}", OperationId::Refund, merchant_txn_id),
             customer_id,
             cnp_txn_id,
-            amount: item.router_data.request.minor_refund_amount,
+            amount: item.router_data.request.refund_amount.amount,
         };
 
         let cnp_request = CnpOnlineRequest {
             version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
             xmlns: worldpayvantiv_constants::XMLNS.to_string(),
-            merchant_id: auth.merchant_id,
+            merchant_id,
             authentication,
             authorization: None,
             sale: None,
@@ -2044,6 +2122,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth = WorldpayvantivAuthType::try_from(&item.router_data.connector_config)?;
+        let merchant_id = auth.merchant_id_for_currency(
+            item.router_data
+                .request
+                .amount
+                .as_ref()
+                .map(|amount| amount.currency),
+        )?;
 
         let authentication = Authentication {
             user: auth.user,
@@ -2070,7 +2155,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let cnp_request = CnpOnlineRequest {
             version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
             xmlns: worldpayvantiv_constants::XMLNS.to_string(),
-            merchant_id: auth.merchant_id,
+            merchant_id,
             authentication,
             authorization: None,
             sale: None,
@@ -2193,6 +2278,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth = WorldpayvantivAuthType::try_from(&item.router_data.connector_config)?;
+        let merchant_id = auth.merchant_id_for_currency(Some(item.router_data.request.currency))?;
 
         let authentication = Authentication {
             user: auth.user,
@@ -2220,14 +2306,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             id: format!("{}_{}", OperationId::Capture, merchant_txn_id),
             report_group,
             cnp_txn_id,
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: item.router_data.request.amount_to_capture.amount,
             enhanced_data: None,
         };
 
         Ok(Self {
             version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
             xmlns: worldpayvantiv_constants::XMLNS.to_string(),
-            merchant_id: auth.merchant_id,
+            merchant_id,
             authentication,
             authorization: None,
             sale: None,
@@ -2349,6 +2435,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth = WorldpayvantivAuthType::try_from(&item.router_data.connector_config)?;
+        let merchant_id = auth.merchant_id_for_currency(item.router_data.request.currency)?;
 
         let authentication = Authentication {
             user: auth.user,
@@ -2375,7 +2462,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
             xmlns: worldpayvantiv_constants::XMLNS.to_string(),
-            merchant_id: auth.merchant_id,
+            merchant_id,
             authentication,
             authorization: None,
             sale: None,
@@ -2542,16 +2629,15 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         if let Some(void_response) = item.response.void_response {
-            let status =
-                get_attempt_status(WorldpayvantivPaymentFlow::VoidPC, void_response.response)?;
+            let post_capture_void_status = get_post_capture_void_status(void_response.response);
 
-            if is_payment_failure(status) {
+            if post_capture_void_status.is_post_capture_void_failure() {
                 let error_response = ErrorResponse {
                     code: void_response.response.to_string(),
                     message: void_response.message.clone(),
                     reason: Some(void_response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Payment(status)),
+                    attempt_status: None,
                     connector_transaction_id: Some(void_response.cnp_txn_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2563,30 +2649,17 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 };
 
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status,
-                        ..item.router_data.resource_common_data
-                    },
                     response: Err(error_response),
                     ..item.router_data
                 })
             } else {
-                let post_capture_void_status = get_post_capture_void_status(void_response.response);
-                let description = post_capture_void_status
-                    .is_post_capture_void_failure()
-                    .then(|| void_response.message.clone());
                 let payments_response = PaymentsResponseData::PostCaptureVoidResponse {
                     post_capture_void_status,
                     connector_reference_id: Some(void_response.cnp_txn_id.clone()),
-                    description,
                     status_code: item.http_code,
                 };
 
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status,
-                        ..item.router_data.resource_common_data
-                    },
                     response: Ok(payments_response),
                     ..item.router_data
                 })
@@ -2650,6 +2723,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth = WorldpayvantivAuthType::try_from(&item.router_data.connector_config)?;
+        let merchant_id = auth.merchant_id_for_currency(Some(item.router_data.request.currency))?;
 
         let authentication = Authentication {
             user: auth.user,
@@ -2692,7 +2766,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             customer_id: None,
             cnp_txn_id: Some(connector_transaction_id),
             order_id: None,
-            amount: item.router_data.request.minor_amount,
+            amount: item.router_data.request.amount.amount,
             order_source: None,
             bill_to_address: None,
             ship_to_address: None,
@@ -2706,7 +2780,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let cnp_request = CnpOnlineRequest {
             version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
             xmlns: worldpayvantiv_constants::XMLNS.to_string(),
-            merchant_id: auth.merchant_id,
+            merchant_id,
             authentication,
             authorization: Some(incremental_auth),
             sale: None,

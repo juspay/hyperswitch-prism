@@ -430,14 +430,14 @@ Grabpay's override carries the same three arms (its signature and `use` spell th
 ### kount.rs — FRM device data collection, not authentication
 
 ```rust
-// From crates/integrations/connector-integration/src/connectors/kount.rs — fn next_authentication_step
+// From crates/integrations/connector-integration/src/frm_connectors/kount.rs — fn next_authentication_step
         // Kount only runs PreAuthenticate (DDC); the composite loop breaks once
         // the DDC `redirection_data` is present. FRM risk checks run separately
         // via the FraudAndRiskManagementService composite flow.
         connector_types::AuthenticationStep::PreAuthenticate
 ```
 
-The unconditional return is safe only because Kount's `PreAuthenticate` always emits `redirection_data`: `handle_pre_authenticate_response` in `connectors/kount/transformers.rs` builds `PreAuthenticateResponse { redirection_data: Some(Box::new(RedirectForm::Script { .. })), .. }` on every path, with no branch that leaves it `None`. Copying this shape onto a connector whose PreAuthenticate can return without a redirect produces an infinite loop.
+The unconditional return is safe only because Kount's `PreAuthenticate` always emits `redirection_data`: `handle_pre_authenticate_response` in `frm_connectors/kount/transformers.rs` builds `PreAuthenticateResponse { redirection_data: Some(Box::new(RedirectForm::Script { .. })), .. }` on every path, with no branch that leaves it `None`. Copying this shape onto a connector whose PreAuthenticate can return without a redirect produces an infinite loop.
 
 ## Code Examples
 

@@ -1,3 +1,4 @@
+use domain_types::payment_method_data::PaymentMethodDataTypes;
 use std::collections::BTreeMap;
 
 use common_enums::{Currency, PayoutStatus};
@@ -257,12 +258,12 @@ pub struct TruelayerAccountIdentifier {
     iban: Secret<String>,
 }
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
     TryFrom<
         &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     > for TruelayerPayoutRequest
@@ -273,19 +274,28 @@ impl
         req: &RouterDataV2<
             PayoutTransfer,
             PayoutFlowData,
-            PayoutTransferRequest,
+            PayoutTransferRequest<T>,
             PayoutTransferResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let reference = normalize_connector_request_reference_id(
-            &req.resource_common_data.connector_request_reference_id,
-        );
+        let reference = req
+            .request
+            .billing_descriptor
+            .as_ref()
+            .and_then(|descriptor| descriptor.reference.as_ref())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "billing_descriptor.reference",
+                context: Default::default(),
+            })?;
+        validate_fps_payout_reference(reference)?;
 
         let metadata = TruelayerPayoutMetadata::try_from(&req.connector_config)?;
         let request_metadata = Some(TruelayerPayoutRequestMetadata {
             reference_id: Some(
                 req.resource_common_data
-                    .connector_request_reference_id
+                    .merchant_request_id
+                    .as_ref()
+                    .unwrap_or(&req.resource_common_data.connector_request_reference_id)
                     .clone(),
             ),
         });
@@ -330,11 +340,26 @@ impl
     }
 }
 
-fn normalize_connector_request_reference_id(reference_id: &str) -> String {
-    reference_id
+fn validate_fps_payout_reference(reference: &str) -> CustomResult<(), IntegrationError> {
+    let has_valid_length = !reference.is_empty() && reference.len() <= 18;
+    let has_valid_characters = reference
         .chars()
-        .map(|character| if character == '_' { '-' } else { character })
-        .collect()
+        .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '.'));
+
+    if has_valid_length && has_valid_characters {
+        Ok(())
+    } else {
+        Err(IntegrationError::InvalidDataFormat {
+            field_name: "billing_descriptor.reference",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "TrueLayer payout reference must contain 1 to 18 ASCII letters, digits, hyphens, or periods.".to_string(),
+                ),
+                ..Default::default()
+            },
+        }
+        .into())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -342,8 +367,14 @@ pub struct TruelayerPayoutResponse {
     id: String,
 }
 
-impl TryFrom<ResponseRouterData<TruelayerPayoutResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<TruelayerPayoutResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 

@@ -66,6 +66,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Datatrans<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -444,7 +451,8 @@ macros::macro_connector_implementation!(
                 req.request.payment_method_data,
                 PaymentMethodData::PaymentMethodToken(_)
             );
-            if (req.request.is_card() && (native_three_ds || req.request.is_mandate_payment()))
+            if (req.request.is_card()
+                && (native_three_ds || req.request.is_mandate_payment()))
                 || (is_alias_charge && native_three_ds)
             {
                 Ok(format!("{base_url}/v1/transactions"))

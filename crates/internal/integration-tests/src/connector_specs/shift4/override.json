@@ -81,6 +81,15 @@
           "must_exist": true
         }
       }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "extends": "no3ds_manual_capture_credit_card",
+      "grpc_req": {
+        "address": {
+          "shipping_address": null,
+          "billing_address": null
+        }
+      }
     }
   },
   "PaymentMethodAuthenticationService/PreAuthenticate": {

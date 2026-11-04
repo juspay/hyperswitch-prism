@@ -101,7 +101,7 @@ rpc_method = { position = 3, schema = { type = "string" } }
 rpc_service = { position = 4, schema = { type = "string" } }
 
 # Connector dimension - determines which payment processor URLs to use
-connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "etisalat", "merchante", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "travelhub", "d24", "globalpayments_heartland", "payhere", "elavon_pg", "globalpayments_realex"] } }
+connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "etisalat", "merchante", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "travelhub", "d24", "globalpayments_heartland", "payhere", "elavon_pg", "globalpayments_realex", "reddot", "kount", "ecommpay", "ppro", "betterpayment"] } }
 # ============================================================================
 # Development Environment Overrides
 # ============================================================================
@@ -146,6 +146,11 @@ connector_base_url = "https://api.glomopay.com/api/v1/"
 [[overrides]]
 _context_ = { connector = "stripe" }
 connector_base_url = "https://api.stripe.com/"
+
+# PPRO
+[[overrides]]
+_context_ = { connector = "ppro" }
+connector_base_url = "https://api.sandbox.eu.ppro.com"
 
 # Adyen
 [[overrides]]
@@ -447,9 +452,8 @@ connector_base_url = "https://apis.sandbox.globalpay.com/ucp"
 # Fiuu (MOLPay)
 [[overrides]]
 _context_ = { connector = "fiuu" }
-connector_base_url = "https://sandbox.merchant.razer.com/"
-connector_secondary_base_url = "https://sandbox.merchant.razer.com/"
-connector_third_base_url = "https://api.merchant.razer.com/"
+connector_base_url = "https://sandbox-payment.fiuu.com/"
+connector_secondary_base_url = "https://sandbox-api.fiuu.com/"
 
 # Payload
 [[overrides]]
@@ -606,12 +610,18 @@ connector_base_url = "https://api.zift.io/"
 _context_ = { connector = "boost" }
 connector_base_url = "https://stage-api.boostconnect.biz/gateway"
 
-# Ilixium Direct API — sandbox host. Ilixium does not publish a production
-# host; it is supplied per merchant at onboarding, so there is deliberately no
-# production override here (see tech spec UNDECIDED #4).
+# Ilixium Direct API — pre-production host (`prprocessing`), the
+# sandbox/development default. The platform segment of the path differs per
+# environment (`ili` on pre-prod, `itix` on production), so it is carried in the
+# base URL and the connector only appends `/direct/*` and `/history/*`.
 [[overrides]]
 _context_ = { connector = "ilixium" }
 connector_base_url = "https://prprocessing.ilixium.com/platform/ili"
+
+# Ilixium Direct API Production
+[[overrides]]
+_context_ = { connector = "ilixium", environment = "production" }
+connector_base_url = "https://processing.ilixium.com/platform/itix"
 
 # Global Payments Ecommerce XML API (legacy Realex). Distinct from the `globalpay`
 # GP-API product. A single CGI endpoint serves every operation; the connector
@@ -655,6 +665,11 @@ connector_dispute_base_url = "https://{{merchant_endpoint_prefix}}-ca-live.adyen
 [[overrides]]
 _context_ = { connector = "paypal", environment = "production" }
 connector_base_url = "https://api-m.paypal.com/"
+
+# PPRO Production
+[[overrides]]
+_context_ = { connector = "ppro", environment = "production" }
+connector_base_url = "https://api.eu.ppro.com"
 
 # Tamara Production
 [[overrides]]
@@ -855,9 +870,8 @@ connector_base_url = "https://apis.globalpay.com/ucp"
 # Fiuu Production
 [[overrides]]
 _context_ = { connector = "fiuu", environment = "production" }
-connector_base_url = "https://pay.merchant.razer.com/"
-connector_secondary_base_url = "https://api.merchant.razer.com/"
-connector_third_base_url = "https://api.merchant.razer.com/"
+connector_base_url = "https://pay.fiuu.com/"
+connector_secondary_base_url = "https://api.fiuu.com/"
 
 # CashToCode Production
 [[overrides]]
@@ -989,15 +1003,15 @@ connector_base_url = "https://api-platform.flywire.com"
 _context_ = { connector = "flywire", environment = "development" }
 connector_base_url = "https://api-platform-sandbox.flywire.com"
 
+# Travelhub Sandbox/Development default
+[[overrides]]
+_context_ = { connector = "travelhub" }
+connector_base_url = "https://preprod.travel.worldline-solutions.com/travelhub"
+
 # Travelhub Production
 [[overrides]]
 _context_ = { connector = "travelhub", environment = "production" }
 connector_base_url = "https://prod.travel.worldline-solutions.com/travelhub"
-
-# Travelhub Development
-[[overrides]]
-_context_ = { connector = "travelhub", environment = "development" }
-connector_base_url = "https://preprod.travel.worldline-solutions.com/travelhub"
 
 # Boost Connect (BCPG) Production
 [[overrides]]
@@ -1028,6 +1042,20 @@ connector_base_url = "https://partner-api.grab.com/grabpay/partner/v2"
 [[overrides]]
 _context_ = { connector = "maya", environment = "production" }
 connector_base_url = "https://pg.maya.ph"
+
+# RedDot Payment (UAT)
+#   connector_base_url           → Redirect/Payment family (authorize + payment enquiry)
+#   connector_secondary_base_url → Merchant API family (refund + merchant enquiry)
+[[overrides]]
+_context_ = { connector = "reddot" }
+connector_base_url = "https://secure-dev.reddotpayment.com"
+connector_secondary_base_url = "https://test.reddotpayment.com"
+
+# RedDot Payment (Production)
+[[overrides]]
+_context_ = { connector = "reddot", environment = "production" }
+connector_base_url = "https://secure.reddotpayment.com"
+connector_secondary_base_url = "https://connect.reddotpayment.com"
 
 # Moneris
 [[overrides]]
@@ -1090,3 +1118,37 @@ connector_base_url = "https://api.sandbox.elavonpayments.com"
 [[overrides]]
 _context_ = { connector = "elavon_pg", environment = "production" }
 connector_base_url = "https://api.eu.convergepay.com"
+
+# Kount (FRM) — sandbox/development default. base_url is the Orders API host;
+# secondary_base_url is the OAuth login host (Okta in sandbox, Equifax
+# PingFederate in production) used for the ServerAuthenticationToken flow.
+[[overrides]]
+_context_ = { connector = "kount" }
+connector_base_url = "https://api-sandbox.kount.com"
+connector_secondary_base_url = "https://login.kount.com"
+
+# Kount Production
+[[overrides]]
+_context_ = { connector = "kount", environment = "production" }
+connector_base_url = "https://api.kount.com"
+connector_secondary_base_url = "https://login.equifax.com"
+
+
+# Betterpayment
+[[overrides]]
+_context_ = { connector = "betterpayment" }
+connector_base_url = "https://testapi.betterpayment.de"
+
+# Betterpayment Production
+[[overrides]]
+_context_ = { connector = "betterpayment", environment = "production" }
+connector_base_url = "https://api.betterpayment.de"
+# Ecommpay
+[[overrides]]
+_context_ = { connector = "ecommpay" }
+connector_base_url = "https://api.ecommpay.com/"
+
+# Ecommpay Production
+[[overrides]]
+_context_ = { connector = "ecommpay", environment = "production" }
+connector_base_url = "https://api.ecommpay.com/"

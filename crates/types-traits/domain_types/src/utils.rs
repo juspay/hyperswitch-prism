@@ -7,6 +7,7 @@ use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethodType};
 use common_utils::{
     consts, fp_utils::when, metadata::MaskedMetadata, AmountConvertor, CustomResult, MinorUnit,
+    Money,
 };
 use error_stack::{report, Result, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -115,7 +116,12 @@ pub fn handle_json_response_deserialization_failure(
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "domain_types", operation = "generate_random_bytes", codec = SerdeCodec,)
+    deja::id(
+        component = "domain_types",
+        operation = "generate_random_bytes",
+        codec = SerdeCodec,
+        on_miss = common_utils::synth_shape::byte_vec(&__deja_miss, length),
+    )
 )]
 pub fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n
@@ -205,32 +211,34 @@ pub fn get_header_key_value<'a>(
     key: &str,
     headers: &'a actix_web::http::header::HeaderMap,
 ) -> CustomResult<&'a str, errors::IntegrationError> {
-    get_header_field(headers.get(key))
+    get_header_field(headers.get(key).map(|value| value.as_bytes()))
 }
 
 pub fn get_http_header<'a>(
     key: &str,
     headers: &'a http::HeaderMap,
 ) -> CustomResult<&'a str, errors::IntegrationError> {
-    get_header_field(headers.get(key))
+    get_header_field(headers.get(key).map(|value| value.as_bytes()))
 }
 
-fn get_header_field(
-    field: Option<&http::HeaderValue>,
-) -> CustomResult<&str, errors::IntegrationError> {
-    field
-        .map(|header_value| {
-            header_value
-                .to_str()
-                .change_context(errors::IntegrationError::InvalidDataFormat {
-                    field_name: "header",
-                    context: Default::default(),
-                })
+/// Takes raw header bytes rather than an `http::HeaderValue` so it works for both
+/// `http` 1.x values and the `http` 0.2 values that actix-web 4 still exposes.
+/// Keeps `HeaderValue::to_str` semantics: only visible ASCII (and tab) is accepted.
+fn get_header_field(field: Option<&[u8]>) -> CustomResult<&str, errors::IntegrationError> {
+    let bytes = field.ok_or(report!(errors::IntegrationError::MissingRequiredField {
+        field_name: "header",
+        context: Default::default()
+    }))?;
+    let is_visible_ascii = bytes.iter().all(|&b| b == b'\t' || (32..127).contains(&b));
+    is_visible_ascii
+        .then(|| std::str::from_utf8(bytes).ok())
+        .flatten()
+        .ok_or_else(|| {
+            report!(errors::IntegrationError::InvalidDataFormat {
+                field_name: "header",
+                context: Default::default(),
+            })
         })
-        .ok_or(report!(errors::IntegrationError::MissingRequiredField {
-            field_name: "header",
-            context: Default::default()
-        }))?
 }
 
 pub fn is_payment_failure(status: common_enums::AttemptStatus) -> bool {
@@ -317,10 +325,9 @@ where
 
 pub fn convert_amount<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
-    amount: MinorUnit,
-    currency: common_enums::Currency,
+    money: &Money,
 ) -> core::result::Result<T, error_stack::Report<errors::IntegrationError>> {
-    amount_convertor.convert(amount, currency).change_context(
+    amount_convertor.convert(money).change_context(
         errors::IntegrationError::AmountConversionFailed {
             context: Default::default(),
         },
@@ -329,25 +336,24 @@ pub fn convert_amount<T>(
 
 pub fn convert_amount_for_webhook<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
-    amount: MinorUnit,
-    currency: common_enums::Currency,
+    money: &Money,
 ) -> core::result::Result<T, error_stack::Report<errors::WebhookError>> {
-    amount_convertor.convert(amount, currency).map_err(|_| {
+    amount_convertor.convert(money).map_err(|_| {
         error_stack::report!(errors::WebhookError::WebhookAmountConversionFailed {
             reason: format!(
                 "Failed to convert amount from minor units: amount={}, currency={}",
-                amount.get_amount_as_i64(),
-                currency
+                money.amount.get_amount_as_i64(),
+                money.currency
             ),
         })
     })
 }
 
-pub fn convert_back_amount_to_minor_units_for_webhook<T>(
+pub fn convert_back_amount_to_money_for_webhook<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: T,
     currency: common_enums::Currency,
-) -> core::result::Result<MinorUnit, error_stack::Report<errors::WebhookError>> {
+) -> core::result::Result<Money, error_stack::Report<errors::WebhookError>> {
     amount_convertor
         .convert_back(amount, currency)
         .map_err(|_| {
@@ -360,11 +366,11 @@ pub fn convert_back_amount_to_minor_units_for_webhook<T>(
         })
 }
 
-pub fn convert_back_amount_to_minor_units<T>(
+pub fn convert_back_amount_to_money<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: T,
     currency: common_enums::Currency,
-) -> core::result::Result<MinorUnit, error_stack::Report<common_utils::errors::ParsingError>> {
+) -> core::result::Result<Money, error_stack::Report<common_utils::errors::ParsingError>> {
     amount_convertor.convert_back(amount, currency)
 }
 
@@ -547,7 +553,7 @@ pub fn convert_canada_state_to_code(state: &str) -> String {
         "british columbia" => "BC".to_string(),
         "manitoba" => "MB".to_string(),
         "new brunswick" => "NB".to_string(),
-        "newfoundland and labrador" | "newfoundland" => "NL".to_string(),
+        "newfoundland and labrador" | "newfoundland" | "labrador" => "NL".to_string(),
         "northwest territories" => "NT".to_string(),
         "nova scotia" => "NS".to_string(),
         "nunavut" => "NU".to_string(),

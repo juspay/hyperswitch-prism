@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD_ENGINE, Engine};
 use common_enums::{AttemptStatus, CaptureMethod, RefundStatus};
+use common_utils::{errors::CustomResult, pii::SecretSerdeValue};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,
@@ -18,7 +19,10 @@ use domain_types::{
     payment_method_data::{
         Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
-    router_data::{ConnectorResponseData, ConnectorSpecificConfig, ErrorResponse, FlowStatus},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ConnectorSpecificConfig,
+        ErrorResponse, FlowStatus,
+    },
     router_data_v2::RouterDataV2,
     router_response_types::{RedirectForm, Response},
 };
@@ -33,22 +37,244 @@ use super::{
 };
 use crate::{types::ResponseRouterData, utils};
 
-fn get_worldpayxml_auth_code(
+#[derive(Debug, Clone, Copy, strum::EnumString)]
+enum WorldpayXmlCardClass {
+    C,
+    D,
+    H,
+    P,
+    R,
+}
+
+impl WorldpayXmlCardClass {
+    fn as_card_type(self) -> common_enums::CardType {
+        match self {
+            Self::C => common_enums::CardType::Credit,
+            Self::D => common_enums::CardType::Debit,
+            Self::H => common_enums::CardType::ChargeCard,
+            Self::P => common_enums::CardType::Prepaid,
+            Self::R => common_enums::CardType::Debit,
+        }
+    }
+
+    fn as_funding_source(self) -> common_enums::FundingSource {
+        match self {
+            Self::C => common_enums::FundingSource::Credit,
+            Self::D => common_enums::FundingSource::Debit,
+            Self::H => common_enums::FundingSource::ChargeCard,
+            Self::P => common_enums::FundingSource::Prepaid,
+            Self::R => common_enums::FundingSource::DeferredDebit,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, strum::EnumString)]
+enum WorldpayXmlProductType {
+    #[strum(serialize = "CN")]
+    Consumer,
+    #[strum(serialize = "CP")]
+    Commercial,
+}
+
+impl WorldpayXmlProductType {
+    fn as_card_segment_type(self) -> common_enums::CardSegmentType {
+        match self {
+            Self::Consumer => common_enums::CardSegmentType::Consumer,
+            Self::Commercial => common_enums::CardSegmentType::Commercial,
+        }
+    }
+}
+
+/// The `<paymentMethod>` scheme codes Worldpay returns in an order status reply. Each code is
+/// matched whole because `EFTPOS_AU-SSL` and commercial scheme codes contain underscores.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::EnumString)]
+enum WorldpayXmlPaymentMethodCode {
+    #[strum(serialize = "CARD-SSL")]
+    AnyCard,
+    #[strum(serialize = "AMEX-SSL")]
+    Amex,
+    #[strum(serialize = "VISA-SSL")]
+    Visa,
+    #[strum(serialize = "ECMC-SSL")]
+    Ecmc,
+    #[strum(serialize = "AIRPLUS-SSL")]
+    AirPlus,
+    #[strum(serialize = "AURORE-SSL")]
+    Aurore,
+    #[strum(serialize = "CB-SSL")]
+    CarteBancaire,
+    #[strum(serialize = "DINERS-SSL")]
+    Diners,
+    #[strum(serialize = "DISCOVER-SSL")]
+    Discover,
+    #[strum(serialize = "EFTPOS_AU-SSL")]
+    EftposAu,
+    #[strum(serialize = "GECAPITAL-SSL")]
+    GeCapital,
+    #[strum(serialize = "MAESTRO-SSL")]
+    Maestro,
+    #[strum(serialize = "JCB-SSL")]
+    Jcb,
+    #[strum(serialize = "UATP-SSL")]
+    Uatp,
+    #[strum(serialize = "UNIONPAY-SSL")]
+    UnionPay,
+    #[strum(serialize = "VISA_CREDIT-SSL")]
+    VisaCredit,
+    #[strum(serialize = "VISA_DEBIT-SSL")]
+    VisaDebit,
+    #[strum(serialize = "VISA_COMMERCIAL_CREDIT-SSL")]
+    VisaCommercialCredit,
+    #[strum(serialize = "VISA_COMMERCIAL_DEBIT-SSL")]
+    VisaCommercialDebit,
+    #[strum(serialize = "VISA_ELECTRON-SSL")]
+    VisaElectron,
+    #[strum(serialize = "ECMC_CREDIT-SSL")]
+    EcmcCredit,
+    #[strum(serialize = "ECMC_DEBIT-SSL")]
+    EcmcDebit,
+    #[strum(serialize = "ECMC_COMMERCIAL_CREDIT-SSL")]
+    EcmcCommercialCredit,
+    #[strum(serialize = "ECMC_COMMERCIAL_DEBIT-SSL")]
+    EcmcCommercialDebit,
+}
+
+impl WorldpayXmlPaymentMethodCode {
+    /// The scheme code supplies the network; BIN attributes come from `<cardBin>`.
+    fn card_network(self) -> Option<common_enums::CardNetwork> {
+        match self {
+            Self::Amex => Some(common_enums::CardNetwork::AmericanExpress),
+            Self::Visa
+            | Self::VisaCredit
+            | Self::VisaDebit
+            | Self::VisaCommercialCredit
+            | Self::VisaCommercialDebit
+            | Self::VisaElectron => Some(common_enums::CardNetwork::Visa),
+            Self::Ecmc
+            | Self::EcmcCredit
+            | Self::EcmcDebit
+            | Self::EcmcCommercialCredit
+            | Self::EcmcCommercialDebit => Some(common_enums::CardNetwork::Mastercard),
+            Self::CarteBancaire => Some(common_enums::CardNetwork::CartesBancaires),
+            Self::Diners => Some(common_enums::CardNetwork::DinersClub),
+            Self::Discover => Some(common_enums::CardNetwork::Discover),
+            Self::Jcb => Some(common_enums::CardNetwork::JCB),
+            Self::UnionPay => Some(common_enums::CardNetwork::UnionPay),
+            Self::Maestro => Some(common_enums::CardNetwork::Maestro),
+            Self::AirPlus => Some(common_enums::CardNetwork::AirPlus),
+            Self::Aurore => Some(common_enums::CardNetwork::Aurore),
+            Self::EftposAu => Some(common_enums::CardNetwork::EftposAustralia),
+            Self::GeCapital => Some(common_enums::CardNetwork::GeCapital),
+            Self::Uatp => Some(common_enums::CardNetwork::Uatp),
+            // Worldpay's "card type not known", so there is no scheme to report.
+            Self::AnyCard => None,
+        }
+    }
+}
+
+pub(super) fn get_worldpayxml_connector_response(
     payment: &responses::WorldpayxmlPayment,
+    token: Option<&responses::WorldpayxmlToken>,
     payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> Option<ConnectorResponseData> {
-    payment
+    let auth_code = payment
         .authorisation_id
         .as_ref()
-        .and_then(|auth_id| auth_id.id.clone())
-        .map(|auth_code| {
-            ConnectorResponseData::with_auth_code(
+        .and_then(|auth_id| auth_id.id.clone());
+
+    let card_bin = payment.card_bin.as_ref();
+    let issuer_name = card_bin.and_then(|card_bin| card_bin.issuer_name.clone());
+    let issuer_country = card_bin
+        .and_then(|card_bin| card_bin.issuer_country_code.as_deref())
+        .and_then(utils::parse_country_code);
+    // Wallet replies can also carry issuer details outside the extended BIN metadata.
+    let (issuer_name, issuer_country) = match payment_method_type {
+        Some(
+            common_enums::PaymentMethodType::GooglePay | common_enums::PaymentMethodType::ApplePay,
+        ) => (
+            issuer_name.or_else(|| payment.issuer_name.clone()),
+            issuer_country.or_else(|| {
+                payment
+                    .issuer_country_code
+                    .as_deref()
+                    .and_then(utils::parse_country_code)
+            }),
+        ),
+        _ => (issuer_name, issuer_country),
+    };
+    let card_subtype = token
+        .and_then(|token| token.payment_instrument.as_ref())
+        .and_then(|instrument| instrument.emvco_token_details.as_ref())
+        .and_then(|details| details.derived.as_ref())
+        .and_then(|derived| derived.card_sub_brand.clone());
+    let card_class = card_bin
+        .and_then(|card_bin| card_bin.card_class.as_deref())
+        .and_then(utils::parse_or_log_unrecognised::<WorldpayXmlCardClass>);
+    let card_type = card_class.map(WorldpayXmlCardClass::as_card_type);
+    let funding_source = card_class.map(WorldpayXmlCardClass::as_funding_source);
+    let card_segment_type = card_bin
+        .and_then(|card_bin| card_bin.product_type.as_deref())
+        .and_then(utils::parse_or_log_unrecognised::<WorldpayXmlProductType>)
+        .map(WorldpayXmlProductType::as_card_segment_type);
+
+    let additional_payment_method_data = match payment_method_type {
+        Some(common_enums::PaymentMethodType::GooglePay) => {
+            AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code,
-                payment_method_type.unwrap_or(common_enums::PaymentMethodType::Card),
-            )
-        })
+                payment_checks: None,
+                // No confirmed source distinguishes device PAN and underlying-card BINs here.
+                device_pan_bin: None,
+                card_bin: None,
+                card_subtype,
+                card_segment_type,
+                funding_source,
+                card_type,
+                issuer_name,
+                issuer_country,
+            }
+        }
+        Some(common_enums::PaymentMethodType::ApplePay) => {
+            AdditionalPaymentMethodConnectorResponse::ApplePay {
+                auth_code,
+                payment_checks: None,
+                // No confirmed source distinguishes device PAN and underlying-card BINs here.
+                device_pan_bin: None,
+                card_bin: None,
+                card_subtype,
+                card_segment_type,
+                funding_source,
+                issuer_name,
+                issuer_country,
+            }
+        }
+        _ => {
+            let processor_card_network = payment
+                .payment_method
+                .as_deref()
+                .and_then(utils::parse_or_log_unrecognised::<WorldpayXmlPaymentMethodCode>)
+                .and_then(WorldpayXmlPaymentMethodCode::card_network);
+
+            AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: None,
+                domestic_network: None,
+                auth_code,
+                processor_card_network,
+                card_type,
+                funding_source,
+                card_segment_type,
+                card_subtype,
+                issuer_name,
+                issuer_country,
+            }
+        }
+    };
+
+    Some(ConnectorResponseData::with_additional_payment_method_data(
+        additional_payment_method_data,
+    ))
 }
-use common_utils::{errors::CustomResult, pii::SecretSerdeValue};
 
 const API_VERSION: &str = "1.4";
 const WORLDPAYXML_SUPPORTED_3DS_MAJOR_VERSION: u64 = 2;
@@ -116,6 +342,9 @@ impl From<&common_enums::TransactionStatus> for requests::WorldpayxmlTransaction
                 Self::ChallengeRequiredDecoupledAuthentication
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
+            common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
+                Self::SecurePaymentConfirmationRequired
+            }
         }
     }
 }
@@ -478,7 +707,7 @@ fn get_worldpayxml_billing_address(
             address3: addr.line3.clone(),
             postal_code,
             city,
-            state: addr.state.clone(),
+            state: addr.get_optional_state(),
             country_code,
             telephone_number,
         },
@@ -518,7 +747,9 @@ impl From<Option<common_enums::MitCategory>> for requests::WorldpayxmlMandateTyp
     fn from(mit_category: Option<common_enums::MitCategory>) -> Self {
         match mit_category {
             Some(common_enums::MitCategory::Installment) => Self::Instalment,
-            Some(common_enums::MitCategory::Recurring) => Self::Recurring,
+            Some(
+                common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+            ) => Self::Recurring,
             Some(common_enums::MitCategory::Unscheduled)
             | Some(common_enums::MitCategory::Resubmission)
             | None => Self::Unscheduled,
@@ -650,13 +881,30 @@ pub(crate) fn handle_pre_authenticate_response<
 
     let bin = match &data.request.payment_method_data {
         Some(PaymentMethodData::Card(card)) => {
+            let _card_holder_name = card
+                .card_holder_name
+                .clone()
+                .or_else(|| data.resource_common_data.get_optional_billing_full_name())
+                .ok_or(utils::response_handling_fail(
+                    res.status_code,
+                    "worldpayxml: card_holder_name or billing full name is required for device data collection.",
+                ))?;
+
             card.card_number.peek().chars().take(6).collect::<String>()
         }
         Some(PaymentMethodData::Wallet(WalletData::GooglePay(gpay))) => {
             match &gpay.tokenization_data {
-                GpayTokenizationData::Decrypted(decrypt_data) => decrypt_data
-                    .application_primary_account_number
-                    .get_card_isin(),
+                GpayTokenizationData::Decrypted(decrypt_data) => {
+                    let _billing_full_name = data
+                        .resource_common_data
+                        .get_billing_full_name()
+                        .change_context(utils::response_handling_fail(
+                            res.status_code,
+                            "worldpayxml: billing full name is required for decrypted google pay flow.",
+                        ))?;
+
+                    decrypt_data.application_primary_account_number.get_card_isin()
+                }
                 GpayTokenizationData::Encrypted(_) => {
                     return Err(utils::response_handling_fail(
                         res.status_code,
@@ -1244,10 +1492,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         )?;
 
         // Convert amount using the connector's amount converter
-        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data.request.minor_amount,
-            router_data.request.currency,
-        )?;
+        let converted_amount =
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.amount)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1356,7 +1602,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // would authorise funds that nothing subsequently captures.
         if router_data
             .request
-            .minor_amount
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
             .is_some_and(|amount| amount.get_amount_as_i64() > 0)
         {
             return Err(IntegrationError::FlowNotSupported {
@@ -1417,13 +1665,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let info_3d_secure =
             get_worldpayxml_info_3d_secure(router_data.request.authentication_data.as_ref())?;
 
-        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data
-                .request
-                .minor_amount
-                .unwrap_or_else(common_utils::types::MinorUnit::zero),
-            router_data.request.currency,
-        )?;
+        let converted_amount =
+            super::WorldpayxmlAmountConvertor::convert(&common_utils::types::Money {
+                amount: router_data
+                    .request
+                    .amount
+                    .as_ref()
+                    .map(|money| money.amount)
+                    .unwrap_or_else(common_utils::types::MinorUnit::zero),
+                currency: router_data.request.currency,
+            })?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1590,10 +1841,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let authenticated_shopper_id =
             get_worldpayxml_authenticated_shopper_id(&router_data.resource_common_data, true)?;
 
-        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data.request.minor_amount,
-            router_data.request.currency,
-        )?;
+        let converted_amount =
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.amount)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1694,10 +1943,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
 
         // Convert amount using the connector's amount converter
-        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data.request.minor_amount_to_capture,
-            router_data.request.currency,
-        )?;
+        let converted_amount =
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.amount_to_capture)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1776,10 +2023,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let connector_transaction_id = router_data.request.connector_transaction_id.clone();
 
         // Convert refund amount using the connector's amount converter
-        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data.request.minor_refund_amount,
-            router_data.request.currency,
-        )?;
+        let converted_amount =
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.refund_amount)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -2262,21 +2507,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
-                    code: return_code.map_or_else(
-                        || common_utils::consts::NO_ERROR_CODE.to_string(),
-                        |code| code.code.clone(),
-                    ),
-                    message: return_code.map_or_else(
-                        || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
-                        |code| code.description.clone(),
-                    ),
-                    reason: return_code.map(|code| code.description.clone()),
+                    code: return_code
+                        .and_then(|code| code.code.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                    message: return_code
+                        .and_then(|code| code.description.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: return_code.and_then(|code| code.description.clone()),
                     status_code: item.http_code,
                     attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(order_status.order_code.clone()),
-                    network_decline_code: return_code.map(|code| code.code.clone()),
+                    network_decline_code: payment
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.code.clone()),
                     network_advice_code: None,
-                    network_error_message: return_code.map(|code| code.description.clone()),
+                    network_error_message: payment
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.description.clone()),
                     typed_connector_response: None,
                     raw_connector_response: None,
                     raw_connector_request: None,
@@ -2304,8 +2553,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                connector_response: get_worldpayxml_auth_code(
+                connector_response: get_worldpayxml_connector_response(
                     payment,
+                    order_status.token.as_ref(),
                     router_data.resource_common_data.payment_method_type,
                 ),
                 ..router_data.resource_common_data.clone()
@@ -2406,21 +2656,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
-                    code: return_code.map_or_else(
-                        || common_utils::consts::NO_ERROR_CODE.to_string(),
-                        |code| code.code.clone(),
-                    ),
-                    message: return_code.map_or_else(
-                        || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
-                        |code| code.description.clone(),
-                    ),
-                    reason: return_code.map(|code| code.description.clone()),
+                    code: return_code
+                        .and_then(|code| code.code.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                    message: return_code
+                        .and_then(|code| code.description.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: return_code.and_then(|code| code.description.clone()),
                     status_code: item.http_code,
                     attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(order_status.order_code.clone()),
-                    network_decline_code: return_code.map(|code| code.code.clone()),
+                    network_decline_code: payment
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.code.clone()),
                     network_advice_code: None,
-                    network_error_message: return_code.map(|code| code.description.clone()),
+                    network_error_message: payment
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.description.clone()),
                     typed_connector_response: None,
                     raw_connector_response: None,
                     raw_connector_request: None,
@@ -2451,8 +2705,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                connector_response: get_worldpayxml_auth_code(
+                connector_response: get_worldpayxml_connector_response(
                     payment,
+                    order_status.token.as_ref(),
                     router_data.resource_common_data.payment_method_type,
                 ),
                 ..router_data.resource_common_data.clone()
@@ -2553,21 +2808,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
-                    code: return_code.map_or_else(
-                        || common_utils::consts::NO_ERROR_CODE.to_string(),
-                        |code| code.code.clone(),
-                    ),
-                    message: return_code.map_or_else(
-                        || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
-                        |code| code.description.clone(),
-                    ),
-                    reason: return_code.map(|code| code.description.clone()),
+                    code: return_code
+                        .and_then(|code| code.code.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                    message: return_code
+                        .and_then(|code| code.description.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: return_code.and_then(|code| code.description.clone()),
                     status_code: item.http_code,
                     attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(order_status.order_code.clone()),
-                    network_decline_code: return_code.map(|code| code.code.clone()),
+                    network_decline_code: payment
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.code.clone()),
                     network_advice_code: None,
-                    network_error_message: return_code.map(|code| code.description.clone()),
+                    network_error_message: payment
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.description.clone()),
                     typed_connector_response: None,
                     raw_connector_response: None,
                     raw_connector_request: None,
@@ -2594,8 +2853,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                connector_response: get_worldpayxml_auth_code(
+                connector_response: get_worldpayxml_connector_response(
                     payment,
+                    order_status.token.as_ref(),
                     router_data.resource_common_data.payment_method_type,
                 ),
                 ..router_data.resource_common_data.clone()
@@ -2895,21 +3155,27 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                             ..router_data.resource_common_data.clone()
                         },
                         response: Err(ErrorResponse {
-                            code: return_code.map_or_else(
-                                || common_utils::consts::NO_ERROR_CODE.to_string(),
-                                |code| code.code.clone(),
-                            ),
-                            message: return_code.map_or_else(
-                                || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
-                                |code| code.description.clone(),
-                            ),
-                            reason: return_code.map(|code| code.description.clone()),
+                            code: return_code
+                                .and_then(|code| code.code.clone())
+                                .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                            message: return_code
+                                .and_then(|code| code.description.clone())
+                                .unwrap_or_else(|| {
+                                    common_utils::consts::NO_ERROR_MESSAGE.to_string()
+                                }),
+                            reason: return_code.and_then(|code| code.description.clone()),
                             status_code: item.http_code,
                             attempt_status: Some(FlowStatus::Payment(status)),
                             connector_transaction_id: Some(order_status.order_code.clone()),
-                            network_decline_code: return_code.map(|code| code.code.clone()),
+                            network_decline_code: payment
+                                .issuer_response_code
+                                .as_ref()
+                                .and_then(|code| code.code.clone()),
                             network_advice_code: None,
-                            network_error_message: return_code.map(|code| code.description.clone()),
+                            network_error_message: payment
+                                .issuer_response_code
+                                .as_ref()
+                                .and_then(|code| code.description.clone()),
                             typed_connector_response: None,
                             raw_connector_response: None,
                             raw_connector_request: None,
@@ -2939,8 +3205,9 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
-                        connector_response: get_worldpayxml_auth_code(
+                        connector_response: get_worldpayxml_connector_response(
                             payment,
+                            order_status.token.as_ref(),
                             router_data.resource_common_data.payment_method_type,
                         ),
                         ..router_data.resource_common_data.clone()
@@ -3119,28 +3386,39 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                     item.http_code,
                 )?;
 
-                // Check if refund failed and extract error details from ISO8583ReturnCode
+                // Surface connector and issuer error details for failed refunds.
                 if refund_status == RefundStatus::Failure {
-                    if let Some(return_code) = &payment.iso8583_return_code {
-                        return Ok(Self {
-                            response: Err(ErrorResponse {
-                                code: return_code.code.clone(),
-                                message: return_code.description.clone(),
-                                reason: Some(return_code.description.clone()),
-                                status_code: item.http_code,
-                                attempt_status: None,
-                                connector_transaction_id: Some(order_status.order_code.clone()),
-                                network_decline_code: Some(return_code.code.clone()),
-                                network_advice_code: None,
-                                network_error_message: Some(return_code.description.clone()),
-                                typed_connector_response: None,
-                                raw_connector_response: None,
-                                raw_connector_request: None,
-                                typed_connector_request: None,
-                            }),
-                            ..router_data.clone()
-                        });
-                    }
+                    let return_code = payment.iso8583_return_code.as_ref();
+                    return Ok(Self {
+                        response: Err(ErrorResponse {
+                            code: return_code
+                                .and_then(|code| code.code.clone())
+                                .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                            message: return_code
+                                .and_then(|code| code.description.clone())
+                                .unwrap_or_else(|| {
+                                    common_utils::consts::NO_ERROR_MESSAGE.to_string()
+                                }),
+                            reason: return_code.and_then(|code| code.description.clone()),
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id: Some(order_status.order_code.clone()),
+                            network_decline_code: payment
+                                .issuer_response_code
+                                .as_ref()
+                                .and_then(|code| code.code.clone()),
+                            network_advice_code: None,
+                            network_error_message: payment
+                                .issuer_response_code
+                                .as_ref()
+                                .and_then(|code| code.description.clone()),
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
+                        }),
+                        ..router_data.clone()
+                    });
                 }
 
                 // Build success response
@@ -3217,6 +3495,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // connector_transaction_id is a String directly in PaymentsCancelPostCaptureData
         let order_code = router_data.request.connector_transaction_id.clone();
+        let amount = router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| {
+                Ok::<_, Self::Error>(requests::WorldpayxmlAmount {
+                    value: super::WorldpayxmlAmountConvertor::convert(amount)?,
+                    currency_code: amount.currency,
+                    exponent: get_worldpayxml_exponent(amount.currency)?,
+                })
+            })
+            .transpose()?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -3224,7 +3514,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             modify: requests::WorldpayxmlVoidPCModify {
                 order_modification: requests::WorldpayxmlVoidPCOrderModification {
                     order_code,
-                    cancel_or_refund: requests::WorldpayxmlCancelOrRefund {},
+                    cancel_or_refund: requests::WorldpayxmlCancelOrRefund { amount },
                 },
             },
         })
@@ -3243,18 +3533,25 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidPCResponse, Self>>
         let response = &item.response;
         let router_data = &item.router_data;
 
-        // Map a top-level <error> reply to PostCaptureVoidResponse with Failed status,
-        // surfacing the connector's error message via `description` (per WorldpayVantiv /
-        // Payload convention for VoidPC).
+        // A top-level <error> reply is a declined void; return it as an ErrorResponse.
         if let Some(error) = &response.reply.error {
-            let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
-                post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
-                connector_reference_id: Some(router_data.request.connector_transaction_id.clone()),
-                description: Some(error.message.clone()),
+            let error_response = ErrorResponse {
+                code: error.code.clone(),
+                message: error.message.clone(),
+                reason: Some(error.message.clone()),
                 status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
             return Ok(Self {
-                response: Ok(payments_response_data),
+                response: Err(error_response),
                 ..router_data.clone()
             });
         }
@@ -3292,7 +3589,6 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidPCResponse, Self>>
         let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
             post_capture_void_status: common_enums::PostCaptureVoidStatus::Succeeded,
             connector_reference_id: Some(order_code.clone()),
-            description: None,
             status_code: item.http_code,
         };
 

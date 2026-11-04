@@ -17,7 +17,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Maskable, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding,
@@ -157,7 +157,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Basic {encoded}").into(),
+            format!("Basic {encoded}").into_masked(),
         )])
     }
 
@@ -303,6 +303,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // `requestReferenceNumber` is the merchant-assigned reference we
                 // sent when creating the payment, echoed back by Maya.
                 merchant_transaction_id: body.request_reference_number,
+                connector_preprocessing_id: None,
             },
         )))
     }
@@ -337,7 +338,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -590,6 +590,13 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Maya<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), errors::IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

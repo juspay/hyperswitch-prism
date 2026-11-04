@@ -149,6 +149,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Cryptopay<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        // Defer reference validation to PSync request construction and the connector.
+        Ok(())
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Cryptopay<T>
@@ -175,11 +183,13 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: CryptopayPaymentsRequest,
             response_body: CryptopayPaymentsResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
             response_body: CryptopayPaymentsSyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         )
     ],

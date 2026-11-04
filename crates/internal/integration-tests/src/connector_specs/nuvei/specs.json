@@ -11,6 +11,89 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "PaymentService/SetupRecurring",
-    "PaymentService/Void"
-  ]
+    "PaymentService/Void",
+    "EventService/HandleEvent",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/Authenticate"
+  ],
+  "request_id_source_field": "merchant_transaction_id",
+  "request_id_prefix": "nuvei_",
+  "request_id_length": 40,
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_affirm": "PM_NOT_OFFERED: hs:crates/hyperswitch_connectors/src/connectors/nuvei/transformers.rs:1219-1289 - Nuvei integration offers no Affirm arm",
+      "no3ds_auto_capture_afterpay_clearpay": "FLOW_NOT_IN_SCOPE: hs:crates/hyperswitch_connectors/src/connectors/nuvei/transformers.rs:1274 - Nuvei offers Afterpay/Clearpay (HS implements it); PayLater was outside this integration's requested scope, known HS parity gap",
+      "no3ds_auto_capture_klarna": "FLOW_NOT_IN_SCOPE: hs:crates/hyperswitch_connectors/src/connectors/nuvei/transformers.rs:1271 - Nuvei offers Klarna (HS implements it); PayLater was outside this integration's requested scope, known HS parity gap",
+      "no3ds_auto_capture_alipay": "PM_NOT_OFFERED: hs:crates/hyperswitch_connectors/src/connectors/nuvei/transformers.rs:1219-1289 - no AliPay arm",
+      "no3ds_auto_capture_bacs_bank_transfer": "PM_NOT_OFFERED: hs:crates/hyperswitch_connectors/src/connectors/nuvei/transformers.rs:1219-1289 - no BACS arm",
+      "no3ds_auto_capture_bancontact": "PM_NOT_OFFERED: hs:crates/hyperswitch_connectors/src/connectors/nuvei/transformers.rs:1219-1289 - no Bancontact arm",
+      "no3ds_auto_capture_przelewy24": "PM_NOT_OFFERED: hs:crates/hyperswitch_connectors/src/connectors/nuvei/transformers.rs:1219-1289 - no Przelewy24 arm",
+      "no3ds_auto_capture_sepa_bank_transfer": "PM_NOT_OFFERED: hs:crates/hyperswitch_connectors/src/connectors/nuvei/transformers.rs:1219-1289 - no SEPA transfer arm",
+      "no3ds_auto_capture_upi_collect": "PM_NOT_OFFERED: hs:crates/hyperswitch_connectors/src/connectors/nuvei/transformers.rs:1219-1289 - no UPI arm",
+      "no3ds_auto_capture_upi_intent": "PM_NOT_OFFERED: hs:crates/hyperswitch_connectors/src/connectors/nuvei/transformers.rs:1219-1289 - no UPI arm",
+      "no3ds_auto_capture_upi_qr": "PM_NOT_OFFERED: hs:crates/hyperswitch_connectors/src/connectors/nuvei/transformers.rs:1219-1289 - no UPI arm",
+      "no3ds_auto_capture_eps": "SANDBOX_NOT_PROVISIONED: Nuvei sandbox errCode 1070 (currency not supported by merchant payment option) - the test merchant site has no USD for EPS",
+      "no3ds_auto_capture_giropay": "SANDBOX_NOT_PROVISIONED: Nuvei sandbox errCode 1070 (currency not supported by merchant payment option) - the test merchant site has no USD for Giropay",
+      "no3ds_auto_capture_google_pay_encrypted": "FLOW_NOT_IN_SCOPE: hs:crates/hyperswitch_connectors/src/connectors/nuvei/transformers.rs:1232 - Nuvei offers Google Pay (HS implements it); wallets were outside this integration's requested scope, known HS parity gap",
+      "no3ds_manual_capture_incremental_auth": "CONNECTOR_API_LACKS: nuvei.rs IncrementalAuthorization in not_supported - Nuvei REST 1.0 has no incremental authorization endpoint"
+    }
+  },
+  "suite_dependencies": {
+    "PaymentService/SetupRecurring": {
+      "before": [
+        {
+          "suite": "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+          "scenario": "nuvei_session_token_dependency",
+          "context_map": {
+            "session_token": "res.session_token"
+          }
+        }
+      ],
+      "dependency_scope": "scenario"
+    },
+    "RecurringPaymentService/Charge": {
+      "before": [
+        {
+          "suite": "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+          "scenario": "nuvei_session_token_dependency",
+          "context_map": {
+            "session_token": "res.session_token"
+          }
+        }
+      ],
+      "after": [
+        {
+          "suite": "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+          "scenario": "nuvei_session_token_dependency",
+          "context_map": {
+            "session_token": "res.session_token"
+          }
+        }
+      ],
+      "dependency_scope": "scenario"
+    },
+    "PaymentMethodAuthenticationService/PreAuthenticate": {
+      "before": [
+        {
+          "suite": "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+          "scenario": "nuvei_session_token_dependency",
+          "context_map": {
+            "session_token": "res.session_token"
+          }
+        }
+      ]
+    },
+    "PaymentMethodAuthenticationService/Authenticate": {
+      "before": [
+        {
+          "suite": "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+          "scenario": "nuvei_session_token_dependency",
+          "context_map": {
+            "session_token": "res.session_token"
+          }
+        }
+      ],
+      "dependency_scope": "scenario"
+    }
+  }
 }

@@ -61,6 +61,16 @@ impl NonceSequence {
             component = "common_utils::crypto",
             operation = "GcmAes256::nonce",
             codec = ResultOkCodec,
+            on_miss = Ok(Self(u128::from_be_bytes({
+                let mut sequence = [0_u8; 128 / 8];
+                for (slot, byte) in sequence[Self::SEQUENCE_NUMBER_START_INDEX..]
+                    .iter_mut()
+                    .zip(deja::synth::bytes::<12>(&__deja_miss))
+                {
+                    *slot = byte;
+                }
+                sequence
+            }))),
         )
     )]
     fn new() -> Result<Self, ring::error::Unspecified> {
@@ -542,6 +552,7 @@ impl VerifySignature for Sha256 {
         component = "common_utils::crypto",
         operation = "generate_cryptographically_secure_random_string",
         codec = SerdeCodec,
+        on_miss = crate::synth_shape::over(&__deja_miss, &crate::consts::ALPHABETS, length),
     )
 )]
 pub fn generate_cryptographically_secure_random_string(length: usize) -> String {
@@ -786,7 +797,24 @@ impl RsaOaepSha256 {
             .change_context(errors::CryptoError::EncodingFailed)
             .attach_printable("Failed to set MGF1 hash to SHA-256")?;
 
+        // Check the input only after OpenSSL has validated that this key supports
+        // RSA-OAEP-SHA256, so invalid key/configuration failures remain internal errors.
+        // RFC 8017: mLen <= k - 2hLen - 2. SHA-256 has a 32-byte digest.
         let key_size = pkey.size();
+        let max_plaintext_length = key_size
+            .checked_sub(2 * 32 + 2)
+            .ok_or(errors::CryptoError::InvalidKeyLength)
+            .attach_printable("RSA key is too small for OAEP-SHA256")?;
+
+        if plaintext.len() > max_plaintext_length {
+            return Err(error_stack::report!(
+                errors::CryptoError::PlaintextTooLong {
+                    max_length: max_plaintext_length,
+                    actual_length: plaintext.len(),
+                }
+            ));
+        }
+
         let mut encrypted = vec![0u8; key_size];
 
         let encrypted_len = ctx
@@ -803,7 +831,47 @@ impl RsaOaepSha256 {
 mod crypto_tests {
     #![allow(clippy::expect_used)]
     use super::{DecodeMessage, EncodeMessage, SignMessage, VerifySignature};
-    use crate::crypto::GenerateDigest;
+    use crate::{crypto::GenerateDigest, errors::CryptoError};
+    use openssl::{ec::EcGroup, nid::Nid, pkey::PKey, rsa::Rsa};
+
+    #[test]
+    fn rsa_oaep_sha256_reports_plaintext_length_overflow() {
+        let rsa = Rsa::generate(2048).expect("2048-bit RSA key generation");
+        let public_key_der = rsa.public_key_to_der().expect("public key DER encoding");
+
+        // RFC 8017: 256-byte modulus - 2 * 32-byte SHA-256 digest - 2 = 190 bytes.
+        super::RsaOaepSha256::encrypt(&public_key_der, &[0; 190])
+            .expect("190-byte plaintext must fit");
+
+        let error = super::RsaOaepSha256::encrypt(&public_key_der, &[0; 191])
+            .expect_err("191-byte plaintext must exceed OAEP-SHA256 capacity");
+
+        assert!(matches!(
+            error.current_context(),
+            CryptoError::PlaintextTooLong {
+                max_length: 190,
+                actual_length: 191,
+            }
+        ));
+    }
+
+    #[test]
+    fn rsa_oaep_sha256_does_not_report_invalid_key_as_plaintext_overflow() {
+        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).expect("P-256 curve");
+        let ec_key = openssl::ec::EcKey::generate(&group).expect("EC key generation");
+        let public_key_der = PKey::from_ec_key(ec_key)
+            .expect("EC PKey")
+            .public_key_to_der()
+            .expect("public key DER encoding");
+
+        let error = super::RsaOaepSha256::encrypt(&public_key_der, &[0; 191])
+            .expect_err("an EC key must not be accepted for RSA encryption");
+
+        assert!(matches!(
+            error.current_context(),
+            CryptoError::EncodingFailed
+        ));
+    }
 
     #[test]
     fn test_hmac_sha256_sign_message() {

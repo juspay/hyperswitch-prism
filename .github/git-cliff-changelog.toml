@@ -81,7 +81,8 @@ protect_breaking_commits = false
 # filter out the commits that are not matched by commit parsers
 filter_commits = false
 # glob pattern for matching git tags
-tag_pattern = "[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}(\\.[0-9]+)?(-.+)?"
+# Anchored: a `cd-<calver>` deployment tag on a merge commit is not a release.
+tag_pattern = "^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}(\\.[0-9]+)?(-.+)?$"
 # regex for skipping tags
 # skip_tags = "v0.1.0-beta.1"
 # regex for ignoring tags

@@ -4,7 +4,7 @@ use common_utils::{
     ext_traits::ByteSliceExt,
     pii,
     request::Method,
-    types::{MinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, Money, StringMinorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{
@@ -656,7 +656,7 @@ impl<T: PaymentMethodDataTypes> Shift4CardData<T> {
             address_line1: billing_address.and_then(|addr| addr.line1.clone()),
             address_line2: billing_address.and_then(|addr| addr.line2.clone()),
             address_city: billing_address.and_then(|addr| addr.city.clone()),
-            address_state: billing_address.and_then(|addr| addr.state.clone()),
+            address_state: billing_address.and_then(|addr| addr.get_optional_state()),
             address_zip: billing_address.and_then(|addr| addr.zip.clone()),
             address_country: billing_address
                 .and_then(|addr| addr.country)
@@ -743,7 +743,7 @@ impl Shift4Address {
             line1: address.line1.clone(),
             line2: address.line2.clone(),
             city: address.city.clone(),
-            state: address.state.clone(),
+            state: address.get_optional_state(),
             zip: address.zip.clone(),
             country: address.country,
         };
@@ -1003,7 +1003,7 @@ impl<T: PaymentMethodDataTypes>
             None => (None, None),
         };
 
-        let is_zero_amount = item.request.minor_amount == MinorUnit::new(0);
+        let is_zero_amount = item.request.amount.amount == MinorUnit::new(0);
         // Shift4 rejects a zero-amount charge that asks to be captured with
         // HTTP 400 `{"type":"invalid_request","message":"Zero amount charge cannot
         // be captured"}` (verified against api.shift4.com). A zero-amount charge is
@@ -1174,7 +1174,7 @@ impl<T: PaymentMethodDataTypes>
         //   cardholder's statement, so aliasing the descriptor onto it would
         //   silently change its meaning.
         Ok(Self {
-            amount: item.request.minor_amount,
+            amount: item.request.amount.amount,
             currency: item.request.currency,
             captured,
             description: item.resource_common_data.description.clone(),
@@ -1420,7 +1420,8 @@ impl Shift4ThreeDSecure {
             Some(
                 common_enums::TransactionStatus::ChallengeRequired
                 | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
-                | common_enums::TransactionStatus::InformationOnly,
+                | common_enums::TransactionStatus::InformationOnly
+                | common_enums::TransactionStatus::SecurePaymentConfirmationRequired,
             ) => {
                 return Err(shift4_three_ds_invalid(
                     "authentication_data.trans_status",
@@ -1549,7 +1550,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // follows (which does apply this guard) sends `captured=false` for the
         // same zero amount — Shift4 rejects the charge because it disagrees
         // with the enrolment it bound the 3DS result to.
-        let is_zero_amount = request.amount == MinorUnit::new(0);
+        let is_zero_amount = request.amount.amount == MinorUnit::new(0);
         let captured = !is_zero_amount && request.is_auto_capture()?;
 
         let card = match &request.payment_method_data {
@@ -1603,7 +1604,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })?;
 
         Ok(Self {
-            amount: request.amount,
+            amount: request.amount.amount,
             currency,
             captured,
             card_number: card.card_number.clone(),
@@ -1829,7 +1830,7 @@ fn get_shift4_attempt_status(response: &Shift4PaymentsResponse) -> AttemptStatus
 }
 
 /// The captured amount of a Shift4 charge, reported as `amount_captured` /
-/// `minor_amount_captured` by every flow that reads a charge object (Authorize,
+/// `amount_captured` by every flow that reads a charge object (Authorize,
 /// PSync, Capture, RepeatPayment, SetupMandate).
 ///
 /// Funds are captured only on a successful charge with `captured: true`, and the
@@ -1841,6 +1842,25 @@ fn get_shift4_attempt_status(response: &Shift4PaymentsResponse) -> AttemptStatus
 fn get_shift4_captured_amount(response: &Shift4PaymentsResponse) -> Option<MinorUnit> {
     (matches!(response.status, Shift4PaymentStatus::Successful) && response.captured)
         .then_some(response.amount)
+}
+
+fn get_shift4_captured_money(
+    amount_converter: &impl AmountConvertor<Output = MinorUnit>,
+    response: &Shift4PaymentsResponse,
+    currency: Currency,
+    http_code: u16,
+) -> Result<Option<Money>, error_stack::Report<ConnectorError>> {
+    get_shift4_captured_amount(response)
+        .map(|amount| {
+            crate::utils::response_amount_to_money(
+                amount_converter,
+                amount,
+                currency,
+                http_code,
+                domain_types::connector_types::ConnectorEnum::Shift4,
+            )
+        })
+        .transpose()
 }
 
 /// Redirect target Shift4 hands back for APM / redirect flows, if any.
@@ -1916,6 +1936,13 @@ fn build_shift4_connector_response(
             card_network: None,
             domestic_network: None,
             auth_code: response.auth_code.clone(),
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         },
     ))
 }
@@ -2048,14 +2075,21 @@ pub enum Shift4PaymentStatus {
     Unknown,
 }
 
-impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<Shift4PaymentsResponse, Shift4RouterData<Self, T>>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<Shift4PaymentsResponse, Self>,
+        item: ResponseRouterData<Shift4PaymentsResponse, Shift4RouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = get_shift4_attempt_status(&item.response);
         let connector_response = build_shift4_connector_response(&item.response);
 
@@ -2102,14 +2136,18 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
             })
         };
 
-        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+        let amount_captured = get_shift4_captured_money(
+            &connector,
+            &item.response,
+            item.router_data.request.currency,
+            item.http_code,
+        )?;
 
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
-                minor_amount_captured,
+                amount_captured,
                 // AVS / CVV / ANI results are reported on both the success and the
                 // decline path — a declined charge is precisely when the merchant
                 // needs to know the AVS or CVV verdict.
@@ -2122,14 +2160,21 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
 }
 
 // PSync response transformation - reuses Shift4PaymentsResponse and status mapping logic
-impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<Shift4PaymentsResponse, Shift4RouterData<Self, T>>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<Shift4PaymentsResponse, Self>,
+        item: ResponseRouterData<Shift4PaymentsResponse, Shift4RouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = get_shift4_attempt_status(&item.response);
         let connector_response = build_shift4_connector_response(&item.response);
 
@@ -2159,14 +2204,18 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
             })
         };
 
-        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+        let amount_captured = get_shift4_captured_money(
+            &connector,
+            &item.response,
+            item.router_data.request.currency,
+            item.http_code,
+        )?;
 
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
-                minor_amount_captured,
+                amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
             },
@@ -2176,14 +2225,21 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
 }
 
 // Capture response transformation - reuses Shift4PaymentsResponse
-impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<Shift4PaymentsResponse, Shift4RouterData<Self, T>>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<Shift4PaymentsResponse, Self>,
+        item: ResponseRouterData<Shift4PaymentsResponse, Shift4RouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = get_shift4_attempt_status(&item.response);
         let connector_response = build_shift4_connector_response(&item.response);
 
@@ -2193,7 +2249,7 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
         // 1000 authorization captured with 400 reads back `amount: 400`,
         // `amountRefunded: 0`), and the capture request carries no authorized
         // amount either (`PaymentsCaptureData` has none, and the gRPC capture
-        // leaves `minor_amount_authorized` / `minor_amount_capturable` unset). A
+        // leaves `amount_authorized` / `amount_capturable` unset). A
         // caller that knows the authorized amount can compare it with
         // `amount_to_capture` itself.
         //
@@ -2234,14 +2290,18 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
 
         // The charge `amount` is the captured amount after a capture, so a
         // partial capture of 400 reports 400 captured.
-        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+        let amount_captured = get_shift4_captured_money(
+            &connector,
+            &item.response,
+            item.router_data.request.currency,
+            item.http_code,
+        )?;
 
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
-                minor_amount_captured,
+                amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
             },
@@ -2269,7 +2329,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             charge_id: item.request.connector_transaction_id.clone(),
-            amount: item.request.minor_refund_amount,
+            amount: item.request.refund_amount.amount,
         })
     }
 }
@@ -2650,7 +2710,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         Ok(Self {
-            amount: request.minor_amount_to_capture,
+            amount: request.amount_to_capture.amount,
         })
     }
 }
@@ -2978,7 +3038,9 @@ impl<T: PaymentMethodDataTypes>
         // `subsequent_recurring`; every unscheduled use of the stored credential
         // is `merchant_initiated`.
         let transaction_type = match item.request.mit_category {
-            Some(common_enums::MitCategory::Recurring)
+            Some(
+                common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+            )
             | Some(common_enums::MitCategory::Installment) => {
                 Shift4TransactionType::SubsequentRecurring
             }
@@ -2990,7 +3052,7 @@ impl<T: PaymentMethodDataTypes>
         // Same rule as Authorize: Shift4 rejects a captured zero-amount charge
         // ("Zero amount charge cannot be captured"), and no funds move on one.
         let captured =
-            item.request.minor_amount != MinorUnit::new(0) && item.request.is_auto_capture();
+            item.request.amount.amount != MinorUnit::new(0) && item.request.is_auto_capture();
 
         let is_payment_method_charge =
             matches!(source, Shift4RepeatPaymentSource::PaymentMethod { .. });
@@ -2999,7 +3061,7 @@ impl<T: PaymentMethodDataTypes>
         // (same reasoning as the Authorize builder): `billing_descriptor` and
         // Level 2 / Level 3 data have no field on `POST /charges`.
         Ok(Self {
-            amount: item.request.minor_amount,
+            amount: item.request.amount.amount,
             currency: item.request.currency,
             captured,
             description: item.resource_common_data.description.clone(),
@@ -3060,14 +3122,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // RepeatPayment Response transformation — the charge object shared with
 // Authorize, mapped through the same status table and decline builder.
-impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4RepeatPaymentResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<Shift4RepeatPaymentResponse, Shift4RouterData<Self, T>>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<Shift4RepeatPaymentResponse, Self>,
+        item: ResponseRouterData<Shift4RepeatPaymentResponse, Shift4RouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let status = get_shift4_attempt_status(&item.response);
         let connector_response = build_shift4_connector_response(&item.response);
 
@@ -3103,14 +3172,18 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4RepeatPaymentRe
             })
         };
 
-        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+        let amount_captured = get_shift4_captured_money(
+            &connector,
+            &item.response,
+            item.router_data.request.currency,
+            item.http_code,
+        )?;
 
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
-                minor_amount_captured,
+                amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
             },
@@ -3178,7 +3251,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             line_items: vec![Shift4LineItem {
                 product: Shift4InlineProduct {
                     name: "Payment".to_string(),
-                    amount: router_data.request.amount,
+                    amount: router_data.request.amount.amount,
                     currency: router_data.request.currency,
                 },
                 quantity: 1,
@@ -3199,7 +3272,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 //
 // The `amount` field in the request is the INCREMENT amount (additional amount to
 // add to the existing authorization), not the new total. This matches CyberSource's
-// `additionalAmount` semantics and Prism's `PaymentsIncrementalAuthorizationData.minor_amount`.
+// `additionalAmount` semantics and Prism's `PaymentsIncrementalAuthorizationData.amount.amount`.
 // The response is the updated charge object, which mirrors `Shift4PaymentsResponse`.
 
 #[derive(Debug, Serialize)]
@@ -3237,7 +3310,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_amount,
+            amount: item.router_data.request.amount.amount,
         })
     }
 }
@@ -3454,31 +3527,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // the caller must pass 0 explicitly if that's what they mean, so a
         // missing amount is always a client error rather than an implicit
         // zero-dollar auth.
-        let amount = item.request.minor_amount.ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "amount",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Shift4 has no default charge amount: `POST /charges` requires an \
+        let amount = item
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| amount.amount)
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Shift4 has no default charge amount: `POST /charges` requires an \
                          explicit `amount`, and `0` is not a stand-in for \"unset\" but a \
                          distinct instruction to run a card-on-file verification that stores \
                          the credential without moving funds. Defaulting a missing amount to \
                          `0` would silently turn a payment into a verification, so the setup \
                          is refused before anything reaches Shift4."
-                            .to_string(),
-                    ),
-                    suggested_action: Some(
-                        "Set the amount on the SetupRecurring request: the minor-unit amount \
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Set the amount on the SetupRecurring request: the minor-unit amount \
                          to charge while storing the credential, or `0` to store it with a \
                          zero-amount card-on-file verification."
-                            .to_string(),
-                    ),
-                    doc_url: Some(
-                        "https://dev.shift4.com/docs/api#create-a-new-charge".to_string(),
-                    ),
-                },
-            })
-        })?;
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://dev.shift4.com/docs/api#create-a-new-charge".to_string(),
+                        ),
+                    },
+                })
+            })?;
         let billing_details = item
             .resource_common_data
             .address
@@ -3603,7 +3681,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // SetupMandate Response transformation - reuses Shift4PaymentsResponse and the
 // shared status table, and extracts the stored credential (`card.id` or
 // `paymentMethod.id`) as the mandate plus its owning customer.
-impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<Shift4SetupMandateResponse, Shift4RouterData<Self, T>>>
     for RouterDataV2<
         SetupMandate,
         PaymentFlowData,
@@ -3614,8 +3693,14 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<Shift4SetupMandateResponse, Self>,
+        item: ResponseRouterData<Shift4SetupMandateResponse, Shift4RouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let mut status = get_shift4_attempt_status(&item.response);
 
         // A zero-amount setup is a verification that holds no funds and can never
@@ -3624,7 +3709,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
         // non-zero setup is sent captured, so it keeps the status Shift4 reports
         // for that charge (`Charged` on success).
         if status == AttemptStatus::Authorized
-            && item.router_data.request.minor_amount == Some(MinorUnit::new(0))
+            && item
+                .router_data
+                .request
+                .amount
+                .as_ref()
+                .is_some_and(|amount| amount.amount == MinorUnit::new(0))
         {
             status = AttemptStatus::Charged;
         }
@@ -3699,14 +3789,18 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
         // A non-zero setup is sent captured, so its settled amount is reported
         // like any other captured charge's. A zero-amount verification is sent
         // uncaptured and reports none, although its status is `Charged`.
-        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+        let amount_captured = get_shift4_captured_money(
+            &connector,
+            &item.response,
+            item.router_data.request.currency,
+            item.http_code,
+        )?;
 
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
-                minor_amount_captured,
+                amount_captured,
                 connector_customer,
                 connector_response,
                 ..item.router_data.resource_common_data
@@ -3995,7 +4089,7 @@ pub(crate) fn get_webhook_event_type(
 }
 
 /// Stateless reference extraction (ParseEvent). Charge events point at the
-/// charge (`data.id`), a refund on a captured charge at `data.refunds[0].id`,
+/// charge (`data.id`), a refund on a captured charge at the last `data.refunds` entry,
 /// a `REFUND_UPDATED` at the refund (`data.id`) and a dispute at the dispute
 /// with its parent charge. A missing id is an error, never an empty reference.
 pub(crate) fn get_webhook_reference(
@@ -4020,6 +4114,7 @@ pub(crate) fn get_webhook_reference(
                 PaymentWebhookReference {
                     connector_transaction_id: Some(id),
                     merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
                 },
             )))
         }
@@ -4035,6 +4130,7 @@ pub(crate) fn get_webhook_reference(
                     PaymentWebhookReference {
                         connector_transaction_id: Some(id),
                         merchant_transaction_id: None,
+                        connector_preprocessing_id: None,
                     },
                 )));
             }
@@ -4151,7 +4247,6 @@ pub(crate) fn build_webhook_payment_response(
         status_code: 200,
         response_headers: None,
         amount_captured: None,
-        minor_amount_captured: None,
         network_txn_id: None,
         payment_method_update: None,
         sender_payment_instrument_id: None,
@@ -4310,8 +4405,7 @@ pub(crate) fn build_webhook_dispute_response(
     })?;
     let amount = domain_types::utils::convert_amount_for_webhook(
         &StringMinorUnitForConnector,
-        amount,
-        currency,
+        &Money { amount, currency },
     )?;
     let reason = dispute.reason.and_then(Shift4DisputeReason::as_code);
     Ok(DisputeWebhookDetailsResponse {
@@ -4326,5 +4420,6 @@ pub(crate) fn build_webhook_dispute_response(
         status_code: 200,
         response_headers: None,
         connector_reason_code: reason.map(str::to_string),
+        additional_details: None,
     })
 }

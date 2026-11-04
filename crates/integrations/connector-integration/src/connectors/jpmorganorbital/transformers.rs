@@ -310,7 +310,10 @@ fn build_amount(
 ) -> Result<StringTwoDecimalUnit, error_stack::Report<IntegrationError>> {
     let minor = minor_amount.get_amount_as_i64();
     let amount = StringTwoDecimalUnitForConnector
-        .convert(minor_amount, currency)
+        .convert(&common_utils::types::Money {
+            amount: minor_amount,
+            currency,
+        })
         .map_err(|_| {
             invalid_amount(format!(
                 "{currency} has more than two decimal places, so {minor} minor units cannot be \
@@ -838,7 +841,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 order_id: build_order_id(&common.connector_request_reference_id)?,
                 // Currency is deliberately absent: Orbital derives it from the
                 // Merchant ID setup and has no field to receive it.
-                amount: build_amount(request.minor_amount, request.currency)?,
+                amount: build_amount(request.amount.amount, request.currency)?,
                 industry_type: INDUSTRY_TYPE_ECOMMERCE.to_string(),
                 retry_trace: build_retry_trace(&common.connector_request_reference_id),
             },

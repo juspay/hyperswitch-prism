@@ -113,7 +113,7 @@ fn fetch_payment_instrument<
                         month: Secret::new(expiry_month),
                         year: Secret::new(expiry_year),
                     },
-                    card_number: card.card_number
+                    card_number: card.card_number,
                 },
                 cvc: card.card_cvc,
                 card_holder_name: billing_address
@@ -122,22 +122,26 @@ fn fetch_payment_instrument<
                 billing_address: billing_address
                     .and_then(|addr| addr.address.clone())
                     .and_then(|address| {
+                        let state = address.get_optional_state();
                         match (address.line1, address.city, address.zip, address.country) {
-                            (Some(address1), Some(city), Some(postal_code), Some(country_code)) => {
-                                Some(BillingAddress {
-                                    address1,
-                                    address2: address.line2,
-                                    address3: address.line3,
-                                    city,
-                                    state: address.state,
-                                    postal_code,
-                                    country_code
-})
-                            }
-                            _ => None
-}
-                    })
-}))
+                            (
+                                Some(address1),
+                                Some(city),
+                                Some(postal_code),
+                                Some(country_code),
+                            ) => Some(BillingAddress {
+                                address1,
+                                address2: address.line2,
+                                address3: address.line3,
+                                city,
+                                state,
+                                postal_code,
+                                country_code,
+                            }),
+                            _ => None,
+                        }
+                    }),
+            }))
         }
         PaymentMethodData::CardDetailsForNetworkTransactionId(raw_card_details) => {
             let exp_month_str = raw_card_details.card_exp_month.peek().to_string();
@@ -168,7 +172,7 @@ fn fetch_payment_instrument<
                     month: Secret::new(expiry_month),
                     year: Secret::new(expiry_year),
                 },
-                card_number: RawCardNumber(raw_card_details.card_number)
+                card_number: RawCardNumber(raw_card_details.card_number.try_card_number("Worldpay")?)
             }))
         }
         PaymentMethodData::MandatePayment => {
@@ -227,6 +231,8 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::BluecodeRedirect {}
             | WalletDataPaymentMethod::MbWay(_)
             | WalletDataPaymentMethod::Satispay(_)
+            | WalletDataPaymentMethod::SatispayIntent(_)
+            | WalletDataPaymentMethod::SatispayQr(_)
             | WalletDataPaymentMethod::Wero(_)
             | WalletDataPaymentMethod::LazyPayRedirect(_)
             | WalletDataPaymentMethod::PhonePeRedirect(_)
@@ -487,7 +493,7 @@ fn create_shipping(shipping: Option<&domain_types::payment_address::Address>) ->
                 address2: details.line2.clone(),
                 address3: details.line3.clone(),
                 city,
-                state: details.state.clone(),
+                state: details.get_optional_state(),
                 postal_code,
                 country_code,
             },
@@ -568,7 +574,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             instruction: Instruction {
                 settlement: get_settlement_info(
                     &item.router_data,
-                    item.router_data.request.minor_amount,
+                    item.router_data.request.amount.amount,
                 ),
                 method: PaymentMethod::try_from((
                     item.router_data.resource_common_data.payment_method,
@@ -582,7 +588,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
-                    amount: item.router_data.request.minor_amount,
+                    amount: item.router_data.request.amount.amount,
                     currency: item.router_data.request.currency,
                 },
                 debt_repayment: None,
@@ -736,7 +742,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
-                    amount: item.router_data.request.minor_amount,
+                    amount: item.router_data.request.amount.amount,
                     currency: item.router_data.request.currency,
                 },
                 debt_repayment: None,
@@ -904,7 +910,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         // Extract amount before moving item to pass for correct status determination
-        let amount = item.router_data.request.minor_amount;
+        let amount = item.router_data.request.amount.amount;
         // Use the existing ForeignTryFrom implementation
         Self::foreign_try_from((item, None, amount))
     }
@@ -926,7 +932,7 @@ impl<
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         // Extract amount before moving item to pass for correct status determination
-        let amount = item.router_data.request.minor_amount;
+        let amount = item.router_data.request.amount.amount;
         // Use the existing ForeignTryFrom implementation
         Self::foreign_try_from((item, None, amount))
     }
@@ -1175,7 +1181,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .replace('_', "-"),
             value: PaymentValue {
-                amount: item.router_data.request.minor_amount_to_capture,
+                amount: item.router_data.request.amount_to_capture.amount,
                 currency: item.router_data.request.currency,
             },
         })
@@ -1308,7 +1314,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         Ok(Self {
             reference: item.router_data.request.refund_id.replace('_', "-"),
             value: PaymentValue {
-                amount: item.router_data.request.minor_refund_amount,
+                amount: item.router_data.request.refund_amount.amount,
                 currency: item.router_data.request.currency,
             },
         })
@@ -1785,7 +1791,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             value: PaymentValue {
-                amount: item.router_data.request.minor_amount,
+                amount: item.router_data.request.amount.amount,
                 currency: item.router_data.request.currency,
             },
         })

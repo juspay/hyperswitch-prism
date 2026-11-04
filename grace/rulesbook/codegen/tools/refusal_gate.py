@@ -85,14 +85,22 @@ MARKER_TO_SUITES = {
 REFUSED = ("not_implemented", "not_supported")
 
 
+UNREADABLE = object()   # distinct from None ("not given"): given but could not be read
+
+
 def load(path):
+    """Parsed JSON, None when the path is absent, UNREADABLE when it exists but will not parse.
+
+    The two must not collapse: a corrupt plan that reads as "not given" makes every
+    plan-driven check iterate nothing and the gate report pass.
+    """
     if not os.path.isfile(path):
         return None
     try:
         with open(path, "r", encoding="utf-8") as fh:
             return json.load(fh)
     except (OSError, ValueError):
-        return None
+        return UNREADABLE
 
 
 def flow_arms(probe, marker):
@@ -144,6 +152,22 @@ def inconclusive_row(check, unit, marker, arm, probe):
             "probe_arms": sorted(arms) if arms else []}
 
 
+def resolve_markers(plan, hook, unit):
+    """Markers for a unit: from the hook, else the plan's units[], else the unit name.
+
+    `test_hooks[]` carries no `markers` field -- `units[]` does (2.3a "plan.json") -- so
+    reading only the hook left every non-marker unit (`ThreeDS`, any `Marker/PaymentMethod`)
+    with an empty list, and those are exactly the units whose negatives carry arms.
+    """
+    markers = hook.get("markers")
+    if markers:
+        return markers
+    for entry in (plan or {}).get("units") or []:
+        if entry.get("unit") == unit and entry.get("markers"):
+            return entry["markers"]
+    return [unit] if unit in MARKER_TO_PROBE else []
+
+
 def check_ref01(probe, plan):
     """A claimed payment-method refusal must be visible in the probe."""
     evidence, notes, inconclusive = [], [], []
@@ -155,7 +179,14 @@ def check_ref01(probe, plan):
             # currency cells are not a dimension field_probe varies.
             if not arm or neg.get("capture_method") or neg.get("auth_type"):
                 continue
-            markers = hook.get("markers") or ([unit] if unit in MARKER_TO_PROBE else [])
+            markers = resolve_markers(plan, hook, unit)
+            if not markers:
+                # Without markers there is no probe to look the arm up in, so this
+                # refusal claim is unverified -- say so rather than passing silently.
+                inconclusive.append(inconclusive_row("REF-01", unit, None, arm, probe))
+                notes.append("%s: no markers resolved for arm %s; REF-01 not checked"
+                             % (unit, arm))
+                continue
             for marker in markers:
                 status = arm_status(probe, marker, arm)
                 if status is None:
@@ -209,12 +240,14 @@ def check_cap01(probe, specs, plan):
     return evidence, notes
 
 
-def check_cap02(probe, plan):
+def check_cap02(probe, plan, only_unit=None):
     """A wire field the plan says this run added must appear in the probed body."""
     evidence, notes, inconclusive = [], [], []
     checked = 0
     for hook in ((plan or {}).get("test_hooks") or []):
         unit = hook.get("unit")
+        if only_unit and (hook.get("unit") or unit) != only_unit:
+            continue      # another unit's fields cannot be in the tree yet
         for field in (hook.get("wire_fields") or []):
             name = field.get("name") if isinstance(field, dict) else field
             arm = (field.get("arm") if isinstance(field, dict) else None) or "Card"
@@ -231,7 +264,17 @@ def check_cap02(probe, plan):
                              % (unit, arm, name))
                 continue
             checked += 1
-            if name and name not in body:
+            # Match the field as a JSON key, not as a bare substring: `merchant_id`
+            # would otherwise be satisfied by `sub_merchant_id`, or by any value
+            # containing that text.
+            # `sample.body` is stored as a JSON *string* by data/field_probe/*.json, so
+            # json.dumps() would escape every quote and the quoted-key needle could never
+            # match -- CAP-02 then fails for every wire_fields entry on a probed arm whatever
+            # the code does. Measured on data/field_probe/rapyd.json: "description" and
+            # "amount" are both in the body and both reported absent. Search the string
+            # directly; serialise only when the probe stored an object.
+            hay = body if isinstance(body, str) else json.dumps(body)
+            if name and ('"%s"' % name.rsplit(".", 1)[-1]) not in hay:
                 evidence.append({
                     "unit": unit, "field": name, "arm": arm,
                     "detail": "plan §8 wire_fields names %r but it does not appear in the probed "
@@ -247,6 +290,9 @@ def main():
     ap.add_argument("--plan", default="none")
     ap.add_argument("--probe-dir", default=PROBE_DIR)
     ap.add_argument("--specs-dir", default=SPECS_DIR)
+    ap.add_argument("--unit", help="restrict CAP-02 to one plan unit; without it every "
+                                   "unit's wire_fields are judged, which fails a gate run "
+                                   "before the later units exist")
     ap.add_argument("--out")
     args = ap.parse_args()
 
@@ -256,6 +302,14 @@ def main():
 
     report = {"connector": args.connector, "pass": True, "checks": [],
               "unparsed": [], "needs_human": []}
+
+    if plan is UNREADABLE:
+        # Every plan-driven check iterates nothing without it, which would report pass.
+        report["unparsed"].append({
+            "what": "--plan %s" % args.plan,
+            "why": "exists but is not readable JSON; REF-01 and CAP-02 cannot run, and a gate "
+                   "that cannot run its checks does not pass"})
+        plan = None
 
     if probe is None:
         report["unparsed"].append({
@@ -271,7 +325,7 @@ def main():
 
     ref01, n1, i1 = check_ref01(probe, plan)
     cap01, n3 = check_cap01(probe, specs, plan)
-    cap02, n2, i2 = check_cap02(probe, plan)
+    cap02, n2, i2 = check_cap02(probe, plan, args.unit)
     report["needs_human"].extend(n1 + n2 + n3)
 
     report["checks"] = [
@@ -290,7 +344,7 @@ def main():
          "message": "A field the plan says was added never reaches the built request."
                     if cap02 else "ok"},
     ]
-    report["pass"] = all(c["pass"] for c in report["checks"])
+    report["pass"] = all(c["pass"] for c in report["checks"]) and not report["unparsed"]
     # An arm the probe does not build is not a pass -- it is an unanswered question. Counted here
     # so it stays visible rather than passing silently; it never changes `pass` or the exit code.
     report["summary"] = {
@@ -309,5 +363,58 @@ def main():
     return 0 if report["pass"] else 1
 
 
+def _replay():
+    """Regression cases for the two CAP-02 bugs found live in rapyd-028fad."""
+    # Bug 1: data/field_probe/*.json stores `sample.body` as a JSON STRING, so json.dumps()
+    # escaped every quote and the quoted-key needle never matched -- CAP-02 failed for every
+    # wire_fields entry on a probed arm whatever the code did.
+    probe = {"flows": {"authorize": {"Card": {
+        "status": "supported",
+        "sample": {"body": '{"amount":"10.00","description":"x","sub_merchant_id":"y"}'}}}}}
+    plan = {"test_hooks": [{"unit": "Payments", "wire_fields": [
+        {"name": "amount", "arm": "Card", "marker": "Authorize"},
+        {"name": "description", "arm": "Card", "marker": "Authorize"}]}]}
+    ev, _, inc = check_cap02(probe, plan)
+    assert inc == [], ("the fixture must resolve a probe entry, or every case below passes as "
+                       "inconclusive and tests nothing: %r" % inc)
+    assert ev == [], "a field present in a string body must not be reported absent: %r" % ev
+
+    # a genuinely absent field is still caught
+    plan2 = {"test_hooks": [{"unit": "Payments", "wire_fields": [
+        {"name": "statement_descriptor", "arm": "Card", "marker": "Authorize"}]}]}
+    ev, _, _ = check_cap02(probe, plan2)
+    assert len(ev) == 1 and ev[0]["field"] == "statement_descriptor", ev
+
+    # and the quoted-key intent holds: merchant_id is not satisfied by sub_merchant_id
+    plan3 = {"test_hooks": [{"unit": "Payments", "wire_fields": [
+        {"name": "merchant_id", "arm": "Card", "marker": "Authorize"}]}]}
+    ev, _, _ = check_cap02(probe, plan3)
+    assert len(ev) == 1, "substring match must not satisfy a quoted key: %r" % ev
+
+    # an object body still works (probes may store either shape)
+    probe_obj = {"flows": {"authorize": {"Card": {
+        "status": "supported", "sample": {"body": {"amount": "10.00"}}}}}}
+    ev, _, _ = check_cap02(probe_obj, {"test_hooks": [{"unit": "Payments", "wire_fields": [
+        {"name": "amount", "arm": "Card", "marker": "Authorize"}]}]})
+    assert ev == [], ev
+
+    # Bug 2: without --unit, a unit that is not implemented yet is judged, so the gate fails
+    # for every unit until the last one exists (ThreeDS is plan seq 04).
+    mixed = {"test_hooks": [
+        {"unit": "Payments", "wire_fields": [{"name": "amount", "arm": "Card",
+                                             "marker": "Authorize"}]},
+        {"unit": "ThreeDS", "wire_fields": [{"name": "cavv", "arm": "Card",
+                                            "marker": "Authorize"}]}]}
+    ev_all, _, _ = check_cap02(probe, mixed)
+    assert len(ev_all) == 1 and ev_all[0]["unit"] == "ThreeDS", ev_all
+    ev_scoped, _, _ = check_cap02(probe, mixed, "Payments")
+    assert ev_scoped == [], "scoping to the unit under gate must drop other units: %r" % ev_scoped
+
+    print("replay OK: CAP-02 matches a quoted key inside a string body, still catches a "
+          "genuinely absent field, is not satisfied by a substring, handles an object body, "
+          "and with --unit judges only the unit under gate")
+    return 0
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(_replay() if sys.argv[1:2] == ["--replay"] else main())

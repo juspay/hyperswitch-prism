@@ -28,7 +28,7 @@ error-stack = "0.4.1"
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_path_to_error = "0.1.16"
-http = "0.2.12"
+http = "1.2.0"
 tonic = { workspace = true }
 paste = "1.0"
 tracing = { workspace = true }

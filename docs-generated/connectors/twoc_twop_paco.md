@@ -122,198 +122,21 @@ let config = ConnectorConfig {
 </tr>
 </table>
 
-## Integration Scenarios
-
-Complete, runnable examples for common integration patterns. Each example shows the full flow with status handling. Copy-paste into your app and replace placeholder values.
-
-### One-step Payment (Authorize + Capture)
-
-Simple payment that authorizes and captures in one call. Use for immediate charges.
-
-**Response status handling:**
-
-| Status | Recommended action |
-|--------|-------------------|
-| `AUTHORIZED` | Payment authorized and captured — funds will be settled automatically |
-| `PENDING` | Payment processing — await webhook for final status before fulfilling |
-| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
-
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py#L100) · [JavaScript](../../examples/twoc_twop_paco/twoc_twop_paco.js) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L130) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs#L125)
-
-### Card Payment (Authorize + Capture)
-
-Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
-
-**Response status handling:**
-
-| Status | Recommended action |
-|--------|-------------------|
-| `AUTHORIZED` | Funds reserved — proceed to Capture to settle |
-| `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
-| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
-
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py#L119) · [JavaScript](../../examples/twoc_twop_paco/twoc_twop_paco.js) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L146) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs#L141)
-
-### Refund
-
-Return funds to the customer for a completed payment.
-
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py#L144) · [JavaScript](../../examples/twoc_twop_paco/twoc_twop_paco.js) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L168) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs#L164)
-
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
-| [PaymentService.Reverse](#paymentservicereverse) | Payments | `PaymentServiceReverseRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
-| [PaymentMethodAuthenticationService.Authenticate](#paymentmethodauthenticationserviceauthenticate) | Authentication | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
-| [PaymentMethodAuthenticationService.PostAuthenticate](#paymentmethodauthenticationservicepostauthenticate) | Authentication | `PaymentMethodAuthenticationServicePostAuthenticateRequest` |
+| [PaymentService.VerifyRedirectResponse](#paymentserviceverifyredirectresponse) | Payments | `PaymentServiceVerifyRedirectResponseRequest` |
 
 ### Payments
 
-#### PaymentService.Authorize
+#### PaymentService.VerifyRedirectResponse
 
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
-
-**Supported payment method types:**
-
-| Payment Method | Supported |
-|----------------|:---------:|
-| Card | ✓ |
-
-**Payment method objects** — use these in the `payment_method` field of the Authorize request.
-
-##### Card (Raw PAN)
-
-```python
-"payment_method": {
-  "card": {
-    "card_number": {
-      "value": "4111111111111111"
-    },
-    "card_exp_month": {
-      "value": "12"
-    },
-    "card_exp_year": {
-      "value": "2027"
-    },
-    "card_cvc": {
-      "value": "123"
-    },
-    "card_holder_name": {
-      "value": "Test Customer"
-    },
-    "card_type": "credit"
-  }
-}
-```
-
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L190) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L189) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
-
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly.
 
 | | Message |
 |---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+| **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
+| **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L199) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L201) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
-
-#### PaymentService.Capture
-
-Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceCaptureRequest` |
-| **Response** | `PaymentServiceCaptureResponse` |
-
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L208) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L209) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
-
-#### PaymentService.Void
-
-Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceVoidRequest` |
-| **Response** | `PaymentServiceVoidResponse` |
-
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L219) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
-
-#### PaymentService.Reverse
-
-Reverse a captured payment in full. Initiates a complete refund when you need to cancel a settled transaction rather than just an authorization.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceReverseRequest` |
-| **Response** | `PaymentServiceReverseResponse` |
-
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L226) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L229) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
-
-#### PaymentService.Refund
-
-Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L235) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L237) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
-
-### Refunds
-
-#### RefundService.Get
-
-Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
-
-| | Message |
-|---|---------|
-| **Request** | `RefundServiceGetRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L244) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L247) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
-
-### Authentication
-
-#### PaymentMethodAuthenticationService.Authenticate
-
-Execute 3DS challenge or frictionless verification. Authenticates customer via bank challenge or behind-the-scenes verification for fraud prevention.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
-| **Response** | `PaymentMethodAuthenticationServiceAuthenticateResponse` |
-
-**Supported payment method types:**
-
-| Payment Method | Supported |
-|----------------|:---------:|
-| Card | ✓ |
-
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
-
-#### PaymentMethodAuthenticationService.PostAuthenticate
-
-Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentMethodAuthenticationServicePostAuthenticateRequest` |
-| **Response** | `PaymentMethodAuthenticationServicePostAuthenticateResponse` |
-
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L253) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L257) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
+**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L40) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L44) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)

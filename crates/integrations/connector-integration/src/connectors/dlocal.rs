@@ -68,6 +68,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Dlocal<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Dlocal<T>
@@ -189,6 +196,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // `order_id` is used for payment objects; `external_id` is used
                 // for enrollment objects.
                 merchant_transaction_id: body.order_id.or(body.external_id),
+                connector_preprocessing_id: None,
             },
         )))
     }
@@ -271,7 +279,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -551,7 +558,7 @@ macros::macro_connector_implementation!(
                     context: Default::default(),
                 })?;
 
-            if req.request.amount == MinorUnit::new(0) {
+            if req.request.amount.amount == MinorUnit::new(0) {
                 Ok(format!(
                     "{}enrollments/{connector_transaction_id}",
                     self.connector_base_url_payments(req),

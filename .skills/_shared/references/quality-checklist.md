@@ -15,7 +15,7 @@ GRACE quality review system, feedback database, and learnings.
 
 > This section is the *build* gate. It is not sufficient to open a PR. Section 15
 > (**Pre-Flight Gate**) is the last thing you run before pushing, and section 16 lists what
-> the PR body must disclose. Certification — which is merge-blocking — is a separate
+> the run must record. Certification — which is merge-blocking — is a separate
 > document: `.skills/_shared/references/certification.md`.
 
 ---
@@ -162,6 +162,33 @@ arm silently maps it to whatever the arm happens to say, which is how a declined
       `crates/types-traits/interfaces/src/api.rs:25`
 - [ ] No credentials appear in error messages or logs
 - [ ] All flows use the same authentication pattern consistently
+
+---
+
+## 7A. Integrity Objects
+
+Response-side integrity objects are how UCS detects tampering or accidental drift
+between the original request and the connector response. The framework compares
+`request.get_request_integrity_object()` with
+`request.get_response_integrity_object()`; if the latter is `None`, the check is
+skipped.
+
+- [ ] For every flow whose request type has `integrity_object: Option<...>`, the
+      success response transformer sets `integrity_object: Some(...)` on the
+      cloned request
+- [ ] The object uses connector-echoed comparable values when present: amount,
+      currency, connector transaction id, connector refund id, mandate reference,
+      or the specific fields listed in the flow's integrity object
+- [ ] Every fallback to a request value has a short comment explaining that the
+      connector does not echo a comparable field; Transit (`tsys_transit`) is the
+      exemplar
+- [ ] No transformer leaves `integrity_object: None` merely because the scaffold
+      did
+- [ ] Tests cover at least one response that populates the integrity object when
+      the flow has non-empty integrity fields
+
+Reference:
+`grace/rulesbook/codegen/guides/patterns/pattern_integrity_checks.md`.
 
 ---
 
@@ -362,6 +389,7 @@ These are the most frequently observed issues from quality reviews:
 | `transformation_status` on a webhook response | Field does not exist (`E0560`) -- delete it |
 | Missing `macro_connector_flow_status_impls!` | Add it; 112/112 connectors need it or `E0277` |
 | 2xx response with a declined body returned as `Ok(..)` | Branch on `is_payment_failure` and return `Err(ErrorResponse{..})` |
+| Leaving `integrity_object: None` on a comparable success response | Populate the response-side integrity object from connector-echoed values, or document why only request values are available |
 
 ---
 
@@ -422,6 +450,9 @@ Run these checks before declaring the connector complete:
 12. **Stub coverage**: `rg -n 'macro_connector_flow_status_impls' <your connector>.rs` -- one hit,
     and its two lists plus your implemented flows account for every marker in
     `crates/types-traits/domain_types/src/connector_flow.rs`
+13. **Integrity objects**: `rg -n 'integrity_object' <your transformers>` -- every flow request
+    type that has an integrity field sets it on success, and every fallback to request data has
+    a comment explaining the connector contract
 
 ---
 
@@ -607,13 +638,17 @@ edit the old transcript.
 
 ---
 
-## 16. What the PR body must disclose
+## 16. What the run must record
+
+The PR body holds only the flows and their per-flow test calls (`grace/workflow/2.8_pr_run.md`
+"Templates"). Everything below goes in the run record, `{RUN_DIR}/pr/result.decisions.md`, not
+in the PR.
 
 GRACE does **not** write tests. That is a standing decision and this section does not lift
-it. It does mean the PR body is the only place a human learns that something in the diff
+it. It does mean the run record is the only place a human learns that something in the diff
 needs a test they will have to write.
 
-**Novel algorithmic logic must be listed in the PR body**, one line each, so a reviewer can
+**Novel algorithmic logic must be listed in the run record**, one line each, so a reviewer can
 add a known-answer test. "Novel" means logic whose correctness is not visible by reading it
 — anything with a right answer that a wrong implementation would still compile and often
 still *run*:
@@ -644,12 +679,12 @@ Use this shape, so the reviewer knows exactly what to pin:
 ```
 
 - [ ] Every signing / hashing / checksum / custom-amount-encoding routine in the diff is
-      listed in the PR body with the spec section it implements
+      listed in the run record with the spec section it implements
 - [ ] Each listed item names a concrete input → expected output the reviewer can use as the
       test vector (the vendor's own worked example, when there is one)
 - [ ] No test files were added (section is a disclosure requirement, not a test requirement)
 
-### PR body checklist
+### Run record checklist
 
 - [ ] Certification status stated: credentials + passing scenarios, **or** the
       `alpha_connectors.json` entry and its `reason` — `.skills/_shared/references/certification.md` §3

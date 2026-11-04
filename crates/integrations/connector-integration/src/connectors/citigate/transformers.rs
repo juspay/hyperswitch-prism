@@ -137,7 +137,9 @@ fn not_supported(detail: String) -> error_stack::Report<IntegrationError> {
 /// `MerchantRef` is mandatory on every Citigate request and is the *only* key a
 /// Transaction Status Check can be resolved by, so an empty reference is rejected
 /// up front rather than sent and refused by the gateway.
-fn required_merchant_ref(reference: &str) -> Result<String, error_stack::Report<IntegrationError>> {
+pub(super) fn required_merchant_ref(
+    reference: &str,
+) -> Result<String, error_stack::Report<IntegrationError>> {
     if reference.is_empty() {
         return Err(error_stack::report!(
             IntegrationError::MissingRequiredField {
@@ -289,10 +291,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
         let common = &router_data.resource_common_data;
 
-        let amount = CitigateAmountConvertor::convert(
-            router_data.request.minor_amount,
-            router_data.request.currency,
-        )?;
+        let amount = CitigateAmountConvertor::convert(&router_data.request.amount)?;
 
         let firstname = common.get_billing_first_name()?;
         let surname = common.get_billing_last_name()?;
@@ -984,7 +983,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         //
         // Known gap — a lone partial capture is not detectable here. The capture contract
         // (`PaymentServiceCaptureRequest`) carries `amount_to_capture` but never the amount
-        // that was originally authorised, and `PaymentFlowData::minor_amount_authorized` is
+        // that was originally authorised, and `PaymentFlowData::amount_authorized` is
         // a response-reporting field: every request-path constructor sets it to `None`. So a
         // single `Manual` capture for less than the authorisation is indistinguishable from a
         // full one at this layer, and will settle in full. Closing that gap needs the
@@ -1104,7 +1103,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Same shape as Capture: the cancel body has no `Amount` field, so Citigate always
         // voids the whole authorisation. `PaymentVoidData::amount` does reach us, but there
-        // is nothing to compare it against — `minor_amount_authorized` is `None` on every
+        // is nothing to compare it against — `amount_authorized` is `None` on every
         // request path — so a partial void cannot be rejected here and will void in full.
 
         let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
@@ -1215,13 +1214,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &router_data.request;
         let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
 
-        let amount = if request.minor_refund_amount == request.minor_payment_amount {
+        let amount = if request.refund_amount.amount == request.payment_amount.amount {
             None
         } else {
-            Some(CitigateAmountConvertor::convert(
-                request.minor_refund_amount,
-                request.currency,
-            )?)
+            Some(CitigateAmountConvertor::convert(&request.refund_amount)?)
         };
 
         Ok(Self {

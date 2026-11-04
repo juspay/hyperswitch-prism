@@ -212,22 +212,28 @@ impl ApiTagConfig {
 #[derive(Clone, Deserialize, Debug, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct Common {
     pub environment: consts::Env,
-    /// Controls whether raw and typed connector request/response payloads are
-    /// included in responses returned to the client.
+    /// Controls whether raw connector request/response payloads are included in
+    /// responses returned to the client.
     ///
-    /// Enabling this can significantly increase gRPC response size. Connector
-    /// errors carry these payloads in HTTP/2 trailers, so clients and
-    /// intermediate proxies must support a sufficiently large maximum header
-    /// list size.
-    #[serde(default)]
-    pub return_raw_and_typed_connector_data: bool,
+    /// Enabling this can significantly increase gRPC response size.
+    #[serde(default = "default_return_connector_data")]
+    pub return_raw_connector_data: bool,
+    /// Controls whether typed connector request/response payloads are included
+    /// in responses returned to the client.
+    #[serde(default = "default_return_connector_data")]
+    pub return_typed_connector_data: bool,
+}
+
+fn default_return_connector_data() -> bool {
+    true
 }
 
 impl Default for Common {
     fn default() -> Self {
         Self {
             environment: consts::Env::Development,
-            return_raw_and_typed_connector_data: false,
+            return_raw_connector_data: true,
+            return_typed_connector_data: true,
         }
     }
 }

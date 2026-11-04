@@ -29,8 +29,8 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
     return {
         "merchantTransactionId": "probe_txn_001",  // Identification.
         "amount": {  // The amount for the payment.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "paymentMethod": {  // Payment method to be used.
             "upiCollect": {  // UPI Collect.
@@ -52,8 +52,8 @@ function _buildCreateServerSessionAuthenticationTokenRequest(): types.IMerchantA
     return {
         "payment": {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
             "amount": {
-                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                "minorAmount": 1000,
+                "currency": Currency.USD
             }
         }
     };
@@ -64,8 +64,8 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }

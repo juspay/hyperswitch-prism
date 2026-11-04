@@ -48,10 +48,10 @@ const MERCHANT_ID: &str = "merchant_1234";
 
 // Test card data
 const TEST_AMOUNT: i64 = 1000;
-const TEST_CARD_NUMBER: &str = "4111111111111111"; // Valid test card for Fiuu
+const TEST_CARD_NUMBER: &str = "5567630009904309"; // Non-3DS sandbox card for Fiuu
 const TEST_CARD_EXP_MONTH: &str = "12";
-const TEST_CARD_EXP_YEAR: &str = "2050";
-const TEST_CARD_CVC: &str = "123";
+const TEST_CARD_EXP_YEAR: &str = "2049";
+const TEST_CARD_CVC: &str = "433";
 const TEST_CARD_HOLDER: &str = "Test User";
 const TEST_EMAIL: &str = "customer@example.com";
 
@@ -120,7 +120,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
         card_cvc: Some(Secret::new(TEST_CARD_CVC.to_string())),
         card_holder_name: Some(Secret::new(TEST_CARD_HOLDER.to_string())),
         card_issuer: None,
-        card_network: Some(1),
+        card_network: Some(2),
         card_type: None,
         card_issuing_country_alpha2: None,
         bank_code: None,
@@ -442,8 +442,8 @@ async fn test_refund() {
 
         // Verify the refund response
         assert!(
-            refund_response.status == i32::from(RefundStatus::RefundPending),
-            "Refund should be in RefundPending state"
+            refund_response.status == i32::from(RefundStatus::RefundSuccess),
+            "Refund should be in RefundSuccess state"
         );
     });
 }
@@ -490,8 +490,8 @@ async fn test_refund_sync() {
 
             // Verify the refund response
             assert!(
-                refund_response.status == i32::from(RefundStatus::RefundPending),
-                "Refund should be in RefundPending state"
+                refund_response.status == i32::from(RefundStatus::RefundSuccess),
+                "Refund should be in RefundSuccess state"
             );
 
             let refund_id = extract_refund_id(&refund_response);

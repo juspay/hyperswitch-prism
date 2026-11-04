@@ -203,6 +203,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== MACRO-BASED CONNECTOR IMPLEMENTATION =====
 // Define connector struct and bridges for all flows
+macros::create_amount_converter_wrapper!(connector_name: Shift4, amount_type: MinorUnit);
+
 macros::create_all_prerequisites!(
     connector_name: Shift4,
     generic_type: T,
@@ -211,6 +213,7 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: Shift4PaymentsRequest<T>,
             response_body: Shift4AuthorizeResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
@@ -223,12 +226,14 @@ macros::create_all_prerequisites!(
             flow: PSync,
             request_body: Shift4PSyncRequest,
             response_body: Shift4PSyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
             flow: Capture,
             request_body: Shift4CaptureRequest,
             response_body: Shift4CaptureResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (
@@ -253,6 +258,7 @@ macros::create_all_prerequisites!(
             flow: RepeatPayment,
             request_body: Shift4RepeatPaymentRequest<T>,
             response_body: Shift4RepeatPaymentResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
         (
@@ -271,6 +277,7 @@ macros::create_all_prerequisites!(
             flow: SetupMandate,
             request_body: Shift4SetupMandateRequest<T>,
             response_body: Shift4SetupMandateResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
         (
@@ -793,6 +800,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Shift4<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

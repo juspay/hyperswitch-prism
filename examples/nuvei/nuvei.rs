@@ -21,8 +21,12 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "create_order",
     "create_server_session_authentication_token",
     "get",
+    "parse_event",
+    "pre_authenticate",
+    "recurring_charge",
     "refund",
     "refund_get",
+    "setup_recurring",
     "void",
 ];
 
@@ -57,8 +61,8 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         merchant_transaction_id: Some("probe_txn_001".to_string()), // Identification.
         amount: Some(Money {
             // The amount for the payment.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         payment_method: Some(PaymentMethod {
             // Payment method to be used.
@@ -80,10 +84,8 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
-                first_name: Some(Secret::new("John".to_string())), // Personal Information.
-                last_name: Some(Secret::new("Doe".to_string())),
                 country_alpha2_code: Some(CountryAlpha2::Us.into()),
-                email: Some(Secret::new("test@example.com".to_string())), // Contact Information.
+                email: Some(Secret::new("test@example.com".to_string())),
                 ..Default::default()
             }),
             ..Default::default()
@@ -92,16 +94,6 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
         session_token: Some("probe_session_token".to_string()), // Session and Token Information.
         browser_info: Some(BrowserInformation {
-            color_depth: Some(24), // Display Information.
-            screen_height: Some(900),
-            screen_width: Some(1440),
-            java_enabled: Some(false), // Browser Settings.
-            java_script_enabled: Some(true),
-            language: Some("en-US".to_string()),
-            time_zone_offset_minutes: Some(-480),
-            accept_header: Some("application/json".to_string()), // Browser Headers.
-            user_agent: Some("Mozilla/5.0 (probe-bot)".to_string()),
-            accept_language: Some("en-US,en;q=0.9".to_string()),
             ip_address: Some("1.2.3.4".to_string()), // Device Information.
             ..Default::default()
         }),
@@ -115,8 +107,8 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
         connector_transaction_id: connector_transaction_id.to_string(),
         amount_to_capture: Some(Money {
             // Capture Details.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         ..Default::default()
     }
@@ -136,8 +128,8 @@ pub fn build_create_order_request() -> PaymentServiceCreateOrderRequest {
         merchant_order_id: Some("probe_order_001".to_string()), // Identification.
         amount: Some(Money {
             // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         ..Default::default()
     }
@@ -157,9 +149,140 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
         connector_transaction_id: connector_transaction_id.to_string(),
         amount: Some(Money {
             // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
+        ..Default::default()
+    }
+}
+
+#[allow(dead_code)]
+pub fn build_handle_event_request() -> EventServiceHandleRequest {
+    EventServiceHandleRequest {
+        merchant_event_id: Some("probe_event_001".to_string()),
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(), // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
+            body: "{}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(), // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
+            body: "{}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+    }
+}
+
+pub fn build_pre_authenticate_request() -> PaymentMethodAuthenticationServicePreAuthenticateRequest
+{
+    PaymentMethodAuthenticationServicePreAuthenticateRequest {
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
+        }),
+        payment_method: Some(PaymentMethod {
+            // Payment Method.
+            payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
+                card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+                card_exp_month: Some(Secret::new("03".to_string())),
+                card_exp_year: Some(Secret::new("2030".to_string())),
+                card_cvc: Some(Secret::new("737".to_string())),
+                card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+                ..Default::default()
+            })),
+            ..Default::default()
+        }),
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        enrolled_for_3ds: false, // Authentication Details.
+        return_url: Some("https://example.com/3ds-return".to_string()), // URLs for Redirection.
+        browser_info: Some(BrowserInformation {
+            // Contextual Information.
+            color_depth: Some(24), // Display Information.
+            screen_height: Some(900),
+            screen_width: Some(1440),
+            java_enabled: Some(false), // Browser Settings.
+            java_script_enabled: Some(true),
+            language: Some("en-US".to_string()),
+            time_zone_offset_minutes: Some(-480),
+            accept_header: Some("application/json".to_string()), // Browser Headers.
+            user_agent: Some("Mozilla/5.0 (probe-bot)".to_string()),
+            accept_language: Some("en-US,en;q=0.9".to_string()),
+            ip_address: Some("1.2.3.4".to_string()), // Device Information.
+            ..Default::default()
+        }),
+        session_token: Some("probe_session_token".to_string()), // Connector session token, set by the caller from the session_token returned by MerchantAuthenticationService.CreateServerSessionAuthenticationToken (e.g. Nuvei's /getSessionToken.do sessionToken). Leave unset for connectors that do not use one.
+        ..Default::default()
+    }
+}
+
+pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest {
+    RecurringPaymentServiceChargeRequest {
+        connector_recurring_payment_id: Some(MandateReference {
+            // Reference to existing mandate.
+            // mandate_id_type: {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}
+            ..Default::default()
+        }),
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
+        }),
+        payment_method: Some(PaymentMethod {
+            // Optional payment Method Information (for network transaction flows).
+            payment_method: Some(payment_method::PaymentMethod::Token(
+                TokenPaymentMethodType {
+                    token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
+                    ..Default::default()
+                },
+            )),
+            ..Default::default()
+        }),
+        return_url: Some("https://example.com/recurring-return".to_string()),
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                country_alpha2_code: Some(CountryAlpha2::Us.into()),
+                email: Some(Secret::new("test@example.com".to_string())),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        connector_customer_id: Some("cust_probe_123".to_string()),
+        browser_info: Some(BrowserInformation {
+            // Browser Information.
+            color_depth: Some(24), // Display Information.
+            screen_height: Some(900),
+            screen_width: Some(1440),
+            java_enabled: Some(false), // Browser Settings.
+            java_script_enabled: Some(true),
+            language: Some("en-US".to_string()),
+            time_zone_offset_minutes: Some(-480),
+            accept_header: Some("application/json".to_string()), // Browser Headers.
+            user_agent: Some("Mozilla/5.0 (probe-bot)".to_string()),
+            accept_language: Some("en-US,en;q=0.9".to_string()),
+            ip_address: Some("1.2.3.4".to_string()), // Device Information.
+            ..Default::default()
+        }),
+        payment_method_type: Some(PaymentMethodType::PayPal.into()),
+        off_session: Some(true), // Behavioral Flags and Preferences.
+        session_token: Some("probe_session_token".to_string()), // Connector session token, set by the caller from the session_token returned by MerchantAuthenticationService.CreateServerSessionAuthenticationToken (e.g. Nuvei's /getSessionToken.do sessionToken). Leave unset for connectors that do not use one.
         ..Default::default()
     }
 }
@@ -170,8 +293,8 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
         connector_transaction_id: connector_transaction_id.to_string(),
         payment_amount: 1000, // Amount Information.
         refund_amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         reason: Some("customer_request".to_string()), // Reason for the refund.
         ..Default::default()
@@ -187,14 +310,67 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
     }
 }
 
+pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
+    PaymentServiceSetupRecurringRequest {
+        merchant_recurring_payment_id: "probe_mandate_001".to_string(), // Identification.
+        amount: Some(Money {
+            // Mandate Details.
+            minor_amount: 0,
+            currency: Currency::Usd.into(),
+        }),
+        payment_method: Some(PaymentMethod {
+            payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
+                card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+                card_exp_month: Some(Secret::new("03".to_string())),
+                card_exp_year: Some(Secret::new("2030".to_string())),
+                card_cvc: Some(Secret::new("737".to_string())),
+                card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+                ..Default::default()
+            })),
+            ..Default::default()
+        }),
+        customer: Some(Customer {
+            id: Some("cust_probe_123".to_string()),
+            ..Default::default()
+        }),
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                country_alpha2_code: Some(CountryAlpha2::Us.into()),
+                email: Some(Secret::new("test@example.com".to_string())),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        auth_type: AuthenticationType::NoThreeDs.into(), // Type of authentication to be used.
+        enrolled_for_3ds: false, // Indicates if the customer is enrolled for 3D Secure.
+        return_url: Some("https://example.com/mandate-return".to_string()), // URL to redirect after setup.
+        session_token: Some("probe_session_token".to_string()), // Session token, if applicable.
+        setup_future_usage: Some(FutureUsage::OffSession.into()), // Indicates future usage intention.
+        request_incremental_authorization: false, // Indicates if incremental authorization is requested.
+        customer_acceptance: Some(CustomerAcceptance {
+            // Details of customer acceptance.
+            acceptance_type: AcceptanceType::Offline.into(), // Type of acceptance (e.g., online, offline).
+            accepted_at: 0, // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            ..Default::default()
+        }),
+        browser_info: Some(BrowserInformation {
+            // Information about the customer's browser.
+            ip_address: Some("1.2.3.4".to_string()), // Device Information.
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
 pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
     PaymentServiceVoidRequest {
         merchant_void_id: Some("probe_void_001".to_string()), // Identification.
         connector_transaction_id: connector_transaction_id.to_string(),
         amount: Some(Money {
             // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         ..Default::default()
     }
@@ -489,6 +665,40 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
+}
+
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
+#[allow(dead_code)]
+pub async fn process_pre_authenticate(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .pre_authenticate(build_pre_authenticate_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
+// Flow: RecurringPaymentService.Charge
+#[allow(dead_code)]
+pub async fn process_recurring_charge(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .recurring_charge(build_recurring_charge_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: RefundService.Get
 #[allow(dead_code)]
 pub async fn process_refund_get(
@@ -499,6 +709,27 @@ pub async fn process_refund_get(
         .refund_get(build_refund_get_request(), &HashMap::new(), None)
         .await?;
     Ok(format!("status: {:?}", response.status()))
+}
+
+// Flow: PaymentService.SetupRecurring
+#[allow(dead_code)]
+pub async fn process_setup_recurring(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .setup_recurring(build_setup_recurring_request(), &HashMap::new(), None)
+        .await?;
+    if response.status() == PaymentStatus::Failure {
+        return Err(format!("Setup failed: {:?}", response.error).into());
+    }
+    Ok(format!(
+        "Mandate: {}",
+        response
+            .connector_recurring_payment_id
+            .as_deref()
+            .unwrap_or("")
+    ))
 }
 
 // Flow: PaymentService.Void
@@ -540,10 +771,14 @@ async fn main() {
             process_create_server_session_authentication_token(&client, "txn_001").await
         }
         "process_get" => process_get(&client, "txn_001").await,
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
+        "process_pre_authenticate" => process_pre_authenticate(&client, "txn_001").await,
+        "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
+        "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_order, process_create_server_session_authentication_token, process_get, process_refund_get, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_order, process_create_server_session_authentication_token, process_get, process_parse_event, process_pre_authenticate, process_recurring_charge, process_refund_get, process_setup_recurring, process_void", flow);
             return;
         }
     };

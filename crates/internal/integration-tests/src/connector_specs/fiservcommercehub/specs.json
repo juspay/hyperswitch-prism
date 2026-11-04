@@ -10,5 +10,10 @@
     "RefundService/Get",
     "RecurringPaymentService/Charge",
     "MerchantAuthenticationService/CreateServerAuthenticationToken"
-  ]
+  ],
+  "unsupported_scenarios": {
+    "RecurringPaymentService/Charge": {
+      "recurring_charge": "wallet MIT (TRANSARMOR token from a wallet CIT Authorize) cannot be exercised via this suite: RecurringPaymentService/Charge depends on PaymentService/SetupRecurring for the mandate ID, but fiservcommercehub SetupMandate only supports Card — wallet mandate tokens are issued inline during PaymentService/Authorize with setup_future_usage=OFF_SESSION and are tested there via no3ds_auto_capture_apple_pay_decrypted_cit and no3ds_auto_capture_google_pay_decrypted_cit."
+    }
+  }
 }
