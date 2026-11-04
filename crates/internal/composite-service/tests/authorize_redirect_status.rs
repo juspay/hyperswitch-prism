@@ -10,7 +10,7 @@ use std::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
-    task::{Context, Poll, Wake, Waker},
+    task::{Context, Poll, Waker},
 };
 
 #[derive(Clone)]
@@ -268,15 +268,10 @@ impl p::payment_method_authentication_service_server::PaymentMethodAuthenticatio
     }
 }
 
-struct NoopWake;
-impl Wake for NoopWake {
-    fn wake(self: Arc<Self>) {}
-}
-
 // Stub calls resolve immediately; no network or async runtime is needed.
 fn complete<F: Future>(future: F) -> F::Output {
-    let waker = Waker::from(Arc::new(NoopWake));
-    let mut context = Context::from_waker(&waker);
+    let waker = Waker::noop();
+    let mut context = Context::from_waker(waker);
     match std::pin::pin!(future).as_mut().poll(&mut context) {
         Poll::Ready(value) => value,
         Poll::Pending => panic!("unexpected pending operation in composite test"),
