@@ -573,8 +573,8 @@ pub enum RapydRecurrenceType {
 ///
 /// Reference: https://docs.rapyd.net/en/external-network-tokenization.html
 #[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum RapydNumberType {
-    #[serde(rename = "TPAN")]
     Tpan,
 }
 
@@ -1112,9 +1112,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     name: item
                         .router_data
                         .resource_common_data
-                        .get_optional_billing_full_name()
-                        .to_owned()
-                        .unwrap_or(Secret::new("".to_string())),
+                        .get_billing_full_name()?,
                     number_type: RapydNumberType::Tpan,
                 };
                 initiation_type = Some(RapydInitiationType::CustomerPresent);
