@@ -282,10 +282,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.minor_amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -294,7 +291,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .get_billing_full_name()?;
 
-        let email = item.router_data.resource_common_data.get_billing_email()?;
+        // Mirror the Direct path (hyperswitch `fiuu/transformers.rs:268-269`), which falls back to
+        // the request email when the billing address carries none. Without this a recurring payment
+        // with no billing email hard-fails on UCS while succeeding on Direct.
+        let email = item
+            .router_data
+            .resource_common_data
+            .get_billing_email()
+            .or_else(|err| item.router_data.request.email.clone().ok_or(err))?;
         let token = Secret::new(item.router_data.request.connector_mandate_id().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "connector_mandate_id",
@@ -526,10 +530,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.minor_amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -589,6 +590,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })))
                 }
                 BankRedirectData::BancontactCard { .. }
+                | BankRedirectData::BancontactIntent { .. }
+                | BankRedirectData::BancontactQr { .. }
                 | BankRedirectData::Bizum {}
                 | BankRedirectData::Blik { .. }
                 | BankRedirectData::Eft { .. }
@@ -660,6 +663,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BluecodeRedirect { .. }
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
+                | WalletData::SatispayIntent(_)
+                | WalletData::SatispayQr(_)
                 | WalletData::Wero(_)
                 | WalletData::LazyPayRedirect(_)
                 | WalletData::PhonePeRedirect(_)
@@ -747,10 +752,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.minor_amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -874,12 +876,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let minor_amount = item
             .router_data
             .request
-            .minor_amount
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
             .unwrap_or(common_utils::types::MinorUnit::new(0));
         let amount = item
             .connector
             .amount_converter
-            .convert(minor_amount, item.router_data.request.currency)
+            .convert(&common_utils::types::Money {
+                amount: minor_amount,
+                currency: item.router_data.request.currency,
+            })
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -964,6 +971,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })))
                 }
                 BankRedirectData::BancontactCard { .. }
+                | BankRedirectData::BancontactIntent { .. }
+                | BankRedirectData::BancontactQr { .. }
                 | BankRedirectData::Bizum {}
                 | BankRedirectData::Blik { .. }
                 | BankRedirectData::Eft { .. }
@@ -1033,6 +1042,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BluecodeRedirect { .. }
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
+                | WalletData::SatispayIntent(_)
+                | WalletData::SatispayQr(_)
                 | WalletData::Wero(_)
                 | WalletData::LazyPayRedirect(_)
                 | WalletData::PhonePeRedirect(_)
@@ -1109,13 +1120,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let (mps_token_status, customer_email) =
             if item.request.is_customer_initiated_mandate_payment() {
-                let email = item.resource_common_data.get_billing_email()?;
-                // Filter out empty emails - don't send CustEmail field if email is empty
-                if email.peek().is_empty() {
-                    (Some(1), None)
-                } else {
-                    (Some(1), Some(email))
-                }
+                // Mirror hyperswitch: the billing email is the primary source, with
+                // the request email as fallback. Without the fallback a CIT card
+                // mandate whose billing address carries no email fails on UCS while
+                // it succeeds on the Direct path.
+                (
+                    Some(1),
+                    Some(
+                        item.resource_common_data
+                            .get_billing_email()
+                            .or(item.request.get_email())?,
+                    ),
+                )
             } else {
                 (Some(3), None)
             };
@@ -1137,15 +1153,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<(&CardDetailsForNetworkTransactionId, String)> for FiuuPaymentMethodData<T>
+    TryFrom<(&CardDetailsForNetworkTransactionId<T>, String)> for FiuuPaymentMethodData<T>
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
-        (raw_card_data, network_transaction_id): (&CardDetailsForNetworkTransactionId, String),
+        (raw_card_data, network_transaction_id): (&CardDetailsForNetworkTransactionId<T>, String),
     ) -> Result<Self, Self::Error> {
         Ok(Self::FiuuCardWithNTI(Box::new(FiuuCardWithNTI {
             txn_channel: TxnChannel::Creditan,
-            cc_pan: raw_card_data.card_number.clone(),
+            cc_pan: raw_card_data.card_number.try_card_number("Fiuu")?,
             cc_month: raw_card_data.card_exp_month.clone(),
             cc_year: raw_card_data.card_exp_year.clone(),
             original_scheme_id: Secret::new(network_transaction_id),
@@ -1273,9 +1289,10 @@ pub struct FiuuRecurringResponse {
     #[serde(rename = "orderid")]
     order_id: Option<String>,
     #[serde(rename = "tranID")]
-    tran_id: Option<String>,
+    tran_id: Option<u64>,
     reason: Option<String>,
 }
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum FiuuRecurringStautus {
@@ -1439,18 +1456,6 @@ where
                     })
                 }
                 RequestData::NonThreeDS(non_threeds_data) => {
-                    let mandate_reference =
-                        non_threeds_data
-                            .extra_parameters
-                            .as_ref()
-                            .and_then(|extra_p| {
-                                extra_p.token.as_ref().map(|token| MandateReference {
-                                    connector_mandate_id: Some(token.clone().expose()),
-                                    payment_method_id: None,
-                                    connector_mandate_request_reference_id: None,
-                                    mandate_metadata: None,
-                                })
-                            });
                     let status = match non_threeds_data.status.as_str() {
                         "00" => Ok(if router_data.request.is_auto_capture() {
                             common_enums::AttemptStatus::Charged
@@ -1489,6 +1494,17 @@ where
                             typed_connector_request: None,
                         })
                     } else {
+                        let mandate_reference = non_threeds_data
+                            .extra_parameters
+                            .as_ref()
+                            .and_then(|extra_p| {
+                                extra_p.token.as_ref().map(|token| MandateReference {
+                                    connector_mandate_id: Some(token.clone().expose()),
+                                    payment_method_id: None,
+                                    connector_mandate_request_reference_id: None,
+                                    mandate_metadata: None,
+                                })
+                            });
                         Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(data.txn_id.clone()),
                             redirection_data: None,
@@ -1521,9 +1537,8 @@ where
                             common_enums::AttemptStatus::from(recurring_response.status.clone());
                         let connector_transaction_id = recurring_response
                             .tran_id
-                            .as_ref()
                             .map_or(ResponseId::NoResponseId, |tran_id| {
-                                ResponseId::ConnectorTransactionId(tran_id.clone())
+                                ResponseId::ConnectorTransactionId(tran_id.to_string())
                             });
                         let response = if status == common_enums::AttemptStatus::Failure {
                             Err(ErrorResponse {
@@ -1538,7 +1553,9 @@ where
                                 reason: recurring_response.reason.clone(),
                                 status_code: item.http_code,
                                 attempt_status: None,
-                                connector_transaction_id: recurring_response.tran_id.clone(),
+                                connector_transaction_id: recurring_response
+                                    .tran_id
+                                    .map(|id| id.to_string()),
                                 network_advice_code: None,
                                 network_decline_code: None,
                                 network_error_message: None,
@@ -1652,10 +1669,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.minor_refund_amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.refund_amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1886,10 +1900,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2206,10 +2217,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.minor_amount_to_capture,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount_to_capture)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -2372,11 +2380,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = FiuuAuthType::try_from(&item.router_data.connector_config)?;
         let txn_id = item.router_data.request.connector_transaction_id.clone();
         let merchant_id = auth.merchant_id.peek().to_string();
-        let secret_key = auth.secret_key.peek().to_string();
+        let verify_key = auth.verify_key.peek().to_string();
         Ok(Self {
             txn_id: txn_id.clone(),
             domain: merchant_id.clone(),
-            skey: calculate_signature(format!("{txn_id}{merchant_id}{secret_key}"))?,
+            skey: calculate_signature(format!("{txn_id}{merchant_id}{verify_key}"))?,
         })
     }
 }

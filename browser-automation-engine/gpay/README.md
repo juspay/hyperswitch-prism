@@ -193,7 +193,6 @@ No browser window appears. The token is written to `token.json`.
 | `--headed` | on | Show the browser window |
 | `--headless` | off | Hide the browser window |
 | `--output <path>` | — | Write full PaymentData JSON to this file |
-| `--screenshots <dir>` | `gpay/screenshots` | Directory for debug screenshots |
 | `--profile <path>` | `gpay/.webkit-profile` | Directory for the persistent browser session |
 | `--timeout <ms>` | `120000` | Total timeout for the entire flow |
 | `--popup-timeout <ms>` | `20000` | Timeout waiting for the GPay popup to open |
@@ -263,7 +262,7 @@ The `gateway` value must match the identifier in
 
 - The page **must** be on HTTPS. Use `--url` with the Netlify URL — never
   `localhost`.
-- Check the `gpay/screenshots/main-page-loaded-*.png` screenshot for the
+- Inspect the live page DOM for the
   `#status` text. If it says `pay.js load error`, check the
   `Content-Security-Policy` header in `netlify.toml`.
 
@@ -285,8 +284,7 @@ npm run gpay -- --config gpay/configs/cybersource.json \
 
 ### Pay button inside popup not found
 
-- Check the screenshots in `gpay/screenshots/` — especially
-  `gpay-popup-initial-*.png` and `gpay-popup-before-pay-*.png`.
+- Inspect the live Google Pay popup DOM while running the wallet tool in headed mode.
 - Google's popup DOM is obfuscated and selectors may change. The script tries
   ~15 selectors + a full button dump to the log before giving up.
 - If the popup opens but the button is not clicked, the script logs all button

@@ -1,0 +1,37 @@
+{
+  "connector": "betterpayment",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "EventService/HandleEvent"
+  ],
+  "supported_payment_methods": [
+    "wero"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Get": {
+      "sync_payment": "The shared scenario requires a completed card payment/refund. Betterpayment supports Wero only; completing its wallet redirect requires payer interaction.",
+      "sync_payment_with_handle_response": "The shared scenario requires a completed card payment/refund. Betterpayment supports Wero only; completing its wallet redirect requires payer interaction.",
+      "sync_upi_collect": "Betterpayment supports Wero only; UPI payments are not supported.",
+      "sync_upi_intent": "Betterpayment supports Wero only; UPI payments are not supported.",
+      "sync_upi_qr": "Betterpayment supports Wero only; UPI payments are not supported."
+    },
+    "PaymentService/Refund": {
+      "refund_full_amount": "The shared scenario requires a completed card payment/refund. Betterpayment supports Wero only; completing its wallet redirect requires payer interaction.",
+      "refund_partial_amount": "The shared scenario requires a completed card payment/refund. Betterpayment supports Wero only; completing its wallet redirect requires payer interaction.",
+      "refund_with_reason": "The shared scenario requires a completed card payment/refund. Betterpayment supports Wero only; completing its wallet redirect requires payer interaction."
+    },
+    "RefundService/Get": {
+      "refund_sync": "The shared scenario requires a completed card payment/refund. Betterpayment supports Wero only; completing its wallet redirect requires payer interaction.",
+      "RefundService/Get": "The shared scenario requires a completed card payment/refund. Betterpayment supports Wero only; completing its wallet redirect requires payer interaction.",
+      "refund_sync_with_reason": "The shared scenario requires a completed card payment/refund. Betterpayment supports Wero only; completing its wallet redirect requires payer interaction."
+    },
+    "EventService/HandleEvent": {
+      "payment_succeeded": "Betterpayment signature generation is not implemented in the integration harness; a valid signed webhook cannot be generated using configured credentials.",
+      "payment_failed": "Betterpayment signature generation is not implemented in the integration harness; a valid signed webhook cannot be generated using configured credentials.",
+      "refund_succeeded": "Betterpayment signature generation is not implemented in the integration harness; a valid signed webhook cannot be generated using configured credentials."
+    }
+  }
+}

@@ -8,7 +8,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     utils,
 };
@@ -169,7 +169,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             description: item.router_data.resource_common_data.get_description()?,
             amount: PlacetopayAmount {
                 currency: item.router_data.request.currency,
-                total: item.router_data.request.minor_amount,
+                total: item.router_data.request.amount.amount,
             },
         };
 
@@ -422,23 +422,39 @@ impl TryFrom<ResponseRouterData<PlacetopayVoidPcResponse, Self>>
                 common_enums::PostCaptureVoidStatus::Pending
             }
         };
-        let description = post_capture_void_status
-            .is_post_capture_void_failure()
-            .then(|| {
-                inner
+        let connector_reference_id = inner.internal_reference.to_string();
+        let response = if post_capture_void_status.is_post_capture_void_failure() {
+            let message = inner.status.message.clone();
+            Err(ErrorResponse {
+                code: inner
                     .status
-                    .message
+                    .reason
                     .clone()
-                    .or_else(|| inner.status.reason.clone())
-            })
-            .flatten();
-        Ok(Self {
-            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
-                post_capture_void_status,
-                connector_reference_id: Some(inner.internal_reference.to_string()),
-                description,
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                message: message
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                reason: message,
                 status_code: item.http_code,
-            }),
+                attempt_status: None,
+                connector_transaction_id: Some(connector_reference_id),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(connector_reference_id),
+                status_code: item.http_code,
+            })
+        };
+        Ok(Self {
+            response,
             ..item.router_data
         })
     }
@@ -560,8 +576,8 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.minor_refund_amount
-            == item.router_data.request.minor_payment_amount
+        if item.router_data.request.refund_amount.amount
+            == item.router_data.request.payment_amount.amount
         {
             let auth = PlacetopayAuth::try_from(&item.router_data.connector_config)?;
 

@@ -238,10 +238,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(
-                router_data.request.minor_amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -603,10 +600,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(
-                router_data.request.minor_amount_to_capture,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount_to_capture)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -774,7 +768,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(amount, currency)
+            .convert(&common_utils::types::Money {
+                amount: amount.amount,
+                currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -923,10 +920,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(
-                router_data.request.minor_refund_amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.refund_amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1203,16 +1197,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let expiration_date = card_data.get_expiry_date_as_mmyy()?;
 
         // Use minor_amount if available, otherwise default to zero for zero-dollar auth
-        let amount = match router_data.request.minor_amount {
+        let amount = match router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| amount.amount)
+        {
             Some(minor_amount) => connector
                 .amount_converter
-                .convert(minor_amount, router_data.request.currency)
+                .convert(&common_utils::types::Money {
+                    amount: minor_amount,
+                    currency: router_data.request.currency,
+                })
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
             None => connector
                 .amount_converter
-                .convert(MinorUnit::zero(), router_data.request.currency)
+                .convert(&common_utils::types::Money {
+                    amount: MinorUnit::zero(),
+                    currency: router_data.request.currency,
+                })
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1441,10 +1446,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(
-                router_data.request.minor_amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

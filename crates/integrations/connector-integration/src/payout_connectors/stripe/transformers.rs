@@ -104,7 +104,12 @@ pub struct StripeConnectPayoutCreateRequest {
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         super::StripePayoutsRouterData<
-            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+            RouterDataV2<
+                PayoutCreate,
+                PayoutFlowData,
+                PayoutCreateRequest<T>,
+                PayoutCreateResponse,
+            >,
             T,
         >,
     > for StripeConnectPayoutCreateRequest
@@ -113,13 +118,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn try_from(
         item: super::StripePayoutsRouterData<
-            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+            RouterDataV2<
+                PayoutCreate,
+                PayoutFlowData,
+                PayoutCreateRequest<T>,
+                PayoutCreateResponse,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let amount = StripeAmountConvertor::convert(request.amount, request.destination_currency)?;
+        let amount = StripeAmountConvertor::convert(&common_utils::types::Money {
+            amount: request.amount,
+            currency: request.destination_currency,
+        })?;
         let currency = request.destination_currency;
 
         let destination = request
@@ -165,8 +178,9 @@ pub struct StripeConnectPayoutCreateResponse {
     pub id: String,
 }
 
-impl TryFrom<ResponseRouterData<StripeConnectPayoutCreateResponse, Self>>
-    for RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<StripeConnectPayoutCreateResponse, Self>>
+    for RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -203,7 +217,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
             T,
@@ -217,7 +231,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
-                PayoutTransferRequest,
+                PayoutTransferRequest<T>,
                 PayoutTransferResponse,
             >,
             T,
@@ -225,7 +239,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let amount = StripeAmountConvertor::convert(request.amount, request.destination_currency)?;
+        let amount = StripeAmountConvertor::convert(&common_utils::types::Money {
+            amount: request.amount,
+            currency: request.destination_currency,
+        })?;
         let currency = request.destination_currency;
         Ok(Self { amount, currency })
     }
@@ -237,8 +254,14 @@ pub struct StripeConnectPayoutFulfillResponse {
     pub status: StripeConnectPayoutStatus,
 }
 
-impl TryFrom<ResponseRouterData<StripeConnectPayoutFulfillResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<StripeConnectPayoutFulfillResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -501,7 +524,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RouterDataV2<
                 PayoutCreateRecipient,
                 PayoutFlowData,
-                PayoutCreateRecipientRequest,
+                PayoutCreateRecipientRequest<T>,
                 PayoutCreateRecipientResponse,
             >,
             T,
@@ -515,7 +538,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RouterDataV2<
                 PayoutCreateRecipient,
                 PayoutFlowData,
-                PayoutCreateRecipientRequest,
+                PayoutCreateRecipientRequest<T>,
                 PayoutCreateRecipientResponse,
             >,
             T,
@@ -602,7 +625,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let addr_line2 = billing.and_then(|addr| addr.get_optional_line2());
         let addr_zip = billing.and_then(|addr| addr.get_optional_zip());
         let addr_city = billing.and_then(|addr| addr.get_optional_city());
-        let addr_state = billing.and_then(|addr| addr.state.clone());
+        let addr_state = billing.and_then(|addr| addr.get_optional_state());
         let addr_country = billing
             .and_then(|addr| addr.get_optional_country())
             .ok_or_else(|| {
@@ -671,11 +694,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-impl TryFrom<ResponseRouterData<StripeConnectRecipientCreateResponse, Self>>
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<StripeConnectRecipientCreateResponse, Self>>
     for RouterDataV2<
         PayoutCreateRecipient,
         PayoutFlowData,
-        PayoutCreateRecipientRequest,
+        PayoutCreateRecipientRequest<T>,
         PayoutCreateRecipientResponse,
     >
 {
@@ -706,7 +730,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RouterDataV2<
                 PayoutEnrollDisburseAccount,
                 PayoutFlowData,
-                PayoutEnrollDisburseAccountRequest,
+                PayoutEnrollDisburseAccountRequest<T>,
                 PayoutEnrollDisburseAccountResponse,
             >,
             T,
@@ -720,7 +744,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RouterDataV2<
                 PayoutEnrollDisburseAccount,
                 PayoutFlowData,
-                PayoutEnrollDisburseAccountRequest,
+                PayoutEnrollDisburseAccountRequest<T>,
                 PayoutEnrollDisburseAccountResponse,
             >,
             T,
@@ -821,11 +845,12 @@ fn unsupported_enroll_rail(rail: &str) -> error_stack::Report<IntegrationError> 
     })
 }
 
-impl TryFrom<ResponseRouterData<StripeConnectRecipientAccountCreateResponse, Self>>
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<StripeConnectRecipientAccountCreateResponse, Self>>
     for RouterDataV2<
         PayoutEnrollDisburseAccount,
         PayoutFlowData,
-        PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountRequest<T>,
         PayoutEnrollDisburseAccountResponse,
     >
 {

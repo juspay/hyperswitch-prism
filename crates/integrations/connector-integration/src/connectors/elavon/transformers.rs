@@ -240,13 +240,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let amount = item
                     .connector
                     .amount_converter
-                    .convert(request_data.minor_amount, request_data.currency)
+                    .convert(&request_data.amount)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: IntegrationErrorContext {
                             additional_context: Some(format!(
                                 "Failed to convert minor amount {} {} to major unit \
                                  for Elavon Authorize request",
-                                request_data.minor_amount, request_data.currency
+                                request_data.amount.amount, request_data.currency
                             )),
                             ..Default::default()
                         },
@@ -853,16 +853,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                router_data.request.minor_amount_to_capture,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount_to_capture)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
                         "Failed to convert capture amount {} {} to major unit for \
                          Elavon Capture (cccomplete) request",
-                        router_data.request.minor_amount_to_capture, router_data.request.currency
+                        router_data.request.amount_to_capture.amount, router_data.request.currency
                     )),
                     ..Default::default()
                 },
@@ -1051,13 +1048,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request_data.minor_refund_amount, request_data.currency)
+            .convert(&request_data.refund_amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
                         "Failed to convert refund amount {} {} to major unit for \
                          Elavon Refund (ccreturn) request",
-                        request_data.minor_refund_amount, request_data.currency
+                        request_data.refund_amount.amount, request_data.currency
                     )),
                     ..Default::default()
                 },
@@ -1568,13 +1565,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(request.minor_amount, request.currency)
+            .convert(&request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
                         "Failed to convert repeat payment amount {} {} to major unit for \
                          Elavon RepeatPayment request",
-                        request.minor_amount, request.currency
+                        request.amount.amount, request.currency
                     )),
                     ..Default::default()
                 },

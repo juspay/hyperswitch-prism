@@ -84,6 +84,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Rapyd<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Rapyd<T>
@@ -281,6 +288,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Some(WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: Some(payment.id),
                     merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
                 }))
             }
             // refund events: `data.id` is the `refund_...` id, `data.payment`
@@ -368,7 +376,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             amount_captured: None,
-            minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -474,7 +481,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // `data.amount` is read in minor units and passed through the shared
         // converter, as the reference implementation does.
         let amount = StringMinorUnitForConnector
-            .convert(dispute.amount, dispute.currency)
+            .convert(&common_utils::types::Money {
+                amount: dispute.amount,
+                currency: dispute.currency,
+            })
             .map_err(|error| {
                 Report::new(WebhookError::WebhookAmountConversionFailed {
                     reason: error.to_string(),

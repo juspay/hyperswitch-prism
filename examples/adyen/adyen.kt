@@ -8,6 +8,7 @@
 package examples.adyen
 
 import types.Payment.*
+import types.Dispute.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
@@ -54,8 +55,8 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
     return PaymentServiceAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_txn_001"  // Identification.
         amountBuilder.apply {  // The amount for the payment.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         paymentMethodBuilder.apply {  // Payment method to be used.
             cardBuilder.apply {  // Generic card payment.
@@ -94,8 +95,8 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
         merchantCaptureId = "probe_capture_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
         amountToCaptureBuilder.apply {  // Capture Details.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
     }.build()
 }
@@ -106,8 +107,8 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         connectorTransactionId = connectorTransactionIdStr
         paymentAmount = 1000L  // Amount Information.
         refundAmountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         reason = "customer_request"  // Reason for the refund.
     }.build()
@@ -235,8 +236,8 @@ fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _de
         merchantClientSessionId = "probe_sdk_session_001"  // Infrastructure.
         paymentBuilder.apply {
             amountBuilder.apply {
-                minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-                currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                minorAmount = 1000L
+                currency = Currency.USD
             }
         }
     }.build()
@@ -250,8 +251,8 @@ fun createOrder(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = PaymentServiceCreateOrderRequest.newBuilder().apply {
         merchantOrderId = "probe_order_001"  // Identification.
         amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
     }.build()
     val response = client.create_order(request)
@@ -264,7 +265,7 @@ fun disputeAccept(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = DisputeServiceAcceptRequest.newBuilder().apply {
         merchantDisputeId = "probe_dispute_001"  // Identification.
         connectorTransactionId = "probe_txn_001"
-        disputeId = "probe_dispute_id_001"
+        connectorDisputeId = "probe_dispute_id_001"
     }.build()
     val response = client.accept(request)
     println("Dispute status: ${response.disputeStatus.name}")
@@ -276,7 +277,7 @@ fun disputeDefend(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = DisputeServiceDefendRequest.newBuilder().apply {
         merchantDisputeId = "probe_dispute_001"  // Identification.
         connectorTransactionId = "probe_txn_001"
-        disputeId = "probe_dispute_id_001"
+        connectorDisputeId = "probe_dispute_id_001"
         reasonCode = "probe_reason"  // Defend Details.
     }.build()
     val response = client.defend(request)
@@ -289,7 +290,7 @@ fun disputeSubmitEvidence(txnId: String, config: ConnectorConfig = _defaultConfi
     val request = DisputeServiceSubmitEvidenceRequest.newBuilder().apply {
         merchantDisputeId = "probe_dispute_001"  // Identification.
         connectorTransactionId = "probe_txn_001"
-        disputeId = "probe_dispute_id_001"
+        connectorDisputeId = "probe_dispute_id_001"
         // evidenceDocuments: [{"evidence_type": "SERVICE_DOCUMENTATION", "file_content": "probe evidence content", "file_mime_type": "application/pdf"}]  // Collection of evidence documents.
     }.build()
     val response = client.submit_evidence(request)
@@ -318,9 +319,9 @@ fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultCo
     val request = PaymentServiceIncrementalAuthorizationRequest.newBuilder().apply {
         merchantAuthorizationId = "probe_auth_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"
-        amountBuilder.apply {  // new amount to be authorized (in minor currency units).
-            minorAmount = 1100L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        amountBuilder.apply {  // New total authorized amount, including this increase.
+            minorAmount = 1100L
+            currency = Currency.USD
         }
         reason = "incremental_auth_probe"  // Optional Fields.
     }.build()
@@ -349,8 +350,8 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = PaymentServiceProxyAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_proxy_txn_001"
         amountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         cardProxyBuilder.apply {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
             cardNumberBuilder.value = "4111111111111111"  // Card Identification.
@@ -391,8 +392,8 @@ fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
     val request = PaymentServiceProxySetupRecurringRequest.newBuilder().apply {
         merchantRecurringPaymentId = "probe_proxy_mandate_001"
         amountBuilder.apply {
-            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 0L
+            currency = Currency.USD
         }
         cardProxyBuilder.apply {  // Card proxy for vault-aliased payments.
             cardNumberBuilder.value = "4111111111111111"  // Card Identification.
@@ -403,7 +404,7 @@ fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
             cardNetwork = CardNetwork.VISA
         }
         customerBuilder.apply {
-            connectorCustomerId = "probe_customer_001"  // Customer ID in the connector system.
+            connectorCustomerId = "probe_customer_001"
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {
@@ -446,8 +447,8 @@ fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
             }
         }
         amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows).
             tokenBuilder.apply {  // Payment tokens.
@@ -489,8 +490,8 @@ fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = PaymentServiceSetupRecurringRequest.newBuilder().apply {
         merchantRecurringPaymentId = "probe_mandate_001"  // Identification.
         amountBuilder.apply {  // Mandate Details.
-            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 0L
+            currency = Currency.USD
         }
         paymentMethodBuilder.apply {
             cardBuilder.apply {  // Generic card payment.
@@ -502,7 +503,7 @@ fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
             }
         }
         customerBuilder.apply {
-            id = "cust_probe_123"  // Internal customer ID.
+            id = "cust_probe_123"
         }
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
@@ -544,8 +545,8 @@ fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = PaymentServiceTokenAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_tokenized_txn_001"
         amountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L
+            currency = Currency.USD
         }
         connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
         addressBuilder.apply {

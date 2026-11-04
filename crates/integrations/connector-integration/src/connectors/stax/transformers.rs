@@ -272,10 +272,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = FloatMajorUnitForConnector;
         let total = converter
-            .convert(
-                item.router_data.request.minor_amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -506,10 +503,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = FloatMajorUnitForConnector;
         let total = converter
-            .convert(
-                item.router_data.request.minor_amount_to_capture,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount_to_capture)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -618,10 +612,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = FloatMajorUnitForConnector;
         let total = converter
-            .convert(
-                item.router_data.request.minor_refund_amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.refund_amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -646,10 +637,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
         // Convert refund amount to FloatMajorUnit for filtering (like HS does)
         let converter = FloatMajorUnitForConnector;
         let refund_amount = converter
-            .convert(
-                item.router_data.request.minor_refund_amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.refund_amount)
             .change_context(crate::utils::response_handling_fail_for_connector(
                 item.http_code,
                 "stax",
@@ -1235,19 +1223,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Stax's /charge endpoint requires a non-zero total. Fail fast if the
         // caller omits an amount rather than silently authorizing $0.01, which
         // would leave a surprise charge on the cardholder's statement.
-        let minor_amount =
-            item.router_data
-                .request
-                .minor_amount
-                .ok_or(IntegrationError::MissingRequiredField {
+        let minor_amount = item
+            .router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|money| money.amount)
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name:
                     "minor_amount (Stax requires a non-zero authorization amount for SetupMandate)",
                 context: Default::default(),
             })?;
         let total = domain_types::utils::convert_amount(
             item.connector.amount_converter,
-            minor_amount,
-            item.router_data.request.currency,
+            &common_utils::types::Money {
+                amount: minor_amount,
+                currency: item.router_data.request.currency,
+            },
         )?;
 
         let mandate_reference_id = item
@@ -1423,8 +1415,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let total = domain_types::utils::convert_amount(
             item.connector.amount_converter,
-            item.router_data.request.minor_amount,
-            item.router_data.request.currency,
+            &item.router_data.request.amount,
         )?;
 
         let payment_method_id = extract_stax_mandate_token(

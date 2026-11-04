@@ -278,7 +278,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 order: SilverflowOrderType::Checkout,
             },
             amount: SilverflowAmount {
-                value: router_data.request.minor_amount,
+                value: router_data.request.amount.amount,
                 currency: router_data.request.currency,
             },
             clearing_mode: match router_data.request.capture_method {
@@ -583,7 +583,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         // Use the capture amount for partial capture, omit for full capture
-        let amount = Some(router_data.request.minor_amount_to_capture);
+        let amount = Some(router_data.request.amount_to_capture.amount);
 
         // Get connector transaction ID string for reference
         let reference = Some(
@@ -706,7 +706,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         // Use the refund amount for partial refund, omit for full refund
-        let amount = Some(router_data.request.minor_refund_amount);
+        let amount = Some(router_data.request.refund_amount.amount);
 
         // Get refund ID as reference
         let reference = Some(router_data.request.refund_id.clone());

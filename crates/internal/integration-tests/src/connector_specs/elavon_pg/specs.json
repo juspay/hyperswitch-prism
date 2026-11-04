@@ -6,8 +6,12 @@
     "PaymentService/CreateOrder",
     "PaymentService/Get",
     "PaymentService/Void",
+    "RecurringPaymentService/Charge",
     "PaymentService/Refund",
+    "PaymentService/SetupRecurring",
     "RefundService/Get",
-    "PaymentMethodAuthenticationService/PreAuthenticate"
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "CustomerService/Create",
+    "PaymentMethodService/Tokenize"
   ]
 }

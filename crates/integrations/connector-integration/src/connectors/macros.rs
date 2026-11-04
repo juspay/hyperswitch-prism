@@ -95,7 +95,7 @@ impl<F, FCD, Req, Resp> TryFrom<RouterDataV2<F, FCD, Req, Resp>> for NoRequestBo
     }
 }
 
-type RouterDataType<T> = RouterDataV2<
+pub(crate) type RouterDataType<T> = RouterDataV2<
     <T as FlowTypes>::Flow,
     <T as FlowTypes>::FlowCommonData,
     <T as FlowTypes>::Request,
@@ -165,13 +165,116 @@ pub trait BridgeRequestResponse: Send + Sync {
             crate::utils::response_handling_fail_for_connector(status_code, "macros"),
         )
     }
+
+    fn router_data_with_connector(
+        &self,
+        response: types::ResponseRouterData<Self::ResponseBody, Self::ConnectorInputData>,
+        status_code: u16,
+    ) -> CustomResult<RouterDataType<Self::ConnectorInputData>, ConnectorError>;
 }
 
 #[derive(Clone)]
 pub struct Bridge<Q, S, T>(pub PhantomData<(Q, S, T)>);
 
+macro_rules! expand_router_data_with_inner_router_data {
+    () => {
+        fn router_data_with_connector(
+            &self,
+            response: $crate::types::ResponseRouterData<
+                Self::ResponseBody,
+                Self::ConnectorInputData,
+            >,
+            status_code: u16,
+        ) -> common_utils::errors::CustomResult<
+            $crate::connectors::macros::RouterDataType<Self::ConnectorInputData>,
+            domain_types::errors::ConnectorError,
+        > {
+            let $crate::types::ResponseRouterData {
+                response,
+                router_data,
+                http_code,
+            } = response;
+            self.router_data(
+                $crate::types::ResponseRouterData {
+                    response,
+                    router_data: router_data.router_data,
+                    http_code,
+                },
+                status_code,
+            )
+        }
+    };
+}
+pub(crate) use expand_router_data_with_inner_router_data;
+
+macro_rules! expand_router_data_with_connector_router_data {
+    () => {
+        fn router_data_with_connector(
+            &self,
+            response: $crate::types::ResponseRouterData<
+                Self::ResponseBody,
+                Self::ConnectorInputData,
+            >,
+            status_code: u16,
+        ) -> common_utils::errors::CustomResult<
+            $crate::connectors::macros::RouterDataType<Self::ConnectorInputData>,
+            domain_types::errors::ConnectorError,
+        > {
+            $crate::connectors::macros::RouterDataType::<Self::ConnectorInputData>::try_from(
+                response,
+            )
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                status_code,
+                "macros",
+            ))
+        }
+    };
+}
+pub(crate) use expand_router_data_with_connector_router_data;
+
+macro_rules! expand_xml_response_parser {
+    () => {
+        fn response(
+            &self,
+            bytes: bytes::Bytes,
+            status_code: u16,
+        ) -> common_utils::errors::CustomResult<
+            Self::ResponseBody,
+            domain_types::errors::ConnectorError,
+        > {
+            use common_utils::ext_traits::XmlExt;
+            use error_stack::ResultExt;
+
+            if bytes.is_empty() {
+                return Err($crate::utils::response_handling_fail_for_connector(
+                    status_code,
+                    "macros",
+                )
+                .into());
+            }
+
+            let response_str = String::from_utf8(bytes.to_vec())
+                .change_context($crate::utils::response_handling_fail_for_connector(
+                    status_code,
+                    "macros",
+                ))
+                .attach_printable("Failed to convert response bytes to UTF-8 string")?;
+
+            response_str
+                .as_str()
+                .parse_xml::<Self::ResponseBody>()
+                .change_context($crate::utils::response_handling_fail_for_connector(
+                    status_code,
+                    "macros",
+                ))
+                .attach_printable("Failed to parse XML response")
+        }
+    };
+}
+pub(crate) use expand_xml_response_parser;
+
 macro_rules! expand_fn_get_request_body {
-    ($connector: ident, $curl_res: ty, $flow: ident, $resource_common_data: ty, $request: ident, $response: ty) => {
+    ($connector: ident, $curl_res: ty, $flow: ident, $resource_common_data: ty, $request: ty, $response: ty) => {
         paste::paste! {
             #[cfg_attr(feature = "deja", tracing::instrument(
                 name = "connector::request_body",
@@ -466,12 +569,17 @@ macro_rules! expand_fn_handle_response {
                 }
             }
             tracing::info!(response=?response_body, "response from connector");
-            let response_router_data = ResponseRouterData {
-                response: response_body,
-                router_data: data.clone(),
-                http_code: res.status_code,
+            let response_router_data = paste::paste! {
+                ResponseRouterData {
+                    response: response_body,
+                    router_data: [<$connector RouterData>] {
+                        connector: self.clone(),
+                        router_data: data.clone(),
+                    },
+                    http_code: res.status_code,
+                }
             };
-            let mut result = bridge.router_data(response_router_data, res.status_code)?;
+            let mut result = bridge.router_data_with_connector(response_router_data, res.status_code)?;
             result
                 .resource_common_data
                 .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
@@ -509,12 +617,17 @@ macro_rules! expand_fn_handle_response {
                 }
             }
             tracing::info!(response=?response_body, "response from connector");
-            let response_router_data = ResponseRouterData {
-                response: response_body,
-                router_data: data.clone(),
-                http_code: res.status_code,
+            let response_router_data = paste::paste! {
+                ResponseRouterData {
+                    response: response_body,
+                    router_data: [<$connector RouterData>] {
+                        connector: self.clone(),
+                        router_data: data.clone(),
+                    },
+                    http_code: res.status_code,
+                }
             };
-            let mut result = bridge.router_data(response_router_data, res.status_code)?;
+            let mut result = bridge.router_data_with_connector(response_router_data, res.status_code)?;
             result
                 .resource_common_data
                 .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
@@ -889,7 +1002,7 @@ macro_rules! macro_connector_implementation {
         curl_response: $curl_res:ty,
         flow_name: $flow:ident,
         resource_common_data:$resource_common_data:ty,
-        flow_request: $request:ident,
+        flow_request: $request:ty,
         flow_response: $response:ty,
         http_method: $http_method_type:ident,
         generic_type: $generic_type:tt,
@@ -1014,6 +1127,8 @@ macro_rules! impl_templating {
                 type RequestBody = $curl_req;
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_inner_router_data!();
             }
         }
     };
@@ -1030,6 +1145,48 @@ macro_rules! impl_templating {
                 type RequestBody = NoRequestBody;
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_inner_router_data!();
+            }
+        }
+    };
+    (
+        connector: $connector: ident,
+        curl_request: $curl_req: ident,
+        curl_response: $curl_res: ident,
+        router_data: $router_data: ty,
+        generic_type: $generic_type: tt,
+        response_router_data: connector,
+    ) => {
+        paste::paste!{
+            pub struct [<$curl_req Templating>];
+            pub struct [<$curl_res Templating>];
+
+            impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> BridgeRequestResponse for Bridge<[<$curl_req Templating>], [<$curl_res Templating>], $generic_type>{
+                type RequestBody = $curl_req;
+                type ResponseBody = $curl_res;
+                type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_connector_router_data!();
+            }
+        }
+    };
+    (
+        connector: $connector: ident,
+        curl_response: $curl_res: ident,
+        router_data: $router_data: ty,
+        generic_type: $generic_type:tt,
+        response_router_data: connector,
+    ) => {
+        paste::paste!{
+            pub struct [<$curl_res Templating>];
+
+            impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> BridgeRequestResponse for Bridge<NoRequestBodyTemplating, [<$curl_res Templating>], $generic_type> {
+                type RequestBody = NoRequestBody;
+                type ResponseBody = $curl_res;
+                type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_connector_router_data!();
             }
         }
     };
@@ -1053,6 +1210,8 @@ macro_rules! impl_templating_mixed {
                 type RequestBody = $base_req<$generic_type>;
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_inner_router_data!();
             }
         }
     };
@@ -1073,6 +1232,76 @@ macro_rules! impl_templating_mixed {
                 type RequestBody = $base_req;
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_inner_router_data!();
+            }
+        }
+    };
+    (
+        connector: $connector: ident,
+        curl_request: $base_req: ident<$req_generic: ident>,
+        curl_response: $curl_res: ident,
+        router_data: $router_data: ty,
+        generic_type: $generic_type: tt,
+        response_router_data: connector,
+    ) => {
+        paste::paste!{
+            pub struct [<$base_req Templating>];
+            pub struct [<$curl_res Templating>];
+
+            impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> BridgeRequestResponse for Bridge<[<$base_req Templating>], [<$curl_res Templating>], $generic_type>{
+                type RequestBody = $base_req<$generic_type>;
+                type ResponseBody = $curl_res;
+                type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_connector_router_data!();
+            }
+        }
+    };
+    (
+        connector: $connector: ident,
+        curl_request: $base_req: ident,
+        curl_response: $curl_res: ident,
+        router_data: $router_data: ty,
+        generic_type: $generic_type: tt,
+        response_router_data: connector,
+    ) => {
+        paste::paste!{
+            pub struct [<$base_req Templating>];
+            pub struct [<$curl_res Templating>];
+
+            impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> BridgeRequestResponse for Bridge<[<$base_req Templating>], [<$curl_res Templating>], $generic_type>{
+                type RequestBody = $base_req;
+                type ResponseBody = $curl_res;
+                type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_connector_router_data!();
+            }
+        }
+    };
+
+    // Pattern for generic request with XML response parsing
+    (
+        connector: $connector: ident,
+        curl_request: $base_req: ident<$req_generic: ident>,
+        curl_response: $curl_res: ident,
+        router_data: $router_data: ty,
+        generic_type: $generic_type: tt,
+        response_format: xml,
+        response_router_data: connector,
+    ) => {
+        paste::paste!{
+            pub struct [<$base_req Templating>];
+            pub struct [<$curl_res Templating>];
+
+            impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> BridgeRequestResponse for Bridge<[<$base_req Templating>], [<$curl_res Templating>], $generic_type>{
+                type RequestBody = $base_req<$generic_type>;
+                type ResponseBody = $curl_res;
+                type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_connector_router_data!();
+
+                crate::connectors::macros::expand_xml_response_parser!();
             }
         }
     };
@@ -1095,35 +1324,35 @@ macro_rules! impl_templating_mixed {
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
 
-                fn response(
-                    &self,
-                    bytes: bytes::Bytes,
-                    status_code: u16,
-                ) -> CustomResult<Self::ResponseBody, domain_types::errors::ConnectorError> {
-                    use common_utils::ext_traits::XmlExt;
-                    use error_stack::ResultExt;
+                crate::connectors::macros::expand_router_data_with_inner_router_data!();
 
-                    if bytes.is_empty() {
-                        return Err(
-                            crate::utils::response_handling_fail_for_connector(status_code, "macros")
-                                .into(),
-                        );
-                    }
+                crate::connectors::macros::expand_xml_response_parser!();
+            }
+        }
+    };
 
-                    let response_str = String::from_utf8(bytes.to_vec())
-                        .change_context(
-                            crate::utils::response_handling_fail_for_connector(status_code, "macros"),
-                        )
-                        .attach_printable("Failed to convert response bytes to UTF-8 string")?;
+    // Pattern for non-generic request with XML response parsing
+    (
+        connector: $connector: ident,
+        curl_request: $base_req: ident,
+        curl_response: $curl_res: ident,
+        router_data: $router_data: ty,
+        generic_type: $generic_type: tt,
+        response_format: xml,
+        response_router_data: connector,
+    ) => {
+        paste::paste!{
+            pub struct [<$base_req Templating>];
+            pub struct [<$curl_res Templating>];
 
-                    response_str
-                        .as_str()
-                        .parse_xml::<Self::ResponseBody>()
-                        .change_context(
-                            crate::utils::response_handling_fail_for_connector(status_code, "macros"),
-                        )
-                        .attach_printable("Failed to parse XML response")
-                }
+            impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> BridgeRequestResponse for Bridge<[<$base_req Templating>], [<$curl_res Templating>], $generic_type>{
+                type RequestBody = $base_req;
+                type ResponseBody = $curl_res;
+                type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
+
+                crate::connectors::macros::expand_router_data_with_connector_router_data!();
+
+                crate::connectors::macros::expand_xml_response_parser!();
             }
         }
     };
@@ -1146,35 +1375,9 @@ macro_rules! impl_templating_mixed {
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
 
-                fn response(
-                    &self,
-                    bytes: bytes::Bytes,
-                    status_code: u16,
-                ) -> CustomResult<Self::ResponseBody, domain_types::errors::ConnectorError> {
-                    use common_utils::ext_traits::XmlExt;
-                    use error_stack::ResultExt;
+                crate::connectors::macros::expand_router_data_with_inner_router_data!();
 
-                    if bytes.is_empty() {
-                        return Err(
-                            crate::utils::response_handling_fail_for_connector(status_code, "macros")
-                                .into(),
-                        );
-                    }
-
-                    let response_str = String::from_utf8(bytes.to_vec())
-                        .change_context(
-                            crate::utils::response_handling_fail_for_connector(status_code, "macros"),
-                        )
-                        .attach_printable("Failed to convert response bytes to UTF-8 string")?;
-
-                    response_str
-                        .as_str()
-                        .parse_xml::<Self::ResponseBody>()
-                        .change_context(
-                            crate::utils::response_handling_fail_for_connector(status_code, "macros"),
-                        )
-                        .attach_printable("Failed to parse XML response")
-                }
+                crate::connectors::macros::expand_xml_response_parser!();
             }
         }
     };
@@ -1234,6 +1437,7 @@ macro_rules! create_all_prerequisites {
                     $(request_body: $flow_request: ident $(<$generic_param: ident>)?,)?
                     response_body: $flow_response: ident,
                     $(response_format: $response_format:ident,)?
+                    $(response_router_data: $response_router_data:ident,)?
                     router_data: $router_data_type: ty,
                 )
             ),*
@@ -1253,6 +1457,7 @@ macro_rules! create_all_prerequisites {
                 $(request_body: $flow_request $(<$generic_param>)?,)?
                 response_body: $flow_response,
                 $(response_format: $response_format,)?
+                $(response_router_data: $response_router_data,)?
                 router_data: $router_data_type,
                 generic_type: $generic_type,
             );
@@ -1315,6 +1520,7 @@ macro_rules! create_all_prerequisites_impl_templating {
         request_body: $flow_request: ident $(<$generic_param: ident>)?,
         response_body: $flow_response: ident,
         response_format: xml,
+        response_router_data: connector,
         router_data: $router_data_type: ty,
         generic_type: $generic_type: tt,
     ) => {
@@ -1325,6 +1531,45 @@ macro_rules! create_all_prerequisites_impl_templating {
             router_data: $router_data_type,
             generic_type: $generic_type,
             response_format: xml,
+            response_router_data: connector,
+        );
+    };
+
+    // Pattern with request body and XML response format
+    (
+        connector: $connector: ident,
+        request_body: $flow_request: ident $(<$generic_param: ident>)?,
+        response_body: $flow_response: ident,
+        response_format: xml,
+        router_data: $router_data_type: ty,
+        generic_type: $generic_type: tt,
+    ) => {
+        crate::connectors::macros::impl_templating_mixed!(
+            connector: $connector,
+            curl_request: $flow_request $(<$generic_param>)?,
+            curl_response: $flow_response,
+            router_data: $router_data_type,
+            generic_type: $generic_type,
+            response_format: xml,
+        );
+    };
+
+    // Pattern with request body and connector-aware response router data
+    (
+        connector: $connector: ident,
+        request_body: $flow_request: ident $(<$generic_param: ident>)?,
+        response_body: $flow_response: ident,
+        response_router_data: connector,
+        router_data: $router_data_type: ty,
+        generic_type: $generic_type: tt,
+    ) => {
+        crate::connectors::macros::impl_templating_mixed!(
+            connector: $connector,
+            curl_request: $flow_request $(<$generic_param>)?,
+            curl_response: $flow_response,
+            router_data: $router_data_type,
+            generic_type: $generic_type,
+            response_router_data: connector,
         );
     };
 
@@ -1342,6 +1587,23 @@ macro_rules! create_all_prerequisites_impl_templating {
             curl_response: $flow_response,
             router_data: $router_data_type,
             generic_type: $generic_type,
+        );
+    };
+
+    // Pattern without request body and connector-aware response router data
+    (
+        connector: $connector: ident,
+        response_body: $flow_response: ident,
+        response_router_data: connector,
+        router_data: $router_data_type: ty,
+        generic_type: $generic_type: tt,
+    ) => {
+        crate::connectors::macros::impl_templating!(
+            connector: $connector,
+            curl_response: $flow_response,
+            router_data: $router_data_type,
+            generic_type: $generic_type,
+            response_router_data: connector,
         );
     };
 
@@ -1437,23 +1699,21 @@ macro_rules! create_amount_converter_wrapper {
 
             impl [<$connector_name AmountConvertor>] {
                 pub fn convert(
-                    amount: common_utils::types::MinorUnit,
-                    currency: common_enums::Currency,
+                    money: &common_utils::types::Money,
                 ) -> Result<
                     common_utils::types::$amount_type,
                     error_stack::Report<domain_types::errors::IntegrationError>,
                 > {
                     domain_types::utils::convert_amount(
                         &common_utils::types::[<$amount_type ForConnector>],
-                        amount,
-                        currency,
+                        money,
                     ).change_context(domain_types::errors::IntegrationError::InvalidDataFormat {
                         field_name: "amount",
                         context: Default::default()
                   })
                 }
 
-                /// Convert connector amount back to MinorUnit.
+                /// Convert connector amount back to domain Money.
                 ///
                 /// Returns generic ParsingError - caller should change_context appropriately:
                 /// ```ignore
@@ -1464,10 +1724,49 @@ macro_rules! create_amount_converter_wrapper {
                     amount: common_utils::types::$amount_type,
                     currency: common_enums::Currency,
                 ) -> Result<
-                    common_utils::types::MinorUnit,
+                    common_utils::types::Money,
                     error_stack::Report<common_utils::errors::ParsingError>,
                 > {
-                    domain_types::utils::convert_back_amount_to_minor_units(
+                    domain_types::utils::convert_back_amount_to_money(
+                        &common_utils::types::[<$amount_type ForConnector>],
+                        amount,
+                        currency,
+                    )
+                }
+            }
+
+            impl<
+                T: domain_types::payment_method_data::PaymentMethodDataTypes
+                    + std::fmt::Debug
+                    + std::marker::Sync
+                    + std::marker::Send
+                    + 'static
+                    + serde::Serialize,
+            > common_utils::types::AmountConvertor for $connector_name<T> {
+                type Output = common_utils::types::$amount_type;
+
+                fn convert(
+                    &self,
+                    money: &common_utils::types::Money,
+                ) -> Result<
+                    Self::Output,
+                    error_stack::Report<common_utils::errors::ParsingError>,
+                > {
+                    <common_utils::types::[<$amount_type ForConnector>] as common_utils::types::AmountConvertor>::convert(
+                        &common_utils::types::[<$amount_type ForConnector>],
+                        money,
+                    )
+                }
+
+                fn convert_back(
+                    &self,
+                    amount: Self::Output,
+                    currency: common_enums::Currency,
+                ) -> Result<
+                    common_utils::types::Money,
+                    error_stack::Report<common_utils::errors::ParsingError>,
+                > {
+                    <common_utils::types::[<$amount_type ForConnector>] as common_utils::types::AmountConvertor>::convert_back(
                         &common_utils::types::[<$amount_type ForConnector>],
                         amount,
                         currency,
@@ -1572,12 +1871,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutCreate,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutCreateRequest,
+                ::domain_types::payouts::payouts_types::PayoutCreateRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutCreateResponse,
             > for $connector<$generic_type>
         {
@@ -1586,7 +1885,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutCreate,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutCreateRequest,
+                    ::domain_types::payouts::payouts_types::PayoutCreateRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutCreateResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -1605,12 +1904,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutTransferV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutTransferV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutTransfer,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutTransferRequest,
+                ::domain_types::payouts::payouts_types::PayoutTransferRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutTransferResponse,
             > for $connector<$generic_type>
         {
@@ -1619,7 +1918,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutTransfer,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutTransferRequest,
+                    ::domain_types::payouts::payouts_types::PayoutTransferRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutTransferResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -1704,12 +2003,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutStageV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutStageV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutStage,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutStageRequest,
+                ::domain_types::payouts::payouts_types::PayoutStageRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutStageResponse,
             > for $connector<$generic_type>
         {
@@ -1718,7 +2017,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutStage,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutStageRequest,
+                    ::domain_types::payouts::payouts_types::PayoutStageRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutStageResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -1737,12 +2036,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateLinkV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateLinkV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutCreateLink,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutCreateLinkRequest,
+                ::domain_types::payouts::payouts_types::PayoutCreateLinkRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutCreateLinkResponse,
             > for $connector<$generic_type>
         {
@@ -1751,7 +2050,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutCreateLink,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutCreateLinkRequest,
+                    ::domain_types::payouts::payouts_types::PayoutCreateLinkRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutCreateLinkResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -1770,12 +2069,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateRecipientV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateRecipientV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutCreateRecipient,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutCreateRecipientRequest,
+                ::domain_types::payouts::payouts_types::PayoutCreateRecipientRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutCreateRecipientResponse,
             > for $connector<$generic_type>
         {
@@ -1784,7 +2083,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutCreateRecipient,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutCreateRecipientRequest,
+                    ::domain_types::payouts::payouts_types::PayoutCreateRecipientRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutCreateRecipientResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -1803,12 +2102,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEnrollDisburseAccountV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEnrollDisburseAccountV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutEnrollDisburseAccount,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountRequest,
+                ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountResponse,
             > for $connector<$generic_type>
         {
@@ -1817,7 +2116,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutEnrollDisburseAccount,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountRequest,
+                    ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -1836,12 +2135,12 @@ macro_rules! expand_payout_implementation {
         generic_type: $generic_type:tt,
         [ $($bounds:tt)* ]
     ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEligibilityV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEligibilityV2<$generic_type> for $connector<$generic_type> {}
         impl<$generic_type: $($bounds)*>
             ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
                 ::domain_types::connector_flow::PayoutEligibility,
                 ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutEligibilityRequest,
+                ::domain_types::payouts::payouts_types::PayoutEligibilityRequest<$generic_type>,
                 ::domain_types::payouts::payouts_types::PayoutEligibilityResponse,
             > for $connector<$generic_type>
         {
@@ -1850,7 +2149,7 @@ macro_rules! expand_payout_implementation {
                 _req: &::domain_types::router_data_v2::RouterDataV2<
                     ::domain_types::connector_flow::PayoutEligibility,
                     ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutEligibilityRequest,
+                    ::domain_types::payouts::payouts_types::PayoutEligibilityRequest<$generic_type>,
                     ::domain_types::payouts::payouts_types::PayoutEligibilityResponse,
                 >,
             ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
@@ -2011,7 +2310,17 @@ macro_rules! expand_flow_status_impl {
         );
     };
     (connector: $c:ident, flow: PSync, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
-        impl<$g: $($b)*> ::interfaces::connector_types::PaymentSyncV2 for $c<$g> {}
+        impl<$g: $($b)*> ::interfaces::connector_types::PaymentSyncV2 for $c<$g> {
+            fn validate_psync_reference_id(
+                &self,
+                _data: &::domain_types::connector_types::PaymentsSyncData,
+                _payment_flow_data: &::domain_types::connector_types::PaymentFlowData,
+            ) -> ::common_utils::errors::CustomResult<(), ::domain_types::errors::IntegrationError> {
+                // This macro only generates unsupported or unimplemented flow stubs.
+                // Let the flow stub report its support status without checking references.
+                Ok(())
+            }
+        }
         $crate::connectors::macros::flow_status_emit!(
             connector: $c, status: $st, generic_type: $g, [$($b)*],
             flow: ::domain_types::connector_flow::PSync,

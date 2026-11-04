@@ -143,8 +143,14 @@ pub struct GigadatPayoutCreateResponse {
 }
 
 // ===== RESPONSE TRANSFORMER (PAYOUT TRANSFER) =====
-impl TryFrom<ResponseRouterData<GigadatPayoutTransferResponse, Self>>
-    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<GigadatPayoutTransferResponse, Self>>
+    for RouterDataV2<
+        PayoutTransfer,
+        PayoutFlowData,
+        PayoutTransferRequest<T>,
+        PayoutTransferResponse,
+    >
 {
     type Error = Report<ConnectorError>;
 
@@ -199,8 +205,9 @@ impl TryFrom<ResponseRouterData<GigadatPayoutGetResponse, Self>>
 }
 
 // ===== RESPONSE TRANSFORMER (PAYOUT CREATE) =====
-impl TryFrom<ResponseRouterData<GigadatPayoutCreateResponse, Self>>
-    for RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<GigadatPayoutCreateResponse, Self>>
+    for RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest<T>, PayoutCreateResponse>
 {
     type Error = Report<ConnectorError>;
 
@@ -252,7 +259,7 @@ pub struct GigadatPayoutStageResponse {
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         GigadatPayoutsRouterData<
-            RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>,
+            RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest<T>, PayoutStageResponse>,
             T,
         >,
     > for GigadatPayoutStageRequest
@@ -261,7 +268,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn try_from(
         item: GigadatPayoutsRouterData<
-            RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>,
+            RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest<T>, PayoutStageResponse>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -286,7 +293,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(request.amount, request.destination_currency)
+            .convert(&common_utils::types::Money {
+                amount: request.amount,
+                currency: request.destination_currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -374,8 +384,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== RESPONSE TRANSFORMER (PAYOUT STAGE) =====
-impl TryFrom<ResponseRouterData<GigadatPayoutStageResponse, Self>>
-    for RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<ResponseRouterData<GigadatPayoutStageResponse, Self>>
+    for RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest<T>, PayoutStageResponse>
 {
     type Error = Report<ConnectorError>;
 

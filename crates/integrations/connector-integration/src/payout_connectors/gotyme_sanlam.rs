@@ -53,7 +53,7 @@ macros::create_all_prerequisites!(
             flow: PayoutTransfer,
             request_body: GotymeSanlamPayoutTransferRequest,
             response_body: GotymeSanlamPayoutResponse,
-            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,
         ),
         (
             flow: PayoutGet,
@@ -165,12 +165,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutServiceTrait
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutServiceTrait<T>
     for GotymeSanlamPayouts<T>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutTransferV2
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutTransferV2<T>
     for GotymeSanlamPayouts<T>
 {
 }
@@ -187,7 +187,7 @@ macros::macro_connector_implementation!(
     curl_response: GotymeSanlamPayoutResponse,
     flow_name: PayoutTransfer,
     resource_common_data: PayoutFlowData,
-    flow_request: PayoutTransferRequest,
+    flow_request: PayoutTransferRequest<T>,
     flow_response: PayoutTransferResponse,
     http_method: Post,
     generic_type: T,
@@ -195,13 +195,13 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}/invoke",

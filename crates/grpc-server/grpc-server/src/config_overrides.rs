@@ -1,3 +1,4 @@
+use common_utils::{consts::X_OUTGOING_API_OVERHEAD, request_metrics::ConnectorLatencyTracker};
 use http::{Request, Response};
 use std::{
     future::Future,
@@ -74,6 +75,76 @@ where
         Box::pin(async move {
             let response = future.await?;
             Ok(response)
+        })
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct CompositeLatencyLayer;
+
+impl<S> Layer<S> for CompositeLatencyLayer {
+    type Service = CompositeLatencyService<S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        CompositeLatencyService { inner }
+    }
+}
+
+#[derive(Clone)]
+pub struct CompositeLatencyService<S> {
+    inner: S,
+}
+
+impl<S> Service<Request<Body>> for CompositeLatencyService<S>
+where
+    S: Service<Request<Body>, Response = Response<Body>, Error = tonic::Status> + Send + 'static,
+    S::Future: Send + 'static,
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+
+    fn call(&mut self, mut request: Request<Body>) -> Self::Future {
+        let is_composite = request
+            .uri()
+            .path()
+            .split('/')
+            .nth(1)
+            .and_then(|service| service.rsplit('.').next())
+            .is_some_and(|service| service.starts_with("Composite"));
+
+        if !is_composite {
+            let future = self.inner.call(request);
+            return Box::pin(future);
+        }
+
+        let tracker = ConnectorLatencyTracker::default();
+        request.extensions_mut().insert(tracker.clone());
+        let future = self.inner.call(request);
+
+        Box::pin(async move {
+            let result = future.await;
+            let outgoing_latency_ms = tracker.connector_time().as_millis().to_string();
+            match result {
+                Ok(mut response) => {
+                    if let Ok(value) = outgoing_latency_ms.parse() {
+                        response
+                            .headers_mut()
+                            .insert(X_OUTGOING_API_OVERHEAD, value);
+                    }
+                    Ok(response)
+                }
+                Err(mut status) => {
+                    if let Ok(value) = outgoing_latency_ms.parse() {
+                        status.metadata_mut().insert(X_OUTGOING_API_OVERHEAD, value);
+                    }
+                    Err(status)
+                }
+            }
         })
     }
 }
