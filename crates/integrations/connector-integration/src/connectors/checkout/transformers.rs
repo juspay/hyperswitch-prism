@@ -1156,7 +1156,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         account_holder: Some(build_checkout_account_holder(
                             first_name,
                             last_name,
-                            item.router_data.request.enable_ani_check,
+                            item.router_data.request.enable_account_name_verification,
                         )),
                     });
                     Ok((payment_source, None, Some(false), store_for_future_use))
@@ -1169,7 +1169,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         item.router_data
                             .resource_common_data
                             .get_optional_billing_last_name(),
-                        item.router_data.request.enable_ani_check,
+                        item.router_data.request.enable_account_name_verification,
                     ));
                     let p_source =
                         PaymentSource::try_from((&wallet_data, billing_details, account_holder))?;
@@ -2084,7 +2084,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     account_holder: Some(build_checkout_account_holder(
                         first_name,
                         last_name,
-                        item.router_data.request.enable_ani_check,
+                        item.router_data.request.enable_account_name_verification,
                     )),
                 });
                 Ok((payment_source, None, Some(false), payment_type, Some(true)))
@@ -2149,7 +2149,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     item.router_data
                         .resource_common_data
                         .get_optional_billing_last_name(),
-                    item.router_data.request.enable_ani_check,
+                    item.router_data.request.enable_account_name_verification,
                 ));
                 let payment_source =
                     PaymentSource::try_from((&wallet_data, billing_details, account_holder))?;
@@ -3722,7 +3722,7 @@ fn convert_to_additional_payment_method_connector_response(
                 if !ani_result.is_empty() {
                     if let Some(payment_checks) = payment_checks.as_object_mut() {
                         payment_checks.insert(
-                            "account_name_inquiry".to_string(),
+                            "account_name_verification".to_string(),
                             serde_json::Value::Object(ani_result),
                         );
                     }
