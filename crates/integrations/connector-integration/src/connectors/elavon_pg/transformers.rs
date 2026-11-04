@@ -11,17 +11,23 @@
 
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
-    consts, errors::CustomResult, pii::Email, request::Method, types::StringMajorUnit,
+    consts,
+    errors::CustomResult,
+    pii::Email,
+    request::Method,
+    types::{ConnectorMinorUnitForConnector, StringMajorUnit},
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateOrder, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, Void,
+        Authorize, Capture, CreateOrder, PSync, PreAuthenticate, RSync, Refund, RepeatPayment,
+        SetupMandate, Void,
     },
     connector_types::{
         MandateReference, MandateReferenceId, PaymentCreateOrderData, PaymentCreateOrderResponse,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
     errors::{
         ConnectorError, IntegrationError, IntegrationErrorContext,
@@ -327,6 +333,47 @@ pub struct ElavonPgWalletCard {
 pub enum ElavonPgSaleCard<T: PaymentMethodDataTypes> {
     Card(ElavonPgCard<T>),
     Wallet(ElavonPgWalletCard),
+    Tokenized(ElavonPgTokenizedCard),
+}
+
+/// `panToken` — EPG's token for the card number, reported on every card response and
+/// accepted in place of `number` on a sale. EPG requires all three fields back.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ElavonPgPanToken {
+    pub token: Secret<String>,
+    pub provider: String,
+    #[serde(rename = "type")]
+    pub token_type: String,
+}
+
+/// What a merchant-initiated charge needs when the card itself is not sent. Saved as the
+/// mandate metadata when an agreement opens and replayed into `card`, so the same camelCase
+/// shape is both the metadata and the wire format. EPG requires the expiry beside the token.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElavonPgStoredCard {
+    pub pan_token: ElavonPgPanToken,
+    pub expiration_month: Secret<u8>,
+    pub expiration_year: Secret<u16>,
+}
+
+/// The `card` object of a merchant-initiated charge replayed from [`ElavonPgStoredCard`].
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElavonPgTokenizedCard {
+    #[serde(flatten)]
+    pub stored_card: ElavonPgStoredCard,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_to: Option<ElavonPgContact>,
+}
+
+/// The fields of the response's `card` that a later merchant-initiated charge needs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElavonPgResponseCard {
+    pub pan_token: Option<ElavonPgPanToken>,
+    pub expiration_month: Option<Secret<u8>>,
+    pub expiration_year: Option<Secret<u16>>,
 }
 
 /// `ThreeDSecure` — EPG's external / pass-through 3DS v2 object (spec §5.1).
@@ -483,6 +530,17 @@ pub struct ElavonPgCardSaleRequest<T: PaymentMethodDataTypes> {
 #[derive(Debug, Clone, Serialize)]
 #[serde(transparent)]
 pub struct ElavonPgRepeatPaymentRequest<T: PaymentMethodDataTypes>(pub ElavonPgCardSaleRequest<T>);
+
+/// `CardVerification` — `POST /card-verifications`, the SetupMandate body. There is no
+/// `total`: nothing is charged, and a sale refuses a zero amount.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElavonPgCardVerificationRequest<T: PaymentMethodDataTypes> {
+    pub card: ElavonPgCard<T>,
+    pub shopper_interaction: ElavonPgShopperInteraction,
+    pub credential_on_file_type: ElavonPgCredentialOnFileType,
+    pub custom_reference: String,
+}
 
 /// `VoidTransaction` — `POST /transactions` with `type: "void"` (spec §8.3).
 /// A void is always full, so it carries no `total`.
@@ -774,6 +832,7 @@ pub struct ElavonPgTransactionResponse {
     /// `credentialOnFileType`. Masked like the request field of the same name.
     /// See [`ElavonPgCardSaleRequest::credential_on_file_data`].
     pub credential_on_file_data: Option<Secret<String>>,
+    pub card: Option<ElavonPgResponseCard>,
     pub issuer_response_code: Option<String>,
     pub raw_processor_response_info: Option<ElavonPgRawProcessorResponseInfo>,
     /// The authorized amount, echoed back. Carried forward to Capture, which has no
@@ -782,6 +841,19 @@ pub struct ElavonPgTransactionResponse {
     /// The account's partial-capture capability. Decides which of EPG's two capture
     /// resources is usable; see [`ElavonPgCaptureRoute`].
     pub partial_capture: Option<ElavonPgPartialCaptureInfo>,
+    #[serde(default)]
+    pub failures: Vec<ElavonPgFailure>,
+}
+
+/// EPG's `CardVerification` resource.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElavonPgCardVerificationResponse {
+    pub id: String,
+    pub is_verified: Option<bool>,
+    pub scheme_reference: Option<String>,
+    pub credential_on_file_data: Option<Secret<String>>,
+    pub card: Option<ElavonPgResponseCard>,
     #[serde(default)]
     pub failures: Vec<ElavonPgFailure>,
 }
@@ -1828,23 +1900,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (sale_card, cryptogram_security, payment_method_origin, three_d_secure) =
             match &request.payment_method_data {
                 PaymentMethodData::Wallet(wallet) => {
-                    // EPG confirmed wallets are one-time only: there is no stored
-                    // credential to replay, so an agreement request must not be dropped
-                    // silently.
-                    if opens_recurring_agreement {
-                        return Err(error_stack::report!(IntegrationError::NotSupported {
-                            message: "Recurring payments on wallets".to_string(),
-                            connector: ELAVON_PG_CONNECTOR_ID,
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "Elavon Payment Gateway does not support recurring on wallets; \
-                                     Apple Pay and Google Pay are one-time payments only"
-                                        .to_string(),
-                                ),
-                                ..Default::default()
-                            },
-                        }));
-                    }
                     let (card, cryptogram, origin) = build_wallet_payment(wallet, bill_to)?;
                     // The wallet cryptogram is the authentication; EPG's 3DS object
                     // does not apply.
@@ -1928,6 +1983,144 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             opens_agreement,
             item.router_data,
         ))
+    }
+}
+
+// =============================================================================
+// SETUP MANDATE — zero-amount recurring agreement
+// =============================================================================
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonPgRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for ElavonPgCardVerificationRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: ElavonPgRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        // `/card-verifications` carries no total, so a non-zero amount would be reported as a
+        // charge EPG never made.
+        if router_data.request.money.as_ref().is_some_and(|money| {
+            ConnectorMinorUnitForConnector
+                .convert(money)
+                .is_greater_than(0)
+        }) {
+            return Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Non-zero amount on SetupMandate".to_string(),
+                connector: ELAVON_PG_CONNECTOR_ID,
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use Authorize with setup_future_usage OFF_SESSION".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }));
+        }
+        let card = get_card(&router_data.request.payment_method_data)?;
+        Ok(Self {
+            card: ElavonPgCard {
+                holder_name: card.card_holder_name.clone(),
+                number: card.card_number.clone(),
+                expiration_month: Secret::new(expiration_month(card)?),
+                expiration_year: Secret::new(expiration_year(card)?),
+                security_code: Some(security_code(card)?),
+                bill_to: ElavonPgContact::from_billing(&router_data.resource_common_data),
+            },
+            shopper_interaction: ElavonPgShopperInteraction::Ecommerce,
+            credential_on_file_type: ElavonPgCredentialOnFileType::Recurring,
+            custom_reference: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<ElavonPgCardVerificationResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<ElavonPgCardVerificationResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = item;
+        // A verified card with no credential cannot be charged later, so it is as much a
+        // failed mandate setup as a card that did not verify.
+        let credential_on_file_data = response
+            .credential_on_file_data
+            .filter(|_| response.is_verified == Some(true));
+        let (status, response_body) = match credential_on_file_data {
+            Some(credential_on_file_data) => (
+                AttemptStatus::Charged,
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(response.id),
+                    redirection_data: None,
+                    mandate_reference: Some(Box::new(MandateReference {
+                        connector_mandate_id: Some(credential_on_file_data.expose()),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: stored_card_metadata(response.card.as_ref()),
+                    })),
+                    connector_metadata: None,
+                    network_txn_id: response.scheme_reference,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    splits: None,
+                    status_code: http_code,
+                    payment_account_reference: None,
+                }),
+            ),
+            None => (
+                AttemptStatus::Failure,
+                Err(in_band_error(
+                    &response.failures,
+                    http_code,
+                    response.id,
+                    FlowStatus::Payment(AttemptStatus::Failure),
+                    None,
+                    None,
+                )),
+            ),
+        };
+        Ok(Self {
+            response: response_body,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            ..router_data
+        })
     }
 }
 
@@ -2031,34 +2224,41 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })?;
 
         // EPG rejects a merchant-initiated sale with no payment method ("exactly one of
-        // card, hostedCard, storedCard ... must not be null"), so the card travels with
-        // every repeat. No CVC: it may not be retained for merchant-initiated use. The
-        // card arrives as `Card` from a gRPC/SDK caller and as
-        // `CardDetailsForNetworkTransactionId` when Hyperswitch replays a stored NTID.
+        // card, hostedCard, storedCard ... must not be null"). No CVC: it may not be retained
+        // for merchant-initiated use. The card arrives as `Card` from a gRPC/SDK caller and as
+        // `CardDetailsForNetworkTransactionId` when Hyperswitch replays a stored NTID; a repeat
+        // by Hyperswitch payment method id carries none, so the `panToken` saved when the
+        // agreement opened stands in for the card number.
         let bill_to = ElavonPgContact::from_billing(&router_data.resource_common_data);
         let sale_card = match &request.payment_method_data {
             PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
                 let (expiration_month, expiration_year) =
                     parse_expiry(&card.card_exp_month, &card.card_exp_year)?;
-                ElavonPgCard {
+                ElavonPgSaleCard::Card(ElavonPgCard {
                     holder_name: card.card_holder_name.clone(),
                     number: card.card_number.clone(),
                     expiration_month: Secret::new(expiration_month),
                     expiration_year: Secret::new(expiration_year),
                     security_code: None,
                     bill_to,
-                }
+                })
+            }
+            PaymentMethodData::MandatePayment => {
+                ElavonPgSaleCard::Tokenized(ElavonPgTokenizedCard {
+                    stored_card: stored_card_from_mandate(&request.mandate_reference)?,
+                    bill_to,
+                })
             }
             other => {
                 let card = get_card(other)?;
-                ElavonPgCard {
+                ElavonPgSaleCard::Card(ElavonPgCard {
                     holder_name: card.card_holder_name.clone(),
                     number: card.card_number.clone(),
                     expiration_month: Secret::new(expiration_month(card)?),
                     expiration_year: Secret::new(expiration_year(card)?),
                     security_code: None,
                     bill_to,
-                }
+                })
             }
         };
 
@@ -2068,7 +2268,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 amount,
                 currency_code: request.currency,
             },
-            card: ElavonPgSaleCard::Card(sale_card),
+            card: sale_card,
             shopper_interaction: ElavonPgShopperInteraction::MerchantInitiated,
             credential_on_file_type: Some(ElavonPgCredentialOnFileType::Recurring),
             credential_on_file_data: Some(Secret::new(credential_on_file_data)),
@@ -2087,6 +2287,53 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             description: router_data.resource_common_data.description.clone(),
         }))
     }
+}
+
+/// The mandate metadata for an agreement opened with this card: `None` if EPG did not
+/// report a complete token, in which case repeats must carry the card.
+fn stored_card_metadata(card: Option<&ElavonPgResponseCard>) -> Option<Secret<serde_json::Value>> {
+    let card = card?;
+    serde_json::to_value(ElavonPgStoredCard {
+        pan_token: card.pan_token.clone()?,
+        expiration_month: card.expiration_month.clone()?,
+        expiration_year: card.expiration_year.clone()?,
+    })
+    .ok()
+    .map(Secret::new)
+}
+
+/// Reads back what [`stored_card_metadata`] saved. An agreement opened before that metadata
+/// existed has nothing to read, and only a caller still holding the card can charge it.
+fn stored_card_from_mandate(
+    mandate_reference: &MandateReferenceId,
+) -> Result<ElavonPgStoredCard, error_stack::Report<IntegrationError>> {
+    let metadata = match mandate_reference {
+        MandateReferenceId::ConnectorMandateId(mandate) => mandate.get_mandate_metadata(),
+        MandateReferenceId::NetworkMandateId(_) | MandateReferenceId::NetworkTokenWithNTI(_) => {
+            None
+        }
+    };
+    metadata
+        .and_then(|metadata| serde_json::from_value(metadata.expose()).ok())
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::NotSupported {
+                message: "Merchant-initiated payment without the card on this mandate".to_string(),
+                connector: ELAVON_PG_CONNECTOR_ID,
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send the card in payment_method_data with the connector mandate id as \
+                         processor_payment_token"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "Elavon Payment Gateway needs a card or panToken on every repeat, and this \
+                         mandate has no saved panToken"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })
+        })
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -2227,7 +2474,7 @@ fn build_sale_router_data<F, Req>(
                         connector_mandate_id: Some(credential_on_file_data.expose()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
-                        mandate_metadata: None,
+                        mandate_metadata: stored_card_metadata(response.card.as_ref()),
                     })
                 }),
             connector_metadata: capture_metadata(&response),

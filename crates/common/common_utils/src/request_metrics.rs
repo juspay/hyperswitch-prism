@@ -6,6 +6,11 @@ use std::{
     time::Duration,
 };
 
+/// Marks granular requests invoked by composite orchestration. The composite boundary owns
+/// incoming audit transformations; nested services retain their diagnostic logs.
+#[derive(Clone, Copy, Debug)]
+pub struct InternalCompositeCall;
+
 /// Request-scoped accumulator for time spent in outbound connector calls.
 ///
 /// The inner counter is atomic so the same request context can be cloned into

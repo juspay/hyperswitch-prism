@@ -110,13 +110,10 @@ fn convert_payout_amount(
         .convert(&{
             #[expect(
                 clippy::disallowed_methods,
-                clippy::disallowed_types,
                 reason = "Temporary payout currency contract: nuvei-transfer-amount; see PR #2642"
             )]
-            let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
-                money.amount(),
-                destination_currency,
-            );
+            let legacy_money =
+                common_utils::types::Money::from_minor_unit(money.amount(), destination_currency);
             legacy_money
         })
         .change_context(IntegrationError::InvalidDataFormat {

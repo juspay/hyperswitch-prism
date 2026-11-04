@@ -294,10 +294,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
             value: domain_utils::convert_amount(&StringMajorUnitForConnector, &{
                 #[expect(
                     clippy::disallowed_methods,
-                    clippy::disallowed_types,
                     reason = "Temporary payout currency contract: paypal-transfer; see PR #2642"
                 )]
-                let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
+                let legacy_money = common_utils::types::Money::from_minor_unit(
                     item.request.money.amount(),
                     item.request.destination_currency,
                 );

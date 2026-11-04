@@ -484,10 +484,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde
             .convert(&{
                 #[expect(
                     clippy::disallowed_methods,
-                    clippy::disallowed_types,
                     reason = "Temporary payout currency contract: cybersource-transfer; see PR #2642"
                 )]
-                let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
+                let legacy_money = common_utils::types::Money::from_minor_unit(
                     req.request.money.amount(),
                     req.request.destination_currency,
                 );

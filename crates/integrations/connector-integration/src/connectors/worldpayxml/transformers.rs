@@ -221,6 +221,7 @@ pub(super) fn get_worldpayxml_connector_response(
         Some(common_enums::PaymentMethodType::GooglePay) => {
             AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code,
+                payment_checks: None,
                 // No confirmed source distinguishes device PAN and underlying-card BINs here.
                 device_pan_bin: None,
                 card_bin: None,
@@ -235,6 +236,7 @@ pub(super) fn get_worldpayxml_connector_response(
         Some(common_enums::PaymentMethodType::ApplePay) => {
             AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code,
+                payment_checks: None,
                 // No confirmed source distinguishes device PAN and underlying-card BINs here.
                 device_pan_bin: None,
                 card_bin: None,

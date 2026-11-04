@@ -334,6 +334,7 @@ impl
             merchant_order_id: item.merchant_order_id.clone(),
             setup_future_usage: item.setup_future_usage,
             off_session: item.off_session,
+            is_stored_credential: item.is_stored_credential,
             request_incremental_authorization: item.request_incremental_authorization,
             request_extended_authorization: item.request_extended_authorization,
             enable_partial_authorization: item.enable_partial_authorization,
@@ -368,6 +369,7 @@ impl
             additional_connector_details: item.additional_connector_details.clone(),
             business_country: item.business_country.clone(),
             enable_avs_check: item.enable_avs_check,
+            enable_ani_check: item.enable_ani_check,
         }
     }
 }
@@ -1281,6 +1283,7 @@ impl
             order_category: request.order_category.clone(),
             setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
+            is_stored_credential: request.is_stored_credential,
             request_incremental_authorization: request.request_incremental_authorization,
             request_extended_authorization: request.request_extended_authorization,
             enable_partial_authorization: request.enable_partial_authorization,
@@ -1316,6 +1319,7 @@ impl
             additional_connector_details: request.additional_connector_details.clone(),
             business_country: request.business_country.clone(),
             enable_avs_check: request.enable_avs_check,
+            enable_ani_check: request.enable_ani_check,
         }
     }
 }

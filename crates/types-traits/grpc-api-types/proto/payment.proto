@@ -7,10 +7,9 @@
 //   This file defines the core data types, enumerations, and request/response
 //   messages used across the Unified Connector Service (UCS) v2 API.
 //
-//   It is imported by services.proto, which defines the gRPC service interfaces
-//   (PaymentService, RefundService, DisputeService). Consumers of the API
-//   should treat services.proto as the entry point and this file as the
-//   shared type library.
+//   It is imported by services.proto for the core gRPC services and by
+//   dispute.proto for DisputeService. This file holds types shared between
+//   payment, dispute, and event flows.
 //
 // Key Concepts:
 //   - Money:         All monetary amounts are represented in minor currency
@@ -39,6 +38,7 @@
 //
 // Related Files:
 //   - services.proto      — gRPC service definitions
+//   - dispute.proto       — DisputeService and its request/response messages
 //   - common_types.proto  — Shared base types (Money, Currency, Address, Customer)
 //   - domain.proto        — Domain-specific data (airline, education)
 //   - payment_methods.proto — Payment method data types and SecretString
@@ -757,6 +757,7 @@ enum Connector {
   ECOMMPAY = 153;
   CLEARSALE_BR = 154;
   BETTERPAYMENT = 155;
+  REDDOT = 156;
 }
 
 // Payment method types
@@ -1856,6 +1857,7 @@ message GooglePayConnectorResponse {
   optional CardType card_type = 7; // The card type (credit/debit/prepaid/charge)
   optional string issuer_name = 8; // The name of the card issuer
   optional CountryAlpha2 issuer_country = 9; // The country of the card issuer (ISO alpha-2)
+  optional bytes payment_checks = 10; // Payment checks as JSON bytes
 }
 
 // Additional payment method data for Apple Pay
@@ -1869,6 +1871,7 @@ message ApplePayConnectorResponse {
   optional FundingSource funding_source = 6; // The card's funding source type
   optional string issuer_name = 7; // The name of the card issuer
   optional CountryAlpha2 issuer_country = 8; // The country of the card issuer (ISO alpha-2)
+  optional bytes payment_checks = 9; // Payment checks as JSON bytes
 }
 
 // Customer information for payments
@@ -2574,8 +2577,14 @@ message PaymentServiceAuthorizeRequest {
   // into authorization / onboarding decisions.
   optional RiskAssessmentData risk_assessment_data = 58;
 
+  // Opt in to account name inquiry for supported connectors.
+  optional bool enable_ani_check = 61;
+
  // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 59;
+
+  // Whether the payment uses a previously stored credential.
+  optional bool is_stored_credential = 60;
 }
 
 // Customer risk-assessment signals supplied by the merchant, used by
@@ -3556,6 +3565,8 @@ message DisputeResponse {
   // Raw Request for debugging
   optional SecretString raw_connector_request = 18;
   optional SecretString typed_connector_request = 20;
+  optional SecretString raw_connector_response = 22;
+  optional SecretString typed_connector_response = 23;
 
   // Another reference for the connector's transaction, returned in the connector's response.
   optional string connector_reference_id = 19;
@@ -3708,6 +3719,12 @@ message PaymentServiceSetupRecurringRequest {
   // for on_behalf_of on a destination charge, and to echo the charge details back
   // as mandate_reference.mandate_metadata.
   optional SplitPaymentsDetails split_payments = 43;
+
+  // Whether the payment uses a previously stored credential.
+  optional bool is_stored_credential = 44;
+
+  // Opt in to account name inquiry for supported connectors.
+  optional bool enable_ani_check = 45;
 }
 
 // Response message for a mandate setup operation
@@ -4391,114 +4408,6 @@ message RefundServiceGetRequest {
 
   // Split refund data for platform fee reversals and transfers
   optional SplitRefundsDetails split_refunds = 18;
-}
-
-// ============================================================================
-// DISPUTE SERVICE MESSAGES
-// ============================================================================
-
-// Request message for submitting evidence for a dispute
-message DisputeServiceSubmitEvidenceRequest {
-  // Identification
-  optional string merchant_dispute_id = 1;
-  optional string connector_transaction_id = 2;
-  string dispute_id = 3;
-
-  // Dates
-  optional int64 service_date = 4;
-  optional int64 shipping_date = 5;
-
-  // Evidence
-  repeated EvidenceDocument evidence_documents =
-      6; // Collection of evidence documents
-}
-
-// Response message for a submit evidence operation
-message DisputeServiceSubmitEvidenceResponse {
-  // Identification
-  optional string dispute_id = 1;
-  repeated string submitted_evidence_ids = 2;
-
-  // Status Information
-  DisputeStatus dispute_status = 3;
-  optional string connector_status_code = 4;
-  optional ErrorInfo error = 5;
-  uint32 status_code = 6;
-  map<string, string> response_headers = 7;
-
-  // Reference
-  optional string merchant_dispute_id = 8;
-
-  // Raw Request for debugging
-  optional SecretString raw_connector_request = 9;
-  optional SecretString typed_connector_request = 10;
-}
-
-// Request message for retrieving dispute information
-message DisputeServiceGetRequest {
-  // Identification
-  optional string merchant_dispute_id = 1;
-  optional string dispute_id = 2;
-  string connector_dispute_id = 3;
-}
-
-// Request message for defending a dispute
-message DisputeServiceDefendRequest {
-  // Identification
-  optional string merchant_dispute_id = 1;
-  string connector_transaction_id = 2;
-  string dispute_id = 3;
-
-  // Defend Details
-  optional string reason_code = 4;
-}
-
-// Response message for defending a dispute
-message DisputeServiceDefendResponse {
-  // Identification
-  string dispute_id = 1;
-
-  // Status Information
-  DisputeStatus dispute_status = 2;
-  optional string connector_status_code = 3;
-  optional ErrorInfo error = 4;
-  uint32 status_code = 5;
-  map<string, string> response_headers = 6;
-
-  // Reference
-  optional string merchant_dispute_id = 7;
-
-  // Raw Request for debugging
-  optional SecretString raw_connector_request = 8;
-  optional SecretString typed_connector_request = 9;
-}
-
-// Request message for accepting a dispute
-message DisputeServiceAcceptRequest {
-  // Identification
-  optional string merchant_dispute_id = 1;
-  string connector_transaction_id = 2;
-  string dispute_id = 3;
-}
-
-// Response message for accepting a dispute
-message DisputeServiceAcceptResponse {
-  // Identification
-  string dispute_id = 1;
-
-  // Status Information
-  DisputeStatus dispute_status = 2;
-  optional string connector_status_code = 3;
-  optional ErrorInfo error = 4;
-  uint32 status_code = 5;
-  map<string, string> response_headers = 6;
-
-  // Reference
-  optional string merchant_dispute_id = 7;
-
-  // Raw Request for debugging
-  optional SecretString raw_connector_request = 8;
-  optional SecretString typed_connector_request = 9;
 }
 
 // ============================================================================
@@ -5411,7 +5320,10 @@ message WellsfargoConfig {
 message WorldpayvantivConfig {
   SecretString user = 1;
   SecretString password = 2;
+  // Single merchant ID used for every currency. Set this or merchant_id_by_currency.
   SecretString merchant_id = 3;
+  // Merchant IDs keyed by ISO 4217 currency code, e.g. USD, CAD. Used when merchant_id is not set.
+  map<string, SecretString> merchant_id_by_currency = 4;
   optional string base_url = 50;
   optional string report_group = 51;
   optional string merchant_config_currency = 52;
@@ -6049,6 +5961,17 @@ message EcommpayConfig {
   optional string base_url = 50;
 }
 
+message ReddotConfig {
+  // RDP merchant ID.
+  SecretString mid = 1;
+  // RDP merchant secret key, used to build request signatures.
+  SecretString secret = 2;
+  // Required true/false string (case-insensitive); invalid values are rejected.
+  // When true (CyberSource-acquired MID), bill_to_* fields are sent to RDP.
+  string acquirer_cybersource = 3;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6407,6 +6330,8 @@ message ConnectorSpecificConfig {
     ClearsaleBrConfig clearsale_br = 165;
     // BETTERPAYMENT = 155
     BetterpaymentConfig betterpayment = 166;
+    // REDDOT = 156
+    ReddotConfig reddot = 167;
   }
 }
 

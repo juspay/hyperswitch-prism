@@ -296,10 +296,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .convert(&{
                 #[expect(
                     clippy::disallowed_methods,
-                    clippy::disallowed_types,
                     reason = "Temporary payout currency contract: gigadat-stage; see PR #2642"
                 )]
-                let legacy_money = common_utils::types::MoneyBoundary::from_minor_unit(
+                let legacy_money = common_utils::types::Money::from_minor_unit(
                     request.amount,
                     request.destination_currency,
                 );
