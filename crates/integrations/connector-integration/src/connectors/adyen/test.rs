@@ -37,7 +37,9 @@ mod tests {
                     line1: Some(Secret::new("10".to_string())),
                     line2: Some(Secret::new("Main Street".to_string())),
                     zip: Some(Secret::new("SW1A 1AA".to_string())),
-                    state: Some(Secret::new("A Region With A Long Name".to_string())),
+                    state: Some(domain_types::payment_address::StateDetails::from_name(
+                        Secret::new("A Region With A Long Name".to_string()),
+                    )),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -49,7 +51,9 @@ mod tests {
                     line1: Some(Secret::new("1".to_string())),
                     line2: Some(Secret::new("Main Street".to_string())),
                     zip: Some(Secret::new("8001".to_string())),
-                    state: Some(Secret::new("ZH".to_string())),
+                    state: Some(domain_types::payment_address::StateDetails::from_name(
+                        Secret::new("ZH".to_string()),
+                    )),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -231,7 +235,7 @@ mod tests {
                     recipient_details: None,
                     business_country: None,
                     enable_avs_check: None,
-                    enable_ani_check: None,
+                    enable_account_name_verification: None,
                     additional_connector_details: None,
                     customer: None,
 },
@@ -422,7 +426,7 @@ mod tests {
                     recipient_details: None,
                     business_country: None,
                     enable_avs_check: None,
-                    enable_ani_check: None,
+                    enable_account_name_verification: None,
                     additional_connector_details: None,
                     customer: None,
 },

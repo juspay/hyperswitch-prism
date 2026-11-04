@@ -369,7 +369,7 @@ impl
             additional_connector_details: item.additional_connector_details.clone(),
             business_country: item.business_country.clone(),
             enable_avs_check: item.enable_avs_check,
-            enable_ani_check: item.enable_ani_check,
+            enable_account_name_verification: item.enable_account_name_verification,
         }
     }
 }
@@ -1319,7 +1319,7 @@ impl
             additional_connector_details: request.additional_connector_details.clone(),
             business_country: request.business_country.clone(),
             enable_avs_check: request.enable_avs_check,
-            enable_ani_check: request.enable_ani_check,
+            enable_account_name_verification: request.enable_account_name_verification,
         }
     }
 }

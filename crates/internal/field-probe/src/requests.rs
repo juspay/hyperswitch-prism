@@ -202,6 +202,8 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
                     mandate_metadata: None,
+                    network_transaction_id: None,
+                    transaction_link_id: None,
                 },
             )),
         }),

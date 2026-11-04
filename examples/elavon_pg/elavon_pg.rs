@@ -18,6 +18,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
     "capture",
     "create_order",
+    "customer_create",
     "get",
     "pre_authenticate",
     "proxy_authorize",
@@ -99,6 +100,16 @@ pub fn build_create_order_request() -> PaymentServiceCreateOrderRequest {
             minor_amount: 1000,
             currency: Currency::Usd.into(),
         }),
+        ..Default::default()
+    }
+}
+
+pub fn build_customer_create_request() -> CustomerServiceCreateRequest {
+    CustomerServiceCreateRequest {
+        merchant_customer_id: Some("cust_probe_123".to_string()), // Identification.
+        customer_name: Some("John Doe".to_string()),              // Name of the customer.
+        email: Some(Secret::new("test@example.com".to_string())), // Email address of the customer.
+        phone_number: Some(Secret::new("4155552671".to_string())), // Phone number of the customer.
         ..Default::default()
     }
 }
@@ -197,6 +208,10 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
             card_network: Some(CardNetwork::Visa.into()),
             ..Default::default()
         }),
+        customer: Some(Customer {
+            connector_customer_id: Some("probe_customer_001".to_string()),
+            ..Default::default()
+        }),
         address: Some(PaymentAddress {
             billing_address: Some(Address {
                 ..Default::default()
@@ -254,6 +269,10 @@ pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
                 card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
                 ..Default::default()
             })),
+            ..Default::default()
+        }),
+        customer: Some(Customer {
+            connector_customer_id: Some("cust_probe_123".to_string()),
             ..Default::default()
         }),
         address: Some(PaymentAddress {
@@ -527,6 +546,18 @@ pub async fn process_create_order(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: CustomerService.Create
+#[allow(dead_code)]
+pub async fn process_customer_create(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .create_customer(build_customer_create_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("customer_id: {}", response.connector_customer_id))
+}
+
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn process_get(
@@ -644,6 +675,7 @@ async fn main() {
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
         "process_create_order" => process_create_order(&client, "txn_001").await,
+        "process_customer_create" => process_customer_create(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_pre_authenticate" => process_pre_authenticate(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
@@ -652,7 +684,7 @@ async fn main() {
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_order, process_get, process_pre_authenticate, process_proxy_authorize, process_proxy_setup_recurring, process_refund_get, process_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_order, process_customer_create, process_get, process_pre_authenticate, process_proxy_authorize, process_proxy_setup_recurring, process_refund_get, process_setup_recurring, process_void", flow);
             return;
         }
     };
