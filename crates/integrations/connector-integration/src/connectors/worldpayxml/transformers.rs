@@ -1493,7 +1493,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Convert amount using the connector's amount converter
         let converted_amount =
-            super::WorldpayxmlAmountConvertor::convert(&router_data.request.amount)?;
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.money)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1602,9 +1602,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // would authorise funds that nothing subsequently captures.
         if router_data
             .request
-            .amount
+            .money
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .is_some_and(|amount| amount.get_amount_as_i64() > 0)
         {
             return Err(IntegrationError::FlowNotSupported {
@@ -1666,15 +1666,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             get_worldpayxml_info_3d_secure(router_data.request.authentication_data.as_ref())?;
 
         let converted_amount =
-            super::WorldpayxmlAmountConvertor::convert(&common_utils::types::Money {
-                amount: router_data
-                    .request
-                    .amount
-                    .as_ref()
-                    .map(|money| money.amount)
-                    .unwrap_or_else(common_utils::types::MinorUnit::zero),
-                currency: router_data.request.currency,
-            })?;
+            super::WorldpayxmlAmountConvertor::convert(
+                &router_data.request.money.clone().unwrap_or_else(|| {
+                    common_utils::types::Money::zero(router_data.request.currency)
+                }),
+            )?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1842,7 +1838,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             get_worldpayxml_authenticated_shopper_id(&router_data.resource_common_data, true)?;
 
         let converted_amount =
-            super::WorldpayxmlAmountConvertor::convert(&router_data.request.amount)?;
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.money)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1944,7 +1940,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Convert amount using the connector's amount converter
         let converted_amount =
-            super::WorldpayxmlAmountConvertor::convert(&router_data.request.amount_to_capture)?;
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.capture_money)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -2024,7 +2020,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Convert refund amount using the connector's amount converter
         let converted_amount =
-            super::WorldpayxmlAmountConvertor::convert(&router_data.request.refund_amount)?;
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.refund_money)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -3497,13 +3493,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let order_code = router_data.request.connector_transaction_id.clone();
         let amount = router_data
             .request
-            .amount
+            .money
             .as_ref()
             .map(|amount| {
                 Ok::<_, Self::Error>(requests::WorldpayxmlAmount {
                     value: super::WorldpayxmlAmountConvertor::convert(amount)?,
-                    currency_code: amount.currency,
-                    exponent: get_worldpayxml_exponent(amount.currency)?,
+                    currency_code: amount.currency(),
+                    exponent: get_worldpayxml_exponent(amount.currency())?,
                 })
             })
             .transpose()?;

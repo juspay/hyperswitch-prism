@@ -295,7 +295,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -363,10 +363,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = convert_amount_for_webhook(
             &StringMinorUnitForConnector,
-            &common_utils::types::Money {
-                amount: body.data.amount.unwrap_or_default(),
+            &domain_types::utils::convert_back_amount_to_money_for_webhook(
+                &common_utils::types::MinorUnitForConnector,
+                body.data.amount.unwrap_or_default(),
                 currency,
-            },
+            )?,
         )?;
 
         Ok(DisputeWebhookDetailsResponse {

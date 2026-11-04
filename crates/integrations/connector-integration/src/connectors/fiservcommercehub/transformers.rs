@@ -1039,13 +1039,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
 
         let currency = router_data.request.currency;
-        let total = utils::convert_amount(
-            item.connector.amount_converter,
-            &common_utils::types::Money {
-                amount: router_data.request.amount.amount,
-                currency,
-            },
-        )?;
+        let total =
+            utils::convert_amount(item.connector.amount_converter, &router_data.request.money)?;
 
         let access_token = router_data.resource_common_data.get_access_token()?;
         let parts: Vec<&str> = access_token.split(ACCESS_TOKEN_SEPARATOR).collect();
@@ -1690,7 +1685,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            &router_data.request.refund_amount,
+            &router_data.request.refund_money,
         )?;
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
         Ok(Self {
@@ -1896,21 +1891,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
 
         let amount = match (
-            router_data
-                .request
-                .amount
-                .as_ref()
-                .map(|money| money.amount),
+            router_data.request.money.as_ref(),
             router_data.request.currency,
         ) {
-            (Some(minor_amount), Some(currency)) => {
-                let total = utils::convert_amount(
-                    item.connector.amount_converter,
-                    &common_utils::types::Money {
-                        amount: minor_amount,
-                        currency,
-                    },
-                )?;
+            (Some(money), Some(currency)) => {
+                let total = utils::convert_amount(item.connector.amount_converter, money)?;
                 Some(FiservcommercehubAuthorizeAmount { currency, total })
             }
             _ => None,
@@ -2126,7 +2111,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            &router_data.request.amount_to_capture,
+            &router_data.request.capture_money,
         )?;
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
         let connector_transaction_id = router_data
@@ -2263,7 +2248,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
 
         let total =
-            utils::convert_amount(item.connector.amount_converter, &router_data.request.amount)?;
+            utils::convert_amount(item.connector.amount_converter, &router_data.request.money)?;
 
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
 
@@ -2494,9 +2479,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // SetupMandate (tokenization) should not have an amount - it's for storing cards without charging
         if router_data
             .request
-            .amount
+            .money
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .is_some_and(|amount| amount > common_utils::types::MinorUnit::zero())
         {
             return Err(error_stack::report!(

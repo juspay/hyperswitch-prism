@@ -993,7 +993,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     total_amount: item
                         .connector
                         .amount_converter
-                        .convert(&item.router_data.request.refund_amount)
+                        .convert(&item.router_data.request.refund_money)
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -2180,7 +2180,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2616,7 +2616,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     total_amount: item
                         .connector
                         .amount_converter
-                        .convert(&item.router_data.request.amount_to_capture)
+                        .convert(&item.router_data.request.capture_money)
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -2662,7 +2662,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount =
             item.router_data
                 .request
-                .amount
+                .money
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "Amount",
                     context: Default::default(),
@@ -2692,10 +2692,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     total_amount: item
                         .connector
                         .amount_converter
-                        .convert(&common_utils::types::Money {
-                            amount: amount.amount,
-                            currency,
-                        })
+                        .convert(&amount)
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -2754,7 +2751,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_information = item
             .router_data
             .request
-            .amount
+            .money
             .as_ref()
             .map(|amount| {
                 let total_amount = item
@@ -2767,7 +2764,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok::<_, Self::Error>(OrderInformation {
                     amount_details: Amount {
                         total_amount,
-                        currency: amount.currency,
+                        currency: amount.currency(),
                     },
                 })
             })

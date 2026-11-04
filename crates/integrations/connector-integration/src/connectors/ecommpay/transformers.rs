@@ -25,7 +25,7 @@ use common_utils::{
     id_type::CustomerId,
     pii::{Email, IpAddress, SecretSerdeValue},
     request::Method,
-    types::{MinorUnit, Money},
+    types::MinorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
@@ -956,7 +956,7 @@ fn check_common_guards<T: PaymentMethodDataTypes>(
     }
     // payment.amount is 1..10^13 minor units; zero and negative are refused on
     // the payment leg only.
-    let minor_amount = request.amount.amount.get_amount_as_i64();
+    let minor_amount = request.money.amount().get_amount_as_i64();
     if !is_three_ds_completion(request) && minor_amount <= 0 {
         return Err(invalid_format(
             "amount",
@@ -1090,7 +1090,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.amount)
+            .convert(&request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
@@ -1131,7 +1131,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             customer,
             payment: EcommpayPaymentInfo {
                 amount,
-                currency: request.amount.currency,
+                currency: request.money.currency(),
                 description: description(common),
             },
             return_url: router_return_url.map(|decline| EcommpayReturnUrl {
@@ -1242,7 +1242,7 @@ fn payment_source<T: PaymentMethodDataTypes>(
     match &request.payment_method_data {
         PaymentMethodData::Card(card) => Ok(EcommpayPaymentSource::Card(build_card(card)?)),
         PaymentMethodData::Wallet(wallet) => {
-            wallet_source(wallet, request.amount.currency, request.amount.amount)
+            wallet_source(wallet, request.money.currency(), request.money.amount())
         }
         PaymentMethodData::CardWithNoCvc(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
@@ -1819,9 +1819,8 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
     // A zero tax is the gRPC default for "no tax" and is not sent.
     let total_tax_amount = l2_l3
         .and_then(|data| data.tax_info.as_ref())
-        .and_then(|tax| tax.order_tax_amount.as_ref())
-        .or(request.order_tax_amount.as_ref())
-        .map(|money| money.amount)
+        .and_then(|tax| tax.order_tax_amount)
+        .or(request.order_tax_amount)
         .filter(|amount| amount.get_amount_as_i64() > 0);
     if positions.is_empty() && total_tax_amount.is_none() {
         return Ok(None);
@@ -2193,9 +2192,9 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         // min 0, max 0). A requested non-zero amount cannot be charged on this route, so it is
         // refused rather than quietly replaced with 0 and reported as a success.
         if let Some(requested) = request
-            .amount
+            .money
             .as_ref()
-            .map(|money| money.amount.get_amount_as_i64())
+            .map(|money| money.amount().get_amount_as_i64())
             .filter(|minor_amount| *minor_amount != 0)
         {
             return Err(error_stack::report!(IntegrationError::NotSupported {
@@ -2608,7 +2607,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let operation = repeat_payment_operation(request)?;
 
         // PaymentInfoRecurring amount >= 1 minor unit.
-        let minor_amount = request.amount.amount.get_amount_as_i64();
+        let minor_amount = request.money.amount().get_amount_as_i64();
         if minor_amount <= 0 {
             return Err(invalid_format(
                 "amount",
@@ -2664,7 +2663,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.amount)
+            .convert(&request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
@@ -2687,7 +2686,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         };
         let payment = EcommpayPaymentInfo {
             amount,
-            currency: request.amount.currency,
+            currency: request.money.currency(),
             description: description(common),
         };
 
@@ -2843,7 +2842,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let payment_id = capture_payment_id(&request.connector_transaction_id)?;
         // The Gate accepts 1..=10^13 minor units; a zero or negative capture is
         // refused here instead of being sent.
-        let amount_to_capture = request.amount_to_capture.amount;
+        let amount_to_capture = request.capture_money.amount();
         if amount_to_capture <= MinorUnit::zero() {
             return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "amount_to_capture",
@@ -2858,11 +2857,11 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 ),
             }));
         }
-        let currency = request.amount_to_capture.currency;
+        let currency = request.capture_money.currency();
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.amount_to_capture)
+            .convert(&request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
@@ -2985,7 +2984,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 })
             })?;
         // A supplied amount is not sent — the cancel always releases the full hold.
-        if request.amount.is_some() {
+        if request.money.is_some() {
             tracing::warn!(
                 connector = CONNECTOR_NAME,
                 "Ecommpay void ignores the requested amount: the cancel releases the full hold \
@@ -3113,7 +3112,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 })
             })?;
         // A zero or negative refund is refused here instead of being sent.
-        let refund_amount = request.refund_amount.amount;
+        let refund_amount = request.refund_money.amount();
         if refund_amount <= MinorUnit::zero() {
             return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "refund_amount",
@@ -3147,11 +3146,11 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         if description_length > MAX_ID_LENGTH {
             return Err(too_long("reason", MAX_ID_LENGTH, description_length));
         }
-        let currency = request.refund_amount.currency;
+        let currency = request.refund_money.currency();
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.refund_amount)
+            .convert(&request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: context(
                     None,
@@ -4741,10 +4740,14 @@ pub fn payment_webhook_details(
         .sum
         .as_ref()
         .filter(|_| settles_capture)
-        .map(|sum| Money {
-            amount: sum.amount,
-            currency: sum.currency,
-        });
+        .map(|sum| {
+            domain_types::utils::convert_back_amount_to_money_for_webhook(
+                &common_utils::types::MinorUnitForConnector,
+                sum.amount,
+                sum.currency,
+            )
+        })
+        .transpose()?;
     Ok(WebhookDetailsResponse {
         resource_id: Some(ResponseId::ConnectorTransactionId(payment_id.clone())),
         status,
@@ -4758,7 +4761,7 @@ pub fn payment_webhook_details(
         raw_connector_response: None,
         status_code: CALLBACK_STATUS_CODE,
         response_headers: None,
-        amount_captured,
+        captured_money: amount_captured,
         network_txn_id,
         payment_method_update: None,
         sender_payment_instrument_id: None,

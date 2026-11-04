@@ -963,7 +963,7 @@ impl<'a> OrderInputs<'a> {
                 .as_ref()
                 .ok_or_else(|| missing_field_err("email"))?
                 .get_email()?,
-            money: req.amount.clone(),
+            money: req.money.clone(),
             ip: req
                 .browser_info
                 .as_ref()
@@ -999,7 +999,7 @@ impl<'a> OrderInputs<'a> {
                 .as_ref()
                 .ok_or_else(|| missing_field_err("email"))?
                 .get_email()?,
-            money: req.amount.clone(),
+            money: req.money.clone(),
             ip: req
                 .browser_info
                 .as_ref()
@@ -1640,8 +1640,8 @@ pub(crate) fn build_clear_sale_payment(
 }
 
 pub(crate) fn build_clear_sale_items(
+    payment: &common_utils::types::Money,
     order_details: Option<&Vec<OrderDetailsWithAmount>>,
-    currency: Currency,
     order_is_gift: Option<bool>,
 ) -> Result<Vec<ClearSaleItem>, Error> {
     order_details
@@ -1654,10 +1654,7 @@ pub(crate) fn build_clear_sale_items(
                 code: detail.sku.clone().or(detail.product_id.clone()),
                 bar_code: detail.upc.clone(),
                 value: Some(super::ClearSaleBrAmountConvertor::convert(
-                    &common_utils::types::Money {
-                        amount: detail.amount,
-                        currency,
-                    },
+                    &detail.get_unit_money(payment),
                 )?),
                 // Line quantity, not money — the wire field is ClearSale's `amount`.
                 amount: Some(detail.quantity),
@@ -2150,9 +2147,9 @@ pub(crate) fn order_from_common(
         &now,
         feature_data.installments,
         Some(billing.primary_document.clone()),
-        money.currency,
+        money.currency(),
     )?];
-    let items = build_clear_sale_items(order_details, money.currency, feature_data.is_gift)?;
+    let items = build_clear_sale_items(&money, order_details, feature_data.is_gift)?;
     let billing_country = billing_address
         .address
         .as_ref()

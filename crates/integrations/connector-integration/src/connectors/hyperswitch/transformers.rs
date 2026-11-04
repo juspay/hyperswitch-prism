@@ -123,7 +123,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -473,7 +473,7 @@ pub fn build_webhook_payment_response(
         raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
         status_code: 200,
         response_headers: None,
-        amount_captured: None,
+        captured_money: None,
         network_txn_id: payment.connector_transaction_id,
         payment_method_update: None,
         sender_payment_instrument_id: None,

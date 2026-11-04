@@ -85,17 +85,16 @@ where
             }
         };
 
-        let source_currency = {
-            let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "currency",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Invalid currency".to_owned()),
-                        ..Default::default()
-                    },
-                })?;
-            common_enums::Currency::foreign_try_from(curr)?
-        };
+        grpc_api_types::payments::Currency::try_from(amount.currency).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Invalid currency".to_owned()),
+                    ..Default::default()
+                },
+            },
+        )?;
+        let money = crate::money::from_proto_money(amount)?;
 
         let destination_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(value.destination_currency)
@@ -118,8 +117,7 @@ where
             merchant_payout_id: value.merchant_payout_id.clone(),
             connector_quote_id: value.connector_quote_id.clone(),
             connector_payout_id: value.connector_payout_id.clone(),
-            amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-            source_currency,
+            money,
             destination_currency,
             priority: value
                 .priority
@@ -1512,17 +1510,16 @@ where
             }
         };
 
-        let source_currency = {
-            let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "currency",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Invalid currency".to_owned()),
-                        ..Default::default()
-                    },
-                })?;
-            common_enums::Currency::foreign_try_from(curr)?
-        };
+        grpc_api_types::payments::Currency::try_from(amount.currency).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Invalid currency".to_owned()),
+                    ..Default::default()
+                },
+            },
+        )?;
+        let money = crate::money::from_proto_money(amount)?;
 
         let destination_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(value.destination_currency)
@@ -1571,8 +1568,7 @@ where
             merchant_payout_id: value.merchant_payout_id.clone(),
             connector_quote_id: value.connector_quote_id.clone(),
             connector_payout_id: value.connector_payout_id.clone(),
-            amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-            source_currency,
+            money,
             destination_currency,
             priority,
             connector_payout_method_id: value.connector_payout_method_id,
@@ -2971,7 +2967,7 @@ where
             }
         };
 
-        let source_currency = {
+        let _source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "currency",
@@ -3012,10 +3008,7 @@ where
 
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
-            amount: common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: source_currency,
-            },
+            money: crate::money::from_proto_money(amount)?,
             destination_currency,
             payout_method_data,
             source_bank_data: value

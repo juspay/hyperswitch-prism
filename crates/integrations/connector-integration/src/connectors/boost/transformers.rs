@@ -377,7 +377,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -385,7 +385,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(format!(
                         "Failed to convert minor_amount {} {} to Boost's FloatMajorUnit \
                          (unquoted JSON decimal, e.g. 1.00) for the Authorize request.",
-                        item.router_data.request.amount.amount.get_amount_as_i64(),
+                        item.router_data.request.money.amount().get_amount_as_i64(),
                         item.router_data.request.currency
                     )),
                 },
@@ -648,7 +648,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.refund_amount)
+            .convert(&item.router_data.request.refund_money)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
@@ -659,8 +659,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                          (refund/void) request against connector_transaction_id {}.",
                         item.router_data
                             .request
-                            .refund_amount
-                            .amount
+                            .refund_money
+                            .amount()
                             .get_amount_as_i64(),
                         item.router_data.request.currency,
                         item.router_data.request.connector_transaction_id
@@ -875,7 +875,7 @@ impl BoostWebhookBody {
             raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
             status_code: http_code,
             response_headers: None,
-            amount_captured,
+            captured_money: amount_captured,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,

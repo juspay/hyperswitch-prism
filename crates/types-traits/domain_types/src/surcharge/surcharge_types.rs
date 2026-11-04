@@ -3,7 +3,7 @@ use crate::{
     types::Connectors,
 };
 use common_enums::Currency;
-use common_utils::types::MinorUnit;
+use common_utils::types::{MinorUnit, Money};
 use hyperswitch_masking::Secret;
 use serde::Serialize;
 use std::sync::Arc;
@@ -86,8 +86,7 @@ impl From<grpc_api_types::surcharge::SurchargeStrategy> for SurchargeStrategy {
 /// Request data for surcharge calculation
 #[derive(Debug, Clone)]
 pub struct SurchargeCalculateRequest {
-    pub amount: MinorUnit,
-    pub currency: Currency,
+    pub money: Money,
     pub previous_connector_surcharge_id: Option<String>,
     pub surcharge_strategy: Option<SurchargeStrategy>,
     pub card_bin: String,

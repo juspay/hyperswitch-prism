@@ -470,7 +470,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1365,7 +1365,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount_to_capture)
+            .convert(&item.router_data.request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1424,7 +1424,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.refund_amount)
+            .convert(&item.router_data.request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2687,7 +2687,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2976,7 +2976,7 @@ pub fn webhook_payment_details(
                         error_message: None,
                         raw_connector_response: None,
                         response_headers: None,
-                        amount_captured: None,
+                        captured_money: None,
                         error_reason: None,
                         network_txn_id: response.payment_data.and_then(|payment_data| {
                             match payment_data {
@@ -3022,7 +3022,7 @@ pub fn webhook_payment_details(
                     error_message: Some(notif.result.status_text),
                     raw_connector_response: None,
                     response_headers: None,
-                    amount_captured: None,
+                    captured_money: None,
                     error_reason: None,
                     network_txn_id: None,
                     payment_method_update: None,
@@ -3047,7 +3047,7 @@ pub fn webhook_payment_details(
                     error_message: None,
                     raw_connector_response: None,
                     response_headers: None,
-                    amount_captured: None,
+                    captured_money: None,
                     error_reason: None,
                     network_txn_id: None,
                     payment_method_update: None,
@@ -3100,7 +3100,7 @@ pub fn webhook_payment_details(
                 error_message: error.then_some(notif.result.status_text),
                 raw_connector_response: None,
                 response_headers: None,
-                amount_captured: None,
+                captured_money: None,
                 error_reason: None,
                 network_txn_id: None,
                 payment_method_update: None,
@@ -3251,7 +3251,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
