@@ -163,6 +163,9 @@ message CompositeAuthorizeRequest {
 
   // Whether the payment uses a previously stored credential.
   optional bool is_stored_credential = 67;
+
+  // Authorize-only Account Name Verification opt-in, forwarded to PaymentServiceAuthorizeRequest.
+  optional bool enable_account_name_verification = 68;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -907,6 +910,9 @@ message CompositeVerifyRedirectResponseRequest {
 
   // Whether the payment uses a previously stored credential.
   optional bool is_stored_credential = 63;
+
+  // Preserve the Account Name Verification opt-in for authorization after redirect verification.
+  optional bool enable_account_name_verification = 64;
 }
 
 // Response message for composite verify redirect response flow.

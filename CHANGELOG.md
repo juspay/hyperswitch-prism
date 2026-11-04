@@ -19,6 +19,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.04.1
+
+### Features
+
+- Add backward compatible billing state details ([#2583](https://github.com/juspay/connector-service/pull/2583)) ([`1bea53f`](https://github.com/juspay/connector-service/commit/1bea53fa893bbd3215a0e083066bb0b437dbdd69))
+
+### Bug Fixes
+
+- **connector:** Tamara array webhook data ([#2674](https://github.com/juspay/connector-service/pull/2674)) ([`4f7614d`](https://github.com/juspay/connector-service/commit/4f7614d7269f5aea16f1f2485a1666f1d85bb572))
+- **core/connector:** Rename enable_ani_check flag to enable_account_name_verification ([#2676](https://github.com/juspay/connector-service/pull/2676)) ([`89b2350`](https://github.com/juspay/connector-service/commit/89b23503ec3d9a4f8a5e7c8019fe35449fe32e63))
+
+**Full Changelog:** [`2026.11.04.0...2026.11.04.1`](https://github.com/juspay/connector-service/compare/2026.11.04.0...2026.11.04.1)
+
+- - -
+
+## 2026.11.04.0
+
+### Features
+
+- **connector:** [Elavon PG] add zero-amount SetupMandate and recurring wallet CIT ([#2670](https://github.com/juspay/connector-service/pull/2670)) ([`190bcef`](https://github.com/juspay/connector-service/commit/190bceffa51267ce43acb3cc7b379ef2f63b97e4))
+- **connector/core:** [checkout] add ani check support and extend payment check to wallets ([#2675](https://github.com/juspay/connector-service/pull/2675)) ([`7972dd4`](https://github.com/juspay/connector-service/commit/7972dd49347db6c1fbb4b1c7117e97080a45e775))
+- **observability:** Log composite requests at the service boundary ([#2665](https://github.com/juspay/connector-service/pull/2665)) ([`9068ba1`](https://github.com/juspay/connector-service/commit/9068ba1549cb099ac2d0eb932d7b70db42e86b11))
+
+**Full Changelog:** [`2026.11.03.0...2026.11.04.0`](https://github.com/juspay/connector-service/compare/2026.11.03.0...2026.11.04.0)
+
+- - -
+
 ## 2026.11.03.0
 
 ### Features
