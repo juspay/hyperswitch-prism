@@ -4207,6 +4207,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         customer: None,
         business_country: None,
         enable_avs_check: None,
+        enable_ani_check: None,
     }
 }
 
