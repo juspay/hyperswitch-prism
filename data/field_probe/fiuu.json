@@ -3,8 +3,34 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: authenticate flow for fiuu"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "return_url": "https://example.com/3ds-return"
+        },
+        "sample": {
+          "url": "https://sandbox-payment.fiuu.com/RMS/API/Card/authentication.php",
+          "method": "Post",
+          "headers": {
+            "via": "HyperSwitch"
+          },
+          "body": ""
+        }
       }
     },
     "authorize": {
@@ -37,8 +63,42 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Apple Pay Manual through Fiuu"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://sandbox-payment.fiuu.com/RMS/API/Direct/1.4.0/index.php",
+          "method": "Post",
+          "headers": {
+            "via": "HyperSwitch"
+          },
+          "body": ""
+        }
       },
       "ApplePayDecrypted": {
         "status": "supported",
@@ -89,8 +149,8 @@
         }
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Apple Pay / Google Pay redirect and third-party SDK flows run in the browser on Fiuu and have no Direct API is not supported by Fiuu"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -288,12 +348,52 @@
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://sandbox-payment.fiuu.com/RMS/API/Direct/1.4.0/index.php",
+          "method": "Post",
+          "headers": {
+            "via": "HyperSwitch"
+          },
+          "body": ""
+        }
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Apple Pay / Google Pay redirect and third-party SDK flows run in the browser on Fiuu and have no Direct API is not supported by Fiuu"
       },
       "Ideal": {
         "status": "not_supported",
@@ -749,8 +849,33 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: post_authenticate flow for fiuu"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://sandbox-api.fiuu.com/RMS/API/Card/authn_query.php",
+          "method": "Post",
+          "headers": {
+            "via": "HyperSwitch"
+          },
+          "body": ""
+        }
       }
     },
     "pre_authenticate": {
@@ -814,7 +939,6 @@
           "address": {
             "billing_address": {}
           },
-          "webhook_url": "https://example.com/webhook",
           "customer_acceptance": {
             "acceptance_type": "OFFLINE",
             "accepted_at": 0
@@ -823,7 +947,7 @@
           "setup_future_usage": "OFF_SESSION"
         },
         "sample": {
-          "url": "https://sandbox-payment.fiuu.com/RMS/API/Direct/1.4.0/index.php",
+          "url": "https://sandbox-payment.fiuu.com/RMS/API/Card/cc_verification.php",
           "method": "Post",
           "headers": {
             "via": "HyperSwitch"
@@ -895,8 +1019,7 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "reason": "customer_request",
-          "webhook_url": "https://example.com/webhook"
+          "reason": "customer_request"
         },
         "sample": {
           "url": "https://sandbox-api.fiuu.com/RMS/API/refundAPI/index.php",
@@ -956,7 +1079,6 @@
           "auth_type": "NO_THREE_DS",
           "enrolled_for_3ds": false,
           "return_url": "https://example.com/mandate-return",
-          "webhook_url": "https://example.com/webhook",
           "setup_future_usage": "OFF_SESSION",
           "request_incremental_authorization": false,
           "customer_acceptance": {
@@ -965,7 +1087,7 @@
           }
         },
         "sample": {
-          "url": "https://sandbox-payment.fiuu.com/RMS/API/Direct/1.4.0/index.php",
+          "url": "https://sandbox-payment.fiuu.com/RMS/API/Card/cc_verification.php",
           "method": "Post",
           "headers": {
             "via": "HyperSwitch"
@@ -982,8 +1104,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Zero-amount SetupMandate for a non-card payment method is not supported by Fiuu. Fiuu Zero Dollar Verification (cc_verification.php) is card-only"
       }
     },
     "verify_redirect": {

@@ -8,12 +8,13 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import PaymentMethodAuthenticationClient
 from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authenticate", "authorize", "capture", "get", "parse_event", "post_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -30,6 +31,27 @@ _default_config = sdk_config_pb2.ConnectorConfig(
 
 
 
+
+def _build_authenticate_request():
+    return payment_pb2.PaymentMethodAuthenticationServiceAuthenticateRequest(
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
+            card=payment_methods_pb2.CardDetails(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_cvc=payment_methods_pb2.SecretString(value="737"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            ),
+        ),
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            billing_address=common_types_pb2.Address(),
+        ),
+        return_url="https://example.com/3ds-return",  # URLs for Redirection.
+    )
 
 def _build_authorize_request(capture_method: str):
     return payment_pb2.PaymentServiceAuthorizeRequest(
@@ -86,6 +108,26 @@ def _build_parse_event_request():
         ),
     )
 
+def _build_post_authenticate_request():
+    return payment_pb2.PaymentMethodAuthenticationServicePostAuthenticateRequest(
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
+            card=payment_methods_pb2.CardDetails(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_cvc=payment_methods_pb2.SecretString(value="737"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            ),
+        ),
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            billing_address=common_types_pb2.Address(),
+        ),
+    )
+
 def _build_proxy_authorize_request():
     return payment_pb2.PaymentServiceProxyAuthorizeRequest(
         merchant_transaction_id="probe_proxy_txn_001",
@@ -128,7 +170,6 @@ def _build_proxy_setup_recurring_request():
         address=payment_pb2.PaymentAddress(
             billing_address=common_types_pb2.Address(),
         ),
-        webhook_url="https://example.com/webhook",
         customer_acceptance=payment_pb2.CustomerAcceptance(
             acceptance_type=payment_pb2.AcceptanceType.Value("OFFLINE"),  # Type of acceptance (e.g., online, offline).
             accepted_at=0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
@@ -175,7 +216,6 @@ def _build_refund_request(connector_transaction_id: str):
             currency=common_types_pb2.Currency.Value("USD"),
         ),
         reason="customer_request",  # Reason for the refund.
-        webhook_url="https://example.com/webhook",  # URL for webhook notifications.
     )
 
 def _build_refund_get_request():
@@ -207,7 +247,6 @@ def _build_setup_recurring_request():
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Type of authentication to be used.
         enrolled_for_3ds=False,  # Indicates if the customer is enrolled for 3D Secure.
         return_url="https://example.com/mandate-return",  # URL to redirect after setup.
-        webhook_url="https://example.com/webhook",  # URL for webhook notifications.
         setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),  # Indicates future usage intention.
         request_incremental_authorization=False,  # Indicates if incremental authorization is requested.
         customer_acceptance=payment_pb2.CustomerAcceptance(  # Details of customer acceptance.
@@ -334,6 +373,15 @@ async def process_get_payment(merchant_transaction_id: str, config: sdk_config_p
     return {"status": getattr(get_response, "status", ""), "transaction_id": getattr(get_response, "connector_transaction_id", ""), "error": getattr(get_response, "error", None)}
 
 
+async def process_authenticate(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentMethodAuthenticationService.Authenticate"""
+    paymentmethodauthentication_client = PaymentMethodAuthenticationClient(config)
+
+    authenticate_response = await paymentmethodauthentication_client.authenticate(_build_authenticate_request())
+
+    return {"status": authenticate_response.status}
+
+
 async def process_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Authorize (Card)"""
     payment_client = PaymentClient(config)
@@ -368,6 +416,15 @@ async def process_parse_event(merchant_transaction_id: str, config: sdk_config_p
     parse_response = event_client.parse_event(_build_parse_event_request())
 
     return {"event_type": parse_response.event_type}
+
+
+async def process_post_authenticate(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentMethodAuthenticationService.PostAuthenticate"""
+    paymentmethodauthentication_client = PaymentMethodAuthenticationClient(config)
+
+    post_response = await paymentmethodauthentication_client.post_authenticate(_build_post_authenticate_request())
+
+    return {"status": post_response.status}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
