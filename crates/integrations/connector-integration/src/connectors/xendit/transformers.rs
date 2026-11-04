@@ -2412,7 +2412,16 @@ pub fn get_xendit_webhook_event_type(
         // doc: spec "#### UCS event mapping" — dispute.lost -> DisputeLost
         XenditWebhookEventType::DisputeLost => Ok(EventType::DisputeLost),
         // doc: spec "#### UCS event mapping" — payment.verified (VERIFY_PAYMENT_METHOD done) -> PaymentIntentSuccess
-        XenditWebhookEventType::PaymentVerified => Ok(EventType::PaymentIntentSuccess),
+        // Agrees with HandleEvent: a verification without the pt- token stays in progress.
+        XenditWebhookEventType::PaymentVerified => {
+            let payment_request: XenditWebhookPaymentRequest =
+                parse_xendit_webhook_data(envelope.data)?;
+            Ok(if payment_request.payment_token_id.is_some() {
+                EventType::PaymentIntentSuccess
+            } else {
+                EventType::PaymentIntentProcessing
+            })
+        }
         // doc: spec "#### UCS event mapping" — token / session lifecycle: recognised, no payment state change;
         // Unspecified = HS EventNotSupported -> 200 ack so Xendit stops retrying
         XenditWebhookEventType::PaymentTokenActivation
@@ -3233,6 +3242,30 @@ mod tests {
             "data": data
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn payment_verified_event_type_agrees_with_handle_event() {
+        let body =
+            |data: &str| format!(r#"{{"event":"payment.verified","data":{data}}}"#).into_bytes();
+        let with_token = body(r#"{"id":"pr-1","payment_token_id":"pt-1"}"#);
+        let without_token = body(r#"{"id":"pr-1"}"#);
+        assert_eq!(
+            get_xendit_webhook_event_type(parse_xendit_webhook_envelope(&with_token).unwrap())
+                .unwrap(),
+            EventType::PaymentIntentSuccess
+        );
+        assert_eq!(
+            get_xendit_webhook_event_type(parse_xendit_webhook_envelope(&without_token).unwrap())
+                .unwrap(),
+            EventType::PaymentIntentProcessing
+        );
+        assert_eq!(
+            build_xendit_payment_webhook_response(&without_token)
+                .unwrap()
+                .status,
+            common_enums::AttemptStatus::Pending
+        );
     }
 
     #[test]
