@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";
 import { test } from "../../../../../../framework/fixtures.js";
-import { scenarios } from "../../../../../catalog.js";
+import { scenarioFromFile } from "../../../../../catalog.js";
 import {
   createAddress,
   createBrowserInfo,
@@ -10,7 +10,7 @@ import {
   testReturnUrl,
 } from "../../../../../../test-data.js";
 
-const scenario = scenarios.no3dsCreateConfirm;
+const scenario = scenarioFromFile(import.meta.url);
 
 test.use({ scenario });
 test(scenario.title, async ({

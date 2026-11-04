@@ -11,9 +11,7 @@ validateConnectorScenarios(connectors);
 function validateConnectorScenarios(
   definitions: readonly ConnectorDefinition<ScenarioId>[],
 ): void {
-  const scenarioIds = new Set<ScenarioId>(
-    Object.values(scenarios).map((scenario) => scenario.id),
-  );
+  const scenarioIds = new Set<ScenarioId>(Object.keys(scenarios) as ScenarioId[]);
 
   for (const connector of definitions) {
     const overridden = Object.keys(connector.overrides ?? {}) as ScenarioId[];

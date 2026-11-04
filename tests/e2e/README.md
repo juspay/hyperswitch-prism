@@ -182,7 +182,7 @@ Payment retrieval and forced synchronization share `payments/retrieve/`, followi
 
 SDK-driven journeys can share these same payment groupings. Make SDK execution explicit in the filename, for example `automatic-capture-create-then-confirm-with-sdk.spec.ts`, and exercise the actual browser checkout. Reuse shared setup, API operations and checks; keep browser interactions and the journey visible in the spec. SDK setup and implementation will be introduced with the first such scenario.
 
-Planned files and `.gitkeep` directories are extension placeholders, not implemented coverage. Rename a planned file to `.spec.ts` only when implementing it, add its metadata and setup requirements to `scenarios/catalog.ts`, and import that catalog entry from the spec.
+Planned files and `.gitkeep` directories are extension placeholders, not implemented coverage. Rename a planned file to `.spec.ts` only when implementing it and add its metadata and setup requirements under the identical path key in `scenarios/catalog.ts`. The spec imports the catalog-bound resolver and calls `scenarioFromFile(import.meta.url)`; the framework derives its ID from the file path and fails discovery when the catalog key is absent or different.
 
 
 Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. Before implementing connector differences, follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md). The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, `expected`, and `report`.
@@ -199,7 +199,7 @@ Connector overrides are ordinary data, keyed by shared scenario ID:
 
 ```ts
 overrides: {
-  "no3ds-create-confirm": {
+  "payments/create-confirm/card/one-time/no3ds/create-confirm": {
     requests: {
       createPayment: {
         "initial-payment": {
@@ -238,6 +238,7 @@ Operations apply request overrides by stable call ID. They omit configured paths
 | `connectors/example.ts` | Compile-checked reference for all supported connector configuration forms; never registered or executed. |
 | `connectors/index.ts` | Register connectors and validate that scenario overrides and exclusions are known and non-conflicting. |
 | `framework/types.ts` | Define scenario metadata and data-only connector configuration types. |
+| `framework/scenario.ts` | Build the catalog-bound resolver that derives a branded scenario ID from the executing spec path. |
 | `framework/fixtures.ts` | Standard Playwright fixtures apply exclusions, provision context, and release resources. Export a typed public API without internal HTTP/keys/polling. No payment sequence. |
 | `framework/payment-operations.ts` | Execute individual payment operations and return responses; expose recorded-payment reads. |
 | `framework/merchant-setup.ts` | Configure UCS and provision the merchant, API key, profile, connector account, and routing rule. |

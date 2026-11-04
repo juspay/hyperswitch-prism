@@ -39,8 +39,7 @@ export type ConnectorDefinition<TScenarioId extends string = string> = {
   exclude?: Partial<Record<TScenarioId, { reason: string }>>;
 };
 
-export type Scenario = {
-  id: string;
+export type ScenarioDefinition = {
   title: string;
   description: string;
   verifies: string;
@@ -49,4 +48,12 @@ export type Scenario = {
       paymentMethodsEnabled: readonly JsonObject[];
     };
   };
+};
+
+declare const scenarioBrand: unique symbol;
+
+/** Constructed only by the path-to-catalog resolver. */
+export type Scenario<TId extends string = string> = ScenarioDefinition & {
+  id: TId;
+  readonly [scenarioBrand]: true;
 };

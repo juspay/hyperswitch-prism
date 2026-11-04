@@ -23,7 +23,7 @@ export const exampleConnector = {
   },
 
   overrides: {
-    "no3ds-create-confirm": {
+    "payments/create-confirm/card/one-time/no3ds/create-confirm": {
       requests: {
         createPayment: {
           "initial-payment": {
@@ -75,7 +75,7 @@ export const exampleConnector = {
 export const exampleExcludedConnector = {
   id: "example-excluded",
   exclude: {
-    "no3ds-create-confirm": {
+    "payments/create-confirm/card/one-time/no3ds/create-confirm": {
       reason: "Example connector does not support this documented behavior",
     },
   },

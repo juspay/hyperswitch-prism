@@ -4,7 +4,7 @@ import type { ScenarioId } from "../scenarios/catalog.js";
 export const fiservcommercehub = {
   id: "fiservcommercehub",
   overrides: {
-    "no3ds-create-confirm": {
+    "payments/create-confirm/card/one-time/no3ds/create-confirm": {
       requests: {
         createPayment: {
           "initial-payment": {

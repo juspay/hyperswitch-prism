@@ -41,7 +41,7 @@ Group call IDs under their operation in connector data:
 
 ```ts
 overrides: {
-  "connector-mandate-recurring": {
+  "payments/create-confirm/card/recurring/connector-mandate/no3ds/setup-then-recurring": {
     requests: {
       createPayment: {
         "mandate-setup": {
@@ -75,11 +75,14 @@ overrides: {
 },
 ```
 
-The outer key is the stable scenario ID. Request IDs are stable within their
-operation and scenario. Display titles and report labels are not override keys.
-The catalog-derived `ScenarioId` type rejects misspelled or unimplemented
-scenario IDs at compile time. Registry validation provides the same protection
-when definitions are assembled dynamically.
+The outer key is the canonical scenario ID: its relative spec path below
+`scenarios/`, without `.spec.ts`. The catalog-bound `scenarioFromFile` derives
+it from the executing module and resolves the matching catalog entry, so specs
+never repeat their IDs. Request IDs are stable within their operation and scenario. Display
+titles and report labels are not override keys. The catalog-derived `ScenarioId`
+type rejects misspelled or unimplemented scenario IDs at compile time. Registry
+validation provides the same protection when definitions are assembled
+dynamically.
 
 ## Request transformation rules
 

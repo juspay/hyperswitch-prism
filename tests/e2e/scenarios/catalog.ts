@@ -1,8 +1,10 @@
-import { defineScenario } from "../framework/scenario.js";
+import {
+  createScenarioResolver,
+  defineScenarios,
+} from "../framework/scenario.js";
 
-export const scenarios = {
-  no3dsCreateConfirm: defineScenario({
-    id: "no3ds-create-confirm",
+export const scenarios = defineScenarios({
+  "payments/create-confirm/card/one-time/no3ds/create-confirm": {
     title:
       "One-time No3DS card payment — create and confirm with customer and order details",
     description:
@@ -19,8 +21,10 @@ export const scenarios = {
         ],
       },
     },
-  }),
-} as const;
+  },
+});
 
-export type ScenarioId =
-  (typeof scenarios)[keyof typeof scenarios]["id"];
+export type ScenarioId = keyof typeof scenarios;
+
+/** The only supported constructor for executable scenarios. */
+export const scenarioFromFile = createScenarioResolver(scenarios);
