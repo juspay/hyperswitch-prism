@@ -8,7 +8,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     utils,
 };
@@ -422,23 +422,39 @@ impl TryFrom<ResponseRouterData<PlacetopayVoidPcResponse, Self>>
                 common_enums::PostCaptureVoidStatus::Pending
             }
         };
-        let description = post_capture_void_status
-            .is_post_capture_void_failure()
-            .then(|| {
-                inner
+        let connector_reference_id = inner.internal_reference.to_string();
+        let response = if post_capture_void_status.is_post_capture_void_failure() {
+            let message = inner.status.message.clone();
+            Err(ErrorResponse {
+                code: inner
                     .status
-                    .message
+                    .reason
                     .clone()
-                    .or_else(|| inner.status.reason.clone())
-            })
-            .flatten();
-        Ok(Self {
-            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
-                post_capture_void_status,
-                connector_reference_id: Some(inner.internal_reference.to_string()),
-                description,
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                message: message
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                reason: message,
                 status_code: item.http_code,
-            }),
+                attempt_status: None,
+                connector_transaction_id: Some(connector_reference_id),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(connector_reference_id),
+                status_code: item.http_code,
+            })
+        };
+        Ok(Self {
+            response,
             ..item.router_data
         })
     }

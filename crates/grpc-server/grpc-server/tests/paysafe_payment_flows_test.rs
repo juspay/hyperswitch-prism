@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Paysafe Connector Integration Tests
 //!
 //! This test suite validates the Paysafe connector implementation for UCS v2.
@@ -229,11 +230,13 @@ fn create_payment_authorize_request(
                 line3: None,
                 city: Some(Secret::new("New York".to_string())),
                 state: Some(Secret::new("NY".to_string())),
+                state_code_iso: None,
                 zip_code: Some(Secret::new("10001".to_string())),
                 country_alpha2_code: Some(grpc_api_types::payments::CountryAlpha2::Us.into()),
                 email: None,
                 phone_number: None,
                 phone_country_code: None,
+                origin_zip: None,
             }),
             shipping_address: None,
         }),

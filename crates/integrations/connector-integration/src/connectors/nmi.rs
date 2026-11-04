@@ -88,6 +88,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Nmi<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        // Defer reference validation to PSync request construction and the connector.
+        Ok(())
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Nmi<T>
@@ -402,16 +410,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .attach_printable("NMI chargeback payload carries no currency")
         })?;
 
-        let minor_units = domain_types::utils::convert_back_amount_to_minor_units_for_webhook(
+        let money = domain_types::utils::convert_back_amount_to_money_for_webhook(
             &StringMajorUnitForConnector,
             chargeback.amount.clone(),
             currency,
         )?;
-        let amount = domain_types::utils::convert_amount_for_webhook(
-            &StringMinorUnitForConnector,
-            minor_units,
-            currency,
-        )?;
+        let amount =
+            domain_types::utils::convert_amount_for_webhook(&StringMinorUnitForConnector, &money)?;
 
         Ok(DisputeWebhookDetailsResponse {
             amount,

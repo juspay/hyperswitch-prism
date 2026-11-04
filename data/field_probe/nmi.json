@@ -833,8 +833,39 @@
     },
     "pre_authenticate": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: continue_redirection_url — Missing required field: continue_redirection_url"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return",
+          "continue_redirection_url": "https://example.com/3ds-continue"
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "security_key=probe_key&ccnumber=4111111111111111&ccexp=0330&cvv=737&first_name=John&last_name=John&customer_vault=add_customer"
+        }
       }
     },
     "proxy_authorize": {

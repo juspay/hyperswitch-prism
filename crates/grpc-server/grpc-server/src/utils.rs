@@ -33,6 +33,8 @@ use ucs_env::{
 
 use crate::request::RequestData;
 
+use common_utils::request_metrics::InternalCompositeCall;
+
 /// Record the header's fields in request's trace
 pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> tracing::Span {
     let url_path = request.uri().path();
@@ -287,6 +289,7 @@ pub fn merge_configs(override_val: &Value, base_val: &Value) -> Value {
 pub fn log_before_initialization<T>(
     request_data: &RequestData<T>,
     service_name: &str,
+    is_internal: bool,
 ) -> CustomResult<(), IntegrationError>
 where
     T: serde::Serialize,
@@ -317,7 +320,11 @@ where
     current_span.record("merchant_id", merchant_id);
     current_span.record("tenant_id", tenant_id);
     current_span.record("request_id", request_id);
-    tracing::info!("Golden Log Line (incoming - request)");
+    if is_internal {
+        tracing::debug!("Internal service call - request");
+    } else {
+        tracing::info!("Golden Log Line (incoming - request)");
+    }
     Ok(())
 }
 
@@ -325,6 +332,7 @@ pub fn log_after_initialization<T>(
     result: &Result<tonic::Response<T>, tonic::Status>,
     log_fields_enabled: bool,
     log_fields: &CompiledLogFields,
+    is_internal: bool,
 ) where
     T: serde::Serialize + std::fmt::Debug,
 {
@@ -372,15 +380,14 @@ pub fn log_after_initialization<T>(
             current_span.record("error_message", status.message());
             // Backward-compatible: keep main's gRPC code-name string on `status_code`.
             current_span.record("status_code", status.code().to_string());
-            // Additive numeric `res_code`: connector-aware HTTP status (e.g. 422) — matches the
-            // HTTP response the caller receives, not the coarse gRPC code.
-            let http_status = crate::http::error::http_status_for_status(status).as_u16();
+            // Use the same tonic-to-HTTP mapping as the HTTP response adapter.
+            let http_status = crate::http::error::http_status_for_tonic_status(status).as_u16();
             record_json_fields_on_span(vec![("res_code", Value::from(i64::from(http_status)))]);
         }
     }
     // Apply unified log fields (transformations + static values) before emitting the golden log line
     #[cfg(feature = "log-transformations")]
-    if log_fields_enabled {
+    if log_fields_enabled && !is_internal {
         apply_log_fields(log_fields, None);
     }
     #[cfg(not(feature = "log-transformations"))]
@@ -388,7 +395,11 @@ pub fn log_after_initialization<T>(
         let _ = log_fields;
         let _ = log_fields_enabled;
     }
-    tracing::info!("Golden Log Line (incoming - response)");
+    if is_internal {
+        tracing::debug!("Internal service call - response");
+    } else {
+        tracing::info!("Golden Log Line (incoming - response)");
+    }
 }
 
 /// Record the additive numeric `latency_ms` on the current span. Shared by the streaming and
@@ -425,7 +436,14 @@ where
     >,
     R: serde::Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
 {
+    let is_internal = request
+        .extensions()
+        .get::<InternalCompositeCall>()
+        .is_some();
     let current_span = tracing::Span::current();
+    if is_internal {
+        current_span.record("message_", "Internal service call");
+    }
     let start_time = tokio::time::Instant::now();
     let masked_request_data =
         MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
@@ -434,7 +452,7 @@ where
 
     let handler_result = async {
         let request_data = parser(request, config.clone())?;
-        log_before_initialization(&request_data, service_name).to_grpc_error()?;
+        log_before_initialization(&request_data, service_name, is_internal).to_grpc_error()?;
         event_headers = request_data.masked_metadata.get_all_masked();
         event_metadata_payload = Some(request_data.extracted_metadata.clone());
 
@@ -453,6 +471,7 @@ where
         &grpc_response,
         config.log_fields.enabled,
         &config.log_fields.incoming,
+        is_internal,
     );
 
     #[cfg(feature = "otel")]
@@ -495,7 +514,14 @@ where
     Fut: std::future::Future<Output = Result<tonic::Response<R>, Report<GrpcError>>> + Send,
     R: serde::Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
 {
+    let is_internal = request
+        .extensions()
+        .get::<InternalCompositeCall>()
+        .is_some();
     let current_span = tracing::Span::current();
+    if is_internal {
+        current_span.record("message_", "Internal service call");
+    }
     let start_time = tokio::time::Instant::now();
     let masked_request_data =
         MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
@@ -504,7 +530,7 @@ where
 
     let handler_result = async {
         let request_data = RequestData::from_grpc_request(request, config.clone())?;
-        log_before_initialization(&request_data, service_name).to_grpc_error()?;
+        log_before_initialization(&request_data, service_name, is_internal).to_grpc_error()?;
         event_headers = request_data.masked_metadata.get_all_masked();
         event_metadata_payload = Some(request_data.extracted_metadata.clone());
 
@@ -523,6 +549,7 @@ where
         &grpc_response,
         config.log_fields.enabled,
         &config.log_fields.incoming,
+        is_internal,
     );
 
     #[cfg(feature = "otel")]

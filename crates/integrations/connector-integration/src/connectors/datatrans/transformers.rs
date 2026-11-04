@@ -787,6 +787,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::RevolutPay(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
+                | WalletData::SatispayIntent(_)
+                | WalletData::SatispayQr(_)
                 | WalletData::Wero(_)
                 | WalletData::LazyPayRedirect(_)
                 | WalletData::PhonePeRedirect(_)
@@ -2391,7 +2393,6 @@ impl TryFrom<ResponseRouterData<DatatransVoidPCResponse, Self>>
         let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
             post_capture_void_status: PostCaptureVoidStatus::Succeeded,
             connector_reference_id: Some(item.router_data.request.connector_transaction_id.clone()),
-            description: None,
             status_code: item.http_code,
         };
 

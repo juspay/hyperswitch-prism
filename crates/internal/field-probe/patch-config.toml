@@ -57,6 +57,17 @@ patches = [
   { path = "connector_feature_data", type = "secret_string", value = '{"api_transaction_id":"0000000000000001"}' },
 ]
 
+# An RAFT incremental authorization needs the original authorization's POS
+# fields and scheme identifier. Patch the serialized metadata when either
+# requirement is discovered, so it appears in the generated proto request.
+["incremental_authorization.connector_feature_data"]
+aliases = [
+  "connector_feature_data.terminal_data",
+  "connector_feature_data.brand_specific_data.transaction_id",
+]
+type = "secret_string"
+value = '{"api_transaction_id":"probe_auth_001","original_authorized_amount":{"amount":1000,"currency":"USD"},"terminal_data":{"EntryMode":"KEYED","POSConditionCode":"59","TerminalEntryCap":"0"},"ecommerce_data":{"E-commerceIndicator":"07"},"proc_flags_indicators":{"EstimatedAuth":"Y"},"brand_specific_data":{"VisaSpecificData":{"VisaTransactionId":"263010131742906"}}}'
+
 [payment_method]
 aliases = ["payment_method", "payment_method_data"]
 type = "card_with_no_cvc"
@@ -665,6 +676,11 @@ aliases = ["redirect_response"]
 type = "secret_json"
 value = "{\"params\":\"probe_redirect_params\",\"payload\":{\"TransactionId\":\"probe_txn_123\"}}"
 
+["pre_authenticate.continue_redirection_url"]
+aliases = ["continue_redirection_url"]
+type = "string"
+value = "https://example.com/3ds-continue"
+
 ["authenticate.continue_redirection_url"]
 aliases = ["continue_redirection_url"]
 type = "string"
@@ -704,4 +720,3 @@ value = "{\"transaction_id\":\"probe_txn_001\",\"order_id\":\"probe_order_001\"}
 # Note: ppro/worldpay token_authorize requires payment_method_type but
 # PaymentServiceTokenAuthorizeRequest has no such proto field — not fixable via
 # probe config.
-

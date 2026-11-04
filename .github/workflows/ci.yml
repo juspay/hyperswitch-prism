@@ -469,7 +469,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24.22.1'
           cache: 'npm'
           cache-dependency-path: sdk/javascript/package.json
 
@@ -837,7 +837,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24.22.1'
 
       - name: Build and verify isolated browser worker
         if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
@@ -890,17 +890,6 @@ jobs:
           SHARED_CHANGED: ${{ needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true' }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: .github/scripts/certify-connectors.sh
-
-      # Every request and response is already recorded per scenario; without this
-      # the file dies with the runner and only the assertion text survives.
-      - name: Upload certification reports
-        if: ${{ always() && env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: certification-reports
-          path: ${{ runner.temp }}/certify-*.json
-          if-no-files-found: ignore
-          retention-days: 2
 
       # A connector whose connector_specs/<name>/ directory did not exist at this
       # PR's base commit must prove itself on its own PR. Its specs.json states
@@ -1129,7 +1118,7 @@ jobs:
         if: matrix.node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24.22.1'
           cache: 'npm'
           cache-dependency-path: |
             sdk/javascript/package.json

@@ -1405,6 +1405,7 @@ fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
         region: details
             .state
             .as_ref()
+            .and_then(|state| state.code_or_name())
             .map(|state| Secret::new(state.peek().to_string())),
         country_code: details.country.map(|country| country.to_string()),
         postal_code: details
@@ -1959,7 +1960,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .iter()
                 .map(|detail| {
                     Ok::<_, Self::Error>(KountItem {
-                        price: super::KountAmountConvertor::convert(detail.amount, currency)?,
+                        price: super::KountAmountConvertor::convert(&common_utils::types::Money {
+                            amount: detail.amount,
+                            currency,
+                        })?,
                         name: detail.product_name.clone(),
                         quantity: detail.quantity,
                         description: detail.description.clone(),
@@ -2099,7 +2103,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         });
 
-        let amount = super::KountAmountConvertor::convert(req.amount.amount, currency)?;
+        let amount = super::KountAmountConvertor::convert(&common_utils::types::Money {
+            amount: req.amount.amount,
+            currency,
+        })?;
         let transactions = vec![KountTransaction {
             subtotal: amount.clone(),
             order_total: amount,
@@ -2528,10 +2535,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_status: req
                 .payment_status
                 .and_then(KountPaymentStatus::from_attempt_status),
-            order_total: super::KountAmountConvertor::convert(
-                req.amount.amount,
-                req.amount.currency,
-            )?,
+            order_total: super::KountAmountConvertor::convert(&req.amount)?,
             currency: req.amount.currency.to_string(),
             frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
             merchant_category_code,
@@ -2666,10 +2670,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .or_else(|| req.merchant_refund_id.clone()),
             refund_reason: req.refund_reason.clone(),
-            refund_amount: super::KountAmountConvertor::convert(
-                req.amount.amount,
-                req.amount.currency,
-            )?,
+            refund_amount: super::KountAmountConvertor::convert(&req.amount)?,
             currency: req.amount.currency.to_string(),
             frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
             merchant_category_code,
