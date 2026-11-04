@@ -1161,7 +1161,12 @@ pub(crate) fn build_clear_sale_address(
     };
     let county = required_value(n_county, address_details.and_then(|d| d.line2.as_ref()))?;
     let city = required_value(n_city, address_details.and_then(|d| d.city.as_ref()))?;
-    let state_raw = required_value(n_state, address_details.and_then(|d| d.state.as_ref()))?;
+    let state_raw = required_value(
+        n_state,
+        address_details
+            .and_then(|d| d.state.as_ref())
+            .and_then(domain_types::payment_address::StateDetails::code_or_name),
+    )?;
     let zipcode = required_value(n_zipcode, address_details.and_then(|d| d.zip.as_ref()))?;
     // Spec §5.1: `state` is the 2-char UF. `"Acre"` must go on the wire as `AC`.
     let state = clearsale_state_uf(label, state_raw.peek())?;

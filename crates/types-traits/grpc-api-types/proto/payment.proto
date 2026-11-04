@@ -1241,6 +1241,8 @@ message ConnectorMandateReferenceId {
   optional string payment_method_id = 2;
   optional string connector_mandate_request_reference_id = 3;
   optional SecretString mandate_metadata = 4;
+  optional string network_transaction_id = 5;
+  optional string transaction_link_id = 6;
 }
 
 message NetworkMandateId {
@@ -1857,6 +1859,7 @@ message GooglePayConnectorResponse {
   optional CardType card_type = 7; // The card type (credit/debit/prepaid/charge)
   optional string issuer_name = 8; // The name of the card issuer
   optional CountryAlpha2 issuer_country = 9; // The country of the card issuer (ISO alpha-2)
+  optional bytes payment_checks = 10; // Payment checks as JSON bytes
 }
 
 // Additional payment method data for Apple Pay
@@ -1870,6 +1873,7 @@ message ApplePayConnectorResponse {
   optional FundingSource funding_source = 6; // The card's funding source type
   optional string issuer_name = 7; // The name of the card issuer
   optional CountryAlpha2 issuer_country = 8; // The country of the card issuer (ISO alpha-2)
+  optional bytes payment_checks = 9; // Payment checks as JSON bytes
 }
 
 // Customer information for payments
@@ -2574,6 +2578,9 @@ message PaymentServiceAuthorizeRequest {
   // history, premium status, etc.) for connectors that factor customer risk
   // into authorization / onboarding decisions.
   optional RiskAssessmentData risk_assessment_data = 58;
+
+  // Opt in to account name verification for supported connectors.
+  optional bool enable_account_name_verification = 61;
 
  // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 59;
@@ -3717,6 +3724,9 @@ message PaymentServiceSetupRecurringRequest {
 
   // Whether the payment uses a previously stored credential.
   optional bool is_stored_credential = 44;
+
+  // Opt in to account name verification for supported connectors.
+  optional bool enable_account_name_verification = 45;
 }
 
 // Response message for a mandate setup operation

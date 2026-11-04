@@ -286,7 +286,7 @@ impl<T: PaymentMethodDataTypes> PayoutTransferRequest<T> {
             .as_ref()
             .and_then(|a| a.billing_address.as_ref())
             .and_then(|b| b.address.as_ref())
-            .and_then(|addr| addr.state.clone())
+            .and_then(|addr| addr.get_optional_state())
     }
 
     pub fn get_optional_billing_zip(&self) -> Option<Secret<String>> {

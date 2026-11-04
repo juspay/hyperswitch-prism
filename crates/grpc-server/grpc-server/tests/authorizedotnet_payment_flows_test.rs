@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::panic)]
@@ -160,6 +161,8 @@ fn create_repeat_payment_request(mandate_id: &str) -> RecurringPaymentServiceCha
                 connector_mandate_id: Some(mandate_id.to_string()),
                 payment_method_id: None,
                 mandate_metadata: None,
+                network_transaction_id: None,
+                transaction_link_id: None,
             },
         )),
     };
@@ -318,6 +321,7 @@ fn create_payment_authorize_request(
             line3: None,
             city: Some("Pecan Springs".to_string().into()),
             state: Some("TX".to_string().into()),
+            state_code_iso: None,
             zip_code: Some("44628".to_string().into()),
             country_alpha2_code: Some(i32::from(CountryAlpha2::Us)),
             phone_number: None,
@@ -576,6 +580,7 @@ fn create_register_request() -> PaymentServiceSetupRecurringRequest {
             line3: None,
             city: Some("Test City".to_string().into()),
             state: Some("NY".to_string().into()),
+            state_code_iso: None,
             zip_code: Some("10001".to_string().into()),
             country_alpha2_code: Some(i32::from(CountryAlpha2::Us)),
             phone_number: None,

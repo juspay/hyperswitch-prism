@@ -276,7 +276,7 @@ impl
             // state names (e.g. "California") so Netcetera doesn't reject the AReq with
             // "billAddrState: string is too long. Expected maximum 3 characters".
             bill_addr_state: billing
-                .and_then(|add| add.state.clone())
+                .and_then(|add| add.get_optional_state())
                 .filter(|s| s.peek().chars().count() <= 3),
             email: billing_address.as_ref().and_then(|a| a.email.clone()),
             cardholder_name: billing.and_then(get_optional_full_name),
@@ -287,7 +287,7 @@ impl
             ship_addr_line3: shipping.and_then(|add| add.line3.clone()),
             ship_addr_post_code: shipping.and_then(|add| add.zip.clone()),
             ship_addr_state: shipping
-                .and_then(|add| add.state.clone())
+                .and_then(|add| add.get_optional_state())
                 .filter(|s| s.peek().chars().count() <= 3),
         })
     }

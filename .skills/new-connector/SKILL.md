@@ -507,8 +507,9 @@ commit. Splitting the PR does not change that. Every connector this skill produc
 8. Evidence regenerated **against the branch head** after the last fix commit. Captures
    from an earlier revision are evidence for code that is not being merged
 
-**PR body requirements** (`references/quality-checklist.md` §16). GRACE does not write
-tests — that stands — so the PR body is the only place a human learns what needs one. Any
+**Run record requirements** (`references/quality-checklist.md` §16). The PR body holds only
+flows and their test calls. GRACE does not write tests — that stands — so the run record is the
+only place a human learns what needs one. Any
 **novel algorithmic logic** in the diff (signing/HMAC, hashing, checksum, custom amount
 encoding, a timestamp or nonce format that feeds a signature, bespoke serialization) is
 **listed line by line with the spec section it implements and a concrete input → expected
