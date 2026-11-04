@@ -2549,6 +2549,8 @@ pub struct FiservcommercehubSetupMandateRequest {
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubSetupMandateTransactionDetails {
     pub merchant_transaction_id: String,
+    /// Required with stored credentials when creating a customer-authorized reusable token.
+    pub account_verification: bool,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -2635,23 +2637,59 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth_type = &router_data.connector_config;
         let auth = FiservcommercehubAuthType::try_from(auth_type)?;
 
-        let source = match &router_data.request.payment_method_data {
+        let (source, wallet_eci) = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => {
                 let encrypted_card = encrypt_card_data(card, key_id, &public_key_der)?;
 
-                FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
-                    encryption_data: FiservcommercehubEncryptionData {
-                        key_id: encrypted_card.key_id,
-                        encryption_type: FiservcommercehubEncryptionType::Rsa,
-                        encryption_block: encrypted_card.encryption_block,
-                        encryption_block_fields: encrypted_card.encryption_block_fields,
-                    },
-                })
+                (
+                    FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
+                        encryption_data: FiservcommercehubEncryptionData {
+                            key_id: encrypted_card.key_id,
+                            encryption_type: FiservcommercehubEncryptionType::Rsa,
+                            encryption_block: encrypted_card.encryption_block,
+                            encryption_block_fields: encrypted_card.encryption_block_fields,
+                        },
+                    }),
+                    None,
+                )
+            }
+            PaymentMethodData::Wallet(wallet_data) => {
+                let google_pay_data = match wallet_data {
+                    WalletData::GooglePay(gpay_data) => gpay_data,
+                    _ => {
+                        return Err(error_stack::report!(
+                        errors::IntegrationError::NotImplemented(
+                            "Fiserv CommerceHub SetupMandate supports only Card or GooglePay"
+                                .to_string(),
+                            errors::IntegrationErrorContext {
+                                doc_url: Some(FISERV_TOKEN_API_VERSION_URL.to_string()),
+                                additional_context: Some(
+                                    "Received an unsupported wallet type for the SetupMandate flow"
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        )
+                    ))
+                    }
+                };
+
+                let wallet_eci = match &google_pay_data.tokenization_data {
+                    GpayTokenizationData::Decrypted(decrypted_gpay) => {
+                        decrypted_gpay.eci_indicator.clone()
+                    }
+                    GpayTokenizationData::Encrypted(_) => None,
+                };
+
+                (
+                    build_decrypted_wallet_source(wallet_data, key_id, &public_key_der)?,
+                    wallet_eci,
+                )
             }
             _ => {
                 return Err(error_stack::report!(
                 errors::IntegrationError::NotImplemented(
-                    "Fiserv CommerceHub SetupMandate supports only Card".to_string(),
+                    "Fiserv CommerceHub SetupMandate supports only Card or GooglePay".to_string(),
                     errors::IntegrationErrorContext {
                         doc_url: Some(FISERV_TOKEN_API_VERSION_URL.to_string()),
                         additional_context: Some(
@@ -2682,12 +2720,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
+                account_verification: true,
             },
             transaction_interaction: FiservcommercehubTransactionInteractionReq {
                 origin,
-                eci_indicator: None,
+                eci_indicator: router_data
+                    .request
+                    .authentication_data
+                    .as_ref()
+                    .and_then(|auth_data| auth_data.eci.as_deref())
+                    .or(wallet_eci.as_deref())
+                    .map(FiservcommercehubEciIndicator::try_from)
+                    .transpose()?,
             },
-            additional_data_3ds: None,
+            additional_data_3ds: build_additional_data_3ds(
+                router_data.request.authentication_data.as_ref(),
+            ),
             stored_credentials,
         };
         Ok(request)
