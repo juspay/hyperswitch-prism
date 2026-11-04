@@ -575,7 +575,7 @@ pub enum WorldpayraftAccountType {
     Wic,
 }
 
-/// Worldpay RAFT POS environment values. This connector does not settle through EMD files.
+/// Non-EMD values. Subscription is explicitly signalled by MitCategory::Subscription.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WorldpayraftPosEnvironment {
     #[serde(rename = "C")]
@@ -590,7 +590,6 @@ pub enum WorldpayraftPosEnvironment {
     FinalAuthorization,
     #[serde(rename = "P")]
     Preauthorization,
-    // Retained so connector metadata written by older versions can still be read.
     #[serde(rename = "U")]
     UnscheduledFinal,
 }
