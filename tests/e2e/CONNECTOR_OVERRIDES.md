@@ -27,7 +27,7 @@ An operation name is not a unique request. A recurring journey can call
 A scenario can likewise contain multiple captures or refunds. Applying one
 `createPayment` override to every call would modify the wrong requests.
 
-Give every overrideable call a stable ID that describes its role in the journey:
+Give every overridable call a stable ID that describes its role in the journey:
 
 ```ts
 const setup = await payments.createPayment("mandate-setup", setupRequest);
