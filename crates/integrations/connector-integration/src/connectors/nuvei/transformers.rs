@@ -251,7 +251,7 @@ fn build_nuvei_wallet_card(
             let GpayTokenizationData::Decrypted(token) = &data.tokenization_data else {
                 return Err(nuvei_authorize_not_implemented(
                     "Encrypted Google Pay",
-                    "Decrypt Google Pay in txns before calling Prism",
+                    "Send decrypted Google Pay data",
                 )
                 .into());
             };
@@ -277,7 +277,7 @@ fn build_nuvei_wallet_card(
             let ApplePayPaymentData::Decrypted(token) = &data.payment_data else {
                 return Err(nuvei_authorize_not_implemented(
                     "Encrypted Apple Pay",
-                    "Decrypt Apple Pay in txns before calling Prism",
+                    "Send decrypted Apple Pay data",
                 )
                 .into());
             };
@@ -1457,6 +1457,9 @@ pub struct NuveiMeta {
     pub mandate_reference: Option<NuveiMetaMandateReference>,
     #[serde(default)]
     pub network_txn_link_id: Option<String>,
+    /// ACS challenge result retained for redirect continuation.
+    #[serde(default, rename = "nuvei_challenge_cres")]
+    pub challenge_cres: Option<Secret<String>>,
 }
 
 pub(super) fn parse_nuvei_meta(
@@ -2240,6 +2243,7 @@ pub(super) fn build_nuvei_transaction_response(
                 three_ds_version: None,
                 mandate_reference: None,
                 network_txn_link_id: None,
+                challenge_cres: None,
             })
         })
         .transpose()
@@ -3533,13 +3537,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .transpose()?;
                     }
                     if let Some(metadata) = connector_metadata {
+                        let mut meta: NuveiMeta = serde_json::from_value(metadata.clone())
+                            .change_context(
+                                ConnectorError::response_handling_failed_with_context(
+                                    item.http_code,
+                                    Some("failed to decode Nuvei response metadata".to_owned()),
+                                ),
+                            )?;
                         if let Some(webhook) = request.webhook_url.as_ref().or_else(|| {
                             previous_meta
                                 .as_ref()
                                 .and_then(|meta| meta.webhook_url.as_ref())
                         }) {
-                            metadata["webhook_url"] = serde_json::Value::String(webhook.clone());
+                            meta.webhook_url = Some(webhook.clone());
                         }
+                        *metadata = encode_nuvei_meta(&meta, item.http_code)?;
                     }
                 }
                 // The 3DS leg after PreAuthenticate (payment with threeD):
@@ -3647,18 +3659,21 @@ fn with_nuvei_three_ds_leg_meta(
                 .map(|meta| meta.session_token.clone())
                 .ok_or(error)
         })?;
+    let previous_meta: Option<NuveiMeta> = previous_metadata
+        .map(serde_json::from_value)
+        .transpose()
+        .change_context(ConnectorError::response_handling_failed_with_context(
+            http_code,
+            Some("failed to decode Nuvei 3DS leg metadata".to_owned()),
+        ))?;
     let meta = NuveiMeta {
-        webhook_url: previous_metadata
+        webhook_url: previous_meta
             .as_ref()
-            .and_then(|meta| meta.get("webhook_url"))
-            .and_then(|url| url.as_str())
-            .map(str::to_owned)
+            .and_then(|meta| meta.webhook_url.clone())
             .or_else(|| nuvei_meta.and_then(|meta| meta.webhook_url.clone())),
-        browser_ip_address: previous_metadata
+        browser_ip_address: previous_meta
             .as_ref()
-            .and_then(|meta| meta.get("browser_ip_address"))
-            .and_then(|ip| ip.as_str())
-            .map(|ip| Secret::new(ip.to_owned()))
+            .and_then(|meta| meta.browser_ip_address.clone())
             .or_else(|| nuvei_meta.and_then(|meta| meta.browser_ip_address.clone())),
         session_token,
         related_transaction_id: Some(transaction_id),
@@ -3667,6 +3682,7 @@ fn with_nuvei_three_ds_leg_meta(
         three_ds_version: nuvei_meta.and_then(|meta| meta.three_ds_version.clone()),
         mandate_reference: meta_mandate_reference,
         network_txn_link_id: network_txn_link_id.clone().filter(|_| charged),
+        challenge_cres: None,
     };
 
     Ok(PaymentsResponseData::TransactionResponse {
@@ -3835,11 +3851,11 @@ pub(super) fn has_nuvei_session_token(data: Option<&Secret<String>>) -> bool {
 fn nuvei_stored_challenge_return(
     data: Option<&pii::SecretSerdeValue>,
 ) -> Option<ContinueRedirectionResponse> {
-    data.and_then(|data| data.peek().get("nuvei_challenge_cres"))
-        .and_then(serde_json::Value::as_str)
+    parse_nuvei_meta(data)
+        .and_then(|meta| meta.challenge_cres)
         .map(|cres| ContinueRedirectionResponse {
             params: None,
-            payload: Some(Secret::new(serde_json::json!({"cres": cres}))),
+            payload: Some(Secret::new(serde_json::json!({"cres": cres.peek()}))),
         })
 }
 
@@ -3872,7 +3888,7 @@ pub(super) fn process_nuvei_redirect(
         }),
     };
     validate_nuvei_challenge_result(&callback)?;
-    let mut meta: serde_json::Value = data
+    let mut meta: NuveiMeta = data
         .and_then(|data| serde_json::from_str(data.peek()).ok())
         .ok_or_else(|| {
             nuvei_missing_field(
@@ -3880,17 +3896,12 @@ pub(super) fn process_nuvei_redirect(
                 "Pass the metadata returned with the Nuvei challenge",
             )
         })?;
-    let parsed: NuveiMeta =
-        serde_json::from_value(meta.clone()).change_context(nuvei_missing_field(
-            "connector_feature_data",
-            "Pass the metadata returned with the Nuvei challenge",
-        ))?;
-    if parsed.three_ds_leg != Some(NuveiThreeDsLeg::Authenticate)
-        || parsed
+    if meta.three_ds_leg != Some(NuveiThreeDsLeg::Authenticate)
+        || meta
             .related_transaction_id
             .as_ref()
             .is_none_or(String::is_empty)
-        || parsed.session_token.peek().is_empty()
+        || meta.session_token.peek().is_empty()
     {
         return Err(nuvei_missing_field(
             "connector_feature_data",
@@ -3901,18 +3912,15 @@ pub(super) fn process_nuvei_redirect(
     if let Some(NuveiRedirectionResponse::Redirection { cres }) =
         get_nuvei_redirection_response(&callback)
     {
-        meta.as_object_mut()
-            .ok_or_else(|| {
-                nuvei_missing_field(
-                    "connector_feature_data",
-                    "Pass the metadata returned with the Nuvei challenge",
-                )
-            })?
-            .insert(
-                "nuvei_challenge_cres".to_owned(),
-                serde_json::Value::String(cres.peek().clone()),
-            );
+        meta.challenge_cres = Some(cres);
     }
+    let connector_feature_data =
+        serde_json::to_string(&meta).change_context(IntegrationError::RequestEncodingFailed {
+            context: nuvei_error_context(
+                "Retry the redirect continuation with the Nuvei challenge metadata",
+                "Failed to encode Nuvei challenge continuation metadata",
+            ),
+        })?;
     Ok(domain_types::connector_types::RedirectDetailsResponse {
         resource_id: None,
         status: None,
@@ -3922,7 +3930,7 @@ pub(super) fn process_nuvei_redirect(
         error_message: None,
         error_reason: None,
         raw_connector_response: None,
-        connector_feature_data: Some(meta.to_string()),
+        connector_feature_data: Some(connector_feature_data),
     })
 }
 
@@ -4336,6 +4344,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .and_then(|three_d| three_d.version.clone()),
             mandate_reference: None,
             network_txn_link_id: None,
+            challenge_cres: None,
         };
         let connector_feature_data = encode_nuvei_meta(&meta, item.http_code)?;
 
@@ -4836,6 +4845,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .and_then(|three_d| three_d.version.clone()),
             mandate_reference: meta_mandate_reference,
             network_txn_link_id: network_txn_link_id.clone(),
+            challenge_cres: None,
         };
         let connector_feature_data = encode_nuvei_meta(&meta, item.http_code)?;
 
