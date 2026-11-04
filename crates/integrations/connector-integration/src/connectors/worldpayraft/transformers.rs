@@ -575,7 +575,7 @@ pub enum WorldpayraftAccountType {
     Wic,
 }
 
-/// Non-EMD values. Subscription is explicitly signalled by MitCategory::Subscription.
+/// Worldpay RAFT POS environment values. This connector does not settle through EMD files.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WorldpayraftPosEnvironment {
     #[serde(rename = "C")]
@@ -590,6 +590,7 @@ pub enum WorldpayraftPosEnvironment {
     FinalAuthorization,
     #[serde(rename = "P")]
     Preauthorization,
+    // Retained so connector metadata written by older versions can still be read.
     #[serde(rename = "U")]
     UnscheduledFinal,
 }
@@ -653,23 +654,9 @@ impl WorldpayraftPosEnvironment {
             Some(MitCategory::Installment) if network == Some(&CardNetwork::Visa) => {
                 Some(Self::Installment)
             }
-            // The COF guide uses U for an unscheduled payment whose final amount is known.
-            Some(MitCategory::Unscheduled)
-                if final_amount_known
-                    && matches!(
-                        network,
-                        Some(
-                            CardNetwork::Visa
-                                | CardNetwork::Mastercard
-                                | CardNetwork::Maestro
-                                | CardNetwork::Discover
-                        )
-                    ) =>
-            {
-                Some(Self::UnscheduledFinal)
-            }
+            // Unscheduled COF uses C for non-EMD settlement. U is reserved for EMD merchants.
             Some(
-                MitCategory::Installment | MitCategory::Unscheduled | MitCategory::Resubmission,
+                MitCategory::Unscheduled | MitCategory::Installment | MitCategory::Resubmission,
             ) => Some(Self::CredentialOnFile),
             // Subsequent cardholder-initiated COF is identified by CREDONFL;
             // ECOM certification requires POSEnvironment to be absent.
@@ -2121,7 +2108,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let requires_avs = request.enable_avs_check == Some(true)
             || (wallet.is_some() && network == Some(CardNetwork::Visa));
-        let address_verification_data = if !is_debit && (requires_avs || wallet.is_some()) {
+        let address_verification_data = if !is_debit
+            && kind != WorldpayraftPaymentKind::Mit
+            && (requires_avs || wallet.is_some())
+        {
             let billing = router_data
                 .resource_common_data
                 .get_optional_billing()
@@ -3275,7 +3265,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             request.connector_feature_data.as_ref(),
             Some(&request.mandate_reference),
         ))?;
-        // MITs use the credential and its expiry, without a CIT CVV or cryptogram.
+        // MITs use the credential and its expiry, without CIT CVV, AVS, or cryptogram data.
         let is_network_token = matches!(
             &request.payment_method_data,
             PaymentMethodData::NetworkToken(_)
@@ -3392,24 +3382,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             true,
             metadata.connector_metadata.original_transaction_link_id(),
         )?;
-        let address_verification_data = router_data
-            .resource_common_data
-            .get_optional_billing()
-            .and_then(|billing| billing.address.as_ref())
-            .and_then(|address| {
-                let zip = address
-                    .zip
-                    .clone()
-                    .filter(|value| !value.peek().trim().is_empty());
-                let line = address
-                    .line1
-                    .clone()
-                    .filter(|value| !value.peek().trim().is_empty());
-                (zip.is_some() && line.is_some()).then_some(WorldpayraftAddressVerificationData {
-                    avs_zip_code: zip,
-                    avs_address: line,
-                })
-            });
         let inner = WorldpayraftCardAuthInner {
             misc_amounts_balances: WorldpayraftAmounts { transaction_amount },
             account_codes_and_data: Some(WorldpayraftCreditAccountData {
@@ -3418,7 +3390,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             card_info,
             encryption_token_data,
             card_verification_data: None,
-            address_verification_data,
+            address_verification_data: None,
             terminal_data: pos.terminal_data,
             ecommerce_data: WorldpayraftAuthorizeEcommerceData {
                 ecommerce_data: pos.ecommerce_data,
