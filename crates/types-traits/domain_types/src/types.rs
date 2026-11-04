@@ -3919,8 +3919,8 @@ pub struct AuthorizationRequest {
     pub business_country: Option<String>,
     /// Authorize-only opt-in for address verification using supplied billing details.
     pub enable_avs_check: Option<bool>,
-    /// Opt-in for account name inquiry.
-    pub enable_ani_check: Option<bool>,
+    /// Opt-in for account name verification.
+    pub enable_account_name_verification: Option<bool>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3944,7 +3944,7 @@ pub struct SetupRecurringRequest {
     pub setup_future_usage: grpc_payment_types::FutureUsage,
     pub request_incremental_authorization: bool,
     pub enable_partial_authorization: Option<bool>,
-    pub enable_ani_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     pub browser_info: Option<grpc_payment_types::BrowserInformation>,
     pub billing_descriptor: Option<grpc_payment_types::BillingDescriptor>,
     pub locale: Option<String>,
@@ -4064,7 +4064,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             additional_connector_details: req.additional_connector_details,
             business_country: req.business_country,
             enable_avs_check: req.enable_avs_check,
-            enable_ani_check: req.enable_ani_check,
+            enable_account_name_verification: req.enable_account_name_verification,
         }
     }
 }
@@ -4151,7 +4151,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             additional_connector_details: None,
             business_country: None,
             enable_avs_check: req.enable_avs_check,
-            enable_ani_check: None,
+            enable_account_name_verification: None,
         }
     }
 }
@@ -4191,7 +4191,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             is_stored_credential: req.is_stored_credential,
             request_incremental_authorization: req.request_incremental_authorization,
             enable_partial_authorization: req.enable_partial_authorization,
-            enable_ani_check: req.enable_ani_check,
+            enable_account_name_verification: req.enable_account_name_verification,
             order_category: req.order_category,
             order_id: req.order_id,
             order_tax_amount: req
@@ -4256,7 +4256,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             authentication_data: req.authentication_data,
             request_incremental_authorization: false,
             enable_partial_authorization: None,
-            enable_ani_check: None,
+            enable_account_name_verification: None,
             browser_info: req.browser_info,
             billing_descriptor: None,
             locale: None,
@@ -5870,7 +5870,7 @@ impl<
                 .as_ref()
                 .and_then(|c| common_enums::CountryAlpha2::from_str(c).ok()),
             enable_avs_check: value.enable_avs_check,
-            enable_ani_check: value.enable_ani_check,
+            enable_account_name_verification: value.enable_account_name_verification,
             tokenization,
             mit_category: value.mit_category,
             domain_data: value
@@ -6046,7 +6046,7 @@ impl<
             integrity_object: None,
             payment_channel,
             enable_partial_authorization: value.enable_partial_authorization,
-            enable_ani_check: value.enable_ani_check,
+            enable_account_name_verification: value.enable_account_name_verification,
             locale: value.locale.clone(),
             order_category: value.order_category.clone(),
             mit_category: value.mit_category,
@@ -8125,6 +8125,8 @@ impl ForeignFrom<connector_types::MandateReference> for grpc_payment_types::Mand
                         mandate_metadata: mandate_reference
                             .mandate_metadata
                             .map(|metadata| Secret::new(metadata.expose().to_string())),
+                        network_transaction_id: None,
+                        transaction_link_id: None,
                     },
                 ),
             ),
@@ -8157,6 +8159,8 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateReference> for MandateRefer
                     })
                     .transpose()?,
                 connector_mandate_id.connector_mandate_request_reference_id,
+                connector_mandate_id.network_transaction_id,
+                connector_mandate_id.transaction_link_id,
             ))),
             Some(grpc_api_types::payments::mandate_reference::MandateIdType::NetworkMandateId(
                 network_mandate_id,
@@ -14236,7 +14240,7 @@ impl<
             merchant_order_id: value.merchant_order_id,
             payment_channel,
             enable_partial_authorization: value.enable_partial_authorization,
-            enable_ani_check: value.enable_ani_check,
+            enable_account_name_verification: value.enable_account_name_verification,
             locale: value.locale.clone(),
             order_category: value.order_category.clone(),
             connector_testing_data: value.connector_testing_data.and_then(|s| {
@@ -22296,7 +22300,7 @@ pub fn tokenized_authorize_to_base(
         additional_connector_details: None,
         business_country: None,
         enable_avs_check: v.enable_avs_check,
-        enable_ani_check: None,
+        enable_account_name_verification: None,
         risk_assessment_data: None,
     }
 }
@@ -22384,7 +22388,7 @@ pub fn tokenized_setup_recurring_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
-        enable_ani_check: None,
+        enable_account_name_verification: None,
         // TokenSetupRecurringRequest has no test_mode or capture_method field
         test_mode: None,
         capture_method: None,
@@ -22497,7 +22501,7 @@ pub fn proxied_authorize_to_base(
         additional_connector_details: None,
         business_country: None,
         enable_avs_check: v.enable_avs_check,
-        enable_ani_check: None,
+        enable_account_name_verification: None,
         risk_assessment_data: None,
     })
 }
@@ -22621,7 +22625,7 @@ pub fn proxied_setup_recurring_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
-        enable_ani_check: None,
+        enable_account_name_verification: None,
         test_mode: v.test_mode,
         capture_method: None,
     })

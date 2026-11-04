@@ -19,6 +19,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.04.2
+
+### Features
+
+- **connector:** [JPMorgan] Support proxy MIT payments with Safetech tokens ([#2611](https://github.com/juspay/connector-service/pull/2611)) ([`8bb8925`](https://github.com/juspay/connector-service/commit/8bb8925c0be85dad6c3e241ff6fd4999c0e1b44a))
+
+### Bug Fixes
+
+- **connector:** Correct Worldpay RAFT COF request data ([#2677](https://github.com/juspay/connector-service/pull/2677)) ([`7104997`](https://github.com/juspay/connector-service/commit/7104997e039691a446dc9aac7f513358d575510a))
+- **fiservcommercehub:**
+  - Handle empty payment sync results ([#2672](https://github.com/juspay/connector-service/pull/2672)) ([`857f473`](https://github.com/juspay/connector-service/commit/857f4738d8f04571c42f8533ad2b550ebaa685ab))
+  - Handle empty payment sync results ([#2672](https://github.com/juspay/connector-service/pull/2672)) ([`fef822e`](https://github.com/juspay/connector-service/commit/fef822eb1d27d1730f3da0e22e636549e46e519d))
+
+**Full Changelog:** [`2026.11.04.1...2026.11.04.2`](https://github.com/juspay/connector-service/compare/2026.11.04.1...2026.11.04.2)
+
+- - -
+
+## 2026.11.04.1
+
+### Features
+
+- Add backward compatible billing state details ([#2583](https://github.com/juspay/connector-service/pull/2583)) ([`1bea53f`](https://github.com/juspay/connector-service/commit/1bea53fa893bbd3215a0e083066bb0b437dbdd69))
+
+### Bug Fixes
+
+- **connector:** Tamara array webhook data ([#2674](https://github.com/juspay/connector-service/pull/2674)) ([`4f7614d`](https://github.com/juspay/connector-service/commit/4f7614d7269f5aea16f1f2485a1666f1d85bb572))
+- **core/connector:** Rename enable_ani_check flag to enable_account_name_verification ([#2676](https://github.com/juspay/connector-service/pull/2676)) ([`89b2350`](https://github.com/juspay/connector-service/commit/89b23503ec3d9a4f8a5e7c8019fe35449fe32e63))
+
+**Full Changelog:** [`2026.11.04.0...2026.11.04.1`](https://github.com/juspay/connector-service/compare/2026.11.04.0...2026.11.04.1)
+
+- - -
+
 ## 2026.11.04.0
 
 ### Features
