@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.04.2
+
+### Features
+
+- **connector:** [JPMorgan] Support proxy MIT payments with Safetech tokens ([#2611](https://github.com/juspay/connector-service/pull/2611)) ([`8bb8925`](https://github.com/juspay/connector-service/commit/8bb8925c0be85dad6c3e241ff6fd4999c0e1b44a))
+
+### Bug Fixes
+
+- **connector:** Correct Worldpay RAFT COF request data ([#2677](https://github.com/juspay/connector-service/pull/2677)) ([`7104997`](https://github.com/juspay/connector-service/commit/7104997e039691a446dc9aac7f513358d575510a))
+- **fiservcommercehub:**
+  - Handle empty payment sync results ([#2672](https://github.com/juspay/connector-service/pull/2672)) ([`857f473`](https://github.com/juspay/connector-service/commit/857f4738d8f04571c42f8533ad2b550ebaa685ab))
+  - Handle empty payment sync results ([#2672](https://github.com/juspay/connector-service/pull/2672)) ([`fef822e`](https://github.com/juspay/connector-service/commit/fef822eb1d27d1730f3da0e22e636549e46e519d))
+
+**Full Changelog:** [`2026.11.04.1...2026.11.04.2`](https://github.com/juspay/connector-service/compare/2026.11.04.1...2026.11.04.2)
+
+- - -
+
 ## 2026.11.04.1
 
 ### Features
