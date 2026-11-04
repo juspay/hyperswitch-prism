@@ -15,7 +15,7 @@ serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde_qs = "0.12.0"
 serde_urlencoded = "0.7.1"
-serde_with = "3.7.0"
+serde_with = "3.21.0"
 uuid = { version = "1", features = ["v4", "v5"] }
 error-stack = "0.4.0"
 strum = { version = "0.26", features = ["derive"] }
@@ -44,12 +44,12 @@ qrcode = "0.14.1"
 image = { version = "0.25.6", default-features = false, features = ["png"] }
 thiserror = { workspace = true }
 sha2 = "0.10"
-rand = "0.8"
-jsonwebtoken = "9.2"
+rand = "0.8.6"
+jsonwebtoken = "10.3.0"
 html-escape = "0.2"
 josekit = "0.8.7"
 async-trait = "0.1.92"
-openssl = {version = "0.10.70"}
+openssl = { version = "0.10.81" }
 
 [features]
 # Déjà call-graph instrumentation (`ucs::*` / `connector::*` spans). A pure cfg
