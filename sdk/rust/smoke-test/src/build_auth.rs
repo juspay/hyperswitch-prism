@@ -350,6 +350,16 @@ pub fn build_connector_config(
             config: Some(connector_specific_config::Config::Rapyd(RapydConfig {
                 access_key: Some(Secret::new(get_val(creds, "access_key")?)),
                 secret_key: Some(Secret::new(get_val(creds, "secret_key")?)),
+                country_of_incorporation: creds
+                    .contains_key("country_of_incorporation")
+                    .then(|| {
+                        let country = get_val(creds, "country_of_incorporation")?;
+                        CountryAlpha2::from_str_name(&country)
+                            .filter(|country| *country != CountryAlpha2::Unspecified)
+                            .map(i32::from)
+                            .ok_or_else(|| "invalid country_of_incorporation".to_string())
+                    })
+                    .transpose()?,
                 ..Default::default()
             })),
         }),

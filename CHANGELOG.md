@@ -19,6 +19,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.05.0
+
+### Features
+
+- **connector:**
+  - Remove mandate metadata and preserve follow-up flows ([#2673](https://github.com/juspay/connector-service/pull/2673)) ([`7583b86`](https://github.com/juspay/connector-service/commit/7583b867c123a9b8ab3549bf3d703090e60ce46a))
+  - [Elavon PG] move recurring payments to stored cards ([#2678](https://github.com/juspay/connector-service/pull/2678)) ([`64d56dd`](https://github.com/juspay/connector-service/commit/64d56dd0461beb635a8ecf601261f1388a7290ce))
+  - [Checkout] live-verified card, wallet, mandate and dispute flows ([#2566](https://github.com/juspay/connector-service/pull/2566)) ([`3f34bfc`](https://github.com/juspay/connector-service/commit/3f34bfc48197d883792ebb2b5e413e17e3b33763))
+- **flywire:** Enable checkout payment methods ([#2682](https://github.com/juspay/connector-service/pull/2682)) ([`0137e4d`](https://github.com/juspay/connector-service/commit/0137e4d2ab0a7727b067ce979fca6f3fa9abda00))
+- **interpayments:** Add surcharge refund init and complete flows ([#2640](https://github.com/juspay/connector-service/pull/2640)) ([`3a019bd`](https://github.com/juspay/connector-service/commit/3a019bd1a01a1ff8a534317aed6e2614f503978a))
+
+### Refactors
+
+- **grace:** Cut PR descriptions to flows and per-flow test calls ([#2681](https://github.com/juspay/connector-service/pull/2681)) ([`dd3eaa1`](https://github.com/juspay/connector-service/commit/dd3eaa1e1101da583636bf6a51bf9b02d6bf3f37))
+
+**Full Changelog:** [`2026.11.04.2...2026.11.05.0`](https://github.com/juspay/connector-service/compare/2026.11.04.2...2026.11.05.0)
+
+- - -
+
+## 2026.11.04.2
+
+### Features
+
+- **connector:** [JPMorgan] Support proxy MIT payments with Safetech tokens ([#2611](https://github.com/juspay/connector-service/pull/2611)) ([`8bb8925`](https://github.com/juspay/connector-service/commit/8bb8925c0be85dad6c3e241ff6fd4999c0e1b44a))
+
+### Bug Fixes
+
+- **connector:** Correct Worldpay RAFT COF request data ([#2677](https://github.com/juspay/connector-service/pull/2677)) ([`7104997`](https://github.com/juspay/connector-service/commit/7104997e039691a446dc9aac7f513358d575510a))
+- **fiservcommercehub:**
+  - Handle empty payment sync results ([#2672](https://github.com/juspay/connector-service/pull/2672)) ([`857f473`](https://github.com/juspay/connector-service/commit/857f4738d8f04571c42f8533ad2b550ebaa685ab))
+  - Handle empty payment sync results ([#2672](https://github.com/juspay/connector-service/pull/2672)) ([`fef822e`](https://github.com/juspay/connector-service/commit/fef822eb1d27d1730f3da0e22e636549e46e519d))
+
+**Full Changelog:** [`2026.11.04.1...2026.11.04.2`](https://github.com/juspay/connector-service/compare/2026.11.04.1...2026.11.04.2)
+
+- - -
+
+## 2026.11.04.1
+
+### Features
+
+- Add backward compatible billing state details ([#2583](https://github.com/juspay/connector-service/pull/2583)) ([`1bea53f`](https://github.com/juspay/connector-service/commit/1bea53fa893bbd3215a0e083066bb0b437dbdd69))
+
+### Bug Fixes
+
+- **connector:** Tamara array webhook data ([#2674](https://github.com/juspay/connector-service/pull/2674)) ([`4f7614d`](https://github.com/juspay/connector-service/commit/4f7614d7269f5aea16f1f2485a1666f1d85bb572))
+- **core/connector:** Rename enable_ani_check flag to enable_account_name_verification ([#2676](https://github.com/juspay/connector-service/pull/2676)) ([`89b2350`](https://github.com/juspay/connector-service/commit/89b23503ec3d9a4f8a5e7c8019fe35449fe32e63))
+
+**Full Changelog:** [`2026.11.04.0...2026.11.04.1`](https://github.com/juspay/connector-service/compare/2026.11.04.0...2026.11.04.1)
+
+- - -
+
+## 2026.11.04.0
+
+### Features
+
+- **connector:** [Elavon PG] add zero-amount SetupMandate and recurring wallet CIT ([#2670](https://github.com/juspay/connector-service/pull/2670)) ([`190bcef`](https://github.com/juspay/connector-service/commit/190bceffa51267ce43acb3cc7b379ef2f63b97e4))
+- **connector/core:** [checkout] add ani check support and extend payment check to wallets ([#2675](https://github.com/juspay/connector-service/pull/2675)) ([`7972dd4`](https://github.com/juspay/connector-service/commit/7972dd49347db6c1fbb4b1c7117e97080a45e775))
+- **observability:** Log composite requests at the service boundary ([#2665](https://github.com/juspay/connector-service/pull/2665)) ([`9068ba1`](https://github.com/juspay/connector-service/commit/9068ba1549cb099ac2d0eb932d7b70db42e86b11))
+
+**Full Changelog:** [`2026.11.03.0...2026.11.04.0`](https://github.com/juspay/connector-service/compare/2026.11.03.0...2026.11.04.0)
+
+- - -
+
 ## 2026.11.03.0
 
 ### Features

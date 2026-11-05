@@ -51,7 +51,9 @@ use domain_types::{
     surcharge::surcharge_types::{
         SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
         SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
-        SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse,
+        SurchargeRefundCompleteRequest, SurchargeRefundCompleteResponse,
+        SurchargeRefundInitRequest, SurchargeRefundInitResponse, SurchargeRefundSucceededRequest,
+        SurchargeRefundSucceededResponse,
     },
     types::{PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
 };
@@ -147,6 +149,8 @@ pub trait SurchargeServiceTrait:
     ConnectorCommon
     + ValidationTrait
     + SurchargeCalculateV2
+    + SurchargeRefundInitV2
+    + SurchargeRefundCompleteV2
     + SurchargePaymentSucceededV2
     + SurchargeRefundSucceededV2
 {
@@ -300,6 +304,18 @@ pub trait ValidationTrait: ConnectorCommon {
             .unwrap_or(false)
     }
 
+    /// Whether authentication routing needs decoded payment-method data.
+    /// The connector selects the categories it needs; PCI-specific request
+    /// conversion remains in the granular service.
+    fn requires_authentication_payment_method_data(&self, _payment_method: PaymentMethod) -> bool {
+        false
+    }
+
+    /// Whether authentication routing needs external authentication data.
+    fn requires_authentication_data(&self) -> bool {
+        false
+    }
+
     /// Returns the next authentication step for composite authorize flow.
     /// The connector examines the current state and returns which step should execute next.
     fn next_authentication_step(
@@ -308,6 +324,10 @@ pub trait ValidationTrait: ConnectorCommon {
         _payment_method: PaymentMethod,
         _redirect_state: RedirectState,
         _completed_step: Option<AuthenticationStep>,
+        _payment_method_data: Option<
+            &PaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>,
+        >,
+        _authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> AuthenticationStep {
         AuthenticationStep::Authorize
     }
@@ -1022,6 +1042,26 @@ pub trait SurchargeCalculateV2:
     SurchargeFlowData,
     SurchargeCalculateRequest,
     SurchargeCalculateResponse,
+>
+{
+}
+
+pub trait SurchargeRefundInitV2:
+    ConnectorIntegrationV2<
+    connector_flow::SurchargeRefundInit,
+    SurchargeFlowData,
+    SurchargeRefundInitRequest,
+    SurchargeRefundInitResponse,
+>
+{
+}
+
+pub trait SurchargeRefundCompleteV2:
+    ConnectorIntegrationV2<
+    connector_flow::SurchargeRefundComplete,
+    SurchargeFlowData,
+    SurchargeRefundCompleteRequest,
+    SurchargeRefundCompleteResponse,
 >
 {
 }

@@ -512,6 +512,7 @@ pub enum ConnectorSpecificConfig {
     Rapyd {
         access_key: Secret<String>,
         secret_key: Secret<String>,
+        country_of_incorporation: Option<common_enums::CountryAlpha2>,
         base_url: Option<String>,
     },
     Authipay {
@@ -2527,6 +2528,32 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Rapyd(rapyd) => Ok(Self::Rapyd {
                 access_key: rapyd.access_key.ok_or_else(err)?,
                 secret_key: rapyd.secret_key.ok_or_else(err)?,
+                country_of_incorporation: rapyd
+                    .country_of_incorporation
+                    .map(|country| {
+                        let invalid_country = || errors::IntegrationError::InvalidConnectorConfig {
+                            config: "country_of_incorporation",
+                            context: errors::IntegrationErrorContext {
+                                additional_context: Some(
+                                    "The Rapyd country is unspecified or is not a recognized ISO country."
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Set country_of_incorporation to the country assigned by Rapyd during merchant onboarding."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        };
+                        let country = grpc_api_types::payments::CountryAlpha2::try_from(country)
+                            .map_err(|_| invalid_country())?;
+                        if country == grpc_api_types::payments::CountryAlpha2::Unspecified {
+                            return Err(invalid_country().into());
+                        }
+                        common_enums::CountryAlpha2::foreign_try_from(country)
+                            .change_context(invalid_country())
+                    })
+                    .transpose()?,
                 base_url: rapyd.base_url,
             }),
             AuthType::AbsaSanlam(absa_sanlam) => Ok(Self::AbsaSanlam {
@@ -3431,6 +3458,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Rapyd {
                         access_key: api_key.clone(),
                         secret_key: key1.clone(),
+                        // Legacy credentials do not carry merchant onboarding metadata.
+                        // Fresh payment-method objects require typed Rapyd configuration.
+                        country_of_incorporation: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -5021,6 +5051,7 @@ impl ConnectorResponseData {
             common_enums::PaymentMethodType::GooglePay => {
                 AdditionalPaymentMethodConnectorResponse::GooglePay {
                     auth_code: Some(auth_code),
+                    payment_checks: None,
                     device_pan_bin: None,
                     card_bin: None,
                     card_subtype: None,
@@ -5034,6 +5065,7 @@ impl ConnectorResponseData {
             common_enums::PaymentMethodType::ApplePay => {
                 AdditionalPaymentMethodConnectorResponse::ApplePay {
                     auth_code: Some(auth_code),
+                    payment_checks: None,
                     device_pan_bin: None,
                     card_bin: None,
                     card_subtype: None,
@@ -5131,6 +5163,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     GooglePay {
         auth_code: Option<String>,
+        /// Various payment checks that are done for a payment
+        payment_checks: Option<serde_json::Value>,
         /// Bin of the DPAN (device PAN), as returned by the connector
         device_pan_bin: Option<String>,
         /// Bin of the underlying card, as returned by the connector
@@ -5150,6 +5184,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     ApplePay {
         auth_code: Option<String>,
+        /// Various payment checks that are done for a payment
+        payment_checks: Option<serde_json::Value>,
         /// Bin of the DPAN (device PAN), as returned by the connector
         device_pan_bin: Option<String>,
         /// Bin of the underlying card, as returned by the connector
