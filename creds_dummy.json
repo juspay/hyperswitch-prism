@@ -82,6 +82,14 @@
     "api_key": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
     "_comment": "Configuration for celero connector"
   },
+  "checkout": {
+    "api_key": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "api_secret": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "processing_channel_id": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "client_id": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "currency_account_id": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "_comment": "api_key = payment public key (pk_...), api_secret = secret key (sk_...), client_id (cli_...) and currency_account_id (ca_...) are payout-only"
+  },
   "cryptopay": {
     "api_key": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
     "_comment": "Configuration for cryptopay connector"

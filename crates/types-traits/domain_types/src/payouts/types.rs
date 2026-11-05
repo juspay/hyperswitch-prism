@@ -1622,7 +1622,12 @@ fn payout_source_of_funds_from_proto(
             let invalid = || {
                 error_stack::report!(IntegrationError::InvalidDataFormat {
                     field_name: "vendor_account_details.source_of_funds",
-                    context: Default::default(),
+                    context: crate::errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Unknown PayoutSourceOfFunds enum value: {value}"
+                        )),
+                        ..Default::default()
+                    },
                 })
             };
             Ok(match Grpc::try_from(value).map_err(|_| invalid())? {
@@ -1651,8 +1656,14 @@ impl ForeignTryFrom<grpc_api_types::payouts::AdditionalPayoutConnectorDetails>
 
         match value.connector.ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "additional_payout_connector_details.connector".into(),
-                context: Default::default(),
+                field_name: "additional_payout_connector_details.connector",
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "additional_payout_connector_details was sent without a connector variant"
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
             })
         })? {
             Connector::Checkout(checkout) => Ok(Self::Checkout(
@@ -1688,7 +1699,12 @@ impl ForeignTryFrom<i32> for payouts::payouts_types::CheckoutPayoutFundsTransfer
         use grpc_api_types::payouts::checkout_additional_payout_information::FundsTransferType as Ftt;
         let invalid = || IntegrationError::InvalidDataFormat {
             field_name: "additional_payout_connector_details.checkout.funds_transfer_type",
-            context: Default::default(),
+            context: crate::errors::IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Unknown Checkout FundsTransferType enum value: {value}"
+                )),
+                ..Default::default()
+            },
         };
         match Ftt::try_from(value).change_context(invalid())? {
             Ftt::AccountToAccount => Ok(Self::AccountToAccount),
@@ -1798,7 +1814,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
                             email: vd.email,
                             phone_number: vd.phone_number,
                             phone_country_code: vd.phone_country_code,
-                            reference_id: vd.reference_id,
+                            merchant_sender_reference_id: vd.merchant_sender_reference_id,
                             source_of_funds: payout_source_of_funds_from_proto(vd.source_of_funds)?,
                         },
                     )
@@ -1827,7 +1843,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
                                 .transpose()?,
                             email: id.email,
                             phone_country_code: id.phone_country_code,
-                            reference_id: id.reference_id,
+                            merchant_sender_reference_id: id.merchant_sender_reference_id,
                             source_of_funds: payout_source_of_funds_from_proto(id.source_of_funds)?,
                         },
                     )

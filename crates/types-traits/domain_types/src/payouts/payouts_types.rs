@@ -564,7 +564,9 @@ pub struct PayoutVendorDetails {
     pub email: Option<Secret<String>>,
     pub phone_number: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
-    pub reference_id: Option<Secret<String>>,
+    /// Merchant-created reference for the sending party, forwarded to the connector as the
+    /// sender reference (e.g. Checkout `sender.reference`).
+    pub merchant_sender_reference_id: Option<Secret<String>>,
     pub source_of_funds: Option<PayoutSourceOfFunds>,
 }
 
@@ -583,7 +585,9 @@ pub struct PayoutIndividualDetails {
     pub address: Option<crate::payment_address::Address>,
     pub email: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
-    pub reference_id: Option<Secret<String>>,
+    /// Merchant-created reference for the sending party, forwarded to the connector as the
+    /// sender reference (e.g. Checkout `sender.reference`).
+    pub merchant_sender_reference_id: Option<Secret<String>>,
     pub source_of_funds: Option<PayoutSourceOfFunds>,
 }
 

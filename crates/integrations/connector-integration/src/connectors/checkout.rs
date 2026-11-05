@@ -775,6 +775,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         )])
     }
 
+    /// Returns the configured URL **unresolved** — it may still contain the
+    /// `{{optional_client_id}}` placeholder. The `ConnectorCommon` trait returns `&str`, so
+    /// resolution cannot happen here (it allocates); every payment URL goes through
+    /// [`checkout_payment_base_url`] (which resolves with an empty client ID) and payouts
+    /// through `payout_connectors::checkout::get_checkout_payout_base_url`. Never use this
+    /// raw value to build a request URL directly.
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.checkout.base_url.as_ref()
     }

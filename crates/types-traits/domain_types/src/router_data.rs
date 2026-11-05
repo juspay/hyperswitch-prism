@@ -632,10 +632,14 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
     },
     Checkout {
+        /// Payment public key (`pk_...`), used by `POST /tokens` only.
         api_key: Secret<String>,
+        /// Secret key (`sk_...`), the Bearer credential on every request.
         api_secret: Secret<String>,
         processing_channel_id: Secret<String>,
         client_id: Option<Secret<String>>,
+        /// Payout-only Checkout currency account (`ca_...`) used as `source.id`.
+        currency_account_id: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Cybersource {
@@ -2326,6 +2330,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_secret: checkout.api_secret.ok_or_else(err)?,
                 processing_channel_id: checkout.processing_channel_id.ok_or_else(err)?,
                 client_id: checkout.client_id,
+                currency_account_id: checkout.currency_account_id,
                 base_url: checkout.base_url,
             }),
             AuthType::Cryptopay(cryptopay) => Ok(Self::Cryptopay {
@@ -3607,6 +3612,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_secret: api_secret.clone(),
                         processing_channel_id: key1.clone(),
                         client_id: None,
+                        currency_account_id: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -4603,6 +4609,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_secret: api_secret.clone(),
                         processing_channel_id: key1.clone(),
                         client_id: None,
+                        currency_account_id: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),

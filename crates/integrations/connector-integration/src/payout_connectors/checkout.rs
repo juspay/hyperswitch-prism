@@ -1,7 +1,9 @@
+mod test;
 pub mod transformers;
 
 use crate::connectors::checkout::{resolve_checkout_base_url, OPTIONAL_CLIENT_ID};
 use crate::{connectors::macros, types::ResponseRouterData};
+use common_enums::PayoutStatus;
 use common_utils::{errors::CustomResult, events, types::MinorUnit};
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer},
@@ -11,7 +13,7 @@ use domain_types::{
         PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
         PayoutTransferResponse,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -25,24 +27,21 @@ use interfaces::{
 use serde::Serialize;
 use std::fmt::Debug;
 use transformers::CheckoutPayoutResponse as CheckoutPayoutGetResponse;
-use transformers::{CheckoutPayoutGetRequest, CheckoutPayoutRequest, CheckoutPayoutResponse};
+use transformers::{CheckoutPayoutRequest, CheckoutPayoutResponse};
 
 pub const CHECKOUT_IDEMPOTENCY_KEY_HEADER: &str = "Cko-Idempotency-Key";
 
 /// Resolves the Checkout payout-only hostname without changing the payment connector URL.
 /// An absent client ID removes the optional subdomain; a present client ID contributes its
-/// eight-character account prefix followed by a dot.
+/// eight-character account prefix followed by a dot. A `base_url` override without the
+/// `{{optional_client_id}}` placeholder is taken literally, mirroring payment URL handling.
 /// https://www.checkout.com/docs/developer-resources/api/api-endpoints
 pub fn get_checkout_payout_base_url(
     configured_base_url: &str,
     client_id: Option<&Secret<String>>,
 ) -> CustomResult<String, IntegrationError> {
     if !configured_base_url.contains(OPTIONAL_CLIENT_ID) {
-        return Err(IntegrationError::InvalidDataFormat {
-            field_name: "connectors.checkout.base_url",
-            context: Default::default(),
-        }
-        .into());
+        return Ok(configured_base_url.trim_end_matches('/').to_string());
     }
 
     let optional_client_id = client_id
@@ -54,9 +53,17 @@ pub fn get_checkout_payout_base_url(
                 .filter(|value| value.bytes().all(|byte| byte.is_ascii_alphanumeric()))
                 .map(|prefix| format!("{prefix}."))
                 .ok_or_else(|| {
-                    domain_types::utils::missing_field_err(
-                        "merchant_connector_account.metadata.client_id",
-                    )()
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "checkout.connector_config.client_id",
+                        context: domain_types::errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "Client ID must look like `cli_<id>`; its eight-character \
+                                 account prefix forms the payout API subdomain"
+                                    .to_owned(),
+                            ),
+                            ..Default::default()
+                        },
+                    })
                 })
         })
         .transpose()?
@@ -74,7 +81,7 @@ macros::create_all_prerequisites!(
     api: [
         (flow: PayoutTransfer, request_body: CheckoutPayoutRequest, response_body: CheckoutPayoutResponse,
          router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,),
-        (flow: PayoutGet, request_body: CheckoutPayoutGetRequest, response_body: CheckoutPayoutGetResponse,
+        (flow: PayoutGet, response_body: CheckoutPayoutGetResponse,
          router_data: RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,)
     ],
     amount_converters: [amount_converter: MinorUnit],
@@ -115,7 +122,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event: Option<&mut events::Event>,
         config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        crate::connectors::Checkout::<T>::new().build_error_response(res, event, config)
+        // Reuse the payment connector's body parsing, then remap for money movement: a 4xx
+        // rejection terminally fails the payout (409/429 stay retryable), 5xx stays pending,
+        // and the payment-side `request_id` must not leak into `connector_payout_id`.
+        let mut error =
+            crate::connectors::Checkout::<T>::new().build_error_response(res, event, config)?;
+        error.attempt_status = match error.status_code {
+            409 | 429 => None,
+            400..=499 => Some(FlowStatus::Payout(PayoutStatus::Failure)),
+            _ => Some(FlowStatus::Payout(PayoutStatus::Pending)),
+        };
+        error.connector_transaction_id = None;
+        Ok(error)
     }
 }
 
@@ -148,6 +166,12 @@ macros::macro_connector_implementation!(
     http_method: Post, generic_type: T, [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
         fn get_headers(&self, req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // A missing merchant_payout_id makes extract_connector_request_reference_id default
+            // to "", which would send an empty Cko-Idempotency-Key and `reference` — retries on
+            // this flow move money, so an empty reference must never reach the wire.
+            if req.resource_common_data.connector_request_reference_id.is_empty() {
+                return Err(domain_types::utils::missing_field_err("merchant_payout_id")());
+            }
             let mut headers = self.get_auth_header(&req.connector_config)?;
             headers.push((CHECKOUT_IDEMPOTENCY_KEY_HEADER.into(), req.resource_common_data.connector_request_reference_id.clone().into()));
             Ok(headers)
@@ -162,7 +186,7 @@ macros::macro_connector_implementation!(
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: CheckoutPayouts, curl_request: Json(CheckoutPayoutGetRequest), curl_response: CheckoutPayoutGetResponse,
+    connector: CheckoutPayouts, curl_response: CheckoutPayoutGetResponse,
     flow_name: PayoutGet, resource_common_data: PayoutFlowData, flow_request: PayoutGetRequest, flow_response: PayoutGetResponse,
     http_method: Get, generic_type: T, [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {

@@ -489,6 +489,9 @@ message PayoutServiceTransferRequest {
   optional string merchant_request_id = 18;
   // Billing descriptor information to be sent to the payout gateway.
   optional BillingDescriptor billing_descriptor = 19;
+  // Connector-specific transfer parameters keyed by the routed connector, populated by
+  // Hyperswitch from the payout's connector_metadata (e.g. the Checkout Visa Direct /
+  // Mastercard Send funds_transfer_type).
   optional AdditionalPayoutConnectorDetails additional_payout_connector_details = 20;
   // Sender API input is normalized by Hyperswitch into the common vendor type.
   optional PayoutVendorAccountDetails vendor_account_details = 21;
@@ -726,7 +729,11 @@ message VendorDetails {
   optional SecretString email = 13;
   optional SecretString phone_number = 14;
   optional string phone_country_code = 15;
-  optional SecretString reference_id = 16;
+  // Merchant-created reference for the sending party, forwarded to the connector as the
+  // sender reference (e.g. Checkout `sender.reference`).
+  optional SecretString merchant_sender_reference_id = 16;
+  // Merchant-declared classification of the funds the sender supplies, forwarded to the
+  // connector as Visa Direct / Mastercard Send `sender.source_of_funds`.
   optional PayoutSourceOfFunds source_of_funds = 17;
 }
 
@@ -754,7 +761,11 @@ message IndividualDetails {
   optional Address address = 12;
   optional SecretString email = 13;
   optional string phone_country_code = 15;
-  optional SecretString reference_id = 16;
+  // Merchant-created reference for the sending party, forwarded to the connector as the
+  // sender reference (e.g. Checkout `sender.reference`).
+  optional SecretString merchant_sender_reference_id = 16;
+  // Merchant-declared classification of the funds the sender supplies, forwarded to the
+  // connector as Visa Direct / Mastercard Send `sender.source_of_funds`.
   optional PayoutSourceOfFunds source_of_funds = 17;
 }
 
@@ -862,13 +873,21 @@ message PayoutMethodEligibilityResponse {
   optional string connector_eligibility_reference_id = 8;
 }
 
-// Classification of funds supplied by the payout funding party.
+// Classification of funds supplied by the payout funding party. Populated by the merchant
+// (via Hyperswitch `sender_details`); required by Visa Direct / Mastercard Send
+// money-movement compliance. Values mirror the Visa Direct `sender.sourceOfFunds` code set.
 enum PayoutSourceOfFunds {
   PAYOUT_SOURCE_OF_FUNDS_UNSPECIFIED = 0;
+  // Funds sourced from the sender's credit card account.
   PAYOUT_SOURCE_OF_FUNDS_CREDIT = 1;
+  // Funds sourced from the sender's debit card account.
   PAYOUT_SOURCE_OF_FUNDS_DEBIT = 2;
+  // Funds sourced from the sender's prepaid card account.
   PAYOUT_SOURCE_OF_FUNDS_PREPAID = 3;
+  // Funds sourced from the sender's deposit (bank) account.
   PAYOUT_SOURCE_OF_FUNDS_DEPOSIT_ACCOUNT = 4;
+  // Funds sourced from the sender's mobile money account.
   PAYOUT_SOURCE_OF_FUNDS_MOBILE_MONEY_ACCOUNT = 5;
+  // Funds sourced from cash.
   PAYOUT_SOURCE_OF_FUNDS_CASH = 6;
 }

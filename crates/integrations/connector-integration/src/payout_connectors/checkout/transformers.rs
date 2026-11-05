@@ -26,12 +26,16 @@ use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-/// Checkout payout credentials resolved from the connector config.
+/// Checkout payout credentials resolved from the connector config. Deliberately excludes
+/// `api_key`: that field holds the payment **public** key (`pk_...`, used only by
+/// `POST /tokens`), and a payout must never send it — the funding source is
+/// `currency_account_id` instead.
 pub struct CheckoutPayoutCredentials<'a> {
-    pub api_key: &'a Secret<String>,
     pub api_secret: &'a Secret<String>,
     pub processing_channel_id: &'a Secret<String>,
     pub client_id: Option<&'a Secret<String>>,
+    /// Checkout currency account (`ca_...`) used as the payout `source.id`.
+    pub currency_account_id: Option<&'a Secret<String>>,
 }
 
 pub fn credentials(
@@ -39,16 +43,17 @@ pub fn credentials(
 ) -> Result<CheckoutPayoutCredentials<'_>, error_stack::Report<IntegrationError>> {
     match config {
         ConnectorSpecificConfig::Checkout {
-            api_key,
+            api_key: _,
             api_secret,
             processing_channel_id,
             client_id,
+            currency_account_id,
             ..
         } => Ok(CheckoutPayoutCredentials {
-            api_key,
             api_secret,
             processing_channel_id,
             client_id: client_id.as_ref(),
+            currency_account_id: currency_account_id.as_ref(),
         }),
         _ => Err(missing_field_err("checkout.connector_config")()),
     }
@@ -87,7 +92,10 @@ struct CheckoutPayoutNetworkToken {
     expiry_month: Secret<u8>,
     expiry_year: Secret<u16>,
     token_type: CheckoutPayoutTokenType,
-    // Optional until cryptogram and ECI are supplied by the shared payout contract.
+    // Checkout's payout token contract accepts a cryptogram and ECI alongside the DPAN.
+    // They are always `None` today (the shared payout contract supplies neither) and are
+    // serde-skipped, so they never appear on the wire; they stay here intentionally so the
+    // struct doesn't churn when the contract starts supplying them.
     #[serde(skip_serializing_if = "Option::is_none")]
     cryptogram: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -155,19 +163,20 @@ struct CheckoutPayoutCorporateSender {
     source_of_funds: CheckoutPayoutSourceOfFunds,
 }
 #[derive(Debug, Serialize)]
-struct CheckoutPayoutReference(String);
+pub(crate) struct CheckoutPayoutReference(Secret<String>);
 
 impl CheckoutPayoutReference {
-    /// Sender reference is taken from `reference_id` only; there is no fallback.
-    fn try_from_reference_id(
+    /// Sender reference takes the merchant-created `merchant_sender_reference_id` only;
+    /// there is no fallback. The field stays secret all the way to the wire.
+    pub(crate) fn try_from_reference_id(
         reference_id: Option<&Secret<String>>,
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
-        let reference = reference_id
-            .ok_or_else(missing_field_err("vendor_account_details.reference_id"))?
-            .peek();
-        if reference.chars().count() > 15 {
+        let reference = reference_id.ok_or_else(missing_field_err(
+            "vendor_account_details.merchant_sender_reference_id",
+        ))?;
+        if reference.peek().chars().count() > 15 {
             return Err(IntegrationError::InvalidDataFormat {
-                field_name: "vendor_account_details.reference_id",
+                field_name: "vendor_account_details.merchant_sender_reference_id",
                 context: domain_types::errors::IntegrationErrorContext {
                     additional_context: Some(
                         "Sender reference must not exceed 15 characters".to_owned(),
@@ -177,7 +186,7 @@ impl CheckoutPayoutReference {
             }
             .into());
         }
-        Ok(Self(reference.to_owned()))
+        Ok(Self(reference.clone()))
     }
 }
 
@@ -302,7 +311,7 @@ impl CheckoutPayoutCorporateSender {
             ))?,
             address: CheckoutPayoutAddress::try_from_sender_address(vendor.address.as_ref())?,
             reference: CheckoutPayoutReference::try_from_reference_id(
-                vendor.reference_id.as_ref(),
+                vendor.merchant_sender_reference_id.as_ref(),
             )?,
             reference_type: CheckoutPayoutReferenceType::Other,
             source_of_funds: vendor
@@ -330,7 +339,7 @@ impl CheckoutPayoutIndividualSender {
             date_of_birth: individual.date_of_birth.clone(),
             address: CheckoutPayoutAddress::try_from_sender_address(individual.address.as_ref())?,
             reference: CheckoutPayoutReference::try_from_reference_id(
-                individual.reference_id.as_ref(),
+                individual.merchant_sender_reference_id.as_ref(),
             )?,
             reference_type: CheckoutPayoutReferenceType::Other,
             source_of_funds: individual
@@ -425,20 +434,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Some(PayoutMethodData::Wallet(Wallet::ApplePayDecrypt(token))) => {
                 CheckoutPayoutMethod::NetworkToken(Box::new(CheckoutPayoutNetworkToken {
                     token: token.dpan.clone(),
-                    expiry_month: Secret::new(
-                        token
-                            .expiry_month
-                            .peek()
-                            .parse()
-                            .map_err(|_| missing_field_err("apple_pay.expiry_month")())?,
-                    ),
-                    expiry_year: Secret::new(
-                        token
-                            .expiry_year
-                            .peek()
-                            .parse()
-                            .map_err(|_| missing_field_err("apple_pay.expiry_year")())?,
-                    ),
+                    expiry_month: Secret::new(token.expiry_month.peek().parse().map_err(|_| {
+                        error_stack::report!(IntegrationError::InvalidDataFormat {
+                            field_name: "apple_pay.expiry_month",
+                            context: domain_types::errors::IntegrationErrorContext {
+                                additional_context: Some(
+                                    "expiry month must be a number 1-12".to_owned(),
+                                ),
+                                ..Default::default()
+                            },
+                        })
+                    })?),
+                    expiry_year: Secret::new(token.expiry_year.peek().parse().map_err(|_| {
+                        error_stack::report!(IntegrationError::InvalidDataFormat {
+                            field_name: "apple_pay.expiry_year",
+                            context: domain_types::errors::IntegrationErrorContext {
+                                additional_context: Some(
+                                    "expiry year must be a four-digit number".to_owned(),
+                                ),
+                                ..Default::default()
+                            },
+                        })
+                    })?),
                     token_type: CheckoutPayoutTokenType::Applepay,
                     cryptogram: None,
                     eci: None,
@@ -451,17 +468,34 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     account_holder: holder,
                 }))
             }
-            _ => {
-                return Err(IntegrationError::InvalidDataFormat {
-                    field_name: "payout_method_data",
-                    context: Default::default(),
+            Some(unsupported) => {
+                // `Debug` on PayoutMethodData masks Secret fields, so no PII leaks here.
+                return Err(IntegrationError::NotSupported {
+                    message: format!("Payout method {unsupported:?}"),
+                    connector: "checkout",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Checkout payouts support Apple Pay decrypted wallet tokens and \
+                             PSP-token passthrough only"
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
                 }
-                .into())
+                .into());
             }
+            None => return Err(missing_field_err("payout_method_data")()),
         };
         Ok(Self {
             source: CheckoutPayoutSource::CurrencyAccount(CheckoutPayoutCurrencyAccount {
-                id: creds.api_key.clone(),
+                // The payout origin is the merchant's Checkout currency account, a
+                // payout-only credential — never the payment public key in `api_key`.
+                id: creds
+                    .currency_account_id
+                    .ok_or_else(missing_field_err(
+                        "checkout.connector_config.currency_account_id",
+                    ))?
+                    .clone(),
             }),
             destination,
             amount: data.request.amount,
@@ -487,26 +521,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-#[derive(Debug, Serialize)]
-pub struct CheckoutPayoutGetRequest {}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        CheckoutPayoutsRouterData<
-            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-            T,
-        >,
-    > for CheckoutPayoutGetRequest
-{
-    type Error = error_stack::Report<IntegrationError>;
-    fn try_from(
-        _: CheckoutPayoutsRouterData<
-            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-            T,
-        >,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {})
-    }
-}
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckoutPayoutResponse {
     id: String,
@@ -515,9 +529,12 @@ pub struct CheckoutPayoutResponse {
     response_summary: Option<String>,
 }
 /// Checkout.com returns transfer statuses in PascalCase on the wire (e.g. `"Pending"`,
-/// `"Paid"`); the lowercase forms are kept as deserialize aliases for safety.
+/// `"Paid"`); the lowercase forms are kept as deserialize aliases for safety. The set
+/// mirrors the payment connector's `GET /payments/{id}` statuses so a status Checkout.com
+/// reuses there never fails payout deserialization, and any genuinely new status lands in
+/// `Unknown` (in-flight) instead of erroring on a transfer Checkout already holds.
 #[derive(Debug, Serialize, Deserialize)]
-enum CheckoutPayoutStatus {
+pub(crate) enum CheckoutPayoutStatus {
     #[serde(alias = "accepted")]
     Accepted,
     #[serde(alias = "rejected")]
@@ -534,16 +551,52 @@ enum CheckoutPayoutStatus {
     /// Bank payout returned by the receiving bank after funds were dispatched.
     #[serde(alias = "returned")]
     Returned,
+    // --- statuses shared with the payment connector on the same endpoint ---
+    #[serde(rename = "Retry Scheduled", alias = "retry scheduled")]
+    RetryScheduled,
+    #[serde(alias = "canceled")]
+    Canceled,
+    #[serde(alias = "voided")]
+    Voided,
+    #[serde(alias = "expired")]
+    Expired,
+    #[serde(alias = "refunded")]
+    Refunded,
+    #[serde(rename = "Partially Refunded", alias = "partially refunded")]
+    PartiallyRefunded,
+    #[serde(alias = "authorized")]
+    Authorized,
+    #[serde(alias = "captured")]
+    Captured,
+    #[serde(rename = "Partially Captured", alias = "partially captured")]
+    PartiallyCaptured,
+    #[serde(rename = "Card Verified", alias = "card verified")]
+    CardVerified,
+    /// Any wire status this build does not know: treat as in-flight rather than failing.
+    #[serde(other)]
+    Unknown,
 }
 impl From<&CheckoutPayoutStatus> for PayoutStatus {
     fn from(status: &CheckoutPayoutStatus) -> Self {
         match status {
             CheckoutPayoutStatus::Accepted => Self::Initiated,
-            CheckoutPayoutStatus::Pending => Self::Pending,
+            CheckoutPayoutStatus::Pending | CheckoutPayoutStatus::RetryScheduled => Self::Pending,
+            // In-flight payment-side states reported on a transfer: still pending as a payout.
+            CheckoutPayoutStatus::Authorized
+            | CheckoutPayoutStatus::Captured
+            | CheckoutPayoutStatus::PartiallyCaptured
+            | CheckoutPayoutStatus::CardVerified
+            | CheckoutPayoutStatus::Unknown => Self::Pending,
             // `Approved` is terminal success for bank payouts, `Paid` for card payouts.
             CheckoutPayoutStatus::Approved | CheckoutPayoutStatus::Paid => Self::Success,
-            CheckoutPayoutStatus::Returned => Self::Reversed,
-            CheckoutPayoutStatus::Rejected | CheckoutPayoutStatus::Declined => Self::Failure,
+            CheckoutPayoutStatus::Returned
+            | CheckoutPayoutStatus::Refunded
+            | CheckoutPayoutStatus::PartiallyRefunded => Self::Reversed,
+            CheckoutPayoutStatus::Rejected
+            | CheckoutPayoutStatus::Declined
+            | CheckoutPayoutStatus::Canceled
+            | CheckoutPayoutStatus::Voided
+            | CheckoutPayoutStatus::Expired => Self::Failure,
         }
     }
 }
