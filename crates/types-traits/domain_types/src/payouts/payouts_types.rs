@@ -148,6 +148,78 @@ pub struct PayoutTransferRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub connector_eligibility_reference_id: Option<String>,
     pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
     pub billing_descriptor: Option<crate::connector_types::BillingDescriptor>,
+    pub additional_payout_connector_details: Option<AdditionalPayoutConnectorDetails>,
+    /// Common funding-party details normalized by Hyperswitch before calling UCS.
+    pub vendor_account_details: Option<PayoutVendorAccountDetails>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum PayoutSourceOfFunds {
+    Credit,
+    Debit,
+    Prepaid,
+    DepositAccount,
+    MobileMoneyAccount,
+    Cash,
+}
+
+/// Merchant-supplied configuration for the payout connector selected by routing.
+#[derive(Debug, Clone)]
+pub enum AdditionalPayoutConnectorDetails {
+    Checkout(CheckoutAdditionalPayoutInformation),
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckoutAdditionalPayoutInformation {
+    /// Funds Transfer Type explicitly assigned by Checkout.com; never defaulted.
+    pub funds_transfer_type: Option<CheckoutPayoutFundsTransferType>,
+}
+
+/// Checkout-assigned Funds Transfer Type for Visa Direct and Mastercard Send payouts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum CheckoutPayoutFundsTransferType {
+    /// Visa Direct account-to-account transfer.
+    #[serde(rename = "AA")]
+    AccountToAccount,
+    /// Visa Direct funds transfer.
+    #[serde(rename = "FT")]
+    FundsTransfer,
+    /// Visa Direct cross-border money transfer.
+    #[serde(rename = "LA")]
+    CrossBorderMoneyTransfer,
+    /// Visa Direct peer-to-peer transfer.
+    #[serde(rename = "PP")]
+    PeerToPeer,
+    /// Visa Direct staged digital-wallet transfer.
+    #[serde(rename = "WT")]
+    StagedDigitalWalletTransfer,
+    /// Visa Direct funds disbursement.
+    #[serde(rename = "FD")]
+    FundsDisbursement,
+    /// Visa Direct loyalty payment.
+    #[serde(rename = "LO")]
+    LoyaltyPayments,
+    /// Visa Direct payroll or pension disbursement.
+    #[serde(rename = "PD")]
+    PayrollAndPensionDisbursements,
+    /// Visa Direct online-gambling transfer.
+    #[serde(rename = "OG")]
+    OnlineGambling,
+    /// Mastercard Send person-to-person transfer.
+    #[serde(rename = "C07")]
+    MastercardPersonToPerson,
+    /// Mastercard Send transfer to the recipient's own account.
+    #[serde(rename = "C52")]
+    MastercardTransferToOwnAccount,
+    /// Mastercard Send business disbursement.
+    #[serde(rename = "C55")]
+    MastercardBusinessDisbursement,
+    /// Mastercard Send business-to-business transfer.
+    #[serde(rename = "C65")]
+    MastercardBusinessToBusiness,
+    /// Mastercard Send gaming repayment.
+    #[serde(rename = "C04")]
+    MastercardGamingRepay,
 }
 
 impl<T: PaymentMethodDataTypes> PayoutTransferRequest<T> {
@@ -469,6 +541,8 @@ pub enum PayoutAccountType {
 }
 
 #[derive(Debug, Clone, Default)]
+/// Caller-normalized common party/account data. UCS never consumes SenderDetails.
+/// The flow determines the role: funding party for transfer, account party for enrollment.
 pub struct PayoutVendorAccountDetails {
     pub vendor_details: Option<PayoutVendorDetails>,
     pub individual_details: Option<PayoutIndividualDetails>,
@@ -484,6 +558,14 @@ pub struct PayoutVendorDetails {
     pub owners_provided: Option<bool>,
     pub card_payments_enabled: Option<bool>,
     pub transfers_enabled: Option<bool>,
+    /// Additional funding-party fields; existing vendor_name carries company name.
+    pub company_tax_id: Option<Secret<String>>,
+    pub address: Option<crate::payment_address::Address>,
+    pub email: Option<Secret<String>>,
+    pub phone_number: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+    pub reference_id: Option<Secret<String>>,
+    pub source_of_funds: Option<PayoutSourceOfFunds>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -497,6 +579,12 @@ pub struct PayoutIndividualDetails {
     pub tos_acceptance_date: Option<i64>,
     pub tos_acceptance_ip: Option<Secret<String>>,
     pub external_account_account_holder_type: Option<common_enums::BankHolderType>,
+    /// Additional funding-party fields; reuse the existing phone field.
+    pub address: Option<crate::payment_address::Address>,
+    pub email: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+    pub reference_id: Option<Secret<String>>,
+    pub source_of_funds: Option<PayoutSourceOfFunds>,
 }
 
 pub type IdNumberOrSsnLast4 = (Option<Secret<String>>, Option<Secret<String>>);

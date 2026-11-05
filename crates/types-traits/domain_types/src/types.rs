@@ -912,6 +912,7 @@ impl Connectors {
         };
         match connector {
             PayoutConnectorEnum::Nuvei => patched.nuvei.apply(params_patch),
+            PayoutConnectorEnum::Checkout => patched.checkout.apply(params_patch),
             PayoutConnectorEnum::Loonio => patched.loonio.apply(params_patch),
             PayoutConnectorEnum::Paypal => patched.paypal.apply(params_patch),
             PayoutConnectorEnum::Itaubank => patched.itaubank.apply(params_patch),

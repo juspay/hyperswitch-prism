@@ -1597,7 +1597,116 @@ where
             billing_descriptor: value.billing_descriptor.as_ref().map(|descriptor| {
                 crate::connector_types::BillingDescriptor::from((descriptor, None, None))
             }),
+            additional_payout_connector_details: value
+                .additional_payout_connector_details
+                .map(payouts::payouts_types::AdditionalPayoutConnectorDetails::foreign_try_from)
+                .transpose()?,
+            vendor_account_details: value
+                .vendor_account_details
+                .map(payouts::payouts_types::PayoutVendorAccountDetails::foreign_try_from)
+                .transpose()?,
         })
+    }
+}
+
+fn payout_source_of_funds_from_proto(
+    value: Option<i32>,
+) -> Result<
+    Option<payouts::payouts_types::PayoutSourceOfFunds>,
+    error_stack::Report<IntegrationError>,
+> {
+    use grpc_api_types::payouts::PayoutSourceOfFunds as Grpc;
+    use payouts::payouts_types::PayoutSourceOfFunds as Domain;
+    value
+        .map(|value| {
+            let invalid = || {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "vendor_account_details.source_of_funds",
+                    context: Default::default(),
+                })
+            };
+            Ok(match Grpc::try_from(value).map_err(|_| invalid())? {
+                Grpc::Credit => Some(Domain::Credit),
+                Grpc::Debit => Some(Domain::Debit),
+                Grpc::Prepaid => Some(Domain::Prepaid),
+                Grpc::DepositAccount => Some(Domain::DepositAccount),
+                Grpc::MobileMoneyAccount => Some(Domain::MobileMoneyAccount),
+                Grpc::Cash => Some(Domain::Cash),
+                Grpc::Unspecified => None,
+            })
+        })
+        .transpose()
+        .map(Option::flatten)
+}
+
+impl ForeignTryFrom<grpc_api_types::payouts::AdditionalPayoutConnectorDetails>
+    for payouts::payouts_types::AdditionalPayoutConnectorDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payouts::AdditionalPayoutConnectorDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        use grpc_api_types::payouts::additional_payout_connector_details::Connector;
+
+        match value.connector.ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "additional_payout_connector_details.connector".into(),
+                context: Default::default(),
+            })
+        })? {
+            Connector::Checkout(checkout) => Ok(Self::Checkout(
+                payouts::payouts_types::CheckoutAdditionalPayoutInformation::foreign_try_from(
+                    checkout,
+                )?,
+            )),
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payouts::CheckoutAdditionalPayoutInformation>
+    for payouts::payouts_types::CheckoutAdditionalPayoutInformation
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payouts::CheckoutAdditionalPayoutInformation,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            funds_transfer_type: value
+                .funds_transfer_type
+                .map(payouts::payouts_types::CheckoutPayoutFundsTransferType::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<i32> for payouts::payouts_types::CheckoutPayoutFundsTransferType {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(value: i32) -> Result<Self, error_stack::Report<Self::Error>> {
+        use grpc_api_types::payouts::checkout_additional_payout_information::FundsTransferType as Ftt;
+        let invalid = || IntegrationError::InvalidDataFormat {
+            field_name: "additional_payout_connector_details.checkout.funds_transfer_type",
+            context: Default::default(),
+        };
+        match Ftt::try_from(value).change_context(invalid())? {
+            Ftt::AccountToAccount => Ok(Self::AccountToAccount),
+            Ftt::FundsTransfer => Ok(Self::FundsTransfer),
+            Ftt::CrossBorderMoneyTransfer => Ok(Self::CrossBorderMoneyTransfer),
+            Ftt::PeerToPeer => Ok(Self::PeerToPeer),
+            Ftt::StagedDigitalWalletTransfer => Ok(Self::StagedDigitalWalletTransfer),
+            Ftt::FundsDisbursement => Ok(Self::FundsDisbursement),
+            Ftt::LoyaltyPayments => Ok(Self::LoyaltyPayments),
+            Ftt::PayrollAndPensionDisbursements => Ok(Self::PayrollAndPensionDisbursements),
+            Ftt::OnlineGambling => Ok(Self::OnlineGambling),
+            Ftt::MastercardPersonToPerson => Ok(Self::MastercardPersonToPerson),
+            Ftt::MastercardTransferToOwnAccount => Ok(Self::MastercardTransferToOwnAccount),
+            Ftt::MastercardBusinessDisbursement => Ok(Self::MastercardBusinessDisbursement),
+            Ftt::MastercardBusinessToBusiness => Ok(Self::MastercardBusinessToBusiness),
+            Ftt::MastercardGamingRepay => Ok(Self::MastercardGamingRepay),
+            Ftt::Unspecified => Err(invalid().into()),
+        }
     }
 }
 
@@ -1681,6 +1790,16 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
                             owners_provided: vd.owners_provided,
                             card_payments_enabled: vd.card_payments_enabled,
                             transfers_enabled: vd.transfers_enabled,
+                            company_tax_id: vd.company_tax_id,
+                            address: vd
+                                .address
+                                .map(crate::payment_address::Address::foreign_try_from)
+                                .transpose()?,
+                            email: vd.email,
+                            phone_number: vd.phone_number,
+                            phone_country_code: vd.phone_country_code,
+                            reference_id: vd.reference_id,
+                            source_of_funds: payout_source_of_funds_from_proto(vd.source_of_funds)?,
                         },
                     )
                 })
@@ -1702,6 +1821,14 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
                                 id.external_account_account_holder_type,
                                 "external_account_account_holder_type",
                             )?,
+                            address: id
+                                .address
+                                .map(crate::payment_address::Address::foreign_try_from)
+                                .transpose()?,
+                            email: id.email,
+                            phone_country_code: id.phone_country_code,
+                            reference_id: id.reference_id,
+                            source_of_funds: payout_source_of_funds_from_proto(id.source_of_funds)?,
                         },
                     )
                 })

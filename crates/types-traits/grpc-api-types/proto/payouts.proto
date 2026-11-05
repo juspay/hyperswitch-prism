@@ -8,6 +8,50 @@ import "payment_methods.proto";
 
 option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
+// Merchant-supplied payout configuration for the connector selected by routing,
+// separate from connector-generated flow state.
+message AdditionalPayoutConnectorDetails {
+  oneof connector {
+    CheckoutAdditionalPayoutInformation checkout = 1;
+  }
+}
+
+message CheckoutAdditionalPayoutInformation {
+  enum FundsTransferType {
+    FUNDS_TRANSFER_TYPE_UNSPECIFIED = 0;
+    // Visa Direct account-to-account transfer. Checkout code: AA.
+    ACCOUNT_TO_ACCOUNT = 1;
+    // Visa Direct funds transfer. Checkout code: FT.
+    FUNDS_TRANSFER = 2;
+    // Visa Direct cross-border money transfer. Checkout code: LA.
+    CROSS_BORDER_MONEY_TRANSFER = 3;
+    // Visa Direct peer-to-peer transfer. Checkout code: PP.
+    PEER_TO_PEER = 4;
+    // Visa Direct staged digital-wallet transfer. Checkout code: WT.
+    STAGED_DIGITAL_WALLET_TRANSFER = 5;
+    // Visa Direct funds disbursement. Checkout code: FD.
+    FUNDS_DISBURSEMENT = 6;
+    // Visa Direct loyalty payment. Checkout code: LO.
+    LOYALTY_PAYMENTS = 7;
+    // Visa Direct payroll or pension disbursement. Checkout code: PD.
+    PAYROLL_AND_PENSION_DISBURSEMENTS = 8;
+    // Visa Direct online-gambling transfer. Checkout code: OG.
+    ONLINE_GAMBLING = 9;
+    // Mastercard Send person-to-person transfer. Checkout code: C07.
+    MASTERCARD_PERSON_TO_PERSON = 10;
+    // Mastercard Send transfer to the recipient's own account. Checkout code: C52.
+    MASTERCARD_TRANSFER_TO_OWN_ACCOUNT = 11;
+    // Mastercard Send business disbursement. Checkout code: C55.
+    MASTERCARD_BUSINESS_DISBURSEMENT = 12;
+    // Mastercard Send business-to-business transfer. Checkout code: C65.
+    MASTERCARD_BUSINESS_TO_BUSINESS = 13;
+    // Mastercard Send gaming repayment. Checkout code: C04.
+    MASTERCARD_GAMING_REPAY = 14;
+  }
+  // Only the Funds Transfer Type assigned by Checkout.com; absent means JSON null.
+  optional FundsTransferType funds_transfer_type = 1;
+}
+
 // ============================================================================
 // PAYOUT ENUMERATIONS
 // ============================================================================
@@ -445,6 +489,9 @@ message PayoutServiceTransferRequest {
   optional string merchant_request_id = 18;
   // Billing descriptor information to be sent to the payout gateway.
   optional BillingDescriptor billing_descriptor = 19;
+  optional AdditionalPayoutConnectorDetails additional_payout_connector_details = 20;
+  // Sender API input is normalized by Hyperswitch into the common vendor type.
+  optional PayoutVendorAccountDetails vendor_account_details = 21;
 }
 
 // Response message for transferring a payout
@@ -644,7 +691,8 @@ message PayoutServiceCreateRecipientRequest {
 }
 
 // Vendor account details required to onboard a recipient with a connector
-// (e.g. Stripe Connect). Mirrors hyperswitch's PayoutVendorAccountDetails.
+// (e.g. Stripe Connect) or the funding party in transfer. Hyperswitch normalizes
+// API sender input and legacy vendor metadata before sending this common type.
 message PayoutVendorAccountDetails {
   // Business / vendor details
   optional VendorDetails vendor_details = 1;
@@ -672,6 +720,14 @@ message VendorDetails {
   optional bool card_payments_enabled = 8;
   // Whether the transfers capability is requested
   optional bool transfers_enabled = 9;
+  // Additional corporate party fields; existing fields/tags remain unchanged.
+  optional SecretString company_tax_id = 10;
+  optional Address address = 12;
+  optional SecretString email = 13;
+  optional SecretString phone_number = 14;
+  optional string phone_country_code = 15;
+  optional SecretString reference_id = 16;
+  optional PayoutSourceOfFunds source_of_funds = 17;
 }
 
 // Individual / KYC details for the connected account
@@ -694,6 +750,12 @@ message IndividualDetails {
   optional BankHolderType external_account_account_holder_type = 10;
   // Unix timestamp of the terms-of-service acceptance
   optional int64 tos_acceptance_date = 11;
+  // Additional individual party fields; reuse phone = 3 for the phone number.
+  optional Address address = 12;
+  optional SecretString email = 13;
+  optional string phone_country_code = 15;
+  optional SecretString reference_id = 16;
+  optional PayoutSourceOfFunds source_of_funds = 17;
 }
 
 // Response message for creating recipient account
@@ -798,4 +860,15 @@ message PayoutMethodEligibilityResponse {
   // later replaced by the transfer's id). Set for every verdict — including
   // refusals — so the check remains traceable for reconciliation.
   optional string connector_eligibility_reference_id = 8;
+}
+
+// Classification of funds supplied by the payout funding party.
+enum PayoutSourceOfFunds {
+  PAYOUT_SOURCE_OF_FUNDS_UNSPECIFIED = 0;
+  PAYOUT_SOURCE_OF_FUNDS_CREDIT = 1;
+  PAYOUT_SOURCE_OF_FUNDS_DEBIT = 2;
+  PAYOUT_SOURCE_OF_FUNDS_PREPAID = 3;
+  PAYOUT_SOURCE_OF_FUNDS_DEPOSIT_ACCOUNT = 4;
+  PAYOUT_SOURCE_OF_FUNDS_MOBILE_MONEY_ACCOUNT = 5;
+  PAYOUT_SOURCE_OF_FUNDS_CASH = 6;
 }

@@ -61,6 +61,21 @@ pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
 }
 
+pub const OPTIONAL_CLIENT_ID: &str = "{{optional_client_id}}";
+
+pub fn resolve_checkout_base_url(configured_base_url: &str, optional_client_id: &str) -> String {
+    configured_base_url.replace(OPTIONAL_CLIENT_ID, optional_client_id)
+}
+
+fn checkout_payment_base_url(configured_base_url: &str) -> String {
+    let resolved_base_url = resolve_checkout_base_url(configured_base_url, "");
+    if resolved_base_url.ends_with('/') {
+        resolved_base_url
+    } else {
+        format!("{resolved_base_url}/")
+    }
+}
+
 // Type alias for non-generic trait implementations
 
 macros::create_amount_converter_wrapper!(connector_name: Checkout, amount_type: MinorUnit);
@@ -497,18 +512,22 @@ macros::create_all_prerequisites!(
             ])
         }
 
-        pub fn connector_base_url_payments<'a, F, Req, Res>(
+        pub fn connector_base_url_payments<F, Req, Res>(
             &self,
-            req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.checkout.base_url
+            req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
+        ) -> String {
+            checkout_payment_base_url(
+                &req.resource_common_data.connectors.checkout.base_url,
+            )
         }
 
-        pub fn connector_base_url_refunds<'a, F, Req, Res>(
+        pub fn connector_base_url_refunds<F, Req, Res>(
             &self,
-            req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.checkout.base_url
+            req: &RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> String {
+            checkout_payment_base_url(
+                &req.resource_common_data.connectors.checkout.base_url,
+            )
         }
     }
 );

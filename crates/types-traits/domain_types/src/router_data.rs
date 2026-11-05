@@ -635,6 +635,7 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         api_secret: Secret<String>,
         processing_channel_id: Secret<String>,
+        client_id: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Cybersource {
@@ -2287,6 +2288,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: checkout.api_key.ok_or_else(err)?,
                 api_secret: checkout.api_secret.ok_or_else(err)?,
                 processing_channel_id: checkout.processing_channel_id.ok_or_else(err)?,
+                client_id: checkout.client_id,
                 base_url: checkout.base_url,
             }),
             AuthType::Cryptopay(cryptopay) => Ok(Self::Cryptopay {
@@ -3543,6 +3545,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         api_secret: api_secret.clone(),
                         processing_channel_id: key1.clone(),
+                        client_id: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -4495,6 +4498,20 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 }
             }
             connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
+                PayoutConnectorEnum::Checkout => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Checkout {
+                        api_key: api_key.clone(),
+                        api_secret: api_secret.clone(),
+                        processing_channel_id: key1.clone(),
+                        client_id: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Nuvei => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
