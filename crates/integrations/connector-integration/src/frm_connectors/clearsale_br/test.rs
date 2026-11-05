@@ -1430,9 +1430,17 @@ mod tests {
         let h = accommodation_to_clear_sale(hotels[0]).expect("hotel name present");
         assert_eq!(h.name, "Hotel Rio");
 
+        // reservationDate comes from `TravelData.travel_date`, not from
+        // `connector_feature_data`.
+        assert_eq!(
+            travel.reservation_date.as_deref(),
+            Some("2025-06-01T00:00:00.000")
+        );
+
         // No travel/hotel blocks at all → not a travel order.
         let empty = DomainData::default();
         let bare_travel = ClearSaleTravelData::from_domain_data(Some(&empty));
+        assert!(bare_travel.reservation_date.is_none());
         assert!(bare_travel.passengers.is_none());
         assert!(bare_travel.travel_segments.is_none());
         assert!(bare_travel.accommodations.is_none());
