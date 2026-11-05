@@ -15242,7 +15242,9 @@ pub fn generate_defend_dispute_response(
         }),
         Err(e) => Ok(DisputeServiceDefendResponse {
             connector_dispute_id,
-            dispute_status: grpc_api_types::payments::DisputeStatus::DisputeLost as i32,
+            // A failed defend call says nothing about the dispute outcome; report it as
+            // unspecified, as the Accept error path does.
+            dispute_status: grpc_api_types::payments::DisputeStatus::default() as i32,
             connector_status_code: None,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
