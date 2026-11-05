@@ -32,6 +32,7 @@ export type ScenarioOverrides = {
 
 export type ConnectorDefinition<TScenarioId extends string = string> = {
   id: string;
+  run: readonly TScenarioId[];
   credentialKey?: string;
   credentialEntry?: string;
   card?: Partial<CardData>;

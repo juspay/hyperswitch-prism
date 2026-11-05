@@ -7,6 +7,7 @@ const connectors = await loadConnectors();
 export default defineConfig<ScenarioFixtures>({
   testDir: "./scenarios",
   testMatch: "**/*.spec.ts",
+  testIgnore: "**/.runtime/**",
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -18,7 +19,7 @@ export default defineConfig<ScenarioFixtures>({
     ["junit", { outputFile: "test-results/results.xml" }],
   ],
   projects: connectors.map((connector) => ({
-    name: connector.id,
+    name: `${connector.id}/${connector.merchantVariant}`,
     use: { connector },
   })),
   // API traces may contain credentials or payment-method data.

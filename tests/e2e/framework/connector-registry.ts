@@ -7,14 +7,19 @@ import { isConnector, type Connector } from "./connector.js";
 export async function loadConnectors(): Promise<Connector<ScenarioId>[]> {
   const connectorsDirectory = join(dirname(fileURLToPath(import.meta.url)), "../connectors");
   const runtimeExtension = extname(fileURLToPath(import.meta.url));
-  const files = (await readdir(connectorsDirectory, { withFileTypes: true }))
-    .filter((entry) =>
-      entry.isFile()
-      && extname(entry.name) === runtimeExtension
-      && !entry.name.endsWith(".d.ts")
-    )
-    .map((entry) => entry.name)
-    .sort();
+  const directories = (await readdir(connectorsDirectory, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name).sort();
+  const unexpectedFiles = (await readdir(connectorsDirectory, { withFileTypes: true }))
+    .filter((entry) => entry.isFile() && extname(entry.name) === runtimeExtension);
+  if (unexpectedFiles.length) {
+    throw new Error("Connector definitions must be inside connectors/<id>/merchant_XX.ts");
+  }
+  const files = (await Promise.all(directories.map(async (directory) =>
+    (await readdir(join(connectorsDirectory, directory), { withFileTypes: true }))
+      .filter((entry) => entry.isFile() && extname(entry.name) === runtimeExtension && !entry.name.endsWith(".d.ts"))
+      .map((entry) => join(directory, entry.name))
+  ))).flat().sort();
 
   const connectors = await Promise.all(files.map(async (file) => {
     const module: unknown = await import(pathToFileURL(join(connectorsDirectory, file)).href);
@@ -36,13 +41,25 @@ function validateConnectorScenarios(
   const connectorIds = new Set<string>();
 
   for (const connector of definitions) {
-    if (connectorIds.has(connector.id)) {
-      throw new Error(`Duplicate connector definition: ${connector.id}`);
+    const variantId = `${connector.id}/${connector.merchantVariant}`;
+    if (connectorIds.has(variantId)) {
+      throw new Error(`Duplicate merchant variant: ${variantId}`);
     }
-    connectorIds.add(connector.id);
+    connectorIds.add(variantId);
 
     const overridden = Object.keys(connector.overrides ?? {}) as ScenarioId[];
     const excluded = Object.keys(connector.exclude ?? {}) as ScenarioId[];
+    const runnable = connector.run;
+    for (const scenarioId of runnable) {
+      if (!scenarioIds.has(scenarioId)) throw new Error(`${variantId} references unknown scenario ${scenarioId}`);
+      if (connector.exclude?.[scenarioId]) throw new Error(`${variantId}/${scenarioId} cannot run and be excluded`);
+    }
+    if (new Set(runnable).size !== runnable.length) throw new Error(`${variantId} repeats a scenario`);
+    for (const scenarioId of scenarioIds) {
+      if (!runnable.includes(scenarioId) && !connector.exclude?.[scenarioId]) {
+        throw new Error(`${variantId}/${scenarioId} must run or be excluded with a reason`);
+      }
+    }
 
     for (const scenarioId of [...overridden, ...excluded]) {
       if (!scenarioIds.has(scenarioId)) {
@@ -51,6 +68,7 @@ function validateConnectorScenarios(
     }
 
     for (const scenarioId of overridden) {
+      if (!runnable.includes(scenarioId)) throw new Error(`${variantId}/${scenarioId} override requires run`);
       if (connector.exclude?.[scenarioId]) {
         throw new Error(
           `${connector.id}/${scenarioId} cannot be both overridden and excluded`,

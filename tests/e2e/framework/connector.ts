@@ -6,6 +6,7 @@ const connectorBrand: unique symbol = Symbol("e2e.connector");
 /** Constructed only from a connector definition module's own file URL. */
 export type Connector<TScenarioId extends string = string> =
   ConnectorDefinition<TScenarioId> & {
+    readonly merchantVariant: string;
     readonly [connectorBrand]: true;
   };
 
@@ -14,7 +15,7 @@ type ConnectorData<TScenarioId extends string> = Omit<
   "id"
 >;
 
-/** Derives the connector ID from connectors/<id>.ts. */
+/** Derives the connector and synthetic merchant variant from connectors/<id>/merchant_XX.ts. */
 export function connectorFromFile<TScenarioId extends string>(
   moduleUrl: string,
   data: ConnectorData<TScenarioId>,
@@ -27,21 +28,23 @@ export function connectorFromFile<TScenarioId extends string>(
   }
 
   const relativeFile = file.slice(markerAt + marker.length);
-  if (relativeFile.includes("/")) {
-    throw new Error("Connector definitions must be direct children of connectors");
+  const parts = relativeFile.split("/");
+  if (parts.length !== 2 || !parts[0]) {
+    throw new Error("Connector definition must be connectors/<id>/merchant_XX.ts");
   }
   const suffix = [".ts", ".js"].find((item) => relativeFile.endsWith(item));
   if (!suffix) {
     throw new Error("Connector definition must be a TypeScript or JavaScript module");
   }
 
-  const id = relativeFile.slice(0, -suffix.length);
-  if (!id || id === "index") {
-    throw new Error("Connector definition filename must identify a connector");
+  const merchantVariant = parts[1].slice(0, -suffix.length);
+  if (!/^merchant_[0-9]{2}$/.test(merchantVariant)) {
+    throw new Error("Merchant variant filename must be merchant_XX.ts");
   }
 
   return {
-    id,
+    id: parts[0],
+    merchantVariant,
     ...data,
     [connectorBrand]: true,
   };

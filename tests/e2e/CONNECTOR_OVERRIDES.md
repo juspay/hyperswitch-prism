@@ -15,10 +15,10 @@ The framework implements this contract for every operation it currently exposes.
 Add an operation key only when its shared operation method is implemented; do
 not add speculative configuration for endpoints the suite does not call.
 
-Every entry in `scenarios/catalog.ts` runs for every connector file discovered
-directly under `connectors/`. A connector is non-runnable for a catalog scenario only
-when it declares an exclusion with a non-empty reason. Do not repeat runnable
-scenario IDs as empty overrides or maintain a connector-specific scenario list.
+Every synthetic merchant variant under `connectors/<connector>/merchant_XX.ts`
+explicitly lists each catalog scenario in `run` or excludes it with a non-empty
+reason. `run` is participation, not an override; keep overrides only for genuine
+request or expectation differences. A variant name never maps to a real merchant.
 
 ## Identify calls, not only operations
 

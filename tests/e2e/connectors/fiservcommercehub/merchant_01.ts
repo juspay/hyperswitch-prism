@@ -1,7 +1,8 @@
-import { connectorFromFile } from "../framework/connector.js";
-import type { ScenarioId } from "../scenarios/catalog.js";
+import { connectorFromFile } from "../../framework/connector.js";
+import type { ScenarioId } from "../../scenarios/catalog.js";
 
 export default connectorFromFile<ScenarioId>(import.meta.url, {
+  run: ["payments/create-confirm/card/one-time/no3ds/create-confirm"],
   overrides: {
     "payments/create-confirm/card/one-time/no3ds/create-confirm": {
       requests: {

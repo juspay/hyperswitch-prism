@@ -53,6 +53,9 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
         throw new Error("Scenario exclusions require a reason");
       }
       base.skip(!!exclusion, exclusion?.reason);
+      if (!connector.run.includes(scenario.id)) {
+        throw new Error(`Merchant variant has not selected scenario ${scenario.id}`);
+      }
       info.annotations.push({
         type: "Scenario",
         description: scenario.description,

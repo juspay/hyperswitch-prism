@@ -7,7 +7,7 @@ Start with `scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm
 ## One supported contribution pattern
 
 1. Rename the agreed `.planned.ts` placeholder to `.spec.ts`, or add one shared spec under resource/operation/payment-method and the relevant variation. Add its title, descriptions, and connector-account requirements to `scenarios/catalog.ts` under the exact relative spec path without `.spec.ts`; planned scenarios do not belong in the catalog.
-2. Import `test` and the catalog-bound `scenarioFromFile` export. Construct the scenario with `scenarioFromFile(import.meta.url)`, then call `test.use({ scenario })`. The resolver derives the ID from the spec path and fails discovery if its catalog entry is absent. Do not construct scenarios inline, import or loop over connectors: Playwright projects run every discovered spec once for every connector file directly under `connectors/`.
+2. Import `test` and the catalog-bound `scenarioFromFile` export. Construct the scenario with `scenarioFromFile(import.meta.url)`, then call `test.use({ scenario })`. The resolver derives the ID from the spec path and fails discovery if its catalog entry is absent. Do not construct scenarios inline, import or loop over connectors: Playwright projects run every discovered spec once for every synthetic merchant variant under `connectors/<id>/`.
 3. Write the calls in execution order using the `payments` fixture. Group each call and its checks in `report.step(...)`; it attaches audit evidence afterward, including on failure. Keep request fields, use of returned values, and expected outcomes visible in the spec.
 4. Import native `expect` from `@playwright/test`. Use `report.check(name, { actual, expected }, ({ actual, expected }) => expect(actual).toMatchObject(expected))` for reported assertions, choosing the native matcher appropriate to the check. Select only report-safe values; never pass the complete payment response or card/authentication data. The helper attaches the same comparison on pass or failure and does not choose a matcher.
 5. For an asynchronous scenario, use native Playwright `expect.poll` with an explicit timeout and read-only retrieval inside the spec. `retrievePayment` makes one GET. Do not retry mutations. Keep the final selected values in the reported comparison; the current immediate-success scenario does not poll.
@@ -20,7 +20,7 @@ Use a new variable for each response and pass fields directly to the next operat
 | Contribution | Expected change |
 | --- | --- |
 | Another journey using existing operations | One path-matched catalog entry and one shared spec resolved with `scenarioFromFile`. No fixture or operation changes. |
-| Another connector | One `connectors/<connector-id>.ts` default export and external credentials. Discovery registers it automatically. Restart the stack to apply UCS-only routing. Existing specs inherit the connector. |
+| Another connector | One `connectors/<connector-id>/merchant_01.ts` default export and external sandbox credentials. Discovery registers it automatically. Restart the stack to apply UCS-only routing. |
 | A processor-required request difference | Data in that connector's override for the shared scenario ID. |
 | Unsupported behavior | An exclusion on the connector with a reason; the shared test remains registered and reports skipped. |
 | A genuinely new HS endpoint | Add one small method to its resource's `*-operations.ts` module (`payment-operations.ts` for `/payments`). It forwards API fields, validates the response shape, and returns the full response. It does not call other mutating operations. |
@@ -36,7 +36,7 @@ Connector definitions contain data only. Every overridable operation call and ex
 
 Shared assertions are the scenario's contract. Connector configuration cannot replace expected outcomes or relax routing checks. If behavior differs materially, model a distinct shared scenario or record an unsupported scenario with a reason. Do not accept a failure status merely to obtain a green test.
 
-A scenario ID is the spec's relative path below `scenarios/`, without `.spec.ts`. It is derived rather than written in the spec. Use the typed catalog key in connector configuration. Every catalog scenario is runnable for every registered connector by default; an explicit exclusion with a reason is the only non-runnable state. A connector cannot both override and exclude the same scenario.
+A scenario ID is the spec's relative path below `scenarios/`, without `.spec.ts`. It is derived rather than written in the spec. Use the typed catalog key in each synthetic merchant configuration. Every catalog scenario must appear in that variant's `run` list or be excluded with a reason. An override requires a runnable scenario. Never record a mapping from a synthetic variant to a real merchant.
 
 ## Boundaries
 

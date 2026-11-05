@@ -19,7 +19,7 @@ Open the HTML report with `npx playwright show-report`. Stop the isolated stack 
 
 HS uses its supported `ROUTER__...` environment overrides; upstream TOML is unchanged. The UCS wrapper adds the standard gRPC health probe, and Compose starts HS after UCS is healthy. Redis is internal to the Compose network; PostgreSQL binds to loopback on `HS_DB_PORT` (default `15432`). `HS_PORT` sets the local HS port (default `8080`).
 
-Stack startup discovers every connector definition directly under `connectors/` and configures HS's `ucs_only_connectors` from that registry. Adding a connector file therefore also selects UCS-only execution in this test stack; there is no separate connector list or merchant rollout configuration. Restart the stack after changing connector files. Playwright and stack startup use the same loader.
+Stack startup discovers synthetic merchant definitions under `connectors/<connector>/merchant_XX.ts` and configures HS's `ucs_only_connectors` from their connector folders. Adding a merchant file therefore also selects UCS-only execution for its connector; there is no separate connector list or merchant rollout configuration. Restart the stack after changing merchant files. Playwright and stack startup use the same loader.
 
 Merchant setup enables UCS before payment calls. Merchant, profile, API-key, connector-account, and routing administration remain HS operations. The scenario verifies the payment's recorded UCS gateway. Response metadata and database state describe the payment, so neither alone proves a fresh UCS PSync call. Proving an individual flow requires its correlated UCS events; the current scenario does not assert a fresh PSync call.
 
@@ -187,9 +187,10 @@ Planned files and `.gitkeep` directories are extension placeholders, not impleme
 
 Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. Before implementing connector differences, follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md). The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, `expected`, and `report`.
 
-Scenarios belong to the shared superset under `scenarios/`. `scenarios/catalog.ts` contains implemented scenario metadata only. Playwright discovers every `.spec.ts` and runs it once for every connector definition directly under `connectors/`; a connector therefore runs every implemented scenario unless it has a reasoned exclusion. Keep connector differences in `connectors/`; do not copy scenarios into connector directories.
+Scenarios belong to the shared superset under `scenarios/`. `scenarios/catalog.ts` contains implemented scenario metadata only. Playwright runs every scenario for each discovered synthetic merchant variant. Each variant must list the scenario in `run` or exclude it with a reason; a newly added scenario fails discovery until every variant makes that choice. Keep merchant differences in `connectors/`; do not copy scenarios into connector directories. A variant name such as `merchant_01` is only a synthetic configuration label: setup creates a fresh merchant for every test.
 
-- Add one default-exported connector definition under `connectors/<connector-id>.ts`; its filename becomes its ID and it is discovered automatically.
+- Add one default-exported synthetic merchant definition under `connectors/<connector-id>/merchant_01.ts`; the folder becomes the connector ID and the file becomes the variant name. Add `merchant_02.ts` only for a distinct synthetic behavior. Never document a mapping to a real merchant.
+- List each implemented scenario in `run` or `exclude` with a nonempty reason. Override only selected runnable scenarios.
 - Use the shared sandbox card by default; supply optional `card` field overrides only when required by the connector's sandbox.
 - Exclude an unsupported scenario explicitly with a nonempty reason. Exclusions appear as skipped tests.
 - Add a new shared scenario for a new payment journey. Its function owns the ordered calls and expected results.
@@ -234,10 +235,10 @@ Operations apply request overrides by stable call ID. They omit configured paths
 | `scenarios/catalog.ts` | Define metadata and connector-account setup requirements for implemented scenarios; planned scenarios are absent. |
 | `scenarios/**/*.spec.ts` | Own the complete journey, request data, use of responses, and expected results. |
 | `scenarios/**/*.planned.ts` | Reserve an agreed scenario name and location without registering executable coverage. |
-| `connectors/*.ts` | Define one automatically discovered runnable connector using `connectorFromFile`, plus optional request overrides and reasoned exclusions. |
+| `connectors/<id>/merchant_XX.ts` | Define one automatically discovered synthetic merchant variant using `connectorFromFile`, explicit runnable scenarios, optional overrides and reasoned exclusions. |
 | `examples/connector.ts` | Compile-checked reference for all supported connector configuration forms; never discovered or executed. |
 | `framework/connector-registry.ts` | Discover connector modules and validate duplicate IDs, scenario references, overrides and exclusions. |
-| `framework/connector.ts` | Derive and brand a connector ID from its definition filename. |
+| `framework/connector.ts` | Derive and brand connector and synthetic merchant variant IDs from the module path. |
 | `framework/types.ts` | Define scenario metadata and data-only connector configuration types. |
 | `framework/scenario.ts` | Build the catalog-bound resolver that derives a branded scenario ID from the executing spec path. |
 | `framework/fixtures.ts` | Standard Playwright fixtures apply exclusions, provision context, and release resources. Export a typed public API without internal HTTP/keys/polling. No payment sequence. |
