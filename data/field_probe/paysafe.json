@@ -638,7 +638,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"payload\":{\"id\":\"sa_credit_probe_001\",\"merchantRefNum\":\"payout_probe_001\",\"status\":\"COMPLETED\"},\"attemptNumber\":\"1\",\"type\":\"STANDALONE_CREDIT\",\"resourceId\":\"sa_credit_probe_001\",\"links\":[{\"rel\":\"standalone_credit\"}],\"eventDate\":\"2026-01-01T00:00:00Z\",\"eventName\":\"SA_CREDIT_COMPLETED\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"payload\":{\"id\":\"sa_credit_probe_001\",\"merchantRefNum\":\"payout_probe_001\",\"status\":\"COMPLETED\"},\"attemptNumber\":\"1\",\"type\":\"STANDALONE_CREDIT\",\"resourceId\":\"sa_credit_probe_001\",\"links\":[{\"rel\":\"standalone_credit\"}],\"eventDate\":\"2026-01-01T00:00:00Z\",\"eventName\":\"SA_CREDIT_COMPLETED\"}"
+        }
       }
     },
     "incremental_authorization": {
@@ -649,7 +664,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"payload\":{\"id\":\"sa_credit_probe_001\",\"merchantRefNum\":\"payout_probe_001\",\"status\":\"COMPLETED\"},\"attemptNumber\":\"1\",\"type\":\"STANDALONE_CREDIT\",\"resourceId\":\"sa_credit_probe_001\",\"links\":[{\"rel\":\"standalone_credit\"}],\"eventDate\":\"2026-01-01T00:00:00Z\",\"eventName\":\"SA_CREDIT_COMPLETED\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"payload\":{\"id\":\"sa_credit_probe_001\",\"merchantRefNum\":\"payout_probe_001\",\"status\":\"COMPLETED\"},\"attemptNumber\":\"1\",\"type\":\"STANDALONE_CREDIT\",\"resourceId\":\"sa_credit_probe_001\",\"links\":[{\"rel\":\"standalone_credit\"}],\"eventDate\":\"2026-01-01T00:00:00Z\",\"eventName\":\"SA_CREDIT_COMPLETED\"}"
+        }
       }
     },
     "payment_method_eligibility": {
