@@ -2842,13 +2842,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         })?;
         let card_details = card_fields_for_followup(payment_method)?;
-        if card_details.is_debit {
+        let connector_order_id = request
+            .connector_order_id
+            .as_deref()
+            .ok_or_else(missing_field_err("connector_order_id"))?;
+        let (transaction_type, _, _, _) = parse_connector_transaction_id(connector_order_id)?;
+        if transaction_type.is_debit() {
             return Err(errors::IntegrationError::NotSupported {
                 message: "Worldpay RAFT refund reversal is currently supported for credit transactions only".to_string(),
                 connector: "worldpayraft",
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
-                        "The direct RAFT reversal flow uses POST /credit/refund with ToAccountSelected=CC; debit refund reversals require a separately verified debit/refund contract".to_string(),
+                        "The original connector_order_id identifies a debit transaction, but the RAFT refund reversal flow uses POST /credit/refund with ToAccountSelected=CC; debit refund reversals require a separately verified debit/refund contract".to_string(),
                     ),
                     ..Default::default()
                 },

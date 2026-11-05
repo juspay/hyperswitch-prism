@@ -56,6 +56,19 @@
           }
         }
       ]
+    },
+    "PaymentService/Refund": {
+      "replace": [
+        {
+          "suite": "PaymentService/Authorize",
+          "scenario": "no3ds_auto_capture_credit_card",
+          "context_map": {
+            "connector_transaction_id": "res.connector_transaction_id",
+            "connector_order_id": "res.connector_transaction_id",
+            "payment_method": "req.payment_method"
+          }
+        }
+      ]
     }
   }
 }
