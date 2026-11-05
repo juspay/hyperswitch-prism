@@ -79,6 +79,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // HTTP callers using only the replacement fields may omit legacy scalars.
     // Match protobuf's defaults instead of requiring those fields in Serde JSON.
+    // TODO: Remove these defaults with the legacy fields after all webhook/redirect clients migrate.
     for message in [
         "RequestDetails",
         "WebhookSecrets",
