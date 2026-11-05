@@ -74,7 +74,6 @@ function _buildIncrementalAuthorizationRequest(): types.IPaymentServiceIncrement
             "minorAmount": 100,
             "currency": Currency.USD
         },
-        "networkTransactionId": "263010131742906",  // Network transaction ID returned by the original authorization.
         "paymentMethod": {  // Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
             "cardWithNoCvc": {  // Card payment where CVC is not required.
                 "cardNumber": {"value": "4111111111111111"},  // Card Identification.

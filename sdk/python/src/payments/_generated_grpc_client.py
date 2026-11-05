@@ -553,6 +553,20 @@ class GrpcSurchargeClient:
             "surcharge/calculate",
             req, surcharge_pb2.SurchargeServiceCalculateResponse,
         )
+    def surcharge_refund_init(self, req: surcharge_pb2.SurchargeServiceSurchargeRefundInitRequest) -> surcharge_pb2.SurchargeServiceSurchargeRefundInitResponse:
+        """SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "surcharge/surcharge_refund_init",
+            req, surcharge_pb2.SurchargeServiceSurchargeRefundInitResponse,
+        )
+    def surcharge_refund_complete(self, req: surcharge_pb2.SurchargeServiceSurchargeRefundCompleteRequest) -> surcharge_pb2.SurchargeServiceSurchargeRefundCompleteResponse:
+        """SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "surcharge/surcharge_refund_complete",
+            req, surcharge_pb2.SurchargeServiceSurchargeRefundCompleteResponse,
+        )
 
 # ── Top-level GrpcClient ──────────────────────────────────────────────────────
 

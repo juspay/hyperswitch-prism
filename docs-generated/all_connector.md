@@ -185,7 +185,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Cashfree](connectors/cashfree.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [CashtoCode](connectors/cashtocode.md) | ⚠ | x | x | x | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Celero](connectors/celero.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Checkout.com](connectors/checkout.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | x | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
+| [Checkout.com](connectors/checkout.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | x | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ✓ | ✓ | ✓ | ✓ | x |
 | [Citigate](connectors/citigate.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [CryptoPay](connectors/cryptopay.md) | ✓ | x | x | x | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [CyberSource](connectors/cybersource.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | x | ✓ | ✓ | ✓ | ✓ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ? | ✓ | ✓ | ✓ | x | ⚠ | x | x | ✓ | ✓ | x |
@@ -196,7 +196,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Easebuzz](connectors/easebuzz.md) | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Ecommpay](connectors/ecommpay.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Elavon](connectors/elavon.md) | ✓ | ⚠ | ⚠ | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Elavon Pg](connectors/elavon_pg.md) | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
+| [Elavon Pg](connectors/elavon_pg.md) | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ? | ✓ | ✓ | x | ⚠ | ✓ | x | ✓ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Elavonpg](connectors/elavonpg.md) | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Etisalat](connectors/etisalat.md) | ⚠ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | x | ⚠ | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | x | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Finix](connectors/finix.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ✓ | ✓ | ? | x | ✓ | ✓ | x | ✓ | x | ✓ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
