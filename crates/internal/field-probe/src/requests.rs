@@ -507,46 +507,37 @@ pub(crate) fn base_recurring_revoke_request() -> RecurringPaymentServiceRevokeRe
     }
 }
 
-#[allow(deprecated)] // Exercise the legacy request shape until callers migrate.
 pub(crate) fn base_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRequest {
     PaymentServiceVerifyRedirectResponseRequest {
         merchant_order_id: Some("probe_order_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post as i32,
-            uri: Some("https://example.com/redirect".to_string()),
-            headers: Default::default(),
-            body: b"{}".to_vec(),
-            query_params: None,
+            uri: Some(Secret::new("https://example.com/redirect".to_string())),
+            body: Some(Secret::new(b"{}".to_vec())),
             ..Default::default()
         }),
         ..Default::default()
     }
 }
 
-#[allow(deprecated)]
 pub(crate) fn base_parse_event_request() -> grpc_api_types::payments::EventServiceParseRequest {
     grpc_api_types::payments::EventServiceParseRequest {
         request_details: Some(RequestDetails {
             method: HttpMethod::Post as i32,
-            uri: Some("https://example.com/webhook".to_string()),
-            headers: Default::default(),
-            body: b"{}".to_vec(),
-            query_params: None,
+            uri: Some(Secret::new("https://example.com/webhook".to_string())),
+            body: Some(Secret::new(b"{}".to_vec())),
             ..Default::default()
         }),
     }
 }
 
-#[allow(deprecated)]
 pub(crate) fn base_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
         merchant_event_id: Some("probe_event_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post as i32,
-            uri: Some("https://example.com/webhook".to_string()),
-            headers: Default::default(),
-            body: b"{}".to_vec(),
-            query_params: None,
+            uri: Some(Secret::new("https://example.com/webhook".to_string())),
+            body: Some(Secret::new(b"{}".to_vec())),
             ..Default::default()
         }),
         ..Default::default()

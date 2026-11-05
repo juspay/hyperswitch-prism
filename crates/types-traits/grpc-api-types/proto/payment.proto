@@ -1516,23 +1516,23 @@ message RequestDetails {
   HttpMethod method = 1;
 
   // URI of the request.
-  optional string uri = 2 [deprecated = true];
+  optional string legacy_uri = 2 [deprecated = true];
 
   // Headers of the HTTP request.
-  map<string, string> headers = 3 [deprecated = true];
+  map<string, string> legacy_headers = 3 [deprecated = true];
 
   // Body of the HTTP request.
-  bytes body = 4 [deprecated = true];
+  bytes legacy_body = 4 [deprecated = true];
 
   // Query parameters of the request.
-  optional string query_params = 5 [deprecated = true];
+  optional string legacy_query_params = 5 [deprecated = true];
 
   // Secret-typed replacements. Presence takes precedence over the legacy field,
   // including an explicitly empty body, map, URI or query string.
-  optional SecretBytes sensitive_body = 6;
-  optional SecretHeaders sensitive_headers = 7;
-  optional SecretString sensitive_uri = 8;
-  optional SecretString sensitive_query_params = 9;
+  optional SecretBytes body = 6;
+  optional SecretHeaders headers = 7;
+  optional SecretString uri = 8;
+  optional SecretString query_params = 9;
 }
 
 // Opaque binary data. The bytes must be preserved exactly for source verification.
@@ -1548,27 +1548,27 @@ message SecretHeaders {
 // Secrets used for verifying connector webhooks.
 message WebhookSecrets {
   // Primary secret for webhook verification.
-  string secret = 1 [deprecated = true];
+  string legacy_secret = 1 [deprecated = true];
 
   // Additional secret, if required by the connector.
-  optional string additional_secret = 2 [deprecated = true];
+  optional string legacy_additional_secret = 2 [deprecated = true];
 
   // Presence takes precedence over the corresponding deprecated field.
-  optional SecretString verification_secret = 3;
-  optional SecretString additional_verification_secret = 4;
+  optional SecretString secret = 3;
+  optional SecretString additional_secret = 4;
 }
 
 // Secrets used for source verification.
 message RedirectResponseSecrets {
   // Primary secret for source verification.
-  string secret = 1 [deprecated = true];
+  string legacy_secret = 1 [deprecated = true];
 
   // Additional secret, if required by the connector.
-  optional string additional_secret = 2 [deprecated = true];
+  optional string legacy_additional_secret = 2 [deprecated = true];
 
   // Presence takes precedence over the corresponding deprecated field.
-  optional SecretString verification_secret = 3;
-  optional SecretString additional_verification_secret = 4;
+  optional SecretString secret = 3;
+  optional SecretString additional_secret = 4;
 }
 
 // Request for notifying connectors about events

@@ -87,6 +87,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ] {
         config.type_attribute(format!(".types.{message}"), "#[serde(default)]");
     }
+    // Preserve the existing flat HTTP header map. This remains necessary after migration.
+    config.type_attribute(".types.SecretHeaders", "#[serde(transparent)]");
     // Add serde rename_all = "snake_case" for oneof enum types to output proper proto JSON
     // This ensures variant names like "ApplePay" serialize as "apple_pay"
     config.type_attribute(

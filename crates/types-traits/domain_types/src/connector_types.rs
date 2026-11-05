@@ -3725,12 +3725,9 @@ impl ForeignTryFrom<grpc_api_types::payments::RequestDetails> for RequestDetails
 
         Ok(Self {
             method,
-            uri: value
-                .sensitive_uri
-                .map(ExposeInterface::expose)
-                .or(value.uri),
+            uri: value.uri.map(ExposeInterface::expose).or(value.legacy_uri),
             headers: value
-                .sensitive_headers
+                .headers
                 .map(|headers| {
                     headers
                         .values
@@ -3738,15 +3735,15 @@ impl ForeignTryFrom<grpc_api_types::payments::RequestDetails> for RequestDetails
                         .map(|(key, value)| (key, value.expose()))
                         .collect()
                 })
-                .unwrap_or(value.headers),
+                .unwrap_or(value.legacy_headers),
             body: value
-                .sensitive_body
+                .body
                 .map(ExposeInterface::expose)
-                .unwrap_or(value.body),
+                .unwrap_or(value.legacy_body),
             query_params: value
-                .sensitive_query_params
+                .query_params
                 .map(ExposeInterface::expose)
-                .or(value.query_params),
+                .or(value.legacy_query_params),
         })
     }
 }
@@ -3760,13 +3757,13 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookSecrets> for ConnectorWebho
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             secret: value
-                .verification_secret
+                .secret
                 .map(ExposeInterface::expose)
-                .unwrap_or(value.secret)
+                .unwrap_or(value.legacy_secret)
                 .into(),
             additional_secret: value
-                .additional_verification_secret
-                .or_else(|| value.additional_secret.map(Secret::new)),
+                .additional_secret
+                .or_else(|| value.legacy_additional_secret.map(Secret::new)),
         })
     }
 }
@@ -3814,13 +3811,13 @@ impl ForeignTryFrom<grpc_api_types::payments::RedirectResponseSecrets>
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             secret: value
-                .verification_secret
+                .secret
                 .map(ExposeInterface::expose)
-                .unwrap_or(value.secret)
+                .unwrap_or(value.legacy_secret)
                 .into(),
             additional_secret: value
-                .additional_verification_secret
-                .or_else(|| value.additional_secret.map(Secret::new)),
+                .additional_secret
+                .or_else(|| value.legacy_additional_secret.map(Secret::new)),
         })
     }
 }

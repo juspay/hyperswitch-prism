@@ -462,11 +462,6 @@ fn generate_tokenize_probe(f: &mut fs::File) {
 fn generate_parse_event_probe(f: &mut fs::File) {
     writeln!(f, "    /// Probe parse_event (EventService::ParseEvent).").unwrap();
     writeln!(f, "    /// Stateless — no auth required.").unwrap();
-    writeln!(
-        f,
-        "    #[allow(deprecated)] // Preserve the legacy probe JSON during client migration."
-    )
-    .unwrap();
     writeln!(f, "    pub fn probe_parse_event(").unwrap();
     writeln!(f, "        connector: &ConnectorEnum,").unwrap();
     writeln!(f, "        config: &Arc<ucs_env::configs::Config>,").unwrap();
@@ -477,7 +472,7 @@ fn generate_parse_event_probe(f: &mut fs::File) {
     writeln!(f, "        let mut req = base_parse_event_request();").unwrap();
     writeln!(
         f,
-        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = webhook_body.to_vec(); rd }});"
+        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = Some(hyperswitch_masking::Secret::new(webhook_body.to_vec())); rd }});"
     )
     .unwrap();
     writeln!(
@@ -553,11 +548,6 @@ fn generate_handle_event_probe(f: &mut fs::File) {
         "    /// (returns EventServiceHandleResponse, not Option<Request>) so it cannot use run_probe."
     )
     .unwrap();
-    writeln!(
-        f,
-        "    #[allow(deprecated)] // Preserve the legacy probe JSON during client migration."
-    )
-    .unwrap();
     writeln!(f, "    pub fn probe_handle_event(").unwrap();
     writeln!(f, "        connector: &ConnectorEnum,").unwrap();
     writeln!(f, "        config: &Arc<ucs_env::configs::Config>,").unwrap();
@@ -568,7 +558,7 @@ fn generate_handle_event_probe(f: &mut fs::File) {
     writeln!(f, "        let mut req = base_handle_event_request();").unwrap();
     writeln!(
         f,
-        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = webhook_body.to_vec(); rd }});"
+        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = Some(hyperswitch_masking::Secret::new(webhook_body.to_vec())); rd }});"
     )
     .unwrap();
     writeln!(

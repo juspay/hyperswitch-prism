@@ -38,6 +38,7 @@ Public API
 from __future__ import annotations
 
 import json
+import base64
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -117,6 +118,7 @@ _PROTO_ENUM_PARENT: dict[str, str] = {}
 _RUST_WRAPPER_CONSTRUCTORS: dict[str, tuple[str, str, bool]] = {
     # (constructor_expr_template, import_path, needs_FromStr_import)
     "SecretString": ("Secret::new({val}.to_string())", "hyperswitch_masking::Secret", False),
+    "SecretBytes": ("Secret::new({val}.as_bytes().to_vec())", "hyperswitch_masking::Secret", False),
     "CardNumberType": ("CardNumber::from_str({val}).unwrap()", "cards::CardNumber", True),
     "NetworkTokenType": ("NetworkToken::from_str({val}).unwrap()", "cards::NetworkToken", True),
 }
@@ -985,6 +987,15 @@ def _json_scalar(val: object, js: bool = False) -> str:
     return json.dumps(val)
 
 
+def _wrapper_scalar(value, message_type: str, js: bool) -> str:
+    if _PROTO_FIELD_TYPES.get(message_type, {}).get("value") == "bytes":
+        raw = value.encode() if isinstance(value, str) else bytes(value)
+        if js:
+            return f"new Uint8Array({json.dumps(list(raw))})"
+        return json.dumps(base64.b64encode(raw).decode())
+    return _json_scalar(value, js=js)
+
+
 def _annotate_inline_lines(
     obj: dict,
     msg_name: str,
@@ -1034,7 +1045,7 @@ def _annotate_inline_lines(
             lines.append(f"{pad}]{trailing}")
         elif child_msg and db.is_wrapper(child_msg):
             # Scalar stored in probe data, but proto field is a wrapper message — needs {"value": ...}
-            lines.append(f'{pad}"{out_key}": {{"value": {_json_scalar(val, js=camel_keys)}}}{trailing}{cmt_part}')
+            lines.append(f'{pad}"{out_key}": {{"value": {_wrapper_scalar(val, child_msg, js=camel_keys)}}}{trailing}{cmt_part}')
         elif child_msg and not isinstance(val, (dict, list)):
             # Scalar for a non-wrapper message — handle bytes, enums, and single-field wrappers
             if ts_mode and child_msg == "bytes" and isinstance(val, list):
@@ -1385,7 +1396,7 @@ def _scenario_step_javascript(
                 lines.extend(_annotate_inline_lines(val, child_msg, db, indent=3, cmt="//", camel_keys=True, ts_mode=ts_mode))
                 lines.append(f'        }}{trailing}')
             elif child_msg and db.is_wrapper(child_msg):
-                lines.append(f'        "{_ck}": {{"value": {_json_scalar(val, js=True)}}}{trailing}{cmt_part}')
+                lines.append(f'        "{_ck}": {{"value": {_wrapper_scalar(val, child_msg, js=True)}}}{trailing}{cmt_part}')
             elif child_msg and not isinstance(val, (dict, list)):
                 if ts_mode and _is_proto_enum(child_msg) and isinstance(val, str):
                     lines.append(f'        "{_ck}": {child_msg}.{val}{trailing}{cmt_part}')
@@ -1682,6 +1693,13 @@ def _py_direct_lines(
         child_msg = db.get_type(msg_name, key)
         cmt_part  = f"  # {comment}" if comment else ""
 
+        if _PROTO_FIELD_TYPES.get(child_msg, {}).get("value") == "bytes" and key not in variable_fields:
+            inner = val.get("value", "") if isinstance(val, dict) else val
+            expr = f"{json.dumps(inner)}.encode()" if isinstance(inner, str) else f"bytes({json.dumps(inner)})"
+            module = _py_module_for_type(child_msg)
+            lines.append(f"{pad}{key}={module}.{child_msg}(value={expr}),{cmt_part}")
+            continue
+
         # map<K,V> fields are constructed from a dict literal, NOT a synthetic
         # `<Field>Entry` message — that entry type is nested under its parent
         # (e.g. RequestDetails.HeadersEntry) and is not a module-level pb2
@@ -1847,7 +1865,7 @@ def _js_builder_fn(flow_key: str, proto_req: dict, grpc_req: str, db: "_SchemaDB
             lines.extend(_annotate_inline_lines(val, child_msg, db, indent=3, cmt="//", camel_keys=True, ts_mode=ts_mode))
             lines.append(f'        }}{trailing}')
         elif child_msg and db.is_wrapper(child_msg):
-            lines.append(f'        "{js_key}": {{"value": {_json_scalar(val, js=True)}}}{trailing}{cmt_part}')
+            lines.append(f'        "{js_key}": {{"value": {_wrapper_scalar(val, child_msg, js=True)}}}{trailing}{cmt_part}')
         elif isinstance(val, list) and val and isinstance(val[0], dict):
             lines.append(f'        "{js_key}": [{cmt_part}')
             for j, item in enumerate(val):
@@ -1912,7 +1930,7 @@ def _js_builder_fn_no_param(flow_key: str, proto_req: dict, grpc_req: str, db: "
             lines.extend(_annotate_inline_lines(val, child_msg, db, indent=3, cmt="//", camel_keys=True, ts_mode=ts_mode))
             lines.append(f'        }}{trailing}')
         elif child_msg and db.is_wrapper(child_msg):
-            lines.append(f'        "{js_key}": {{"value": {_json_scalar(val, js=True)}}}{trailing}{cmt_part}')
+            lines.append(f'        "{js_key}": {{"value": {_wrapper_scalar(val, child_msg, js=True)}}}{trailing}{cmt_part}')
         elif isinstance(val, list) and val and isinstance(val[0], dict):
             lines.append(f'        "{js_key}": [{cmt_part}')
             for j, item in enumerate(val):
@@ -2794,6 +2812,16 @@ def _kotlin_payload_lines(
             child_msg = db.get_type(msg_name, snake_key)
         cmt_part  = f"  // {comment}" if comment else ""
 
+        if _PROTO_FIELD_TYPES.get(child_msg, {}).get("value") == "bytes" and key not in variable_fields:
+            inner = val.get("value", "") if isinstance(val, dict) else val
+            if isinstance(inner, str):
+                expr = f"com.google.protobuf.ByteString.copyFromUtf8({json.dumps(inner)})"
+            else:
+                items = ", ".join(f"{byte}.toByte()" for byte in inner)
+                expr = f"com.google.protobuf.ByteString.copyFrom(byteArrayOf({items}))"
+            lines.append(f"{pad}{camel}Builder.value = {expr}{cmt_part}")
+            continue
+
         if key in variable_fields:
             # RHS expression: use the overridden name if provided, else fall back to camel
             rhs = (variable_field_values or {}).get(key, camel)
@@ -2945,6 +2973,17 @@ def _rust_struct_lines(
 
         def wrap(expr: str) -> str:
             return f"Some({expr})" if is_opt else expr
+
+        if child_msg == "SecretBytes" and key not in variable_fields:
+            inner = val.get("value", "") if isinstance(val, dict) else val
+            if isinstance(inner, str):
+                byte_expr = f"{json.dumps(inner)}.as_bytes().to_vec()"
+            elif isinstance(inner, list):
+                byte_expr = "vec![" + ", ".join(str(byte) for byte in inner) + "]"
+            else:
+                raise ValueError("SecretBytes requires a string or byte array")
+            lines.append(f"{pad}{field}: {wrap(f'Secret::new({byte_expr})')},{cmt_part}")
+            continue
 
         # Variable field (function parameter) — emit type-aware expression
         if key in variable_fields:
@@ -3633,9 +3672,6 @@ def render_consolidated_rust(
         # Inbound-only flows (e.g. handle_event) have no runnable process_ fn, so their builder
         # is uncalled; allow(dead_code) matches the suppression already used on process_* fns.
         allow = "#[allow(dead_code)]\n" if flow_key in _UNSUPPORTED_FLOWS else ""
-        if "RequestDetails {" in struct_body:
-            # Keep existing sample payloads valid until the caller examples migrate.
-            allow += "#[allow(deprecated)]\n"
         return (
             f"{allow}"
             f"pub fn build_{flow_key}_request({param_name}: {param_type}) -> {grpc_req_b} {{\n"
@@ -3656,9 +3692,6 @@ def render_consolidated_rust(
         # Inbound-only flows (e.g. handle_event) have no runnable process_ fn, so their builder
         # is uncalled; allow(dead_code) matches the suppression already used on process_* fns.
         allow = "#[allow(dead_code)]\n" if flow_key in _UNSUPPORTED_FLOWS else ""
-        if "RequestDetails {" in struct_body:
-            # Keep existing sample payloads valid until the caller examples migrate.
-            allow += "#[allow(deprecated)]\n"
         return (
             f"{allow}"
             f"pub fn build_{flow_key}_request() -> {grpc_req_b} {{\n"
