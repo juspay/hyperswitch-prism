@@ -321,18 +321,12 @@ impl CheckoutPayoutIndividualSender {
         individual: &PayoutIndividualDetails,
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
         Ok(Self {
-            first_name: individual
-                .first_name
-                .clone()
-                .ok_or_else(missing_field_err(
-                    "vendor_account_details.individual_details.first_name",
-                ))?,
-            last_name: individual
-                .last_name
-                .clone()
-                .ok_or_else(missing_field_err(
-                    "vendor_account_details.individual_details.last_name",
-                ))?,
+            first_name: individual.first_name.clone().ok_or_else(missing_field_err(
+                "vendor_account_details.individual_details.first_name",
+            ))?,
+            last_name: individual.last_name.clone().ok_or_else(missing_field_err(
+                "vendor_account_details.individual_details.last_name",
+            ))?,
             date_of_birth: individual.date_of_birth.clone(),
             address: CheckoutPayoutAddress::try_from_sender_address(individual.address.as_ref())?,
             reference: CheckoutPayoutReference::try_from_reference_id(
