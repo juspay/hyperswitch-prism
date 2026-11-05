@@ -297,6 +297,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<domain_types::connector_types::EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        transformers::ensure_nmi_payment_webhook(&request.body)?;
         let webhook_body: transformers::NmiWebhookBody = serde_json::from_slice(&request.body)
             .change_context(WebhookError::WebhookResourceObjectNotFound)
             .attach_printable("Failed to decode the NMI webhook body")?;

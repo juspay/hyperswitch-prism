@@ -919,7 +919,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 security_key: auth.api_key.clone(),
                 transaction_type,
                 amount,
-                currency: None,
+                // Gateway.js authenticated in this currency; do not leave it to NMI's default.
+                currency: Some(router_data.request.currency),
                 orderid: three_ds_data.order_id.ok_or_else(|| {
                     error_stack::report!(IntegrationError::MissingRequiredField {
                         field_name: "order_id",
@@ -3101,6 +3102,21 @@ pub struct NmiWebhookBody {
     pub event_body: NmiWebhookObject,
 }
 
+/// `transaction.refund.unknown` is unspecified at ParseEvent, so HandleEvent routes it to the
+/// payment leg. Its condition describes a refund and must not be reported as the payment's status.
+pub(crate) fn ensure_nmi_payment_webhook(
+    body: &[u8],
+) -> Result<(), error_stack::Report<domain_types::errors::WebhookError>> {
+    let event: NmiWebhookEventBody = serde_json::from_slice(body)
+        .change_context(domain_types::errors::WebhookError::WebhookResourceObjectNotFound)?;
+    match event.event_type {
+        NmiWebhookEventType::RefundUnknown => Err(error_stack::report!(
+            domain_types::errors::WebhookError::WebhookProcessingFailed
+        )),
+        _ => Ok(()),
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NmiWebhookObject {
     pub transaction_id: String,
@@ -3242,6 +3258,16 @@ pub(crate) fn parse_nmi_webhook_signature_header(header: &str) -> Option<(&str, 
 #[cfg(test)]
 mod sync_query_tests {
     use super::*;
+
+    #[test]
+    fn refund_unknown_is_not_treated_as_a_payment_webhook() {
+        assert!(
+            ensure_nmi_payment_webhook(br#"{"event_type":"transaction.refund.unknown"}"#).is_err()
+        );
+        assert!(
+            ensure_nmi_payment_webhook(br#"{"event_type":"transaction.sale.success"}"#).is_ok()
+        );
+    }
 
     #[test]
     fn prefers_order_reference_then_transaction_id_and_rejects_neither() {
