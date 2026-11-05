@@ -296,6 +296,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: Some(resource_id),
             status,
             // Use the same caller reference as authorization and payment sync.
