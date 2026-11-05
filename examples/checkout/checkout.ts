@@ -18,6 +18,7 @@ const _defaultConfig: types.IConnectorConfig = {
             apiKey: { value: 'YOUR_API_KEY' },
             apiSecret: { value: 'YOUR_API_SECRET' },
             processingChannelId: { value: 'YOUR_PROCESSING_CHANNEL_ID' },
+            clientId: { value: 'YOUR_CLIENT_ID' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },
