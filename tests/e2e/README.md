@@ -184,6 +184,8 @@ SDK-driven journeys can share these same payment groupings. Make SDK execution e
 
 Planned files and `.gitkeep` directories are extension placeholders, not implemented coverage. Rename a planned file to `.spec.ts` only when implementing it and add its metadata and setup requirements under the identical path key in `scenarios/catalog.ts`. The spec imports the catalog-bound resolver and calls `scenarioFromFile(import.meta.url)`; the framework derives its ID from the file path and fails discovery when the catalog key is absent or different.
 
+The planned inventory also reserves guest card payments, saved-card repeat CIT, standalone mandate-setup CIT, later payment operations, refunds, network-token recurring, and webhook verification. The implemented one-time create-confirm spec already covers an automatic-capture payment with a customer; its existing manual-capture and full-refund placeholders are not duplicated. The zero-amount/manual-capture combination and the meaning of partial void and reversal must be checked against the HS API and connector behavior before implementing their placeholders. Their presence does not assert API support.
+
 
 Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. Before implementing connector differences, follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md). The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, `expected`, and `report`.
 
