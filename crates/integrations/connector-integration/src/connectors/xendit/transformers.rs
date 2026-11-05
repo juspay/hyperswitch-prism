@@ -2664,6 +2664,8 @@ pub fn build_xendit_payment_webhook_response(
         };
 
     Ok(WebhookDetailsResponse {
+        raw_connector_status: None,
+        amount: None,
         resource_id: Some(ResponseId::ConnectorTransactionId(payment_request_id)),
         status,
         connector_response_reference_id: reference_id.clone(),
@@ -2697,6 +2699,7 @@ pub fn build_xendit_refund_webhook_response(
     }
     let refund: XenditRefundResponse = parse_xendit_webhook_data(envelope.data)?;
     Ok(RefundWebhookDetailsResponse {
+        raw_connector_status: None,
         status: map_refund_status(&refund.status),
         connector_refund_id: Some(refund.id),
         merchant_transaction_id: None,
