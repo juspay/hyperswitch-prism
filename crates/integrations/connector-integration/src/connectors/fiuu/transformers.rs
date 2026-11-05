@@ -282,10 +282,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -294,7 +291,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .get_billing_full_name()?;
 
-        let email = item.router_data.resource_common_data.get_billing_email()?;
+        // Mirror the Direct path (hyperswitch `fiuu/transformers.rs:268-269`), which falls back to
+        // the request email when the billing address carries none. Without this a recurring payment
+        // with no billing email hard-fails on UCS while succeeding on Direct.
+        let email = item
+            .router_data
+            .resource_common_data
+            .get_billing_email()
+            .or_else(|err| item.router_data.request.email.clone().ok_or(err))?;
         let token = Secret::new(item.router_data.request.connector_mandate_id().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "connector_mandate_id",
@@ -526,10 +530,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -589,6 +590,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })))
                 }
                 BankRedirectData::BancontactCard { .. }
+                | BankRedirectData::BancontactIntent { .. }
+                | BankRedirectData::BancontactQr { .. }
                 | BankRedirectData::Bizum {}
                 | BankRedirectData::Blik { .. }
                 | BankRedirectData::Eft { .. }
@@ -660,6 +663,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BluecodeRedirect { .. }
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
+                | WalletData::SatispayIntent(_)
+                | WalletData::SatispayQr(_)
                 | WalletData::Wero(_)
                 | WalletData::LazyPayRedirect(_)
                 | WalletData::PhonePeRedirect(_)
@@ -749,10 +754,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -883,7 +885,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(minor_amount, item.router_data.request.currency)
+            .convert(&common_utils::types::Money {
+                amount: minor_amount,
+                currency: item.router_data.request.currency,
+            })
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -968,6 +973,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })))
                 }
                 BankRedirectData::BancontactCard { .. }
+                | BankRedirectData::BancontactIntent { .. }
+                | BankRedirectData::BancontactQr { .. }
                 | BankRedirectData::Bizum {}
                 | BankRedirectData::Blik { .. }
                 | BankRedirectData::Eft { .. }
@@ -1037,6 +1044,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BluecodeRedirect { .. }
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
+                | WalletData::SatispayIntent(_)
+                | WalletData::SatispayQr(_)
                 | WalletData::Wero(_)
                 | WalletData::LazyPayRedirect(_)
                 | WalletData::PhonePeRedirect(_)
@@ -1664,10 +1673,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.refund_amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.refund_amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1898,10 +1904,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2218,10 +2221,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount_to_capture.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount_to_capture)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -2998,6 +2998,7 @@ impl TryFrom<FiuuRefundSyncResponse> for RefundWebhookDetailsResponse {
     fn try_from(notif: FiuuRefundSyncResponse) -> Result<Self, Self::Error> {
         match notif {
             FiuuRefundSyncResponse::Webhook(fiuu_webhooks_refund_response) => Ok(Self {
+                raw_connector_status: None,
                 connector_refund_id: Some(fiuu_webhooks_refund_response.refund_id),
                 merchant_transaction_id: None,
                 status: common_enums::RefundStatus::from(

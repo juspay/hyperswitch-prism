@@ -81,6 +81,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Trustpay<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Trustpay<T>
@@ -224,6 +231,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: webhook_response
                 .payment_information
@@ -282,6 +291,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             };
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(refund_response_data.connector_refund_id.clone()),
             merchant_transaction_id: None,
             status: refund_response_data.refund_status,
@@ -314,16 +324,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .payment_id
             .ok_or_else(|| report!(WebhookError::WebhookReferenceIdNotFound))?;
 
-        let minor_units = domain_types::utils::convert_back_amount_to_minor_units_for_webhook(
+        let money = domain_types::utils::convert_back_amount_to_money_for_webhook(
             &FloatMajorUnitForConnector,
             payment_info.amount.amount,
             payment_info.amount.currency,
         )?;
-        let amount = domain_types::utils::convert_amount_for_webhook(
-            &StringMinorUnitForConnector,
-            minor_units,
-            payment_info.amount.currency,
-        )?;
+        let amount =
+            domain_types::utils::convert_amount_for_webhook(&StringMinorUnitForConnector, &money)?;
 
         Ok(
             domain_types::connector_types::DisputeWebhookDetailsResponse {

@@ -16,7 +16,8 @@
 #   --scenario <name>     Run a single scenario (requires --suite)
 #   --interface grpc|sdk  Execution interface (default: grpc)
 #   --endpoint <addr>     Override gRPC endpoint (default: localhost:8000)
-#   --report              Write report.json + markdown test_report/ files
+#   --report              Write a safe summary (no request/response payloads)
+#   --local-debug-report  Write typed-and-masked UCS audit events locally
 #   --no-server           Do not start/stop the gRPC server automatically
 #   --no-build            Use pre-built target/debug binaries instead of invoking cargo
 #   --setup               Force re-run of the one-time setup wizard
@@ -70,6 +71,7 @@ SKIP_SETUP=false
 INTERFACE="grpc"
 ENDPOINT=""
 REPORT=false
+LOCAL_DEBUG_REPORT=false
 NO_SERVER=false
 NO_BUILD=false
 CARGO_EXTRA_FLAGS=()   # flags forwarded verbatim to test_ucs binary
@@ -105,6 +107,10 @@ while [[ $# -gt 0 ]]; do
       REPORT=true
       shift
       ;;
+    --local-debug-report)
+      LOCAL_DEBUG_REPORT=true
+      shift
+      ;;
     --no-server)
       NO_SERVER=true
       shift
@@ -128,6 +134,14 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "${REPORT}" == "true" && "${LOCAL_DEBUG_REPORT}" == "true" ]]; then
+  error "--report and --local-debug-report are mutually exclusive"
+  exit 1
+fi
+if [[ "${LOCAL_DEBUG_REPORT}" == "true" ]]; then
+  export UCS_CAPTURE_AUDIT_EVENTS=true
+fi
 
 # ── First-run setup ────────────────────────────────────────────────────────────
 run_setup() {
@@ -223,6 +237,9 @@ fi
 # Report
 if [[ "${REPORT}" == "true" ]]; then
   CMD+=(--report)
+fi
+if [[ "${LOCAL_DEBUG_REPORT}" == "true" ]]; then
+  CMD+=(--local-debug-report)
 fi
 
 # Interactive

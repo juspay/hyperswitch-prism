@@ -749,6 +749,8 @@ fn get_payment_details_and_product<
             )),
             BankRedirectData::Sofort { .. } => Ok((None, NexinetsProduct::Sofort)),
             BankRedirectData::BancontactCard { .. }
+            | BankRedirectData::BancontactIntent { .. }
+            | BankRedirectData::BancontactQr { .. }
             | BankRedirectData::Blik { .. }
             | BankRedirectData::Bizum { .. }
             | BankRedirectData::Eft { .. }
@@ -905,6 +907,8 @@ fn get_wallet_details<
         | WalletData::RevolutPay(_)
         | WalletData::MbWay(_)
         | WalletData::Satispay(_)
+        | WalletData::SatispayIntent(_)
+        | WalletData::SatispayQr(_)
         | WalletData::Wero(_)
         | WalletData::LazyPayRedirect(_)
         | WalletData::PhonePeRedirect(_)

@@ -642,7 +642,7 @@ impl<T: PaymentMethodDataTypes> Shift4CardData<T> {
             address_line1: billing_address.and_then(|addr| addr.line1.clone()),
             address_line2: billing_address.and_then(|addr| addr.line2.clone()),
             address_city: billing_address.and_then(|addr| addr.city.clone()),
-            address_state: billing_address.and_then(|addr| addr.state.clone()),
+            address_state: billing_address.and_then(|addr| addr.get_optional_state()),
             address_zip: billing_address.and_then(|addr| addr.zip.clone()),
             address_country: billing_address
                 .and_then(|addr| addr.country)
@@ -729,7 +729,7 @@ impl Shift4Address {
             line1: address.line1.clone(),
             line2: address.line2.clone(),
             city: address.city.clone(),
-            state: address.state.clone(),
+            state: address.get_optional_state(),
             zip: address.zip.clone(),
             country: address.country,
         };
@@ -1330,6 +1330,13 @@ fn build_shift4_connector_response(
             card_network: None,
             domestic_network: None,
             auth_code: response.auth_code.clone(),
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         },
     ))
 }

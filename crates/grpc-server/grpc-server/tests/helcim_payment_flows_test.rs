@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::panic)]
@@ -138,6 +139,7 @@ fn extract_request_ref_id(response: &PaymentServiceAuthorizeResponse) -> String 
 // Helper function to create browser info with IP address (required for Helcim)
 fn create_test_browser_info() -> BrowserInformation {
     BrowserInformation {
+        challenge_window_size: None,
         ip_address: Some("192.168.1.1".to_string()),
         user_agent: Some(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36".to_string(),
@@ -178,8 +180,10 @@ fn create_test_billing_address() -> PaymentAddress {
             line3: None,
             city: Some("New York".to_string().into()),
             state: Some("NY".to_string().into()),
+            state_code_iso: None,
             zip_code: Some(format!("{:05}", 10001 + (unique_suffix % 1000)).into()),
             country_alpha2_code: Some(CountryAlpha2::Us.into()),
+            origin_zip: None,
         }),
     }
 }
@@ -259,6 +263,9 @@ fn create_payment_sync_request(
     amount: i64,
 ) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        enable_partial_authorization: None,
+        integrity_specifications: None,
+        is_overcapture_enabled: None,
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         capture_method: None,
@@ -399,8 +406,7 @@ async fn test_payment_authorization_manual_capture() {
             add_helcim_metadata(&mut capture_grpc_request);
 
             // Send the capture request
-            let capture_response = client
-                .capture(capture_grpc_request)
+            let capture_response = Box::pin(client.capture(capture_grpc_request))
                 .await
                 .expect("gRPC payment_capture call failed")
                 .into_inner();

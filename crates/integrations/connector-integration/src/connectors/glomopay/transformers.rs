@@ -237,6 +237,8 @@ impl GlomopayWebhookPayload {
             _ => (None, None),
         };
         WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(self.data.id.clone())),
             status,
@@ -335,6 +337,7 @@ impl GlomopayRefundWebhookPayload {
             _ => (None, None),
         };
         RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(self.data.id.clone()),
             merchant_transaction_id: None,
             status: self.get_refund_status(),
@@ -592,10 +595,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount = GlomopayAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = GlomopayAmountConvertor::convert(&router_data.request.amount)?;
 
         let customer_id = router_data
             .resource_common_data
@@ -1105,10 +1105,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount = GlomopayAmountConvertor::convert(
-            router_data.request.refund_amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = GlomopayAmountConvertor::convert(&router_data.request.refund_amount)?;
 
         let reason = router_data
             .request

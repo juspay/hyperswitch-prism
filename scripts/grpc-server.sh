@@ -10,6 +10,7 @@
 # stop and start it again, or the newly built code is never the code under test.
 
 GRPC_SERVER_PID=""
+GRPC_SERVER_AUDIT_LOG_OWNED=false
 
 # grpc_server_start <binary> <host> <port>
 grpc_server_start() {
@@ -23,13 +24,30 @@ grpc_server_start() {
   # Sandboxes fail slowly: fiserv holds a dead call for 23s before returning 504.
   # A healthy call there is ~2s, so 10s is ample and stops one bad connector
   # eating the whole sweep budget. Override with CS__PROXY__CONNECTOR_REQUEST_TIMEOUT.
-  CS__SERVER__HOST="${host}" \
-  CS__SERVER__PORT="${port}" \
-  CS__COMMON__ENVIRONMENT=development \
-  CS__PROXY__CONNECTOR_REQUEST_TIMEOUT="${CS__PROXY__CONNECTOR_REQUEST_TIMEOUT:-10}" \
-  RUST_LOG=error \
-  RUST_MIN_STACK="${RUST_MIN_STACK:-16777216}" \
-    "${binary}" > /dev/null 2>&1 &
+  if [[ "${UCS_CAPTURE_AUDIT_EVENTS:-false}" == "true" ]]; then
+    # The report parser copies only the existing typed-and-masked event JSON,
+    # never surrounding log records. A managed server owns and removes this file.
+    UCS_AUDIT_LOG_PATH="$(mktemp "${TMPDIR:-/tmp}/ucs-audit-events.XXXXXX")"
+    chmod 600 "${UCS_AUDIT_LOG_PATH}"
+    export UCS_AUDIT_LOG_PATH
+    GRPC_SERVER_AUDIT_LOG_OWNED=true
+    CS__SERVER__HOST="${host}" \
+    CS__SERVER__PORT="${port}" \
+    CS__COMMON__ENVIRONMENT=development \
+    CS__PROXY__CONNECTOR_REQUEST_TIMEOUT="${CS__PROXY__CONNECTOR_REQUEST_TIMEOUT:-10}" \
+    CS__LOG__CONSOLE__LOG_FORMAT=json \
+    RUST_LOG=off,ucs_common_utils::events=info \
+    RUST_MIN_STACK="${RUST_MIN_STACK:-16777216}" \
+      "${binary}" > "${UCS_AUDIT_LOG_PATH}" 2>&1 &
+  else
+    CS__SERVER__HOST="${host}" \
+    CS__SERVER__PORT="${port}" \
+    CS__COMMON__ENVIRONMENT=development \
+    CS__PROXY__CONNECTOR_REQUEST_TIMEOUT="${CS__PROXY__CONNECTOR_REQUEST_TIMEOUT:-10}" \
+    RUST_LOG=error \
+    RUST_MIN_STACK="${RUST_MIN_STACK:-16777216}" \
+      "${binary}" > /dev/null 2>&1 &
+  fi
   GRPC_SERVER_PID=$!
 
   for _ in $(seq 1 40); do
@@ -52,7 +70,14 @@ grpc_server_start() {
 }
 
 grpc_server_stop() {
-  [[ -n "${GRPC_SERVER_PID}" ]] || return 0
+  if [[ -z "${GRPC_SERVER_PID}" ]]; then
+    if [[ "${GRPC_SERVER_AUDIT_LOG_OWNED}" == "true" && -n "${UCS_AUDIT_LOG_PATH:-}" ]]; then
+      rm -f -- "${UCS_AUDIT_LOG_PATH}"
+      unset UCS_AUDIT_LOG_PATH
+      GRPC_SERVER_AUDIT_LOG_OWNED=false
+    fi
+    return 0
+  fi
 
   kill "${GRPC_SERVER_PID}" 2>/dev/null || true
 
@@ -66,6 +91,11 @@ grpc_server_stop() {
   kill -9 "${GRPC_SERVER_PID}" 2>/dev/null || true
 
   GRPC_SERVER_PID=""
+  if [[ "${GRPC_SERVER_AUDIT_LOG_OWNED}" == "true" && -n "${UCS_AUDIT_LOG_PATH:-}" ]]; then
+    rm -f -- "${UCS_AUDIT_LOG_PATH}"
+    unset UCS_AUDIT_LOG_PATH
+    GRPC_SERVER_AUDIT_LOG_OWNED=false
+  fi
 }
 
 # Convenience for callers that rebuild between runs.

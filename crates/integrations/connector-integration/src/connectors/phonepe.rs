@@ -62,6 +62,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Phonepe<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        // Defer reference validation to PSync request construction and the connector.
+        Ok(())
+    }
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Phonepe<T>
@@ -219,6 +227,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 payload.transaction_id.clone(),

@@ -72,7 +72,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ".types.SecretString",
         "::hyperswitch_masking::Secret<String>",
     );
-
     // Add serde rename_all = "snake_case" for oneof enum types to output proper proto JSON
     // This ensures variant names like "ApplePay" serialize as "apple_pay"
     config.type_attribute(
@@ -111,6 +110,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `PaysafePaymentMethodDetails::get_account_id` (domain_types/router_data.rs).
     config.type_attribute(".types.PaysafePaymentMethodDetails", "#[serde(default)]");
 
+    // Existing txns Nuvei accounts use these credential names. Keep the
+    // canonical wire names while accepting the legacy account configuration.
+    for (field, alias) in [
+        ("merchant_id", "merchantId"),
+        ("merchant_site_id", "merchantSiteId"),
+        ("merchant_secret", "merchantKey"),
+    ] {
+        config.field_attribute(
+            format!(".types.NuveiConfig.{field}"),
+            format!("#[serde(alias = \"{alias}\")]"),
+        );
+    }
+
+    // WorldpayvantivConfig.merchant_id_by_currency is the BodyKey alternative to the
+    // single `merchant_id`; existing x-connector-config headers omit it. Without a default,
+    // serde rejects a missing (non-optional proto map) field and every SignatureKey /
+    // MultiAuthKey Worldpay Vantiv header would fail to parse.
+    config.field_attribute(
+        ".types.WorldpayvantivConfig.merchant_id_by_currency",
+        "#[serde(default)]",
+    );
+
     // Use compile_protos_with_config which handles everything internally
     // including string enum support, serde derives, and descriptor set writing
     bridge_generator.compile_protos_with_config(
@@ -121,6 +142,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "proto/common_types.proto",
             "proto/domain.proto",
             "proto/payment.proto",
+            "proto/dispute.proto",
             "proto/events.proto",
             "proto/composite_services.proto",
             "proto/composite_payment.proto",

@@ -780,11 +780,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )));
         }
 
-        let amount = utils::convert_amount(
-            item.connector.amount_converter,
-            request.amount.amount,
-            request.currency,
-        )?;
+        let amount = utils::convert_amount(item.connector.amount_converter, &request.amount)?;
 
         let document = request.get_customer_document_details()?;
         let (document_type, document_number) = d24_payer_document(&document, country)?;
@@ -792,7 +788,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let payer_address = {
             let street = billing.get_optional_line1();
             let city = billing.get_optional_city();
-            let state = billing.state.clone();
+            let state = billing.get_optional_state();
             let zip_code = billing.get_optional_zip();
             // Itaú: the shared address getters fail with `MissingRequiredField`
             // naming the first absent field.
@@ -1170,7 +1166,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let mut status = AttemptStatus::from(response.status);
         if status == AttemptStatus::Charged
             && settled_amount
-                .is_some_and(|settled| settled < item.router_data.request.amount.amount)
+                .as_ref()
+                .is_some_and(|settled| settled.amount < item.router_data.request.amount.amount)
         {
             status = AttemptStatus::PartialCharged;
         }
@@ -1183,11 +1180,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             AttemptStatus::Charged | AttemptStatus::PartialCharged
         )
         .then_some(settled_amount)
-        .flatten()
-        .map(|amount| common_utils::types::Money {
-            amount,
-            currency: requested_currency,
-        });
+        .flatten();
 
         // A DECLINED deposit is reported through `status`, not by returning an
         // Err: the UCS PSync convention is that the sync response carries the
@@ -1404,11 +1397,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ));
         }
 
-        let amount = utils::convert_amount(
-            item.connector.amount_converter,
-            request.refund_amount.amount,
-            request.currency,
-        )?;
+        let amount =
+            utils::convert_amount(item.connector.amount_converter, &request.refund_amount)?;
 
         let comments = request.reason.as_ref().and_then(|reason| {
             let trimmed: String = reason.chars().take(D24_REFUND_COMMENTS_MAX_LEN).collect();

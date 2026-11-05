@@ -1,0 +1,273 @@
+{
+  "_webhook_config": {
+    "signature_body_field": "signature",
+    "signature_algorithm": "ecommpay_hmac_sha512",
+    "webhook_secret_key": "secret_key"
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "project_id": 42,
+          "payment": {
+            "id": "456789",
+            "method": "card",
+            "type": "purchase",
+            "status": "success",
+            "date": "2019-01-11T13:02:42+0000",
+            "sum": {
+              "amount": 400000,
+              "currency": "USD"
+            },
+            "description": ""
+          },
+          "customer": {
+            "id": "customer_12"
+          },
+          "operation": {
+            "id": 969000002636,
+            "type": "sale",
+            "status": "success",
+            "date": "2019-01-11T13:02:42+0000",
+            "created_date": "2019-01-11T13:01:45+0000",
+            "request_id": "7c5ddd1e3f6a8c0b",
+            "sum_initial": {
+              "amount": 400000,
+              "currency": "USD"
+            },
+            "sum_converted": {
+              "amount": 400000,
+              "currency": "USD"
+            },
+            "provider": {
+              "id": 408,
+              "payment_id": "330157196",
+              "date": "2019-01-11T13:02:32+0000",
+              "auth_code": "",
+              "endpoint_id": "612266625"
+            },
+            "code": "0",
+            "message": "Success",
+            "eci": "07"
+          },
+          "signature": ""
+        }
+      },
+      "merchant_event_id": "ecommpay_webhook_payment_succeeded"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "project_id": 42,
+          "payment": {
+            "id": "456789",
+            "method": "card",
+            "type": "purchase",
+            "status": "decline",
+            "date": "2019-01-11T13:02:42+0000",
+            "sum": {
+              "amount": 400000,
+              "currency": "USD"
+            },
+            "description": ""
+          },
+          "customer": {
+            "id": "customer_12"
+          },
+          "operation": {
+            "id": 969000002636,
+            "type": "sale",
+            "status": "decline",
+            "date": "2019-01-11T13:02:42+0000",
+            "created_date": "2019-01-11T13:01:45+0000",
+            "request_id": "7c5ddd1e3f6a8c0b",
+            "sum_initial": {
+              "amount": 400000,
+              "currency": "USD"
+            },
+            "sum_converted": {
+              "amount": 400000,
+              "currency": "USD"
+            },
+            "provider": {
+              "id": 408,
+              "payment_id": "330157196",
+              "date": "2019-01-11T13:02:32+0000",
+              "auth_code": "",
+              "endpoint_id": "612266625"
+            },
+            "code": "10102",
+            "message": "Incorrect data entered",
+            "eci": "05"
+          },
+          "signature": ""
+        }
+      },
+      "merchant_event_id": "ecommpay_webhook_payment_failed"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "project_id": 239,
+          "payment": {
+            "id": "payment2",
+            "type": "purchase",
+            "status": "reversed",
+            "method": "card",
+            "sum": {
+              "amount": 0,
+              "currency": "USD"
+            },
+            "merchant_refund_id": "refund_1"
+          },
+          "operation": {
+            "id": 5039886010147584,
+            "type": "reversal",
+            "status": "success",
+            "request_id": "7b81453b56e21dfd",
+            "sum_initial": {
+              "amount": 1000,
+              "currency": "USD"
+            },
+            "sum_converted": {
+              "amount": 1000,
+              "currency": "USD"
+            },
+            "provider": {
+              "id": 2181,
+              "payment_id": "17923521485820",
+              "endpoint_id": 2181
+            },
+            "code": "0",
+            "message": "Success"
+          },
+          "signature": ""
+        }
+      },
+      "merchant_event_id": "ecommpay_webhook_refund_succeeded"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "project_id": 42,
+          "payment": {
+            "id": "456789",
+            "method": "card",
+            "type": "purchase",
+            "status": "success",
+            "date": "2019-01-11T13:02:42+0000",
+            "sum": {
+              "amount": 400000,
+              "currency": "USD"
+            },
+            "description": ""
+          },
+          "customer": {
+            "id": "customer_12"
+          },
+          "operation": {
+            "id": 969000002636,
+            "type": "sale",
+            "status": "success",
+            "date": "2019-01-11T13:02:42+0000",
+            "created_date": "2019-01-11T13:01:45+0000",
+            "request_id": "7c5ddd1e3f6a8c0b",
+            "sum_initial": {
+              "amount": 400000,
+              "currency": "USD"
+            },
+            "sum_converted": {
+              "amount": 400000,
+              "currency": "USD"
+            },
+            "provider": {
+              "id": 408,
+              "payment_id": "330157196",
+              "date": "2019-01-11T13:02:32+0000",
+              "auth_code": "",
+              "endpoint_id": "612266625"
+            },
+            "code": "0",
+            "message": "Success",
+            "eci": "07"
+          },
+          "signature": "aW52YWxpZC1zaWduYXR1cmU="
+        }
+      },
+      "merchant_event_id": "ecommpay_webhook_invalid_signature"
+    }
+  },
+  "ecommpay_decline_callback_maps_failure": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "project_id": 42,
+          "payment": {
+            "id": "456789",
+            "method": "card",
+            "type": "purchase",
+            "status": "decline",
+            "date": "2019-01-11T13:02:42+0000",
+            "sum": {
+              "amount": 400000,
+              "currency": "USD"
+            },
+            "description": ""
+          },
+          "customer": {
+            "id": "customer_12"
+          },
+          "operation": {
+            "id": 969000002636,
+            "type": "sale",
+            "status": "decline",
+            "date": "2019-01-11T13:02:42+0000",
+            "created_date": "2019-01-11T13:01:45+0000",
+            "request_id": "7c5ddd1e3f6a8c0b",
+            "sum_initial": {
+              "amount": 400000,
+              "currency": "USD"
+            },
+            "sum_converted": {
+              "amount": 400000,
+              "currency": "USD"
+            },
+            "provider": {
+              "id": 408,
+              "payment_id": "330157196",
+              "date": "2019-01-11T13:02:32+0000",
+              "auth_code": "",
+              "endpoint_id": "612266625"
+            },
+            "code": "10102",
+            "message": "Incorrect data entered",
+            "eci": "05"
+          },
+          "signature": ""
+        }
+      },
+      "merchant_event_id": "ecommpay_webhook_payment_failed"
+    }
+  }
+}

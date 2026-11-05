@@ -99,6 +99,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Cybersource<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Cybersource<T>
@@ -129,6 +136,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         payment_method: common_enums::PaymentMethod,
         redirect_state: connector_types::RedirectState,
         completed_step: Option<connector_types::AuthenticationStep>,
+        _payment_method_data: Option<
+            &domain_types::payment_method_data::PaymentMethodData<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >,
+        >,
+        _authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> connector_types::AuthenticationStep {
         use connector_types::{AuthenticationStep, RedirectState};
         if auth_type == common_enums::AuthenticationType::ThreeDs
@@ -303,6 +316,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // The notification carries no documented decline code or message, so none is reported.
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(connector_transaction_id)),
             status,
             connector_response_reference_id: None,
@@ -338,6 +353,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let connector_refund_id = body.object_reference_id()?;
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(connector_refund_id),
             merchant_transaction_id: None,
             status,

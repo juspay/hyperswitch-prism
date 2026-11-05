@@ -85,6 +85,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Truelayer<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Truelayer<T>
@@ -873,6 +880,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: Some(
                 domain_types::connector_types::ResponseId::ConnectorTransactionId(
                     details.payment_id.clone(),
@@ -931,6 +940,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
+                raw_connector_status: None,
                 connector_refund_id: details.refund_id.clone(),
                 merchant_transaction_id: None,
                 status,

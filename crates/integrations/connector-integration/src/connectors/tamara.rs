@@ -307,6 +307,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(event.order_id.clone())),
             status: AttemptStatus::from(event.event_type),
@@ -344,6 +346,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
+                raw_connector_status: None,
                 connector_refund_id: refund_id,
                 merchant_transaction_id: event.order_reference_id,
                 status: RefundStatus::from(event.event_type),
@@ -404,6 +407,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Tamara<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

@@ -827,6 +827,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _payment_method: common_enums::PaymentMethod,
         redirect_state: connector_types::RedirectState,
         _completed_step: Option<connector_types::AuthenticationStep>,
+        _payment_method_data: Option<
+            &domain_types::payment_method_data::PaymentMethodData<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >,
+        >,
+        _authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> connector_types::AuthenticationStep {
         use interfaces::connector_types::{AuthenticationStep, RedirectState};
         match redirect_state {
@@ -970,6 +976,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })?;
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(connector_transaction_id)),
             status,
@@ -1010,6 +1018,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let reason = webhook_body.effective_reason();
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: webhook_body.tx_id,
             merchant_transaction_id: webhook_body
                 .payload
@@ -1182,6 +1191,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Grabpay<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        // Defer reference validation to PSync request construction and the connector.
+        Ok(())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

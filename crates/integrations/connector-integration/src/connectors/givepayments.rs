@@ -58,6 +58,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Givepayments<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), errors::IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Givepayments<T>
@@ -238,6 +245,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         });
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id,
             status,
@@ -280,6 +289,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }?;
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id,
             merchant_transaction_id: None,
             status,

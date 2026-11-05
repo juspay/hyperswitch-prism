@@ -307,6 +307,9 @@ default_impl_verify_webhook_source_v2!(
         Travelhub,
         D24,
         Revpay,
+        Betterpayment,
+        Reddot,
+        Ecommpay,
     ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -384,6 +387,8 @@ macro_rules! default_impl_recharge_v2 {
 
 default_impl_recharge_v2!(
     Revpay,
+    Betterpayment,
+    Ecommpay,
     Citigate,
     JpmorganOrbital,
     Paynearme,
@@ -498,7 +503,8 @@ default_impl_recharge_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
+    Reddot,
 );
 
 // ============================================================================
@@ -625,6 +631,8 @@ macro_rules! default_impl_get_payment_method_v2 {
 // Same connector universe as default_impl_recharge_v2! above.
 default_impl_create_payment_method_v2!(
     Revpay,
+    Betterpayment,
+    Ecommpay,
     Citigate,
     JpmorganOrbital,
     Paynearme,
@@ -739,11 +747,14 @@ default_impl_create_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
+    Reddot,
 );
 
 default_impl_get_payment_method_v2!(
     Revpay,
+    Betterpayment,
+    Ecommpay,
     Citigate,
     JpmorganOrbital,
     Paynearme,
@@ -858,7 +869,8 @@ default_impl_get_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
+    Reddot,
 );
 
 default_impl_payment_method_eligibility_v2!(
@@ -976,6 +988,9 @@ default_impl_payment_method_eligibility_v2!(
         Maya,
         Travelhub,
         Revpay,
+        Betterpayment,
+        Reddot,
+        Ecommpay,
     ],
 );
 
@@ -1043,6 +1058,8 @@ macro_rules! default_impl_refresh_payment_method_v2 {
 }
 
 default_impl_refresh_payment_method_v2!(
+    Betterpayment,
+    Ecommpay,
     Revpay,
     Citigate,
     JpmorganOrbital,
@@ -1159,5 +1176,6 @@ default_impl_refresh_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
-    Payhere
+    Payhere,
+    Reddot,
 );

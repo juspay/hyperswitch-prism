@@ -101,7 +101,7 @@ fn build_payer_phone_and_address(
         let country = ad.country?;
         Some(DlocalAddress {
             country,
-            state: ad.state.clone().unwrap_or_default(),
+            state: ad.get_optional_state().unwrap_or_default(),
             city: ad.city.clone().unwrap_or_default(),
             zip_code: ad.zip.clone().unwrap_or_default(),
             street: ad.line1.clone().unwrap_or_default(),
@@ -221,8 +221,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .document_number;
         let amount = utils::convert_amount(
             item.connector.amount_converter,
-            item.router_data.request.amount.amount,
-            item.router_data.request.currency,
+            &item.router_data.request.amount,
         )?;
         let order_id = item
             .router_data
@@ -499,8 +498,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let amount = utils::convert_amount(
             item.connector.amount_converter,
-            item.router_data.request.amount_to_capture.amount,
-            item.router_data.request.currency,
+            &item.router_data.request.amount_to_capture,
         )?;
 
         Ok(Self {
@@ -635,11 +633,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let email = router_data.request.get_email()?;
 
-        let amount = utils::convert_amount(
-            item.connector.amount_converter,
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount =
+            utils::convert_amount(item.connector.amount_converter, &router_data.request.amount)?;
 
         let order_id = router_data
             .resource_common_data
@@ -824,8 +819,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .amount;
                 let amount = utils::convert_amount(
                     item.connector.amount_converter,
-                    minor_amount,
-                    router_data.request.currency,
+                    &common_utils::types::Money {
+                        amount: minor_amount,
+                        currency: router_data.request.currency,
+                    },
                 )?;
 
                 Ok(Self {
@@ -1446,8 +1443,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     ) -> Result<Self, Self::Error> {
         let amount_to_refund = utils::convert_amount(
             item.connector.amount_converter,
-            item.router_data.request.refund_amount.amount,
-            item.router_data.request.currency,
+            &item.router_data.request.refund_amount,
         )?;
 
         Ok(Self {

@@ -343,3 +343,12 @@ pub use self::merchante::Merchante;
 
 pub mod revpay;
 pub use self::revpay::Revpay;
+
+pub mod betterpayment;
+pub use self::betterpayment::Betterpayment;
+
+pub mod reddot;
+pub use self::reddot::Reddot;
+
+pub mod ecommpay;
+pub use self::ecommpay::Ecommpay;

@@ -320,6 +320,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::RevolutPay(_)
                     | WalletData::MbWay(_)
                     | WalletData::Satispay(_)
+                    | WalletData::SatispayIntent(_)
+                    | WalletData::SatispayQr(_)
                     | WalletData::Wero(_)
                     | WalletData::LazyPayRedirect(_)
                     | WalletData::PhonePeRedirect(_)
@@ -1583,10 +1585,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount.to_owned(),
-                item.router_data.request.currency,
-            )
+            .convert(&common_utils::types::Money {
+                amount: item.router_data.request.amount.amount.to_owned(),
+                currency: item.router_data.request.currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1647,7 +1649,7 @@ fn build_l2_l3_order_data<
     let convert = |amount: MinorUnit, field: &str| {
         item.connector
             .amount_converter
-            .convert(amount, currency)
+            .convert(&common_utils::types::Money { amount, currency })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
@@ -1729,7 +1731,7 @@ fn build_ship_to(shipping: Option<&Address>) -> Option<ShipTo> {
     let administrative_area = address.and_then(|addr| match addr.to_state_code_as_optional() {
         Ok(state) => state,
         Err(_) => addr
-            .state
+            .get_optional_state()
             .remove_new_line()
             .filter(|state| state.peek().len() <= CYBERSOURCE_STATE_MAX_LENGTH),
     });
@@ -1802,7 +1804,7 @@ fn build_bill_to(
             let administrative_area = match addr.to_state_code_as_optional() {
                 Ok(state) => state,
                 Err(_) => addr
-                    .state
+                    .get_optional_state()
                     .remove_new_line()
                     .map(|state| {
                         let received_length = state.peek().len();
@@ -3113,6 +3115,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::RevolutPay(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
+                | WalletData::SatispayIntent(_)
+                | WalletData::SatispayQr(_)
                 | WalletData::Wero(_)
                 | WalletData::LazyPayRedirect(_)
                 | WalletData::PhonePeRedirect(_)
@@ -3361,10 +3365,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount_to_capture.amount,
-                item.router_data.request.currency,
-            )
+            .convert(&item.router_data.request.amount_to_capture)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -3474,7 +3475,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = value
             .connector
             .amount_converter
-            .convert(amount.amount, currency)
+            .convert(&common_utils::types::Money {
+                amount: amount.amount,
+                currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -3524,6 +3528,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceVoidPCRequest {
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    order_information: Option<OrderInformation>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -3551,7 +3557,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        let order_information = value
+            .router_data
+            .request
+            .amount
+            .as_ref()
+            .map(|amount| {
+                let total_amount = value
+                    .connector
+                    .amount_converter
+                    .convert(amount)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?;
+                Ok::<_, Self::Error>(OrderInformation {
+                    amount_details: Amount {
+                        total_amount,
+                        currency: amount.currency,
+                        discount_amount: None,
+                        duty_amount: None,
+                        freight_amount: None,
+                        tax_amount: None,
+                    },
+                })
+            })
+            .transpose()?;
         Ok(Self {
+            order_information,
             client_reference_information: ClientReferenceInformation {
                 code: Some(
                     value
@@ -3606,27 +3638,24 @@ impl<F> TryFrom<ResponseRouterData<CybersourcePaymentsResponse, Self>>
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
         );
-        let description = post_capture_void_status
-            .is_post_capture_void_failure()
-            .then(|| {
-                get_error_response(
-                    &item.response.error_information,
-                    &item.response.processor_information,
-                    &item.response.risk_information,
-                    None,
-                    item.http_code,
-                    item.response.id.clone(),
-                )
-                .reason
-            })
-            .flatten();
-        Ok(Self {
-            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+        let response = if post_capture_void_status.is_post_capture_void_failure() {
+            Err(get_error_response(
+                &item.response.error_information,
+                &item.response.processor_information,
+                &item.response.risk_information,
+                None,
+                item.http_code,
+                item.response.id.clone(),
+            ))
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id: Some(item.response.id.clone()),
-                description,
                 status_code: item.http_code,
-            }),
+            })
+        };
+        Ok(Self {
+            response,
             ..item.router_data
         })
     }
@@ -3850,7 +3879,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let additional_amount = item
             .connector
             .amount_converter
-            .convert(request.amount.amount, request.currency)
+            .convert(&request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -4434,15 +4463,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency.ok_or(
+            .convert(&common_utils::types::Money {
+                amount: item.router_data.request.amount.amount,
+                currency: item.router_data.request.currency.ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "currency",
                         context: Default::default(),
                     },
                 )?,
-            )
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -4724,15 +4753,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount,
-                item.router_data.request.currency.ok_or(
+            .convert(&common_utils::types::Money {
+                amount: item.router_data.request.amount.amount,
+                currency: item.router_data.request.currency.ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "currency",
                         context: Default::default(),
                     },
                 )?,
-            )
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -5033,6 +5062,13 @@ impl From<&ClientProcessorInformation> for AdditionalPaymentMethodConnectorRespo
             card_network: None,
             domestic_network: None,
             auth_code: None,
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         }
     }
 }
@@ -5432,10 +5468,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let total_amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.refund_amount.amount.to_owned(),
-                item.router_data.request.currency,
-            )
+            .convert(&common_utils::types::Money {
+                amount: item.router_data.request.refund_amount.amount.to_owned(),
+                currency: item.router_data.request.currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -5860,7 +5896,12 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
         | common_enums::CardNetwork::Dinacard
-        | common_enums::CardNetwork::MyDebit => None,
+        | common_enums::CardNetwork::MyDebit
+        | common_enums::CardNetwork::AirPlus
+        | common_enums::CardNetwork::Aurore
+        | common_enums::CardNetwork::EftposAustralia
+        | common_enums::CardNetwork::GeCapital
+        | common_enums::CardNetwork::Uatp => None,
     }
 }
 
@@ -6304,10 +6345,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let total_amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount.amount.to_owned(),
-                item.router_data.request.currency,
-            )
+            .convert(&common_utils::types::Money {
+                amount: item.router_data.request.amount.amount.to_owned(),
+                currency: item.router_data.request.currency,
+            })
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
