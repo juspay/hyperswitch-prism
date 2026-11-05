@@ -307,6 +307,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Rapyd => ConnectorSpecificConfig::Rapyd {
             access_key: k(),
             secret_key: s(),
+            country_of_incorporation: Some(common_enums::CountryAlpha2::IS),
             base_url: None,
         },
         ConnectorEnum::Authipay => ConnectorSpecificConfig::Authipay {

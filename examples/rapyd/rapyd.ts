@@ -6,8 +6,8 @@
 // Run a scenario:  npx tsx rapyd.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get", "token_authorize", "void"];
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, CountryAlpha2, Currency, FutureUsage, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -17,6 +17,7 @@ const _defaultConfig: types.IConnectorConfig = {
         rapyd: {
             accessKey: { value: 'YOUR_ACCESS_KEY' },
             secretKey: { value: 'YOUR_SECRET_KEY' },
+            countryOfIncorporation: types.CountryAlpha2.IS, // Replace with the country assigned during onboarding
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -28,7 +29,7 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         "merchantTransactionId": "probe_txn_001",  // Identification.
         "amount": {  // The amount for the payment.
             "minorAmount": 1000,
-            "currency": Currency.USD
+            "currency": Currency.EUR
         },
         "paymentMethod": {  // Payment method to be used.
             "card": {  // Generic card payment.
@@ -42,6 +43,7 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         "captureMethod": captureMethod,  // Method for capturing the payment.
         "address": {  // Address Information.
             "billingAddress": {
+                "countryAlpha2Code": CountryAlpha2.IS
             }
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
@@ -55,7 +57,7 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
         "connectorTransactionId": connectorTransactionId,
         "amountToCapture": {  // Capture Details.
             "minorAmount": 1000,
-            "currency": Currency.USD
+            "currency": Currency.EUR
         }
     };
 }
@@ -66,8 +68,18 @@ function _buildCreateClientAuthenticationTokenRequest(): types.IMerchantAuthenti
         "payment": {
             "amount": {
                 "minorAmount": 1000,
-                "currency": Currency.USD
+                "currency": Currency.EUR
             }
+        }
+    };
+}
+
+function _buildCreateOrderRequest(): types.IPaymentServiceCreateOrderRequest {
+    return {
+        "merchantOrderId": "probe_order_001",  // Identification.
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,
+            "currency": Currency.EUR
         }
     };
 }
@@ -78,7 +90,7 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "connectorTransactionId": connectorTransactionId,
         "amount": {  // Amount Information.
             "minorAmount": 1000,
-            "currency": Currency.USD
+            "currency": Currency.EUR
         }
     };
 }
@@ -88,7 +100,7 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
         "merchantTransactionId": "probe_proxy_txn_001",
         "amount": {
             "minorAmount": 1000,
-            "currency": Currency.USD
+            "currency": Currency.EUR
         },
         "cardProxy": {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
             "cardNumber": {"value": "4111111111111111"},  // Card Identification.
@@ -100,11 +112,46 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
         },
         "address": {
             "billingAddress": {
+                "countryAlpha2Code": CountryAlpha2.IS
             }
         },
         "captureMethod": CaptureMethod.AUTOMATIC,
         "authType": AuthenticationType.NO_THREE_DS,
         "returnUrl": "https://example.com/return"
+    };
+}
+
+function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecurringRequest {
+    return {
+        "merchantRecurringPaymentId": "probe_proxy_mandate_001",
+        "amount": {
+            "minorAmount": 0,
+            "currency": Currency.EUR
+        },
+        "cardProxy": {  // Card proxy for vault-aliased payments.
+            "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+            "cardExpMonth": {"value": "03"},
+            "cardExpYear": {"value": "2030"},
+            "cardCvc": {"value": "123"},
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
+        },
+        "customer": {
+            "name": "John Doe",
+            "email": {"value": "test@example.com"}
+        },
+        "address": {
+            "billingAddress": {
+                "countryAlpha2Code": CountryAlpha2.IS
+            }
+        },
+        "returnUrl": "https://example.com/return",
+        "customerAcceptance": {
+            "acceptanceType": AcceptanceType.OFFLINE,  // Type of acceptance (e.g., online, offline).
+            "acceptedAt": 0  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        },
+        "authType": AuthenticationType.NO_THREE_DS,
+        "setupFutureUsage": FutureUsage.OFF_SESSION
     };
 }
 
@@ -114,7 +161,7 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
         },
         "amount": {  // Amount Information.
             "minorAmount": 1000,
-            "currency": Currency.USD
+            "currency": Currency.EUR
         },
         "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
             "token": {  // Payment tokens.
@@ -135,7 +182,7 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
         "paymentAmount": 1000,  // Amount Information.
         "refundAmount": {
             "minorAmount": 1000,
-            "currency": Currency.USD
+            "currency": Currency.EUR
         },
         "reason": "customer_request"  // Reason for the refund.
     };
@@ -149,12 +196,49 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     };
 }
 
+function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringRequest {
+    return {
+        "merchantRecurringPaymentId": "probe_mandate_001",  // Identification.
+        "amount": {  // Mandate Details.
+            "minorAmount": 0,
+            "currency": Currency.EUR
+        },
+        "paymentMethod": {
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "customer": {
+            "name": "John Doe",
+            "email": {"value": "test@example.com"}
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+                "countryAlpha2Code": CountryAlpha2.IS
+            }
+        },
+        "authType": AuthenticationType.NO_THREE_DS,  // Type of authentication to be used.
+        "enrolledFor_3ds": false,  // Indicates if the customer is enrolled for 3D Secure.
+        "returnUrl": "https://example.com/mandate-return",  // URL to redirect after setup.
+        "setupFutureUsage": FutureUsage.OFF_SESSION,  // Indicates future usage intention.
+        "requestIncrementalAuthorization": false,  // Indicates if incremental authorization is requested.
+        "customerAcceptance": {  // Details of customer acceptance.
+            "acceptanceType": AcceptanceType.OFFLINE,  // Type of acceptance (e.g., online, offline).
+            "acceptedAt": 0  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+    };
+}
+
 function _buildTokenAuthorizeRequest(): types.IPaymentServiceTokenAuthorizeRequest {
     return {
         "merchantTransactionId": "probe_tokenized_txn_001",
         "amount": {
             "minorAmount": 1000,
-            "currency": Currency.USD
+            "currency": Currency.EUR
         },
         "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
         "address": {
@@ -317,6 +401,15 @@ async function createClientAuthenticationToken(merchantTransactionId: string, co
     return createResponse;
 }
 
+// Flow: PaymentService.CreateOrder
+async function createOrder(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const createResponse = await paymentClient.createOrder(_buildCreateOrderRequest());
+
+    return createResponse;
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -331,6 +424,15 @@ async function proxyAuthorize(merchantTransactionId: string, config: types.IConn
     const paymentClient = new PaymentClient(config);
 
     const proxyResponse = await paymentClient.proxyAuthorize(_buildProxyAuthorizeRequest());
+
+    return proxyResponse;
+}
+
+// Flow: PaymentService.ProxySetupRecurring
+async function proxySetupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const proxyResponse = await paymentClient.proxySetupRecurring(_buildProxySetupRecurringRequest());
 
     return proxyResponse;
 }
@@ -362,6 +464,15 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
     return refundResponse;
 }
 
+// Flow: PaymentService.SetupRecurring
+async function setupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const setupResponse = await paymentClient.setupRecurring(_buildSetupRecurringRequest());
+
+    return setupResponse;
+}
+
 // Flow: PaymentService.TokenAuthorize
 async function tokenAuthorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -383,7 +494,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, get, proxyAuthorize, recurringCharge, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, get, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

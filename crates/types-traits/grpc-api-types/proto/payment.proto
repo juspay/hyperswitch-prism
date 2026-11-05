@@ -1212,6 +1212,8 @@ message BrowserInformation {
   optional string os_type = 13;
   optional string os_version = 14;
   optional string device_model = 15;
+  optional string challenge_window_size = 16; // EMV 3DS window code 01..05
+
 }
 
 message MandateReferenceDetails {
@@ -3237,6 +3239,11 @@ message PaymentServiceCaptureRequest {
   // Currency conversion quote and decision data passed through the
   // capture flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 19;
+
+  // Industry-specific capture data, such as airline reservation, passenger, and
+  // flight details. Populated by the caller (for example, Euler Txns from booking
+  // data) and forwarded by the composite capture flow to the connector.
+  optional DomainData domain_data = 20;
 }
 
 // Response message for a payment capture operation
@@ -5168,6 +5175,10 @@ message PowertranzConfig {
 message RapydConfig {
   SecretString access_key = 1;
   SecretString secret_key = 2;
+  // The merchant supplies the country assigned by Rapyd during onboarding.
+  // HS forwards it from the selected MCA's metadata.country_of_incorporation.
+  // Required for fresh card and wallet payment-method objects, not saved IDs.
+  optional CountryAlpha2 country_of_incorporation = 3;
   optional string base_url = 50;
 }
 

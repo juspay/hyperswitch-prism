@@ -65,6 +65,7 @@ async fn test_config_override() -> Result<(), Box<dyn std::error::Error>> {
             auth_type: AuthenticationType::ThreeDs as i32,
             capture_method: Some(CaptureMethod::Manual as i32),
             browser_info: Some(BrowserInformation {
+                challenge_window_size: None,
                 user_agent: Some("Mozilla/5.0".to_string()),
                 accept_header: Some(
                     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8".to_string(),
