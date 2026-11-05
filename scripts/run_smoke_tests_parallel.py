@@ -834,7 +834,7 @@ def print_results_table(results: List[SDKResult], sdks: List[str]) -> None:
     for sdk in sdks:
         sdk_results = [r for r in results if r.sdk == sdk]
         passed = sum(1 for r in sdk_results if r.status == "passed")
-        failed = sum(1 for r in sdk_results if r.status == "failed")
+        failed = sum(1 for r in sdk_results if r.status in ("failed", "error"))
         total = len(sdk_results)
 
         status_str = green("PASS") if failed == 0 else red("FAIL")
@@ -932,7 +932,7 @@ def main() -> None:
                 all_results.extend(sdk_results)
 
                 passed = sum(1 for r in sdk_results if r.status == "passed")
-                failed = sum(1 for r in sdk_results if r.status == "failed")
+                failed = sum(1 for r in sdk_results if r.status in ("failed", "error"))
                 icon = "✓" if failed == 0 else "✗"
                 print(
                     f"  [{completed}/{len(sdks)}] {icon} {sdk_name}: "
@@ -950,7 +950,10 @@ def main() -> None:
     print_results_table(all_results, sdks)
     print(f"Total duration: {duration:.1f}s")
 
-    any_failed = any(r.status == "failed" for r in all_results)
+    any_failed = (
+        len(all_results) != len(sdks) * len(connectors)
+        or any(r.status in ("failed", "error") for r in all_results)
+    )
     sys.exit(1 if any_failed else 0)
 
 

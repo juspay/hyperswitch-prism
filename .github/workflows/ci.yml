@@ -43,14 +43,19 @@ permissions:
 
 jobs:
 
+  # Internal jobs use the dedicated Prism runner pool. Fork pull requests stay on
+  # GitHub-hosted runners so untrusted code never runs on internal machines.
+
   # ── Change Detection ──────────────────────────────────────────────────────
   changes:
     name: Detect Changes
-    # Preserve public-fork runner selection; internal jobs use GitHub-hosted x64.
+    # Fork PRs remain on GitHub-hosted runners.
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          github.event_name == 'merge_group' && 'ubuntu-latest' ||
+          'prism-runners' }}
     permissions:
       pull-requests: read
     outputs:
@@ -351,7 +356,9 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          github.event_name == 'merge_group' && 'ubuntu-latest' ||
+          'prism-runners' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -368,7 +375,9 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          github.event_name == 'merge_group' && 'ubuntu-latest' ||
+          'prism-runners' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -411,7 +420,9 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          github.event_name == 'merge_group' && 'ubuntu-latest' ||
+          'prism-runners' }}
     permissions:
       contents: write
     outputs:
@@ -444,6 +455,11 @@ jobs:
 
       - name: Set stable as default toolchain
         run: rustup default stable
+
+      - name: Detect native Rust target
+        id: native-target
+        run: |
+          echo "triple=$(rustc -vV | sed -n 's/^host: //p')" >> "$GITHUB_OUTPUT"
 
       - uses: Swatinem/rust-cache@v2.7.8
         with:
@@ -498,10 +514,10 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            target/x86_64-unknown-linux-gnu/release-fast/field-probe
-            target/x86_64-unknown-linux-gnu/release-fast/libconnector_service_ffi.so
-            target/x86_64-unknown-linux-gnu/release-fast/uniffi-bindgen
-          key: docs-binaries-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
+            target/${{ steps.native-target.outputs.triple }}/release-fast/field-probe
+            target/${{ steps.native-target.outputs.triple }}/release-fast/libconnector_service_ffi.so
+            target/${{ steps.native-target.outputs.triple }}/release-fast/uniffi-bindgen
+          key: docs-binaries-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
 
       - name: Build field-probe + FFI + uniffi-bindgen (cache miss)
         if: >-
@@ -511,7 +527,7 @@ jobs:
           RUSTUP_TOOLCHAIN: stable
         run: |
           cargo build -p field-probe -p ffi -p uniffi-bindgen \
-            --target x86_64-unknown-linux-gnu --profile release-fast
+            --target "${{ steps.native-target.outputs.triple }}" --profile release-fast
 
       - name: Save docs binaries cache
         if: >-
@@ -520,10 +536,10 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            target/x86_64-unknown-linux-gnu/release-fast/field-probe
-            target/x86_64-unknown-linux-gnu/release-fast/libconnector_service_ffi.so
-            target/x86_64-unknown-linux-gnu/release-fast/uniffi-bindgen
-          key: docs-binaries-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
+            target/${{ steps.native-target.outputs.triple }}/release-fast/field-probe
+            target/${{ steps.native-target.outputs.triple }}/release-fast/libconnector_service_ffi.so
+            target/${{ steps.native-target.outputs.triple }}/release-fast/uniffi-bindgen
+          key: docs-binaries-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
 
       - name: Generate Java protobuf stubs
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
@@ -544,7 +560,7 @@ jobs:
         env:
           RUSTUP_TOOLCHAIN: stable
         run: |
-          ./target/x86_64-unknown-linux-gnu/release-fast/field-probe || true
+          ./target/${{ steps.native-target.outputs.triple }}/release-fast/field-probe || true
           make docs SKIP_PROBE=1
 
       - name: Check for changes and commit
@@ -589,7 +605,9 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          github.event_name == 'merge_group' && 'ubuntu-latest' ||
+          'prism-runners' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -621,7 +639,9 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          github.event_name == 'merge_group' && 'ubuntu-latest' ||
+          'prism-runners' }}
 
     env:
       RUSTFLAGS: "-D warnings"
@@ -680,7 +700,9 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          github.event_name == 'merge_group' && 'ubuntu-latest' ||
+          'prism-runners' }}
 
     env:
       RUSTFLAGS: "-D warnings"
@@ -855,14 +877,20 @@ jobs:
         shell: bash
         env:
           GRPCURL_VERSION: "1.9.3"
-          GRPCURL_SHA256: "a926b62a85787ccf73ef8736b3ae554f1242e39d92bb8767a79d6dd23b11d1d5"
+          GRPCURL_SHA256_X86_64: "a926b62a85787ccf73ef8736b3ae554f1242e39d92bb8767a79d6dd23b11d1d5"
+          GRPCURL_SHA256_ARM64: "b20a00c1cb82ab81ec32696766d4076e99b4cb5ca0823a71767ba64dbea0f263"
         run: |
           if command -v grpcurl >/dev/null 2>&1; then
             grpcurl --version
             exit 0
           fi
-          curl -fsSL \
-            "https://github.com/fullstorydev/grpcurl/releases/download/v${GRPCURL_VERSION}/grpcurl_${GRPCURL_VERSION}_linux_x86_64.tar.gz" \
+          case "$(uname -m)" in
+            x86_64) GRPCURL_ARCH=x86_64; GRPCURL_SHA256="$GRPCURL_SHA256_X86_64" ;;
+            aarch64|arm64) GRPCURL_ARCH=arm64; GRPCURL_SHA256="$GRPCURL_SHA256_ARM64" ;;
+            *) echo "Unsupported grpcurl architecture: $(uname -m)"; exit 1 ;;
+          esac
+          curl -fsSL --retry 3 --connect-timeout 15 --max-time 180 \
+            "https://github.com/fullstorydev/grpcurl/releases/download/v${GRPCURL_VERSION}/grpcurl_${GRPCURL_VERSION}_linux_${GRPCURL_ARCH}.tar.gz" \
             -o /tmp/grpcurl.tar.gz
           echo "${GRPCURL_SHA256}  /tmp/grpcurl.tar.gz" | sha256sum --check --strict
           tar -xzf /tmp/grpcurl.tar.gz -C /tmp grpcurl
@@ -953,7 +981,9 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          github.event_name == 'merge_group' && 'ubuntu-latest' ||
+          'prism-runners' }}
 
     env:
       RUSTFLAGS: "-D warnings"
@@ -961,6 +991,7 @@ jobs:
 
     outputs:
       cache-key: ${{ steps.cache-key.outputs.key }}
+      build-arch: ${{ runner.arch }}
 
     steps:
       - name: Checkout code
@@ -970,6 +1001,10 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+
+      - name: Install SDK build target
+        run: |
+          rustup target add "$(rustc -vV | sed -n 's/^host: //p')"
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -983,7 +1018,7 @@ jobs:
 
       - name: Compute SDK binaries cache key
         id: cache-key
-        run: echo "key=sdk-v2-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs', 'crates/types-traits/grpc-api-types/proto/**') }}" >> "$GITHUB_OUTPUT"
+        run: echo "key=sdk-v3-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto', 'sdk/**/Cargo.toml', 'sdk/grpc-ffi/**/*.rs', 'sdk/rust/**/*.rs') }}" >> "$GITHUB_OUTPUT"
 
       - name: Restore SDK binaries cache
         id: sdk-cache-restore
@@ -1021,7 +1056,7 @@ jobs:
           RUSTUP_TOOLCHAIN: stable
         run: |
           cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi -p hyperswitch-smoke-test -p uniffi-bindgen \
-            --profile release-fast --target x86_64-unknown-linux-gnu
+            --profile release-fast --target "$(rustc -vV | sed -n 's/^host: //p')"
 
       - name: Save SDK binaries cache
         if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
@@ -1053,7 +1088,9 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          github.event_name == 'merge_group' && 'ubuntu-latest' ||
+          'prism-runners' }}
 
     strategy:
       fail-fast: false
@@ -1082,7 +1119,11 @@ jobs:
           - name: Mock
             node: true
             java: true
-            run: FFI_SKIP_BUILD=1 python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
+            run: |
+              python3 -m unittest discover -s scripts/tests -p test_smoke_runner_exit_status.py
+              FFI_SKIP_BUILD=1 make -C sdk/python generate-all PROFILE=release-fast
+              FFI_SKIP_BUILD=1 make -C sdk/javascript generate-all PROFILE=release-fast
+              FFI_SKIP_BUILD=1 python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
 
     env:
       RUSTFLAGS: "-D warnings"
@@ -1147,6 +1188,7 @@ jobs:
         run: python3 scripts/generators/code/generate.py --lang rust
 
       - name: Restore SDK binaries cache
+        id: sdk-cache-restore
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -1160,7 +1202,15 @@ jobs:
             target/*/*/grpc-smoke-test
             target/*/*/smoke-test-webhook
           key: ${{ needs.sdk-build.outputs.cache-key }}
-          fail-on-cache-miss: true
+        if: needs.sdk-build.outputs.build-arch == runner.arch
+
+      - name: Build SDK binaries when cache is unavailable
+        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: |
+          cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi -p hyperswitch-smoke-test -p uniffi-bindgen \
+            --profile release-fast --target "$(rustc -vV | sed -n 's/^host: //p')"
 
       - name: Create connector credentials
         shell: bash
@@ -1188,7 +1238,9 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          github.event_name == 'merge_group' && 'ubuntu-latest' ||
+          'prism-runners' }}
     steps:
       - name: Evaluate CI results
         run: |

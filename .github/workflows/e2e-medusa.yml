@@ -13,7 +13,10 @@ permissions:
 jobs:
   e2e:
     name: Playwright E2E (UI + API)
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' || 'prism-runners' }}
     defaults:
       run:
         # The plugin is a self-contained npm workspace under plugins/medusa;
@@ -55,7 +58,15 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync(process.env.CREDS_PATH, 'utf8'))"
 
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: |
+          if [ "$RUNNER_ENVIRONMENT" = "self-hosted" ]; then
+            npx playwright install-deps chromium --dry-run
+            npx playwright install chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
 
       - name: Run E2E suite
         run: npx playwright test # both projects: chromium-ui + api

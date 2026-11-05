@@ -29,7 +29,12 @@ env:
 jobs:
   pr_title_conventional_commit_check:
     name: Verify PR title follows conventional commit standards
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' ||
+          github.event_name == 'merge_group' && 'ubuntu-latest' ||
+          'prism-runners' }}
 
     steps:
       - name: Install Rust
@@ -66,7 +71,12 @@ jobs:
   # The job name is what the main-branch ruleset requires; rename them together.
   deja_art_label_check:
     name: Verify PR carries the deja-art label
-    runs-on: ubuntu-latest
+    runs-on: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository &&
+          'ubuntu-latest' ||
+          github.event_name == 'merge_group' && 'ubuntu-latest' ||
+          'prism-runners' }}
     timeout-minutes: 60
     concurrency:
       group: deja-art-gate-${{ github.event.pull_request.number || github.run_id }}
