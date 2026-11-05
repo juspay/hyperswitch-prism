@@ -1,13 +1,18 @@
-# Webhook parsers
+# Common webhook operations
 
-This directory contains provider implementations for the first webhook call, `ParseEvent`.
-It uses `interfaces::webhook_parse::WebhookParse`, which takes borrowed
-`RequestDetails` and returns the domain `WebhookParseResponse` containing an
-`EventType` and an optional `WebhookResourceReference`.
+This directory contains provider implementations of
+`interfaces::webhook_common::WebhookCommon`. ParseEvent extracts the event type
+and reference; HandleEvent uses common classification, local source verification,
+ACK generation, and integrity-check declarations. Resource normalization remains
+in the existing payment connectors, including their payout webhook processing.
+
+The original `interfaces::webhook_parse::WebhookParse` and boxed connector paths
+remain compatibility re-exports. Existing parse-only implementations compile
+because the additional common methods have defaults.
 
 To implement a provider later:
 
-1. Add `<connector>.rs` implementing `WebhookParse`, following TrueLayer or Trustly.
+1. Add `<connector>.rs` implementing `WebhookCommon`, following TrueLayer or Trustly.
 2. Define the provider payload types and parsing mappings in
    `<connector>/transformers.rs`. Extract both the event type
    and its reference, including payment, refund, dispute, mandate, or payout IDs.
@@ -16,12 +21,11 @@ To implement a provider later:
    Match both payment and payout variants when they share the parser. Return
    `Some(Box::new(ProviderWebhook::new()))` for available providers and `None` otherwise.
 
-Both gRPC and FFI call the shared `get_parse_event_connector_data` resolver.
+Both gRPC and FFI call the shared `get_webhook_connector_data` resolver (`get_parse_event_connector_data` remains available).
 It returns `ParseEventConnectorData`, and callers match its variant:
 
-- `Webhook(WebhookConnectorData)` calls `parse_event` on `Box<dyn WebhookParse>`.
-- `Payment(ConnectorData)` calls the legacy payment connector's `get_event_type`
-  and `get_webhook_event_reference` methods.
+- `Webhook(WebhookConnectorData)` uses `Box<dyn WebhookCommon>` for provider-level operations.
+- `Payment(ConnectorData)` uses the existing payment connector's `IncomingWebhook` methods.
 
 Header validation, migration policy, and connector construction belong to the
 resolver. The parsing entry points only dispatch on the returned data.
@@ -37,7 +41,7 @@ Set `CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS="trustly,truelayer"` to opt in
 existing HS requests without changing their `x-connector` header. The default
 is an empty list. The native FFI handler honors the same environment variable;
 direct service-transformer callers supply the migration configuration themselves.
-The new header is accepted by gRPC and by service transformers receiving metadata.
+The new header is accepted by gRPC ParseEvent/HandleEvent and by service transformers receiving metadata.
 The public native byte API continues to identify providers through its typed
 connector options; it does not expose routing headers.
 
@@ -51,9 +55,16 @@ The common entry point converts the domain response into the existing
 protobuf response. `None` means that the notification has no supported resource
 reference; malformed payloads must return a parsing error.
 
-The parser does not authenticate notifications. Its references remain unverified
-until the handling phase verifies the source. Verification, acknowledgements,
-business context, and status processing remain in the existing handling path.
+ParseEvent does not authenticate notifications. HandleEvent verifies the source
+before resource processing. A false verification result retains its existing
+behavior: processing may still return content and an ACK with `source_verified`
+set to false. Native FFI retains local verification only; the gRPC external
+verification flow stays on the existing payment integration.
+
+Providers should implement `get_event_type` separately when classification must
+not require ParseEvent's resource references. This preserves HandleEvent's input
+validation. Existing payment methods delegate to the common implementations to
+keep their behavior and public interfaces available.
 
 TrueLayer and Trustly are available for both payment and payout variants.
 Their shared payload types and parsing mappings live in this directory; the

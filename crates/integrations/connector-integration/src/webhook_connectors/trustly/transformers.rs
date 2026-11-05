@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose, Engine};
 use common_enums::Currency;
 use common_utils::{ext_traits::ByteSliceExt, StringMajorUnit};
 use domain_types::{
@@ -7,9 +8,17 @@ use domain_types::{
     },
     errors::WebhookError,
 };
+use domain_types::{errors, utils::base64_decode};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
+use openssl::{
+    hash::MessageDigest,
+    pkey::PKey,
+    rsa::Rsa,
+    sign::{Signer, Verifier},
+};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrustlyWebhookBody {
@@ -190,4 +199,168 @@ pub fn parse_event(
         event_type,
         reference,
     })
+}
+
+fn trustly_serialize<T: Serialize>(data: &T) -> String {
+    let value = serde_json::to_value(data).unwrap_or_default();
+    serialize_value(&value)
+}
+
+enum Algorithm {
+    SHA256,
+    SHA384,
+    SHA512,
+    SHA1,
+}
+
+impl Algorithm {
+    fn message_digest(&self) -> MessageDigest {
+        match self {
+            Self::SHA256 => MessageDigest::sha256(),
+            Self::SHA384 => MessageDigest::sha384(),
+            Self::SHA512 => MessageDigest::sha512(),
+            Self::SHA1 => MessageDigest::sha1(),
+        }
+    }
+
+    fn prefix(&self) -> &'static str {
+        "alg=RS256;"
+    }
+}
+
+fn serialize_value(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::Object(map) => {
+            let sorted: BTreeMap<_, _> = map.iter().collect();
+            sorted
+                .iter()
+                .filter(|(_, v)| !v.is_null())
+                .map(|(k, v)| format!("{}{}", k, serialize_value(v)))
+                .collect()
+        }
+        serde_json::Value::Array(arr) => arr.iter().map(serialize_value).collect(),
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Null => String::new(),
+    }
+}
+
+pub fn generate_trustly_signature<T: Serialize>(
+    method: &str,
+    uuid: &str,
+    data: &T,
+    private_key: &str,
+) -> Result<String, errors::IntegrationError> {
+    let algorithm = Algorithm::SHA256;
+    let pem = base64_decode(private_key.to_string()).map_err(|_| {
+        errors::IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        }
+    })?;
+    let rsa = Rsa::private_key_from_pem(&pem).map_err(|_| {
+        errors::IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        }
+    })?;
+    let private_key =
+        PKey::from_rsa(rsa).map_err(|_| errors::IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })?;
+
+    let plaintext = format!("{}{}{}", method, uuid, trustly_serialize(data));
+
+    let mut signer = Signer::new(algorithm.message_digest(), &private_key).map_err(|_| {
+        errors::IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        }
+    })?;
+    signer.update(plaintext.as_bytes()).map_err(|_| {
+        errors::IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        }
+    })?;
+    let signature =
+        signer
+            .sign_to_vec()
+            .map_err(|_| errors::IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+    Ok(format!(
+        "{}{}",
+        algorithm.prefix(),
+        general_purpose::STANDARD.encode(&signature)
+    ))
+}
+
+pub fn verify_webhook_signature(
+    webhook_body: TrustlyWebhookBody,
+    public_key: Vec<u8>,
+) -> error_stack::Result<bool, WebhookError> {
+    let method = webhook_body.method;
+    let uuid = webhook_body.params.uuid;
+    let data = &webhook_body.params.data;
+    let signature = &webhook_body.params.signature;
+
+    let pem_bytes = general_purpose::STANDARD
+        .decode(&public_key)
+        .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+
+    let rsa = Rsa::public_key_from_pem(&pem_bytes)
+        .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+    let public_key =
+        PKey::from_rsa(rsa).change_context(WebhookError::WebhookSourceVerificationFailed)?;
+
+    let (algorithm, signature_b64) = if signature.len() >= 10
+        && signature.starts_with("alg=RS")
+        && matches!(signature.as_bytes().get(9), Some(b';'))
+    {
+        let prefix = &signature[..10];
+
+        let algorithm = match prefix {
+            "alg=RS256;" => Algorithm::SHA256,
+            "alg=RS384;" => Algorithm::SHA384,
+            "alg=RS512;" => Algorithm::SHA512,
+            _ => Algorithm::SHA1,
+        };
+
+        (algorithm, &signature[10..])
+    } else {
+        (Algorithm::SHA1, signature.as_str())
+    };
+
+    let plaintext = format!("{}{}{}", method.as_str(), uuid, trustly_serialize(data));
+
+    let signature_bytes = general_purpose::STANDARD
+        .decode(signature_b64)
+        .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+    let mut verifier = Verifier::new(algorithm.message_digest(), &public_key)
+        .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+    verifier
+        .update(plaintext.as_bytes())
+        .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+    verifier
+        .verify(&signature_bytes)
+        .change_context(WebhookError::WebhookSourceVerificationFailed)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponse {
+    pub result: TrustlyWebhookResponseResult,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponseResult {
+    pub signature: Secret<String>,
+    pub uuid: String,
+    pub method: String,
+    pub data: TrustlyWebhookResponseResultData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponseResultData {
+    pub status: String,
 }

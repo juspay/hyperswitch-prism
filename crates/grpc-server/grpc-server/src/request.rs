@@ -64,6 +64,14 @@ impl<T> RequestData<T> {
         request: tonic::Request<T>,
         config: Arc<configs::Config>,
     ) -> Result<Self, Report<GrpcError>> {
+        Self::from_grpc_webhook_request(request, config)
+    }
+
+    /// Resolve either the explicit webhook selector or existing connector metadata.
+    pub fn from_grpc_webhook_request(
+        request: tonic::Request<T>,
+        config: Arc<configs::Config>,
+    ) -> Result<Self, Report<GrpcError>> {
         Self::from_grpc_request_with_routing(request, config, true)
     }
 

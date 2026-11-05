@@ -1,4 +1,4 @@
-//! Connector selection for ParseEvent, shared by transport implementations.
+//! Migration selection for common webhook operations, shared by transports.
 
 use common_utils::{
     consts::X_WEBHOOK_CONNECTOR_NAME, errors::CustomResult, metadata::MaskedMetadata,
@@ -15,7 +15,7 @@ use ucs_env::configs::Config;
 
 /// Resolve routing policy once; callers only match the returned connector data.
 /// An explicitly selected standalone implementation never falls back to payments.
-pub fn get_parse_event_connector_data(
+pub fn get_webhook_connector_data(
     connector: &ConnectorVariant,
     config: &Config,
     metadata: &MaskedMetadata,
@@ -62,3 +62,6 @@ pub fn get_parse_event_connector_data(
         })
     })
 }
+
+/// Compatibility entry point for existing ParseEvent callers.
+pub use get_webhook_connector_data as get_parse_event_connector_data;

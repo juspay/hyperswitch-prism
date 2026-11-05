@@ -11,6 +11,15 @@ use grpc_api_types::payments::{
 
 use crate::types::{ConnectorData, WebhookConnectorData};
 
+/// Inputs shared by webhook normalization and ACK generation.
+pub struct WebhookHandlingContext {
+    pub webhook_secrets: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
+    pub connector_config: Option<ConnectorSpecificConfig>,
+    pub source_verified: bool,
+    pub merchant_event_id: Option<String>,
+    pub event_context: Option<EventContext>,
+}
+
 /// Core webhook event processing shared by both the gRPC server and the FFI layer.
 ///
 /// Caller is responsible for:
@@ -40,9 +49,51 @@ pub fn process_webhook_event<
     merchant_event_id: Option<String>,
     event_context: Option<EventContext>,
 ) -> error_stack::Result<EventServiceHandleResponse, WebhookError> {
-    let event_type = connector_data
-        .connector
-        .get_event_type(request_details.clone())?;
+    process_webhook_event_with_common(
+        connector_data,
+        request_details,
+        WebhookHandlingContext {
+            webhook_secrets,
+            connector_config,
+            source_verified,
+            merchant_event_id,
+            event_context,
+        },
+        None,
+    )
+}
+
+/// Common protocol operations may migrate independently of resource normalization.
+pub fn process_webhook_event_with_common<
+    T: PaymentMethodDataTypes
+        + Default
+        + Eq
+        + std::fmt::Debug
+        + Send
+        + serde::Serialize
+        + serde::de::DeserializeOwned
+        + Clone
+        + Sync
+        + 'static,
+>(
+    connector_data: ConnectorData<T>,
+    request_details: domain_types::connector_types::RequestDetails,
+    context: WebhookHandlingContext,
+    webhook_common: Option<&dyn interfaces::webhook_common::WebhookCommon>,
+) -> error_stack::Result<EventServiceHandleResponse, WebhookError> {
+    let WebhookHandlingContext {
+        webhook_secrets,
+        connector_config,
+        source_verified,
+        merchant_event_id,
+        event_context,
+    } = context;
+    let event_type = match webhook_common {
+        Some(common) => common.get_event_type(request_details.clone()),
+        None => connector_data
+            .connector
+            .get_event_type(request_details.clone()),
+    }?;
 
     let api_event_type = WebhookEventType::foreign_try_from(event_type.clone())
         .change_context(WebhookError::WebhookProcessingFailed)?;
@@ -87,11 +138,16 @@ pub fn process_webhook_event<
         )?
     };
 
-    let ack = connector_data.connector.get_webhook_api_response(
-        request_details.clone(),
-        None,
-        connector_config,
-    )?;
+    let ack = match webhook_common {
+        Some(common) => {
+            common.get_webhook_api_response(request_details.clone(), None, connector_config)
+        }
+        None => connector_data.connector.get_webhook_api_response(
+            request_details.clone(),
+            None,
+            connector_config,
+        ),
+    }?;
     let event_ack_response = Some(grpc_api_types::payments::EventAckResponse {
         status_code: ack.status_code,
         headers: ack.headers.into_iter().collect(),

@@ -260,17 +260,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
-        let webhook_body: TrustlyWebhookBody = request
-            .body
-            .parse_struct("TrustlyWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        let webhook_secret = match connector_webhook_secret {
-            Some(secrets) => secrets.secret,
-            None => return Ok(false),
-        };
-
-        trustly::verify_webhook_signature(webhook_body, webhook_secret)
+        interfaces::webhook_common::WebhookCommon::verify_webhook_source(
+            &crate::webhook_connectors::TrustlyWebhook::new(),
+            request,
+            connector_webhook_secret,
+            _connector_account_details,
+        )
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
@@ -282,16 +277,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<errors::WebhookError>>
     {
-        let webhook_body: TrustlyWebhookBody = request
-            .body
-            .parse_struct("TrustlyWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-        let message_id = webhook_body.params.data.messageid.clone();
-
-        Ok(trustly::get_webhook_event(
-            webhook_body.method,
-            message_id.expose(),
-        ))
+        interfaces::webhook_common::WebhookCommon::get_event_type(
+            &crate::webhook_connectors::TrustlyWebhook::new(),
+            request,
+        )
     }
 
     fn get_webhook_event_reference(
@@ -437,47 +426,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _error_kind: Option<connector_types::IncomingWebhookFlowError>,
         connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<interfaces::api::EventAckResponse, error_stack::Report<errors::WebhookError>> {
-        let details: TrustlyWebhookBody = request
-            .body
-            .parse_struct("TrustlyWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        let data = trustly::TrustlyWebhookResponseResultData {
-            status: "OK".to_string(),
-        };
-
-        let connector_auth_type =
-            connector_account_details.ok_or(errors::WebhookError::WebhookResponseEncodingFailed)?;
-
-        let auth = trustly::TrustlyAuthType::try_from(&connector_auth_type)
-            .change_context(errors::WebhookError::WebhookResponseEncodingFailed)?;
-
-        let signature = trustly::generate_trustly_signature(
-            details.method.as_str(),
-            &details.params.uuid,
-            &data,
-            &auth.private_key.expose(),
+        interfaces::webhook_common::WebhookCommon::get_webhook_api_response(
+            &crate::webhook_connectors::TrustlyWebhook::new(),
+            request,
+            _error_kind,
+            connector_account_details,
         )
-        .change_context(errors::WebhookError::WebhookResponseEncodingFailed)?;
-
-        let response = trustly::TrustlyWebhookResponse {
-            result: trustly::TrustlyWebhookResponseResult {
-                signature: signature.into(),
-                uuid: details.params.uuid,
-                method: details.method.as_str().to_string(),
-                data,
-            },
-            version: details.version,
-        };
-
-        let response_body = serde_json::to_vec(&response)
-            .change_context(errors::WebhookError::WebhookResponseEncodingFailed)?;
-
-        Ok(interfaces::api::EventAckResponse {
-            status_code: 200,
-            headers: vec![],
-            body: Some(response_body),
-        })
     }
 }
 

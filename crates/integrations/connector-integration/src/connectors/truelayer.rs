@@ -766,12 +766,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: domain_types::connector_types::RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
-        let webhook_body: truelayer::TruelayerWebhookEventTypeBody = request
-            .body
-            .parse_struct("TruelayerPayoutsWebhookBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        Ok(truelayer::get_webhook_event(webhook_body._type))
+        interfaces::webhook_common::WebhookCommon::get_event_type(
+            &crate::webhook_connectors::TruelayerWebhook::new(),
+            request,
+        )
     }
 
     fn get_webhook_event_reference(

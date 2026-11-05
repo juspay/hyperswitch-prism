@@ -1,12 +1,12 @@
-//! Provider implementations for the stateless `ParseEvent` phase.
+//! Provider-level parsing, local verification, and acknowledgement operations.
 //!
 //! Each provider has a `<connector>.rs` module implementing
-//! `interfaces::webhook_parse::WebhookParse`, and a
+//! `interfaces::webhook_common::WebhookCommon`, and a
 //! `<connector>/transformers.rs` module containing its payload types and mappings.
 //! Payment and payout events from the same provider share one parser.
 //!
 //! Export its module and connector type here, following `payout_connectors.rs`.
-//! TrueLayer and Trustly have standalone parsers, selected by ParseEvent's migration policy.
+//! TrueLayer and Trustly have standalone parsers, selected by the webhook migration policy.
 
 pub mod truelayer;
 pub mod trustly;
@@ -18,7 +18,7 @@ use interfaces::webhook_parse::BoxedWebhookConnector;
 /// Registers providers available for the standalone webhook implementation.
 ///
 /// Match the appropriate payment and payout variants for a shared provider.
-/// The migration configuration or explicit webhook header selects this registry.
+/// The migration configuration or explicit webhook header selects this registry for common operations.
 /// Returning `None` is unsupported when the standalone implementation is selected.
 /// Parser errors propagate without falling back to payments.
 pub fn get_connector(variant: &ConnectorVariant) -> Option<BoxedWebhookConnector> {

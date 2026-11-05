@@ -141,7 +141,7 @@ pub fn webhook_connector_from_name(
         })
 }
 
-/// Only ParseEvent accepts the new selector. Other endpoints retain their existing routing.
+/// Resolve the explicit selector for incoming webhook parse/handle operations.
 pub fn parse_event_connector_and_config_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<(connector_types::ConnectorVariant, ConnectorSpecificConfig), IntegrationError> {

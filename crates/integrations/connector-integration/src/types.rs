@@ -22,14 +22,17 @@ pub struct ConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sy
     pub connector_name: ConnectorEnum,
 }
 
-/// Connector implementations available to the stateless ParseEvent call.
+/// Migration selection for common webhook operations.
 pub enum ParseEventConnectorData {
     Webhook(WebhookConnectorData),
     Payment(ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>),
 }
 
+/// General name for the existing migration enum; variants retain their behavior.
+pub use ParseEventConnectorData as WebhookConnectorDataSource;
+
 pub struct WebhookConnectorData {
-    pub connector: interfaces::webhook_parse::BoxedWebhookConnector,
+    pub connector: interfaces::webhook_common::BoxedWebhookConnector,
 }
 
 impl WebhookConnectorData {

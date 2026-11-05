@@ -37,20 +37,31 @@ sequenceDiagram
 
 ## Adding a connector webhook
 
-1. Implement [`WebhookParse`](../../../crates/types-traits/interfaces/src/webhook_parse.rs) in `webhook_connectors/<connector>.rs`, with payload types and event/reference mappings in `<connector>/transformers.rs`. Register the parser in [`webhook_connectors.rs`](../../../crates/integrations/connector-integration/src/webhook_connectors.rs). TrueLayer and Trustly have standalone implementations for both payment and payout metadata. Existing headers retain the legacy [`IncomingWebhook`](../../../crates/types-traits/interfaces/src/connector_types.rs) parsing path until the provider is enabled in `webhook_parse.migrated_connectors`. Keep parent payment IDs distinct from the event's own ID.
-2. Implement the matching `process_payment_webhook`, `process_refund_webhook`, `process_dispute_webhook`, or `process_payout_webhook` method. Map status and IDs into the normalized `HandleEvent` content. Override `get_webhook_api_response` for a connector-specific ACK and provide `sample_webhook_body` for probes.
-3. For local signature checks, implement `IncomingWebhook::verify_webhook_source`. If verification calls the connector API, implement `VerifyWebhookSourceV2` **and** `ConnectorIntegrationV2<VerifyWebhookSource, ...>`, map the API result to `VerifyWebhookStatus`, and enable `webhook_source_verification_call.connectors_with_webhook_source_verification_call`. [PayPal](../../../crates/integrations/connector-integration/src/connectors/paypal.rs) is an example.
+1. Implement [`WebhookCommon`](../../../crates/types-traits/interfaces/src/webhook_common.rs) in `webhook_connectors/<connector>.rs`, with payload types and event/reference mappings in `<connector>/transformers.rs`. Register the parser in [`webhook_connectors.rs`](../../../crates/integrations/connector-integration/src/webhook_connectors.rs). TrueLayer and Trustly have standalone implementations for both payment and payout metadata. Existing headers retain the legacy [`IncomingWebhook`](../../../crates/types-traits/interfaces/src/connector_types.rs) parsing path until the provider is enabled in `webhook_parse.migrated_connectors`. Keep parent payment IDs distinct from the event's own ID.
+2. Implement the matching `process_payment_webhook`, `process_refund_webhook`, `process_dispute_webhook`, or `process_payout_webhook` method. Map status and IDs into the normalized `HandleEvent` content. Keep resource normalization on the existing payment connector in this phase, and provide `sample_webhook_body` there for probes.
+3. For local signature checks and provider-specific ACKs, implement `WebhookCommon::verify_webhook_source` and `WebhookCommon::get_webhook_api_response`. Keep legacy `IncomingWebhook` entry points available during migration. If verification calls the connector API, implement `VerifyWebhookSourceV2` **and** `ConnectorIntegrationV2<VerifyWebhookSource, ...>`, map the API result to `VerifyWebhookStatus`, and enable `webhook_source_verification_call.connectors_with_webhook_source_verification_call`. [PayPal](../../../crates/integrations/connector-integration/src/connectors/paypal.rs) is an example.
 4. Test `ParseEvent` and `HandleEvent` with real-shaped success, failure, and invalid-signature payloads; assert the IDs, status, verification result, and ACK.
 
-The standalone parser registry applies to `ParseEvent` only. `HandleEvent` still uses the payment connector's `IncomingWebhook` implementation, including `get_event_type`, verification, status processing, and acknowledgement. Accepting payout metadata for `ParseEvent` does not enable payout metadata for `HandleEvent`.
+The migration enum selects either the common provider implementation or the
+legacy payment connector for both ParseEvent and HandleEvent. Migrated common
+operations include classification, local verification, ACK generation, and
+integrity-check declarations. Resource normalization remains on the existing
+payment connector for payment, refund, dispute, and payout events. The gRPC
+external source-verification integration also stays on its existing path.
+Payout metadata remains unsupported by HandleEvent in this first step.
+
+Existing `IncomingWebhook` methods, the `WebhookParse` trait path, the original
+ParseEvent resolver, and the original `process_webhook_event` helper remain
+available. A failed source check still permits a response marked unverified;
+no selected implementation is retried through another migration branch.
 
 For rollout without an HS change, set `CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS="trustly,truelayer"`.
 Requests using existing connector metadata then select the standalone parser for
-listed providers; an empty list keeps legacy parsing. Alternatively, ParseEvent
-accepts `x-webhook-connector` to explicitly select a standalone parser, overriding
+listed providers; an empty list keeps legacy parsing. Alternatively, incoming webhook calls
+accept `x-webhook-connector` to explicitly select a standalone parser, overriding
 legacy identity headers. Typed connector configuration must match that provider.
-A shared resolver returns either webhook or payment connector data; ParseEvent
-matches that data to call the new trait or the legacy payment methods.
+A shared resolver returns either webhook or payment connector data; callers
+match that data to call the common trait or the legacy payment methods.
 Explicit or configured migration to an unavailable parser returns an error;
 parsing failures never retry the legacy implementation. The native FFI handler
 honors the same rollout environment variable.
