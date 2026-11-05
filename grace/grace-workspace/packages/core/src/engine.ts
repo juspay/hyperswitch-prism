@@ -11,6 +11,7 @@ import type { StateManager } from "./state.js";
 import { DEFAULT_SESSION_ID } from "./state.js";
 import { withTimeout } from "./utils.js";
 import type { PipelineEventBus } from "./logger.js";
+import { validateTaskInputs } from "./task-validation.js";
 
 export interface PipelineEngineOptions {
   /**
@@ -135,6 +136,20 @@ export class PipelineEngine {
           lastError: "Max retries exceeded",
         });
         throw new PipelineAbortError(checkpoint.id, "Max retries exceeded - manual retry required");
+      }
+
+      // Checked before every checkpoint, not just preflight: a resumed run can
+      // start past preflight, and its task may predate this validation.
+      const taskProblems = [
+        ...validateTaskInputs(ctx.task),
+        ...validateTaskInputs(ctx.artifacts.task),
+      ];
+      if (taskProblems.length > 0) {
+        const reason = `Invalid task: ${[...new Set(taskProblems)].join("; ")}`;
+        ctx.log(`[${checkpoint.id}] ${reason}`, "error");
+        await this.state.save(ctx, checkpoint.id, "failed");
+        this.bus?.emitStatus(checkpoint.id, "failed");
+        throw new PipelineAbortError(checkpoint.id, reason);
       }
 
       ctx.log(`[${checkpoint.id}] Starting: ${checkpoint.name}`, "info");

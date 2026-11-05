@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -225,7 +225,7 @@ export class SessionManager {
       const sourceRepo = session.metadata.originalPath;
       if (sourceRepo && fs.existsSync(sourceRepo)) {
         try {
-          execSync(`git worktree remove --force ${quote(worktreePath)}`, {
+          execFileSync("git", ["worktree", "remove", "--force", worktreePath], {
             cwd: sourceRepo,
             stdio: "ignore",
           });
@@ -265,8 +265,9 @@ export class SessionManager {
       );
     }
     const branch = `grace/${slugifyTaskName(taskName)}-${branchTimestamp()}`;
-    execSync(
-      `git worktree add -b ${quote(branch)} ${quote(projectRoot)} HEAD`,
+    execFileSync(
+      "git",
+      ["worktree", "add", "-b", branch, projectRoot, "HEAD"],
       { cwd: sourcePath, stdio: "ignore" }
     );
   }
@@ -275,8 +276,9 @@ export class SessionManager {
     sourcePath: string,
     projectRoot: string
   ): Promise<void> {
-    execSync(
-      `git clone --depth=1 --no-tags ${quote(sourcePath)} ${quote(projectRoot)}`,
+    execFileSync(
+      "git",
+      ["clone", "--depth=1", "--no-tags", sourcePath, projectRoot],
       { stdio: "ignore" }
     );
   }
@@ -294,13 +296,9 @@ export class SessionManager {
       if (skip.has(entry.name)) continue;
       const src = path.join(sourcePath, entry.name);
       const dst = path.join(projectRoot, entry.name);
-      execSync(`cp -R ${quote(src)} ${quote(dst)}`, { stdio: "ignore" });
+      execFileSync("cp", ["-R", src, dst], { stdio: "ignore" });
     }
   }
-}
-
-function quote(s: string): string {
-  return `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
 function slugifyTaskName(name: string): string {

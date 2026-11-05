@@ -859,6 +859,14 @@ validate_inputs() {
         fatal_error "Base URL must be a valid HTTP/HTTPS URL"
     fi
 
+    # These URLs are spliced into sed expressions delimited by '|' and into TOML.
+    local url
+    for url in "$BASE_URL" "$PRODUCTION_URL"; do
+        if [[ "$url" == *[[:space:]\|\\\'\"\`\$\;\<\>]* ]]; then
+            fatal_error "Connector URLs must not contain whitespace, quotes or shell metacharacters"
+        fi
+    done
+
     # Generate name variants
     NAME_SNAKE="$CONNECTOR_NAME"
     NAME_PASCAL=$(to_pascal_case "$CONNECTOR_NAME")

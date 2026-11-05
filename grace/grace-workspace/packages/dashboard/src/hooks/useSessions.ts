@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { openControlSocket } from "../lib/control-socket";
 
 export type SessionStatus = "idle" | "running" | "cancelling" | "error" | "archived";
 export type SessionCopyStrategy = "git-worktree" | "full" | "shallow" | "legacy";
@@ -61,7 +62,7 @@ export function useSessions(controlUrl: string): UseSessionsResult {
 
     const connect = () => {
       setControlStatus("connecting");
-      const ws = new WebSocket(controlUrl);
+      const ws = openControlSocket(controlUrl);
       wsRef.current = ws;
 
       // All handlers identity-check `wsRef.current === ws` before touching

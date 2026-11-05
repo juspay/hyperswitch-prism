@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { PrResolverConfig } from "../config.js";
+import { isValidPort } from "../task-validation.js";
 
 /**
  * Runtime overlay for PrResolverConfig — what the dashboard can edit. Stored
@@ -121,7 +122,7 @@ export function validateOverlay(
 ): OverlayValidationResult {
   const errors: string[] = [];
   if (overlay.githubRepo !== undefined && overlay.githubRepo !== "") {
-    if (!/^[^\s/]+\/[^\s/]+$/.test(overlay.githubRepo)) {
+    if (!/^[A-Za-z0-9_][A-Za-z0-9_.-]*\/[A-Za-z0-9_][A-Za-z0-9_.-]*$/.test(overlay.githubRepo)) {
       errors.push(
         `githubRepo must be 'owner/name' format, got: ${overlay.githubRepo}`
       );
@@ -129,6 +130,9 @@ export function validateOverlay(
   }
   if (overlay.trigger !== undefined && overlay.trigger.trim().length === 0) {
     errors.push(`trigger must be non-empty`);
+  }
+  if (overlay.grpcPort !== undefined && !isValidPort(overlay.grpcPort)) {
+    errors.push(`grpcPort must be an integer between 1 and 65535`);
   }
   const positives: Array<[keyof PrResolverRuntimeOverlay, number | undefined]> = [
     ["pollInterval", overlay.pollInterval],

@@ -1,5 +1,13 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import type { IncomingMessage } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
+import {
+  CONTROL_PROTOCOL,
+  getControlToken,
+  isAuthorizedControlUpgrade,
+  resolveControlBindHost,
+} from "./control-auth.js";
+import { validateTaskInputs } from "./task-validation.js";
 
 import { newRunId } from "./utils.js";
 import {
@@ -161,7 +169,25 @@ export class SessionSupervisor {
     private controlWsPort: number,
     private opts: SupervisorOptions
   ) {
-    this.wss = new WebSocketServer({ port: controlWsPort });
+    const controlToken = getControlToken();
+    const host = resolveControlBindHost();
+    if (host !== "127.0.0.1" && host !== "localhost" && host !== "::1") {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[supervisor] control socket is bound to ${host}. Anything that can reach this port and holds the control token can run commands as this user, so keep it off untrusted networks.`
+      );
+    }
+    this.wss = new WebSocketServer({
+      port: controlWsPort,
+      host,
+      verifyClient: ({ origin, req }: { origin?: string; req: IncomingMessage }) =>
+        isAuthorizedControlUpgrade(
+          { origin, protocolHeader: req.headers["sec-websocket-protocol"] },
+          controlToken
+        ),
+      handleProtocols: (protocols) =>
+        protocols.has(CONTROL_PROTOCOL) ? CONTROL_PROTOCOL : false,
+    });
     this.wss.on("connection", (ws) => this.onConnection(ws));
     this.wss.on("error", (err) => {
       // eslint-disable-next-line no-console
@@ -853,6 +879,10 @@ export class SessionSupervisor {
       }
       case "sessions:create": {
         try {
+          const taskProblems = validateTaskInputs(payload.initialTask);
+          if (taskProblems.length > 0) {
+            throw new Error(`Invalid task: ${taskProblems.join("; ")}`);
+          }
           // DEBUG: Log what we receive
           console.log("[SUPERVISOR] Received sessions:create payload:", {
             hasInitialTask: !!payload.initialTask,

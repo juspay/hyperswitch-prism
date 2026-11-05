@@ -1,4 +1,5 @@
 import { WebSocket } from "ws";
+import { controlSocketProtocols, getControlToken } from "./control-auth.js";
 import { nowIso } from "./utils.js";
 import type { CheckpointId, CheckpointStatus } from "./types.js";
 
@@ -67,7 +68,7 @@ export class PipelineEventBus {
   private connect(url: string): void {
     let ws: WebSocket;
     try {
-      ws = new WebSocket(url);
+      ws = new WebSocket(url, controlSocketProtocols(getControlToken()));
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(`[events] failed to construct WS to ${url}:`, err);

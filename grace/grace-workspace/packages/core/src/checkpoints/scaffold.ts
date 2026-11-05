@@ -1,5 +1,6 @@
 import type { Checkpoint } from "../types.js";
 import { spawn } from "node:child_process";
+import { isSafeScaffoldUrl } from "../task-validation.js";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
@@ -86,6 +87,15 @@ export const scaffoldCheckpoint: Checkpoint = {
         "warn",
       );
       return { passed: true, output: "no baseUrl to scaffold" };
+    }
+    // add_connector.sh splices these into sed expressions and TOML.
+    for (const url of [baseUrl, productionUrl]) {
+      if (url !== undefined && !isSafeScaffoldUrl(url)) {
+        return {
+          passed: false,
+          errors: [`Connector URL contains unsupported characters: ${JSON.stringify(url)}`],
+        };
+      }
     }
     // Only pass --production-url when we actually have a distinct live URL.
     const passProductionUrl = Boolean(productionUrl && productionUrl !== baseUrl);

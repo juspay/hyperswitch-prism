@@ -5,6 +5,12 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import {
+  CONTROL_TOKEN_META,
+  getControlToken,
+  isAllowedHostHeader,
+  isAllowedLocalApiRequest,
+} from "../core/src/control-auth";
 
 const WORKSPACE_ROOT = resolve(__dirname, "..", "..");
 const PARITY_CACHE_DIR = join(WORKSPACE_ROOT, ".cache");
@@ -729,8 +735,48 @@ function connectorDiscoveryPlugin(): Plugin {
   };
 }
 
+/**
+ * Guards the dev server. Must stay ahead of the API plugins: middleware added
+ * in configureServer runs before Vite's own host check, so that check doesn't
+ * protect the /api routes. Dev-only (`apply: "serve"`), so `vite build` can
+ * never write the token into dist/.
+ */
+function localAccessGuardPlugin(): Plugin {
+  return {
+    name: "local-access-guard",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const host = req.headers.host;
+        const allowed =
+          isAllowedHostHeader(host) &&
+          (!req.url?.startsWith("/api/") ||
+            isAllowedLocalApiRequest({
+              method: req.method,
+              host,
+              origin: req.headers.origin,
+              secFetchSite: req.headers["sec-fetch-site"] as string | undefined,
+            }));
+        if (allowed) return next();
+        res.statusCode = 403;
+        res.setHeader("content-type", "text/plain");
+        res.end("Forbidden. To open the dashboard through another hostname, add it to TENXGRACE_ALLOWED_HOSTS.");
+      });
+    },
+    transformIndexHtml() {
+      return [
+        {
+          tag: "meta",
+          attrs: { name: CONTROL_TOKEN_META, content: getControlToken() },
+          injectTo: "head",
+        },
+      ];
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), parityApiPlugin(), connectorDiscoveryPlugin()],
+  plugins: [localAccessGuardPlugin(), react(), parityApiPlugin(), connectorDiscoveryPlugin()],
   // HOST env is set to 0.0.0.0 by docker-compose so the dashboard is reachable
   // from outside the container. Native `pnpm dev` leaves HOST unset → defaults
   // to 127.0.0.1 (Vite's normal localhost-only behavior).
