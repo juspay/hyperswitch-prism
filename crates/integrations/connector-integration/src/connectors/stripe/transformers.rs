@@ -1281,6 +1281,8 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::Grabpay
             | common_enums::PaymentMethodType::Paymaya
             | common_enums::PaymentMethodType::Payhere
+            | common_enums::PaymentMethodType::Boost
+            | common_enums::PaymentMethodType::AliPayPlus
             | common_enums::PaymentMethodType::QwikcilverWallet
             | common_enums::PaymentMethodType::Ted => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
@@ -1588,6 +1590,8 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
         | WalletData::PaymayaRedirect(_)
+        | WalletData::AliPayPlusRedirect {}
+        | WalletData::BoostRedirect {}
         | WalletData::PayhereRedirect {}
         | WalletData::QwikcilverWalletDirect(_)
         | WalletData::Skrill(_)
@@ -1963,7 +1967,8 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
         | common_enums::CardNetwork::Nyce
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
-        | common_enums::CardNetwork::Dinacard => None,
+        | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::MyDebit => None,
     }
 }
 
@@ -2321,6 +2326,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::AliPayPlusRedirect {}
+            | WalletData::BoostRedirect {}
             | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_)

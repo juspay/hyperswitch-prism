@@ -753,6 +753,11 @@ impl TryFrom<common_enums::CardNetwork> for requests::CardNetworkLowercase {
             common_enums::CardNetwork::Prop => Ok(Self::Prop),
             common_enums::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
             common_enums::CardNetwork::Dinacard => Ok(Self::Dinacard),
+            common_enums::CardNetwork::MyDebit => Err(IntegrationError::NotImplemented(
+                "MyDebit card network".into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }

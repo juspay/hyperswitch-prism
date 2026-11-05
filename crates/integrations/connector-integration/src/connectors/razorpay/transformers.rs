@@ -345,6 +345,8 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::Satispay(_)
             | WalletData::Wero(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::AliPayPlusRedirect {}
+            | WalletData::BoostRedirect {}
             | WalletData::PayhereRedirect {}
             | WalletData::Skrill(_)
             | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(

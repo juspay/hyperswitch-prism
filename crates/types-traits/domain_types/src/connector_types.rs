@@ -4469,6 +4469,8 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
                 payment_method_data::WalletData::PaymayaRedirect(_) => Self::PaymayaRedirect,
                 payment_method_data::WalletData::PayhereRedirect {} => Self::PayhereRedirect,
+                payment_method_data::WalletData::BoostRedirect {} => Self::BoostRedirect,
+                payment_method_data::WalletData::AliPayPlusRedirect {} => Self::AliPayPlusRedirect,
                 payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
                     Self::QwikcilverWalletDirect
                 }

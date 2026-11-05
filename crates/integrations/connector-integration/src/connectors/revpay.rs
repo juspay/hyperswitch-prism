@@ -491,6 +491,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // Reference_Number is the merchant-assigned reference the
                 // original Payment call was keyed by.
                 merchant_transaction_id: Some(body.reference_number),
+                connector_preprocessing_id: None,
             },
         )))
     }

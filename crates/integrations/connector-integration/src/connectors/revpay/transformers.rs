@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::types::ResponseRouterData;
-use common_enums::{AttemptStatus, CardNetwork, CountryAlpha2, Currency, RefundStatus};
+use common_enums::{AttemptStatus, BankNames, CardNetwork, CountryAlpha2, Currency, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::ParsingError,
@@ -16,7 +16,10 @@ use domain_types::{
         ResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
+    payment_method_data::{
+        BankRedirectData, Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        RealTimePaymentData, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::{
@@ -24,6 +27,7 @@ use domain_types::{
         RefundSyncIntegrityObject,
     },
     router_response_types::RedirectForm,
+    utils::missing_field_err,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -102,8 +106,10 @@ fn generate_revpay_signature(merchant_key: &str, fields: &[&str]) -> String {
 /// places ("52.40"), whatever the currency's own ISO exponent, and the very
 /// same bytes must appear in the JSON body and in the signature preimage.
 /// `common_utils::types::StringTwoDecimalUnit` renders the implied-decimal
-/// form instead ("5240"), so the conversion is done here in integer space —
-/// no float hop.
+/// form instead ("5240"), and `FloatMajorUnit` serializes as a JSON number
+/// whose f64 cannot hold the fixed two-decimal text ("52.40" prints as 52.4)
+/// that the signature must reproduce byte-for-byte — so the conversion is
+/// done here in integer space, no float hop.
 pub fn format_revpay_amount(
     amount: MinorUnit,
     currency: Currency,
@@ -292,6 +298,27 @@ impl<'de> Deserialize<'de> for RevpayResponseCode {
 // Deliberately exhaustive: NO `_ =>` catch-all. If revPAY adds a classifiable
 // code and the enum above gains a named variant, this match stops compiling
 // until a human picks the right AttemptStatus.
+/// Status for a Payment API (Authorize) outcome, decided purely from the
+/// response code and the presence of `Bank_Redirect_URL`. Payment authorises
+/// AND captures (sale) in one call, so any decline shades into
+/// `AuthorizationFailed` rather than generic `Failure` — including a "09"
+/// that omits its redirect URL (a redirect that cannot complete, not a
+/// pending payment). "99" is an asynchronous settle — still resolvable.
+fn authorize_attempt_status(
+    code: &RevpayResponseCode,
+    bank_redirect_url: Option<&str>,
+) -> AttemptStatus {
+    match (code, bank_redirect_url) {
+        (RevpayResponseCode::Success, _) => AttemptStatus::Charged,
+        (RevpayResponseCode::RedirectRequired, Some(_)) => AttemptStatus::AuthenticationPending,
+        (RevpayResponseCode::RedirectRequired, None) => AttemptStatus::AuthorizationFailed,
+        (RevpayResponseCode::PendingAuthorization, _) => AttemptStatus::Pending,
+        (RevpayResponseCode::TransactionNotFound | RevpayResponseCode::Unknown(_), _) => {
+            AttemptStatus::AuthorizationFailed
+        }
+    }
+}
+
 impl From<&RevpayResponseCode> for AttemptStatus {
     fn from(code: &RevpayResponseCode) -> Self {
         match code {
@@ -318,6 +345,9 @@ const CARD_PAYMENT_ID: u16 = 2;
 const AMEX_PAYMENT_ID: u16 = 4;
 /// Payment_ID = 29 (Diners Club).
 const DINERS_PAYMENT_ID: u16 = 29;
+/// Merchant API 3.1.10, Appendix A.
+const MYDEBIT_PAYMENT_ID: u16 = 31;
+const UNIONPAY_CNP_PAYMENT_ID: u16 = 38;
 
 /// revPAY `Card_Type` (Appendix H): `02`=VISA, `03`=MASTERCARD, `04`=AMEX,
 /// `05`=MYDEBIT, `06`=UPI. The table has no Diners Club code, so `None` omits
@@ -332,21 +362,24 @@ pub enum RevpayCardType {
     Mastercard,
     #[serde(rename = "04")]
     Amex,
-    /// Appendix H `05`=MYDEBIT. Also used for UnionPay cards: Appendix H has
-    /// no UnionPay code and the gateway only validates `Card_Type` *presence*
-    /// (their own UAT sample pairs `02` with a MasterCard PAN), so `05` is the
-    /// closest scheme label for UnionPay / MyDebit co-badged cards.
+    /// Appendix H: MyDebit Secure.
     #[serde(rename = "05")]
     MyDebit,
+    /// Appendix H: Union Pay International.
+    #[serde(rename = "06")]
+    UnionPay,
 }
 
-fn unsupported(what: &str, context_detail: &str) -> error_stack::Report<IntegrationError> {
+fn unsupported_payment_method(
+    what: &str,
+    context_detail: &str,
+) -> error_stack::Report<IntegrationError> {
     error_stack::report!(IntegrationError::NotSupported {
         message: format!("Selected payment method ({what})"),
         connector: "revpay",
         context: IntegrationErrorContext {
             suggested_action: Some(
-                "Use a card or a revPAY-supported wallet (Alipay, WeChat Pay, Touch 'n Go, GrabPay)"
+                "Use a card, FPX personal banking, DuitNow QR, or a supported wallet (Alipay, Alipay+, WeChat Pay, Touch 'n Go, GrabPay, Boost)"
                     .to_string(),
             ),
             doc_url: None,
@@ -355,34 +388,30 @@ fn unsupported(what: &str, context_detail: &str) -> error_stack::Report<Integrat
     })
 }
 
-/// revPAY's direct-method rails: Payment_ID = 2 for VISA/MASTERCARD,
-/// 4 for AMEX, 29 for Diners Club. Where the card network is not determinable
-/// (absent, or a network revPAY has no rail for) the default Visa/Mastercard
-/// rail is used — revPAY routes it by BIN.
-fn card_payment_details(
-    network: Option<&CardNetwork>,
-    pan: &str,
-) -> (u16, Option<RevpayCardType>) {
+/// Explicit networks choose the dedicated RevPay payment rail. MyDebit must
+/// be explicit: its co-badged BIN ranges cannot identify the intended network.
+fn card_payment_details(network: Option<&CardNetwork>, pan: &str) -> (u16, Option<RevpayCardType>) {
     match network {
         Some(CardNetwork::AmericanExpress) => (AMEX_PAYMENT_ID, Some(RevpayCardType::Amex)),
         Some(CardNetwork::DinersClub) => (DINERS_PAYMENT_ID, None),
         Some(CardNetwork::Visa) => (CARD_PAYMENT_ID, Some(RevpayCardType::Visa)),
         Some(CardNetwork::Mastercard) => (CARD_PAYMENT_ID, Some(RevpayCardType::Mastercard)),
-        // Appendix H has no UnionPay code; `05` MYDEBIT is the closest label
-        // and revPAY validates presence only (see RevpayCardType).
-        Some(CardNetwork::UnionPay) => (CARD_PAYMENT_ID, Some(RevpayCardType::MyDebit)),
-        _ => (CARD_PAYMENT_ID, card_type_from_pan(pan)),
+        Some(CardNetwork::MyDebit) => (MYDEBIT_PAYMENT_ID, Some(RevpayCardType::MyDebit)),
+        Some(CardNetwork::UnionPay) => (UNIONPAY_CNP_PAYMENT_ID, Some(RevpayCardType::UnionPay)),
+        _ => {
+            let card_type = card_type_from_pan(pan);
+            let payment_id = if matches!(card_type, Some(RevpayCardType::UnionPay)) {
+                UNIONPAY_CNP_PAYMENT_ID
+            } else {
+                CARD_PAYMENT_ID
+            };
+            (payment_id, card_type)
+        }
     }
 }
 
-/// Infer revPAY `Card_Type` (Appendix H) from the PAN when UCS carries no
-/// `card_network` — the euler `/txns` path never populates it, and revPAY
-/// rejects a card payment missing `Card_Type` with `Response_Code 14`.
-/// MyDebit (`05`) is deliberately not sniffed from its own BIN ranges: they
-/// overlap Maestro and cannot be read reliably. BIN `62` is UnionPay
-/// (including MyDebit co-badged cards) — Appendix H has no UnionPay code, so
-/// it maps to `05` to satisfy the gateway's presence check (see
-/// `RevpayCardType`).
+/// Infer the card type only when no recognized explicit network is supplied.
+/// BIN 62 selects UnionPay CNP; an explicit MyDebit network takes precedence.
 fn card_type_from_pan(pan: &str) -> Option<RevpayCardType> {
     let digits: String = pan.chars().filter(char::is_ascii_digit).collect();
     let bin2: u32 = digits.get(..2)?.parse().ok()?;
@@ -391,54 +420,41 @@ fn card_type_from_pan(pan: &str) -> Option<RevpayCardType> {
         (34 | 37, _) => Some(RevpayCardType::Amex),
         (51..=55, _) => Some(RevpayCardType::Mastercard),
         (40..=49, _) => Some(RevpayCardType::Visa),
-        (62, _) => Some(RevpayCardType::MyDebit),
+        (62, _) => Some(RevpayCardType::UnionPay),
         (_, 2221..=2720) => Some(RevpayCardType::Mastercard),
         _ => None,
     }
 }
 
-/// Format the card expiry as revPAY's `Funding_Exp_Date`: strictly `YYYYMM`,
-/// six digits, year first (doc §2.1 field 24; format confirmed by the UAT
-/// gateway, e.g. `"203901"` = Jan 2039). Accepts `M`/`MM` month and
-/// `YY`/`YYYY` year and rejects everything else rather than forwarding it —
-/// a malformed value reaches revPAY as `Response_Code 14`.
-fn format_revpay_exp_date(
-    month: &str,
-    year: &str,
+/// revPAY `Funding_Exp_Date`: strictly `YYYYMM`, six digits, year first (doc
+/// §2.1 field 24; format confirmed by the UAT gateway, e.g. `"203901"` = Jan
+/// 2039). Composed from the shared expiry helpers — `get_expiry_year_4_digit`
+/// expands `YY`, `get_card_expiry_month_2_digit` validates and zero-pads the
+/// month (the same building blocks jpmorganorbital uses for its fixed 6-char
+/// `ccExp`). The composed `get_expiry_date_as_yyyymm` is NOT usable here: it
+/// interpolates the raw month and year unvalidated, and the year helper
+/// passes any non-2-char input through unchanged — so the joined value is
+/// shape-guarded below rather than forwarded: a malformed value reaches
+/// revPAY as `Response_Code 14`.
+fn revpay_funding_exp_date<T: PaymentMethodDataTypes>(
+    card: &Card<T>,
 ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
-    let invalid = |context: &str| {
-        error_stack::report!(IntegrationError::InvalidDataFormat {
-            field_name: "payment_method_data.card.card_exp_month/card_exp_year",
+    let exp = format!(
+        "{}{}",
+        card.get_expiry_year_4_digit().peek(),
+        card.get_card_expiry_month_2_digit()?.peek(),
+    );
+    if exp.len() == 6 && exp.bytes().all(|byte| byte.is_ascii_digit()) {
+        Ok(Secret::new(exp))
+    } else {
+        Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+            field_name: "payment_method_data.card.card_exp_year",
             context: IntegrationErrorContext {
-                additional_context: Some(context.to_string()),
+                additional_context: Some("Expected year format: YY or YYYY".to_string()),
                 ..Default::default()
             },
-        })
-    };
-
-    let month_digits = month.trim();
-    let month = month_digits
-        .parse::<u8>()
-        .map_err(|_| invalid("Expected month format: M or MM"))
-        .and_then(|month| {
-            if (1..=12).contains(&month) {
-                Ok(month)
-            } else {
-                Err(invalid("Card expiry month must be in 1-12"))
-            }
-        })?;
-
-    let year_digits = year.trim();
-    if year_digits.is_empty() || !year_digits.bytes().all(|byte| byte.is_ascii_digit()) {
-        return Err(invalid("Expected year format: YY or YYYY"));
+        }))
     }
-    let year = match year_digits.len() {
-        2 => format!("{}{}", common_utils::date_time::now().year() / 100, year_digits),
-        4 => year_digits.to_string(),
-        _ => return Err(invalid("Expected year format: YY or YYYY")),
-    };
-
-    Ok(Secret::new(format!("{year}{month:02}")))
 }
 
 /// `Card_Issuer_Bank_Country_Code` (doc §2.1 field 26): ISO 3166-1 alpha-3,
@@ -465,10 +481,52 @@ const WECHAT_PAYMENT_ID: u16 = 14;
 const TOUCHNGO_PAYMENT_ID: u16 = 28;
 /// Payment_ID = 17 (GrabPay) — spec §2.1 / Appendix A.
 const GRABPAY_PAYMENT_ID: u16 = 17;
+/// Merchant API 3.1.10, Appendix A.
+const BOOST_PAYMENT_ID: u16 = 11;
+const FPX_PAYMENT_ID: u16 = 3;
+const ALIPAY_PLUS_PAYMENT_ID: u16 = 36;
+const DUITNOW_QR_PAYMENT_ID: u16 = 37;
+
+/// FPX B2C bank codes from Merchant API 3.1.10, Appendix B.
+/// Maybank is the consumer Maybank2u channel, not corporate M2E.
+fn fpx_bank_code(
+    issuer: &BankNames,
+) -> Result<&'static str, error_stack::Report<IntegrationError>> {
+    match issuer {
+        BankNames::AffinBank => Ok("ABB0233"),
+        BankNames::AllianceBank => Ok("ABMB0212"),
+        BankNames::AgroBank => Ok("AGRO01"),
+        BankNames::AmBank => Ok("AMBB0209"),
+        BankNames::BankIslam => Ok("BIMB0340"),
+        BankNames::BankMuamalat => Ok("BMMB0341"),
+        BankNames::BankRakyat => Ok("BKRM0602"),
+        BankNames::BankSimpananNasional => Ok("BSN0601"),
+        BankNames::CimbBank => Ok("BCBB0235"),
+        BankNames::HongLeongBank => Ok("HLB0224"),
+        BankNames::HsbcBank => Ok("HSBC0223"),
+        BankNames::KuwaitFinanceHouse => Ok("KFH0346"),
+        BankNames::Maybank => Ok("MB2U0227"),
+        BankNames::OcbcBank => Ok("OCBC0229"),
+        BankNames::PublicBank => Ok("PBB0233"),
+        BankNames::RhbBank => Ok("RHB0218"),
+        BankNames::StandardCharteredBank => Ok("SCB0216"),
+        BankNames::UobBank => Ok("UOB0226"),
+        BankNames::BankOfChina => Ok("BOCM01"),
+        _ => Err(unsupported_payment_method(
+            "FPX issuer",
+            "Select a supported Malaysian FPX B2C bank",
+        )),
+    }
+}
 
 /// revPAY `Source_Of_Funds` value for raw-PAN card payments (spec §2.1,
 /// Appendix O; gateway-token payments would use `TOKEN`, unsupported here).
 const SOURCE_OF_FUNDS_CARD: &str = "CARD";
+
+/// Loopback placeholder for `Customer_IP`: loopback is unambiguously
+/// non-routable and cannot collide with a real shopper address. Same
+/// convention as phonepe (`DEFAULT_IP`) and razorpay.
+const DEFAULT_CUSTOMER_IP: &str = "127.0.0.1";
 
 /// Wallet rails — Payment_ID only; revPAY needs no wallet credential fields
 /// on the request (the shopper completes payment on the wallet's page).
@@ -479,13 +537,17 @@ fn wallet_payment_id(wallet: &WalletData) -> Result<u16, error_stack::Report<Int
         WalletData::WeChatPayRedirect(_) => WECHAT_PAYMENT_ID,
         WalletData::TouchNGoRedirect(_) => TOUCHNGO_PAYMENT_ID,
         WalletData::GrabpayRedirect {} => GRABPAY_PAYMENT_ID,
+        WalletData::BoostRedirect {} => BOOST_PAYMENT_ID,
+        WalletData::AliPayPlusRedirect {} => ALIPAY_PLUS_PAYMENT_ID,
+        // revPAY wallets with no UCS WalletData variant today (Appendix A):
+        // Merchantrade 10, Mae 12, Vcash 13, AirAsia Big 16, ShopeePay 33.
         _ => {
-            return Err(unsupported(
+            return Err(unsupported_payment_method(
                 "wallet",
-                "UCS exposes no revPAY rail for this wallet; revPAY supports Alipay (15), \
-                 WeChat Pay (14), GrabPay (17), Touch 'n Go (28) plus Malaysian wallets that \
-                 have no UCS WalletData variant today (Merchantrade 10, Boost 11, Mae 12, \
-                 Vcash 13, AirAsia Big 16, ShopeePay 33)",
+                "UCS exposes no revPAY rail for this wallet; revPAY supports Alipay, \
+                 WeChat Pay, GrabPay, Touch 'n Go, Boost and Alipay+ plus wallets that \
+                 have no UCS WalletData variant today (Merchantrade, Mae, Vcash, \
+                 AirAsia Big, ShopeePay)",
             ));
         }
     })
@@ -556,13 +618,17 @@ pub struct RevpayPaymentsRequest<T: PaymentMethodDataTypes> {
     pub revpay_merchant_id: String,
     #[serde(rename = "Payment_ID")]
     pub payment_id: u16,
+    #[serde(rename = "Bank_Code", skip_serializing_if = "Option::is_none")]
+    pub bank_code: Option<&'static str>,
     #[serde(rename = "Reference_Number")]
     pub reference_number: String,
-    /// The exact 2-decimal string that is also signed — see `format_revpay_amount`.
+    /// Always `Text` — the exact 2-decimal string that is also signed, see
+    /// `format_revpay_amount`.
     #[serde(rename = "Amount")]
-    pub amount: String,
+    pub amount: RevpayAmount,
+    /// Typed enum — serde renders the ISO alpha-3 code (`"MYR"`).
     #[serde(rename = "Currency")]
-    pub currency: String,
+    pub currency: Currency,
     #[serde(rename = "Transaction_Description")]
     pub transaction_description: String,
     #[serde(rename = "Customer_ID", skip_serializing_if = "Option::is_none")]
@@ -579,7 +645,7 @@ pub struct RevpayPaymentsRequest<T: PaymentMethodDataTypes> {
     pub key_index: u32,
     #[serde(rename = "Signature")]
     pub signature: String,
-    /// Card-side fields are flattened in; omitted entirely for wallet calls.
+    /// Card-side fields are flattened in; omitted for wallets, FPX and DuitNow QR.
     #[serde(flatten)]
     pub payment_method_fields: Option<RevpayCardDetails<T>>,
 }
@@ -612,7 +678,8 @@ impl<T: PaymentMethodDataTypes>
             })
         })?;
 
-        let currency = item.request.currency.to_string();
+        let currency = item.request.currency;
+        let currency_str = currency.to_string();
         let amount = format_revpay_amount(item.request.amount.amount, item.request.currency)
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.amount",
@@ -632,7 +699,7 @@ impl<T: PaymentMethodDataTypes>
                 auth.merchant_id.peek(),
                 &reference_number,
                 &amount,
-                &currency,
+                &currency_str,
             ],
         );
 
@@ -654,7 +721,7 @@ impl<T: PaymentMethodDataTypes>
             .as_ref()
             .and_then(|info| info.ip_address)
             .map(|ip| ip.to_string())
-            .unwrap_or_else(|| "127.0.0.1".to_string());
+            .unwrap_or_else(|| DEFAULT_CUSTOMER_IP.to_string());
 
         // spec §2.1 field #7: Transaction_Description is Mandatory; when the
         // merchant supplies none — or a blank string (euler sends
@@ -669,6 +736,7 @@ impl<T: PaymentMethodDataTypes>
             .filter(|description| !description.trim().is_empty())
             .unwrap_or_else(|| format!("Payment {reference_number}"));
 
+        let mut bank_code = None;
         let (payment_id, payment_method_fields) = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
                 let (payment_id, card_type) = card_payment_details(
@@ -729,10 +797,7 @@ impl<T: PaymentMethodDataTypes>
                         card_type,
                         card_holder_name: card_data.card_holder_name.clone(),
                         funding_pan: card_data.card_number.clone(),
-                        funding_exp_date: format_revpay_exp_date(
-                            card_data.card_exp_month.peek(),
-                            card_data.card_exp_year.peek(),
-                        )?,
+                        funding_exp_date: revpay_funding_exp_date(card_data)?,
                         funding_cvv: card_data.card_cvc.clone(),
                         card_issuer_bank_country_code: issuer_country_alpha3(
                             card_data.card_issuing_country.as_deref(),
@@ -744,11 +809,22 @@ impl<T: PaymentMethodDataTypes>
                 )
             }
             PaymentMethodData::Wallet(wallet_data) => (wallet_payment_id(wallet_data)?, None),
+            // The Merchant API uses Bank_Redirect_URL to open RevPay's hosted
+            // payment page. DuitNow's QR is displayed there, not synthesized here.
+            PaymentMethodData::RealTimePayment(data)
+                if matches!(data.as_ref(), RealTimePaymentData::DuitNow {}) =>
+            {
+                (DUITNOW_QR_PAYMENT_ID, None)
+            }
+            PaymentMethodData::BankRedirect(BankRedirectData::OnlineBankingFpx { issuer }) => {
+                bank_code = Some(fpx_bank_code(issuer)?);
+                (FPX_PAYMENT_ID, None)
+            }
             _ => {
-                return Err(unsupported(
+                return Err(unsupported_payment_method(
                     "other",
-                    "revPAY Authorize supports cards and the mapped redirect wallets; \
-                     FPX online banking / QR payment methods are out of scope",
+                    "revPAY Authorize supports cards, FPX personal banking, DuitNow QR and mapped redirect wallets; \
+                     other bank redirects and QR payment methods are unsupported",
                 ));
             }
         };
@@ -756,8 +832,9 @@ impl<T: PaymentMethodDataTypes>
         Ok(Self {
             revpay_merchant_id: auth.merchant_id.peek().to_string(),
             payment_id,
+            bank_code,
             reference_number,
-            amount,
+            amount: RevpayAmount::Text(amount),
             currency,
             transaction_description,
             customer_id: item
@@ -827,8 +904,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // =============================================================================
 
 /// revPAY may echo `Amount`/`Currency`/dates either as JSON strings (matching
-/// what we sent) or as bare JSON numbers (as in the doc samples).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// what we sent) or as bare JSON numbers (as in the doc samples). Request
+/// structs always send `Text` — the signed 2-decimal wire string from
+/// `format_revpay_amount`; `Number` exists only to parse lenient echoes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RevpayAmount {
     Text(String),
@@ -891,7 +970,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
         let router_data = &item.router_data;
-        let status = AttemptStatus::from(&response.response_code);
+        // Single decision point for the authorize outcome — used unchanged on
+        // both the success and the in-band-decline branches.
+        let status = authorize_attempt_status(
+            &response.response_code,
+            response.bank_redirect_url.as_deref(),
+        );
 
         // IN-BAND 2xx FAILURE.
         // revPAY answers EVERYTHING (declines included) with HTTP 200; success
@@ -917,10 +1001,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
         };
 
         if let Some(raw_code) = in_band_failure_code {
-            // Flow-specific: the Payment API authorises (and captures) in one
-            // call, so a decline maps to AuthorizationFailed, not generic
-            // Failure.
-            let status = AttemptStatus::AuthorizationFailed;
             let message = response.error_description.clone().unwrap_or_else(|| {
                 if matches!(response.response_code, RevpayResponseCode::RedirectRequired) {
                     "revPAY returned Response_Code 09 without Bank_Redirect_URL".to_string()
@@ -1043,9 +1123,10 @@ pub struct RevpayPSyncRequest {
     /// The ORIGINAL payment amount in the same 2-decimal form signed at
     /// Payment time — the doc requires the inquiry to re-sign it.
     #[serde(rename = "Amount")]
-    pub amount: String,
+    pub amount: RevpayAmount,
+    /// Typed enum — serde renders the ISO alpha-3 code (`"MYR"`).
     #[serde(rename = "Currency")]
-    pub currency: String,
+    pub currency: Currency,
     #[serde(rename = "Key_Index")]
     pub key_index: u32,
     #[serde(rename = "Signature")]
@@ -1079,31 +1160,14 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
         // `connector_transaction_id` (revPAY only mints Transaction_ID in its
         // Payment response, and the inquiry cannot be keyed by it) and NEVER
         // fall back to a default — an empty reference resolves nothing and
-        // the payment would be mis-reported as not found.
+        // the payment would be mis-reported as not found. Ensure the original
+        // payment carried connector_request_reference_id before syncing.
         let reference_number = item
             .resource_common_data
             .connector_request_reference_id
             .clone();
         if reference_number.trim().is_empty() {
-            return Err(error_stack::report!(
-                IntegrationError::MissingRequiredField {
-                    field_name: "connector_request_reference_id",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "revPAY Inquiry (PSync) requires the Reference_Number signed on the \
-                         original Payment call; the connector_request_reference_id carrier is \
-                         empty for this request"
-                                .to_string(),
-                        ),
-                        suggested_action: Some(
-                            "Ensure the original payment carried connector_request_reference_id \
-                         before requesting a payment sync"
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                    },
-                }
-            ));
+            return Err(missing_field_err("connector_request_reference_id")());
         }
 
         // The inquiry must re-send the ORIGINAL payment amount with the same
@@ -1112,7 +1176,8 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
         // PaymentServiceGet → PaymentsSyncData conversion, so the exact
         // authorize-time figure (and currency) is available here without any
         // reconstruction.
-        let currency = item.request.currency.to_string();
+        let currency = item.request.currency;
+        let currency_str = currency.to_string();
         let amount = format_revpay_amount(item.request.amount.amount, item.request.currency)
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.amount",
@@ -1128,14 +1193,14 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
                 auth.merchant_id.peek(),
                 &reference_number,
                 &amount,
-                &currency,
+                &currency_str,
             ],
         );
 
         Ok(Self {
             revpay_merchant_id: auth.merchant_id.peek().to_string(),
             reference_number,
-            amount,
+            amount: RevpayAmount::Text(amount),
             currency,
             key_index,
             signature,
@@ -1330,9 +1395,10 @@ pub struct RevpayRefundRequest {
     pub reference_number: String,
     #[serde(rename = "Original_Reference_Number")]
     pub original_reference_number: String,
-    /// The exact 2-decimal string that is also signed — see `format_revpay_amount`.
+    /// Always `Text` — the exact 2-decimal string that is also signed, see
+    /// `format_revpay_amount`.
     #[serde(rename = "Refund_Amount")]
-    pub refund_amount: String,
+    pub refund_amount: RevpayAmount,
     #[serde(rename = "Key_Index")]
     pub key_index: u32,
     #[serde(rename = "Signature")]
@@ -1361,22 +1427,12 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         })?;
 
         // Reference_Number is a NEW reference identifying this refund —
-        // revPAY rejects a refund that duplicates a previous reference.
+        // revPAY rejects a refund that duplicates or blanks a previous
+        // reference, so an empty `refund_id` fails here rather than at the
+        // gateway.
         let reference_number = item.request.refund_id.clone();
         if reference_number.trim().is_empty() {
-            return Err(error_stack::report!(
-                IntegrationError::MissingRequiredField {
-                    field_name: "refund_id",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "revPAY Refund requires a unique Reference_Number per refund; the \
-                         framework's refund_id carrier is empty for this request"
-                                .to_string(),
-                        ),
-                        ..Default::default()
-                    },
-                }
-            ));
+            return Err(missing_field_err("refund_id")());
         }
 
         let original_reference_number =
@@ -1409,7 +1465,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
             revpay_merchant_id: auth.merchant_id.peek().to_string(),
             reference_number,
             original_reference_number,
-            refund_amount,
+            refund_amount: RevpayAmount::Text(refund_amount),
             key_index,
             signature,
         })
@@ -1589,9 +1645,10 @@ pub struct RevpayRSyncRequest {
     pub reference_number: String,
     /// The refund amount in the exact 2-decimal form that is also signed.
     #[serde(rename = "Amount")]
-    pub amount: String,
+    pub amount: RevpayAmount,
+    /// Typed enum — serde renders the ISO alpha-3 code (`"MYR"`).
     #[serde(rename = "Currency")]
-    pub currency: String,
+    pub currency: Currency,
     #[serde(rename = "Key_Index")]
     pub key_index: u32,
     #[serde(rename = "Signature")]
@@ -1628,31 +1685,14 @@ impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsRespons
         // Refund time). NEVER re-derive it from
         // `RefundSyncData::connector_refund_id` — that is revPAY's
         // Transaction_ID, which the inquiry cannot be keyed by — and never
-        // default it: an empty reference resolves nothing.
+        // default it: an empty reference resolves nothing, so a blank carrier
+        // fails here as a missing field rather than at the gateway.
         let reference_number = item
             .resource_common_data
             .connector_request_reference_id
             .clone();
         if reference_number.trim().is_empty() {
-            return Err(
-                error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "connector_request_reference_id",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "revPAY RSync (inquiry re-use) requires the Reference_Number signed on \
-                         the original Refund call; the connector_request_reference_id carrier \
-                         is empty for this refund-sync request"
-                            .to_string(),
-                    ),
-                    suggested_action: Some(
-                        "Ensure the original refund carried merchant_refund_id before requesting \
-                         a refund status sync"
-                            .to_string(),
-                    ),
-                    doc_url: None,
-                },
-            }),
-            );
+            return Err(missing_field_err("connector_request_reference_id")());
         }
 
         // Amount = the refund amount, signed with the payment/inquiry
@@ -1676,7 +1716,8 @@ impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsRespons
                 },
             })
         })?;
-        let currency = refund_money.currency.to_string();
+        let currency = refund_money.currency;
+        let currency_str = currency.to_string();
         let amount = format_revpay_amount(refund_money.amount, refund_money.currency)
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.refund_money.amount",
@@ -1692,14 +1733,14 @@ impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsRespons
                 auth.merchant_id.peek(),
                 &reference_number,
                 &amount,
-                &currency,
+                &currency_str,
             ],
         );
 
         Ok(Self {
             revpay_merchant_id: auth.merchant_id.peek().to_string(),
             reference_number,
-            amount,
+            amount: RevpayAmount::Text(amount),
             currency,
             key_index,
             signature,
@@ -1971,482 +2012,9 @@ where
 // TESTS
 // =============================================================================
 
+#[path = "tests.rs"]
+mod tests;
+
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Known-answer vectors from the revPAY Merchant API doc (§3.28 / §3.29)
-    // with sample key material Merchant Key "1OoL87PmJQ", Merchant ID
-    // "MER00000000001".
-
-    #[test]
-    fn error_response_parses_revpay_undocumented_422_body() {
-        // Exact body captured from the UAT sandbox (HTTP 422) when
-        // Transaction_Description is empty: integer `code`, capitalised
-        // `Description`. Must parse into the error shape, not blow up.
-        let body = r#"{"code":422,"Description":"Unprocessable Entity"}"#;
-        let parsed: RevpayErrorResponse =
-            serde_json::from_str(body).expect("422 error body must deserialize");
-        assert_eq!(parsed.code.as_deref(), Some("422"));
-        assert_eq!(parsed.message.as_deref(), Some("Unprocessable Entity"));
-    }
-
-    #[test]
-    fn error_response_parses_string_code_variant() {
-        let body = r#"{"code":"422","Description":"Unprocessable Entity"}"#;
-        let parsed: RevpayErrorResponse =
-            serde_json::from_str(body).expect("string-code error body must deserialize");
-        assert_eq!(parsed.code.as_deref(), Some("422"));
-    }
-
-    #[test]
-    fn payment_request_signature_matches_doc_vector() {
-        let signature = generate_revpay_signature(
-            "1OoL87PmJQ",
-            &["MER00000000001", "RF201774111", "52.40", "MYR"],
-        );
-        assert_eq!(
-            signature,
-            "0716dc1863519f53d47a11ec603d402782222083b2178f596d210fcb93287e81412dd529fa2adddd8e0cdfa2ddf0bb5e8421f55a105196d4ee58961b253b98a1"
-        );
-    }
-
-    #[test]
-    fn payment_response_signature_matches_doc_vector() {
-        // Same formula shape the webhook path (separate task) will verify.
-        let signature = generate_revpay_signature(
-            "1OoL87PmJQ",
-            &[
-                "MER00000000001",
-                "RT000000007222",
-                "00",
-                "RF201774111",
-                "52.40",
-                "MYR",
-            ],
-        );
-        assert_eq!(
-            signature,
-            "fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad"
-        );
-    }
-
-    #[test]
-    fn refund_request_signature_matches_offline_vector() {
-        // Refund formula (§3.10): sha512(key + mid + Reference_Number +
-        // Refund_Amount + Original_Reference_Number) — no Currency, original
-        // reference appended. Self-computed offline:
-        //   python3 -c 'import hashlib; print(hashlib.sha512(
-        //       b"1OoL87PmJQMER00000000001RF20177411210.00RF201774111").hexdigest())'
-        let signature = generate_revpay_signature(
-            "1OoL87PmJQ",
-            &["MER00000000001", "RF201774112", "10.00", "RF201774111"],
-        );
-        assert_eq!(
-            signature,
-            "981aa4c5b4109e97969e75916eb3c69476eea1180af60d87997916ae5f21f7aa13e384f4dcd7e3aebdd8ccd4571ba1c16e1dbf6f36c5a74b936a943d0fa820bf"
-        );
-    }
-
-    #[test]
-    fn response_code_maps_to_refund_status() {
-        // §2.5: only "00" is a synchronous acceptance; all else is declined.
-        assert_eq!(
-            RevpayResponseCode::Success.refund_status(),
-            RefundStatus::Success
-        );
-        assert_eq!(
-            RevpayResponseCode::RedirectRequired.refund_status(),
-            RefundStatus::Failure
-        );
-        assert_eq!(
-            RevpayResponseCode::PendingAuthorization.refund_status(),
-            RefundStatus::Failure
-        );
-        assert_eq!(
-            RevpayResponseCode::TransactionNotFound.refund_status(),
-            RefundStatus::Failure
-        );
-        assert_eq!(
-            RevpayResponseCode::Unknown("30".to_string()).refund_status(),
-            RefundStatus::Failure
-        );
-    }
-
-    #[test]
-    fn response_code_maps_to_refund_sync_status() {
-        // Flow 4: "00" → Success, "09"/"99" → Pending (in flight — a status
-        // query must stay resolvable). "76" is Pending, NOT Failure: whether
-        // the inquiry resolves refund references is unverified, so not-found
-        // must never terminally fail a refund the Refund call accepted.
-        assert_eq!(
-            RevpayResponseCode::Success.refund_sync_status(),
-            RefundStatus::Success
-        );
-        assert_eq!(
-            RevpayResponseCode::RedirectRequired.refund_sync_status(),
-            RefundStatus::Pending
-        );
-        assert_eq!(
-            RevpayResponseCode::PendingAuthorization.refund_sync_status(),
-            RefundStatus::Pending
-        );
-        assert_eq!(
-            RevpayResponseCode::TransactionNotFound.refund_sync_status(),
-            RefundStatus::Pending
-        );
-        assert_eq!(
-            RevpayResponseCode::Unknown("30".to_string()).refund_sync_status(),
-            RefundStatus::Failure
-        );
-    }
-
-    #[test]
-    fn amount_formats_major_with_two_decimals() {
-        // RM 52.40 — the bytes revPAY signs must carry the literal dot.
-        let amount = format_revpay_amount(MinorUnit::new(5240), Currency::MYR)
-            .expect("amount conversion should succeed for MYR");
-        assert_eq!(amount, "52.40");
-    }
-
-    #[test]
-    fn payment_response_parses_uat_redirect_body_with_null_transaction_id() {
-        // Captured verbatim from the UAT sandbox (22 Oct 2026) against the
-        // gateway's test card: the "09 Request in progress" redirect response
-        // has `Transaction_ID: null` plus many optional null fields. Must
-        // parse and surface the redirect URL.
-        let body = r#"{"Revpay_Merchant_ID":"MER00000006606","Payment_ID":2,"Bank_Code":null,"Transaction_ID":null,"Reference_Number":"azharamin-REVPAY1792669250-R1","Amount":"10.00","Currency":"MYR","Transaction_Description":"Payment azharamin-REVPAY1792669250-R1","Response_Code":"09","Error_Description":"Request in progress.","Key_Index":1,"Signature":"e4b159","Settlement_Amount":null,"Settlement_Currency":null,"Settlement_FX_Rate":null,"Request_Datetime":null,"Response_Datetime":null,"Ecomm_Marketplace":null,"Promo_Code":null,"Funding_Pan_Mask":null,"Funding_Bin":null,"Funding_Exp_Date":null,"Token_Pan":null,"Token_Exp_Date":null,"Fraud_Score":null,"Bank_Reference_Number":null,"Bank_Redirect_URL":"https://stg-mpg.revpay-sandbox.com.my/v1/payment/intents/3936cb80-bf75-4943-92c4-ff7620f70f36/abc"}"#;
-        let parsed: RevpayPaymentsResponse =
-            serde_json::from_str(body).expect("UAT redirect body must deserialize");
-        assert_eq!(parsed.transaction_id, None);
-        assert!(matches!(
-            parsed.response_code,
-            RevpayResponseCode::RedirectRequired
-        ));
-        assert_eq!(
-            parsed.bank_redirect_url.as_deref(),
-            Some("https://stg-mpg.revpay-sandbox.com.my/v1/payment/intents/3936cb80-bf75-4943-92c4-ff7620f70f36/abc")
-        );
-    }
-
-    #[test]
-    fn redirect_without_transaction_id_falls_back_to_reference_number() {
-        let response = RevpayPaymentsResponse {
-            revpay_merchant_id: None,
-            payment_id: Some(2),
-            transaction_id: None,
-            reference_number: Some("reference".to_string()),
-            amount: Some(RevpayAmount::Text("10.00".to_string())),
-            currency: Some("MYR".to_string()),
-            response_code: RevpayResponseCode::RedirectRequired,
-            error_description: Some("Request in progress.".to_string()),
-            bank_redirect_url: Some("https://example.com/redirect".to_string()),
-            key_index: Some(1),
-            signature: Some("signature".to_string()),
-            bank_reference_number: None,
-        };
-
-        // "09" carries `Transaction_ID: null`; the interim resource id is the
-        // `Reference_Number` we sent (PSync later overwrites it with the real
-        // Transaction_ID).
-        assert!(matches!(
-            authorize_resource_id(&response, 200).expect("reference number is a valid interim id"),
-            ResponseId::ConnectorTransactionId(id) if id == "reference"
-        ));
-    }
-
-    #[test]
-    fn response_without_any_identifier_is_rejected() {
-        let response = RevpayPaymentsResponse {
-            revpay_merchant_id: None,
-            payment_id: Some(2),
-            transaction_id: None,
-            reference_number: None,
-            amount: Some(RevpayAmount::Text("10.00".to_string())),
-            currency: Some("MYR".to_string()),
-            response_code: RevpayResponseCode::RedirectRequired,
-            error_description: Some("Request in progress.".to_string()),
-            bank_redirect_url: Some("https://example.com/redirect".to_string()),
-            key_index: Some(1),
-            signature: Some("signature".to_string()),
-            bank_reference_number: None,
-        };
-
-        assert!(authorize_resource_id(&response, 200).is_err());
-    }
-
-    #[test]
-    fn exp_date_formats_strict_yyyymm() {
-        // revPAY `Funding_Exp_Date` is YYYYMM — the UAT gateway's own sample
-        // is "203901" = January 2039.
-        let exp = format_revpay_exp_date("01", "2039").expect("valid expiry must format");
-        assert_eq!(exp.peek(), "203901");
-        let exp = format_revpay_exp_date("1", "39").expect("valid expiry must format");
-        assert_eq!(exp.peek(), "203901");
-    }
-
-    #[test]
-    fn exp_date_rejects_malformed_values() {
-        // Anything but M/MM + YY/YYYY must fail locally instead of surfacing
-        // as revPAY Response_Code 14 "Invalid buyer account or card
-        // information" (the gateway rejects a malformed Funding_Exp_Date).
-        assert!(format_revpay_exp_date("13", "2039").is_err());
-        assert!(format_revpay_exp_date("0", "2039").is_err());
-        assert!(format_revpay_exp_date("01", "01/2039").is_err());
-        assert!(format_revpay_exp_date("01", "").is_err());
-        assert!(format_revpay_exp_date("Jan", "2039").is_err());
-    }
-
-    #[test]
-    fn card_type_infers_from_pan_bin() {
-        // UCS `card_network` is absent on the euler /txns path, so `Card_Type`
-        // (Appendix H) is inferred from the PAN; a missing Card_Type is a
-        // gateway-confirmed cause of Response_Code 14.
-        assert!(matches!(
-            card_type_from_pan("4111111111111111"),
-            Some(RevpayCardType::Visa)
-        ));
-        // The gateway's own UAT test card is a MasterCard BIN.
-        assert!(matches!(
-            card_type_from_pan("5123450000000008"),
-            Some(RevpayCardType::Mastercard)
-        ));
-        assert!(matches!(
-            card_type_from_pan("5123-4500 0000-0008"),
-            Some(RevpayCardType::Mastercard)
-        ));
-        assert!(matches!(
-            card_type_from_pan("2221000000000009"),
-            Some(RevpayCardType::Mastercard)
-        ));
-        assert!(matches!(
-            card_type_from_pan("378282246310005"),
-            Some(RevpayCardType::Amex)
-        ));
-        // BIN 62 = UnionPay (incl. MyDebit co-badged, e.g. 625094…): Appendix H
-        // has no UnionPay code, so it maps to `05` rather than being omitted —
-        // omission is a gateway-confirmed cause of Response_Code 14.
-        assert!(matches!(
-            card_type_from_pan("6250941234567890"),
-            Some(RevpayCardType::MyDebit)
-        ));
-        assert!(card_type_from_pan("9999").is_none());
-    }
-
-    #[test]
-    fn unionpay_explicit_network_maps_to_mydebit_card_type() {
-        let (payment_id, card_type) =
-            card_payment_details(Some(&CardNetwork::UnionPay), "6250941234567890");
-        assert_eq!(payment_id, CARD_PAYMENT_ID);
-        assert!(matches!(card_type, Some(RevpayCardType::MyDebit)));
-    }
-
-    #[test]
-    fn card_type_serializes_to_appendix_h_codes() {
-        assert_eq!(
-            serde_json::to_string(&RevpayCardType::Visa).expect("serialize"),
-            "\"02\""
-        );
-        assert_eq!(
-            serde_json::to_string(&RevpayCardType::Mastercard).expect("serialize"),
-            "\"03\""
-        );
-        assert_eq!(
-            serde_json::to_string(&RevpayCardType::Amex).expect("serialize"),
-            "\"04\""
-        );
-        assert_eq!(
-            serde_json::to_string(&RevpayCardType::MyDebit).expect("serialize"),
-            "\"05\""
-        );
-    }
-
-    #[test]
-    fn issuer_country_maps_to_alpha3() {
-        // Gateway sample sends "MYS" (ISO 3166-1 alpha-3).
-        assert_eq!(issuer_country_alpha3(Some("mys"), None).as_deref(), Some("MYS"));
-        assert_eq!(
-            issuer_country_alpha3(None, Some(CountryAlpha2::MY)).as_deref(),
-            Some("MYS")
-        );
-        assert_eq!(
-            issuer_country_alpha3(Some("IN"), Some(CountryAlpha2::MY)).as_deref(),
-            Some("MYS"),
-            "a two-letter card country must fall back to billing"
-        );
-        assert_eq!(issuer_country_alpha3(None, None), None);
-    }
-
-    #[test]
-    fn amount_round_trips_through_wire_form() {
-        let amount = format_revpay_amount(MinorUnit::new(1000), Currency::MYR)
-            .expect("amount conversion should succeed");
-        assert_eq!(amount, "10.00");
-        let back = parse_revpay_amount(&amount, Currency::MYR).expect("parse should succeed");
-        assert_eq!(back, MinorUnit::new(1000));
-
-        // Zero-exponent currency: no minor units, still rendered with two decimals.
-        let jpy = format_revpay_amount(MinorUnit::new(1000), Currency::JPY)
-            .expect("JPY conversion should succeed");
-        assert_eq!(jpy, "1000.00");
-        let back = parse_revpay_amount(&jpy, Currency::JPY).expect("parse should succeed");
-        assert_eq!(back, MinorUnit::new(1000));
-    }
-
-    // ========================================================================
-    // WEBHOOK TESTS (Flow 5) — doc-vector-based, key "1OoL87PmJQ"
-    // ========================================================================
-    //
-    // Positive vector recomputed offline (matches the doc's §3.29 response
-    // signature KA-vector):
-    //   python3 -c 'import hashlib; print(hashlib.sha512(
-    //       b"1OoL87PmJQMER00000000001RT00000000722200RF20177411152.40MYR"
-    //   ).hexdigest())'
-    const WEBHOOK_DOC_SIGNATURE: &str = "fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad";
-
-    fn webhook_auth() -> RevpayAuthType {
-        RevpayAuthType {
-            merchant_id: Secret::new("MER00000000001".to_string()),
-            merchant_key: Secret::new("1OoL87PmJQ".to_string()),
-            key_index: Secret::new("1".to_string()),
-        }
-    }
-
-    fn webhook_form_body(amount: &str, key_index: &str, signature: &str) -> String {
-        format!(
-            "Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&\
-             Transaction_ID=RT000000007222&Reference_Number=RF201774111&\
-             Bank_Reference_Number=BR000001&Amount={amount}&Currency=MYR&\
-             Transaction_Description=Order+RF201774111&Fraud_Score=0&\
-             Response_Code=00&Error_Description=&Key_Index={key_index}&\
-             Signature={signature}&Request_Datetime=2020-01-01+12%3A00%3A00&\
-             Response_Datetime=2020-01-01+12%3A00%3A05"
-        )
-    }
-
-    #[test]
-    fn webhook_body_parses_form_encoded() {
-        let body: RevpayWebhookBody =
-            serde_urlencoded::from_str(&webhook_form_body("52.40", "1", WEBHOOK_DOC_SIGNATURE))
-                .expect("form-encoded webhook body parses");
-        assert_eq!(body.revpay_merchant_id, "MER00000000001");
-        assert_eq!(body.payment_id, Some(2));
-        assert_eq!(body.transaction_id, "RT000000007222");
-        assert_eq!(body.reference_number, "RF201774111");
-        assert_eq!(body.amount, "52.40");
-        assert_eq!(body.currency, "MYR");
-        assert_eq!(body.response_code, RevpayResponseCode::Success);
-        assert_eq!(body.error_description, Some(String::new()));
-        assert_eq!(body.key_index, "1");
-        assert_eq!(body.signature, WEBHOOK_DOC_SIGNATURE);
-    }
-
-    #[test]
-    fn webhook_signature_verify_accepts_doc_vector() {
-        let body: RevpayWebhookBody =
-            serde_urlencoded::from_str(&webhook_form_body("52.40", "1", WEBHOOK_DOC_SIGNATURE))
-                .expect("form-encoded webhook body parses");
-        assert!(body.verifies_against(&webhook_auth()));
-    }
-
-    #[test]
-    fn webhook_signature_verify_rejects_tampered_amount() {
-        // Same body, same signature, but Amount flipped 52.40 -> 52.41: the
-        // recomputed sha512 preimage differs, so verification MUST fail.
-        let body: RevpayWebhookBody =
-            serde_urlencoded::from_str(&webhook_form_body("52.41", "1", WEBHOOK_DOC_SIGNATURE))
-                .expect("form-encoded webhook body parses");
-        assert!(!body.verifies_against(&webhook_auth()));
-    }
-
-    #[test]
-    fn webhook_signature_verify_rejects_unknown_key_index() {
-        // A Key_Index we do not hold cannot verify — we keep exactly one key.
-        let body: RevpayWebhookBody =
-            serde_urlencoded::from_str(&webhook_form_body("52.40", "2", WEBHOOK_DOC_SIGNATURE))
-                .expect("form-encoded webhook body parses");
-        assert!(!body.verifies_against(&webhook_auth()));
-    }
-
-    #[test]
-    fn webhook_event_and_status_mapping_follows_response_code() {
-        let parse = |code: &str| RevpayWebhookBody {
-            revpay_merchant_id: "MER00000000001".to_string(),
-            payment_id: None,
-            bank_code: None,
-            transaction_id: "RT000000007222".to_string(),
-            reference_number: "RF201774111".to_string(),
-            bank_reference_number: None,
-            amount: "52.40".to_string(),
-            currency: "MYR".to_string(),
-            transaction_description: None,
-            fraud_score: None,
-            response_code: serde_json::from_str::<RevpayResponseCode>(&format!("\"{code}\""))
-                .expect("response code parses"),
-            error_description: (code != "00" && code != "09" && code != "99")
-                .then(|| "Declined".to_string()),
-            key_index: "1".to_string(),
-            signature: WEBHOOK_DOC_SIGNATURE.to_string(),
-            request_datetime: None,
-            response_datetime: None,
-        };
-
-        // "00" — final success for a payment that left Authorize pending.
-        let body = parse("00");
-        assert_eq!(body.event_type(), EventType::PaymentIntentSuccess);
-        assert_eq!(body.attempt_status(), AttemptStatus::Charged);
-        assert_eq!(body.failure_details(), None);
-
-        // "09"/"99" — still resolvable; NOT a failure and NOT terminal.
-        let body = parse("99");
-        assert_eq!(body.event_type(), EventType::PaymentIntentProcessing);
-        assert_eq!(body.attempt_status(), AttemptStatus::Pending);
-        assert_eq!(body.failure_details(), None);
-
-        // Terminal failure carries the raw code + description.
-        let body = parse("1A");
-        assert_eq!(body.event_type(), EventType::PaymentIntentFailure);
-        assert_eq!(body.attempt_status(), AttemptStatus::Failure);
-        assert_eq!(
-            body.failure_details(),
-            Some(("1A".to_string(), "Declined".to_string()))
-        );
-    }
-
-    #[test]
-    fn response_code_deserializes_known_and_unknown_codes() {
-        assert_eq!(
-            serde_json::from_str::<RevpayResponseCode>("\"00\"").expect("00 parses"),
-            RevpayResponseCode::Success
-        );
-        assert_eq!(
-            serde_json::from_str::<RevpayResponseCode>("\"09\"").expect("09 parses"),
-            RevpayResponseCode::RedirectRequired
-        );
-        assert_eq!(
-            serde_json::from_str::<RevpayResponseCode>("\"99\"").expect("99 parses"),
-            RevpayResponseCode::PendingAuthorization
-        );
-        // Inquiry-side mapping round-trip for the documented pending codes.
-        assert_eq!(
-            RevpayResponseCode::Success.psync_status(),
-            AttemptStatus::Charged
-        );
-        assert_eq!(
-            RevpayResponseCode::RedirectRequired.psync_status(),
-            AttemptStatus::Pending
-        );
-        assert_eq!(
-            RevpayResponseCode::PendingAuthorization.psync_status(),
-            AttemptStatus::Pending
-        );
-        assert_eq!(
-            RevpayResponseCode::Unknown("76".to_string()).psync_status(),
-            AttemptStatus::Failure
-        );
-        assert_eq!(
-            serde_json::from_str::<RevpayResponseCode>("\"1A\"").expect("1A parses"),
-            RevpayResponseCode::Unknown("1A".to_string())
-        );
-    }
-}
+#[path = "recovery_tests.rs"]
+mod recovery_tests;

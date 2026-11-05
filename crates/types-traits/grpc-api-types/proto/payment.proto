@@ -888,6 +888,8 @@ enum PaymentMethodType {
   GRABPAY_WALLET = 141;
   PAYHERE_WALLET = 142;
   TAMARA_BNPL = 143;
+  BOOST_WALLET = 144; // BOOST is already the connector enum value.
+  ALI_PAY_PLUS = 145;
 }
 
 // Product type enumeration
