@@ -3906,10 +3906,11 @@ impl Shift4WebhookChargeData {
             .and_then(|refund| refund.status.as_ref())
         {
             Some(Shift4RefundStatus::Failed) => RefundStatus::Failure,
-            Some(Shift4RefundStatus::Processing) => RefundStatus::Pending,
-            Some(Shift4RefundStatus::Successful | Shift4RefundStatus::Unknown) | None => {
-                RefundStatus::Success
+            // An unrecognised status is not evidence the refund finished.
+            Some(Shift4RefundStatus::Processing | Shift4RefundStatus::Unknown) => {
+                RefundStatus::Pending
             }
+            Some(Shift4RefundStatus::Successful) | None => RefundStatus::Success,
         }
     }
 
@@ -4173,7 +4174,7 @@ pub(crate) fn get_webhook_reference(
                 RefundWebhookReference {
                     connector_refund_id: Some(refund_id),
                     merchant_refund_id: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: charge.id,
                     merchant_transaction_id: None,
                 },
             )))
@@ -4478,6 +4479,11 @@ mod webhook_refund_status_tests {
                 r#"{"id":"re_1","status":"pending"},{"id":"re_2","status":"failed"}"#,
                 RefundStatus::Failure,
                 EventType::RefundFailure,
+            ),
+            (
+                r#"{"id":"re_1","status":"some_new_status"}"#,
+                RefundStatus::Pending,
+                EventType::RefundProcessing,
             ),
         ];
         for (refunds, status, event) in cases {
