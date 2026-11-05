@@ -359,32 +359,7 @@ pub fn parse_event_handler(
     request: FfiRequestData<grpc_api_types::payments::EventServiceParseRequest>,
     environment: Option<Environment>,
 ) -> Result<grpc_api_types::payments::EventServiceParseResponse, IntegrationError> {
-    let mut config = get_config(environment)?;
-    // Native FFI normally uses embedded configuration. Honor the same ParseEvent
-    // migration variable as the server without changing other flows' configuration.
-    match std::env::var("CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS") {
-        Ok(connectors) => {
-            let webhook_parse = serde_json::from_value(serde_json::json!({
-                "migrated_connectors": connectors,
-            }))
-            .map_err(|e| IntegrationError {
-                error_message: format!("Invalid webhook parser migration configuration: {e}"),
-                error_code: "INVALID_CONFIG".to_string(),
-                suggested_action: None,
-                doc_url: None,
-            })?;
-            std::sync::Arc::make_mut(&mut config).webhook_parse = webhook_parse;
-        }
-        Err(std::env::VarError::NotPresent) => {}
-        Err(error) => {
-            return Err(IntegrationError {
-                error_message: format!("Invalid webhook parser migration configuration: {error}"),
-                error_code: "INVALID_CONFIG".to_string(),
-                suggested_action: None,
-                doc_url: None,
-            });
-        }
-    }
+    let config = get_config(environment)?;
     let connector = request.extracted_metadata.connector;
     crate::services::payments::parse_event_transformer(
         request.payload,
