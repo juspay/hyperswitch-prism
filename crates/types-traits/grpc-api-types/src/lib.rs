@@ -9,6 +9,8 @@ mod types {
     tonic::include_proto!("types");
 }
 
+mod sensitive;
+
 pub mod payments {
     pub use super::types::*;
 }

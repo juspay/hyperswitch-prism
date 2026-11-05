@@ -118,6 +118,7 @@ fn build_config() -> ConnectorConfig {
     }
 }
 
+#[allow(deprecated)] // Verify existing clients remain supported during migration.
 fn make_request_details(body: Vec<u8>) -> RequestDetails {
     RequestDetails {
         method: HTTP_METHOD_POST,

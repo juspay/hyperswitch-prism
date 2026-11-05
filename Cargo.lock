@@ -3658,6 +3658,7 @@ dependencies = [
  "prost-types",
  "quote",
  "serde",
+ "serde_json",
  "syn 2.0.117",
  "tonic 0.14.5",
  "tonic-build",
