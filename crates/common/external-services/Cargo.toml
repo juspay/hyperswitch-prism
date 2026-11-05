@@ -76,11 +76,11 @@ opentelemetry = { version = "0.27", optional = true, default-features = false, f
 deja = { git = "https://github.com/juspay/deja", rev = "8da135688c353e2536386274819b37de12eb3113", optional = true, default-features = false }
 
 [features]
-# injector-client pulls in hyperswitch's injector crate (which transitively
-# brings diesel via hyperswitch's common_enums). Only the gRPC server path that
-# actually makes outbound HTTP calls to connectors needs this. The FFI build
-# (connector_service_ffi.dylib) only uses response-processing helpers and must
-# not compile injector to keep the binary lean and fast to link.
+# injector-client pulls in Hyperswitch's injector and HTTP client stack. Only
+# the gRPC server path that makes outbound HTTP calls to connectors needs this.
+# The FFI build (connector_service_ffi.dylib) only uses response-processing
+# helpers and must not compile injector to keep the binary lean and fast to
+# link.
 default = ["injector-client"]
 injector-client = ["dep:injector"]
 connector-request-kafka = ["dep:connector_request_kafka"]
