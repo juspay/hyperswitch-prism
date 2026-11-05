@@ -73,5 +73,40 @@
         }
       }
     }
+  },
+  "PaymentService/CreateOrder": {
+    "create_order_basic": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"country\":\"US\"}"
+        }
+      }
+    },
+    "create_order_with_metadata": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"country\":\"US\"}"
+        }
+      }
+    },
+    "create_order_with_payment_method_type": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"country\":\"US\"}"
+        }
+      },
+      "assert": {
+        "session_token": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "create_order_fail_zero_amount": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"country\":\"US\"}"
+        }
+      }
+    }
   }
 }
