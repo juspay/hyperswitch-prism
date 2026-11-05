@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.05.2
+
+### Bug Fixes
+
+- **connector:** [stripe] zero-pad single-digit eci for decrypted apple pay / google pay tokens ([#2701](https://github.com/juspay/connector-service/pull/2701)) ([`3d36b63`](https://github.com/juspay/connector-service/commit/3d36b632d98289b9871264accbb5bd140f272349))
+- **deps:** Upgrade jsonwebtoken to version 10 ([#2687](https://github.com/juspay/connector-service/pull/2687)) ([`b775bc4`](https://github.com/juspay/connector-service/commit/b775bc4a1914578d70a0ec06aaf7ec6fe20d51cb))
+
+### Build System / Dependencies
+
+- **deps-dev:** Bump vite from 6.4.4 to 6.4.5 in /grace/grace-workspace/packages/dashboard in the npm_and_yarn group across 1 directory ([#2671](https://github.com/juspay/connector-service/pull/2671)) ([`82c16f0`](https://github.com/juspay/connector-service/commit/82c16f04e6234c2264c6c17f410b8f09ef5f3750))
+
+**Full Changelog:** [`2026.11.05.1...2026.11.05.2`](https://github.com/juspay/connector-service/compare/2026.11.05.1...2026.11.05.2)
+
+- - -
+
 ## 2026.11.05.1
 
 ### Features
