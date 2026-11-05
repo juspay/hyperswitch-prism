@@ -12121,6 +12121,35 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
                     .collect()
             })
             .unwrap_or_default();
+        // `amount` and `currency` are required on DisputeWebhookDetailsResponse, so every
+        // connector already supplies them; surface them instead of dropping the disputed
+        // value on the floor. A connector that supplies an unparseable amount is a real
+        // fault and is reported rather than silently nulled.
+        let dispute_amount = grpc_payment_types::Money {
+            minor_amount: value
+                .amount
+                .to_minor_unit_as_i64()
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "dispute_amount",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Failed to parse dispute amount as a minor unit".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })?
+                .get_amount_as_i64(),
+            currency: grpc_api_types::payments::Currency::foreign_try_from(value.currency)
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "dispute_currency",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Failed to convert dispute currency to gRPC Currency type".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })? as i32,
+        };
         Ok(Self {
             connector_dispute_id: Some(value.dispute_id),
             connector_transaction_id: None,
@@ -12128,7 +12157,7 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
             dispute_stage: grpc_stage.into(),
             connector_status_code: None,
             error: None,
-            dispute_amount: None,
+            dispute_amount: Some(dispute_amount),
             dispute_date: None,
             service_date: None,
             shipping_date: None,
@@ -23344,5 +23373,36 @@ impl From<grpc_payment_types::IntegritySpecifications> for IntegritySpecificatio
         Self {
             allow_amount_mismatch: value.allow_amount_mismatch,
         }
+    }
+}
+
+#[cfg(test)]
+mod dispute_webhook_amount_tests {
+    use super::*;
+
+    fn details(amount: &str) -> DisputeWebhookDetailsResponse {
+        DisputeWebhookDetailsResponse {
+            amount: serde_json::from_value(serde_json::json!(amount)).unwrap_or_default(),
+            currency: common_enums::Currency::USD,
+            dispute_id: "dp_1".to_string(),
+            status: common_enums::DisputeStatus::DisputeOpened,
+            stage: common_enums::DisputeStage::Dispute,
+            connector_response_reference_id: None,
+            dispute_message: None,
+            raw_connector_response: None,
+            status_code: 200,
+            response_headers: None,
+            connector_reason_code: None,
+            additional_details: None,
+        }
+    }
+
+    #[test]
+    fn dispute_amount_reaches_the_response_and_a_bad_amount_is_rejected() {
+        let money = DisputeResponse::foreign_try_from(details("1250"))
+            .ok()
+            .and_then(|response| response.dispute_amount);
+        assert_eq!(money.map(|money| money.minor_amount), Some(1250));
+        assert!(DisputeResponse::foreign_try_from(details("not-a-number")).is_err());
     }
 }
