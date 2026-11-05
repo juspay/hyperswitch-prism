@@ -110,6 +110,18 @@ If something looks wrong: `pnpm check` first, then check `~/.tenxgrace/pipeline.
 
 ---
 
+## Network access and security
+
+The dashboard and supervisor can start agents and run commands with your credentials, so treat access to them as access to your account.
+
+- **Loopback by default.** The dashboard (3141) and control socket (3142) bind to `127.0.0.1`. Docker Compose publishes them on the host's loopback only. For remote access, use an SSH tunnel such as `ssh -L 3141:localhost:3141 -L 3142:localhost:3142 <host>`.
+- **Control token.** Every control socket client must present the token in `~/.tenxgrace/control-token` (mode 0600), generated on first use. To rotate it, delete the file and restart `pnpm dev`, then reload the dashboard. Set `TENXGRACE_CONTROL_TOKEN` to supply your own (at least 32 characters of `A-Za-z0-9_-`).
+- **Allowed hosts.** The dashboard only answers `localhost`, `127.0.0.1` and `[::1]`. Add other hostnames with `TENXGRACE_ALLOWED_HOSTS=name1,name2`. Only do this on a trusted network, because anyone who can load the dashboard page also receives the control token.
+- **Binding elsewhere.** `HOST` (dashboard) and `TENXGRACE_CONTROL_HOST` (control socket) change the bind address. Don't expose them to an untrusted network.
+- **Task names.** Connector and payment method names may only contain letters, numbers, `_` and `-`. Other values are rejected when the session is created and again before each pipeline step.
+
+---
+
 ## How to update a step
 
 **Edit a spec at a review gate** (the L2 / L3 / L4 reviews pause and ask you what to do):

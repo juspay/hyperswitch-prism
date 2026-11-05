@@ -1,7 +1,8 @@
 import type { Checkpoint } from "../types.js";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { validateTaskInputs } from "../task-validation.js";
 
 export const preflightCheckpoint: Checkpoint = {
   id: "preflight",
@@ -13,6 +14,11 @@ export const preflightCheckpoint: Checkpoint = {
     const task = ctx.artifacts.task;
     if (!task) {
       return { passed: false, errors: ["Missing task artifact"] };
+    }
+
+    const taskProblems = validateTaskInputs(task);
+    if (taskProblems.length > 0) {
+      return { passed: false, errors: taskProblems };
     }
 
     const connector = task.targetConnectors?.[0] || "unknown";
@@ -48,7 +54,7 @@ export const preflightCheckpoint: Checkpoint = {
       // state rather than whatever was last pulled into the worktree.
       ctx.log("[preflight] Fetching origin/main", "info");
       try {
-        execSync("git fetch origin main", { cwd: projectRoot, stdio: "pipe" });
+        execFileSync("git", ["fetch", "origin", "main"], { cwd: projectRoot, stdio: "pipe" });
       } catch (fetchErr) {
         // Don't abort if fetch fails (offline, auth issue) — fall back to
         // whatever `origin/main` points at locally. Note the failure so a
@@ -60,7 +66,7 @@ export const preflightCheckpoint: Checkpoint = {
         );
       }
       ctx.log(`[preflight] Creating branch ${branchName} from origin/main`, "info");
-      execSync(`git checkout -b ${branchName} origin/main`, {
+      execFileSync("git", ["checkout", "-b", branchName, "origin/main"], {
         cwd: projectRoot,
         stdio: "pipe",
       });

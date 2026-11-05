@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { openControlSocket } from "../lib/control-socket";
 
 /**
  * Live state for the PR Resolver dashboard tab. Connects to the supervisor's
@@ -949,7 +950,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
 
     const connect = () => {
       setControlStatus("connecting");
-      const ws = new WebSocket(controlUrl);
+      const ws = openControlSocket(controlUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {

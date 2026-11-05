@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { openControlSocket } from "../lib/control-socket";
 
 export type CheckpointStatus =
   | "idle"
@@ -154,7 +155,7 @@ export function usePipeline(wsUrl: string, sessionId?: string) {
     const connect = () => {
       if (cancelled) return;
       setWsStatus("connecting");
-      const ws = new WebSocket(wsUrl);
+      const ws = openControlSocket(wsUrl);
       wsRef.current = ws;
       ws.onopen = () => {
         if (wsRef.current !== ws) return;

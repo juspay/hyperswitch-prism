@@ -7,6 +7,7 @@ import {
   SessionSupervisor,
   StateManager,
   loadConfig,
+  resolveControlBindHost,
   setConfig,
 } from "@10xgrace/core";
 import { runDashboardOnly } from "@10xgrace/parity-core";
@@ -49,7 +50,7 @@ export async function supervisorCommand(opts: SupervisorOpts): Promise<void> {
 
   // eslint-disable-next-line no-console
   console.log(
-    `\x1b[1m\x1b[35m[supervisor]\x1b[0m control ws=ws://localhost:${cfg.wsPort} cli=${cliEntryPath}`
+    `\x1b[1m\x1b[35m[supervisor]\x1b[0m control ws=ws://${resolveControlBindHost()}:${cfg.wsPort} cli=${cliEntryPath}`
   );
 
   new SessionSupervisor(state, sessions, cfg.wsPort, {

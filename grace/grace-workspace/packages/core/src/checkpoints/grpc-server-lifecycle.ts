@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { assertValidPort } from "../task-validation.js";
 import { promises as fs, openSync, closeSync } from "node:fs";
 import path from "node:path";
 import net from "node:net";
@@ -108,6 +109,9 @@ export async function killStaleProcesses(
   grpcPort: number = 8000,
   dummyConnectorPort: number = 8080
 ): Promise<void> {
+  // These are interpolated into a shell command below.
+  assertValidPort(grpcPort, "grpcPort");
+  assertValidPort(dummyConnectorPort, "dummyConnectorPort");
   // lsof emits non-zero when nothing matches; swallow with `|| true`.
   const cmds = [
     `lsof -ti:${grpcPort} | xargs -r kill -9 2>/dev/null || true`,
@@ -133,8 +137,12 @@ export async function startGrpcServer(
   await fs.mkdir(path.dirname(opts.logFile), { recursive: true });
   // Truncate the log on each start so the agent reads only this run's output.
   const fd = openSync(opts.logFile, "w");
-  const grpcPort = opts.grpcPort ?? 8000;
-  const dummyConnectorPort = opts.dummyConnectorPort ?? 8080;
+  // Interpolated into a shell command by the kill handler below.
+  const grpcPort = assertValidPort(opts.grpcPort ?? 8000, "grpcPort");
+  const dummyConnectorPort = assertValidPort(
+    opts.dummyConnectorPort ?? 8080,
+    "dummyConnectorPort"
+  );
   try {
     // Phase 11: dropped GRPC_SERVER__SERVER__PORT / DUMMY_CONNECTOR__PORT
     // env overrides. The hyperswitch-prism binary loads its bind ports

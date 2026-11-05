@@ -3,6 +3,8 @@ export * from "./engine.js";
 export * from "./state.js";
 export * from "./session-manager.js";
 export * from "./session-supervisor.js";
+export * from "./control-auth.js";
+export * from "./task-validation.js";
 export * from "./logger.js";
 export * from "./config.js";
 export * from "./utils.js";
