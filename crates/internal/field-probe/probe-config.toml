@@ -103,10 +103,30 @@ authorizedotnet = '{"creditCard":{"cardNumber":"4111111111111111","expirationDat
 hyperpg = '{"order_id":"probe_order_001"}'
 paybox  = '{"connector_request_id":"probe_req_001"}'
 peachpayments = '{"client_merchant_reference_id":"probe_merchant_ref_001","merchant_payment_method_route_id":"probe_route_001"}'
+rapyd = '{"country":"IS"}'
 default = '{}'
 
 # Per-connector request field overrides.
 # Format: [connector_overrides."flow1,flow2,...".connector]
+# Rapyd requires an exact country-specific card method. Use Iceland and EUR
+# for fresh card and wallet objects instead of the generic US/USD probe input.
+# 103 = CountryAlpha2::IS; 45 = Currency::EUR.
+[connector_overrides."authorize,proxy_authorize,setup_recurring,proxy_setup_recurring".rapyd]
+"address.billing_address.country_alpha2_code" = 103
+"amount.currency" = 45
+
+[connector_overrides."token_authorize,token_setup_recurring,get,create_order,recurring_charge".rapyd]
+"amount.currency" = 45
+
+[connector_overrides.create_client_authentication_token.rapyd]
+"domain_context.Payment.amount.currency" = 45
+
+[connector_overrides.capture.rapyd]
+"amount_to_capture.currency" = 45
+
+[connector_overrides.refund.rapyd]
+"refund_amount.currency" = 45
+
 # Zift, Placetopay and Helcim parse connector_transaction_id as i64/u64,
 # so they need a numeric string instead of the default "probe_connector_txn_001".
 [connector_overrides."capture,void,get,refund,reverse,refund_get".zift]

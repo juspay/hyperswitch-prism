@@ -428,6 +428,8 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
         let status = common_enums::AttemptStatus::from(notif.data.status.clone());
         if is_payment_failure(status) {
             Ok(Self {
+                raw_connector_status: None,
+                amount: None,
                 connector_returned_payment_method_details: None,
                 error_code: Some(
                     notif
@@ -470,6 +472,8 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
             };
             match (amount_captured.is_some(), status) {
                 (true, common_enums::AttemptStatus::Charged) => Ok(Self {
+                    raw_connector_status: None,
+                    amount: None,
                     connector_returned_payment_method_details: None,
                     amount_captured,
                     status,
@@ -492,6 +496,8 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                     sender_payment_instrument_id: None,
                 }),
                 _ => Ok(Self {
+                    raw_connector_status: None,
+                    amount: None,
                     connector_returned_payment_method_details: None,
                     status,
                     resource_id: Some(ResponseId::ConnectorTransactionId(notif.data.id.clone())),

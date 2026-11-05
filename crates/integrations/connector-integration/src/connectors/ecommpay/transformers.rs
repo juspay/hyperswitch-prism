@@ -4746,6 +4746,8 @@ pub fn payment_webhook_details(
             currency: sum.currency,
         });
     Ok(WebhookDetailsResponse {
+        raw_connector_status: None,
+        amount: None,
         resource_id: Some(ResponseId::ConnectorTransactionId(payment_id.clone())),
         status,
         connector_response_reference_id: Some(payment_id),
@@ -4780,6 +4782,7 @@ pub fn refund_webhook_details(
         (None, None)
     };
     Ok(RefundWebhookDetailsResponse {
+        raw_connector_status: None,
         connector_refund_id: Some(connector_refund_id),
         merchant_transaction_id: None,
         status,

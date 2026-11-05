@@ -531,8 +531,7 @@ async fn hosted_page_and_lifecycle_flows_cross_the_grpc_boundary() {
             ..Default::default()
         });
         add_elavon_metadata(&mut capture, "capture");
-        let capture = payment_client
-            .capture(capture)
+        let capture = Box::pin(payment_client.capture(capture))
             .await
             .expect("Capture gRPC call should succeed")
             .into_inner();

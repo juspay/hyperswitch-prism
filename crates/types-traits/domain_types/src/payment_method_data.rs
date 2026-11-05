@@ -1014,6 +1014,25 @@ pub enum WalletData {
 }
 
 impl WalletData {
+    /// Reports authentication evidence present in supported decrypted wallet payloads.
+    /// Connectors decide whether that evidence permits skipping additional authentication.
+    pub fn is_authenticated(&self) -> bool {
+        match self {
+            Self::GooglePay(data) => {
+                matches!(&data.tokenization_data, GpayTokenizationData::Decrypted(token) if token.cryptogram.as_ref().is_some_and(|value| !value.peek().is_empty()))
+                    && data
+                        .info
+                        .assurance_details
+                        .as_ref()
+                        .is_some_and(|details| details.card_holder_authenticated)
+            }
+            Self::ApplePay(data) => {
+                matches!(&data.payment_data, ApplePayPaymentData::Decrypted(token) if !token.payment_data.online_payment_cryptogram.peek().is_empty())
+            }
+            _ => false,
+        }
+    }
+
     pub fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
             Self::GooglePay(data) => Ok(data.get_googlepay_encrypted_payment_data()?),

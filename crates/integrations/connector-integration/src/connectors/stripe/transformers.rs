@@ -5436,6 +5436,8 @@ pub(crate) fn build_webhook_payment_response(
         .or_else(|| connector_transaction_id.clone());
 
     Ok(WebhookDetailsResponse {
+        raw_connector_status: None,
+        amount: None,
         connector_returned_payment_method_details: None,
         resource_id: connector_transaction_id.map(ResponseId::ConnectorTransactionId),
         status,
@@ -5503,6 +5505,7 @@ pub(crate) fn build_webhook_refund_response(
     };
 
     Ok(RefundWebhookDetailsResponse {
+        raw_connector_status: None,
         connector_refund_id: Some(event_object.id.clone()),
         merchant_transaction_id: None,
         status,

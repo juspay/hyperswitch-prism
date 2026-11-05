@@ -186,6 +186,7 @@ message AirlineSegment {
 
   optional string operating_carrier_code = 17;  // Operating carrier IATA-2
   optional string operating_flight_number = 18; // Operating flight number
+  optional uint32 journey_no = 21; // Groups legs belonging to the same journey
   optional string marketing_carrier_name = 19; // Marketing carrier name, e.g. "Emirates"
   optional TicketDeliveryContact ticket_delivery_recipient = 20; // Ticket recipient, email or phone
 }
