@@ -1535,16 +1535,6 @@ message RequestDetails {
   optional SecretString query_params = 9;
 }
 
-// Opaque binary data. The bytes must be preserved exactly for source verification.
-message SecretBytes {
-  bytes value = 1;
-}
-
-// A message wrapper preserves absent versus explicitly empty header maps.
-message SecretHeaders {
-  map<string, SecretString> values = 1;
-}
-
 // Secrets used for verifying connector webhooks.
 message WebhookSecrets {
   // Primary secret for webhook verification.
