@@ -26,17 +26,17 @@ use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
+/// Checkout payout credentials resolved from the connector config.
+pub struct CheckoutPayoutCredentials<'a> {
+    pub api_key: &'a Secret<String>,
+    pub api_secret: &'a Secret<String>,
+    pub processing_channel_id: &'a Secret<String>,
+    pub client_id: Option<&'a Secret<String>>,
+}
+
 pub fn credentials(
     config: &ConnectorSpecificConfig,
-) -> Result<
-    (
-        &Secret<String>,
-        &Secret<String>,
-        &Secret<String>,
-        Option<&Secret<String>>,
-    ),
-    error_stack::Report<IntegrationError>,
-> {
+) -> Result<CheckoutPayoutCredentials<'_>, error_stack::Report<IntegrationError>> {
     match config {
         ConnectorSpecificConfig::Checkout {
             api_key,
@@ -44,12 +44,12 @@ pub fn credentials(
             processing_channel_id,
             client_id,
             ..
-        } => Ok((
+        } => Ok(CheckoutPayoutCredentials {
             api_key,
             api_secret,
             processing_channel_id,
-            client_id.as_ref(),
-        )),
+            client_id: client_id.as_ref(),
+        }),
         _ => Err(missing_field_err("checkout.connector_config")()),
     }
 }
@@ -157,16 +157,14 @@ struct CheckoutPayoutCorporateSender {
 #[derive(Debug, Serialize)]
 struct CheckoutPayoutReference(String);
 
-impl TryFrom<(Option<&Secret<String>>, Option<&str>)> for CheckoutPayoutReference {
-    type Error = error_stack::Report<IntegrationError>;
-
-    fn try_from(
-        (reference, fallback): (Option<&Secret<String>>, Option<&str>),
-    ) -> Result<Self, Self::Error> {
-        let reference = reference
-            .map(|value| value.peek().as_str())
-            .or(fallback)
-            .ok_or_else(missing_field_err("vendor_account_details.reference_id"))?;
+impl CheckoutPayoutReference {
+    /// Sender reference is taken from `reference_id` only; there is no fallback.
+    fn try_from_reference_id(
+        reference_id: Option<&Secret<String>>,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let reference = reference_id
+            .ok_or_else(missing_field_err("vendor_account_details.reference_id"))?
+            .peek();
         if reference.chars().count() > 15 {
             return Err(IntegrationError::InvalidDataFormat {
                 field_name: "vendor_account_details.reference_id",
@@ -209,36 +207,62 @@ enum CheckoutPayoutAccountHolderType {
     Individual,
 }
 
-impl TryFrom<&AddressDetails> for CheckoutPayoutAddress {
-    type Error = error_stack::Report<IntegrationError>;
-
-    fn try_from(billing: &AddressDetails) -> Result<Self, Self::Error> {
+impl CheckoutPayoutAddress {
+    fn from_address_details(
+        details: &AddressDetails,
+        line1_field: &'static str,
+        city_field: &'static str,
+        country_field: &'static str,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
         Ok(Self {
-            address_line1: billing
+            address_line1: details
                 .line1
                 .clone()
-                .ok_or_else(missing_field_err("billing.line1"))?,
-            city: billing
+                .ok_or_else(missing_field_err(line1_field))?,
+            city: details
                 .city
                 .clone()
-                .ok_or_else(missing_field_err("billing.city"))?,
-            country: billing
+                .ok_or_else(missing_field_err(city_field))?,
+            country: details
                 .country
-                .ok_or_else(missing_field_err("billing.country"))?,
-            address_line2: billing.line2.clone(),
-            state: billing
+                .ok_or_else(missing_field_err(country_field))?,
+            address_line2: details.line2.clone(),
+            state: details
                 .state
                 .as_ref()
                 .and_then(|state| state.code_or_name().cloned()),
-            zip: billing.zip.clone(),
+            zip: details.zip.clone(),
         })
+    }
+
+    /// Destination account-holder address comes from billing only.
+    fn try_from_billing_address(
+        billing: &AddressDetails,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        Self::from_address_details(billing, "billing.line1", "billing.city", "billing.country")
+    }
+
+    /// Sender address comes from vendor-supplied details only; no billing fallback.
+    fn try_from_sender_address(
+        address: Option<&Address>,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let details = address
+            .and_then(|address| address.address.as_ref())
+            .ok_or_else(missing_field_err("vendor_account_details.address"))?;
+        Self::from_address_details(
+            details,
+            "vendor_account_details.address.line1",
+            "vendor_account_details.address.city",
+            "vendor_account_details.address.country",
+        )
     }
 }
 
-impl TryFrom<&AddressDetails> for CheckoutPayoutAccountHolder {
-    type Error = error_stack::Report<IntegrationError>;
-
-    fn try_from(billing: &AddressDetails) -> Result<Self, Self::Error> {
+impl CheckoutPayoutAccountHolder {
+    /// Destination account holder comes from billing only.
+    fn try_from_billing(
+        billing: &AddressDetails,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
         Ok(Self {
             holder_type: CheckoutPayoutAccountHolderType::Individual,
             first_name: billing
@@ -249,23 +273,8 @@ impl TryFrom<&AddressDetails> for CheckoutPayoutAccountHolder {
                 .last_name
                 .clone()
                 .ok_or_else(missing_field_err("billing.last_name"))?,
-            billing_address: CheckoutPayoutAddress::try_from(billing)?,
+            billing_address: CheckoutPayoutAddress::try_from_billing_address(billing)?,
         })
-    }
-}
-
-impl TryFrom<(Option<&Address>, &AddressDetails)> for CheckoutPayoutAddress {
-    type Error = error_stack::Report<IntegrationError>;
-
-    fn try_from(
-        (address, billing): (Option<&Address>, &AddressDetails),
-    ) -> Result<Self, Self::Error> {
-        // Preserve billing fallback for an absent or empty sender address.
-        address
-            .and_then(|address| address.address.as_ref())
-            .filter(|address| *address != &AddressDetails::default())
-            .unwrap_or(billing)
-            .try_into()
     }
 }
 
@@ -282,20 +291,19 @@ impl From<PayoutSourceOfFunds> for CheckoutPayoutSourceOfFunds {
     }
 }
 
-impl TryFrom<(&PayoutVendorDetails, &AddressDetails, Option<&str>)>
-    for CheckoutPayoutCorporateSender
-{
-    type Error = error_stack::Report<IntegrationError>;
-
-    fn try_from(
-        (vendor, billing, reference): (&PayoutVendorDetails, &AddressDetails, Option<&str>),
-    ) -> Result<Self, Self::Error> {
+impl CheckoutPayoutCorporateSender {
+    /// Sender maps from vendor details only; no billing fallback.
+    fn try_from_vendor_details(
+        vendor: &PayoutVendorDetails,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
         Ok(Self {
             company_name: vendor.vendor_name.clone().ok_or_else(missing_field_err(
                 "vendor_account_details.vendor_details.vendor_name",
             ))?,
-            address: (vendor.address.as_ref(), billing).try_into()?,
-            reference: (vendor.reference_id.as_ref(), reference).try_into()?,
+            address: CheckoutPayoutAddress::try_from_sender_address(vendor.address.as_ref())?,
+            reference: CheckoutPayoutReference::try_from_reference_id(
+                vendor.reference_id.as_ref(),
+            )?,
             reference_type: CheckoutPayoutReferenceType::Other,
             source_of_funds: vendor
                 .source_of_funds
@@ -307,32 +315,29 @@ impl TryFrom<(&PayoutVendorDetails, &AddressDetails, Option<&str>)>
     }
 }
 
-impl TryFrom<(&PayoutIndividualDetails, &AddressDetails, Option<&str>)>
-    for CheckoutPayoutIndividualSender
-{
-    type Error = error_stack::Report<IntegrationError>;
-
-    fn try_from(
-        (individual, billing, reference): (&PayoutIndividualDetails, &AddressDetails, Option<&str>),
-    ) -> Result<Self, Self::Error> {
+impl CheckoutPayoutIndividualSender {
+    /// Sender maps from individual details only; no billing fallback.
+    fn try_from_individual_details(
+        individual: &PayoutIndividualDetails,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
         Ok(Self {
             first_name: individual
                 .first_name
                 .clone()
-                .or_else(|| billing.first_name.clone())
                 .ok_or_else(missing_field_err(
                     "vendor_account_details.individual_details.first_name",
                 ))?,
             last_name: individual
                 .last_name
                 .clone()
-                .or_else(|| billing.last_name.clone())
                 .ok_or_else(missing_field_err(
                     "vendor_account_details.individual_details.last_name",
                 ))?,
             date_of_birth: individual.date_of_birth.clone(),
-            address: (individual.address.as_ref(), billing).try_into()?,
-            reference: (individual.reference_id.as_ref(), reference).try_into()?,
+            address: CheckoutPayoutAddress::try_from_sender_address(individual.address.as_ref())?,
+            reference: CheckoutPayoutReference::try_from_reference_id(
+                individual.reference_id.as_ref(),
+            )?,
             reference_type: CheckoutPayoutReferenceType::Other,
             source_of_funds: individual
                 .source_of_funds
@@ -348,24 +353,18 @@ impl<T: PaymentMethodDataTypes> TryFrom<&PayoutTransferRequest<T>> for CheckoutP
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(request: &PayoutTransferRequest<T>) -> Result<Self, Self::Error> {
-        let billing = request.get_billing_address()?;
-        let reference = request
-            .customer
+        let party = request
+            .vendor_account_details
             .as_ref()
-            .and_then(|customer| customer.merchant_customer_id.as_deref());
-        let Some(party) = request.vendor_account_details.as_ref() else {
-            return Ok(Self::Individual(
-                (&PayoutIndividualDetails::default(), billing, reference).try_into()?,
-            ));
-        };
+            .ok_or_else(missing_field_err("vendor_account_details"))?;
         let vendor = party
             .vendor_details
             .as_ref()
             .ok_or_else(missing_field_err("vendor_account_details.vendor_details"))?;
         match vendor.vendor_type {
-            Some(common_enums::BankHolderType::Business) => {
-                Ok(Self::Corporate((vendor, billing, reference).try_into()?))
-            }
+            Some(common_enums::BankHolderType::Business) => Ok(Self::Corporate(
+                CheckoutPayoutCorporateSender::try_from_vendor_details(vendor)?,
+            )),
             Some(common_enums::BankHolderType::Personal) => {
                 let individual =
                     party
@@ -375,7 +374,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<&PayoutTransferRequest<T>> for CheckoutP
                             "vendor_account_details.individual_details",
                         ))?;
                 Ok(Self::Individual(
-                    (individual, billing, reference).try_into()?,
+                    CheckoutPayoutIndividualSender::try_from_individual_details(individual)?,
                 ))
             }
             _ => Err(missing_field_err(
@@ -411,9 +410,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let data = &item.router_data;
-        let (source_id, _, channel, _) = credentials(&data.connector_config)?;
+        let creds = credentials(&data.connector_config)?;
         let billing = data.request.get_billing_address()?;
-        let mut holder = CheckoutPayoutAccountHolder::try_from(billing)?;
+        let mut holder = CheckoutPayoutAccountHolder::try_from_billing(billing)?;
         if let Some(PayoutMethodData::Wallet(Wallet::ApplePayDecrypt(token))) =
             data.request.payout_method_data.as_ref()
         {
@@ -468,7 +467,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
         Ok(Self {
             source: CheckoutPayoutSource::CurrencyAccount(CheckoutPayoutCurrencyAccount {
-                id: source_id.clone(),
+                id: creds.api_key.clone(),
             }),
             destination,
             amount: data.request.amount,
@@ -477,7 +476,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            processing_channel_id: channel.clone(),
+            processing_channel_id: creds.processing_channel_id.clone(),
             instruction: CheckoutPayoutInstruction {
                 funds_transfer_type: data
                     .request

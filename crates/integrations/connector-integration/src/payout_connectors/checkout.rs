@@ -100,11 +100,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         config: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let (_, secret, _, _) = transformers::credentials(config)?;
+        let credentials = transformers::credentials(config)?;
         Ok(vec![
             (
                 "Authorization".into(),
-                format!("Bearer {}", secret.peek()).into_masked(),
+                format!("Bearer {}", credentials.api_secret.peek()).into_masked(),
             ),
             ("Content-Type".into(), "application/json".into()),
         ])
@@ -153,9 +153,9 @@ macros::macro_connector_implementation!(
             Ok(headers)
         }
         fn get_url(&self, req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>) -> CustomResult<String, IntegrationError> {
-            let (_, _, _, client_id) = transformers::credentials(&req.connector_config)?;
+            let credentials = transformers::credentials(&req.connector_config)?;
             let configured_base_url = self.base_url(req.resource_common_data.connectors.as_ref());
-            Ok(format!("{}/payments", get_checkout_payout_base_url(configured_base_url, client_id)?))
+            Ok(format!("{}/payments", get_checkout_payout_base_url(configured_base_url, credentials.client_id)?))
         }
     }
 );
@@ -172,9 +172,9 @@ macros::macro_connector_implementation!(
         fn get_url(&self, req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>) -> CustomResult<String, IntegrationError> {
             let id = req.request.connector_payout_id.as_deref()
                 .ok_or_else(|| domain_types::utils::missing_field_err("connector_payout_id")())?;
-            let (_, _, _, client_id) = transformers::credentials(&req.connector_config)?;
+            let credentials = transformers::credentials(&req.connector_config)?;
             let configured_base_url = self.base_url(req.resource_common_data.connectors.as_ref());
-            Ok(format!("{}/payments/{id}", get_checkout_payout_base_url(configured_base_url, client_id)?))
+            Ok(format!("{}/payments/{id}", get_checkout_payout_base_url(configured_base_url, credentials.client_id)?))
         }
     }
 );
