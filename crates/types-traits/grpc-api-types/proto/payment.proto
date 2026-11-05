@@ -3516,6 +3516,13 @@ message RefundServiceVoidPostRefundRequest {
 
   // Connector-side identifier for the original payment that this refund targets.
   optional string connector_order_id = 12;
+
+  // Refund context required by connectors that need the original payment data
+  // to reverse a refund (for example, Worldpay RAFT).
+  optional PaymentMethod payment_method = 13;
+
+  // Amount of the original refund to reverse.
+  optional Money refund_amount = 14;
 }
 
 // Request message for creating a dispute
