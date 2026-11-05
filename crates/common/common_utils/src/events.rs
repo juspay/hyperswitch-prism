@@ -20,6 +20,27 @@ use crate::{
     types::TimeRange,
 };
 
+/// Top-level request fields that must never be logged: webhook and redirect signing secrets,
+/// and the raw callback (URI, headers, body and query) they authenticate.
+const UNLOGGED_REQUEST_FIELDS: [&str; 3] = [
+    "webhook_secrets",
+    "redirect_response_secrets",
+    "request_details",
+];
+
+/// Serialize a gRPC request for logs and events: masked, and without [`UNLOGGED_REQUEST_FIELDS`].
+pub fn serialize_request_for_logging<T: Serialize>(
+    request: &T,
+) -> Result<serde_json::Value, serde_json::Error> {
+    let mut body = hyperswitch_masking::masked_serialize(request)?;
+    if let Some(fields) = body.as_object_mut() {
+        for field in UNLOGGED_REQUEST_FIELDS {
+            fields.remove(field);
+        }
+    }
+    Ok(body)
+}
+
 /// Wrapper type that enforces masked serialization for Serde values
 #[derive(Debug, Clone, Serialize)]
 #[serde(transparent)]

@@ -29,7 +29,7 @@ where
     span.record("service_name", service_name);
     span.record("service_method", flow_name.as_str());
     span.record("flow", flow_name.as_str());
-    if let Ok(body) = hyperswitch_masking::masked_serialize(request.get_ref()) {
+    if let Ok(body) = common_utils::events::serialize_request_for_logging(request.get_ref()) {
         record_json_fields_on_span(vec![("request_body", body)]);
     }
     let metadata = request.metadata();

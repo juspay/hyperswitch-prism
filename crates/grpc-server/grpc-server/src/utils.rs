@@ -286,6 +286,19 @@ pub fn merge_configs(override_val: &Value, base_val: &Value) -> Value {
     }
 }
 
+/// The gRPC request as it is recorded on the GrpcRequest event.
+fn masked_grpc_request<T: serde::Serialize>(request: &T) -> Option<MaskedSerdeValue> {
+    let body = common_utils::events::serialize_request_for_logging(request)
+        .inspect_err(|e| {
+            tracing::error!(
+                context = "grpc_request",
+                "Masked serialization error: {e:?}"
+            )
+        })
+        .ok()?;
+    MaskedSerdeValue::from_masked_optional(&body, "grpc_request")
+}
+
 pub fn log_before_initialization<T>(
     request_data: &RequestData<T>,
     service_name: &str,
@@ -303,7 +316,7 @@ where
         ..
     } = metadata_payload;
     let current_span = tracing::Span::current();
-    let masked_body = hyperswitch_masking::masked_serialize(&request_data.payload)
+    let masked_body = common_utils::events::serialize_request_for_logging(&request_data.payload)
         .map_err(|e| tracing::error!("Masked serialization error: {:?}", e))
         .ok();
     let connector_name = connector.get_connector_name();
@@ -445,8 +458,7 @@ where
         current_span.record("message_", "Internal service call");
     }
     let start_time = tokio::time::Instant::now();
-    let masked_request_data =
-        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    let masked_request_data = masked_grpc_request(request.get_ref());
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
@@ -523,8 +535,7 @@ where
         current_span.record("message_", "Internal service call");
     }
     let start_time = tokio::time::Instant::now();
-    let masked_request_data =
-        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    let masked_request_data = masked_grpc_request(request.get_ref());
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
@@ -1563,4 +1574,99 @@ macro_rules! implement_connector_operation {
         result
     }
 };
+}
+
+#[cfg(test)]
+mod log_redaction_tests {
+    #![allow(clippy::expect_used)]
+
+    use std::collections::HashMap;
+
+    use grpc_api_types::payments::{
+        CompositeEventHandleRequest, CompositeVerifyRedirectResponseRequest,
+        EventServiceHandleRequest, EventServiceParseRequest,
+        PaymentServiceVerifyRedirectResponseRequest, RedirectResponseSecrets, RequestDetails,
+        WebhookSecrets,
+    };
+
+    use super::masked_grpc_request;
+
+    fn request_details() -> Option<RequestDetails> {
+        Some(RequestDetails {
+            method: 1,
+            uri: Some("/hook?token=sensitive".to_string()),
+            headers: HashMap::from([("X-Signature".to_string(), "sensitive".to_string())]),
+            body: b"sensitive".to_vec(),
+            query_params: Some("token=sensitive".to_string()),
+        })
+    }
+
+    fn webhook_secrets() -> Option<WebhookSecrets> {
+        Some(WebhookSecrets {
+            secret: "sensitive".to_string(),
+            additional_secret: Some("sensitive".to_string()),
+        })
+    }
+
+    fn redirect_secrets() -> Option<RedirectResponseSecrets> {
+        Some(RedirectResponseSecrets {
+            secret: "sensitive".to_string(),
+            additional_secret: Some("sensitive".to_string()),
+        })
+    }
+
+    fn logged<T: serde::Serialize>(request: &T) -> String {
+        serde_json::to_string(&masked_grpc_request(request).expect("masked request"))
+            .expect("serialized request")
+    }
+
+    fn assert_not_logged(logged: &str) {
+        for field in [
+            "sensitive",
+            "X-Signature",
+            "webhook_secrets",
+            "redirect_response_secrets",
+            "request_details",
+        ] {
+            assert!(!logged.contains(field), "`{field}` was logged: {logged}");
+        }
+    }
+
+    #[test]
+    fn webhook_and_redirect_requests_omit_secrets_and_callback_data() {
+        assert_not_logged(&logged(&EventServiceParseRequest {
+            request_details: request_details(),
+        }));
+        assert_not_logged(&logged(&EventServiceHandleRequest {
+            request_details: request_details(),
+            webhook_secrets: webhook_secrets(),
+            ..Default::default()
+        }));
+        assert_not_logged(&logged(&CompositeEventHandleRequest {
+            request_details: request_details(),
+            webhook_secrets: webhook_secrets(),
+            ..Default::default()
+        }));
+        assert_not_logged(&logged(&PaymentServiceVerifyRedirectResponseRequest {
+            request_details: request_details(),
+            redirect_response_secrets: redirect_secrets(),
+            ..Default::default()
+        }));
+        assert_not_logged(&logged(&CompositeVerifyRedirectResponseRequest {
+            request_details: request_details(),
+            redirect_response_secrets: redirect_secrets(),
+            ..Default::default()
+        }));
+    }
+
+    #[test]
+    fn other_request_fields_are_still_logged() {
+        let logged = logged(&EventServiceHandleRequest {
+            merchant_event_id: Some("evt_1".to_string()),
+            request_details: request_details(),
+            webhook_secrets: webhook_secrets(),
+            ..Default::default()
+        });
+        assert!(logged.contains("evt_1"), "{logged}");
+    }
 }

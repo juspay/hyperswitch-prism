@@ -33,7 +33,9 @@ sequenceDiagram
 
 **Why two calls?** The parsed reference can identify the right merchant account. Prism is stateless, so the merchant supplies its secrets and any original payment context, such as `capture_method`, to `HandleEvent`.
 
-`event_content` contains a payment, refund, dispute, or payout response. For a verified payment webhook, the merchant can decode the embedded payment response through its PSync **response handler locally**; this does not make a Prism `PaymentServiceGet` call. Prism may verify a webhook signature locally or use a connector verification API when that connector requires it. The merchant decides whether to trust or sync an unverified event before updating records.
+`event_content` contains a payment, refund, dispute, or payout response. For a verified payment webhook, the merchant can decode the embedded payment response through its PSync **response handler locally**; this does not make a Prism `PaymentServiceGet` call. Prism may verify a webhook signature locally or use a connector verification API when that connector requires it. 
+
+> **Security:** `HandleEvent` returns `event_content` even when `source_verified` is `false`, including when no secret was supplied or the connector has no signature check. That content comes from an unauthenticated payload. Check `source_verified` before updating any state, and for an unverified event either sync the status from the processor or reject the event. Prism is stateless and does not enforce this for you.
 
 ## Adding a connector webhook
 

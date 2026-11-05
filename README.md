@@ -40,7 +40,7 @@ Hence, **Prism** - to open up payment diversity to the entire world as a simple,
 ## What does Prism do well?
 - **One request schema** for every payment. The same authorize call works against Stripe, Adyen and many more without additional lines of code.
 - **Stateless. No database, no stored PII.** Credentials are not stored/ logged by the library. It lives only up to the lifetime of your HTTP client.
-- **PCI scope reduction.** The card data flowing/ not flowing into the library is your choice. You can choose to leverage any payment processor vault or your own PCI certified vault. Nothing is logged or stored by the library.
+- **PCI scope reduction.** The card data flowing/ not flowing into the library is your choice. You can choose to leverage any payment processor vault or your own PCI certified vault. Nothing is stored by the library, and the gRPC server masks card data and credentials in its logs and does not log webhook secrets or payloads.
 
 
 ## Integrations - Status

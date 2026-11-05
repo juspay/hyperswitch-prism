@@ -190,7 +190,9 @@ message EventServiceHandleResponse {
   // Content
   EventContent event_content = 2;
 
-  // Verification
+  // Whether the webhook's source was verified. event_content is returned either way, and
+  // when this is false it comes from an unauthenticated payload: do not use it to update
+  // payment state. Sync with the processor instead, or reject the event.
   bool source_verified = 3;
 
   // Reference
