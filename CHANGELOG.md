@@ -19,6 +19,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.05.1
+
+### Features
+
+- **connector:**
+  - Fiserv commercehub pass through 3DS, googlepay setup mandate & over capture ([#2679](https://github.com/juspay/connector-service/pull/2679)) ([`6aad14e`](https://github.com/juspay/connector-service/commit/6aad14edd100f472e264dd3b8aab1a9b40c14e5c))
+  - [Nuvei] extend REST 1.0 payment flows ([#2662](https://github.com/juspay/connector-service/pull/2662)) ([`857c315`](https://github.com/juspay/connector-service/commit/857c315148bbd80d2c60807d854d7aafd4d8abd1))
+  - [ClearSaleBr] Source reservationDate from travel data instead of connector_feature_data ([#2696](https://github.com/juspay/connector-service/pull/2696)) ([`d4f6d67`](https://github.com/juspay/connector-service/commit/d4f6d67a6621b25b299901c481cdf7177c503cc1))
+- **rapyd:** Pass through external 3DS authentication results ([#2653](https://github.com/juspay/connector-service/pull/2653)) ([`1dfadb8`](https://github.com/juspay/connector-service/commit/1dfadb8f11e3ebf9103d62590c4e3315ab391fde))
+
+### Bug Fixes
+
+- **deps:**
+  - Update Rustls to 0.23.46 ([#2650](https://github.com/juspay/connector-service/pull/2650)) ([`be007fa`](https://github.com/juspay/connector-service/commit/be007fa12fa0de0a8c558e791e0046650f6e0595))
+  - Upgrade Prometheus protobuf runtime ([#2685](https://github.com/juspay/connector-service/pull/2685)) ([`1eecf79`](https://github.com/juspay/connector-service/commit/1eecf7907c3a579b5274a315c7f33a12fd5d214a))
+  - Remove unused transitive Diesel ([#2688](https://github.com/juspay/connector-service/pull/2688)) ([`51f619f`](https://github.com/juspay/connector-service/commit/51f619f8323f77d21fa0c01568f2e1e9a2c70e7a))
+  - Migrate dashboard to React Router 7 ([#2686](https://github.com/juspay/connector-service/pull/2686)) ([`1f9ca2b`](https://github.com/juspay/connector-service/commit/1f9ca2bc76eca35454e014ef7645d6feadaa5b33))
+- **fiservcommercehub:** Preserve sync reference on errors ([#2680](https://github.com/juspay/connector-service/pull/2680)) ([`276f911`](https://github.com/juspay/connector-service/commit/276f911fa4303acd1bfb241cb86eaa6930ba3c0b))
+- **grace:** Require auth on the supervisor control socket ([#2694](https://github.com/juspay/connector-service/pull/2694)) ([`514fef9`](https://github.com/juspay/connector-service/commit/514fef9ee4a6b83bf76139f1382ed080e0fbe146))
+
+**Full Changelog:** [`2026.11.05.0...2026.11.05.1`](https://github.com/juspay/connector-service/compare/2026.11.05.0...2026.11.05.1)
+
+- - -
+
 ## 2026.11.05.0
 
 ### Features
