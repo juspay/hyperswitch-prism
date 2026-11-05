@@ -6265,7 +6265,7 @@ pub struct AdyenIncomingWebhook {
 }
 
 pub fn get_webhook_object_from_body(
-    body: Vec<u8>,
+    body: &[u8],
 ) -> Result<AdyenNotificationRequestItemWH, error_stack::Report<IntegrationError>> {
     let mut webhook: AdyenIncomingWebhook = body
         .parse_struct("AdyenIncomingWebhook")

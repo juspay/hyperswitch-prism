@@ -720,14 +720,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let header = request
             .headers
             .get("content-type")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
-            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
-            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body.peek());
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body.peek())
                 .change_context(WebhookError::WebhookSourceVerificationFailed)?
         } else {
             request
                 .body
+                .peek()
                 .parse_struct("fiuu::FiuuWebhooksResponse")
                 .change_context(WebhookError::WebhookSourceVerificationFailed)?
         };
@@ -752,14 +754,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let header = request
             .headers
             .get("content-type")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
-            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
-            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body.peek());
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body.peek())
                 .change_context(WebhookError::WebhookSourceVerificationFailed)?
         } else {
             request
                 .body
+                .peek()
                 .parse_struct("fiuu::FiuuWebhooksResponse")
                 .change_context(WebhookError::WebhookSourceVerificationFailed)?
         };
@@ -787,7 +791,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     webhooks_payment_response
                         .appcode
                         .map_or("".to_string(), |appcode| appcode.expose()),
-                    String::from_utf8_lossy(&connector_webhook_secrets.secret)
+                    String::from_utf8_lossy(connector_webhook_secrets.secret.peek())
                 );
                 key1
             }
@@ -801,7 +805,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     webhooks_refunds_response.txn_id,
                     webhooks_refunds_response.amount.get_amount_as_string(),
                     webhooks_refunds_response.status,
-                    String::from_utf8_lossy(&connector_webhook_secrets.secret)
+                    String::from_utf8_lossy(connector_webhook_secrets.secret.peek())
                 )
             }
         };
@@ -830,7 +834,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
         algorithm
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .verify_signature(
+                connector_webhook_secrets.secret.peek(),
+                &signature,
+                &message,
+            )
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
@@ -842,21 +850,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        if request.body.is_empty() {
+        if request.body.peek().is_empty() {
             return Ok(EventType::EndpointVerification);
         }
         let header = request
             .headers
             .get("content-type")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
 
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
-            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
-            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body.peek());
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body.peek())
                 .change_context(WebhookError::WebhookBodyDecodingFailed)?
         } else {
             request
                 .body
+                .peek()
                 .parse_struct("fiuu::FiuuWebhooksResponse")
                 .change_context(WebhookError::WebhookBodyDecodingFailed)?
         };
@@ -879,15 +889,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let header = request
             .headers
             .get("content-type")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
 
         let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
-            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
-            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body.peek());
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body.peek())
                 .change_context(WebhookError::WebhookResourceObjectNotFound)?
         } else {
             request
                 .body
+                .peek()
                 .parse_struct("fiuu::FiuuWebhooksResponse")
                 .change_context(WebhookError::WebhookResourceObjectNotFound)?
         };
@@ -914,15 +926,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let header = request
             .headers
             .get("content-type")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
 
         let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
-            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
-            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body.peek());
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body.peek())
                 .change_context(WebhookError::WebhookResourceObjectNotFound)?
         } else {
             request
                 .body
+                .peek()
                 .parse_struct("fiuu::FiuuWebhooksResponse")
                 .change_context(WebhookError::WebhookResourceObjectNotFound)?
         };
@@ -960,15 +974,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let header = request
             .headers
             .get("content-type")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
 
         let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
-            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
-            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body.peek());
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body.peek())
                 .change_context(WebhookError::WebhookResourceObjectNotFound)?
         } else {
             request
                 .body
+                .peek()
                 .parse_struct("fiuu::FiuuWebhooksResponse")
                 .change_context(WebhookError::WebhookResourceObjectNotFound)?
         };
@@ -1026,7 +1042,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_request_reference_id: Some(webhook_payment.order_id),
             error_code: error_code.clone(),
             error_message: error_message.clone(),
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             mandate_reference: webhook_payment
@@ -1062,15 +1078,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let header = request
             .headers
             .get("content-type")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
 
         let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
-            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
-            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body.peek());
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body.peek())
                 .change_context(WebhookError::WebhookResourceObjectNotFound)?
         } else {
             request
                 .body
+                .peek()
                 .parse_struct("fiuu::FiuuWebhooksResponse")
                 .change_context(WebhookError::WebhookResourceObjectNotFound)?
         };
@@ -1089,7 +1107,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         response.map(|mut response| {
             response.raw_connector_response =
-                Some(String::from_utf8_lossy(&request.body).to_string());
+                Some(String::from_utf8_lossy(request.body.peek()).to_string());
             response
         })
     }

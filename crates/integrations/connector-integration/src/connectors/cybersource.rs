@@ -212,7 +212,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let mut message = signature.timestamp.into_bytes();
         message.push(b'.');
-        message.extend_from_slice(&request.body);
+        message.extend_from_slice(request.body.peek());
         Ok(message)
     }
 
@@ -230,7 +230,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .ok_or_else(|| Report::new(WebhookError::WebhookVerificationSecretNotFound))?;
 
         let key = BASE64_ENGINE
-            .decode(&connector_webhook_secret.secret)
+            .decode(connector_webhook_secret.secret.peek())
             .change_context(WebhookError::WebhookVerificationSecretInvalid)
             .attach_printable("Cybersource webhook: the webhook secret is not valid Base64")?;
         // An empty key would make the HMAC computable by anyone.
@@ -326,7 +326,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code: None,
             error_message: None,
             error_reason: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).into_owned()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).into_owned()),
             status_code: 200,
             response_headers: None,
             amount_captured: None,
@@ -360,7 +360,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: None,
             error_code: None,
             error_message: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).into_owned()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).into_owned()),
             status_code: 200,
             response_headers: None,
         })
@@ -374,6 +374,7 @@ fn parse_cybersource_webhook_body(
 ) -> Result<cybersource::CybersourceWebhookBody, Report<WebhookError>> {
     request
         .body
+        .peek()
         .parse_struct("CybersourceWebhookBody")
         .change_context(WebhookError::WebhookBodyDecodingFailed)
 }
@@ -389,7 +390,7 @@ fn get_cybersource_webhook_signature(
         .find(|(name, _)| {
             name.eq_ignore_ascii_case(cybersource::CYBERSOURCE_WEBHOOK_SIGNATURE_HEADER)
         })
-        .map(|(_, value)| value.as_str())
+        .map(|(_, value)| value.peek().as_str())
         .ok_or_else(|| Report::new(WebhookError::WebhookSignatureNotFound))
         .attach_printable("Cybersource webhook: v-c-signature header is missing")?;
 

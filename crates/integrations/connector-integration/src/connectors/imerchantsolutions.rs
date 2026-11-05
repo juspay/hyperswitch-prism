@@ -27,7 +27,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::report;
-use hyperswitch_masking::{Mask, Maskable};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -109,6 +109,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let signature = request
             .headers
             .get("x-webhook-signature")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(errors::WebhookError::WebhookSignatureNotFound))
             .attach_printable(
                 "Missing incoming webhook signature for imerchantsolutions connector",
@@ -122,7 +123,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _connector_webhook_secrets: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<errors::WebhookError>> {
-        let message = std::str::from_utf8(&request.body)
+        let message = std::str::from_utf8(request.body.peek())
             .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Webhook source verification message parsing failed for imerchantsolutions connector")?;
 
@@ -153,7 +154,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
         algorithm
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .verify_signature(
+                connector_webhook_secrets.secret.peek(),
+                &signature,
+                &message,
+            )
             .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Webhook source verification failed for imerchantsolutions connector")
     }
@@ -164,6 +169,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
         let webhook_body: ImerchantsolutionsWebhookData = request
             .body
+            .peek()
             .parse_struct("ImerchantsolutionsWebhookData")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -179,6 +185,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let webhook_body: ImerchantsolutionsWebhookData = request
             .body
+            .peek()
             .parse_struct("ImerchantsolutionsWebhookData")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -191,6 +198,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
         let webhook_body: ImerchantsolutionsWebhookData = request
             .body
+            .peek()
             .parse_struct("ImerchantsolutionsWebhookData")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -226,6 +234,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
         let webhook_body: ImerchantsolutionsWebhookData = request
             .body
+            .peek()
             .parse_struct("ImerchantsolutionsWebhookData")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -257,7 +266,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code,
             error_message,
             error_reason,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             amount_captured: amount_captured
@@ -286,6 +295,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
         let webhook_body: ImerchantsolutionsWebhookData = request
             .body
+            .peek()
             .parse_struct("ImerchantsolutionsWebhookData")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -305,7 +315,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: Some(webhook_body.psp_reference),
             error_code,
             error_message,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
         })

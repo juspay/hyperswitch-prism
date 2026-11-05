@@ -639,6 +639,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
         let payload: BoostWebhookBody = request
             .body
+            .peek()
             .parse_struct("BoostWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse Boost webhook body to determine event type")?;
@@ -651,6 +652,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
         let payload: BoostWebhookBody = request
             .body
+            .peek()
             .parse_struct("BoostWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
             .attach_printable(
@@ -668,10 +670,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
         let payload: BoostWebhookBody = request
             .body
+            .peek()
             .parse_struct("BoostWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse Boost webhook body")?;
-        Ok(payload.into_webhook_details_response(200, &request.body))
+        Ok(payload.into_webhook_details_response(200, request.body.peek()))
     }
 
     fn get_webhook_resource_object(
@@ -683,6 +686,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let payload: BoostWebhookBody = request
             .body
+            .peek()
             .parse_struct("BoostWebhookBody")
             .change_context(errors::WebhookError::WebhookResourceObjectNotFound)
             .attach_printable("Failed to parse Boost webhook resource object")?;

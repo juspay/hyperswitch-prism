@@ -2176,7 +2176,7 @@ fn verify_signature(
     jws_header: JwsHeaderWebhooks,
     header_b64: &str,
     signature_b64: &str,
-    headers: &HashMap<String, String>,
+    headers: &HashMap<String, Secret<String>>,
     ec_key: EcKey<Public>,
     webhook_uri: &str,
 ) -> Result<bool, error_stack::Report<IntegrationError>> {
@@ -2184,8 +2184,10 @@ fn verify_signature(
     let mut payload: Vec<u8> = format!("{} {}\n", "POST".to_uppercase(), webhook_uri).into_bytes();
 
     if !tl_headers_str.is_empty() {
-        let lower_headers: HashMap<String, &String> =
-            headers.iter().map(|(k, v)| (k.to_lowercase(), v)).collect();
+        let lower_headers: HashMap<String, &String> = headers
+            .iter()
+            .map(|(k, v)| (k.to_lowercase(), v.peek()))
+            .collect();
         for header_name in tl_headers_str.split(',') {
             let name = header_name.trim();
             let value =
@@ -2223,7 +2225,7 @@ impl TryFrom<ResponseRouterData<Jwks, Self>>
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: ResponseRouterData<Jwks, Self>) -> Result<Self, Self::Error> {
-        let body = item.router_data.request.webhook_body.as_ref();
+        let body = item.router_data.request.webhook_body.peek();
         let headers = item.router_data.request.webhook_headers.clone();
 
         let tl_signature_header =
@@ -2233,7 +2235,7 @@ impl TryFrom<ResponseRouterData<Jwks, Self>>
                     "webhook signature not found".to_string(),
                     Default::default(),
                 ))?;
-        let tl_signature = tl_signature_header.as_str();
+        let tl_signature = tl_signature_header.peek().as_str();
         let parts: Vec<&str> = tl_signature.splitn(3, '.').collect();
 
         let header_b64 = parts.first().ok_or(IntegrationError::NotImplemented(
@@ -2304,7 +2306,7 @@ impl TryFrom<ResponseRouterData<Jwks, Self>>
             signature_b64,
             &headers,
             ec_key.clone(),
-            &(PREFIX.to_owned() + &webhook_uri),
+            &(PREFIX.to_owned() + webhook_uri.peek()),
         )? || verify_signature(
             body,
             jws_header.clone(),
@@ -2312,7 +2314,7 @@ impl TryFrom<ResponseRouterData<Jwks, Self>>
             signature_b64,
             &headers,
             ec_key.clone(),
-            &webhook_uri,
+            webhook_uri.peek(),
         )?;
 
         Ok(Self {

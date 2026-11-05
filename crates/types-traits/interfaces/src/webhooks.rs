@@ -1,7 +1,9 @@
+use hyperswitch_masking::PeekInterface;
+
 use common_utils::{crypto, ext_traits::ValueExt, CustomResult};
 use domain_types::connector_types::ConnectorWebhookSecrets;
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::api::{ApplicationResponse, ConnectorCommon};
@@ -71,7 +73,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)?;
 
         algorithm
-            .decode_message(&secret.secret, message.into())
+            .decode_message(secret.secret.peek(), message.into())
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
     }
 
@@ -111,14 +113,13 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                 ConnectorWebhookSecrets {
                     secret: connector_webhook_details
                         .merchant_secret
-                        .expose()
-                        .into_bytes(),
+                        .map(String::into_bytes),
                     additional_secret: connector_webhook_details.additional_secret,
                 }
             }
 
             None => ConnectorWebhookSecrets {
-                secret: default_secret.into_bytes(),
+                secret: Secret::new(default_secret.into_bytes()),
                 additional_secret: None,
             },
         };
@@ -184,7 +185,11 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)?;
 
         algorithm
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .verify_signature(
+                connector_webhook_secrets.secret.peek(),
+                &signature,
+                &message,
+            )
             .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)
     }
 

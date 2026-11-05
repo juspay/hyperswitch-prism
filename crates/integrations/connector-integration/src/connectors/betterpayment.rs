@@ -34,7 +34,7 @@ use domain_types::{
     },
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding,
@@ -268,7 +268,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(&request.body)
+        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(request.body.peek())
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
         Ok(betterpayment::get_webhook_event_type(&body))
     }
@@ -277,7 +277,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
-        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(&request.body)
+        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(request.body.peek())
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         if let Some(refund_id) = body.refund_id {
@@ -308,6 +308,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request
             .headers
             .get("gateway-webhook-signature")
+            .map(PeekInterface::peek)
             .ok_or_else(|| error_stack::report!(errors::WebhookError::WebhookSignatureNotFound))
             .and_then(|signature| {
                 BASE64_ENGINE
@@ -321,7 +322,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<errors::WebhookError>> {
-        Ok(request.body.clone())
+        Ok(request.body.peek().clone())
     }
 
     fn verify_webhook_source(
@@ -341,8 +342,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             secret: auth
                 .webhook_key
                 .ok_or(errors::WebhookError::WebhookVerificationSecretNotFound)?
-                .expose()
-                .into_bytes(),
+                .map(String::into_bytes),
             additional_secret: None,
         };
 
@@ -351,7 +351,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let message = self.get_webhook_source_verification_message(&request, &webhook_secret)?;
 
         crypto::HmacSha256
-            .verify_signature(&webhook_secret.secret, &signature, &message)
+            .verify_signature(webhook_secret.secret.peek(), &signature, &message)
             .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
     }
 
@@ -362,8 +362,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
-        let raw = request.body.clone();
-        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(&request.body)
+        let raw = request.body.peek().clone();
+        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(request.body.peek())
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         let status = AttemptStatus::from(body.status.clone());
@@ -404,8 +404,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
-        let raw = request.body.clone();
-        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(&request.body)
+        let raw = request.body.peek().clone();
+        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(request.body.peek())
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         let status = body

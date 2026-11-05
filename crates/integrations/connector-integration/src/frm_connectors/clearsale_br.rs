@@ -286,6 +286,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // unrecognised and must not be hard-coded to Processing.
         let payload: ClearSaleWebhookPayload = request
             .body
+            .peek()
             .parse_struct("ClearSaleWebhookPayload")
             .change_context(WebhookError::WebhookEventTypeNotFound)?;
         match payload.event_type.as_str() {
@@ -304,6 +305,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // (merchant_transaction_id carrier — not a PSP connector id).
         let payload: ClearSaleWebhookPayload = request
             .body
+            .peek()
             .parse_struct("ClearSaleWebhookPayload")
             .change_context(WebhookError::WebhookReferenceIdNotFound)?;
         Ok(Some(WebhookResourceReference::Payment(
@@ -325,6 +327,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // (`merchant_transaction_id`).
         let payload: ClearSaleWebhookPayload = request
             .body
+            .peek()
             .parse_struct("ClearSaleWebhookPayload")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         Ok(WebhookDetailsResponse {
@@ -338,7 +341,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code: None,
             error_message: None,
             error_reason: None,
-            raw_connector_response: String::from_utf8(request.body).ok(),
+            raw_connector_response: String::from_utf8(request.body.peek().clone()).ok(),
             status_code: 200,
             response_headers: None,
             amount_captured: None,

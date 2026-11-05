@@ -5076,12 +5076,12 @@ pub(crate) struct StripeSignatureHeader {
 /// without `=` is `WebhookSourceVerificationFailed`. The header lookup is case-insensitive
 /// because a gateway may normalise header casing.
 pub(crate) fn get_signature_elements_from_header(
-    headers: &HashMap<String, String>,
+    headers: &HashMap<String, Secret<String>>,
 ) -> Result<StripeSignatureHeader, error_stack::Report<WebhookError>> {
     let security_header = headers
         .iter()
         .find(|(key, _)| key.eq_ignore_ascii_case("Stripe-Signature"))
-        .map(|(_, value)| value.as_str())
+        .map(|(_, value)| value.peek().as_str())
         .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
 
     let mut timestamp: Option<&str> = None;

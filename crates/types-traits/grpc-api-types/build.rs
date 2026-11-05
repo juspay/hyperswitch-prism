@@ -77,6 +77,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "::hyperswitch_masking::Secret<Vec<u8>>",
     );
 
+    // TODO: Remove these attributes and the lib.rs helpers with the legacy webhook fields.
+    for field in [
+        ".types.WebhookSecrets.legacy_secret",
+        ".types.RedirectResponseSecrets.legacy_secret",
+        ".types.RequestDetails.legacy_body",
+    ] {
+        config.field_attribute(
+            field,
+            "#[serde(serialize_with = \"crate::serialize_legacy_secret\")]",
+        );
+    }
+    for field in [
+        ".types.WebhookSecrets.legacy_additional_secret",
+        ".types.RedirectResponseSecrets.legacy_additional_secret",
+        ".types.RequestDetails.legacy_uri",
+        ".types.RequestDetails.legacy_query_params",
+    ] {
+        config.field_attribute(
+            field,
+            "#[serde(serialize_with = \"crate::serialize_optional_legacy_secret\")]",
+        );
+    }
+    config.field_attribute(
+        ".types.RequestDetails.legacy_headers",
+        "#[serde(serialize_with = \"crate::serialize_legacy_headers\")]",
+    );
+
     // HTTP callers using only the replacement fields may omit legacy scalars.
     // Match protobuf's defaults instead of requiring those fields in Serde JSON.
     // TODO: Remove these defaults with the legacy fields after all webhook/redirect clients migrate.

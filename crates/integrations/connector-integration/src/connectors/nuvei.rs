@@ -32,7 +32,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, Maskable};
+use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -217,20 +217,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Some(ConnectorSpecificConfig::Nuvei {
                     merchant_secret, ..
                 }) => Some(ConnectorWebhookSecrets {
-                    secret: merchant_secret.expose().into_bytes(),
+                    secret: merchant_secret.map(String::into_bytes),
                     additional_secret: None,
                 }),
                 _ => None,
             })
             .ok_or(WebhookError::WebhookVerificationSecretNotFound)?;
-        if secrets.secret.is_empty() {
+        if secrets.secret.peek().is_empty() {
             return Err(WebhookError::WebhookVerificationSecretInvalid.into());
         }
-        let secret = std::str::from_utf8(&secrets.secret)
+        let secret = std::str::from_utf8(secrets.secret.peek())
             .change_context(WebhookError::WebhookVerificationSecretInvalid)?;
 
         let (message_and_signature, payment_dmn) =
-            match transformers::parse_nuvei_webhook(&request.body)? {
+            match transformers::parse_nuvei_webhook(request.body.peek())? {
                 transformers::NuveiWebhook::PaymentDmn(notification) => (
                     transformers::payment_dmn_checksum_message(&notification, secret)
                         .zip(notification.advance_response_checksum.clone()),
@@ -244,8 +244,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             name.eq_ignore_ascii_case(NUVEI_CHARGEBACK_CHECKSUM_HEADER)
                         })
                         .map(|(_, signature)| {
-                            transformers::chargeback_checksum_message(&request.body, secret)
-                                .map(|message| (message, signature.clone()))
+                            transformers::chargeback_checksum_message(request.body.peek(), secret)
+                                .map(|message| (message, signature.peek().clone()))
                         })
                         .transpose()?,
                     false,
@@ -257,10 +257,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // Nuvei payment DMNs support SHA-256 or legacy MD5 depending
                 // on site configuration. Event/chargeback DMNs use SHA-256.
                 Ok(signature) if signature.len() == 32 => crypto::Sha256
-                    .verify_signature(&secrets.secret, &signature, message.as_bytes())
+                    .verify_signature(secrets.secret.peek(), &signature, message.as_bytes())
                     .change_context(WebhookError::WebhookSourceVerificationFailed),
                 Ok(signature) if payment_dmn && signature.len() == 16 => crypto::Md5
-                    .verify_signature(&secrets.secret, &signature, message.as_bytes())
+                    .verify_signature(secrets.secret.peek(), &signature, message.as_bytes())
                     .change_context(WebhookError::WebhookSourceVerificationFailed),
                 Ok(_) => Ok(false),
                 Err(_) => Ok(false),
@@ -274,7 +274,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     // an authenticated event, and refunds do not carry the parent payment ID.
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
-        match transformers::parse_nuvei_webhook(&request.body)? {
+        match transformers::parse_nuvei_webhook(request.body.peek())? {
             transformers::NuveiWebhook::PaymentDmn(notification) => {
                 if transformers::is_payout_dmn(&notification)
                     || notification.has_conflicting_status()
@@ -302,7 +302,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
-        match transformers::parse_nuvei_webhook(&request.body)? {
+        match transformers::parse_nuvei_webhook(request.body.peek())? {
             transformers::NuveiWebhook::PaymentDmn(notification) => {
                 if transformers::is_payout_dmn(&notification) {
                     return Err(WebhookError::WebhookEventTypeNotFound.into());
@@ -358,9 +358,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
-        match transformers::parse_nuvei_webhook(&request.body)? {
+        match transformers::parse_nuvei_webhook(request.body.peek())? {
             transformers::NuveiWebhook::PaymentDmn(notification) => {
-                transformers::build_payment_webhook_details(&notification, &request.body)
+                transformers::build_payment_webhook_details(&notification, request.body.peek())
             }
             transformers::NuveiWebhook::Chargeback(_) => {
                 Err(WebhookError::WebhookEventTypeNotFound.into())
@@ -374,9 +374,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
-        match transformers::parse_nuvei_webhook(&request.body)? {
+        match transformers::parse_nuvei_webhook(request.body.peek())? {
             transformers::NuveiWebhook::PaymentDmn(notification) => {
-                transformers::build_refund_webhook_details(&notification, &request.body)
+                transformers::build_refund_webhook_details(&notification, request.body.peek())
             }
             transformers::NuveiWebhook::Chargeback(_) => {
                 Err(WebhookError::WebhookEventTypeNotFound.into())
@@ -390,7 +390,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
-        let notification = match transformers::parse_nuvei_webhook(&request.body)? {
+        let notification = match transformers::parse_nuvei_webhook(request.body.peek())? {
             transformers::NuveiWebhook::Chargeback(notification) => notification,
             transformers::NuveiWebhook::PaymentDmn(_) => {
                 return Err(WebhookError::WebhookEventTypeNotFound.into())
@@ -428,7 +428,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 notification.transaction_details.transaction_id.to_string(),
             ),
             dispute_message: chargeback.chargeback_reason,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             connector_reason_code: chargeback.chargeback_reason_category,
@@ -440,7 +440,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, Report<WebhookError>> {
-        let webhook = transformers::parse_nuvei_webhook(&request.body)
+        let webhook = transformers::parse_nuvei_webhook(request.body.peek())
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(webhook))
     }

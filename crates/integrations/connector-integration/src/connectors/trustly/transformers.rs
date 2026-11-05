@@ -1055,7 +1055,7 @@ pub fn extract_returned_bank_details(
 
 pub fn verify_webhook_signature(
     webhook_body: TrustlyWebhookBody,
-    public_key: Vec<u8>,
+    public_key: &[u8],
 ) -> error_stack::Result<bool, errors::WebhookError> {
     let method = webhook_body.method;
     let uuid = webhook_body.params.uuid;
@@ -1063,7 +1063,7 @@ pub fn verify_webhook_signature(
     let signature = &webhook_body.params.signature;
 
     let pem_bytes = general_purpose::STANDARD
-        .decode(&public_key)
+        .decode(public_key)
         .change_context(errors::WebhookError::WebhookSourceVerificationFailed)?;
 
     let rsa = Rsa::public_key_from_pem(&pem_bytes)

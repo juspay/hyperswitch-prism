@@ -29,7 +29,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{Maskable, Secret};
+use hyperswitch_masking::{Maskable, PeekInterface, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -237,6 +237,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
         let body: ReddotWebhookBody = request
             .body
+            .peek()
             .parse_struct("ReddotWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -253,6 +254,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
         let body: ReddotWebhookBody = request
             .body
+            .peek()
             .parse_struct("ReddotWebhookBody")
             .change_context(errors::WebhookError::WebhookResourceObjectNotFound)?;
 
@@ -274,6 +276,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
         let body: ReddotWebhookBody = request
             .body
+            .peek()
             .parse_struct("ReddotWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -307,7 +310,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code,
             error_message,
             error_reason,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             amount_captured: None,
@@ -327,7 +330,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _secrets: Option<interfaces::verification::ConnectorSourceVerificationSecrets>,
     ) -> CustomResult<Vec<u8>, IntegrationError> {
-        Ok(request.body.clone())
+        Ok(request.body.peek().clone())
     }
 
     fn verify_redirect_response_source(
