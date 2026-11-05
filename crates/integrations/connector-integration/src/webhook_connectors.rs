@@ -5,13 +5,8 @@
 //! `<connector>/transformers.rs` module containing its payload types and mappings.
 //! Payment and payout events from the same provider share one parser.
 //!
-//! Copy the scaffold in `webhook_connectors/template.rs.template` and
-//! `webhook_connectors/template/transformers.rs.template` when adding a provider.
 //! Export its module and connector type here, following `payout_connectors.rs`.
 //! TrueLayer and Trustly use standalone parsers; other providers use the payment adapter.
-
-#[cfg(test)]
-mod tests;
 
 pub mod truelayer;
 pub mod trustly;

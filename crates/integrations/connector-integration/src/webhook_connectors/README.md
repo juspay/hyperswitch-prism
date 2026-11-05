@@ -1,20 +1,18 @@
-# Webhook parser template
+# Webhook parsers
 
-This directory contains the scaffold for the first webhook call, `ParseEvent`.
+This directory contains provider implementations for the first webhook call, `ParseEvent`.
 It uses `interfaces::webhook_parse::WebhookParse`, which takes borrowed
 `RequestDetails` and returns the domain `WebhookParseResponse` containing an
 `EventType` and an optional `WebhookResourceReference`.
 
 To implement a provider later:
 
-1. Copy `template.rs.template` to `<connector>.rs` and
-   `template/transformers.rs.template` to `<connector>/transformers.rs`.
-2. Replace `{{CONNECTOR_NAME_PASCAL}}` with the provider's Rust type name.
-3. Define the provider payload types and replace the unsupported parsing stub
-   in `transformers.rs`. Parse the request once to extract both the event type
+1. Add `<connector>.rs` implementing `WebhookParse`, following TrueLayer or Trustly.
+2. Define the provider payload types and parsing mappings in
+   `<connector>/transformers.rs`. Extract both the event type
    and its reference, including payment, refund, dispute, mandate, or payout IDs.
-4. Export the connector module and type from `../webhook_connectors.rs`.
-5. Register the provider in `get_connector` in `../webhook_connectors.rs`.
+3. Export the connector module and type from `../webhook_connectors.rs`.
+4. Register the provider in `get_connector` in `../webhook_connectors.rs`.
    Match both payment and payout variants when they share the parser. Return
    `Some(Box::new(ProviderWebhook::new()))` for migrated providers and `None` otherwise.
 
@@ -35,4 +33,4 @@ business context, and status processing remain in the existing handling path.
 TrueLayer and Trustly are registered for both payment and payout variants.
 Their shared payload types and parsing mappings live in this directory; the
 existing handlers reuse those types through re-exports. Other payment providers
-continue through the legacy adapter. The `.template` files are not compiled Rust modules.
+continue through the legacy adapter.
