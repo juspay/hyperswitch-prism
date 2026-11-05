@@ -23362,3 +23362,34 @@ impl From<grpc_payment_types::IntegritySpecifications> for IntegritySpecificatio
         }
     }
 }
+
+#[cfg(test)]
+mod dispute_webhook_amount_tests {
+    use super::*;
+
+    fn details(amount: &str) -> DisputeWebhookDetailsResponse {
+        DisputeWebhookDetailsResponse {
+            amount: serde_json::from_value(serde_json::json!(amount)).unwrap_or_default(),
+            currency: common_enums::Currency::USD,
+            dispute_id: "dp_1".to_string(),
+            status: common_enums::DisputeStatus::DisputeOpened,
+            stage: common_enums::DisputeStage::Dispute,
+            connector_response_reference_id: None,
+            dispute_message: None,
+            raw_connector_response: None,
+            status_code: 200,
+            response_headers: None,
+            connector_reason_code: None,
+            additional_details: None,
+        }
+    }
+
+    #[test]
+    fn dispute_amount_reaches_the_response_and_a_bad_amount_is_rejected() {
+        let money = DisputeResponse::foreign_try_from(details("1250"))
+            .ok()
+            .and_then(|response| response.dispute_amount);
+        assert_eq!(money.map(|money| money.minor_amount), Some(1250));
+        assert!(DisputeResponse::foreign_try_from(details("not-a-number")).is_err());
+    }
+}
