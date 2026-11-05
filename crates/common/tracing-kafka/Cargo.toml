@@ -14,7 +14,7 @@ thiserror = { workspace = true }
 log_utils = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc24b461917b29641942b04f3aef8110b1adf", package = "log_utils", features = ["tracing"] }
 
 # Optional dependencies for metrics
-prometheus = { version = "0.13", optional = true }
+prometheus = { version = "0.14", optional = true }
 
 [lib]
 name = "tracing_kafka"

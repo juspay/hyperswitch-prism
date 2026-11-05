@@ -39,7 +39,7 @@ tracing-subscriber = { version = "0.3.18", default-features = true, features = [
 ] }
 tracing-attributes = "0.1.27"
 tonic = { workspace = true }
-prometheus = "0.13.4"
+prometheus = "0.14.0"
 tower = "0.5.2"
 # Diagnostics below depend on these versions' fixed transport error messages.
 hyper = "=1.8.1"
