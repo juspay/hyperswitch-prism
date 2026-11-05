@@ -218,6 +218,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
+            | WalletData::SatispayIntent(_)
+            | WalletData::SatispayQr(_)
             | WalletData::Wero(_)
             | WalletData::LazyPayRedirect(_)
             | WalletData::PhonePeRedirect(_)
@@ -418,6 +420,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             BankRedirectData::Bizum { .. }
             | BankRedirectData::Blik { .. }
             | BankRedirectData::BancontactCard { .. }
+            | BankRedirectData::BancontactIntent { .. }
+            | BankRedirectData::BancontactQr { .. }
             | BankRedirectData::OnlineBankingCzechRepublic { .. }
             | BankRedirectData::OnlineBankingFinland { .. }
             | BankRedirectData::OnlineBankingFpx { .. }

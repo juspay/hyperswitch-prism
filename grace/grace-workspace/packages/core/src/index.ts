@@ -8,6 +8,7 @@ export * from "./config.js";
 export * from "./utils.js";
 export * from "./llm.js";
 export * from "./checkpoints/index.js";
+export * from "./scrub.js";
 
 // OpenCode runner exports (original - maintained for backward compatibility)
 export { checkOpencodeHealth } from "./tools/opencode-runner.js";

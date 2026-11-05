@@ -226,7 +226,10 @@ impl TryFrom<&AddressDetails> for CheckoutPayoutAddress {
                 .country
                 .ok_or_else(missing_field_err("billing.country"))?,
             address_line2: billing.line2.clone(),
-            state: billing.state.clone(),
+            state: billing
+                .state
+                .as_ref()
+                .and_then(|state| state.code_or_name().cloned()),
             zip: billing.zip.clone(),
         })
     }

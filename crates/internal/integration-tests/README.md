@@ -36,16 +36,23 @@ test-prism --all-connectors
 # SDK backend instead of gRPC
 test-prism --interface sdk --connector stripe
 
-# Write JSON + markdown reports
+# Write a safe status summary (no request/response payloads)
 test-prism --connector stripe --report
+
+# Write typed-and-masked UCS audit evidence locally
+test-prism --connector stripe --suite PaymentService/Authorize \
+  --scenario no3ds_auto_capture_credit_card --local-debug-report
 ```
 
 ### 3. Read the output
 
 After a run the harness writes:
 
-- `crates/internal/integration-tests/report.json` — accumulating JSON log. Each test run **appends** entries; inspect the latest block for the scenario you just ran.
-- `crates/internal/integration-tests/test_report/connectors/<connector>/<suite>.md` — human-readable markdown per suite with exact request/response pairs.
+- `crates/internal/integration-tests/report.json` — accumulating safe summary containing scenario results, error categories, and dependencies.
+- `crates/internal/integration-tests/local-debug-report.json` — local-only typed-and-masked `GrpcRequest` and `ConnectorCall` audit events, written only with `--local-debug-report`.
+- `test_report/` and `local_debug_report/` — generated markdown views of those respective files.
+
+Raw grpcurl commands and responses are never persisted. If the managed UCS audit log is unavailable, the local debug report records that fact and does not fall back to raw data. Both report paths are gitignored.
 
 The hosted dashboard:
 
@@ -279,15 +286,14 @@ test-prism --connector <connector-name> --report
 ### Debug a failing scenario
 
 ```bash
-# Print the harness-built request payload
-export UCS_DEBUG_EFFECTIVE_REQ=1
+# Capture the same typed-and-masked audit events emitted by UCS
 test-prism --connector stripe --suite PaymentService/Authorize \
-  --scenario no3ds_auto_capture_credit_card
+  --scenario no3ds_auto_capture_credit_card --local-debug-report
 
 # Inspect only the latest run entry for that scenario
 python3 -c "
 import json
-r = json.load(open('crates/internal/integration-tests/report.json'))
+r = json.load(open('crates/internal/integration-tests/local-debug-report.json'))
 last = [x for x in r['runs'] if x['connector']=='stripe'][-1]
 print(json.dumps(last, indent=2))
 "
@@ -398,7 +404,7 @@ cargo run --bin check_coverage
 - **Cascading failures (`Capture` is 0/x but `Authorize` works).** `Capture`/`Void` depend on `PaymentService/Authorize/no3ds_manual_capture_credit_card` by design — you can't capture an auto-captured payment. Check the manual-capture authorize first.
 - **Issuer rejection at low amounts.** The test issuer can reject specific expiry / cvc / holder-name combos even with a valid card number. Use the exact triples documented in the connector's integration PR (cURLs/grpcurls in the description) rather than the base scenario defaults.
 - **`Address already in use` when restarting the gRPC server.** The metrics endpoint also binds (defaults to 8080). Kill listeners on both: `lsof -ti:8000 | xargs kill -9; lsof -ti:8080 | xargs kill -9`.
-- **Response body is masked (`*** alloc::string::String ***`).** Sensitive fields are wrapped in `Secret`. For diagnosis, add a temporary `tracing::error!` at the encoding boundary in the connector's transformer, run, then revert. Never commit the trace line.
+- **Detailed local evidence is missing.** Run through `test-prism` without `--no-server`, or provide `UCS_AUDIT_LOG_PATH` for an externally managed server. The harness never substitutes raw grpcurl data.
 
 ---
 

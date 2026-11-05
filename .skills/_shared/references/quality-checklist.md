@@ -15,7 +15,7 @@ GRACE quality review system, feedback database, and learnings.
 
 > This section is the *build* gate. It is not sufficient to open a PR. Section 15
 > (**Pre-Flight Gate**) is the last thing you run before pushing, and section 16 lists what
-> the PR body must disclose. Certification — which is merge-blocking — is a separate
+> the run must record. Certification — which is merge-blocking — is a separate
 > document: `.skills/_shared/references/certification.md`.
 
 ---
@@ -638,13 +638,17 @@ edit the old transcript.
 
 ---
 
-## 16. What the PR body must disclose
+## 16. What the run must record
+
+The PR body holds only the flows and their per-flow test calls (`grace/workflow/2.8_pr_run.md`
+"Templates"). Everything below goes in the run record, `{RUN_DIR}/pr/result.decisions.md`, not
+in the PR.
 
 GRACE does **not** write tests. That is a standing decision and this section does not lift
-it. It does mean the PR body is the only place a human learns that something in the diff
+it. It does mean the run record is the only place a human learns that something in the diff
 needs a test they will have to write.
 
-**Novel algorithmic logic must be listed in the PR body**, one line each, so a reviewer can
+**Novel algorithmic logic must be listed in the run record**, one line each, so a reviewer can
 add a known-answer test. "Novel" means logic whose correctness is not visible by reading it
 — anything with a right answer that a wrong implementation would still compile and often
 still *run*:
@@ -675,12 +679,12 @@ Use this shape, so the reviewer knows exactly what to pin:
 ```
 
 - [ ] Every signing / hashing / checksum / custom-amount-encoding routine in the diff is
-      listed in the PR body with the spec section it implements
+      listed in the run record with the spec section it implements
 - [ ] Each listed item names a concrete input → expected output the reviewer can use as the
       test vector (the vendor's own worked example, when there is one)
 - [ ] No test files were added (section is a disclosure requirement, not a test requirement)
 
-### PR body checklist
+### Run record checklist
 
 - [ ] Certification status stated: credentials + passing scenarios, **or** the
       `alpha_connectors.json` entry and its `reason` — `.skills/_shared/references/certification.md` §3

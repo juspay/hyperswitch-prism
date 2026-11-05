@@ -60,8 +60,11 @@ impl<T> RequestData<T> {
 
         // Extract routing metadata only (connector, request_id, etc.)
         // without requiring connector_config/auth credentials
-        let routing_metadata =
+        let mut routing_metadata =
             extract_routing_metadata_only(&metadata, config.clone()).to_grpc_error()?;
+        if let Some(connector_latency) = extensions.get::<ConnectorLatencyTracker>() {
+            routing_metadata.connector_latency = connector_latency.clone();
+        }
 
         let masked_metadata = MaskedMetadata::new(metadata, config.unmasked_headers.clone());
 

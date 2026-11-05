@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -192,29 +192,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 "worldpayraft",
             ))?;
 
+        let error_response = response
+            .error_response_if_failed(res.status_code, None, None)
+            .unwrap_or_else(|| ErrorResponse {
+                status_code: res.status_code,
+                ..ErrorResponse::default()
+            });
+
         with_error_response_body!(event_builder, response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.return_code.unwrap_or_else(|| {
-                response
-                    .response_code
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string())
-            }),
-            message: response
-                .reason_code
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
-            raw_connector_response: None,
-            raw_connector_request: None,
-            typed_connector_response: None,
-            typed_connector_request: None,
-        })
+        Ok(error_response)
     }
 }
 

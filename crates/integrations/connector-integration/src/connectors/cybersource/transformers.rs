@@ -320,6 +320,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::RevolutPay(_)
                     | WalletData::MbWay(_)
                     | WalletData::Satispay(_)
+                    | WalletData::SatispayIntent(_)
+                    | WalletData::SatispayQr(_)
                     | WalletData::Wero(_)
                     | WalletData::LazyPayRedirect(_)
                     | WalletData::PhonePeRedirect(_)
@@ -1727,7 +1729,7 @@ fn build_ship_to(shipping: Option<&Address>) -> Option<ShipTo> {
     let administrative_area = address.and_then(|addr| match addr.to_state_code_as_optional() {
         Ok(state) => state,
         Err(_) => addr
-            .state
+            .get_optional_state()
             .remove_new_line()
             .filter(|state| state.peek().len() <= CYBERSOURCE_STATE_MAX_LENGTH),
     });
@@ -1800,7 +1802,7 @@ fn build_bill_to(
             let administrative_area = match addr.to_state_code_as_optional() {
                 Ok(state) => state,
                 Err(_) => addr
-                    .state
+                    .get_optional_state()
                     .remove_new_line()
                     .map(|state| {
                         let received_length = state.peek().len();
@@ -3111,6 +3113,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::RevolutPay(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
+                | WalletData::SatispayIntent(_)
+                | WalletData::SatispayQr(_)
                 | WalletData::Wero(_)
                 | WalletData::LazyPayRedirect(_)
                 | WalletData::PhonePeRedirect(_)
