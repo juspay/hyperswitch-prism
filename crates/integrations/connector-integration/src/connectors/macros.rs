@@ -102,7 +102,7 @@ pub(crate) type RouterDataType<T> = RouterDataV2<
     <T as FlowTypes>::Response,
 >;
 
-type ResponseRouterDataType<T, R> = types::ResponseRouterData<
+pub(crate) type ResponseRouterDataType<T, R> = types::ResponseRouterData<
     R,
     RouterDataV2<
         <T as FlowTypes>::Flow,
@@ -111,6 +111,131 @@ type ResponseRouterDataType<T, R> = types::ResponseRouterData<
         <T as FlowTypes>::Response,
     >,
 >;
+
+/// Type-level probe used by generated response bridges. The `&Probe`
+/// implementation is selected when the connector has an extractor declaration;
+/// otherwise method resolution auto-borrows once more and selects the
+/// `&&Probe` no-op fallback.
+pub(crate) struct FlowStatusMappingProbe<Connector, Flow, Request, Response>(
+    PhantomData<(Connector, Flow, Request, Response)>,
+    &'static str,
+);
+
+impl<Connector, Flow, Request, Response>
+    FlowStatusMappingProbe<Connector, Flow, Request, Response>
+{
+    pub(crate) const fn new(connector_name: &'static str) -> Self {
+        Self(PhantomData, connector_name)
+    }
+
+    pub(crate) fn is_live_status_transformer(&self) -> bool {
+        domain_types::flow_status::is_live_status_transformer_connector(std::any::type_name::<
+            Connector,
+        >())
+    }
+}
+
+pub(crate) trait ConvertBridgeResponse<Flow, CommonData, Request, Response, RawResponse> {
+    fn convert_bridge_response(
+        self,
+        response: types::ResponseRouterData<
+            RawResponse,
+            RouterDataV2<Flow, CommonData, Request, Response>,
+        >,
+        status_code: u16,
+    ) -> CustomResult<RouterDataV2<Flow, CommonData, Request, Response>, ConnectorError>;
+}
+
+impl<Connector, Flow, CommonData, Request, Response, RawResponse>
+    ConvertBridgeResponse<Flow, CommonData, Request, Response, RawResponse>
+    for &FlowStatusMappingProbe<Connector, Flow, Request, RawResponse>
+where
+    Flow: domain_types::flow_status::FlowSpec,
+    Connector: domain_types::flow_status::ConnectorRuntimeStatusMapping<Flow, Request, RawResponse>,
+    <Flow as domain_types::flow_status::FlowSpec>::Status: std::fmt::Debug + PartialEq + Copy,
+    CommonData: domain_types::flow_status::FlowStatusSetter<
+            Flow,
+            domain_types::flow_status::ConnectorFlowStatus<Flow>,
+        > + domain_types::flow_status::FlowStatusReader<
+            <Flow as domain_types::flow_status::FlowSpec>::Status,
+        >,
+    RouterDataV2<Flow, CommonData, Request, Response>: TryFrom<
+        types::ResponseRouterData<RawResponse, RouterDataV2<Flow, CommonData, Request, Response>>,
+        Error = error_stack::Report<ConnectorError>,
+    >,
+{
+    fn convert_bridge_response(
+        self,
+        response: types::ResponseRouterData<
+            RawResponse,
+            RouterDataV2<Flow, CommonData, Request, Response>,
+        >,
+        status_code: u16,
+    ) -> CustomResult<RouterDataV2<Flow, CommonData, Request, Response>, ConnectorError> {
+        let mapped_status = Connector::map_runtime_status(
+            &response.router_data.resource_common_data,
+            &response.router_data.request,
+            &response.response,
+            status_code,
+        )
+        .map_err(error_stack::Report::new)?;
+        let mut result = RouterDataV2::<Flow, CommonData, Request, Response>::try_from(response)
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                status_code,
+                "macros",
+            ))?;
+
+        let Some(framework_status) = mapped_status.status() else {
+            return Ok(result);
+        };
+
+        if self.is_live_status_transformer() {
+            let transformer_status = result.resource_common_data.current_mapped_flow_status();
+            if transformer_status != framework_status {
+                tracing::warn!(
+                    connector = ?self.1,
+                    flow = std::any::type_name::<Flow>(),
+                    transformer_status = ?transformer_status,
+                    framework_status = ?framework_status,
+                    connector_request_reference_id = ?result
+                        .resource_common_data
+                        .connector_request_reference_id(),
+                    "live connector status mismatch between transformer and status framework"
+                );
+            }
+            return Ok(result);
+        }
+
+        result
+            .resource_common_data
+            .set_mapped_flow_status(mapped_status)
+            .map_err(error_stack::Report::new)?;
+        Ok(result)
+    }
+}
+
+impl<Connector, Flow, CommonData, Request, Response, RawResponse>
+    ConvertBridgeResponse<Flow, CommonData, Request, Response, RawResponse>
+    for &&FlowStatusMappingProbe<Connector, Flow, Request, RawResponse>
+where
+    RouterDataV2<Flow, CommonData, Request, Response>: TryFrom<
+        types::ResponseRouterData<RawResponse, RouterDataV2<Flow, CommonData, Request, Response>>,
+        Error = error_stack::Report<ConnectorError>,
+    >,
+{
+    fn convert_bridge_response(
+        self,
+        response: types::ResponseRouterData<
+            RawResponse,
+            RouterDataV2<Flow, CommonData, Request, Response>,
+        >,
+        status_code: u16,
+    ) -> CustomResult<RouterDataV2<Flow, CommonData, Request, Response>, ConnectorError> {
+        RouterDataV2::<Flow, CommonData, Request, Response>::try_from(response).change_context(
+            crate::utils::response_handling_fail_for_connector(status_code, "macros"),
+        )
+    }
+}
 
 pub trait BridgeRequestResponse: Send + Sync {
     type RequestBody;
@@ -1110,10 +1235,55 @@ macro_rules! macro_connector_implementation {
 }
 pub(crate) use macro_connector_implementation;
 
+macro_rules! expand_bridge_router_data {
+    (
+        connector: $connector:ident,
+        generic_type: $generic_type:tt,
+        flow: $flow:ty,
+        router_data: $router_data:ty,
+        response: $response:ty $(,)?
+    ) => {
+        fn router_data(
+            &self,
+            response: crate::connectors::macros::ResponseRouterDataType<
+                Self::ConnectorInputData,
+                Self::ResponseBody,
+            >,
+            status_code: u16,
+        ) -> common_utils::errors::CustomResult<
+            crate::connectors::macros::RouterDataType<Self::ConnectorInputData>,
+            domain_types::errors::ConnectorError,
+        >
+        where
+            crate::connectors::macros::RouterDataType<Self::ConnectorInputData>: TryFrom<
+                crate::connectors::macros::ResponseRouterDataType<
+                    Self::ConnectorInputData,
+                    Self::ResponseBody,
+                >,
+                Error = error_stack::Report<domain_types::errors::ConnectorError>,
+            >,
+        {
+            use crate::connectors::macros::ConvertBridgeResponse as _;
+
+            let probe = crate::connectors::macros::FlowStatusMappingProbe::<
+                $connector<$generic_type>,
+                $flow,
+                <$router_data as crate::connectors::macros::FlowTypes>::Request,
+                $response,
+            >::new(stringify!($connector));
+            (&probe).convert_bridge_response(response, status_code)
+        }
+
+        crate::connectors::macros::expand_router_data_with_inner_router_data!();
+    };
+}
+pub(crate) use expand_bridge_router_data;
+
 macro_rules! impl_templating {
 
     (
         connector: $connector: ident,
+        flow: $flow:ty,
         curl_request: $curl_req: ident,
         curl_response: $curl_res: ident,
         router_data: $router_data: ty,
@@ -1128,12 +1298,19 @@ macro_rules! impl_templating {
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
 
-                crate::connectors::macros::expand_router_data_with_inner_router_data!();
+                crate::connectors::macros::expand_bridge_router_data!(
+                    connector: $connector,
+                    generic_type: $generic_type,
+                    flow: $flow,
+                    router_data: $router_data,
+                    response: $curl_res,
+                );
             }
         }
     };
     (
         connector: $connector: ident,
+        flow: $flow:ty,
         curl_response: $curl_res: ident,
         router_data: $router_data: ty,
         generic_type: $generic_type:tt,
@@ -1146,7 +1323,13 @@ macro_rules! impl_templating {
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
 
-                crate::connectors::macros::expand_router_data_with_inner_router_data!();
+                crate::connectors::macros::expand_bridge_router_data!(
+                    connector: $connector,
+                    generic_type: $generic_type,
+                    flow: $flow,
+                    router_data: $router_data,
+                    response: $curl_res,
+                );
             }
         }
     };
@@ -1197,6 +1380,7 @@ macro_rules! impl_templating_mixed {
     // Pattern for generic request types like AdyenPaymentRequest<T>
     (
         connector: $connector: ident,
+        flow: $flow:ty,
         curl_request: $base_req: ident<$req_generic: ident>,
         curl_response: $curl_res: ident,
         router_data: $router_data: ty,
@@ -1211,7 +1395,13 @@ macro_rules! impl_templating_mixed {
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
 
-                crate::connectors::macros::expand_router_data_with_inner_router_data!();
+                crate::connectors::macros::expand_bridge_router_data!(
+                    connector: $connector,
+                    generic_type: $generic_type,
+                    flow: $flow,
+                    router_data: $router_data,
+                    response: $curl_res,
+                );
             }
         }
     };
@@ -1219,6 +1409,7 @@ macro_rules! impl_templating_mixed {
     // Pattern for non-generic request types like AdyenRedirectRequest
     (
         connector: $connector: ident,
+        flow: $flow:ty,
         curl_request: $base_req: ident,
         curl_response: $curl_res: ident,
         router_data: $router_data: ty,
@@ -1233,7 +1424,13 @@ macro_rules! impl_templating_mixed {
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
 
-                crate::connectors::macros::expand_router_data_with_inner_router_data!();
+                crate::connectors::macros::expand_bridge_router_data!(
+                    connector: $connector,
+                    generic_type: $generic_type,
+                    flow: $flow,
+                    router_data: $router_data,
+                    response: $curl_res,
+                );
             }
         }
     };
@@ -1309,6 +1506,7 @@ macro_rules! impl_templating_mixed {
     // Pattern for generic request with XML response parsing
     (
         connector: $connector: ident,
+        flow: $flow:ty,
         curl_request: $base_req: ident<$req_generic: ident>,
         curl_response: $curl_res: ident,
         router_data: $router_data: ty,
@@ -1324,7 +1522,13 @@ macro_rules! impl_templating_mixed {
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
 
-                crate::connectors::macros::expand_router_data_with_inner_router_data!();
+                crate::connectors::macros::expand_bridge_router_data!(
+                    connector: $connector,
+                    generic_type: $generic_type,
+                    flow: $flow,
+                    router_data: $router_data,
+                    response: $curl_res,
+                );
 
                 crate::connectors::macros::expand_xml_response_parser!();
             }
@@ -1360,6 +1564,7 @@ macro_rules! impl_templating_mixed {
     // Pattern for non-generic request with XML response parsing
     (
         connector: $connector: ident,
+        flow: $flow:ty,
         curl_request: $base_req: ident,
         curl_response: $curl_res: ident,
         router_data: $router_data: ty,
@@ -1375,7 +1580,13 @@ macro_rules! impl_templating_mixed {
                 type ResponseBody = $curl_res;
                 type ConnectorInputData = [<$connector RouterData>]<$router_data, $generic_type>;
 
-                crate::connectors::macros::expand_router_data_with_inner_router_data!();
+                crate::connectors::macros::expand_bridge_router_data!(
+                    connector: $connector,
+                    generic_type: $generic_type,
+                    flow: $flow,
+                    router_data: $router_data,
+                    response: $curl_res,
+                );
 
                 crate::connectors::macros::expand_xml_response_parser!();
             }
@@ -1454,6 +1665,7 @@ macro_rules! create_all_prerequisites {
         $(
             crate::connectors::macros::create_all_prerequisites_impl_templating!(
                 connector: $connector,
+                flow: $flow_name,
                 $(request_body: $flow_request $(<$generic_param>)?,)?
                 response_body: $flow_response,
                 $(response_format: $response_format,)?
@@ -1517,6 +1729,7 @@ macro_rules! create_all_prerequisites_impl_templating {
     // Pattern with request body and XML response format
     (
         connector: $connector: ident,
+        flow: $flow:ty,
         request_body: $flow_request: ident $(<$generic_param: ident>)?,
         response_body: $flow_response: ident,
         response_format: xml,
@@ -1538,6 +1751,7 @@ macro_rules! create_all_prerequisites_impl_templating {
     // Pattern with request body and XML response format
     (
         connector: $connector: ident,
+        flow: $flow:ty,
         request_body: $flow_request: ident $(<$generic_param: ident>)?,
         response_body: $flow_response: ident,
         response_format: xml,
@@ -1546,6 +1760,7 @@ macro_rules! create_all_prerequisites_impl_templating {
     ) => {
         crate::connectors::macros::impl_templating_mixed!(
             connector: $connector,
+            flow: $flow,
             curl_request: $flow_request $(<$generic_param>)?,
             curl_response: $flow_response,
             router_data: $router_data_type,
@@ -1557,6 +1772,7 @@ macro_rules! create_all_prerequisites_impl_templating {
     // Pattern with request body and connector-aware response router data
     (
         connector: $connector: ident,
+        flow: $flow:ty,
         request_body: $flow_request: ident $(<$generic_param: ident>)?,
         response_body: $flow_response: ident,
         response_router_data: connector,
@@ -1576,6 +1792,7 @@ macro_rules! create_all_prerequisites_impl_templating {
     // Pattern with request body (default JSON response format)
     (
         connector: $connector: ident,
+        flow: $flow:ty,
         request_body: $flow_request: ident $(<$generic_param: ident>)?,
         response_body: $flow_response: ident,
         router_data: $router_data_type: ty,
@@ -1583,6 +1800,7 @@ macro_rules! create_all_prerequisites_impl_templating {
     ) => {
         crate::connectors::macros::impl_templating_mixed!(
             connector: $connector,
+            flow: $flow,
             curl_request: $flow_request $(<$generic_param>)?,
             curl_response: $flow_response,
             router_data: $router_data_type,
@@ -1593,6 +1811,7 @@ macro_rules! create_all_prerequisites_impl_templating {
     // Pattern without request body and connector-aware response router data
     (
         connector: $connector: ident,
+        flow: $flow:ty,
         response_body: $flow_response: ident,
         response_router_data: connector,
         router_data: $router_data_type: ty,
@@ -1610,12 +1829,14 @@ macro_rules! create_all_prerequisites_impl_templating {
     // Pattern without request body
     (
         connector: $connector: ident,
+        flow: $flow:ty,
         response_body: $flow_response: ident,
         router_data: $router_data_type: ty,
         generic_type: $generic_type: tt,
     ) => {
         crate::connectors::macros::impl_templating!(
             connector: $connector,
+            flow: $flow,
             curl_response: $flow_response,
             router_data: $router_data_type,
             generic_type: $generic_type,

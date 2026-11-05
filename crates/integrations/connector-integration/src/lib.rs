@@ -1,3 +1,4 @@
+#![recursion_limit = "512"]
 #![allow(clippy::result_large_err)]
 
 pub mod authenticator_connectors;
