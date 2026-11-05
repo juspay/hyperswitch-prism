@@ -43,14 +43,17 @@ permissions:
 
 jobs:
 
+  # Self-hosted pools are limited to lightweight checks. Rust setup,
+  # SDK, Java/Node, and certificate-sensitive tooling stays hosted.
+
   # ── Change Detection ──────────────────────────────────────────────────────
   changes:
     name: Detect Changes
-    # Preserve public-fork runner selection; internal jobs use GitHub-hosted x64.
+    # Preserve public-fork runner selection; internal lightweight jobs use Hypersage.
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' || 'hypersage-runners' }}
     permissions:
       pull-requests: read
     outputs:
@@ -351,7 +354,7 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' || 'hypersage-runners' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -368,7 +371,8 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          'ubuntu-24.04' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -589,7 +593,7 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' || 'hypersage-runners' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -621,7 +625,8 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          'ubuntu-24.04' }}
 
     env:
       RUSTFLAGS: "-D warnings"
@@ -680,7 +685,8 @@ jobs:
     runs-on: >-
       ${{ github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name != github.repository &&
-          'ubuntu-latest' || 'ubuntu-24.04' }}
+          'ubuntu-latest' ||
+          'ubuntu-24.04' }}
 
     env:
       RUSTFLAGS: "-D warnings"
