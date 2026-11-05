@@ -19,6 +19,7 @@ const _defaultConfig: types.IConnectorConfig = {
             apiSecret: { value: 'YOUR_API_SECRET' },
             processingChannelId: { value: 'YOUR_PROCESSING_CHANNEL_ID' },
             clientId: { value: 'YOUR_CLIENT_ID' },
+            currencyAccountId: { value: 'YOUR_CURRENCY_ACCOUNT_ID' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },

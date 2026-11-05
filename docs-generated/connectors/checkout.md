@@ -28,6 +28,7 @@ config = sdk_config_pb2.ConnectorConfig(
             api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
             processing_channel_id=payment_methods_pb2.SecretString(value="YOUR_PROCESSING_CHANNEL_ID"),
             client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
+            currency_account_id=payment_methods_pb2.SecretString(value="YOUR_CURRENCY_ACCOUNT_ID"),
             base_url="YOUR_BASE_URL",
         ),
     ),
@@ -55,6 +56,7 @@ const config = ConnectorConfig.create({
             apiSecret: { value: 'YOUR_API_SECRET' },
             processingChannelId: { value: 'YOUR_PROCESSING_CHANNEL_ID' },
             clientId: { value: 'YOUR_CLIENT_ID' },
+            currencyAccountId: { value: 'YOUR_CURRENCY_ACCOUNT_ID' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -78,6 +80,7 @@ val config = ConnectorConfig.newBuilder()
                 .setApiSecret(SecretString.newBuilder().setValue("YOUR_API_SECRET").build())
                 .setProcessingChannelId(SecretString.newBuilder().setValue("YOUR_PROCESSING_CHANNEL_ID").build())
                 .setClientId(SecretString.newBuilder().setValue("YOUR_CLIENT_ID").build())
+                .setCurrencyAccountId(SecretString.newBuilder().setValue("YOUR_CURRENCY_ACCOUNT_ID").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
@@ -103,6 +106,7 @@ let config = ConnectorConfig {
                 api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
                 processing_channel_id: Some(hyperswitch_masking::Secret::new("YOUR_PROCESSING_CHANNEL_ID".to_string())),  // Authentication credential
                 client_id: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_ID".to_string())),  // Authentication credential
+                currency_account_id: Some(hyperswitch_masking::Secret::new("YOUR_CURRENCY_ACCOUNT_ID".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),
@@ -135,7 +139,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L299) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L145) · [Rust](../../examples/checkout/checkout.rs#L381)
+**Examples:** [Python](../../examples/checkout/checkout.py#L300) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L146) · [Rust](../../examples/checkout/checkout.rs#L382)
 
 ### Card Payment (Authorize + Capture)
 
@@ -149,25 +153,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L318) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L161) · [Rust](../../examples/checkout/checkout.rs#L397)
+**Examples:** [Python](../../examples/checkout/checkout.py#L319) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L162) · [Rust](../../examples/checkout/checkout.rs#L398)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L343) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L183) · [Rust](../../examples/checkout/checkout.rs#L420)
+**Examples:** [Python](../../examples/checkout/checkout.py#L344) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L184) · [Rust](../../examples/checkout/checkout.rs#L421)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L368) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L205) · [Rust](../../examples/checkout/checkout.rs#L443)
+**Examples:** [Python](../../examples/checkout/checkout.py#L369) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L206) · [Rust](../../examples/checkout/checkout.rs#L444)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L390) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L224) · [Rust](../../examples/checkout/checkout.rs#L462)
+**Examples:** [Python](../../examples/checkout/checkout.py#L391) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L225) · [Rust](../../examples/checkout/checkout.rs#L463)
 
 ## API Reference
 
@@ -335,7 +339,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L442) · [Kotlin](../../examples/checkout/checkout.kt#L242) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L443) · [Kotlin](../../examples/checkout/checkout.kt#L243) · [Rust](../../examples/checkout/checkout.rs)
 
 #### PaymentService.Capture
 
@@ -346,7 +350,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L451) · [Kotlin](../../examples/checkout/checkout.kt#L254) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L452) · [Kotlin](../../examples/checkout/checkout.kt#L255) · [Rust](../../examples/checkout/checkout.rs)
 
 #### PaymentService.Get
 
@@ -357,7 +361,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L478) · [Kotlin](../../examples/checkout/checkout.kt#L289) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L479) · [Kotlin](../../examples/checkout/checkout.kt#L290) · [Rust](../../examples/checkout/checkout.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -368,7 +372,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L505) · [Kotlin](../../examples/checkout/checkout.kt#L328) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L506) · [Kotlin](../../examples/checkout/checkout.kt#L329) · [Rust](../../examples/checkout/checkout.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -379,7 +383,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L514) · [Kotlin](../../examples/checkout/checkout.kt#L357) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L515) · [Kotlin](../../examples/checkout/checkout.kt#L358) · [Rust](../../examples/checkout/checkout.rs)
 
 #### PaymentService.Refund
 
@@ -390,7 +394,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L532) · [Kotlin](../../examples/checkout/checkout.kt#L420) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L533) · [Kotlin](../../examples/checkout/checkout.kt#L421) · [Rust](../../examples/checkout/checkout.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -401,7 +405,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L550) · [Kotlin](../../examples/checkout/checkout.kt#L442) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L551) · [Kotlin](../../examples/checkout/checkout.kt#L443) · [Rust](../../examples/checkout/checkout.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -412,7 +416,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L559) · [Kotlin](../../examples/checkout/checkout.kt#L481) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L560) · [Kotlin](../../examples/checkout/checkout.kt#L482) · [Rust](../../examples/checkout/checkout.rs)
 
 #### PaymentService.TokenSetupRecurring
 
@@ -423,7 +427,7 @@ Setup a recurring mandate using a connector token.
 | **Request** | `PaymentServiceTokenSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L568) · [Kotlin](../../examples/checkout/checkout.kt#L502) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L569) · [Kotlin](../../examples/checkout/checkout.kt#L503) · [Rust](../../examples/checkout/checkout.rs)
 
 #### PaymentService.Void
 
@@ -434,7 +438,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts) · [Kotlin](../../examples/checkout/checkout.kt#L542) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts) · [Kotlin](../../examples/checkout/checkout.kt#L543) · [Rust](../../examples/checkout/checkout.rs)
 
 ### Refunds
 
@@ -447,7 +451,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L541) · [Kotlin](../../examples/checkout/checkout.kt#L430) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L542) · [Kotlin](../../examples/checkout/checkout.kt#L431) · [Rust](../../examples/checkout/checkout.rs)
 
 ### Mandates
 
@@ -460,7 +464,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L523) · [Kotlin](../../examples/checkout/checkout.kt#L389) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L524) · [Kotlin](../../examples/checkout/checkout.kt#L390) · [Rust](../../examples/checkout/checkout.rs)
 
 ### Disputes
 
@@ -473,7 +477,7 @@ Concede dispute and accepts chargeback loss. Acknowledges liability and stops di
 | **Request** | `DisputeServiceAcceptRequest` |
 | **Response** | `DisputeServiceAcceptResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L460) · [Kotlin](../../examples/checkout/checkout.kt#L264) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L461) · [Kotlin](../../examples/checkout/checkout.kt#L265) · [Rust](../../examples/checkout/checkout.rs)
 
 #### DisputeService.Defend
 
@@ -484,4 +488,4 @@ Submit defense with reason code for dispute. Presents formal argument against cu
 | **Request** | `DisputeServiceDefendRequest` |
 | **Response** | `DisputeServiceDefendResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L469) · [Kotlin](../../examples/checkout/checkout.kt#L276) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L470) · [Kotlin](../../examples/checkout/checkout.kt#L277) · [Rust](../../examples/checkout/checkout.rs)
