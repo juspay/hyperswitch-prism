@@ -798,7 +798,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Fiserv CommerceHub SetupMandate supports only Card. Received an unsupported payment method type for the SetupMandate flow"
+        "error": "This feature is not implemented: Fiserv CommerceHub SetupMandate supports only Card or GooglePay. Received an unsupported payment method type for the SetupMandate flow"
       }
     },
     "verify_redirect": {
