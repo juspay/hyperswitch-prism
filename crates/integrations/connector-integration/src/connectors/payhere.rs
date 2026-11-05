@@ -236,6 +236,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: payload
                 .payment_id
                 .map(|id| ResponseId::ConnectorTransactionId(id.to_string())),

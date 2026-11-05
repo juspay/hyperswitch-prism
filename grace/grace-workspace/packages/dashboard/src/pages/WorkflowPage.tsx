@@ -9,9 +9,8 @@ import { LogPanel } from "../components/LogPanel";
 import { RunsPicker } from "../components/RunsPicker";
 import type { SubmittedTask } from "../components/TaskForm";
 import { T } from "../theme";
-import { CONTROL_WS_PORT } from "../lib/ws-port";
+import { CONTROL_WS_URL } from "../lib/ws-port";
 
-const CONTROL_WS_URL = `ws://${location.hostname}:${CONTROL_WS_PORT}`;
 
 /**
  * Workflow view for a single session. The supervisor's control WS gives us

@@ -1,5 +1,8 @@
 pub mod transformers;
 
+#[cfg(test)]
+mod test;
+
 use base64::Engine;
 use common_utils::{
     crypto::VerifySignature,

@@ -175,6 +175,7 @@ mod tests {
                     off_session: None,
                     is_stored_credential: None,
                     browser_info: Some(BrowserInformation {
+                        challenge_window_size: None,
                         color_depth: None,
                         java_enabled: Some(false),
                         java_script_enabled: None,
@@ -770,6 +771,7 @@ mod tests {
                     off_session: None,
                     is_stored_credential: None,
                     browser_info: Some(BrowserInformation {
+                        challenge_window_size: None,
                         color_depth: None,
                         java_enabled: Some(false),
                         java_script_enabled: None,
@@ -1166,6 +1168,7 @@ mod tests {
                 off_session: None,
                 is_stored_credential: None,
                 browser_info: Some(BrowserInformation {
+                    challenge_window_size: None,
                     color_depth: None,
                     java_enabled: Some(false),
                     java_script_enabled: None,
@@ -1397,6 +1400,7 @@ mod tests {
                 off_session: None,
                 is_stored_credential: None,
                 browser_info: Some(BrowserInformation {
+                    challenge_window_size: None,
                     color_depth: None,
                     java_enabled: Some(false),
                     java_script_enabled: None,
