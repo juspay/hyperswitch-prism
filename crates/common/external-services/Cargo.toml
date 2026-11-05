@@ -39,13 +39,13 @@ tracing-subscriber = { version = "0.3.18", default-features = true, features = [
 ] }
 tracing-attributes = "0.1.27"
 tonic = { workspace = true }
-prometheus = "0.13.4"
+prometheus = "0.14.0"
 tower = "0.5.2"
 # Diagnostics below depend on these versions' fixed transport error messages.
 hyper = "=1.8.1"
 hyper-util = { version = "=0.1.20", features = ["client-legacy"] }
 native-tls = "=0.2.18"
-rustls = { version = "=0.23.37", default-features = false }
+rustls = { version = "=0.23.46", default-features = false }
 http-body = "1.0.1"
 domain_types = { path = "../../types-traits/domain_types" }
 interfaces = { path = "../../types-traits/interfaces" }

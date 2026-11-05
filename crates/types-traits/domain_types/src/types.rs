@@ -684,6 +684,9 @@ impl Connectors {
             ConnectorEnum::Novalnet => {
                 patched.novalnet.apply(params_patch);
             }
+            ConnectorEnum::Nuvei => {
+                patched.nuvei.apply(params_patch);
+            }
             ConnectorEnum::Forte => {
                 patched.forte.apply(params_patch);
             }
@@ -5132,6 +5135,7 @@ impl ForeignTryFrom<grpc_payment_types::AirlineSegment> for connector_types::Air
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             sequence_no: segment.sequence_no,
+            journey_no: segment.journey_no,
             marketing_carrier_code: segment.marketing_carrier_code,
             flight_number: segment.flight_number,
             flight_type: segment.flight_type,
@@ -11321,7 +11325,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
         });
         Ok(Self {
             split_settlement: None,
-            raw_connector_status: None,
+            raw_connector_status: value.raw_connector_status.map(ForeignFrom::foreign_from),
             connector_transaction_id: extract_connector_request_reference_id(
                 &value
                     .resource_id
@@ -11347,7 +11351,11 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             }),
             network_transaction_id: value.network_txn_id,
             network_txn_link_id: None,
-            amount: None,
+            amount: value
+                .amount
+                .as_ref()
+                .map(connector_money_to_grpc)
+                .transpose()?,
             captured_amount: value
                 .amount_captured
                 .as_ref()
@@ -11359,7 +11367,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                 .transpose()?,
             // Webhook details don't carry a capturable amount.
             capturable_money: None,
-            // Webhook details don't carry the connector-reported amount used by the integrity check.
+            // Webhook amounts do not represent a separate authorized amount.
             authorized_money: None,
             payment_method_type: None,
             capture_method: None,
@@ -12048,7 +12056,7 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
 
         Ok(Self {
             split_settlement: None,
-            raw_connector_status: None,
+            raw_connector_status: value.raw_connector_status.map(ForeignFrom::foreign_from),
             connector_transaction_id: None,
             connector_refund_id: value.connector_refund_id.unwrap_or_default(),
             status: status.into(),
@@ -13324,6 +13332,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
                 .map(connector_types::SplitSettlement::foreign_try_from)
                 .transpose()?
                 .map(Box::new),
+            domain_data: value
+                .domain_data
+                .map(connector_types::DomainData::foreign_try_from)
+                .transpose()?,
             amount_to_capture: amount.clone(),
             currency: amount.currency,
             connector_transaction_id,
@@ -15242,7 +15254,9 @@ pub fn generate_defend_dispute_response(
         }),
         Err(e) => Ok(DisputeServiceDefendResponse {
             connector_dispute_id,
-            dispute_status: grpc_api_types::payments::DisputeStatus::DisputeLost as i32,
+            // A failed defend call says nothing about the dispute outcome; report it as
+            // unspecified, as the Accept error path does.
+            dispute_status: grpc_api_types::payments::DisputeStatus::default() as i32,
             connector_status_code: None,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
@@ -16072,6 +16086,7 @@ impl ForeignTryFrom<grpc_api_types::payments::BrowserInformation> for BrowserInf
         value: grpc_api_types::payments::BrowserInformation,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
+            challenge_window_size: value.challenge_window_size,
             color_depth: value.color_depth.map(|cd| cd as u8),
             java_enabled: value.java_enabled,
             java_script_enabled: value.java_script_enabled,

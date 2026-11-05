@@ -59,7 +59,7 @@ tower = "0.5.2"
 http = "1.2.0"
 lazy_static = "1.5.0"
 axum = { version = "0.8.3", features = ["macros"] }
-prometheus = "0.13.4"
+prometheus = "0.14.0"
 base64 = "0.21.2"
 prost = "0.14"
 prost-types = "0.14"
