@@ -4,7 +4,7 @@
     "authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_feature_data.related_transaction_id. Nuvei requires connector_feature_data.related_transaction_id on this request — Missing required field: connector_feature_data.related_transaction_id. Nuvei requires connector_feature_data.related_transaction_id on this request"
+        "error": "Stuck on field: connector_feature_data.v2supported. Nuvei requires connector_feature_data.v2supported on this request — Missing required field: connector_feature_data.v2supported. Nuvei requires connector_feature_data.v2supported on this request"
       }
     },
     "authorize": {
@@ -65,23 +65,74 @@
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Encrypted Apple Pay is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Encrypted Apple Pay yet"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id",
+                  "device_manufacturer_identifier": "040010030273"
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/payment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"brand\":\"VISA\",\"last4Digits\":\"1111\",\"externalToken\":{\"externalTokenProvider\":\"ApplePay\",\"cryptogram\":\"AAAAAA==\",\"eciProvider\":\"05\"}}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Bacs": {
         "status": "not_supported",
@@ -105,7 +156,7 @@
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Bizum": {
         "status": "not_supported",
@@ -117,7 +168,7 @@
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
@@ -174,11 +225,11 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
@@ -194,7 +245,7 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -210,7 +261,7 @@
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -261,7 +312,7 @@
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Giropay": {
         "status": "supported",
@@ -304,19 +355,66 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Encrypted Google Pay is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Encrypted Google Pay yet"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/payment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"brand\":\"VISA\",\"last4Digits\":\"1111\",\"externalToken\":{\"externalTokenProvider\":\"GooglePay\",\"cryptogram\":\"AAAAAA==\",\"eciProvider\":\"05\"}}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Ideal": {
         "status": "supported",
@@ -379,7 +477,7 @@
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Klarna": {
         "status": "not_implemented",
@@ -391,7 +489,7 @@
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
@@ -407,11 +505,11 @@
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "MiniStop": {
         "status": "not_implemented",
@@ -423,7 +521,7 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
@@ -487,15 +585,15 @@
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -511,7 +609,7 @@
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Pix": {
         "status": "not_supported",
@@ -535,15 +633,15 @@
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Seicomart": {
         "status": "not_implemented",
@@ -567,7 +665,7 @@
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Sofort": {
         "status": "supported",
@@ -606,11 +704,11 @@
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Trustly": {
         "status": "not_supported",
@@ -618,7 +716,7 @@
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "UpiCollect": {
         "status": "not_implemented",
@@ -634,11 +732,11 @@
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       },
       "Webpay": {
         "status": "not_implemented",
@@ -646,7 +744,7 @@
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet payment methods is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet payment methods yet"
+        "error": "This feature is not implemented: Wallet is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for Wallet yet"
       }
     },
     "capture": {
@@ -1108,7 +1206,8 @@
     },
     "verify_redirect": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Invalid data format: redirection_response"
       }
     },
     "void": {

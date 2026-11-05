@@ -139,6 +139,7 @@ fn extract_request_ref_id(response: &PaymentServiceAuthorizeResponse) -> String 
 // Helper function to create browser info with IP address (required for Helcim)
 fn create_test_browser_info() -> BrowserInformation {
     BrowserInformation {
+        challenge_window_size: None,
         ip_address: Some("192.168.1.1".to_string()),
         user_agent: Some(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36".to_string(),
@@ -405,8 +406,7 @@ async fn test_payment_authorization_manual_capture() {
             add_helcim_metadata(&mut capture_grpc_request);
 
             // Send the capture request
-            let capture_response = client
-                .capture(capture_grpc_request)
+            let capture_response = Box::pin(client.capture(capture_grpc_request))
                 .await
                 .expect("gRPC payment_capture call failed")
                 .into_inner();

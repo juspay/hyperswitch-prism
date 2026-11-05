@@ -333,6 +333,7 @@ fn create_payment_authorize_request(
     });
 
     let browser_info = BrowserInformation {
+        challenge_window_size: None,
         color_depth: None,
         java_enabled: Some(false),
         screen_height: Some(1080),
@@ -415,6 +416,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
         currency_conversion_data: None,
         integrity_specifications: None,
         is_overcapture_enabled: None,
+        domain_data: None,
         split_settlement: None,
         payment_method: None,
         merchant_capture_id: Some(request_ref_id),
@@ -736,8 +738,7 @@ async fn test_payment_authorization_manual_capture() {
         add_authorizenet_metadata(&mut capture_grpc_request);
 
         // Send the capture request
-        let capture_response = client
-            .capture(capture_grpc_request)
+        let capture_response = Box::pin(client.capture(capture_grpc_request))
             .await
             .expect("gRPC payment_capture call failed")
             .into_inner();
