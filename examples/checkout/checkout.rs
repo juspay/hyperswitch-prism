@@ -46,6 +46,9 @@ fn build_client() -> ConnectorClient {
                     processing_channel_id: Some(hyperswitch_masking::Secret::new(
                         "YOUR_PROCESSING_CHANNEL_ID".to_string(),
                     )), // Authentication credential
+                    client_id: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_CLIENT_ID".to_string(),
+                    )), // Authentication credential
                     base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                     ..Default::default()
                 },

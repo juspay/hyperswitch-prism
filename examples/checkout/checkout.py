@@ -23,6 +23,7 @@ _default_config = sdk_config_pb2.ConnectorConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
             processing_channel_id=payment_methods_pb2.SecretString(value="YOUR_PROCESSING_CHANNEL_ID"),
+            client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
             base_url="YOUR_BASE_URL",
         ),
     ),
