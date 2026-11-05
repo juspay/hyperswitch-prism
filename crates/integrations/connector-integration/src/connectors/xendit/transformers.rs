@@ -124,9 +124,7 @@ pub enum XenditTransactionSequence {
     Subsequent,
 }
 
-/// The PAN sent in card_details: a raw card (Card<T>) or the plain card number of a
-/// network-transaction-id MIT (CardDetailsForNetworkTransactionId). Both serialize as the
-/// bare card-number string.
+/// The PAN sent in card_details, serialized as the bare card-number string.
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum XenditCardNumber<
@@ -578,6 +576,18 @@ pub fn map_payment_request_status(
 }
 
 /// Payment (py-) status -> attempt status. Exhaustive, no catch-all.
+/// A FAILED capture or cancel leaves the authorization in place, so it must not read as a dead
+/// payment. EXPIRED does mean the hold is gone, so it keeps the plain mapping.
+fn xendit_status_after_failed_action(
+    status: XenditPaymentStatus,
+    failed: common_enums::AttemptStatus,
+) -> common_enums::AttemptStatus {
+    match status {
+        XenditPaymentStatus::Failed => failed,
+        status => map_payment_status(status),
+    }
+}
+
 pub fn map_payment_status(status: XenditPaymentStatus) -> common_enums::AttemptStatus {
     match status {
         // doc: spec "### Payment status (`payment.status`, `latest_payment.status`, webhook `data.status`)"
@@ -1796,7 +1806,10 @@ impl<F> TryFrom<ResponseRouterData<XenditPayment, Self>>
             router_data,
             http_code,
         } = item;
-        let status = map_payment_status(response.status);
+        let status = xendit_status_after_failed_action(
+            response.status,
+            common_enums::AttemptStatus::CaptureFailed,
+        );
 
         let payment_response = match response.status {
             XenditPaymentStatus::Failed | XenditPaymentStatus::Expired => {
@@ -1856,7 +1869,10 @@ impl<F> TryFrom<ResponseRouterData<XenditPayment, Self>>
         } = item;
         // CANCELED -> Voided is the only Void success (spec "### Payment status");
         // any other non-failure status is reported as mapped, never as Voided.
-        let status = map_payment_status(response.status);
+        let status = xendit_status_after_failed_action(
+            response.status,
+            common_enums::AttemptStatus::VoidFailed,
+        );
 
         let payment_response = match response.status {
             XenditPaymentStatus::Failed | XenditPaymentStatus::Expired => {
@@ -2368,24 +2384,40 @@ fn parse_xendit_webhook_data<D: serde::de::DeserializeOwned>(
     serde_json::from_value::<D>(data).change_context(WebhookError::WebhookBodyDecodingFailed)
 }
 
+/// Matches HandleEvent: a PAY_AND_SAVE payment without its pt- token is not yet terminal.
+fn xendit_payment_event(
+    data: Option<serde_json::Value>,
+    event: EventType,
+) -> Result<EventType, error_stack::Report<WebhookError>> {
+    let payment: XenditWebhookPayment = parse_xendit_webhook_data(data)?;
+    Ok(match (payment.payment_type, payment.payment_token_id) {
+        (Some(XenditWebhookPaymentType::PayAndSave), None) => EventType::PaymentIntentProcessing,
+        _ => event,
+    })
+}
+
 /// Spec "#### UCS event mapping (`get_event_type`)". Exhaustive, no catch-all.
 pub fn get_xendit_webhook_event_type(
     envelope: XenditWebhookEnvelope,
 ) -> Result<EventType, error_stack::Report<WebhookError>> {
     match envelope.event {
         // doc: spec "#### UCS event mapping" — payment.capture -> PaymentIntentSuccess
-        XenditWebhookEventType::PaymentCapture => Ok(EventType::PaymentIntentSuccess),
+        XenditWebhookEventType::PaymentCapture => {
+            xendit_payment_event(envelope.data, EventType::PaymentIntentSuccess)
+        }
         // doc: spec "### Event Types" legacy note — payment.succeeded is the v2 name of payment.capture
-        XenditWebhookEventType::PaymentSucceeded => Ok(EventType::PaymentIntentSuccess),
+        XenditWebhookEventType::PaymentSucceeded => {
+            xendit_payment_event(envelope.data, EventType::PaymentIntentSuccess)
+        }
         // doc: spec "#### UCS event mapping" (Hyperswitch) — capture.succeeded -> PaymentIntentCaptureSuccess
         XenditWebhookEventType::CaptureSucceeded => Ok(EventType::PaymentIntentCaptureSuccess),
         // doc: spec "#### UCS event mapping" — payment.authorization -> PaymentIntentAuthorizationSuccess
         XenditWebhookEventType::PaymentAuthorization => {
-            Ok(EventType::PaymentIntentAuthorizationSuccess)
+            xendit_payment_event(envelope.data, EventType::PaymentIntentAuthorizationSuccess)
         }
         // doc: spec "#### UCS event mapping" (Hyperswitch) — payment.awaiting_capture -> PaymentIntentAuthorizationSuccess
         XenditWebhookEventType::PaymentAwaitingCapture => {
-            Ok(EventType::PaymentIntentAuthorizationSuccess)
+            xendit_payment_event(envelope.data, EventType::PaymentIntentAuthorizationSuccess)
         }
         // doc: spec "#### UCS event mapping" — payment.failure -> PaymentIntentFailure
         XenditWebhookEventType::PaymentFailure => Ok(EventType::PaymentIntentFailure),
@@ -3242,6 +3274,38 @@ mod tests {
             "data": data
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn failed_capture_and_void_do_not_read_as_a_dead_payment() {
+        use common_enums::AttemptStatus;
+        assert_eq!(
+            xendit_status_after_failed_action(
+                XenditPaymentStatus::Failed,
+                AttemptStatus::CaptureFailed
+            ),
+            AttemptStatus::CaptureFailed
+        );
+        assert_eq!(
+            xendit_status_after_failed_action(
+                XenditPaymentStatus::Expired,
+                AttemptStatus::VoidFailed
+            ),
+            AttemptStatus::Failure
+        );
+    }
+
+    #[test]
+    fn pay_and_save_capture_event_type_agrees_with_handle_event() {
+        let body = br#"{"event":"payment.capture","data":{"payment_id":"py-1","payment_request_id":"pr-1","status":"SUCCEEDED","type":"PAY_AND_SAVE"}}"#;
+        assert_eq!(
+            get_xendit_webhook_event_type(parse_xendit_webhook_envelope(body).unwrap()).unwrap(),
+            EventType::PaymentIntentProcessing
+        );
+        assert_eq!(
+            build_xendit_payment_webhook_response(body).unwrap().status,
+            common_enums::AttemptStatus::Pending
+        );
     }
 
     #[test]
