@@ -638,6 +638,9 @@ where
         >,
         create_customer_response: Option<&CustomerServiceCreateResponse>,
         create_order_response: Option<&PaymentServiceCreateOrderResponse>,
+        pre_authenticate_response: Option<
+            &PaymentMethodAuthenticationServicePreAuthenticateResponse,
+        >,
         authenticate_response: Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
         post_authenticate_response: Option<
             &PaymentMethodAuthenticationServicePostAuthenticateResponse,
@@ -651,6 +654,7 @@ where
             session_token_response,
             create_customer_response,
             create_order_response,
+            pre_authenticate_response,
             authenticate_response,
             post_authenticate_response,
         ));
@@ -923,6 +927,7 @@ where
                             session_token_response.as_ref(),
                             create_customer_response.as_ref(),
                             create_order_response.as_ref(),
+                            state.pre_auth_response_opt.as_ref(),
                             state.authn_response_opt.as_ref(),
                             state.post_authn_response_opt.as_ref(),
                             &metadata,

@@ -248,6 +248,7 @@ impl
         Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
         Option<&CustomerServiceCreateResponse>,
         Option<&PaymentServiceCreateOrderResponse>,
+        Option<&PaymentMethodAuthenticationServicePreAuthenticateResponse>,
         Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
         Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
     )> for PaymentServiceAuthorizeRequest
@@ -260,6 +261,7 @@ impl
             session_token_response,
             create_customer_response,
             create_order_response,
+            pre_authenticate_response,
             authenticate_response,
             post_authenticate_response,
         ): (
@@ -268,6 +270,7 @@ impl
             Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
             Option<&CustomerServiceCreateResponse>,
             Option<&PaymentServiceCreateOrderResponse>,
+            Option<&PaymentMethodAuthenticationServicePreAuthenticateResponse>,
             Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
             Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
         ),
@@ -292,11 +295,14 @@ impl
             connector_customer_id,
         });
 
-        // Prefer authentication_data from post-auth, then from authenticate, then from request
+        // Prefer authentication_data from post-auth, then from authenticate, then from request.
+        // Pre-auth comes last: a frictionless pre-auth goes straight to Authorize, and its data
+        // is all the connector has to settle with.
         let authentication_data = post_authenticate_response
             .and_then(|r| r.authentication_data.clone())
             .or_else(|| authenticate_response.and_then(|r| r.authentication_data.clone()))
-            .or_else(|| item.authentication_data.clone());
+            .or_else(|| item.authentication_data.clone())
+            .or_else(|| pre_authenticate_response.and_then(|r| r.authentication_data.clone()));
 
         // Prefer connector_feature_data from post-auth, then authenticate, then request
         let connector_feature_data = post_authenticate_response
@@ -1586,5 +1592,49 @@ impl
             state: resolved_state,
             connector_feature_data: item.connector_feature_data.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod authorize_authentication_data_tests {
+    use super::*;
+
+    fn authorize_with(request: Option<&str>, pre_authenticate: Option<&str>) -> Option<String> {
+        let data = |id: &str| grpc_api_types::payments::AuthenticationData {
+            threeds_server_transaction_id: Some(id.to_string()),
+            ..Default::default()
+        };
+        let item = CompositeAuthorizeRequest {
+            authentication_data: request.map(data),
+            ..Default::default()
+        };
+        let pre_auth = PaymentMethodAuthenticationServicePreAuthenticateResponse {
+            authentication_data: pre_authenticate.map(data),
+            ..Default::default()
+        };
+        PaymentServiceAuthorizeRequest::foreign_from((
+            &item,
+            None,
+            None,
+            None,
+            None,
+            Some(&pre_auth),
+            None,
+            None,
+        ))
+        .authentication_data
+        .and_then(|data| data.threeds_server_transaction_id)
+    }
+
+    #[test]
+    fn frictionless_pre_auth_data_reaches_authorize_without_overriding_the_request() {
+        assert_eq!(
+            authorize_with(None, Some("tok_1")).as_deref(),
+            Some("tok_1")
+        );
+        assert_eq!(
+            authorize_with(Some("merchant"), Some("tok_1")).as_deref(),
+            Some("merchant")
+        );
     }
 }
