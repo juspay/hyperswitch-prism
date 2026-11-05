@@ -49,7 +49,7 @@ jsonwebtoken = "9.2"
 html-escape = "0.2"
 josekit = "0.8.7"
 async-trait = "0.1.92"
-openssl = {version = "0.10.70"}
+openssl = {version = "0.10.80"}
 
 [features]
 # Déjà call-graph instrumentation (`ucs::*` / `connector::*` spans). A pure cfg
