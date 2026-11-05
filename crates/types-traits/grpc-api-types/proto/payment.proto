@@ -5175,6 +5175,10 @@ message PowertranzConfig {
 message RapydConfig {
   SecretString access_key = 1;
   SecretString secret_key = 2;
+  // The merchant supplies the country assigned by Rapyd during onboarding.
+  // HS forwards it from the selected MCA's metadata.country_of_incorporation.
+  // Required for fresh card and wallet payment-method objects, not saved IDs.
+  optional CountryAlpha2 country_of_incorporation = 3;
   optional string base_url = 50;
 }
 

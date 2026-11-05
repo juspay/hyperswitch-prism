@@ -14,10 +14,13 @@ import payments.PaymentClient
 import payments.MerchantAuthenticationClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
+import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.CardNetwork
+import payments.CountryAlpha2
 import payments.Currency
+import payments.FutureUsage
 import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
@@ -26,7 +29,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.RapydConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_order", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -35,6 +38,7 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
             .setRapyd(RapydConfig.newBuilder()
                 .setAccessKey(SecretString.newBuilder().setValue("YOUR_ACCESS_KEY").build())
                 .setSecretKey(SecretString.newBuilder().setValue("YOUR_SECRET_KEY").build())
+                .setCountryOfIncorporation(types.PaymentMethods.CountryAlpha2.IS) // Replace with the country assigned during onboarding
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
@@ -48,7 +52,7 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         merchantTransactionId = "probe_txn_001"  // Identification.
         amountBuilder.apply {  // The amount for the payment.
             minorAmount = 1000L
-            currency = Currency.USD
+            currency = Currency.EUR
         }
         paymentMethodBuilder.apply {  // Payment method to be used.
             cardBuilder.apply {  // Generic card payment.
@@ -62,6 +66,7 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
+                countryAlpha2Code = CountryAlpha2.IS
             }
         }
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
@@ -75,7 +80,7 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
         connectorTransactionId = connectorTransactionIdStr
         amountToCaptureBuilder.apply {  // Capture Details.
             minorAmount = 1000L
-            currency = Currency.USD
+            currency = Currency.EUR
         }
     }.build()
 }
@@ -86,7 +91,7 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
         connectorTransactionId = connectorTransactionIdStr
         amountBuilder.apply {  // Amount Information.
             minorAmount = 1000L
-            currency = Currency.USD
+            currency = Currency.EUR
         }
     }.build()
 }
@@ -98,7 +103,7 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         paymentAmount = 1000L  // Amount Information.
         refundAmountBuilder.apply {
             minorAmount = 1000L
-            currency = Currency.USD
+            currency = Currency.EUR
         }
         reason = "customer_request"  // Reason for the refund.
     }.build()
@@ -239,12 +244,26 @@ fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _de
         paymentBuilder.apply {
             amountBuilder.apply {
                 minorAmount = 1000L
-                currency = Currency.USD
+                currency = Currency.EUR
             }
         }
     }.build()
     val response = client.create_client_authentication_token(request)
     println("StatusCode: ${response.statusCode}")
+}
+
+// Flow: PaymentService.CreateOrder
+fun createOrder(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceCreateOrderRequest.newBuilder().apply {
+        merchantOrderId = "probe_order_001"  // Identification.
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L
+            currency = Currency.EUR
+        }
+    }.build()
+    val response = client.create_order(request)
+    println("Order: ${response.connectorOrderId}")
 }
 
 // Flow: PaymentService.Get
@@ -262,7 +281,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
         merchantTransactionId = "probe_proxy_txn_001"
         amountBuilder.apply {
             minorAmount = 1000L
-            currency = Currency.USD
+            currency = Currency.EUR
         }
         cardProxyBuilder.apply {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
             cardNumberBuilder.value = "4111111111111111"  // Card Identification.
@@ -274,6 +293,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {
+                countryAlpha2Code = CountryAlpha2.IS
             }
         }
         captureMethod = CaptureMethod.AUTOMATIC
@@ -281,6 +301,44 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
         returnUrl = "https://example.com/return"
     }.build()
     val response = client.proxy_authorize(request)
+    println("Status: ${response.status.name}")
+}
+
+// Flow: PaymentService.ProxySetupRecurring
+fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceProxySetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_proxy_mandate_001"
+        amountBuilder.apply {
+            minorAmount = 0L
+            currency = Currency.EUR
+        }
+        cardProxyBuilder.apply {  // Card proxy for vault-aliased payments.
+            cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+            cardExpMonthBuilder.value = "03"
+            cardExpYearBuilder.value = "2030"
+            cardCvcBuilder.value = "123"
+            cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
+        }
+        customerBuilder.apply {
+            name = "John Doe"
+            emailBuilder.value = "test@example.com"
+        }
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+                countryAlpha2Code = CountryAlpha2.IS
+            }
+        }
+        returnUrl = "https://example.com/return"
+        customerAcceptanceBuilder.apply {
+            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+        authType = AuthenticationType.NO_THREE_DS
+        setupFutureUsage = FutureUsage.OFF_SESSION
+    }.build()
+    val response = client.proxy_setup_recurring(request)
     println("Status: ${response.status.name}")
 }
 
@@ -297,7 +355,7 @@ fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
         }
         amountBuilder.apply {  // Amount Information.
             minorAmount = 1000L
-            currency = Currency.USD
+            currency = Currency.EUR
         }
         paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows).
             tokenBuilder.apply {  // Payment tokens.
@@ -337,6 +395,50 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.SetupRecurring
+fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_mandate_001"  // Identification.
+        amountBuilder.apply {  // Mandate Details.
+            minorAmount = 0L
+            currency = Currency.EUR
+        }
+        paymentMethodBuilder.apply {
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        customerBuilder.apply {
+            name = "John Doe"
+            emailBuilder.value = "test@example.com"
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+                countryAlpha2Code = CountryAlpha2.IS
+            }
+        }
+        authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used.
+        enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure.
+        returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup.
+        setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention.
+        requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested.
+        customerAcceptanceBuilder.apply {  // Details of customer acceptance.
+            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+    }.build()
+    val response = client.setup_recurring(request)
+    when (response.status.name) {
+        "FAILED" -> throw RuntimeException("Setup failed: ${response.error.unifiedDetails.message}")
+        else     -> println("Mandate stored: ${response.connectorRecurringPaymentId}")
+    }
+}
+
 // Flow: PaymentService.TokenAuthorize
 fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -344,7 +446,7 @@ fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
         merchantTransactionId = "probe_tokenized_txn_001"
         amountBuilder.apply {
             minorAmount = 1000L
-            currency = Currency.USD
+            currency = Currency.EUR
         }
         connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
         addressBuilder.apply {
@@ -381,13 +483,16 @@ fun main(args: Array<String>) {
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
+        "createOrder" -> createOrder(txnId)
         "get" -> get(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
+        "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
+        "setupRecurring" -> setupRecurring(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, get, proxyAuthorize, recurringCharge, refund, refundGet, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, get, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, void")
     }
 }
