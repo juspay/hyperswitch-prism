@@ -14,6 +14,14 @@
   "unsupported_scenarios": {
     "PaymentService/Authorize": {
       "no3ds_auto_capture_google_pay_encrypted": "FLOW_NOT_IN_SCOPE: spec:## Operator Scope Answers (brief o-s2) — the Xendit connector is card-only; the Google Pay arm returns NotImplemented",
+      "no3ds_auto_capture_apple_pay_decrypted": "FLOW_NOT_IN_SCOPE: spec:## Operator Scope Answers (brief o-s2) — the Xendit connector is card-only; the Apple Pay arm returns NotImplemented.",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "FLOW_NOT_IN_SCOPE: spec:## Operator Scope Answers (brief o-s2) — the Xendit connector is card-only; the Apple Pay arm returns NotImplemented.",
+      "no3ds_auto_capture_google_pay_decrypted": "FLOW_NOT_IN_SCOPE: spec:## Operator Scope Answers (brief o-s2) — the Xendit connector is card-only; the Google Pay arm returns NotImplemented.",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "FLOW_NOT_IN_SCOPE: spec:## Operator Scope Answers (brief o-s2) — the Xendit connector is card-only; the Google Pay arm returns NotImplemented.",
+      "no3ds_auto_capture_duitnow_qr": "FLOW_NOT_IN_SCOPE: spec:## Operator Scope Answers (brief o-s2) — the Xendit connector is card-only; the DuitNow QR arm returns NotImplemented.",
+      "no3ds_auto_capture_fpx_maybank": "FLOW_NOT_IN_SCOPE: spec:## Operator Scope Answers (brief o-s2) — the Xendit connector is card-only; the FPX arm returns NotImplemented.",
+      "no3ds_auto_capture_crypto": "FLOW_NOT_IN_SCOPE: spec:## Operator Scope Answers (brief o-s2) — the Xendit connector is card-only; crypto is refused before any Xendit call.",
+      "wero_auto_capture_without_billing": "FLOW_NOT_IN_SCOPE: spec:## Operator Scope Answers (brief o-s2) — the Xendit connector is card-only; Wero is refused before any Xendit call.",
       "no3ds_auto_capture_ideal": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; ideal is not a Xendit payment channel",
       "no3ds_auto_capture_giropay": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; giropay is not a Xendit payment channel",
       "no3ds_auto_capture_bancontact": "PM_NOT_OFFERED: spec:## Overview — Xendit's Payments API in this connector is the CARDS channel; bancontact is not a Xendit payment channel",

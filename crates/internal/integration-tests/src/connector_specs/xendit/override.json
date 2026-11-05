@@ -264,5 +264,27 @@
         }
       }
     }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "event_status": null
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "event_status": null
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "event_status": null
+      }
+    },
+    "invalid_signature": {
+      "assert": {
+        "event_status": null
+      }
+    }
   }
 }

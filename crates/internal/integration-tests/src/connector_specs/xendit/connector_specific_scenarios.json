@@ -1104,7 +1104,7 @@
         },
         "event_type": {
           "one_of": [
-            "PAYMENT_INTENT_SUCCESS"
+            "PAYMENT_INTENT_PROCESSING"
           ]
         },
         "event_content.payments_response.status": {
@@ -1202,7 +1202,7 @@
         },
         "event_type": {
           "one_of": [
-            "PAYMENT_INTENT_SUCCESS"
+            "PAYMENT_INTENT_PROCESSING"
           ]
         },
         "event_content.payments_response.status": {
