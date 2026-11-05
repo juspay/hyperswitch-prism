@@ -525,7 +525,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentServiceCreateOrderResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "sessionData": "ClientAuthenticationTokenData", "rawConnectorStatus": "RawConnectorStatus" },
   PaymentServiceRefundRequest: { "refundAmount": "Money", "browserInfo": "BrowserInformation", "state": "ConnectorState", "paymentMethod": "PaymentMethod", "splitRefunds": "SplitRefundsDetails", "splitSettlementRefund": "SplitSettlementRefund", "currencyConversionData": "CurrencyConversionData" },
   RefundResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "refundAmount": "Money", "state": "ConnectorState", "rawConnectorStatus": "RawConnectorStatus", "splitSettlement": "SplitSettlementResponse" },
-  RefundServiceVoidPostRefundRequest: { "browserInfo": "BrowserInformation", "state": "ConnectorState" },
+  RefundServiceVoidPostRefundRequest: { "browserInfo": "BrowserInformation", "state": "ConnectorState", "paymentMethod": "PaymentMethod", "refundAmount": "Money" },
   PaymentServiceDisputeRequest: { "state": "ConnectorState" },
   DisputeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "disputeAmount": "Money", "evidenceDocuments": "EvidenceDocument", "additionalDetails": "DisputeAdditionalDetails" },
   DisputeAdditionalDetails: { "networkDetails": "DisputeNetworkDetails" },
