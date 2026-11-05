@@ -32,6 +32,7 @@ pub const CHECKOUT_IDEMPOTENCY_KEY_HEADER: &str = "Cko-Idempotency-Key";
 /// Resolves the Checkout payout-only hostname without changing the payment connector URL.
 /// An absent client ID removes the optional subdomain; a present client ID contributes its
 /// eight-character account prefix followed by a dot.
+/// https://www.checkout.com/docs/developer-resources/api/api-endpoints
 pub fn get_checkout_payout_base_url(
     configured_base_url: &str,
     client_id: Option<&Secret<String>>,
@@ -169,7 +170,7 @@ macros::macro_connector_implementation!(
             self.get_auth_header(&req.connector_config)
         }
         fn get_url(&self, req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>) -> CustomResult<String, IntegrationError> {
-            let id = req.request.connector_payout_id.as_ref().filter(|id| id.starts_with("pay_") && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_'))
+            let id = req.request.connector_payout_id.as_deref()
                 .ok_or_else(|| domain_types::utils::missing_field_err("connector_payout_id")())?;
             let (_, _, _, client_id) = transformers::credentials(&req.connector_config)?;
             let configured_base_url = self.base_url(req.resource_common_data.connectors.as_ref());
