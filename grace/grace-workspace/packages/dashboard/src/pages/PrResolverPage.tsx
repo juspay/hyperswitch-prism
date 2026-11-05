@@ -4,9 +4,8 @@ import { PrResolverBoard } from "../components/PrResolverBoard";
 import { PrResolverSettings } from "../components/PrResolverSettings";
 import { usePrResolver, type RuntimeOverlay } from "../hooks/usePrResolver";
 import { T } from "../theme";
-import { CONTROL_WS_PORT } from "../lib/ws-port";
+import { CONTROL_WS_URL } from "../lib/ws-port";
 
-const CONTROL_WS_URL = `ws://${location.hostname}:${CONTROL_WS_PORT}`;
 
 /**
  * PR Resolver tab — Kanban view + always-on Settings card. The user

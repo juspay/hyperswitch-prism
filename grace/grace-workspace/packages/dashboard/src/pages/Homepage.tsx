@@ -5,9 +5,8 @@ import { UnifiedCreateSessionModal } from "../components/UnifiedCreateSessionMod
 import { SidebarLayout } from "../components/NavigationSidebar";
 import { T } from "../theme";
 import type { SessionWithTaskInput } from "../components/UnifiedCreateSessionModal";
-import { CONTROL_WS_PORT } from "../lib/ws-port";
+import { CONTROL_WS_URL } from "../lib/ws-port";
 
-const CONTROL_WS_URL = `ws://${location.hostname}:${CONTROL_WS_PORT}`;
 
 /**
  * Sessions index. Each card is a portal into one isolated workspace.
