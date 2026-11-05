@@ -1468,7 +1468,44 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StandardResponse, Sel
 #[derive(Debug, Serialize)]
 pub struct NmiSyncRequest {
     security_key: Secret<String>,
-    order_id: String, // Uses attempt_id, NOT connector_transaction_id
+    #[serde(flatten)]
+    query: NmiSyncQuery,
+}
+
+/// What query.php is keyed by. `merchant_transaction_id` is optional on the Get RPC while
+/// `connector_transaction_id` is the required field, so the order reference can be absent.
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum NmiSyncQuery {
+    OrderId(String),
+    TransactionId(String),
+}
+
+impl NmiSyncQuery {
+    fn new(
+        order_reference: &str,
+        connector_transaction_id: &ResponseId,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        match connector_transaction_id {
+            _ if !order_reference.is_empty() => Ok(Self::OrderId(order_reference.to_string())),
+            ResponseId::ConnectorTransactionId(transaction_id) => {
+                Ok(Self::TransactionId(transaction_id.clone()))
+            }
+            ResponseId::EncodedData(_) | ResponseId::NoResponseId => Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "merchant_transaction_id or connector_transaction_id",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Pass the id returned by NMI or the orderid sent on the payment"
+                                .to_string(),
+                        ),
+                        doc_url: Some("https://docs.nmi.com/reference/query".to_string()),
+                        additional_context: None,
+                    },
+                }
+            )),
+        }
+    }
 }
 
 // Implementation for NmiRouterData wrapper (needed by macros)
@@ -1491,16 +1528,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let auth = NmiAuthType::try_from(&router_data.connector_config)?;
 
-        // PSync uses attempt_id as order_id (NOT connector_transaction_id)
-        // The connector_transaction_id contains the attempt_id for sync operations
-        let order_id = router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
+        // PSync is keyed by attempt_id as order_id when the caller has it, otherwise by NMI's
+        // transaction id. An empty order_id would match nothing and read as "unknown attempt".
+        let query = NmiSyncQuery::new(
+            &router_data
+                .resource_common_data
+                .connector_request_reference_id,
+            &router_data.request.connector_transaction_id,
+        )?;
 
         Ok(Self {
             security_key: auth.api_key,
-            order_id,
+            query,
         })
     }
 }
@@ -3198,4 +3237,23 @@ pub(crate) fn parse_nmi_webhook_signature_header(header: &str) -> Option<(&str, 
     let after_t = header.get(t_idx + 2..)?;
     let s_idx = after_t.rfind(",s=")?;
     Some((after_t.get(..s_idx)?, after_t.get(s_idx + 3..)?))
+}
+
+#[cfg(test)]
+mod sync_query_tests {
+    use super::*;
+
+    #[test]
+    fn prefers_order_reference_then_transaction_id_and_rejects_neither() {
+        let transaction_id = ResponseId::ConnectorTransactionId("123".to_string());
+        assert_eq!(
+            NmiSyncQuery::new("order_1", &transaction_id).ok(),
+            Some(NmiSyncQuery::OrderId("order_1".to_string()))
+        );
+        assert_eq!(
+            NmiSyncQuery::new("", &transaction_id).ok(),
+            Some(NmiSyncQuery::TransactionId("123".to_string()))
+        );
+        assert!(NmiSyncQuery::new("", &ResponseId::NoResponseId).is_err());
+    }
 }

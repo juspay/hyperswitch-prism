@@ -251,49 +251,33 @@
   "RecurringPaymentService/Charge": {
     "RecurringPaymentService/Charge": {
       "grpc_req": {
-        "payment_method": {
-          "card": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "08",
-            "card_exp_year": "30",
-            "card_cvc": "999"
-          }
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
         }
       }
     },
     "recurring_charge": {
       "grpc_req": {
-        "payment_method": {
-          "card": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "08",
-            "card_exp_year": "30",
-            "card_cvc": "999"
-          }
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
         }
       }
     },
     "recurring_charge_low_amount": {
       "grpc_req": {
-        "payment_method": {
-          "card": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "08",
-            "card_exp_year": "30",
-            "card_cvc": "999"
-          }
+        "amount": {
+          "minor_amount": 1000,
+          "currency": "USD"
         }
       }
     },
     "recurring_charge_with_order_context": {
       "grpc_req": {
-        "payment_method": {
-          "card": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "08",
-            "card_exp_year": "30",
-            "card_cvc": "999"
-          }
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "USD"
         }
       }
     }
