@@ -2853,7 +2853,8 @@ def _kotlin_payload_lines(
                 map_entries = []
                 for k, v in val.items():
                     map_entries.append(f'{json.dumps(k)} to {json.dumps(v)}')
-                lines.append(f"{pad}putAll{camel.capitalize()}(mapOf({', '.join(map_entries)})){cmt_part}")
+                setter = camel[:1].upper() + camel[1:]
+                lines.append(f"{pad}putAll{setter}(mapOf({', '.join(map_entries)})){cmt_part}")
             else:
                 lines.append(f"{pad}{camel}Builder.apply {{{cmt_part}")
                 lines.extend(_kotlin_payload_lines(val, child_msg, message_schemas, indent + 1, variable_fields, variable_field_values))
