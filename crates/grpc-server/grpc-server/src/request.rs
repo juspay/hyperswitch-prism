@@ -56,12 +56,28 @@ impl<T> RequestData<T> {
         request: tonic::Request<T>,
         config: Arc<configs::Config>,
     ) -> Result<Self, Report<GrpcError>> {
+        Self::from_grpc_request_with_routing(request, config, false)
+    }
+
+    /// ParseEvent additionally accepts x-webhook-connector as an explicit parser selector.
+    pub fn from_grpc_parse_event_request(
+        request: tonic::Request<T>,
+        config: Arc<configs::Config>,
+    ) -> Result<Self, Report<GrpcError>> {
+        Self::from_grpc_request_with_routing(request, config, true)
+    }
+
+    fn from_grpc_request_with_routing(
+        request: tonic::Request<T>,
+        config: Arc<configs::Config>,
+        parse_event: bool,
+    ) -> Result<Self, Report<GrpcError>> {
         let (metadata, extensions, payload) = request.into_parts();
 
         // Extract routing metadata only (connector, request_id, etc.)
         // without requiring connector_config/auth credentials
         let mut routing_metadata =
-            extract_routing_metadata_only(&metadata, config.clone()).to_grpc_error()?;
+            extract_routing_metadata_only(&metadata, parse_event).to_grpc_error()?;
         if let Some(connector_latency) = extensions.get::<ConnectorLatencyTracker>() {
             routing_metadata.connector_latency = connector_latency.clone();
         }
@@ -81,7 +97,7 @@ impl<T> RequestData<T> {
 /// Used for webhook flows where connector_config is not needed for initial processing.
 fn extract_routing_metadata_only(
     metadata: &metadata::MetadataMap,
-    _config: Arc<configs::Config>,
+    parse_event: bool,
 ) -> Result<MetadataPayload, Report<IntegrationError>> {
     // Extract other routing fields - use defaults where appropriate
     let merchant_id = merchant_id_from_metadata(metadata).unwrap_or_default();
@@ -92,15 +108,19 @@ fn extract_routing_metadata_only(
     // typed `x-connector-config` header, falling back to the deprecated
     // `x-connector-auth` header. When neither is present, use NoKey so the webhook can
     // still be routed and processed. The connector name header is always required.
-    let (connector, connector_config) = match metadata
-        .get(consts::X_CONNECTOR_CONFIG)
-        .or_else(|| metadata.get(X_CONNECTOR_AUTH_DEPRECATED))
-    {
-        Some(_) => connector_and_config_from_metadata(metadata)?,
-        None => (
-            connector_variant_from_metadata(metadata)?,
-            ConnectorSpecificConfig::NoKey,
-        ),
+    let (connector, connector_config) = if parse_event {
+        ucs_interface_common::metadata::parse_event_connector_and_config_from_metadata(metadata)?
+    } else {
+        match metadata
+            .get(consts::X_CONNECTOR_CONFIG)
+            .or_else(|| metadata.get(X_CONNECTOR_AUTH_DEPRECATED))
+        {
+            Some(_) => connector_and_config_from_metadata(metadata)?,
+            None => (
+                connector_variant_from_metadata(metadata)?,
+                ConnectorSpecificConfig::NoKey,
+            ),
+        }
     };
 
     // Extract optional fields

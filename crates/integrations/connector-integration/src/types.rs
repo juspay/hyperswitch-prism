@@ -30,14 +30,18 @@ pub struct WebhookConnectorData {
 impl WebhookConnectorData {
     pub fn from_connector_variant(
         variant: &domain_types::connector_types::ConnectorVariant,
+        use_webhook_parser: bool,
     ) -> Option<Self> {
-        let connector = crate::webhook_connectors::get_connector(variant).or_else(|| {
+        let connector = if use_webhook_parser {
+            // Explicit migration must fail if the provider has no standalone parser.
+            crate::webhook_connectors::get_connector(variant)
+        } else {
             ConnectorData::from_connector_variant(variant).map(
                 |connector_data| -> interfaces::webhook_parse::BoxedWebhookConnector {
                     Box::new(PaymentWebhookParser { connector_data })
                 },
             )
-        })?;
+        }?;
         Some(Self { connector })
     }
 }

@@ -120,6 +120,75 @@ pub fn extract_lineage_fields_from_metadata(
         .to_owned()
 }
 
+/// ParseEvent's explicit selector is independent of the payment/payout resource family.
+pub fn webhook_connector_from_name(
+    name: &str,
+) -> CustomResult<connector_types::ConnectorVariant, IntegrationError> {
+    connector_types::ConnectorEnum::from_str(name)
+        .map(connector_types::ConnectorVariant::Payment)
+        .or_else(|_| {
+            connector_types::PayoutConnectorEnum::from_str(name)
+                .map(connector_types::ConnectorVariant::Payout)
+        })
+        .map_err(|_| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: consts::X_WEBHOOK_CONNECTOR_NAME,
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Unknown webhook connector: {name}")),
+                    ..Default::default()
+                },
+            })
+        })
+}
+
+/// Only ParseEvent accepts the new selector. Other endpoints retain their existing routing.
+pub fn parse_event_connector_and_config_from_metadata(
+    metadata: &metadata::MetadataMap,
+) -> CustomResult<(connector_types::ConnectorVariant, ConnectorSpecificConfig), IntegrationError> {
+    let explicit_connector = metadata
+        .get(consts::X_WEBHOOK_CONNECTOR_NAME)
+        .map(|value| {
+            let name = value.to_str().map_err(|_| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: consts::X_WEBHOOK_CONNECTOR_NAME,
+                    context: IntegrationErrorContext::default(),
+                })
+            })?;
+            webhook_connector_from_name(name)
+        })
+        .transpose()?;
+
+    if metadata.get(consts::X_CONNECTOR_CONFIG).is_some()
+        || metadata.get("x-connector-auth").is_some()
+    {
+        let (connector, config) = connector_and_config_from_metadata(metadata)?;
+        if let Some(explicit) = explicit_connector {
+            if explicit.get_connector_name() != connector.get_connector_name() {
+                return Err(Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: consts::X_WEBHOOK_CONNECTOR_NAME,
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Webhook connector must match the typed connector configuration"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }));
+            }
+            return Ok((explicit, config));
+        }
+        Ok((connector, config))
+    } else {
+        Ok((
+            match explicit_connector {
+                Some(connector) => connector,
+                None => connector_variant_from_metadata(metadata)?,
+            },
+            ConnectorSpecificConfig::NoKey,
+        ))
+    }
+}
+
 pub fn connector_variant_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<connector_types::ConnectorVariant, IntegrationError> {

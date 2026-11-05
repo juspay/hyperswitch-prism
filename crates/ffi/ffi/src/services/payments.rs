@@ -774,10 +774,10 @@ pub fn get_webhook_sample_body(
 /// extracted purely from the raw webhook payload.
 pub fn parse_event_transformer(
     payload: grpc_api_types::payments::EventServiceParseRequest,
-    _config: &std::sync::Arc<ucs_env::configs::Config>,
+    config: &std::sync::Arc<ucs_env::configs::Config>,
     connector: domain_types::connector_types::ConnectorVariant,
     _connector_config: Option<domain_types::router_data::ConnectorSpecificConfig>,
-    _metadata: &common_utils::metadata::MaskedMetadata,
+    metadata: &common_utils::metadata::MaskedMetadata,
 ) -> Result<grpc_api_types::payments::EventServiceParseResponse, IntegrationError> {
     use common_utils::errors::ErrorSwitch as _;
     use domain_types::utils::ForeignTryFrom as _;
@@ -792,14 +792,36 @@ pub fn parse_event_transformer(
         |e: error_stack::Report<domain_types::errors::WebhookError>| e.current_context().switch(),
     )?;
 
-    let connector_data =
-        connector_integration::types::WebhookConnectorData::from_connector_variant(&connector)
-            .ok_or_else(|| IntegrationError {
-                error_message: "Invalid connector type for this flow".to_string(),
+    let explicit_connector = metadata.get_raw(common_utils::consts::X_WEBHOOK_CONNECTOR_NAME);
+    let use_webhook_parser =
+        explicit_connector.is_some() || config.webhook_parse.is_migrated(&connector);
+    let connector = if let Some(name) = explicit_connector {
+        let explicit = ucs_interface_common::metadata::webhook_connector_from_name(&name)
+            .map_err(|e| e.current_context().switch())?;
+        if explicit.get_connector_name() != connector.get_connector_name() {
+            return Err(IntegrationError {
+                error_message: "Webhook connector must match the typed connector configuration"
+                    .to_string(),
                 error_code: "INVALID_CONNECTOR_TYPE".to_string(),
                 suggested_action: None,
                 doc_url: None,
-            })?;
+            });
+        }
+        explicit
+    } else {
+        connector
+    };
+    let connector_data =
+        connector_integration::types::WebhookConnectorData::from_connector_variant(
+            &connector,
+            use_webhook_parser,
+        )
+        .ok_or_else(|| IntegrationError {
+            error_message: "Invalid connector type for this flow".to_string(),
+            error_code: "INVALID_CONNECTOR_TYPE".to_string(),
+            suggested_action: None,
+            doc_url: None,
+        })?;
 
     connector_integration::webhook_utils::parse_webhook_event(connector_data, request_details)
         .map_err(

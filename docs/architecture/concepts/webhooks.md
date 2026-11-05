@@ -37,12 +37,21 @@ sequenceDiagram
 
 ## Adding a connector webhook
 
-1. Implement [`WebhookParse`](../../../crates/types-traits/interfaces/src/webhook_parse.rs) in `webhook_connectors/<connector>.rs`, with payload types and event/reference mappings in `<connector>/transformers.rs`. Register the parser in [`webhook_connectors.rs`](../../../crates/integrations/connector-integration/src/webhook_connectors.rs). TrueLayer and Trustly use this path for both payment and payout metadata. Other payment connectors retain the legacy [`IncomingWebhook`](../../../crates/types-traits/interfaces/src/connector_types.rs) parsing adapter. Keep parent payment IDs distinct from the event's own ID.
+1. Implement [`WebhookParse`](../../../crates/types-traits/interfaces/src/webhook_parse.rs) in `webhook_connectors/<connector>.rs`, with payload types and event/reference mappings in `<connector>/transformers.rs`. Register the parser in [`webhook_connectors.rs`](../../../crates/integrations/connector-integration/src/webhook_connectors.rs). TrueLayer and Trustly have standalone implementations for both payment and payout metadata. Existing headers retain the legacy [`IncomingWebhook`](../../../crates/types-traits/interfaces/src/connector_types.rs) parsing adapter until the provider is enabled in `webhook_parse.migrated_connectors`. Keep parent payment IDs distinct from the event's own ID.
 2. Implement the matching `process_payment_webhook`, `process_refund_webhook`, `process_dispute_webhook`, or `process_payout_webhook` method. Map status and IDs into the normalized `HandleEvent` content. Override `get_webhook_api_response` for a connector-specific ACK and provide `sample_webhook_body` for probes.
 3. For local signature checks, implement `IncomingWebhook::verify_webhook_source`. If verification calls the connector API, implement `VerifyWebhookSourceV2` **and** `ConnectorIntegrationV2<VerifyWebhookSource, ...>`, map the API result to `VerifyWebhookStatus`, and enable `webhook_source_verification_call.connectors_with_webhook_source_verification_call`. [PayPal](../../../crates/integrations/connector-integration/src/connectors/paypal.rs) is an example.
 4. Test `ParseEvent` and `HandleEvent` with real-shaped success, failure, and invalid-signature payloads; assert the IDs, status, verification result, and ACK.
 
 The standalone parser registry applies to `ParseEvent` only. `HandleEvent` still uses the payment connector's `IncomingWebhook` implementation, including `get_event_type`, verification, status processing, and acknowledgement. Accepting payout metadata for `ParseEvent` does not enable payout metadata for `HandleEvent`.
+
+For rollout without an HS change, set `CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS="trustly,truelayer"`.
+Requests using existing connector metadata then select the standalone parser for
+listed providers; an empty list keeps legacy parsing. Alternatively, ParseEvent
+accepts `x-webhook-connector` to explicitly select a standalone parser, overriding
+legacy identity headers. Typed connector configuration must match that provider.
+Explicit or configured migration to an unavailable parser returns an error;
+parsing failures never retry the legacy implementation. The native FFI handler
+honors the same rollout environment variable.
 
 | Reference | Return every available ID in these fields |
 | --- | --- |

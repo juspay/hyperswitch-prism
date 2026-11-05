@@ -61,6 +61,11 @@ psync = "GW_TXN_SYNC"
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
+# ParseEvent rollout for existing connector headers; empty keeps legacy parsing.
+# Override with CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS="trustly,truelayer".
+[webhook_parse]
+migrated_connectors = ""
+
 [connectors]
 betterpayment.base_url = "https://testapi.betterpayment.de"
 ecommpay.base_url = "https://api.ecommpay.com/"

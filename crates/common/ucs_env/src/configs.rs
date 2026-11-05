@@ -52,6 +52,9 @@ pub struct Config {
     pub api_tags: ApiTagConfig,
     #[serde(default)]
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
+    /// Opt-in rollout for standalone ParseEvent implementations.
+    #[serde(default)]
+    pub webhook_parse: WebhookParseConfig,
     #[serde(default)]
     pub connector_request_kafka: ConnectorRequestKafkaConfig,
     /// Deployment / runtime identity stamped on every event. `application_name` / `deployment_id` /
@@ -350,6 +353,23 @@ where
             .map(Some)
             .map_err(D::Error::custom),
         _ => Ok(None), // Empty string or None -> None
+    }
+}
+
+/// Existing connector headers use the legacy parser unless the provider is listed here.
+/// Set CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS="trustly,truelayer" to opt in.
+#[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
+pub struct WebhookParseConfig {
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    #[patch(ignore)]
+    pub migrated_connectors: Option<HashSet<String>>,
+}
+
+impl WebhookParseConfig {
+    pub fn is_migrated(&self, connector: &domain_types::connector_types::ConnectorVariant) -> bool {
+        self.migrated_connectors
+            .as_ref()
+            .is_some_and(|connectors| connectors.contains(&connector.get_connector_name()))
     }
 }
 

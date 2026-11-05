@@ -86,13 +86,14 @@ impl EventService for EventServiceImpl {
             .cloned()
             .unwrap_or_else(|| "EventService".to_string());
         let config = get_config_from_request(&request).into_grpc_status()?;
+        let webhook_parse_config = config.webhook_parse.clone();
         grpc_logging_wrapper_with_parser(
             request,
             &service_name,
             config,
             FlowName::IncomingWebhook,
-            RequestData::from_grpc_request_unauthenticated,
-            |request_data| {
+            RequestData::from_grpc_parse_event_request,
+            move |request_data| {
                 Box::pin(async move {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
@@ -111,22 +112,29 @@ impl EventService for EventServiceImpl {
                         )
                         .to_grpc_error()?;
 
-                    let connector_data =
-                        WebhookConnectorData::from_connector_variant(&metadata_payload.connector)
-                            .ok_or_else(|| {
-                            ucs_env::error::GrpcError::from(
-                                domain_types::errors::IntegrationError::InvalidDataFormat {
-                                    field_name: "connector",
-                                    context: domain_types::errors::IntegrationErrorContext {
-                                        suggested_action: None,
-                                        doc_url: None,
-                                        additional_context: Some(
-                                            metadata_payload.connector.get_connector_name(),
-                                        ),
-                                    },
+                    let use_webhook_parser = request_data
+                        .masked_metadata
+                        .get_raw(common_utils::consts::X_WEBHOOK_CONNECTOR_NAME)
+                        .is_some()
+                        || webhook_parse_config.is_migrated(&metadata_payload.connector);
+                    let connector_data = WebhookConnectorData::from_connector_variant(
+                        &metadata_payload.connector,
+                        use_webhook_parser,
+                    )
+                    .ok_or_else(|| {
+                        ucs_env::error::GrpcError::from(
+                            domain_types::errors::IntegrationError::InvalidDataFormat {
+                                field_name: "connector",
+                                context: domain_types::errors::IntegrationErrorContext {
+                                    suggested_action: None,
+                                    doc_url: None,
+                                    additional_context: Some(
+                                        metadata_payload.connector.get_connector_name(),
+                                    ),
                                 },
-                            )
-                        })?;
+                            },
+                        )
+                    })?;
 
                     let response = connector_integration::webhook_utils::parse_webhook_event(
                         connector_data,
