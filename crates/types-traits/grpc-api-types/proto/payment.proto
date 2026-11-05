@@ -1554,8 +1554,8 @@ message WebhookSecrets {
   optional string additional_secret = 2 [deprecated = true];
 
   // Presence takes precedence over the corresponding deprecated field.
-  optional SecretString signing_secret = 3;
-  optional SecretString additional_signing_secret = 4;
+  optional SecretString verification_secret = 3;
+  optional SecretString additional_verification_secret = 4;
 }
 
 // Secrets used for source verification.

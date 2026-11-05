@@ -155,6 +155,7 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
 }
 
 #[allow(dead_code)]
+#[allow(deprecated)]
 pub fn build_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
         merchant_event_id: Some("probe_event_001".to_string()),
@@ -183,6 +184,7 @@ pub fn build_incremental_authorization_request() -> PaymentServiceIncrementalAut
     }
 }
 
+#[allow(deprecated)]
 pub fn build_parse_event_request() -> EventServiceParseRequest {
     EventServiceParseRequest {
         request_details: Some(RequestDetails {

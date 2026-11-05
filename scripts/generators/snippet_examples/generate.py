@@ -3633,6 +3633,9 @@ def render_consolidated_rust(
         # Inbound-only flows (e.g. handle_event) have no runnable process_ fn, so their builder
         # is uncalled; allow(dead_code) matches the suppression already used on process_* fns.
         allow = "#[allow(dead_code)]\n" if flow_key in _UNSUPPORTED_FLOWS else ""
+        if "RequestDetails {" in struct_body:
+            # Keep existing sample payloads valid until the caller examples migrate.
+            allow += "#[allow(deprecated)]\n"
         return (
             f"{allow}"
             f"pub fn build_{flow_key}_request({param_name}: {param_type}) -> {grpc_req_b} {{\n"
@@ -3653,6 +3656,9 @@ def render_consolidated_rust(
         # Inbound-only flows (e.g. handle_event) have no runnable process_ fn, so their builder
         # is uncalled; allow(dead_code) matches the suppression already used on process_* fns.
         allow = "#[allow(dead_code)]\n" if flow_key in _UNSUPPORTED_FLOWS else ""
+        if "RequestDetails {" in struct_body:
+            # Keep existing sample payloads valid until the caller examples migrate.
+            allow += "#[allow(deprecated)]\n"
         return (
             f"{allow}"
             f"pub fn build_{flow_key}_request() -> {grpc_req_b} {{\n"

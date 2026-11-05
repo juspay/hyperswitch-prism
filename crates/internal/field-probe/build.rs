@@ -462,6 +462,11 @@ fn generate_tokenize_probe(f: &mut fs::File) {
 fn generate_parse_event_probe(f: &mut fs::File) {
     writeln!(f, "    /// Probe parse_event (EventService::ParseEvent).").unwrap();
     writeln!(f, "    /// Stateless — no auth required.").unwrap();
+    writeln!(
+        f,
+        "    #[allow(deprecated)] // Preserve the legacy probe JSON during client migration."
+    )
+    .unwrap();
     writeln!(f, "    pub fn probe_parse_event(").unwrap();
     writeln!(f, "        connector: &ConnectorEnum,").unwrap();
     writeln!(f, "        config: &Arc<ucs_env::configs::Config>,").unwrap();
@@ -546,6 +551,11 @@ fn generate_handle_event_probe(f: &mut fs::File) {
     writeln!(
         f,
         "    /// (returns EventServiceHandleResponse, not Option<Request>) so it cannot use run_probe."
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "    #[allow(deprecated)] // Preserve the legacy probe JSON during client migration."
     )
     .unwrap();
     writeln!(f, "    pub fn probe_handle_event(").unwrap();

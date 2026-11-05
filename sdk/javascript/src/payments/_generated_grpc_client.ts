@@ -136,7 +136,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   NmiData: ["publicKey"],
   RequestDetails: ["sensitiveUri", "sensitiveQueryParams"],
   ValuesEntry: ["value"],
-  WebhookSecrets: ["signingSecret", "additionalSigningSecret"],
+  WebhookSecrets: ["verificationSecret", "additionalVerificationSecret"],
   RedirectResponseSecrets: ["verificationSecret", "additionalVerificationSecret"],
   NotifyConnectorRequest: ["connectorFeatureData"],
   FrmNotificationContent: ["connectorFeatureData"],

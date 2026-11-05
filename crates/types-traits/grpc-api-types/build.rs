@@ -77,46 +77,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "::hyperswitch_masking::Secret<Vec<u8>>",
     );
 
-    // Compatibility bridge: legacy wire fields must keep their scalar/map types.
-    // Attach masking to the generated type so every masked serializer respects it,
-    // including audit events and requests nested inside other messages.
-    config.skip_debug([
-        ".types.RequestDetails",
-        ".types.WebhookSecrets",
-        ".types.RedirectResponseSecrets",
-        ".types.EventAckResponse",
-    ]);
-    for field in ["uri", "query_params"] {
-        config.field_attribute(
-            format!(".types.RequestDetails.{field}"),
-            "#[serde(serialize_with = \"crate::sensitive::optional_string\")]",
-        );
-    }
-    config.field_attribute(
-        ".types.RequestDetails.body",
-        "#[serde(default, serialize_with = \"crate::sensitive::bytes\")]",
-    );
-    config.field_attribute(
-        ".types.RequestDetails.headers",
-        "#[serde(default, serialize_with = \"crate::sensitive::headers\")]",
-    );
-    config.field_attribute(
-        ".types.EventAckResponse.body",
-        "#[serde(serialize_with = \"crate::sensitive::bytes\")]",
-    );
-    config.field_attribute(
-        ".types.EventAckResponse.headers",
-        "#[serde(serialize_with = \"crate::sensitive::headers\")]",
-    );
-    for message in ["WebhookSecrets", "RedirectResponseSecrets"] {
-        config.field_attribute(
-            format!(".types.{message}.secret"),
-            "#[serde(default, serialize_with = \"crate::sensitive::string\")]",
-        );
-        config.field_attribute(
-            format!(".types.{message}.additional_secret"),
-            "#[serde(serialize_with = \"crate::sensitive::optional_string\")]",
-        );
+    // HTTP callers using only the replacement fields may omit legacy scalars.
+    // Match protobuf's defaults instead of requiring those fields in Serde JSON.
+    for message in [
+        "RequestDetails",
+        "WebhookSecrets",
+        "RedirectResponseSecrets",
+    ] {
+        config.type_attribute(format!(".types.{message}"), "#[serde(default)]");
     }
     // Add serde rename_all = "snake_case" for oneof enum types to output proper proto JSON
     // This ensures variant names like "ApplePay" serialize as "apple_pay"

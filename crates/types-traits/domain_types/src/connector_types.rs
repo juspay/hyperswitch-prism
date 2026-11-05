@@ -3303,7 +3303,7 @@ pub enum HttpMethod {
     Patch,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct RequestDetails {
     pub method: HttpMethod,
     pub uri: Option<String>,
@@ -3312,7 +3312,7 @@ pub struct RequestDetails {
     pub query_params: Option<String>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ConnectorWebhookSecrets {
     pub secret: Vec<u8>,
     pub additional_secret: Option<Secret<String>>,
@@ -3323,34 +3323,10 @@ pub struct EventContext {
     pub capture_method: Option<common_enums::CaptureMethod>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ConnectorRedirectResponseSecrets {
     pub secret: Vec<u8>,
     pub additional_secret: Option<Secret<String>>,
-}
-
-// Domain consumers still need raw bytes/maps for connector protocol APIs.
-// Debug must not expose those values after conversion from secret-typed protobufs.
-impl std::fmt::Debug for RequestDetails {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RequestDetails")
-            .field("method", &self.method)
-            .finish_non_exhaustive()
-    }
-}
-
-impl std::fmt::Debug for ConnectorWebhookSecrets {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ConnectorWebhookSecrets")
-            .finish_non_exhaustive()
-    }
-}
-
-impl std::fmt::Debug for ConnectorRedirectResponseSecrets {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ConnectorRedirectResponseSecrets")
-            .finish_non_exhaustive()
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -3784,12 +3760,12 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookSecrets> for ConnectorWebho
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             secret: value
-                .signing_secret
+                .verification_secret
                 .map(ExposeInterface::expose)
                 .unwrap_or(value.secret)
                 .into(),
             additional_secret: value
-                .additional_signing_secret
+                .additional_verification_secret
                 .or_else(|| value.additional_secret.map(Secret::new)),
         })
     }
