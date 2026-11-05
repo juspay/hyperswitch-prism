@@ -108,7 +108,7 @@ pub fn process_webhook_event<
     })
 }
 
-/// Parses through the selected webhook provider or the legacy payment adapter.
+/// Parses through the selected standalone webhook provider.
 pub fn parse_webhook_event(
     connector_data: WebhookConnectorData,
     request_details: domain_types::connector_types::RequestDetails,
@@ -119,6 +119,27 @@ pub fn parse_webhook_event(
 
     Ok(EventServiceParseResponse {
         reference: parsed.reference.map(Into::into),
+        event_type: Some(api_event_type.into()),
+    })
+}
+
+/// Preserves the legacy payment connector's event classification and reference extraction.
+pub fn parse_payment_webhook_event(
+    connector_data: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
+    request_details: domain_types::connector_types::RequestDetails,
+) -> error_stack::Result<EventServiceParseResponse, WebhookError> {
+    let event_type = connector_data
+        .connector
+        .get_event_type(request_details.clone())?;
+    let api_event_type = WebhookEventType::foreign_try_from(event_type)
+        .change_context(WebhookError::WebhookProcessingFailed)?;
+    let reference = connector_data
+        .connector
+        .get_webhook_event_reference(request_details)
+        .attach_printable("Failed to extract event reference from webhook payload")?;
+
+    Ok(EventServiceParseResponse {
+        reference: reference.map(Into::into),
         event_type: Some(api_event_type.into()),
     })
 }

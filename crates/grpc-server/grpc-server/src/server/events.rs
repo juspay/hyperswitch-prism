@@ -7,9 +7,10 @@ use crate::utils::{self, get_config_from_request, grpc_logging_wrapper_with_pars
 use common_enums;
 use common_utils::events::FlowName;
 use connector_integration::types::{
-    ConnectorData, ConnectorDataProvider, FrmConnectorData, SurchargeConnectorData,
-    WebhookConnectorData,
+    ConnectorData, ConnectorDataProvider, FrmConnectorData, ParseEventConnectorData,
+    SurchargeConnectorData,
 };
+use connector_integration::webhook_utils::{parse_payment_webhook_event, parse_webhook_event};
 use domain_types::{
     connector_flow::{
         FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, SurchargePaymentSucceeded,
@@ -49,6 +50,7 @@ use ucs_env::{
     configs::Config,
     error::{ReportExtGrpcError, ResultExtGrpc, ResultExtGrpcError},
 };
+use ucs_interface_common::webhooks::get_parse_event_connector_data;
 
 #[derive(Debug, Clone)]
 pub struct EventServiceImpl;
@@ -86,7 +88,7 @@ impl EventService for EventServiceImpl {
             .cloned()
             .unwrap_or_else(|| "EventService".to_string());
         let config = get_config_from_request(&request).into_grpc_status()?;
-        let webhook_parse_config = config.webhook_parse.clone();
+        let parse_event_config = config.clone();
         grpc_logging_wrapper_with_parser(
             request,
             &service_name,
@@ -112,34 +114,21 @@ impl EventService for EventServiceImpl {
                         )
                         .to_grpc_error()?;
 
-                    let use_webhook_parser = request_data
-                        .masked_metadata
-                        .get_raw(common_utils::consts::X_WEBHOOK_CONNECTOR_NAME)
-                        .is_some()
-                        || webhook_parse_config.is_migrated(&metadata_payload.connector);
-                    let connector_data = WebhookConnectorData::from_connector_variant(
+                    let connector_data = get_parse_event_connector_data(
                         &metadata_payload.connector,
-                        use_webhook_parser,
+                        &parse_event_config,
+                        &request_data.masked_metadata,
                     )
-                    .ok_or_else(|| {
-                        ucs_env::error::GrpcError::from(
-                            domain_types::errors::IntegrationError::InvalidDataFormat {
-                                field_name: "connector",
-                                context: domain_types::errors::IntegrationErrorContext {
-                                    suggested_action: None,
-                                    doc_url: None,
-                                    additional_context: Some(
-                                        metadata_payload.connector.get_connector_name(),
-                                    ),
-                                },
-                            },
-                        )
-                    })?;
+                    .to_grpc_error()?;
 
-                    let response = connector_integration::webhook_utils::parse_webhook_event(
-                        connector_data,
-                        request_details,
-                    )
+                    let response = match connector_data {
+                        ParseEventConnectorData::Webhook(connector) => {
+                            parse_webhook_event(connector, request_details)
+                        }
+                        ParseEventConnectorData::Payment(connector) => {
+                            parse_payment_webhook_event(connector, request_details)
+                        }
+                    }
                     .to_grpc_error()?;
 
                     Ok(tonic::Response::new(response))

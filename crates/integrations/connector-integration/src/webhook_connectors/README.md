@@ -14,16 +14,24 @@ To implement a provider later:
 3. Export the connector module and type from `../webhook_connectors.rs`.
 4. Register the provider in `get_connector` in `../webhook_connectors.rs`.
    Match both payment and payout variants when they share the parser. Return
-   `Some(Box::new(ProviderWebhook::new()))` for migrated providers and `None` otherwise.
+   `Some(Box::new(ProviderWebhook::new()))` for available providers and `None` otherwise.
 
-Both gRPC and FFI resolve `WebhookConnectorData` and call the shared parsing
-helper through `Box<dyn WebhookParse>`. Selection happens before parsing:
+Both gRPC and FFI call the shared `get_parse_event_connector_data` resolver.
+It returns `ParseEventConnectorData`, and callers match its variant:
+
+- `Webhook(WebhookConnectorData)` calls `parse_event` on `Box<dyn WebhookParse>`.
+- `Payment(ConnectorData)` calls the legacy payment connector's `get_event_type`
+  and `get_webhook_event_reference` methods.
+
+Header validation, migration policy, and connector construction belong to the
+resolver. The parsing entry points only dispatch on the returned data.
+Selection happens before parsing:
 
 | Request | Selected implementation |
 | --- | --- |
 | `x-webhook-connector: trustly` | Standalone Trustly parser, regardless of the migration list |
 | Existing connector metadata, provider in `webhook_parse.migrated_connectors` | Standalone provider parser |
-| Existing connector metadata, provider absent from the list | Legacy payment adapter |
+| Existing connector metadata, provider absent from the list | Legacy payment connector |
 
 Set `CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS="trustly,truelayer"` to opt in
 existing HS requests without changing their `x-connector` header. The default

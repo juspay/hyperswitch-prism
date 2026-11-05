@@ -8634,6 +8634,7 @@ name = "ucs_interface_common"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.7",
+ "connector-integration",
  "domain_types",
  "error-stack 0.4.1",
  "grpc-api-types",

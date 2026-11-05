@@ -22,7 +22,12 @@ pub struct ConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sy
     pub connector_name: ConnectorEnum,
 }
 
-/// Resolves the parser for the first webhook call independently of resource handling.
+/// Connector implementations available to the stateless ParseEvent call.
+pub enum ParseEventConnectorData {
+    Webhook(WebhookConnectorData),
+    Payment(ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>),
+}
+
 pub struct WebhookConnectorData {
     pub connector: interfaces::webhook_parse::BoxedWebhookConnector,
 }
@@ -30,55 +35,8 @@ pub struct WebhookConnectorData {
 impl WebhookConnectorData {
     pub fn from_connector_variant(
         variant: &domain_types::connector_types::ConnectorVariant,
-        use_webhook_parser: bool,
     ) -> Option<Self> {
-        let connector = if use_webhook_parser {
-            // Explicit migration must fail if the provider has no standalone parser.
-            crate::webhook_connectors::get_connector(variant)
-        } else {
-            ConnectorData::from_connector_variant(variant).map(
-                |connector_data| -> interfaces::webhook_parse::BoxedWebhookConnector {
-                    Box::new(PaymentWebhookParser { connector_data })
-                },
-            )
-        }?;
-        Some(Self { connector })
-    }
-}
-
-/// Keeps unmigrated payment connectors available behind the parsing interface.
-struct PaymentWebhookParser {
-    connector_data: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
-}
-
-impl interfaces::webhook_parse::WebhookParse for PaymentWebhookParser {
-    fn parse_event(
-        &self,
-        request: &domain_types::connector_types::RequestDetails,
-    ) -> Result<
-        domain_types::connector_types::WebhookParseResponse,
-        error_stack::Report<domain_types::errors::WebhookError>,
-    > {
-        use domain_types::utils::ForeignTryFrom;
-        use error_stack::ResultExt;
-
-        let event_type = self
-            .connector_data
-            .connector
-            .get_event_type(request.clone())?;
-        // Preserve the legacy validation order before extracting the reference.
-        let _ = grpc_api_types::payments::WebhookEventType::foreign_try_from(event_type.clone())
-            .change_context(domain_types::errors::WebhookError::WebhookProcessingFailed)?;
-        let reference = self
-            .connector_data
-            .connector
-            .get_webhook_event_reference(request.clone())
-            .attach_printable("Failed to extract event reference from webhook payload")?;
-
-        Ok(domain_types::connector_types::WebhookParseResponse {
-            event_type,
-            reference,
-        })
+        crate::webhook_connectors::get_connector(variant).map(|connector| Self { connector })
     }
 }
 
