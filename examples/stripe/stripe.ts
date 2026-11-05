@@ -119,10 +119,10 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
         "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array([123, 34, 105, 100, 34, 58, 34, 101, 118, 116, 95, 112, 114, 111, 98, 101, 95, 48, 48, 49, 34, 44, 34, 116, 121, 112, 101, 34, 58, 34, 112, 97, 121, 109, 101, 110, 116, 95, 105, 110, 116, 101, 110, 116, 46, 115, 117, 99, 99, 101, 101, 100, 101, 100, 34, 44, 34, 100, 97, 116, 97, 34, 58, 123, 34, 111, 98, 106, 101, 99, 116, 34, 58, 123, 34, 105, 100, 34, 58, 34, 112, 105, 95, 112, 114, 111, 98, 101, 95, 48, 48, 49, 34, 44, 34, 111, 98, 106, 101, 99, 116, 34, 58, 34, 112, 97, 121, 109, 101, 110, 116, 95, 105, 110, 116, 101, 110, 116, 34, 44, 34, 97, 109, 111, 117, 110, 116, 34, 58, 49, 48, 48, 48, 44, 34, 99, 117, 114, 114, 101, 110, 99, 121, 34, 58, 34, 117, 115, 100, 34, 44, 34, 99, 114, 101, 97, 116, 101, 100, 34, 58, 49, 55, 48, 48, 48, 48, 48, 48, 48, 48, 44, 34, 115, 116, 97, 116, 117, 115, 34, 58, 34, 115, 117, 99, 99, 101, 101, 100, 101, 100, 34, 125, 125, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }
@@ -143,10 +143,10 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
     return {
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array([123, 34, 105, 100, 34, 58, 34, 101, 118, 116, 95, 112, 114, 111, 98, 101, 95, 48, 48, 49, 34, 44, 34, 116, 121, 112, 101, 34, 58, 34, 112, 97, 121, 109, 101, 110, 116, 95, 105, 110, 116, 101, 110, 116, 46, 115, 117, 99, 99, 101, 101, 100, 101, 100, 34, 44, 34, 100, 97, 116, 97, 34, 58, 123, 34, 111, 98, 106, 101, 99, 116, 34, 58, 123, 34, 105, 100, 34, 58, 34, 112, 105, 95, 112, 114, 111, 98, 101, 95, 48, 48, 49, 34, 44, 34, 111, 98, 106, 101, 99, 116, 34, 58, 34, 112, 97, 121, 109, 101, 110, 116, 95, 105, 110, 116, 101, 110, 116, 34, 44, 34, 97, 109, 111, 117, 110, 116, 34, 58, 49, 48, 48, 48, 44, 34, 99, 117, 114, 114, 101, 110, 99, 121, 34, 58, 34, 117, 115, 100, 34, 44, 34, 99, 114, 101, 97, 116, 101, 100, 34, 58, 49, 55, 48, 48, 48, 48, 48, 48, 48, 48, 44, 34, 115, 116, 97, 116, 117, 115, 34, 58, 34, 115, 117, 99, 99, 101, 101, 100, 101, 100, 34, 125, 125, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }

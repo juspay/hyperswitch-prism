@@ -899,9 +899,9 @@
           "merchant_event_id": "probe_event_001",
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"id\":\"TRN_probe_001\",\"status\":\"CAPTURED\",\"type\":\"SALE\",\"amount\":\"1099\"}"
+            "legacy_headers": {},
+            "body": "{\"id\":\"TRN_probe_001\",\"status\":\"CAPTURED\",\"type\":\"SALE\",\"amount\":\"1099\"}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
@@ -924,9 +924,9 @@
         "proto_request": {
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"id\":\"TRN_probe_001\",\"status\":\"CAPTURED\",\"type\":\"SALE\",\"amount\":\"1099\"}"
+            "legacy_headers": {},
+            "body": "{\"id\":\"TRN_probe_001\",\"status\":\"CAPTURED\",\"type\":\"SALE\",\"amount\":\"1099\"}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {

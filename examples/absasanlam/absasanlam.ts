@@ -28,10 +28,10 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
         "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "uri": {"value": "https://example.com/webhook"},
+            "headers": {
             },
-            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array([123, 125])}  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
         }
     };
 }
@@ -40,10 +40,10 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
     return {
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "uri": {"value": "https://example.com/webhook"},
+            "headers": {
             },
-            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array([123, 125])}  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
         }
     };
 }

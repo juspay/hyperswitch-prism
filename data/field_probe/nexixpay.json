@@ -609,9 +609,9 @@
           "merchant_event_id": "probe_event_001",
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"eventId\":\"554ccc00-28fb-4344-a3fa-4bb8d1999bd5\",\"eventTime\":\"2022-09-01T01:20:00.001Z\",\"securityToken\":\"2f0ea5059b41414ca3744fe672327d85\",\"operation\":{\"orderId\":\"btid2384983\",\"operationId\":\"3470744\",\"channel\":\"ECOMMERCE\",\"operationType\":\"CAPTURE\",\"operationResult\":\"EXECUTED\",\"operationTime\":\"2022-09-01T01:20:00.001Z\",\"paymentMethod\":\"CARD\",\"paymentCircuit\":\"VISA\",\"paymentInstrumentInfo\":\"***6152\",\"paymentEndToEndId\":\"e723hedsdew\",\"cancelledOperationId\":\"\",\"operationAmount\":\"3545\",\"operationCurrency\":\"EUR\",\"additionalData\":{\"authorizationCode\":\"647189\",\"cardCountry\":\"ITA\",\"threeDS\":\"FULL_SECURE\",\"schemaTID\":\"MCS01198U\"}}}"
+            "legacy_headers": {},
+            "body": "{\"eventId\":\"554ccc00-28fb-4344-a3fa-4bb8d1999bd5\",\"eventTime\":\"2022-09-01T01:20:00.001Z\",\"securityToken\":\"2f0ea5059b41414ca3744fe672327d85\",\"operation\":{\"orderId\":\"btid2384983\",\"operationId\":\"3470744\",\"channel\":\"ECOMMERCE\",\"operationType\":\"CAPTURE\",\"operationResult\":\"EXECUTED\",\"operationTime\":\"2022-09-01T01:20:00.001Z\",\"paymentMethod\":\"CARD\",\"paymentCircuit\":\"VISA\",\"paymentInstrumentInfo\":\"***6152\",\"paymentEndToEndId\":\"e723hedsdew\",\"cancelledOperationId\":\"\",\"operationAmount\":\"3545\",\"operationCurrency\":\"EUR\",\"additionalData\":{\"authorizationCode\":\"647189\",\"cardCountry\":\"ITA\",\"threeDS\":\"FULL_SECURE\",\"schemaTID\":\"MCS01198U\"}}}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
@@ -634,9 +634,9 @@
         "proto_request": {
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"eventId\":\"554ccc00-28fb-4344-a3fa-4bb8d1999bd5\",\"eventTime\":\"2022-09-01T01:20:00.001Z\",\"securityToken\":\"2f0ea5059b41414ca3744fe672327d85\",\"operation\":{\"orderId\":\"btid2384983\",\"operationId\":\"3470744\",\"channel\":\"ECOMMERCE\",\"operationType\":\"CAPTURE\",\"operationResult\":\"EXECUTED\",\"operationTime\":\"2022-09-01T01:20:00.001Z\",\"paymentMethod\":\"CARD\",\"paymentCircuit\":\"VISA\",\"paymentInstrumentInfo\":\"***6152\",\"paymentEndToEndId\":\"e723hedsdew\",\"cancelledOperationId\":\"\",\"operationAmount\":\"3545\",\"operationCurrency\":\"EUR\",\"additionalData\":{\"authorizationCode\":\"647189\",\"cardCountry\":\"ITA\",\"threeDS\":\"FULL_SECURE\",\"schemaTID\":\"MCS01198U\"}}}"
+            "legacy_headers": {},
+            "body": "{\"eventId\":\"554ccc00-28fb-4344-a3fa-4bb8d1999bd5\",\"eventTime\":\"2022-09-01T01:20:00.001Z\",\"securityToken\":\"2f0ea5059b41414ca3744fe672327d85\",\"operation\":{\"orderId\":\"btid2384983\",\"operationId\":\"3470744\",\"channel\":\"ECOMMERCE\",\"operationType\":\"CAPTURE\",\"operationResult\":\"EXECUTED\",\"operationTime\":\"2022-09-01T01:20:00.001Z\",\"paymentMethod\":\"CARD\",\"paymentCircuit\":\"VISA\",\"paymentInstrumentInfo\":\"***6152\",\"paymentEndToEndId\":\"e723hedsdew\",\"cancelledOperationId\":\"\",\"operationAmount\":\"3545\",\"operationCurrency\":\"EUR\",\"additionalData\":{\"authorizationCode\":\"647189\",\"cardCountry\":\"ITA\",\"threeDS\":\"FULL_SECURE\",\"schemaTID\":\"MCS01198U\"}}}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {

@@ -188,9 +188,9 @@ fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
         merchantEventId = "probe_event_001"
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
-            uri = "https://example.com/webhook"  // URI of the request.
-            putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"entity_type\":\"payment\",\"event_type\":\"in_progress\",\"data\":{\"id\":\"payt_686f7cc3pe69T\",\"payin_id\":\"order_686f7c8c7txqj\",\"status\":\"active\",\"payment_amount\":374580,\"payment_currency\":\"AED\",\"converted_amount\":102000,\"converted_currency\":\"USD\",\"requested_amount\":100000,\"requested_currency\":\"USD\",\"fees\":{\"txn_fee\":{\"currency\":\"USD\",\"amount\":1000},\"fx_fee\":{\"currency\":\"USD\",\"amount\":1000},\"referral_fee\":{\"currency\":\"USD\",\"amount\":0}},\"error_code\":null,\"error_description\":null,\"error_message\":null,\"funds_available\":false}}")  // Body of the HTTP request.
+            putAllLegacyHeaders(mapOf())  // Headers of the HTTP request.
+            bodyBuilder.value = com.google.protobuf.ByteString.copyFromUtf8("{\"entity_type\":\"payment\",\"event_type\":\"in_progress\",\"data\":{\"id\":\"payt_686f7cc3pe69T\",\"payin_id\":\"order_686f7c8c7txqj\",\"status\":\"active\",\"payment_amount\":374580,\"payment_currency\":\"AED\",\"converted_amount\":102000,\"converted_currency\":\"USD\",\"requested_amount\":100000,\"requested_currency\":\"USD\",\"fees\":{\"txn_fee\":{\"currency\":\"USD\",\"amount\":1000},\"fx_fee\":{\"currency\":\"USD\",\"amount\":1000},\"referral_fee\":{\"currency\":\"USD\",\"amount\":0}},\"error_code\":null,\"error_description\":null,\"error_message\":null,\"funds_available\":false}}")  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uriBuilder.value = "https://example.com/webhook"
         }
     }.build()
     val response = client.handle_event(request)
@@ -203,9 +203,9 @@ fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = EventServiceParseRequest.newBuilder().apply {
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
-            uri = "https://example.com/webhook"  // URI of the request.
-            putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"entity_type\":\"payment\",\"event_type\":\"in_progress\",\"data\":{\"id\":\"payt_686f7cc3pe69T\",\"payin_id\":\"order_686f7c8c7txqj\",\"status\":\"active\",\"payment_amount\":374580,\"payment_currency\":\"AED\",\"converted_amount\":102000,\"converted_currency\":\"USD\",\"requested_amount\":100000,\"requested_currency\":\"USD\",\"fees\":{\"txn_fee\":{\"currency\":\"USD\",\"amount\":1000},\"fx_fee\":{\"currency\":\"USD\",\"amount\":1000},\"referral_fee\":{\"currency\":\"USD\",\"amount\":0}},\"error_code\":null,\"error_description\":null,\"error_message\":null,\"funds_available\":false}}")  // Body of the HTTP request.
+            putAllLegacyHeaders(mapOf())  // Headers of the HTTP request.
+            bodyBuilder.value = com.google.protobuf.ByteString.copyFromUtf8("{\"entity_type\":\"payment\",\"event_type\":\"in_progress\",\"data\":{\"id\":\"payt_686f7cc3pe69T\",\"payin_id\":\"order_686f7c8c7txqj\",\"status\":\"active\",\"payment_amount\":374580,\"payment_currency\":\"AED\",\"converted_amount\":102000,\"converted_currency\":\"USD\",\"requested_amount\":100000,\"requested_currency\":\"USD\",\"fees\":{\"txn_fee\":{\"currency\":\"USD\",\"amount\":1000},\"fx_fee\":{\"currency\":\"USD\",\"amount\":1000},\"referral_fee\":{\"currency\":\"USD\",\"amount\":0}},\"error_code\":null,\"error_description\":null,\"error_message\":null,\"funds_available\":false}}")  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uriBuilder.value = "https://example.com/webhook"
         }
     }.build()
     val response = client.parse_event(request)
