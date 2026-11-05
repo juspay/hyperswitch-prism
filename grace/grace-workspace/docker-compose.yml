@@ -37,6 +37,9 @@ services:
       # dashboard is reachable from outside the container. Without this, Vite
       # defaults to 127.0.0.1 and you can't reach it via port-forwarding.
       HOST: 0.0.0.0
+      # Same reason for the supervisor's control socket. The published ports
+      # below stay on the host's loopback.
+      TENXGRACE_WS_HOST: 0.0.0.0
       # claude auth — pass through all three modes, empty default lets compose
       # boot when user is on Scenario A (no env vars, just OAuth state).
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -99,8 +102,8 @@ services:
       # of the grace layout) and the cache survives `docker compose down`.
       - ${HOME}/.grace-docker-cli:${HOME}/.grace-docker-cli
     ports:
-      - "3141:3141"    # dashboard (Vite)
-      - "3142:3142"    # supervisor control WebSocket
+      - "127.0.0.1:3141:3141"    # dashboard (Vite)
+      - "127.0.0.1:3142:3142"    # supervisor control WebSocket
 
   opencode-serve:
     image: grace-workspace:latest

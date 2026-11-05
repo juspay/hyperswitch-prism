@@ -1,8 +1,8 @@
 use connector_integration::types::{ConnectorData, ConnectorDataProvider};
-use domain_types::{
-    connector_types::{ConnectorEnum, ConnectorVariant, ServerAuthenticationTokenResponseData},
-    utils::ForeignTryFrom as _,
+use domain_types::connector_types::{
+    ConnectorEnum, ConnectorVariant, ServerAuthenticationTokenResponseData,
 };
+use domain_types::utils::ForeignTryFrom as _;
 use grpc_api_types::payments::{
     composite_payment_service_server::CompositePaymentService,
     composite_refund_service_server::CompositeRefundService,
@@ -807,7 +807,7 @@ where
 
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
-
+        let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
         let access_token_response = self
             .create_server_authentication_token(
                 &ConnectorVariant::Payment(connector),
@@ -841,8 +841,42 @@ where
         // Extract flow parameters from payload
         let auth_type = self.get_auth_type(&payload)?;
         let payment_method = self.get_payment_method(&payload)?;
-        let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
         let redirect_state = self.get_redirect_state(&payload);
+
+        // Decode routing inputs only when the connector requests them.
+        // Raw-card and proxy conversion remains in the granular services.
+        let routing_payment_method_data = if connector_data
+            .connector
+            .requires_authentication_payment_method_data(payment_method)
+        {
+            payload
+                .payment_method
+                .clone()
+                .map(
+                    domain_types::payment_method_data::PaymentMethodData::<
+                        domain_types::payment_method_data::DefaultPCIHolder,
+                    >::foreign_try_from,
+                )
+                .transpose()
+                .map_err(|err| {
+                    tonic::Status::invalid_argument(format!("invalid payment_method: {err}"))
+                })?
+        } else {
+            None
+        };
+        let routing_authentication_data = if connector_data.connector.requires_authentication_data()
+        {
+            payload
+                .authentication_data
+                .clone()
+                .map(domain_types::router_request_types::AuthenticationData::try_from)
+                .transpose()
+                .map_err(|err| {
+                    tonic::Status::invalid_argument(format!("invalid authentication_data: {err}"))
+                })?
+        } else {
+            None
+        };
 
         let mut state = AuthorizeCompositeState::default();
 
@@ -853,6 +887,8 @@ where
                 payment_method,
                 redirect_state,
                 state.completed_step,
+                routing_payment_method_data.as_ref(),
+                routing_authentication_data.as_ref(),
             );
 
             match next_step {
@@ -948,6 +984,11 @@ where
             .unwrap_or(false)
             || state
                 .authn_response_opt
+                .as_ref()
+                .map(|r| r.redirection_data.is_some())
+                .unwrap_or(false)
+            || state
+                .authorize_response_opt
                 .as_ref()
                 .map(|r| r.redirection_data.is_some())
                 .unwrap_or(false);
@@ -1396,6 +1437,47 @@ where
             domain_types::payment_method_data::DefaultPCIHolder,
         >::get_connector_by_name(&connector);
 
+        // A terminal verification failure must not trigger another authorization.
+        // Return it through the payment response so callers can finalize the attempt.
+        if connector_data.connector.requires_authorize_post_redirect() {
+            if let Some(status) = verify_response
+                .status
+                .filter(|status| is_failure_payment_status(*status))
+            {
+                let raw_connector_status = verify_response
+                    .error
+                    .as_ref()
+                    .and_then(|error| error.connector_details.as_ref())
+                    .map(|error| grpc_api_types::payments::RawConnectorStatus {
+                        code: error.code.clone(),
+                        message: error.message.clone(),
+                        reason: error.reason.clone(),
+                    });
+                let authorize_response = PaymentServiceAuthorizeResponse {
+                    merchant_transaction_id: payload.merchant_transaction_id.clone(),
+                    connector_transaction_id: verify_response.connector_transaction_id.clone(),
+                    status,
+                    error: verify_response.error.clone(),
+                    status_code: 200,
+                    // Request money is round-trip correlation data here, not an
+                    // approved amount or independently reported provider money.
+                    authorized_money: payload.amount,
+                    raw_connector_response: verify_response.raw_connector_response.clone(),
+                    typed_connector_response: verify_response.typed_connector_response.clone(),
+                    connector_feature_data: verify_response.connector_feature_data.clone(),
+                    raw_connector_status,
+                    ..Default::default()
+                };
+                return Ok(tonic::Response::new(
+                    grpc_api_types::payments::CompositeVerifyRedirectResponseResponse {
+                        verify_redirect_response: Some(verify_response),
+                        authorize_response: Some(authorize_response),
+                        ..Default::default()
+                    },
+                ));
+            }
+        }
+
         let (access_token_response, session_token_response, authorize_response) =
             if connector_data.connector.requires_authorize_post_redirect() {
                 let (access_token, session_token, authorize) = self
@@ -1609,12 +1691,12 @@ where
         &self,
         request: tonic::Request<CompositeCaptureRequest>,
     ) -> Result<tonic::Response<CompositeCaptureResponse>, tonic::Status> {
-        crate::utils::composite_grpc_logging_wrapper(
+        Box::pin(crate::utils::composite_grpc_logging_wrapper(
             request,
             "CompositePaymentService",
             common_utils::events::FlowName::Capture,
-            |request| async move { self.process_composite_capture(request).await },
-        )
+            |request| async move { Box::pin(self.process_composite_capture(request)).await },
+        ))
         .await
     }
 

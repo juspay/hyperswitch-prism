@@ -304,10 +304,12 @@ impl
             .or_else(|| item.authentication_data.clone())
             .or_else(|| pre_authenticate_response.and_then(|r| r.authentication_data.clone()));
 
-        // Prefer connector_feature_data from post-auth, then authenticate, then request
+        // Prefer metadata from the latest completed authentication step. Nuvei
+        // goes directly from PreAuthenticate to Authorize, without Authenticate.
         let connector_feature_data = post_authenticate_response
             .and_then(|r| r.connector_feature_data.clone())
             .or_else(|| authenticate_response.and_then(|r| r.connector_feature_data.clone()))
+            .or_else(|| pre_authenticate_response.and_then(|r| r.connector_feature_data.clone()))
             .or_else(|| item.connector_feature_data.clone());
 
         // Prefer connector_order_id from create_order_response, then from request
@@ -861,6 +863,7 @@ impl
             connector_transaction_id: item.connector_transaction_id.clone(),
             amount_to_capture: item.amount_to_capture,
             metadata: item.metadata.clone(),
+            domain_data: item.domain_data.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             multiple_capture_data: item.multiple_capture_data.clone(),
             browser_info: item.browser_info.clone(),
@@ -1313,7 +1316,7 @@ impl
             l2_l3_data: request.l2_l3_data.clone(),
             connector_order_id: request.connector_order_id.clone(),
             merchant_request_id: request.merchant_request_id.clone(),
-            domain_data: None,
+            domain_data: request.domain_data.clone(),
             risk_assessment_data: request.risk_assessment_data.clone(),
             split_payments: request.split_payments.clone(),
             partner_merchant_identifier_details: request
