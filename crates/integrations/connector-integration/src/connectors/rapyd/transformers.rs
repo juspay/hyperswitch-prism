@@ -114,7 +114,10 @@ fn parse_card_network(
         IntegrationError::NotSupported {
             message: format!("rapyd wallet card network: {network}"),
             connector: "rapyd",
-            context: Default::default(),
+            context: crate::utils::integration_ctx(
+                "The wallet card network could not be parsed",
+                "Provide the actual card network from the Apple Pay or Google Pay payload.",
+            ),
         },
     )
 }
