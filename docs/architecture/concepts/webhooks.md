@@ -37,10 +37,12 @@ sequenceDiagram
 
 ## Adding a connector webhook
 
-1. Implement [`IncomingWebhook`](../../../crates/types-traits/interfaces/src/connector_types.rs): `get_event_type` maps the event; `get_webhook_event_reference` fills every applicable ID below. Keep parent payment IDs distinct from the event's own ID.
+1. Implement [`WebhookParse`](../../../crates/types-traits/interfaces/src/webhook_parse.rs) in `webhook_connectors/<connector>.rs`, with payload types and event/reference mappings in `<connector>/transformers.rs`. Register the parser in [`webhook_connectors.rs`](../../../crates/integrations/connector-integration/src/webhook_connectors.rs). TrueLayer and Trustly use this path for both payment and payout metadata. Other payment connectors retain the legacy [`IncomingWebhook`](../../../crates/types-traits/interfaces/src/connector_types.rs) parsing adapter. Keep parent payment IDs distinct from the event's own ID.
 2. Implement the matching `process_payment_webhook`, `process_refund_webhook`, `process_dispute_webhook`, or `process_payout_webhook` method. Map status and IDs into the normalized `HandleEvent` content. Override `get_webhook_api_response` for a connector-specific ACK and provide `sample_webhook_body` for probes.
 3. For local signature checks, implement `IncomingWebhook::verify_webhook_source`. If verification calls the connector API, implement `VerifyWebhookSourceV2` **and** `ConnectorIntegrationV2<VerifyWebhookSource, ...>`, map the API result to `VerifyWebhookStatus`, and enable `webhook_source_verification_call.connectors_with_webhook_source_verification_call`. [PayPal](../../../crates/integrations/connector-integration/src/connectors/paypal.rs) is an example.
 4. Test `ParseEvent` and `HandleEvent` with real-shaped success, failure, and invalid-signature payloads; assert the IDs, status, verification result, and ACK.
+
+The standalone parser registry applies to `ParseEvent` only. `HandleEvent` still uses the payment connector's `IncomingWebhook` implementation, including `get_event_type`, verification, status processing, and acknowledgement. Accepting payout metadata for `ParseEvent` does not enable payout metadata for `HandleEvent`.
 
 | Reference | Return every available ID in these fields |
 | --- | --- |

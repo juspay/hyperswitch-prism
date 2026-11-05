@@ -26,11 +26,9 @@ use openssl::{hash::MessageDigest, pkey::PKey, rsa::Rsa, sign::Signer};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug};
 
-// The Trustly error-response and webhook payload types are shared with the payment
-// connector implementation.
-use crate::connectors::trustly::transformers::{
-    TrustlyErrorResponse, TrustlyWebhookBody, TrustlyWebhookMethod,
-    TRUSTLY_PAYOUT_MESSAGE_ID_PREFIX,
+use crate::connectors::trustly::transformers::TrustlyErrorResponse;
+use crate::webhook_connectors::trustly::transformers::{
+    TrustlyWebhookBody, TrustlyWebhookMethod, TRUSTLY_PAYOUT_MESSAGE_ID_PREFIX,
 };
 
 const TRUSTLY_VERSION: &str = "1.1";

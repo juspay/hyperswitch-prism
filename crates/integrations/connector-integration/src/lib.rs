@@ -10,6 +10,7 @@ pub mod sanity;
 pub mod surcharge_connectors;
 pub mod types;
 pub mod utils;
+pub mod webhook_connectors;
 pub mod webhook_utils;
 
 pub use domain_types::errors;

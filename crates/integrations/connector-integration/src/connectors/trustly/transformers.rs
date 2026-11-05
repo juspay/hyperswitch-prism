@@ -1,3 +1,9 @@
+pub use crate::webhook_connectors::trustly::transformers::{
+    get_webhook_event, is_payment_webhook_event, is_payout_webhook_event, is_refund_webhook_event,
+    TrustlyWebhookAttributes, TrustlyWebhookBody, TrustlyWebhookData, TrustlyWebhookMethod,
+    TrustlyWebhookParams, TRUSTLY_PAYOUT_MESSAGE_ID_PREFIX,
+};
+
 use crate::{connectors::trustly::TrustlyRouterData, types::ResponseRouterData, utils};
 use base64::{engine::general_purpose, Engine};
 use common_enums::{self, AttemptStatus, CountryAlpha2, Currency};
@@ -738,75 +744,6 @@ impl TryFrom<ResponseRouterData<TrustlyRefundResponse, Self>>
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustlyWebhookBody {
-    pub method: TrustlyWebhookMethod,
-    pub params: TrustlyWebhookParams,
-    pub version: String,
-}
-
-impl TrustlyWebhookMethod {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Credit => "credit",
-            Self::Debit => "debit",
-            Self::Cancel => "cancel",
-            Self::Account => "account",
-            Self::Pending => "pending",
-            Self::PayoutConfirmation => "payoutconfirmation",
-            Self::PayoutFailed => "payoutfailed",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum TrustlyWebhookMethod {
-    Credit,
-    Debit,
-    Cancel,
-    Account,
-    Pending,
-    PayoutConfirmation,
-    PayoutFailed,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustlyWebhookParams {
-    pub signature: String,
-    pub uuid: String,
-    pub data: TrustlyWebhookData,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustlyWebhookData {
-    pub amount: Option<StringMajorUnit>,
-    pub currency: Option<Currency>,
-    pub messageid: Secret<String>,
-    pub orderid: String,
-    pub enduserid: Option<String>,
-    pub accountid: Option<String>,
-    pub verified: Option<String>,
-    pub notificationid: String,
-    pub timestamp: Option<String>,
-    pub attributes: Option<TrustlyWebhookAttributes>,
-    pub errorcode: Option<String>,
-    pub errormessage: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustlyWebhookAttributes {
-    pub bank: Option<Secret<String>>,
-    pub city: Option<Secret<String>>,
-    pub name: Option<Secret<String>>,
-    pub address: Option<Secret<String>>,
-    pub zipcode: Option<Secret<String>>,
-    pub personid: Option<Secret<String>>,
-    pub descriptor: Option<String>,
-    pub lastdigits: Option<String>,
-    pub clearinghouse: Option<String>,
-}
-
 fn map_trustly_bank_to_bank_name(bank: &str) -> Result<common_enums::BankNames, String> {
     match bank.trim().to_lowercase().as_str() {
         "abanca" => Ok(common_enums::BankNames::Abanca),
@@ -1105,12 +1042,6 @@ pub fn verify_webhook_signature(
         .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
 }
 
-pub const TRUSTLY_PAYOUT_MESSAGE_ID_PREFIX: &str = "payout_";
-
-fn is_payout_message_id(message_id: &str) -> bool {
-    message_id.starts_with(TRUSTLY_PAYOUT_MESSAGE_ID_PREFIX)
-}
-
 fn unexpected_webhook_event(
     event: &TrustlyWebhookMethod,
     flow: &'static str,
@@ -1119,75 +1050,6 @@ fn unexpected_webhook_event(
         "trustly: `{}` notification is not a {flow} event",
         event.as_str()
     ))
-}
-
-pub fn is_payment_webhook_event(event: &TrustlyWebhookMethod, message_id: &str) -> bool {
-    matches!(
-        event,
-        TrustlyWebhookMethod::Credit
-            | TrustlyWebhookMethod::Debit
-            | TrustlyWebhookMethod::Cancel
-            | TrustlyWebhookMethod::Account
-            | TrustlyWebhookMethod::Pending
-    ) && !is_payout_message_id(message_id)
-}
-
-pub fn is_refund_webhook_event(event: &TrustlyWebhookMethod, message_id: &str) -> bool {
-    matches!(
-        event,
-        TrustlyWebhookMethod::PayoutConfirmation | TrustlyWebhookMethod::PayoutFailed
-    ) && !is_payout_message_id(message_id)
-}
-
-pub fn is_payout_webhook_event(event: &TrustlyWebhookMethod, message_id: &str) -> bool {
-    matches!(
-        event,
-        TrustlyWebhookMethod::PayoutConfirmation
-            | TrustlyWebhookMethod::PayoutFailed
-            | TrustlyWebhookMethod::Credit
-            | TrustlyWebhookMethod::Cancel
-    ) && is_payout_message_id(message_id)
-}
-
-pub fn get_webhook_event(
-    event: TrustlyWebhookMethod,
-    message_id: String,
-) -> domain_types::connector_types::EventType {
-    match (event, !message_id.as_str().starts_with("payout_")) {
-        (TrustlyWebhookMethod::Credit, true) => {
-            domain_types::connector_types::EventType::PaymentIntentSuccess
-        }
-        (TrustlyWebhookMethod::Credit, false) => {
-            domain_types::connector_types::EventType::PayoutReversed
-        }
-        (TrustlyWebhookMethod::Debit, _) => {
-            domain_types::connector_types::EventType::PaymentIntentFailure
-        }
-        (TrustlyWebhookMethod::Cancel, true) => {
-            domain_types::connector_types::EventType::PaymentIntentCancelled
-        }
-        (TrustlyWebhookMethod::Cancel, false) => {
-            domain_types::connector_types::EventType::PayoutCancelled
-        }
-        (TrustlyWebhookMethod::Account, _) => {
-            domain_types::connector_types::EventType::PaymentAssociatedDataUpdate
-        }
-        (TrustlyWebhookMethod::Pending, _) => {
-            domain_types::connector_types::EventType::PaymentIntentProcessing
-        }
-        (TrustlyWebhookMethod::PayoutConfirmation, true) => {
-            domain_types::connector_types::EventType::RefundSuccess
-        }
-        (TrustlyWebhookMethod::PayoutFailed, true) => {
-            domain_types::connector_types::EventType::RefundFailure
-        }
-        (TrustlyWebhookMethod::PayoutConfirmation, false) => {
-            domain_types::connector_types::EventType::PayoutSuccess
-        }
-        (TrustlyWebhookMethod::PayoutFailed, false) => {
-            domain_types::connector_types::EventType::PayoutFailure
-        }
-    }
 }
 
 pub fn get_trustly_payment_webhook_status(

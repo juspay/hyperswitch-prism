@@ -301,51 +301,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Option<domain_types::connector_types::WebhookResourceReference>,
         error_stack::Report<errors::WebhookError>,
     > {
-        let webhook_body: TrustlyWebhookBody = request
-            .body
-            .parse_struct("TrustlyWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        let message_id = webhook_body.params.data.messageid.clone().expose();
-        let order_id = webhook_body.params.data.orderid;
-
-        if trustly::is_payment_webhook_event(&webhook_body.method, &message_id) {
-            return Ok(Some(
-                domain_types::connector_types::WebhookResourceReference::Payment(
-                    domain_types::connector_types::PaymentWebhookReference {
-                        connector_transaction_id: Some(order_id),
-                        merchant_transaction_id: None,
-                        connector_preprocessing_id: None,
-                    },
-                ),
-            ));
-        }
-
-        if trustly::is_refund_webhook_event(&webhook_body.method, &message_id) {
-            return Ok(Some(
-                domain_types::connector_types::WebhookResourceReference::Refund(
-                    domain_types::connector_types::RefundWebhookReference {
-                        connector_refund_id: Some(order_id.clone()),
-                        merchant_refund_id: None,
-                        connector_transaction_id: Some(order_id),
-                        merchant_transaction_id: None,
-                    },
-                ),
-            ));
-        }
-
-        if trustly::is_payout_webhook_event(&webhook_body.method, &message_id) {
-            return Ok(Some(
-                domain_types::connector_types::WebhookResourceReference::Payout(
-                    domain_types::connector_types::PayoutWebhookReference {
-                        connector_payout_id: Some(order_id),
-                        merchant_payout_id: None,
-                    },
-                ),
-            ));
-        }
-
-        Ok(None)
+        crate::webhook_connectors::trustly::transformers::parse_event(&request)
+            .map(|parsed| parsed.reference)
     }
 
     fn process_payment_webhook(

@@ -1,0 +1,20 @@
+use domain_types::{
+    connector_types::{RequestDetails, WebhookParseResponse},
+    errors::WebhookError,
+};
+
+// Define the provider's webhook payload structs here. Deserialize the request
+// once, then map its event type and resource identifiers to WebhookParseResponse.
+// Use the matching WebhookResourceReference variant for each event family.
+// Preserve None for notifications without a supported resource reference.
+// Map malformed payloads to WebhookError::WebhookBodyDecodingFailed.
+// Do not add credentials, verification, or payment/payout status processing.
+pub fn parse_event(
+    _request: &RequestDetails,
+) -> Result<WebhookParseResponse, error_stack::Report<WebhookError>> {
+    // Replace this explicit unsupported result with the provider's mapping.
+    Err(WebhookError::WebhooksNotImplemented {
+        operation: "parse_event",
+    }
+    .into())
+}

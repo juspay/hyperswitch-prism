@@ -8,6 +8,7 @@ use common_enums;
 use common_utils::events::FlowName;
 use connector_integration::types::{
     ConnectorData, ConnectorDataProvider, FrmConnectorData, SurchargeConnectorData,
+    WebhookConnectorData,
 };
 use domain_types::{
     connector_flow::{
@@ -110,22 +111,22 @@ impl EventService for EventServiceImpl {
                         )
                         .to_grpc_error()?;
 
-                    let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::from_connector_variant(&metadata_payload.connector)
+                    let connector_data =
+                        WebhookConnectorData::from_connector_variant(&metadata_payload.connector)
                             .ok_or_else(|| {
-                                ucs_env::error::GrpcError::from(
-                                    domain_types::errors::IntegrationError::InvalidDataFormat {
-                                        field_name: "connector",
-                                        context: domain_types::errors::IntegrationErrorContext {
-                                            suggested_action: None,
-                                            doc_url: None,
-                                            additional_context: Some(
-                                                metadata_payload.connector.get_connector_name(),
-                                            ),
-                                        },
+                            ucs_env::error::GrpcError::from(
+                                domain_types::errors::IntegrationError::InvalidDataFormat {
+                                    field_name: "connector",
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        suggested_action: None,
+                                        doc_url: None,
+                                        additional_context: Some(
+                                            metadata_payload.connector.get_connector_name(),
+                                        ),
                                     },
-                                )
-                            })?;
+                                },
+                            )
+                        })?;
 
                     let response = connector_integration::webhook_utils::parse_webhook_event(
                         connector_data,

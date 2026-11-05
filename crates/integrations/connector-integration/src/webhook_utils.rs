@@ -9,7 +9,7 @@ use grpc_api_types::payments::{
     PaymentServiceGetResponse, PayoutServiceGetResponse, RefundResponse, WebhookEventType,
 };
 
-use crate::types::ConnectorData;
+use crate::types::{ConnectorData, WebhookConnectorData};
 
 /// Core webhook event processing shared by both the gRPC server and the FFI layer.
 ///
@@ -108,26 +108,17 @@ pub fn process_webhook_event<
     })
 }
 
-pub fn parse_webhook_event<
-    T: PaymentMethodDataTypes + std::fmt::Debug + Default + Send + Sync + 'static,
->(
-    connector_data: ConnectorData<T>,
+/// Parses through the selected webhook provider or the legacy payment adapter.
+pub fn parse_webhook_event(
+    connector_data: WebhookConnectorData,
     request_details: domain_types::connector_types::RequestDetails,
 ) -> error_stack::Result<EventServiceParseResponse, WebhookError> {
-    let event_type = connector_data
-        .connector
-        .get_event_type(request_details.clone())?;
-
-    let api_event_type = WebhookEventType::foreign_try_from(event_type)
+    let parsed = connector_data.connector.parse_event(&request_details)?;
+    let api_event_type = WebhookEventType::foreign_try_from(parsed.event_type)
         .change_context(WebhookError::WebhookProcessingFailed)?;
 
-    let domain_reference = connector_data
-        .connector
-        .get_webhook_event_reference(request_details)
-        .attach_printable("Failed to extract event reference from webhook payload")?;
-
     Ok(EventServiceParseResponse {
-        reference: domain_reference.map(Into::into),
+        reference: parsed.reference.map(Into::into),
         event_type: Some(api_event_type.into()),
     })
 }

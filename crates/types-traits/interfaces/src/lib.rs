@@ -8,4 +8,5 @@ pub mod events;
 pub mod integrity;
 pub mod routing;
 pub mod verification;
+pub mod webhook_parse;
 pub mod webhooks;
