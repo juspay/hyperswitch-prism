@@ -250,7 +250,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   BillwerkConfig: ["apiKey", "publicApiKey"],
   BluesnapConfig: ["username", "password"],
   CashfreeConfig: ["appId", "secretKey"],
-  CheckoutConfig: ["apiKey", "apiSecret", "processingChannelId", "clientId", "currencyAccountId"],
+  CheckoutConfig: ["apiKey", "apiSecret", "processingChannelId", "connectorClientId", "connectorCurrencyAccountId"],
   CryptopayConfig: ["apiKey", "apiSecret"],
   DatatransConfig: ["merchantId", "password"],
   FiservemeaConfig: ["apiKey", "apiSecret"],
