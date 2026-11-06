@@ -466,21 +466,45 @@ mod tests {
                 .map(|(_, value)| value.clone().into_inner());
             assert_eq!(idempotency_key, Some(CONNECTOR_REFERENCE.to_string()));
 
-            assert_eq!(body["source"]["type"], "currency_account");
-            assert_eq!(body["destination"]["type"], "network_token");
-            assert_eq!(body["destination"]["token_type"], "applepay");
-            assert_eq!(body["destination"]["account_holder"]["type"], "individual");
             assert_eq!(
-                body["destination"]["account_holder"]["billing_address"]["country"],
-                "GB"
+                body.pointer("/source/type"),
+                Some(&json!("currency_account"))
             );
-            assert_eq!(body["amount"], 200);
-            assert_eq!(body["currency"], "USD");
-            assert_eq!(body["reference"], CONNECTOR_REFERENCE);
-            assert_eq!(body["instruction"]["funds_transfer_type"], "AA");
-            assert_eq!(body["sender"]["type"], "corporate");
-            assert_eq!(body["sender"]["reference_type"], "other");
-            assert_eq!(body["sender"]["source_of_funds"], "debit");
+            assert_eq!(
+                body.pointer("/destination/type"),
+                Some(&json!("network_token"))
+            );
+            assert_eq!(
+                body.pointer("/destination/token_type"),
+                Some(&json!("applepay"))
+            );
+            assert_eq!(
+                body.pointer("/destination/account_holder/type"),
+                Some(&json!("individual"))
+            );
+            assert_eq!(
+                body.pointer("/destination/account_holder/billing_address/country"),
+                Some(&json!("GB"))
+            );
+            assert_eq!(body.pointer("/amount"), Some(&json!(200)));
+            assert_eq!(body.pointer("/currency"), Some(&json!("USD")));
+            assert_eq!(
+                body.pointer("/reference"),
+                Some(&json!(CONNECTOR_REFERENCE))
+            );
+            assert_eq!(
+                body.pointer("/instruction/funds_transfer_type"),
+                Some(&json!("AA"))
+            );
+            assert_eq!(body.pointer("/sender/type"), Some(&json!("corporate")));
+            assert_eq!(
+                body.pointer("/sender/reference_type"),
+                Some(&json!("other"))
+            );
+            assert_eq!(
+                body.pointer("/sender/source_of_funds"),
+                Some(&json!("debit"))
+            );
         }
 
         #[test]
@@ -511,8 +535,11 @@ mod tests {
                 None,
             );
             let (_, body) = build_request_body(&req);
-            assert_eq!(body["destination"]["type"], "id");
-            assert_eq!(body["destination"]["account_holder"]["type"], "individual");
+            assert_eq!(body.pointer("/destination/type"), Some(&json!("id")));
+            assert_eq!(
+                body.pointer("/destination/account_holder/type"),
+                Some(&json!("individual"))
+            );
         }
 
         #[test]

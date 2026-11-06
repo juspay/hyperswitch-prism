@@ -1769,9 +1769,6 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
                                 .address
                                 .map(crate::payment_address::Address::foreign_try_from)
                                 .transpose()?,
-                            email: vd.email,
-                            phone_number: vd.phone_number,
-                            phone_country_code: vd.phone_country_code,
                             merchant_sender_reference_id: vd.merchant_sender_reference_id,
                             source_of_funds: payout_source_of_funds_from_proto(vd.source_of_funds)?,
                         },
@@ -1799,8 +1796,6 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
                                 .address
                                 .map(crate::payment_address::Address::foreign_try_from)
                                 .transpose()?,
-                            email: id.email,
-                            phone_country_code: id.phone_country_code,
                             merchant_sender_reference_id: id.merchant_sender_reference_id,
                             source_of_funds: payout_source_of_funds_from_proto(id.source_of_funds)?,
                         },

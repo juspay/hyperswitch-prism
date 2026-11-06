@@ -537,9 +537,6 @@ pub struct PayoutVendorDetails {
     /// Additional funding-party fields; existing vendor_name carries company name.
     pub company_tax_id: Option<Secret<String>>,
     pub address: Option<crate::payment_address::Address>,
-    pub email: Option<Secret<String>>,
-    pub phone_number: Option<Secret<String>>,
-    pub phone_country_code: Option<String>,
     /// Merchant-created reference for the sending party, forwarded to the connector as the
     /// sender reference (e.g. Checkout `sender.reference`).
     pub merchant_sender_reference_id: Option<Secret<String>>,
@@ -559,8 +556,6 @@ pub struct PayoutIndividualDetails {
     pub external_account_account_holder_type: Option<common_enums::BankHolderType>,
     /// Additional funding-party fields; reuse the existing phone field.
     pub address: Option<crate::payment_address::Address>,
-    pub email: Option<Secret<String>>,
-    pub phone_country_code: Option<String>,
     /// Merchant-created reference for the sending party, forwarded to the connector as the
     /// sender reference (e.g. Checkout `sender.reference`).
     pub merchant_sender_reference_id: Option<Secret<String>>,
