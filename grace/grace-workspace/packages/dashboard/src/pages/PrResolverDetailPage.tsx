@@ -12,9 +12,8 @@ import {
   type PrMachineStatus,
 } from "../hooks/usePrResolver";
 import { T } from "../theme";
-import { CONTROL_WS_PORT } from "../lib/ws-port";
+import { CONTROL_WS_URL } from "../lib/ws-port";
 
-const CONTROL_WS_URL = `ws://${location.hostname}:${CONTROL_WS_PORT}`;
 
 type StageStatus = "idle" | "running" | "passed" | "failed";
 

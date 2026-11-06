@@ -1,6 +1,8 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import type { IncomingMessage } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 
+import { isControlClientAllowed, loadControlToken } from "./control-auth.js";
 import { newRunId } from "./utils.js";
 import {
   DEFAULT_SESSION_ID,
@@ -161,7 +163,13 @@ export class SessionSupervisor {
     private controlWsPort: number,
     private opts: SupervisorOptions
   ) {
-    this.wss = new WebSocketServer({ port: controlWsPort });
+    const controlToken = loadControlToken();
+    this.wss = new WebSocketServer({
+      port: controlWsPort,
+      // docker-compose sets 0.0.0.0 and restricts the published port instead.
+      host: process.env.TENXGRACE_WS_HOST || "127.0.0.1",
+      verifyClient: ({ req }: { req: IncomingMessage }) => isControlClientAllowed(req, controlToken),
+    });
     this.wss.on("connection", (ws) => this.onConnection(ws));
     this.wss.on("error", (err) => {
       // eslint-disable-next-line no-console
