@@ -57,8 +57,9 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, PSync},
     connector_types::{
-        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsResponseData, PaymentsSyncData, RequestDetails, WebhookDetailsResponse,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentWebhookReference,
+        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RequestDetails,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
@@ -516,6 +517,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Ok(EventType::IncomingWebhookEventUnspecified)
             }
         }
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let invoice: PayhoundInvoiceResponse = request
+            .body
+            .parse_struct("PayhoundInvoiceResponse")
+            .change_context(WebhookError::WebhookResourceObjectNotFound)?;
+
+        Ok(Some(WebhookResourceReference::Payment(
+            PaymentWebhookReference {
+                connector_transaction_id: Some(invoice.id),
+                merchant_transaction_id: invoice.reference,
+                connector_preprocessing_id: None,
+            },
+        )))
     }
 
     fn process_payment_webhook(

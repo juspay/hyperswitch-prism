@@ -158,18 +158,12 @@ pub(super) fn next_nonce() -> CustomResult<u64, IntegrationError> {
         ),
     })?;
 
-    // The closure always returns `Some`, so `fetch_update` cannot fail today. The `Result` is
-    // mapped explicitly rather than unwrapped so a future edit to the closure cannot silently panic.
-    PAYHOUND_NONCE
-        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |previous| {
-            Some(std::cmp::max(now_micros, previous.saturating_add(1)))
-        })
-        .map(|previous| std::cmp::max(now_micros, previous.saturating_add(1)))
-        .map_err(|_| {
-            report!(IntegrationError::RequestEncodingFailed {
-                context: payhound_context("payhound: failed to advance the X-MB-Nonce counter"),
-            })
-        })
+    let next = |previous: u64| std::cmp::max(now_micros, previous.saturating_add(1));
+    Ok(next(PAYHOUND_NONCE.update(
+        Ordering::SeqCst,
+        Ordering::SeqCst,
+        next,
+    )))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1267,6 +1261,8 @@ pub(super) fn payhound_webhook_details(
 
     Ok(WebhookDetailsResponse {
         status: outcome.status,
+        raw_connector_status: None,
+        amount: None,
         // The callback body is the invoice object; it carries no payment-method details.
         connector_returned_payment_method_details: None,
         resource_id: Some(ResponseId::ConnectorTransactionId(response.id.clone())),
