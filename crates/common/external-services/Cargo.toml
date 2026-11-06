@@ -91,7 +91,7 @@ log-transformations = ["common_utils/log-transformations"]
 deja = ["dep:deja", "common_utils/deja", "domain_types/deja", "common_enums/deja"]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-openssl = "=0.10.76"
+openssl = "=0.10.81"
 
 [lints]
 workspace = true
