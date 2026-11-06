@@ -415,10 +415,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
             let converter = FloatMajorUnitForConnector;
             let amount = converter
-                .convert(
-                    router_data.request.amount.amount,
-                    router_data.request.currency,
-                )
+                .convert(&router_data.request.amount)
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?;
@@ -518,10 +515,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
             let converter = FloatMajorUnitForConnector;
             let amount = converter
-                .convert(
-                    router_data.request.amount.amount,
-                    router_data.request.currency,
-                )
+                .convert(&router_data.request.amount)
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?;
@@ -972,10 +966,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert amount from minor to major units using framework converter
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(
-                router_data.request.amount_to_capture.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount_to_capture)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1088,10 +1079,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert amount from minor to major units using framework converter
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(
-                router_data.request.refund_amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.refund_amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1478,7 +1466,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             address1: billing_address.line1.clone(),
             address2: billing_address.line2.clone(),
             city: billing_address.city.clone(),
-            state: billing_address.state.clone(),
+            state: billing_address.get_optional_state(),
             zip: billing_address.zip.clone(),
             country: billing_address.country,
             customer_vault: CustomerAction::AddCustomer,
@@ -1968,10 +1956,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let amount = FloatMajorUnitForConnector
-            .convert(
-                router_data.request.amount.amount,
-                router_data.request.currency,
-            )
+            .convert(&router_data.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;

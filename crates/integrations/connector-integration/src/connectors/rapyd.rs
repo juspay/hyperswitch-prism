@@ -1,5 +1,8 @@
 pub mod transformers;
 
+#[cfg(test)]
+mod test;
+
 use base64::Engine;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMajorUnit};
 use domain_types::{
@@ -73,6 +76,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Rapyd<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Rapyd<T>

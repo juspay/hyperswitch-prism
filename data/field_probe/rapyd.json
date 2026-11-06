@@ -42,7 +42,7 @@
           "merchant_transaction_id": "probe_txn_001",
           "amount": {
             "minor_amount": 1000,
-            "currency": "USD"
+            "currency": "EUR"
           },
           "payment_method": {
             "apple_pay_sdk": {
@@ -59,7 +59,9 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "country_alpha2_code": "IS"
+            }
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return"
@@ -75,7 +77,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_debit_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"apple_pay\",\"details\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"apple_pay\",\"details\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       },
       "ApplePayDecrypted": {
@@ -84,7 +86,7 @@
           "merchant_transaction_id": "probe_txn_001",
           "amount": {
             "minor_amount": 1000,
-            "currency": "USD"
+            "currency": "EUR"
           },
           "payment_method": {
             "apple_pay_sdk": {
@@ -111,7 +113,9 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "country_alpha2_code": "IS"
+            }
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return"
@@ -127,7 +131,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_debit_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"apple_pay\",\"details\":{\"decrypted_data\":{\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"applicationExpirationDate\":\"300331\",\"currencyCode\":\"840\",\"transactionAmount\":1000,\"paymentDataType\":\"3DSecure\",\"paymentData\":{\"onlinePaymentCryptogram\":\"AAAAAA==\",\"eciIndicator\":\"05\"}},\"brand_data\":{\"displayName\":\"Visa 1111\",\"network\":\"Visa\",\"type\":\"debit\"}}}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"apple_pay\",\"details\":{\"decrypted_data\":{\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"applicationExpirationDate\":\"300331\",\"currencyCode\":\"978\",\"transactionAmount\":1000,\"paymentDataType\":\"3DSecure\",\"paymentData\":{\"onlinePaymentCryptogram\":\"AAAAAA==\",\"eciIndicator\":\"05\"}},\"brand_data\":{\"displayName\":\"Visa 1111\",\"network\":\"Visa\",\"type\":\"debit\"}}}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -188,7 +192,7 @@
           "merchant_transaction_id": "probe_txn_001",
           "amount": {
             "minor_amount": 1000,
-            "currency": "USD"
+            "currency": "EUR"
           },
           "payment_method": {
             "card": {
@@ -201,7 +205,9 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "country_alpha2_code": "IS"
+            }
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return"
@@ -217,7 +223,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       },
       "CashappQr": {
@@ -298,7 +304,7 @@
           "merchant_transaction_id": "probe_txn_001",
           "amount": {
             "minor_amount": 1000,
-            "currency": "USD"
+            "currency": "EUR"
           },
           "payment_method": {
             "google_pay_sdk": {
@@ -318,7 +324,9 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "country_alpha2_code": "IS"
+            }
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return"
@@ -334,7 +342,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_credit_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"google_pay\",\"details\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"google_pay\",\"details\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       },
       "GooglePayDecrypted": {
@@ -343,7 +351,7 @@
           "merchant_transaction_id": "probe_txn_001",
           "amount": {
             "minor_amount": 1000,
-            "currency": "USD"
+            "currency": "EUR"
           },
           "payment_method": {
             "google_pay_sdk": {
@@ -366,7 +374,9 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "country_alpha2_code": "IS"
+            }
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return"
@@ -382,7 +392,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_credit_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"google_pay\",\"details\":{\"decrypted_data\":{\"gatewayMerchantId\":\"probe_key\",\"paymentMethod\":\"CARD\",\"paymentMethodDetails\":{\"expirationYear\":\"2030\",\"expirationMonth\":\"03\",\"pan\":\"4111111111111111\",\"authMethod\":\"CRYPTOGRAM_3DS\",\"eciIndicator\":\"05\",\"cryptogram\":\"AAAAAA==\"}},\"brand_data\":{\"cardDetails\":\"1111\",\"cardNetwork\":\"Visa\"}}}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"google_pay\",\"details\":{\"decrypted_data\":{\"gatewayMerchantId\":\"probe_key\",\"paymentMethod\":\"CARD\",\"paymentMethodDetails\":{\"expirationYear\":\"2030\",\"expirationMonth\":\"03\",\"pan\":\"4111111111111111\",\"authMethod\":\"CRYPTOGRAM_3DS\",\"eciIndicator\":\"05\",\"cryptogram\":\"AAAAAA==\"}},\"brand_data\":{\"cardDetails\":\"1111\",\"cardNetwork\":\"Visa\"}}}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -666,7 +676,7 @@
           "connector_transaction_id": "probe_connector_txn_001",
           "amount_to_capture": {
             "minor_amount": 1000,
-            "currency": "USD"
+            "currency": "EUR"
           }
         },
         "sample": {
@@ -693,7 +703,7 @@
             "payment": {
               "amount": {
                 "minor_amount": 1000,
-                "currency": "USD"
+                "currency": "EUR"
               }
             }
           }
@@ -709,14 +719,33 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"merchant_reference_id\":\"probe_sdk_session_001\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"merchant_reference_id\":\"probe_sdk_session_001\"}"
         }
       }
     },
     "create_order": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: billing_country or connector_feature_data.country — Missing required field: billing_country or connector_feature_data.country"
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "EUR"
+          }
+        },
+        "sample": {
+          "url": "https://sandboxapi.rapyd.net/v1/checkout",
+          "method": "Post",
+          "headers": {
+            "access_key": "probe_key",
+            "content-type": "application/json",
+            "salt": "probeSaltVal0001",
+            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"country\":\"IS\",\"merchant_reference_id\":\"probe_order_001\",\"language\":\"en\"}"
+        }
       }
     },
     "create_server_authentication_token": {
@@ -780,7 +809,7 @@
           "connector_transaction_id": "probe_connector_txn_001",
           "amount": {
             "minor_amount": 1000,
-            "currency": "USD"
+            "currency": "EUR"
           }
         },
         "sample": {
@@ -838,7 +867,7 @@
           "merchant_transaction_id": "probe_proxy_txn_001",
           "amount": {
             "minor_amount": 1000,
-            "currency": "USD"
+            "currency": "EUR"
           },
           "card_proxy": {
             "card_number": "4111111111111111",
@@ -849,7 +878,9 @@
             "card_network": "VISA"
           },
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "country_alpha2_code": "IS"
+            }
           },
           "capture_method": "AUTOMATIC",
           "auth_type": "NO_THREE_DS",
@@ -866,14 +897,57 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"\",\"cvv\":\"{{$card_cvc}}\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"\",\"cvv\":\"{{$card_cvc}}\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: return_url — Missing required field: return_url"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "EUR"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "customer": {
+            "name": "John Doe",
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "IS"
+            }
+          },
+          "return_url": "https://example.com/return",
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://sandboxapi.rapyd.net/v1/payments",
+          "method": "Post",
+          "headers": {
+            "access_key": "probe_key",
+            "content-type": "application/json",
+            "salt": "probeSaltVal0001",
+            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":\"0\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"{{$card_cvc}}\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_mandate_001\",\"capture\":false,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"customer\":{\"name\":\"John Doe\",\"email\":\"test@example.com\"},\"save_payment_method\":true}"
+        }
       }
     },
     "recurring_charge": {
@@ -889,7 +963,7 @@
           },
           "amount": {
             "minor_amount": 1000,
-            "currency": "USD"
+            "currency": "EUR"
           },
           "payment_method": {
             "token": {
@@ -912,7 +986,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":\"probe-mandate-123\",\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/recurring-return\",\"error_payment_url\":\"https://example.com/recurring-return\",\"initiation_type\":\"recurring\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":\"probe-mandate-123\",\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/recurring-return\",\"error_payment_url\":\"https://example.com/recurring-return\",\"initiation_type\":\"recurring\"}"
         }
       }
     },
@@ -936,7 +1010,7 @@
           "payment_amount": 1000,
           "refund_amount": {
             "minor_amount": 1000,
-            "currency": "USD"
+            "currency": "EUR"
           },
           "reason": "customer_request"
         },
@@ -951,7 +1025,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"payment\":\"probe_connector_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\"}"
+          "body": "{\"payment\":\"probe_connector_txn_001\",\"amount\":\"10.00\",\"currency\":\"EUR\"}"
         }
       }
     },
@@ -986,8 +1060,54 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: return_url — Missing required field: return_url"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "EUR"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "customer": {
+            "name": "John Doe",
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "IS"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://sandboxapi.rapyd.net/v1/payments",
+          "method": "Post",
+          "headers": {
+            "access_key": "probe_key",
+            "content-type": "application/json",
+            "salt": "probeSaltVal0001",
+            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":\"0\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_mandate_001\",\"capture\":false,\"description\":null,\"complete_payment_url\":\"https://example.com/mandate-return\",\"error_payment_url\":\"https://example.com/mandate-return\",\"customer\":{\"name\":\"John Doe\",\"email\":\"test@example.com\"},\"save_payment_method\":true}"
+        }
       }
     },
     "token_authorize": {
@@ -997,7 +1117,7 @@
           "merchant_transaction_id": "probe_tokenized_txn_001",
           "amount": {
             "minor_amount": 1000,
-            "currency": "USD"
+            "currency": "EUR"
           },
           "connector_token": "pm_1AbcXyzStripeTestToken",
           "address": {
@@ -1017,7 +1137,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":\"pm_1AbcXyzStripeTestToken\",\"payment_method_options\":null,\"merchant_reference_id\":\"probe_tokenized_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":\"pm_1AbcXyzStripeTestToken\",\"payment_method_options\":null,\"merchant_reference_id\":\"probe_tokenized_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       }
     },

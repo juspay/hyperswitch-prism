@@ -10,6 +10,28 @@ export function tenxgraceHome(): string {
   return path.join(os.homedir(), ".tenxgrace");
 }
 
+const SAFE_TASK_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+const isSafeTaskIdentifier = (v: unknown): boolean =>
+  typeof v === "string" && SAFE_TASK_IDENTIFIER.test(v);
+
+/**
+ * Connector and payment-method names end up in git refs and file paths, and
+ * reach us as untyped JSON from the dashboard socket.
+ */
+export function assertSafeTaskIdentifiers(task: {
+  targetConnectors?: unknown;
+  paymentMethod?: unknown;
+}): void {
+  const connectors = task.targetConnectors ?? [];
+  if (!Array.isArray(connectors) || !connectors.every(isSafeTaskIdentifier)) {
+    throw new Error(`Invalid targetConnectors: ${JSON.stringify(connectors)}`);
+  }
+  if (task.paymentMethod && !isSafeTaskIdentifier(task.paymentMethod)) {
+    throw new Error(`Invalid paymentMethod: ${JSON.stringify(task.paymentMethod)}`);
+  }
+}
+
 let cachedWorkspaceRoot: string | null | undefined;
 
 /**
@@ -128,12 +150,17 @@ export function artifactsDir(projectRoot: string): string {
 export function stripJsonFences(text: string): string {
   let t = text.trim();
   // 1. Whole body wrapped in a ```json ... ``` fence → pull the body.
-  const fence = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-  if (fence && fence[1]) t = fence[1].trim();
+  if (t.startsWith("```") && t.endsWith("```") && t.length > 6) {
+    const openingLength = t.startsWith("```json") ? 7 : 3;
+    const inner = t.slice(openingLength, -3).trim();
+    if (inner) t = inner;
+  }
   // 2. Inline ```json ... ``` block somewhere inside prose → try that first.
-  const inlineFence = t.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  if (inlineFence && inlineFence[1]) {
-    const inner = inlineFence[1].trim();
+  const opening = t.indexOf("```");
+  const bodyStart = opening < 0 ? -1 : opening + (t.startsWith("```json", opening) ? 7 : 3);
+  const closing = bodyStart < 0 ? -1 : t.indexOf("```", bodyStart);
+  if (closing > bodyStart) {
+    const inner = t.slice(bodyStart, closing).trim();
     try {
       JSON.parse(inner);
       return inner;

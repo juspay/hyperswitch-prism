@@ -325,6 +325,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let connector_request_reference_id = body.request_reference_number.clone();
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(body.id)),
             status,
@@ -590,6 +592,13 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Maya<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), errors::IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::panic)]
@@ -158,6 +159,9 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
 
 fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        enable_partial_authorization: None,
+        integrity_specifications: None,
+        is_overcapture_enabled: None,
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         capture_method: None,
@@ -247,6 +251,8 @@ fn create_repeat_payment_request(mandate_id: &str) -> RecurringPaymentServiceCha
                 connector_mandate_id: Some(mandate_id.to_string()),
                 payment_method_id: None,
                 mandate_metadata: None,
+                network_transaction_id: None,
+                transaction_link_id: None,
             },
         )),
     };
@@ -342,11 +348,13 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
                 line3: None,
                 city: Some("San Francisco".to_string().into()),
                 state: Some("CA".to_string().into()),
+                state_code_iso: None,
                 zip_code: Some(unique_zip.into()),
                 country_alpha2_code: Some(i32::from(CountryAlpha2::Us)),
                 phone_number: None,
                 phone_country_code: None,
                 email: Some(unique_email.into()),
+                origin_zip: None,
             }),
             shipping_address: None,
         }),
@@ -492,8 +500,7 @@ async fn test_authorize_capture_refund_rsync() {
         let mut capture_grpc_request = Request::new(capture_request);
         add_payload_metadata(&mut capture_grpc_request);
 
-        let capture_response = client
-            .capture(capture_grpc_request)
+        let capture_response = Box::pin(client.capture(capture_grpc_request))
             .await
             .expect("gRPC capture call failed")
             .into_inner();
@@ -525,6 +532,9 @@ async fn test_authorize_capture_refund_rsync() {
 
         // Step 4: RSync (Refund Sync)
         let rsync_request = PaymentServiceGetRequest {
+            enable_partial_authorization: None,
+            integrity_specifications: None,
+            is_overcapture_enabled: None,
             connector_transaction_id: refund_id,
             encoded_data: None,
             capture_method: None,

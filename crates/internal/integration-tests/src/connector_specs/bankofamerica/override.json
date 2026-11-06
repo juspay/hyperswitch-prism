@@ -33,13 +33,11 @@
   "PaymentService/Reverse": {
     "reverse_fail_invalid_transaction_id": {
       "assert": {
-        "status": {
+        "post_capture_void_status": {
           "one_of": [
-            "VOIDED",
-            "CANCELED",
-            "REVERSED",
-            "FAILED",
-            "PROCESSING_ERROR"
+            "POST_CAPTURE_VOID_STATUS_SUCCEEDED",
+            "POST_CAPTURE_VOID_STATUS_PENDING",
+            "POST_CAPTURE_VOID_STATUS_FAILED"
           ]
         },
         "error": null

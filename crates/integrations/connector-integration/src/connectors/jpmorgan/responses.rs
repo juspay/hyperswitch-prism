@@ -69,8 +69,12 @@ pub struct JpmorganPaymentsResponse {
     pub response_status: JpmorganTransactionStatus,
     pub response_code: String,
     pub response_message: Option<String>,
+    pub host_message: Option<String>,
+    pub amount: Option<common_utils::types::MinorUnit>,
+    pub partial_authorization: Option<bool>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub capture_method: Option<requests::CapMethod>,
+    pub network_response: Option<NetworkResponse>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -78,6 +82,12 @@ pub struct JpmorganPaymentsResponse {
 pub struct PaymentMethodType {
     pub card: Option<Card>,
     pub ach: Option<AchResponse>,
+}
+
+impl PaymentMethodType {
+    pub(super) fn network_response(&self) -> Option<&NetworkResponse> {
+        self.card.as_ref()?.network_response.as_ref()
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -97,6 +107,15 @@ pub struct Card {
     pub masked_account_number: Option<Secret<String>>,
     pub card_type_indicators: Option<CardTypeIndicators>,
     pub network_response: Option<NetworkResponse>,
+    pub payment_tokens: Option<Vec<PaymentToken>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentToken {
+    pub token_provider: Option<String>,
+    pub token_number: Option<Secret<String>>,
+    pub response_status: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -107,6 +126,14 @@ pub struct NetworkResponse {
     pub card_verification_result_code: Option<Secret<String>>,
     pub network_transaction_id: Option<String>,
     pub transaction_link_id: Option<String>,
+    pub network_response_code: Option<String>,
+    pub additional_data: Option<AdditionalNetworkResponseData>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AdditionalNetworkResponseData {
+    pub merchant_advice_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

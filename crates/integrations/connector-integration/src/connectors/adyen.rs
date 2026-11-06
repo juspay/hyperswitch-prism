@@ -107,6 +107,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Adyen<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        if data.encoded_data.is_some() {
+            return Ok(());
+        }
+        Err(IntegrationError::MissingRequiredField {
+            field_name: "encoded_data",
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -429,9 +443,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-const ADYEN_API_VERSION: &str = "v68";
+const ADYEN_API_VERSION: &str = "v72";
 const ADYEN_AMOUNT_UPDATES_DOC_URL: &str =
-    "https://docs.adyen.com/api-explorer/Checkout/68/post/payments/-paymentPspReference-/amountUpdates";
+    "https://docs.adyen.com/api-explorer/Checkout/72/post/payments/_paymentPspReference_/amountUpdates";
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -638,20 +652,6 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Adyen<T>
 {
-    fn validate_psync_reference_id(
-        &self,
-        data: &PaymentsSyncData,
-        _payment_flow_data: &PaymentFlowData,
-    ) -> CustomResult<(), IntegrationError> {
-        if data.encoded_data.is_some() {
-            return Ok(());
-        }
-        Err(IntegrationError::MissingRequiredField {
-            field_name: "encoded_data",
-            context: Default::default(),
-        }
-        .into())
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1028,6 +1028,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             transformers::get_adyen_payment_method_update_from_webhook(&notif);
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 notif.psp_reference.clone(),
@@ -1073,6 +1075,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(notif.psp_reference.clone()),
             merchant_transaction_id: None,
             status: transformers::get_adyen_refund_webhook_event(notif.event_code, notif.success)?,
@@ -1107,8 +1110,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = utils::convert_amount_for_webhook(
             self.amount_converter_webhooks,
-            notif.amount.value,
-            notif.amount.currency,
+            &common_utils::types::Money {
+                amount: notif.amount.value,
+                currency: notif.amount.currency,
+            },
         )?;
 
         Ok(

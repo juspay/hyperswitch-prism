@@ -137,7 +137,9 @@ fn not_supported(detail: String) -> error_stack::Report<IntegrationError> {
 /// `MerchantRef` is mandatory on every Citigate request and is the *only* key a
 /// Transaction Status Check can be resolved by, so an empty reference is rejected
 /// up front rather than sent and refused by the gateway.
-fn required_merchant_ref(reference: &str) -> Result<String, error_stack::Report<IntegrationError>> {
+pub(super) fn required_merchant_ref(
+    reference: &str,
+) -> Result<String, error_stack::Report<IntegrationError>> {
     if reference.is_empty() {
         return Err(error_stack::report!(
             IntegrationError::MissingRequiredField {
@@ -289,10 +291,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
         let common = &router_data.resource_common_data;
 
-        let amount = CitigateAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = CitigateAmountConvertor::convert(&router_data.request.amount)?;
 
         let firstname = common.get_billing_first_name()?;
         let surname = common.get_billing_last_name()?;
@@ -1218,10 +1217,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = if request.refund_amount.amount == request.payment_amount.amount {
             None
         } else {
-            Some(CitigateAmountConvertor::convert(
-                request.refund_amount.amount,
-                request.currency,
-            )?)
+            Some(CitigateAmountConvertor::convert(&request.refund_amount)?)
         };
 
         Ok(Self {

@@ -1702,7 +1702,7 @@ pub fn build_grpcurl_request_from_payload(
         |config| Ok(Some(config)),
     )?;
 
-    let request_id = format!("{suite}_{scenario}_req");
+    let request_id = format!("{suite}_{scenario}_{}_req", Uuid::new_v4().simple());
     let connector_request_reference_id =
         connector_request_reference_id_for(connector, suite, scenario, grpc_req);
     let suite_spec = load_suite_spec(suite).ok();
@@ -2341,7 +2341,7 @@ pub fn execute_tonic_request_from_payload(
                     &connector_request_reference_id,
                 );
                 let mut client = grpc_api_types::payments::payment_service_client::PaymentServiceClient::new(channel.clone());
-                let response = client.capture(request).await.map_err(|error| {
+                let response = Box::pin(client.capture(request)).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"

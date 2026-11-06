@@ -20,6 +20,7 @@ pub type Error = error_stack::Report<errors::IntegrationError>;
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BrowserInformation {
+    pub challenge_window_size: Option<String>,
     pub color_depth: Option<u8>,
     pub java_enabled: Option<bool>,
     pub java_script_enabled: Option<bool>,
@@ -88,6 +89,12 @@ impl BrowserInformation {
             .clone()
             .ok_or_else(utils::missing_field_err("browser_info.referer"))
     }
+    /// `"<width>x<height>"` when both screen dimensions are present.
+    pub fn get_optional_screen_resolution(&self) -> Option<String> {
+        self.screen_width
+            .zip(self.screen_height)
+            .map(|(width, height)| format!("{width}x{height}"))
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -154,6 +161,11 @@ pub struct AuthenticationData {
 }
 
 impl AuthenticationData {
+    /// Whether external authentication values were supplied; this does not establish success.
+    pub fn has_external_authentication(&self) -> bool {
+        self.cavv.is_some() || self.eci.is_some() || self.ds_trans_id.is_some()
+    }
+
     /// Single-digit CAVV algorithm code (`"0".."4"`, `"A"`) from the Cartes Bancaires
     /// network params, as expected by connectors like Travelhub. Returns `None` when
     /// no CAVV algorithm is present.

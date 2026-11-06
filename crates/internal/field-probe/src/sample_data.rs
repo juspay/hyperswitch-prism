@@ -15,6 +15,7 @@ pub(crate) fn usd_money(minor: i64) -> Money {
 
 pub(crate) fn full_browser_info() -> BrowserInformation {
     BrowserInformation {
+        challenge_window_size: None,
         color_depth: Some(24),
         screen_height: Some(900),
         screen_width: Some(1440),

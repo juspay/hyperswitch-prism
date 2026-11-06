@@ -205,7 +205,22 @@ impl From<common_enums::AuthenticationType> for Auth3ds {
 }
 
 const GOOGLE_PAY_TOKENIZATION_METHOD: &str = "android_pay";
+const APPLE_PAY_TOKENIZATION_METHOD: &str = "apple_pay";
+const GOOGLE_PAY_DPAN_TOKENIZATION_METHOD: &str = "google_pay_dpan";
 const GOOGLE_PAY_WALLET_NAME: &str = "Google Pay";
+const STRIPE_ECI_LENGTH: usize = 2;
+
+/// Apple Pay / Google Pay tokens may carry a single-digit ECI ("6"); Stripe expects it
+/// zero-padded to `STRIPE_ECI_LENGTH`.
+fn get_stripe_wallet_eci(eci: Option<&String>) -> Option<String> {
+    eci.filter(|eci| !eci.is_empty()).map(|eci| {
+        if eci.len() < STRIPE_ECI_LENGTH {
+            format!("{eci:0>width$}", width = STRIPE_ECI_LENGTH)
+        } else {
+            eci.clone()
+        }
+    })
+}
 
 pub fn tokenize_mints_payment_method<T>(request: &PaymentMethodTokenizationData<T>) -> bool
 where
@@ -998,6 +1013,7 @@ pub enum StripeWallet {
     RevolutPay(RevolutpayPayment),
     ApplePayPredecryptToken(Box<StripeApplePayPredecrypt>),
     GooglePayPredecryptToken(Box<StripeGooglePayPredecrypt>),
+    WalletNetworkTokenPayment(Box<StripeWalletNetworkTokenPayment>),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1030,6 +1046,123 @@ pub struct StripeGooglePayPredecrypt {
     eci: Option<String>,
     #[serde(rename = "card[tokenization_method]")]
     tokenization_method: String,
+}
+
+/// Pre-decrypted wallet (Apple Pay / Google Pay) token sent as a network token directly in the
+/// payment intent or setup intent, used when the payment is not made via a single-use token.
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeWalletNetworkTokenPayment {
+    #[serde(rename = "payment_method_data[type]")]
+    payment_method_data_type: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[card][exp_month]")]
+    exp_month: Secret<String>,
+    #[serde(rename = "payment_method_data[card][exp_year]")]
+    exp_year: Secret<String>,
+    #[serde(rename = "payment_method_data[card][last4]")]
+    last4: String,
+    #[serde(rename = "payment_method_data[card][network_token][number]")]
+    network_token_number: CardNumber,
+    #[serde(rename = "payment_method_data[card][network_token][exp_month]")]
+    network_token_exp_month: Secret<String>,
+    #[serde(rename = "payment_method_data[card][network_token][exp_year]")]
+    network_token_exp_year: Secret<String>,
+    #[serde(rename = "payment_method_data[card][network_token][tokenization_method]")]
+    tokenization_method: String,
+    #[serde(rename = "payment_method_options[card][network_token][cryptogram]")]
+    cryptogram: Secret<String>,
+    #[serde(rename = "payment_method_options[card][network_token][electronic_commerce_indicator]")]
+    eci: Option<String>,
+}
+
+impl From<&payment_method_data::ApplePayDecryptedData> for StripeWalletNetworkTokenPayment {
+    fn from(decrypt_data: &payment_method_data::ApplePayDecryptedData) -> Self {
+        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
+        Self {
+            payment_method_data_type: StripePaymentMethodType::Card,
+            exp_month: decrypt_data.application_expiration_month.clone(),
+            exp_year: expiry_year_4_digit.clone(),
+            last4: decrypt_data.application_primary_account_number.get_last4(),
+            network_token_number: decrypt_data.application_primary_account_number.clone(),
+            network_token_exp_month: decrypt_data.application_expiration_month.clone(),
+            network_token_exp_year: expiry_year_4_digit,
+            tokenization_method: APPLE_PAY_TOKENIZATION_METHOD.to_string(),
+            cryptogram: decrypt_data.payment_data.online_payment_cryptogram.clone(),
+            eci: get_stripe_wallet_eci(decrypt_data.payment_data.eci_indicator.as_ref()),
+        }
+    }
+}
+
+impl StripeWalletNetworkTokenPayment {
+    /// Returns `None` when the decrypted Google Pay token has no cryptogram (PAN_ONLY); such
+    /// tokens are sent as a regular card.
+    fn try_from_google_pay_decrypted_data(
+        decrypt_data: &payment_method_data::GooglePayDecryptedData,
+    ) -> Result<Option<Self>, error_stack::Report<IntegrationError>> {
+        let Some(cryptogram) = decrypt_data.cryptogram.clone() else {
+            return Ok(None);
+        };
+        let expiry_year_4_digit = decrypt_data
+            .get_four_digit_expiry_year()
+            .change_context(IntegrationError::InvalidDataFormat {
+            field_name: "google_pay_decrypted_data.card_exp_year",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "the decrypted google pay expiry year could not be normalized to four digits"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "send card_exp_year as a two or four digit year".to_string(),
+                ),
+                doc_url: None,
+            },
+        })?;
+        Ok(Some(Self {
+            payment_method_data_type: StripePaymentMethodType::Card,
+            exp_month: decrypt_data.card_exp_month.clone(),
+            exp_year: expiry_year_4_digit.clone(),
+            last4: decrypt_data.application_primary_account_number.get_last4(),
+            network_token_number: decrypt_data.application_primary_account_number.clone(),
+            network_token_exp_month: decrypt_data.card_exp_month.clone(),
+            network_token_exp_year: expiry_year_4_digit,
+            tokenization_method: GOOGLE_PAY_DPAN_TOKENIZATION_METHOD.to_string(),
+            cryptogram,
+            eci: get_stripe_wallet_eci(decrypt_data.eci_indicator.as_ref()),
+        }))
+    }
+}
+
+/// Returns the pre-decrypted wallet (Apple Pay / Google Pay) data as network token payment
+/// method data for a PaymentIntent / SetupIntent, used when the payment is not made via a
+/// single-use token. Returns `None` if the payment method is not a decrypted Apple Pay /
+/// Google Pay wallet, or if it is a Google Pay token without a cryptogram (sent as a regular
+/// card).
+fn get_wallet_network_token_payment_data<
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+>(
+    payment_method_data: &PaymentMethodData<T>,
+) -> Result<Option<StripePaymentMethodData<T>>, error_stack::Report<IntegrationError>> {
+    let network_token_payment = match payment_method_data {
+        PaymentMethodData::Wallet(WalletData::ApplePay(applepay_data)) => applepay_data
+            .payment_data
+            .get_decrypted_apple_pay_payment_data_optional()
+            .map(StripeWalletNetworkTokenPayment::from),
+        PaymentMethodData::Wallet(WalletData::GooglePay(gpay_data)) => {
+            match &gpay_data.tokenization_data {
+                payment_method_data::GpayTokenizationData::Decrypted(decrypt_data) => {
+                    StripeWalletNetworkTokenPayment::try_from_google_pay_decrypted_data(
+                        decrypt_data,
+                    )?
+                }
+                payment_method_data::GpayTokenizationData::Encrypted(_) => None,
+            }
+        }
+        _ => None,
+    };
+    Ok(network_token_payment.map(|network_token_payment| {
+        StripePaymentMethodData::Wallet(StripeWallet::WalletNetworkTokenPayment(Box::new(
+            network_token_payment,
+        )))
+    }))
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1169,7 +1302,8 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             common_enums::PaymentMethodType::Becs => Ok(Self::Becs),
             common_enums::PaymentMethodType::Bacs => Ok(Self::Bacs),
             common_enums::PaymentMethodType::BancontactCard => Ok(Self::Bancontact),
-            common_enums::PaymentMethodType::WeChatPay => Ok(Self::Wechatpay),
+            common_enums::PaymentMethodType::WeChatPay
+            | common_enums::PaymentMethodType::WeChatPayQr => Ok(Self::Wechatpay),
             common_enums::PaymentMethodType::Blik => Ok(Self::Blik),
             common_enums::PaymentMethodType::AliPay => Ok(Self::Alipay),
             common_enums::PaymentMethodType::Przelewy24 => Ok(Self::Przelewy24),
@@ -1266,6 +1400,10 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::NetworkToken
             | common_enums::PaymentMethodType::Mifinity
             | common_enums::PaymentMethodType::Satispay
+            | common_enums::PaymentMethodType::SatispayIntent
+            | common_enums::PaymentMethodType::SatispayQr
+            | common_enums::PaymentMethodType::BancontactIntent
+            | common_enums::PaymentMethodType::BancontactQr
             | common_enums::PaymentMethodType::Wero
             | common_enums::PaymentMethodType::LazyPay
             | common_enums::PaymentMethodType::PhonePe
@@ -1520,6 +1658,8 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodType {
                 Default::default(),
             )),
             BankRedirectData::Bizum {}
+            | BankRedirectData::BancontactIntent { .. }
+            | BankRedirectData::BancontactQr { .. }
             | BankRedirectData::Interac { .. }
             | BankRedirectData::Eft { .. }
             | BankRedirectData::OnlineBankingCzechRepublic { .. }
@@ -1580,6 +1720,8 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::Mifinity(_)
         | WalletData::MbWay(_)
         | WalletData::Satispay(_)
+        | WalletData::SatispayIntent(_)
+        | WalletData::SatispayQr(_)
         | WalletData::Wero(_)
         | WalletData::LazyPayRedirect(_)
         | WalletData::PhonePeRedirect(_)
@@ -2245,7 +2387,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         number: decrypt_data.clone().application_primary_account_number,
                         exp_year: decrypt_data.get_four_digit_expiry_year(),
                         exp_month: decrypt_data.get_expiry_month(),
-                        eci: decrypt_data.payment_data.eci_indicator.clone(),
+                        eci: get_stripe_wallet_eci(
+                            decrypt_data.payment_data.eci_indicator.as_ref(),
+                        ),
                         cryptogram: decrypt_data.payment_data.online_payment_cryptogram.clone(),
                         tokenization_method: "apple_pay".to_string(),
                     }),
@@ -2318,6 +2462,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::Mifinity(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
+            | WalletData::SatispayIntent(_)
+            | WalletData::SatispayQr(_)
             | WalletData::Wero(_)
             | WalletData::LazyPayRedirect(_)
             | WalletData::PhonePeRedirect(_)
@@ -2402,6 +2548,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
             .into()),
             BankRedirectData::Bizum {}
+            | BankRedirectData::BancontactIntent { .. }
+            | BankRedirectData::BancontactQr { .. }
             | BankRedirectData::Eft { .. }
             | BankRedirectData::Interac { .. }
             | BankRedirectData::OnlineBankingCzechRepublic { .. }
@@ -2458,7 +2606,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             exp_year,
                             exp_month: google_pay_decrypted_data.card_exp_month.clone(),
                             cryptogram,
-                            eci: google_pay_decrypted_data.eci_indicator.clone(),
+                            eci: get_stripe_wallet_eci(google_pay_decrypted_data.eci_indicator.as_ref()),
                             tokenization_method: GOOGLE_PAY_TOKENIZATION_METHOD.to_string(),
                         }),
                     ))),
@@ -2740,8 +2888,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Some(SplitPaymentsDetails::StripeSplitPayment(_))
             );
 
-        let amount =
-            StripeAmountConvertor::convert(item.request.amount.amount, item.request.currency)?;
+        let amount = StripeAmountConvertor::convert(&item.request.amount)?;
         let order_id = item
             .resource_common_data
             .connector_request_reference_id
@@ -2859,6 +3006,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 &shipping_address,
                 payment_method_type.as_ref(),
             )?;
+
+            let (payment_method_data, payment_method_type) =
+                match get_wallet_network_token_payment_data(&item.request.payment_method_data)? {
+                    Some(network_token_payment_data) => (
+                        network_token_payment_data,
+                        Some(StripePaymentMethodType::Card),
+                    ),
+                    None => (payment_method_data, payment_method_type),
+                };
 
             let setup_future_usage =
                 if is_setup_future_usage_supported(item.request.payment_method_type) {
@@ -4063,7 +4219,7 @@ impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         item.http_code,
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
-        let amount_in_minor_unit = connector
+        let response_money = connector
             .convert_back(item.response.amount, currency_enum)
             .change_context(crate::utils::response_handling_fail_for_connector(
                 item.http_code,
@@ -4071,7 +4227,7 @@ impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ))?;
 
         let response_integrity_object = PaymentSynIntegrityObject {
-            amount: amount_in_minor_unit,
+            amount: response_money.amount,
             currency: currency_enum,
         };
 
@@ -5295,6 +5451,8 @@ pub(crate) fn build_webhook_payment_response(
         .or_else(|| connector_transaction_id.clone());
 
     Ok(WebhookDetailsResponse {
+        raw_connector_status: None,
+        amount: None,
         connector_returned_payment_method_details: None,
         resource_id: connector_transaction_id.map(ResponseId::ConnectorTransactionId),
         status,
@@ -5362,6 +5520,7 @@ pub(crate) fn build_webhook_refund_response(
     };
 
     Ok(RefundWebhookDetailsResponse {
+        raw_connector_status: None,
         connector_refund_id: Some(event_object.id.clone()),
         merchant_transaction_id: None,
         status,
@@ -5387,8 +5546,10 @@ pub(crate) fn build_webhook_dispute_response(
 
     let amount = domain_types::utils::convert_amount_for_webhook(
         &StringMinorUnitForConnector,
-        amount,
-        event_object.currency,
+        &common_utils::types::Money {
+            amount,
+            currency: event_object.currency,
+        },
     )?;
 
     // A Dispute object always carries `status`; a missing or foreign one is an error rather
@@ -5734,7 +5895,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
-        let amount_in_minor_unit = item
+        let response_money = item
             .router_data
             .connector
             .convert_back(item.response.0.amount, currency_enum)
@@ -5744,7 +5905,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ))?;
 
         let response_integrity_object = AuthoriseIntegrityObject {
-            amount: amount_in_minor_unit,
+            amount: response_money.amount,
             currency: currency_enum,
         };
 
@@ -5784,7 +5945,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
-        let capture_amount_in_minor_unit = item
+        let capture_money = item
             .response
             .0
             .amount_received
@@ -5800,8 +5961,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ))?;
 
         let response_integrity_object =
-            capture_amount_in_minor_unit.map(|amount_to_capture| CaptureIntegrityObject {
-                amount_to_capture,
+            capture_money.map(|amount_to_capture| CaptureIntegrityObject {
+                amount_to_capture: amount_to_capture.amount,
                 currency: currency_enum,
             });
 
@@ -5882,10 +6043,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount_to_capture = StripeAmountConvertor::convert(
-            item.router_data.request.amount_to_capture.amount,
-            item.router_data.request.currency,
-        )?;
+        let amount_to_capture =
+            StripeAmountConvertor::convert(&item.router_data.request.amount_to_capture)?;
         Ok(Self {
             amount_to_capture: Some(amount_to_capture),
         })
@@ -5929,10 +6088,8 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let refund_amount = StripeAmountConvertor::convert(
-            item.router_data.request.refund_amount.amount,
-            item.router_data.request.currency,
-        )?;
+        let refund_amount =
+            StripeAmountConvertor::convert(&item.router_data.request.refund_amount)?;
         match item.router_data.request.split_refunds.as_ref() {
             Some(domain_types::connector_types::SplitRefundsDetails::StripeSplitRefund(_)) => Ok(
                 Self::ChargeRefundRequest(ChargeRefundRequest::try_from(&item.router_data)?),
@@ -6087,7 +6244,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     "stripe: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
-        let refund_amount_in_minor_unit = connector
+        let refund_money = connector
             .convert_back(item.response.amount, currency_enum)
             .change_context(crate::utils::response_handling_fail_for_connector(
                 item.http_code,
@@ -6096,7 +6253,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let response_integrity_object = RefundIntegrityObject {
             currency: currency_enum,
-            refund_amount: refund_amount_in_minor_unit,
+            refund_amount: refund_money.amount,
         };
 
         Ok(Self {
@@ -6222,11 +6379,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }
                 _ => {
                     let pm_type = StripePaymentMethodType::Card;
-                    let payment_data = StripePaymentMethodData::try_from((
-                        &item,
-                        item.router_data.resource_common_data.auth_type,
-                        pm_type,
-                    ))?;
+                    // Setup mandate is not made via a single-use token: send a decrypted
+                    // Apple Pay / Google Pay wallet directly as a network token.
+                    let payment_data = match get_wallet_network_token_payment_data(
+                        &item.router_data.request.payment_method_data,
+                    )? {
+                        Some(network_token_payment_data) => network_token_payment_data,
+                        None => StripePaymentMethodData::try_from((
+                            &item,
+                            item.router_data.resource_common_data.auth_type,
+                            pm_type,
+                        ))?,
+                    };
                     (None, Some(payment_data), Some(pm_type))
                 }
             };
@@ -6549,10 +6713,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = StripeAmountConvertor::convert(
-            item.router_data.request.amount.amount,
-            item.router_data.request.currency,
-        )?;
+        let amount = StripeAmountConvertor::convert(&item.router_data.request.amount)?;
 
         Ok(Self { amount })
     }
@@ -6750,8 +6911,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => None,
         };
 
-        let amount =
-            StripeAmountConvertor::convert(item.request.amount.amount, item.request.currency)?;
+        let amount = StripeAmountConvertor::convert(&item.request.amount)?;
         let order_id = item
             .resource_common_data
             .connector_request_reference_id
@@ -7324,10 +7484,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
 
-        let amount = StripeAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = StripeAmountConvertor::convert(&router_data.request.amount)?;
 
         let currency = router_data.request.currency.to_string().to_lowercase();
 

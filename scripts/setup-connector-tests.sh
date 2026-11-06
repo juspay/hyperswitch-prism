@@ -70,14 +70,14 @@ success "npm $(npm --version) OK"
 # ── Step 2: npm install ────────────────────────────────────────────────────────
 info "Installing browser-automation-engine dependencies..."
 
-LOCK_FILE="${BAE_DIR}/package-lock.json"
+MANIFEST="${BAE_DIR}/package.json"
 NODE_MODULES="${BAE_DIR}/node_modules"
 
-# Check whether node_modules is up-to-date with package-lock.json
+# Check whether node_modules is up-to-date with package.json
 needs_install=true
-if [[ -d "${NODE_MODULES}" && -f "${LOCK_FILE}" ]]; then
-  # node_modules newer than package-lock.json → already installed
-  if [[ "${NODE_MODULES}" -nt "${LOCK_FILE}" ]]; then
+if [[ -d "${NODE_MODULES}" && -f "${MANIFEST}" ]]; then
+  # node_modules newer than package.json → already installed
+  if [[ "${NODE_MODULES}" -nt "${MANIFEST}" ]]; then
     needs_install=false
   fi
 fi
