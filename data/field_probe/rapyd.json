@@ -1137,7 +1137,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":\"pm_1AbcXyzStripeTestToken\",\"payment_method_options\":null,\"merchant_reference_id\":\"probe_tokenized_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":\"pm_1AbcXyzStripeTestToken\",\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_tokenized_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       }
     },

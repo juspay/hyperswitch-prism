@@ -12,7 +12,7 @@ use std::time::Duration;
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{
-    metrics::{periodic_reader_with_async_runtime::PeriodicReader, SdkMeterProvider, Temporality},
+    metrics::{PeriodicReader, SdkMeterProvider, Temporality},
     runtime, Resource,
 };
 
@@ -32,18 +32,21 @@ pub fn setup_metrics_pipeline(config: &OtelMetricsConfig, service_name: &str) {
         return;
     }
 
-    let mut exporter = opentelemetry_otlp::MetricExporter::builder()
-        .with_tonic()
-        .with_temporality(Temporality::Cumulative)
-        .with_protocol(opentelemetry_otlp::Protocol::Grpc)
-        .with_timeout(Duration::from_millis(
-            config.otel_exporter_otlp_timeout_ms.unwrap_or(10_000),
-        ));
-    if let Some(endpoint) = &config.otel_exporter_otlp_endpoint {
-        exporter = exporter.with_endpoint(endpoint);
+    let mut export_config = opentelemetry_otlp::ExportConfig {
+        protocol: opentelemetry_otlp::Protocol::Grpc,
+        endpoint: config.otel_exporter_otlp_endpoint.clone(),
+        ..Default::default()
+    };
+    if let Some(timeout_ms) = config.otel_exporter_otlp_timeout_ms {
+        export_config.timeout = Duration::from_millis(timeout_ms);
     }
 
-    let exporter = match exporter.build() {
+    let exporter = match opentelemetry_otlp::MetricExporter::builder()
+        .with_tonic()
+        .with_temporality(Temporality::Cumulative)
+        .with_export_config(export_config)
+        .build()
+    {
         Ok(exporter) => exporter,
         Err(error) => {
             tracing::warn!(
@@ -69,18 +72,14 @@ pub fn setup_metrics_pipeline(config: &OtelMetricsConfig, service_name: &str) {
 
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
-        .with_resource(
-            Resource::builder_empty()
-                .with_attributes([
-                    KeyValue::new("service.name", service_name.to_string()),
-                    KeyValue::new(
-                        "pod",
-                        std::env::var("POD_NAME")
-                            .unwrap_or_else(|_| "connector-service-default".to_string()),
-                    ),
-                ])
-                .build(),
-        )
+        .with_resource(Resource::new([
+            KeyValue::new("service.name", service_name.to_string()),
+            KeyValue::new(
+                "pod",
+                std::env::var("POD_NAME")
+                    .unwrap_or_else(|_| "connector-service-default".to_string()),
+            ),
+        ]))
         .build();
 
     opentelemetry::global::set_meter_provider(provider);
