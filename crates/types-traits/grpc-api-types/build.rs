@@ -110,6 +110,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `PaysafePaymentMethodDetails::get_account_id` (domain_types/router_data.rs).
     config.type_attribute(".types.PaysafePaymentMethodDetails", "#[serde(default)]");
 
+    // `WebhookSecrets` carries webhook verification secrets as plain proto `string`s (kept: the
+    // wire and JSON shape must not change for existing callers). Serialize both through
+    // `Secret<String>` so `hyperswitch_masking::masked_serialize` (request_body span field,
+    // Golden Log Line, event JSON) masks them, while ordinary serializers still emit the value.
+    config.field_attribute(
+        ".types.WebhookSecrets.secret",
+        "#[serde(serialize_with = \"crate::secret_serde::string\")]",
+    );
+    config.field_attribute(
+        ".types.WebhookSecrets.additional_secret",
+        "#[serde(serialize_with = \"crate::secret_serde::optional_string\")]",
+    );
+
     // Existing txns Nuvei accounts use these credential names. Keep the
     // canonical wire names while accepting the legacy account configuration.
     for (field, alias) in [

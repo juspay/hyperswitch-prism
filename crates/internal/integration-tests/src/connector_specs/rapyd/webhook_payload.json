@@ -1,0 +1,456 @@
+{
+  "_webhook_config": {
+    "signature_algorithm": "rapyd_hmac_sha256_hex",
+    "signature_encoding": "base64url",
+    "webhook_secret_key": "webhook_secret",
+    "_note": "Documentation only. Rapyd signs BASE64URL(hex(HMAC-SHA256(secret_key, url + salt + timestamp + access_key + secret_key + body))) and sends it in the `signature` header. No `signature_header` is declared, so the harness does not attempt to sign; the bodies below are the documented Rapyd event samples, not captured deliveries."
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1711008868",
+          "signature": "Zm9yZ2VkLXNpZ25hdHVyZS1ub3QtYS1yYXB5ZC1obWFj"
+        },
+        "body": {
+          "id": "wh_e0afb507504b5eb901449993fadba20f",
+          "type": "PAYMENT_COMPLETED",
+          "status": "NEW",
+          "created_at": 1711008868,
+          "extended_timestamp": 1711008868132,
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "data": {
+            "id": "payment_0b645b1ee17a5c3ce79e20ff5524966f",
+            "status": "CLO",
+            "paid": true,
+            "captured": true,
+            "amount": 1,
+            "currency_code": "EUR",
+            "customer_token": "cus_5bee14584a78638ba717e746be62ee01",
+            "payment_method": "card_0d83436af31300bf263dd5ef379b8230",
+            "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+            "paid_at": 1711008868,
+            "created_at": 1711008868,
+            "next_action": "not_applicable",
+            "refunded": false,
+            "refunded_amount": 0
+          }
+        }
+      }
+    }
+  },
+  "rapyd_payment_completed_unverified": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1711008868",
+          "signature": "Zm9yZ2VkLXNpZ25hdHVyZS1ub3QtYS1yYXB5ZC1obWFj"
+        },
+        "body": {
+          "id": "wh_e0afb507504b5eb901449993fadba20f",
+          "type": "PAYMENT_COMPLETED",
+          "status": "NEW",
+          "created_at": 1711008868,
+          "extended_timestamp": 1711008868132,
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "data": {
+            "id": "payment_0b645b1ee17a5c3ce79e20ff5524966f",
+            "status": "CLO",
+            "paid": true,
+            "captured": true,
+            "amount": 1,
+            "currency_code": "EUR",
+            "customer_token": "cus_5bee14584a78638ba717e746be62ee01",
+            "payment_method": "card_0d83436af31300bf263dd5ef379b8230",
+            "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+            "paid_at": 1711008868,
+            "created_at": 1711008868,
+            "next_action": "not_applicable",
+            "refunded": false,
+            "refunded_amount": 0
+          }
+        }
+      }
+    }
+  },
+  "rapyd_payment_failed_unverified": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1711008868",
+          "signature": "Zm9yZ2VkLXNpZ25hdHVyZS1ub3QtYS1yYXB5ZC1obWFj"
+        },
+        "body": {
+          "id": "wh_9f1c2d3e4b5a69788796a5b4c3d2e1f0",
+          "type": "PAYMENT_FAILED",
+          "status": "NEW",
+          "created_at": 1711008868,
+          "extended_timestamp": 1711008868132,
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "data": {
+            "id": "payment_5c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f",
+            "status": "ERR",
+            "paid": false,
+            "captured": false,
+            "amount": 0,
+            "currency_code": "EUR",
+            "customer_token": "cus_5bee14584a78638ba717e746be62ee01",
+            "payment_method": "card_0d83436af31300bf263dd5ef379b8230",
+            "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+            "paid_at": 0,
+            "created_at": 1711008868,
+            "next_action": "not_applicable",
+            "refunded": false,
+            "refunded_amount": 0,
+            "failure_code": "65",
+            "failure_message": "Authentication Required or Activity Limit Exceeded"
+          }
+        }
+      }
+    }
+  },
+  "rapyd_refund_completed_unverified": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1711008868",
+          "signature": "Zm9yZ2VkLXNpZ25hdHVyZS1ub3QtYS1yYXB5ZC1obWFj"
+        },
+        "body": {
+          "id": "wh_1abe7fd19f96fe553fc613a1f3ff20ca",
+          "type": "REFUND_COMPLETED",
+          "status": "",
+          "created_at": 0,
+          "trigger_operation_id": "3567b315-a73c-4415-8206-c598d70ac665",
+          "data": {
+            "id": "refund_102ae6d1286b07ce8b3768b93eab9a24",
+            "amount": 87.36,
+            "currency": "ILS",
+            "status": "Completed",
+            "payment": "payment_ccc04715a1021b821025b8d8c0a0eed8",
+            "payment_method_type": "il_mastercard_card",
+            "created_at": 1768959,
+            "updated_at": 1768960,
+            "merchant_reference_id": "030016",
+            "payment_created_at": 1768958,
+            "reason": "Direct Refund",
+            "failure_reason": "",
+            "failure_code": "",
+            "metadata": {},
+            "ewallets": [
+              {
+                "ewallet": "ewallet_cd59fae56ce5b9564ecb52d7f9eb0c37",
+                "amount": 87.36
+              }
+            ],
+            "proportional_refund": true,
+            "merchant_ewallet": null,
+            "merchant_debited_amount": null,
+            "merchant_debited_currency": null,
+            "fx_rate": null,
+            "fixed_side": null
+          }
+        }
+      }
+    }
+  },
+  "rapyd_refund_failed_unverified": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1711008868",
+          "signature": "Zm9yZ2VkLXNpZ25hdHVyZS1ub3QtYS1yYXB5ZC1obWFj"
+        },
+        "body": {
+          "id": "b79d35e8-44e3-4332-bbb2-bcc44c0c157a",
+          "token": "wh_dc29f55dc5578b335f0f8ff688437231",
+          "type": "PAYMENT_REFUND_FAILED",
+          "status": "",
+          "created_at": 0,
+          "extended_timestamp": 0,
+          "trigger_operation_id": "c4dd2614-2277-4538-9c8c-c3f88ce2d7b2",
+          "data": {
+            "id": "refund_d5e77fd76481c549874a39b6d70cc859",
+            "amount": 73.48,
+            "currency": "EUR",
+            "payment": "payment_407f4d19f3860d36144843faca4a013a",
+            "status": "Error",
+            "failure_reason": "",
+            "failure_code": "",
+            "reason": "",
+            "merchant_reference_id": null,
+            "receipt_number": 0,
+            "metadata": {},
+            "created_at": 0,
+            "updated_at": 0,
+            "payment_created_at": null,
+            "payment_method_type": "",
+            "ewallets": [
+              {
+                "ewallet": "ewallet_f7d6a6bfade1cabb06f3e264d8f1899b",
+                "amount": 81
+              },
+              {
+                "ewallet": "ewallet_744a449df75ff04e248ac86e557430e5",
+                "amount": 1
+              }
+            ],
+            "proportional_refund": true,
+            "merchant_debited_amount": 90,
+            "merchant_debited_currency": "USD",
+            "fx_rate": "0.81681",
+            "fixed_side": "sell"
+          }
+        }
+      }
+    }
+  },
+  "structured_secret_wrong_signature_not_verified": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1711008868",
+          "signature": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVmMDEyMzQ1Njc4OWFiY2RlZg=="
+        },
+        "body": {
+          "id": "wh_e0afb507504b5eb901449993fadba20f",
+          "type": "PAYMENT_COMPLETED",
+          "status": "NEW",
+          "created_at": 1711008868,
+          "extended_timestamp": 1711008868132,
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "data": {
+            "id": "payment_0b645b1ee17a5c3ce79e20ff5524966f",
+            "status": "CLO",
+            "paid": true,
+            "captured": true,
+            "amount": 1,
+            "currency_code": "EUR",
+            "customer_token": "cus_5bee14584a78638ba717e746be62ee01",
+            "payment_method": "card_0d83436af31300bf263dd5ef379b8230",
+            "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+            "paid_at": 1711008868,
+            "created_at": 1711008868,
+            "next_action": "not_applicable",
+            "refunded": false,
+            "refunded_amount": 0
+          }
+        }
+      },
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"SENTINEL_RAPYD_WEBHOOK_ACCESS_KEY_NOT_A_CREDENTIAL\",\"secret_key\":\"SENTINEL_RAPYD_WEBHOOK_SECRET_KEY_NOT_A_CREDENTIAL\"}"
+      }
+    }
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1711008868",
+          "signature": "Y2E1ZTViM2FiMWI2ZWUwODMxMWRhNjA5ZmQ0MWY1NGUzN2IxYWIyMDU4MmZjOTVmMGM0Y2NmYjExNWFlODVlNQ=="
+        },
+        "body": {
+          "id": "wh_e0afb507504b5eb901449993fadba20f",
+          "type": "PAYMENT_COMPLETED",
+          "status": "NEW",
+          "created_at": 1711008868,
+          "extended_timestamp": 1711008868132,
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "data": {
+            "id": "payment_0b645b1ee17a5c3ce79e20ff5524966f",
+            "status": "CLO",
+            "paid": true,
+            "captured": true,
+            "amount": 1,
+            "currency_code": "EUR",
+            "customer_token": "cus_5bee14584a78638ba717e746be62ee01",
+            "payment_method": "card_0d83436af31300bf263dd5ef379b8230",
+            "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+            "paid_at": 1711008868,
+            "created_at": 1711008868,
+            "next_action": "not_applicable",
+            "refunded": false,
+            "refunded_amount": 0
+          }
+        }
+      },
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"SENTINEL_RAPYD_WEBHOOK_ACCESS_KEY_NOT_A_CREDENTIAL\",\"secret_key\":\"SENTINEL_RAPYD_WEBHOOK_SECRET_KEY_NOT_A_CREDENTIAL\"}"
+      }
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1711008868",
+          "signature": "ZTIwZDBmODBmMjVjZTc0NzBiMzNkOTY1N2E1NTE0MmUzNWQ4ZDFjMmU4NGM4ZTIxNGJkOGIzNTUzMmFmZTE2Nw=="
+        },
+        "body": {
+          "id": "wh_9f1c2d3e4b5a69788796a5b4c3d2e1f0",
+          "type": "PAYMENT_FAILED",
+          "status": "NEW",
+          "created_at": 1711008868,
+          "extended_timestamp": 1711008868132,
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "data": {
+            "id": "payment_5c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f",
+            "status": "ERR",
+            "paid": false,
+            "captured": false,
+            "amount": 0,
+            "currency_code": "EUR",
+            "customer_token": "cus_5bee14584a78638ba717e746be62ee01",
+            "payment_method": "card_0d83436af31300bf263dd5ef379b8230",
+            "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+            "paid_at": 0,
+            "created_at": 1711008868,
+            "next_action": "not_applicable",
+            "refunded": false,
+            "refunded_amount": 0,
+            "failure_code": "65",
+            "failure_message": "Authentication Required or Activity Limit Exceeded"
+          }
+        }
+      },
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"SENTINEL_RAPYD_WEBHOOK_ACCESS_KEY_NOT_A_CREDENTIAL\",\"secret_key\":\"SENTINEL_RAPYD_WEBHOOK_SECRET_KEY_NOT_A_CREDENTIAL\"}"
+      }
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1711008868",
+          "signature": "YTQxM2ExYjUyMmQyODg1NWIwMTIyNDg2ZGRkZjExMTVkNzlkNzUxODI4NDUwZGU3MDdhNjYwZDZjM2UyZTA2Yw=="
+        },
+        "body": {
+          "id": "wh_1abe7fd19f96fe553fc613a1f3ff20ca",
+          "type": "REFUND_COMPLETED",
+          "status": "",
+          "created_at": 0,
+          "trigger_operation_id": "3567b315-a73c-4415-8206-c598d70ac665",
+          "data": {
+            "id": "refund_102ae6d1286b07ce8b3768b93eab9a24",
+            "amount": 87.36,
+            "currency": "ILS",
+            "status": "Completed",
+            "payment": "payment_ccc04715a1021b821025b8d8c0a0eed8",
+            "payment_method_type": "il_mastercard_card",
+            "created_at": 1768959,
+            "updated_at": 1768960,
+            "merchant_reference_id": "030016",
+            "payment_created_at": 1768958,
+            "reason": "Direct Refund",
+            "failure_reason": "",
+            "failure_code": "",
+            "metadata": {},
+            "ewallets": [
+              {
+                "ewallet": "ewallet_cd59fae56ce5b9564ecb52d7f9eb0c37",
+                "amount": 87.36
+              }
+            ],
+            "proportional_refund": true,
+            "merchant_ewallet": null,
+            "merchant_debited_amount": null,
+            "merchant_debited_currency": null,
+            "fx_rate": null,
+            "fixed_side": null
+          }
+        }
+      },
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"SENTINEL_RAPYD_WEBHOOK_ACCESS_KEY_NOT_A_CREDENTIAL\",\"secret_key\":\"SENTINEL_RAPYD_WEBHOOK_SECRET_KEY_NOT_A_CREDENTIAL\"}"
+      }
+    }
+  },
+  "rapyd_payment_completed_valid_signature_tampered_body": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "https://example.com/webhooks/test_merchant/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "host": "example.com",
+          "salt": "a1b2c3d4e5f6",
+          "timestamp": "1711008868",
+          "signature": "Y2E1ZTViM2FiMWI2ZWUwODMxMWRhNjA5ZmQ0MWY1NGUzN2IxYWIyMDU4MmZjOTVmMGM0Y2NmYjExNWFlODVlNQ=="
+        },
+        "body": {
+          "id": "wh_e0afb507504b5eb901449993fadba20f",
+          "type": "PAYMENT_COMPLETED",
+          "status": "NEW",
+          "created_at": 1711008868,
+          "extended_timestamp": 1711008868132,
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "data": {
+            "id": "payment_0b645b1ee17a5c3ce79e20ff5524966f",
+            "status": "CLO",
+            "paid": true,
+            "captured": true,
+            "amount": 2,
+            "currency_code": "EUR",
+            "customer_token": "cus_5bee14584a78638ba717e746be62ee01",
+            "payment_method": "card_0d83436af31300bf263dd5ef379b8230",
+            "ewallet_id": "ewallet_c1943cfeda5f98247ab117e5d2648861",
+            "paid_at": 1711008868,
+            "created_at": 1711008868,
+            "next_action": "not_applicable",
+            "refunded": false,
+            "refunded_amount": 0
+          }
+        }
+      },
+      "webhook_secrets": {
+        "secret": "{\"access_key\":\"SENTINEL_RAPYD_WEBHOOK_ACCESS_KEY_NOT_A_CREDENTIAL\",\"secret_key\":\"SENTINEL_RAPYD_WEBHOOK_SECRET_KEY_NOT_A_CREDENTIAL\"}"
+      }
+    }
+  }
+}

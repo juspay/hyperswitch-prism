@@ -10,6 +10,25 @@
     "RefundService/Get",
     "PaymentService/Void",
     "PaymentService/SetupRecurring",
-    "RecurringPaymentService/Charge"
-  ]
+    "RecurringPaymentService/Charge",
+    "EventService/HandleEvent"
+  ],
+  "supported_payment_methods": [
+    "card",
+    "google_pay_sdk",
+    "apple_pay_sdk"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_google_pay_encrypted": "SANDBOX_NOT_PROVISIONED: spec:## Complete Endpoint Inventory > ### Payments > #### 1. Create Payment (Authorize) (Sandbox exercisability of the wallet arms) — the encrypted Google Pay form needs a freshly issued Google Pay test token; the docs supply only a truncated sample",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory > ### Mandates > #### 1. Create Payment with a saved card (SetupMandate) — saving a payment method \"applies to card requests that carry full card details\"; a wallet payment returns no `card_` mandate reference",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "CONNECTOR_API_LACKS: spec:## Complete Endpoint Inventory > ### Mandates > #### 1. Create Payment with a saved card (SetupMandate) — saving a payment method \"applies to card requests that carry full card details\"; a wallet payment returns no `card_` mandate reference",
+      "no3ds_manual_capture_incremental_auth": "FLOW_NOT_IN_SCOPE: ucs:crates/integrations/connector-integration/src/connectors/rapyd.rs:745 — IncrementalAuthorization is in `not_implemented` and is not one of the six units"
+    },
+    "PaymentService/Get": {
+      "sync_upi_collect": "PM_NOT_OFFERED: run:test/baseline.json#field_probe.flows.authorize — UPI is refused as not implemented; the unit covers card and card wallets",
+      "sync_upi_intent": "PM_NOT_OFFERED: run:test/baseline.json#field_probe.flows.authorize — UPI is refused as not implemented; the unit covers card and card wallets",
+      "sync_upi_qr": "PM_NOT_OFFERED: run:test/baseline.json#field_probe.flows.authorize — UPI is refused as not implemented; the unit covers card and card wallets"
+    }
+  }
 }
