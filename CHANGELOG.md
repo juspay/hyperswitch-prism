@@ -19,6 +19,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.06.2
+
+### Features
+
+- **connector:** [Checkout] add Apple Pay wallet payout transfers ([#2692](https://github.com/juspay/connector-service/pull/2692)) ([`74fcb16`](https://github.com/juspay/connector-service/commit/74fcb163e08dd7a23ed0cfc32bfb52bd00f33228))
+
+### Bug Fixes
+
+- **connector:** [Authorizedotnet] check decrypted Apple Pay cryptogram and reject it in SetupMandate ([#2589](https://github.com/juspay/connector-service/pull/2589)) ([`02b6104`](https://github.com/juspay/connector-service/commit/02b61049e847c39514879885eb167385680164ff))
+- **rapyd:** Correct card, wallet and refund edge cases ([#2660](https://github.com/juspay/connector-service/pull/2660)) ([`d85e7c5`](https://github.com/juspay/connector-service/commit/d85e7c58bf615bfb4081a82e0d9b9bdbd3863483))
+
+### Refactors
+
+- **sdk:** Remove unused legacy Python gRPC client ([#2689](https://github.com/juspay/connector-service/pull/2689)) ([`86a2062`](https://github.com/juspay/connector-service/commit/86a2062c31c99276a68a80bb1d2204abc6b5d451))
+
+### Miscellaneous Tasks
+
+- **grace:** Remove stale npm lockfile ([#2706](https://github.com/juspay/connector-service/pull/2706)) ([`d6e578f`](https://github.com/juspay/connector-service/commit/d6e578fb079e632df4c98410a49e03689784b7cf))
+
+### Build System / Dependencies
+
+- **docker:** Narrow runtime build inputs ([#2649](https://github.com/juspay/connector-service/pull/2649)) ([`749c081`](https://github.com/juspay/connector-service/commit/749c0811b2cda9772caa758663f95300166bf8a9))
+
+**Full Changelog:** [`2026.11.06.1...2026.11.06.2`](https://github.com/juspay/connector-service/compare/2026.11.06.1...2026.11.06.2)
+
+- - -
+
 ## 2026.11.06.1
 
 ### Features
