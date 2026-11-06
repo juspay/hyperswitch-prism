@@ -18,6 +18,7 @@ use domain_types::{
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
+    router_request_types::AuthenticationData,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, WithoutType};
@@ -161,6 +162,77 @@ fn to_xmldata<R: Serialize>(
     )]))
 }
 
+/// External 3DS results. Converge runs 3DS itself only through Elavon's browser SDK, so on
+/// the XML API the authentication comes from a separate leg and is sent with the payment.
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct ElavonThreeDsFields {
+    pub ssl_eci_ind: u8,
+    pub ssl_3dsecure_value: Option<Secret<String>>,
+    /// First digit of the 3DS message version.
+    pub ssl_program_protocol: Option<u64>,
+    pub ssl_dir_server_tran_id: Option<String>,
+    pub ssl_3ds_server_trans_id: Option<String>,
+    pub ssl_3ds_message_version: Option<String>,
+    pub ssl_3ds_trans_status: Option<common_enums::TransactionStatus>,
+}
+
+/// Converge accepts only 5 (authenticated), 6 (attempted) and 7 (not authenticated). Its
+/// API reference maps 02/05 to 5 and 01/06 to 6, matching the schemes: Mastercard 02 and
+/// Visa 05 are authenticated, Mastercard 01 and Visa 06 are attempted.
+fn get_converge_eci(eci: Option<&str>) -> Result<u8, error_stack::Report<IntegrationError>> {
+    match eci.map(|eci| eci.trim().trim_start_matches('0')) {
+        Some("2" | "5") => Ok(5),
+        Some("1" | "6") => Ok(6),
+        None | Some("" | "3" | "7") => Ok(7),
+        Some(other) => Err(report!(IntegrationError::InvalidDataFormat {
+            field_name: "authentication_data.eci",
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Elavon accepts ECI 02/05, 01/06 or 00/03/07 (sent as 5, 6 or 7); got {other}"
+                )),
+                ..Default::default()
+            },
+        })),
+    }
+}
+
+fn get_three_ds_fields(
+    authentication_data: Option<&AuthenticationData>,
+    is_three_ds: bool,
+) -> Result<Option<ElavonThreeDsFields>, error_stack::Report<IntegrationError>> {
+    let Some(authentication_data) = authentication_data else {
+        // A three_ds payment sent without results would go through unauthenticated.
+        return if is_three_ds {
+            Err(report!(IntegrationError::MissingRequiredField {
+                field_name: "authentication_data",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "auth_type is three_ds but the request carries no 3DS authentication \
+                         results. On the XML API, Elavon Converge takes the results of an \
+                         authentication run elsewhere (cavv, eci, ds_trans_id, \
+                         threeds_server_transaction_id, message_version, trans_status)."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }))
+        } else {
+            Ok(None)
+        };
+    };
+    let message_version = authentication_data.message_version.as_ref();
+    Ok(Some(ElavonThreeDsFields {
+        ssl_eci_ind: get_converge_eci(authentication_data.eci.as_deref())?,
+        ssl_3dsecure_value: authentication_data.cavv.clone(),
+        ssl_program_protocol: message_version.map(|version| version.get_major()),
+        ssl_dir_server_tran_id: authentication_data.ds_trans_id.clone(),
+        ssl_3ds_server_trans_id: authentication_data.threeds_server_transaction_id.clone(),
+        ssl_3ds_message_version: message_version.map(|version| version.to_string()),
+        ssl_3ds_trans_status: authentication_data.trans_status.clone(),
+    }))
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct CardPaymentRequest<
@@ -194,6 +266,8 @@ pub struct CardPaymentRequest<
     pub ssl_customer_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ssl_invoice_number: Option<String>,
+    #[serde(flatten)]
+    pub three_ds: Option<ElavonThreeDsFields>,
 }
 
 #[derive(Debug, Serialize)]
@@ -385,6 +459,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         &common.connector_request_reference_id,
                         INVOICE_NUMBER_MAX_LENGTH,
                     )),
+                    three_ds: get_three_ds_fields(
+                        request_data.authentication_data.as_ref(),
+                        common.is_three_ds(),
+                    )?,
                 };
                 tracing::debug!(?card_req, "Elavon Card Payment Request");
                 Ok(Self::Card(card_req))
@@ -2046,10 +2124,13 @@ pub struct ElavonSetupMandateRequest<
     pub ssl_avs_zip: Option<Secret<String>>,
     pub ssl_first_name: Option<Secret<String>>,
     pub ssl_last_name: Option<Secret<String>>,
+    pub ssl_email: Option<common_utils::pii::Email>,
     pub ssl_verify: &'static str,
     pub ssl_add_token: &'static str,
     pub ssl_customer_code: Option<String>,
     pub ssl_invoice_number: String,
+    #[serde(flatten)]
+    pub three_ds: Option<ElavonThreeDsFields>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -2130,6 +2211,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ssl_avs_zip: avs_zip,
             ssl_first_name: first_name,
             ssl_last_name: last_name,
+            ssl_email: request_data.email.clone(),
             ssl_verify: "Y",
             ssl_add_token: "Y",
             ssl_customer_code: request_data
@@ -2140,6 +2222,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 &common.connector_request_reference_id,
                 INVOICE_NUMBER_MAX_LENGTH,
             ),
+            three_ds: get_three_ds_fields(
+                request_data.authentication_data.as_ref(),
+                common.is_three_ds(),
+            )?,
         })
     }
 }
