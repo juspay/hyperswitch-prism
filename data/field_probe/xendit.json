@@ -115,24 +115,21 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {
-              "email": "test@example.com",
-              "phone_number": "4155552671",
-              "phone_country_code": "+1"
-            }
+            "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://api.xendit.co//payment_requests",
+          "url": "https://api.xendit.co/v3/payment_requests",
           "method": "Post",
           "headers": {
+            "api-version": "2024-11-11",
             "authorization": "Basic cHJvYmVfa2V5Og==",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"capture_method\":\"AUTOMATIC\",\"payment_method\":{\"type\":\"CARD\",\"card\":{\"channel_properties\":{\"success_return_url\":\"https://example.com/return\",\"failure_return_url\":\"https://example.com/return\",\"skip_three_d_secure\":true},\"card_information\":{\"card_number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"737\",\"cardholder_name\":\"John Doe\",\"cardholder_email\":\"test@example.com\",\"cardholder_phone_number\":\"+14155552671\"}},\"reusability\":\"ONE_TIME_USE\",\"reference_id\":\"probe_txn_001\"}}"
+          "body": "{\"reference_id\":\"probe_txn_001\",\"type\":\"PAY\",\"currency\":\"USD\",\"request_amount\":10.0,\"capture_method\":\"AUTOMATIC\",\"channel_code\":\"CARDS\",\"channel_properties\":{\"card_details\":{\"card_number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvn\":\"737\",\"cardholder_first_name\":\"John\",\"cardholder_last_name\":\"Doe\"},\"success_return_url\":\"https://example.com/return\",\"failure_return_url\":\"https://example.com/return\",\"skip_three_ds\":true}}"
         }
       },
       "CashappQr": {
@@ -490,25 +487,8 @@
     },
     "capture": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_capture_id": "probe_capture_001",
-          "connector_transaction_id": "probe_connector_txn_001",
-          "amount_to_capture": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          }
-        },
-        "sample": {
-          "url": "https://api.xendit.co//payment_requests/probe_connector_txn_001/captures",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"capture_amount\":10.0}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_id. Xendit v3 capture/cancel act on the py- payment id, not the pr- payment request id — Missing required field: connector_feature_data.payment_id. Xendit v3 capture/cancel act on the py- payment id, not the pr- payment request id"
       }
     },
     "create_client_authentication_token": {
@@ -588,9 +568,10 @@
           }
         },
         "sample": {
-          "url": "https://api.xendit.co//payment_requests/probe_connector_txn_001",
+          "url": "https://api.xendit.co/v3/payment_requests/probe_connector_txn_001",
           "method": "Get",
           "headers": {
+            "api-version": "2024-11-11",
             "authorization": "Basic cHJvYmVfa2V5Og==",
             "content-type": "application/json",
             "via": "HyperSwitch"
@@ -601,7 +582,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"created\":\"2024-12-18T05:46:35.109Z\",\"business_id\":\"62440e322008e87fb29c1fd0\",\"event\":\"payment.authorization\",\"data\":{\"type\":\"PAY\",\"status\":\"AUTHORIZED\",\"country\":\"ID\",\"created\":\"2024-12-18T05:46:08.192Z\",\"updated\":\"2024-12-18T05:46:30.627Z\",\"currency\":\"IDR\",\"payment_id\":\"py-3f57d678-2448-4c9f-a433-8468d366fb5c\",\"business_id\":\"62440e322008e87fb29c1fd0\",\"customer_id\":\"cust-7de9a9b4-37e8-40ad-b665-d97f42e538c5\",\"channel_code\":\"CARDS\",\"reference_id\":\"97ba0a32-b996-4abf-8a7b-6184a6644676_b8d18f2f-3\",\"capture_method\":\"MANUAL\",\"request_amount\":10000,\"payment_details\":{\"authorization_data\":{\"reconciliation_id\":\"7345007929096981703954\",\"authorization_code\":\"831000\",\"acquirer_merchant_id\":\"xendit_ctv_agg\",\"network_response_code\":\"00\",\"network_transaction_id\":\"016153570198200\",\"cvn_verification_result\":\"M\",\"retrieval_reference_number\":\"435205253972\",\"address_verification_result\":\"M\",\"network_response_code_descriptor\":\"Approved and completed sucessfully\"},\"authentication_data\":{\"flow\":\"CHALLENGE\",\"a_res\":{\"eci\":\"05\",\"message_version\":\"2.1.0\",\"authentication_value\":\"AAIBBYNoEwAAACcKhAJkdQAAAAA=\",\"directory_server_trans_id\":\"e537f539-d59f-4ebe-8d56-7fdc31a8e9b4\"}}},\"payment_request_id\":\"pr-5593127f-8c7b-4d2f-b487-c785ffc21e2f\"},\"api_version\":\"v3\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"created\":\"2024-12-18T05:46:35.109Z\",\"business_id\":\"62440e322008e87fb29c1fd0\",\"event\":\"payment.authorization\",\"data\":{\"type\":\"PAY\",\"status\":\"AUTHORIZED\",\"country\":\"ID\",\"created\":\"2024-12-18T05:46:08.192Z\",\"updated\":\"2024-12-18T05:46:30.627Z\",\"currency\":\"IDR\",\"payment_id\":\"py-3f57d678-2448-4c9f-a433-8468d366fb5c\",\"business_id\":\"62440e322008e87fb29c1fd0\",\"customer_id\":\"cust-7de9a9b4-37e8-40ad-b665-d97f42e538c5\",\"channel_code\":\"CARDS\",\"reference_id\":\"97ba0a32-b996-4abf-8a7b-6184a6644676_b8d18f2f-3\",\"capture_method\":\"MANUAL\",\"request_amount\":10000,\"payment_details\":{\"authorization_data\":{\"reconciliation_id\":\"7345007929096981703954\",\"authorization_code\":\"831000\",\"acquirer_merchant_id\":\"xendit_ctv_agg\",\"network_response_code\":\"00\",\"network_transaction_id\":\"016153570198200\",\"cvn_verification_result\":\"M\",\"retrieval_reference_number\":\"435205253972\",\"address_verification_result\":\"M\",\"network_response_code_descriptor\":\"Approved and completed sucessfully\"},\"authentication_data\":{\"flow\":\"CHALLENGE\",\"a_res\":{\"eci\":\"05\",\"message_version\":\"2.1.0\",\"authentication_value\":\"AAIBBYNoEwAAACcKhAJkdQAAAAA=\",\"directory_server_trans_id\":\"e537f539-d59f-4ebe-8d56-7fdc31a8e9b4\"}}},\"payment_request_id\":\"pr-5593127f-8c7b-4d2f-b487-c785ffc21e2f\"},\"api_version\":\"v3\"}"
+        }
       }
     },
     "incremental_authorization": {
@@ -612,7 +608,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"created\":\"2024-12-18T05:46:35.109Z\",\"business_id\":\"62440e322008e87fb29c1fd0\",\"event\":\"payment.authorization\",\"data\":{\"type\":\"PAY\",\"status\":\"AUTHORIZED\",\"country\":\"ID\",\"created\":\"2024-12-18T05:46:08.192Z\",\"updated\":\"2024-12-18T05:46:30.627Z\",\"currency\":\"IDR\",\"payment_id\":\"py-3f57d678-2448-4c9f-a433-8468d366fb5c\",\"business_id\":\"62440e322008e87fb29c1fd0\",\"customer_id\":\"cust-7de9a9b4-37e8-40ad-b665-d97f42e538c5\",\"channel_code\":\"CARDS\",\"reference_id\":\"97ba0a32-b996-4abf-8a7b-6184a6644676_b8d18f2f-3\",\"capture_method\":\"MANUAL\",\"request_amount\":10000,\"payment_details\":{\"authorization_data\":{\"reconciliation_id\":\"7345007929096981703954\",\"authorization_code\":\"831000\",\"acquirer_merchant_id\":\"xendit_ctv_agg\",\"network_response_code\":\"00\",\"network_transaction_id\":\"016153570198200\",\"cvn_verification_result\":\"M\",\"retrieval_reference_number\":\"435205253972\",\"address_verification_result\":\"M\",\"network_response_code_descriptor\":\"Approved and completed sucessfully\"},\"authentication_data\":{\"flow\":\"CHALLENGE\",\"a_res\":{\"eci\":\"05\",\"message_version\":\"2.1.0\",\"authentication_value\":\"AAIBBYNoEwAAACcKhAJkdQAAAAA=\",\"directory_server_trans_id\":\"e537f539-d59f-4ebe-8d56-7fdc31a8e9b4\"}}},\"payment_request_id\":\"pr-5593127f-8c7b-4d2f-b487-c785ffc21e2f\"},\"api_version\":\"v3\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"created\":\"2024-12-18T05:46:35.109Z\",\"business_id\":\"62440e322008e87fb29c1fd0\",\"event\":\"payment.authorization\",\"data\":{\"type\":\"PAY\",\"status\":\"AUTHORIZED\",\"country\":\"ID\",\"created\":\"2024-12-18T05:46:08.192Z\",\"updated\":\"2024-12-18T05:46:30.627Z\",\"currency\":\"IDR\",\"payment_id\":\"py-3f57d678-2448-4c9f-a433-8468d366fb5c\",\"business_id\":\"62440e322008e87fb29c1fd0\",\"customer_id\":\"cust-7de9a9b4-37e8-40ad-b665-d97f42e538c5\",\"channel_code\":\"CARDS\",\"reference_id\":\"97ba0a32-b996-4abf-8a7b-6184a6644676_b8d18f2f-3\",\"capture_method\":\"MANUAL\",\"request_amount\":10000,\"payment_details\":{\"authorization_data\":{\"reconciliation_id\":\"7345007929096981703954\",\"authorization_code\":\"831000\",\"acquirer_merchant_id\":\"xendit_ctv_agg\",\"network_response_code\":\"00\",\"network_transaction_id\":\"016153570198200\",\"cvn_verification_result\":\"M\",\"retrieval_reference_number\":\"435205253972\",\"address_verification_result\":\"M\",\"network_response_code_descriptor\":\"Approved and completed sucessfully\"},\"authentication_data\":{\"flow\":\"CHALLENGE\",\"a_res\":{\"eci\":\"05\",\"message_version\":\"2.1.0\",\"authentication_value\":\"AAIBBYNoEwAAACcKhAJkdQAAAAA=\",\"directory_server_trans_id\":\"e537f539-d59f-4ebe-8d56-7fdc31a8e9b4\"}}},\"payment_request_id\":\"pr-5593127f-8c7b-4d2f-b487-c785ffc21e2f\"},\"api_version\":\"v3\"}"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -650,38 +660,101 @@
             "card_network": "VISA"
           },
           "address": {
-            "billing_address": {
-              "email": "test@example.com",
-              "phone_number": "4155552671",
-              "phone_country_code": "+1"
-            }
+            "billing_address": {}
           },
           "capture_method": "AUTOMATIC",
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://api.xendit.co//payment_requests",
+          "url": "https://api.xendit.co/v3/payment_requests",
           "method": "Post",
           "headers": {
+            "api-version": "2024-11-11",
             "authorization": "Basic cHJvYmVfa2V5Og==",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"capture_method\":\"AUTOMATIC\",\"payment_method\":{\"type\":\"CARD\",\"card\":{\"channel_properties\":{\"success_return_url\":\"https://example.com/return\",\"failure_return_url\":\"https://example.com/return\",\"skip_three_d_secure\":true},\"card_information\":{\"card_number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"{{$card_cvc}}\",\"cardholder_name\":\"John Doe\",\"cardholder_email\":\"test@example.com\",\"cardholder_phone_number\":\"+14155552671\"}},\"reusability\":\"ONE_TIME_USE\",\"reference_id\":\"probe_proxy_txn_001\"}}"
+          "body": "{\"reference_id\":\"probe_proxy_txn_001\",\"type\":\"PAY\",\"currency\":\"USD\",\"request_amount\":10.0,\"capture_method\":\"AUTOMATIC\",\"channel_code\":\"CARDS\",\"channel_properties\":{\"card_details\":{\"card_number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvn\":\"{{$card_cvc}}\",\"cardholder_first_name\":\"John\",\"cardholder_last_name\":\"Doe\"},\"success_return_url\":\"https://example.com/return\",\"failure_return_url\":\"https://example.com/return\",\"skip_three_ds\":true}}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for xendit"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.xendit.co/v3/payment_requests",
+          "method": "Post",
+          "headers": {
+            "api-version": "2024-11-11",
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"reference_id\":\"probe_proxy_mandate_001\",\"type\":\"VERIFY_PAYMENT_METHOD\",\"currency\":\"USD\",\"channel_code\":\"CARDS\",\"channel_properties\":{\"card_details\":{\"card_number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvn\":\"{{$card_cvc}}\",\"cardholder_first_name\":\"John\",\"cardholder_last_name\":\"Doe\"},\"skip_three_ds\":true,\"card_on_file_type\":\"MERCHANT_UNSCHEDULED\",\"transaction_sequence\":\"INITIAL\"}}"
+        }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for xendit"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://api.xendit.co/v3/payment_requests",
+          "method": "Post",
+          "headers": {
+            "api-version": "2024-11-11",
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"reference_id\":\"\",\"payment_token_id\":\"probe-mandate-123\",\"type\":\"PAY\",\"currency\":\"USD\",\"request_amount\":10.0,\"capture_method\":\"AUTOMATIC\",\"channel_properties\":{\"success_return_url\":\"https://example.com/recurring-return\",\"failure_return_url\":\"https://example.com/recurring-return\",\"card_on_file_type\":\"MERCHANT_UNSCHEDULED\",\"transaction_sequence\":\"SUBSEQUENT\"}}"
+        }
       }
     },
     "recurring_revoke": {
@@ -709,14 +782,14 @@
           "reason": "customer_request"
         },
         "sample": {
-          "url": "https://api.xendit.co//refunds",
+          "url": "https://api.xendit.co/refunds",
           "method": "Post",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"payment_request_id\":\"probe_connector_txn_001\",\"reason\":\"REQUESTED_BY_CUSTOMER\"}"
+          "body": "{\"reference_id\":\"probe_refund_001\",\"payment_request_id\":\"probe_connector_txn_001\",\"currency\":\"USD\",\"amount\":10.0,\"reason\":\"REQUESTED_BY_CUSTOMER\"}"
         }
       }
     },
@@ -729,7 +802,7 @@
           "refund_id": "probe_refund_id_001"
         },
         "sample": {
-          "url": "https://api.xendit.co//refunds/probe_refund_id_001",
+          "url": "https://api.xendit.co/refunds/probe_refund_id_001",
           "method": "Get",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
@@ -748,8 +821,46 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for xendit"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://api.xendit.co/v3/payment_requests",
+          "method": "Post",
+          "headers": {
+            "api-version": "2024-11-11",
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"reference_id\":\"probe_mandate_001\",\"type\":\"VERIFY_PAYMENT_METHOD\",\"currency\":\"USD\",\"channel_code\":\"CARDS\",\"channel_properties\":{\"card_details\":{\"card_number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvn\":\"737\",\"cardholder_first_name\":\"John\",\"cardholder_last_name\":\"Doe\"},\"success_return_url\":\"https://example.com/mandate-return\",\"failure_return_url\":\"https://example.com/mandate-return\",\"skip_three_ds\":true,\"card_on_file_type\":\"MERCHANT_UNSCHEDULED\",\"transaction_sequence\":\"INITIAL\"}}"
+        }
       }
     },
     "token_authorize": {
@@ -761,7 +872,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for xendit"
+        "error": "This feature is not implemented: Selected payment method through xendit"
       }
     },
     "verify_redirect": {
@@ -771,8 +882,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void flow for xendit"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_id. Xendit v3 capture/cancel act on the py- payment id, not the pr- payment request id — Missing required field: connector_feature_data.payment_id. Xendit v3 capture/cancel act on the py- payment id, not the pr- payment request id"
       }
     }
   }

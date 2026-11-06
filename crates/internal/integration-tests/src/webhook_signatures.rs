@@ -42,6 +42,9 @@ pub fn generate_signature(
         "checkout" => generate_checkout_signature(payload, secret),
         "paypal" => generate_paypal_signature(payload, secret),
         "phonepe" => generate_phonepe_signature(payload, secret, ctx),
+        // Xendit signs nothing: its `x-callback-token` header is the account's static webhook
+        // token, compared verbatim with the configured secret, so the "signature" is the secret.
+        "xendit" => Ok(secret.to_string()),
         "ecommpay" => generate_ecommpay_signature(payload, secret),
         "cybersource" => generate_cybersource_signature(payload, secret, ctx.timestamp),
         _ => Err(format!("Unsupported connector: {}", connector)),
