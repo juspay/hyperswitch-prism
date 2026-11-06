@@ -135,6 +135,27 @@ fn parse_card_network(
     })
 }
 
+/// Resolve Rapyd `fields.name` for card payments.
+///
+/// The unified billing address prefers `payment_method_data.billing`, so
+/// query the request billing address first and keep the required order:
+/// request billing, payment-method billing, then the cardholder name.
+fn resolve_cardholder_name(
+    resource_common_data: &PaymentFlowData,
+    card_holder_name: &Option<Secret<String>>,
+) -> Option<Secret<String>> {
+    resource_common_data
+        .get_optional_payment_billing()
+        .and_then(|billing| billing.get_optional_full_name())
+        .or_else(|| {
+            resource_common_data
+                .address
+                .get_request_payment_method_billing()
+                .and_then(|billing| billing.get_optional_full_name())
+        })
+        .or_else(|| card_holder_name.clone())
+}
+
 /// Rapyd assigns the merchant's country prefix during onboarding.
 #[derive(Debug, Clone, Serialize)]
 #[serde(transparent)]
@@ -866,20 +887,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         number: ccard.card_number.to_owned(),
                         expiration_month: ccard.card_exp_month.to_owned(),
                         expiration_year: ccard.card_exp_year.to_owned(),
-                        name: item
-                            .router_data
-                            .resource_common_data
-                            .get_optional_payment_billing()
-                            .and_then(|billing| billing.get_optional_full_name())
-                            .or_else(|| {
-                                item.router_data
-                                    .resource_common_data
-                                    .address
-                                    .get_request_payment_method_billing()
-                                    .and_then(|billing| billing.get_optional_full_name())
-                            })
-                            .or_else(|| ccard.card_holder_name.clone())
-                            .unwrap_or(Secret::new("".to_string())),
+                        name: resolve_cardholder_name(
+                            &item.router_data.resource_common_data,
+                            &ccard.card_holder_name,
+                        )
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name:
+                                "billing.full_name / payment_method_data.billing.full_name / card.card_holder_name",
+                            context: utils::integration_ctx(
+                                "The cardholder name is missing",
+                                "Provide the billing full name, the payment method billing full name, or card.card_holder_name.",
+                            ),
+                        })?,
                         cvv: ccard.card_cvc.to_owned(),
                     })),
                     address: None,
@@ -1930,26 +1949,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // deliberately do not fall back to `customer_name`, which
                 // describes the Rapyd customer object (inline `{name, email}`)
                 // — not the cardholder.
-                let cardholder_name = router_data
-                    .resource_common_data
-                    .get_optional_payment_billing()
-                    .and_then(|billing| billing.get_optional_full_name())
-                    .or_else(|| {
-                        router_data
-                            .resource_common_data
-                            .address
-                            .get_request_payment_method_billing()
-                            .and_then(|billing| billing.get_optional_full_name())
-                    })
-                    .or_else(|| ccard.card_holder_name.clone())
-                    .ok_or(IntegrationError::MissingRequiredField {
-                        field_name:
-                            "billing.full_name / payment_method_data.billing.full_name / card.card_holder_name",
-                        context: utils::integration_ctx(
-                            "The cardholder name is missing",
-                            "Provide the billing full name, the payment method billing full name, or card.card_holder_name.",
-                        ),
-                    })?;
+                let cardholder_name = resolve_cardholder_name(
+                    &router_data.resource_common_data,
+                    &ccard.card_holder_name,
+                )
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name:
+                        "billing.full_name / payment_method_data.billing.full_name / card.card_holder_name",
+                    context: utils::integration_ctx(
+                        "The cardholder name is missing",
+                        "Provide the billing full name, the payment method billing full name, or card.card_holder_name.",
+                    ),
+                })?;
                 RapydPaymentMethodData::PaymentMethod(Box::new(PaymentMethod {
                     pm_type: RapydPaymentMethodType::try_from((
                         &router_data.connector_config,
