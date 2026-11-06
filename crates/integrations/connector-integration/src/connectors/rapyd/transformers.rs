@@ -2181,14 +2181,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             http_code: item.http_code,
         })?;
         if let Ok(PaymentsResponseData::TransactionResponse {
-            mandate_reference,
-            network_txn_id,
-            ..
+            mandate_reference, ..
         }) = &mut mapped.response
         {
             // A repeat charge retains its existing saved payment method.
             *mandate_reference = None;
-            *network_txn_id = None;
         }
         Ok(mapped)
     }
