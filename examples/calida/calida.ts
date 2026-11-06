@@ -39,10 +39,10 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
         "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"id\":1,\"order_id\":\"probe_order_001\",\"status\":\"succeeded\",\"amount\":10.0,\"currency\":\"EUR\"}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array([123, 34, 105, 100, 34, 58, 49, 44, 34, 111, 114, 100, 101, 114, 95, 105, 100, 34, 58, 34, 112, 114, 111, 98, 101, 95, 111, 114, 100, 101, 114, 95, 48, 48, 49, 34, 44, 34, 115, 116, 97, 116, 117, 115, 34, 58, 34, 115, 117, 99, 99, 101, 101, 100, 101, 100, 34, 44, 34, 97, 109, 111, 117, 110, 116, 34, 58, 49, 48, 46, 48, 44, 34, 99, 117, 114, 114, 101, 110, 99, 121, 34, 58, 34, 69, 85, 82, 34, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }
@@ -51,10 +51,10 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
     return {
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"id\":1,\"order_id\":\"probe_order_001\",\"status\":\"succeeded\",\"amount\":10.0,\"currency\":\"EUR\"}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array([123, 34, 105, 100, 34, 58, 49, 44, 34, 111, 114, 100, 101, 114, 95, 105, 100, 34, 58, 34, 112, 114, 111, 98, 101, 95, 111, 114, 100, 101, 114, 95, 48, 48, 49, 34, 44, 34, 115, 116, 97, 116, 117, 115, 34, 58, 34, 115, 117, 99, 99, 101, 101, 100, 101, 100, 34, 44, 34, 97, 109, 111, 117, 110, 116, 34, 58, 49, 48, 46, 48, 44, 34, 99, 117, 114, 114, 101, 110, 99, 121, 34, 58, 34, 69, 85, 82, 34, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }

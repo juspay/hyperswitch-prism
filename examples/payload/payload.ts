@@ -120,10 +120,10 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
     return {
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"object\":\"transaction\",\"trigger\":\"payment\",\"webhook_id\":\"probe_wh_001\",\"triggered_at\":\"2024-01-01T00:00:00Z\",\"triggered_on\":{\"id\":\"probe_txn_001\",\"object\":\"transaction\"},\"url\":\"https://example.com/webhook\"}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array([123, 34, 111, 98, 106, 101, 99, 116, 34, 58, 34, 116, 114, 97, 110, 115, 97, 99, 116, 105, 111, 110, 34, 44, 34, 116, 114, 105, 103, 103, 101, 114, 34, 58, 34, 112, 97, 121, 109, 101, 110, 116, 34, 44, 34, 119, 101, 98, 104, 111, 111, 107, 95, 105, 100, 34, 58, 34, 112, 114, 111, 98, 101, 95, 119, 104, 95, 48, 48, 49, 34, 44, 34, 116, 114, 105, 103, 103, 101, 114, 101, 100, 95, 97, 116, 34, 58, 34, 50, 48, 50, 52, 45, 48, 49, 45, 48, 49, 84, 48, 48, 58, 48, 48, 58, 48, 48, 90, 34, 44, 34, 116, 114, 105, 103, 103, 101, 114, 101, 100, 95, 111, 110, 34, 58, 123, 34, 105, 100, 34, 58, 34, 112, 114, 111, 98, 101, 95, 116, 120, 110, 95, 48, 48, 49, 34, 44, 34, 111, 98, 106, 101, 99, 116, 34, 58, 34, 116, 114, 97, 110, 115, 97, 99, 116, 105, 111, 110, 34, 125, 44, 34, 117, 114, 108, 34, 58, 34, 104, 116, 116, 112, 115, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 47, 119, 101, 98, 104, 111, 111, 107, 34, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }

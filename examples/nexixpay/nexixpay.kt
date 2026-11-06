@@ -251,9 +251,9 @@ fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
         merchantEventId = "probe_event_001"
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
-            uri = "https://example.com/webhook"  // URI of the request.
-            putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"eventId\":\"554ccc00-28fb-4344-a3fa-4bb8d1999bd5\",\"eventTime\":\"2022-09-01T01:20:00.001Z\",\"securityToken\":\"2f0ea5059b41414ca3744fe672327d85\",\"operation\":{\"orderId\":\"btid2384983\",\"operationId\":\"3470744\",\"channel\":\"ECOMMERCE\",\"operationType\":\"CAPTURE\",\"operationResult\":\"EXECUTED\",\"operationTime\":\"2022-09-01T01:20:00.001Z\",\"paymentMethod\":\"CARD\",\"paymentCircuit\":\"VISA\",\"paymentInstrumentInfo\":\"***6152\",\"paymentEndToEndId\":\"e723hedsdew\",\"cancelledOperationId\":\"\",\"operationAmount\":\"3545\",\"operationCurrency\":\"EUR\",\"additionalData\":{\"authorizationCode\":\"647189\",\"cardCountry\":\"ITA\",\"threeDS\":\"FULL_SECURE\",\"schemaTID\":\"MCS01198U\"}}}")  // Body of the HTTP request.
+            putAllLegacyHeaders(mapOf())  // Headers of the HTTP request.
+            bodyBuilder.value = com.google.protobuf.ByteString.copyFromUtf8("{\"eventId\":\"554ccc00-28fb-4344-a3fa-4bb8d1999bd5\",\"eventTime\":\"2022-09-01T01:20:00.001Z\",\"securityToken\":\"2f0ea5059b41414ca3744fe672327d85\",\"operation\":{\"orderId\":\"btid2384983\",\"operationId\":\"3470744\",\"channel\":\"ECOMMERCE\",\"operationType\":\"CAPTURE\",\"operationResult\":\"EXECUTED\",\"operationTime\":\"2022-09-01T01:20:00.001Z\",\"paymentMethod\":\"CARD\",\"paymentCircuit\":\"VISA\",\"paymentInstrumentInfo\":\"***6152\",\"paymentEndToEndId\":\"e723hedsdew\",\"cancelledOperationId\":\"\",\"operationAmount\":\"3545\",\"operationCurrency\":\"EUR\",\"additionalData\":{\"authorizationCode\":\"647189\",\"cardCountry\":\"ITA\",\"threeDS\":\"FULL_SECURE\",\"schemaTID\":\"MCS01198U\"}}}")  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uriBuilder.value = "https://example.com/webhook"
         }
     }.build()
     val response = client.handle_event(request)
@@ -266,9 +266,9 @@ fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = EventServiceParseRequest.newBuilder().apply {
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
-            uri = "https://example.com/webhook"  // URI of the request.
-            putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"eventId\":\"554ccc00-28fb-4344-a3fa-4bb8d1999bd5\",\"eventTime\":\"2022-09-01T01:20:00.001Z\",\"securityToken\":\"2f0ea5059b41414ca3744fe672327d85\",\"operation\":{\"orderId\":\"btid2384983\",\"operationId\":\"3470744\",\"channel\":\"ECOMMERCE\",\"operationType\":\"CAPTURE\",\"operationResult\":\"EXECUTED\",\"operationTime\":\"2022-09-01T01:20:00.001Z\",\"paymentMethod\":\"CARD\",\"paymentCircuit\":\"VISA\",\"paymentInstrumentInfo\":\"***6152\",\"paymentEndToEndId\":\"e723hedsdew\",\"cancelledOperationId\":\"\",\"operationAmount\":\"3545\",\"operationCurrency\":\"EUR\",\"additionalData\":{\"authorizationCode\":\"647189\",\"cardCountry\":\"ITA\",\"threeDS\":\"FULL_SECURE\",\"schemaTID\":\"MCS01198U\"}}}")  // Body of the HTTP request.
+            putAllLegacyHeaders(mapOf())  // Headers of the HTTP request.
+            bodyBuilder.value = com.google.protobuf.ByteString.copyFromUtf8("{\"eventId\":\"554ccc00-28fb-4344-a3fa-4bb8d1999bd5\",\"eventTime\":\"2022-09-01T01:20:00.001Z\",\"securityToken\":\"2f0ea5059b41414ca3744fe672327d85\",\"operation\":{\"orderId\":\"btid2384983\",\"operationId\":\"3470744\",\"channel\":\"ECOMMERCE\",\"operationType\":\"CAPTURE\",\"operationResult\":\"EXECUTED\",\"operationTime\":\"2022-09-01T01:20:00.001Z\",\"paymentMethod\":\"CARD\",\"paymentCircuit\":\"VISA\",\"paymentInstrumentInfo\":\"***6152\",\"paymentEndToEndId\":\"e723hedsdew\",\"cancelledOperationId\":\"\",\"operationAmount\":\"3545\",\"operationCurrency\":\"EUR\",\"additionalData\":{\"authorizationCode\":\"647189\",\"cardCountry\":\"ITA\",\"threeDS\":\"FULL_SECURE\",\"schemaTID\":\"MCS01198U\"}}}")  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uriBuilder.value = "https://example.com/webhook"
         }
     }.build()
     val response = client.parse_event(request)
