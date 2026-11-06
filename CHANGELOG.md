@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.06.0
+
+### Testing
+
+- **e2e:** Add Adyen one-time card payment ([#2636](https://github.com/juspay/connector-service/pull/2636)) ([`39e279e`](https://github.com/juspay/connector-service/commit/39e279ec18c5882379b75f462c18b1576056796d))
+
+**Full Changelog:** [`2026.11.05.2...2026.11.06.0`](https://github.com/juspay/connector-service/compare/2026.11.05.2...2026.11.06.0)
+
+- - -
+
 ## 2026.11.05.2
 
 ### Bug Fixes
