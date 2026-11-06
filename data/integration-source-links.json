@@ -905,5 +905,25 @@
     "https://github.com/Novalnet-AG/magento2-payment-integration-novalnet/blob/23c724a8704ab40b150e87eb3f746a95a97e1d8b/Helper/Data.php#L1095",
     "https://github.com/Novalnet-AG/shopware-6-payment-integration-novalnet/blob/8a3a4f0c85a4dafede852e080c2cd0423f6790e2/src/Helper/NovalnetHelper.php",
     "https://raw.githubusercontent.com/Novalnet-AG/oxideshop7-payment-integration-novalnet/master/Core/NovalnetUtil.php"
+  ],
+  "Payhound": [
+    "https://docs.payhound.com/v1/index",
+    "https://docs.payhound.com/v1/authentication",
+    "https://docs.payhound.com/v1/request_response",
+    "https://docs.payhound.com/v1/invoices/index",
+    "https://docs.payhound.com/v1/invoices/create",
+    "https://docs.payhound.com/v1/invoices/show",
+    "https://docs.payhound.com/v1/invoices/callbacks",
+    "https://docs.payhound.com/v1/callbacks",
+    "https://docs.payhound.com/v1/channels/channels",
+    "https://docs.payhound.com/v1/channels/create",
+    "https://docs.payhound.com/v1/channels/show",
+    "https://docs.payhound.com/v1/channels/show_tx",
+    "https://docs.payhound.com/v1/channels/callbacks",
+    "https://docs.payhound.com/v1/transactions",
+    "https://docs.payhound.com/v1/supported_currencies",
+    "https://docs.payhound.com/v1/quotes",
+    "https://docs.payhound.com/v1/prices",
+    "https://docs.payhound.com/v1/test"
   ]
 }
