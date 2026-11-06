@@ -11,6 +11,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
+    fp_utils::generate_uuid_v4,
 };
 use domain_types::{
     connector_flow::{
@@ -72,16 +73,15 @@ use stripe::auth_headers;
 fn append_idempotency_header(
     headers: &mut Vec<(String, Maskable<String>)>,
     scope: &str,
-    connector_request_reference_id: &str,
+    merchant_request_id: Option<&str>,
 ) {
-    if let Some(idempotency_key) =
-        crate::utils::stable_idempotency_key(scope, connector_request_reference_id, 64)
-    {
-        headers.push((
-            headers::IDEMPOTENCY_KEY.to_string(),
-            idempotency_key.into_masked(),
-        ));
-    }
+    let idempotency_key = merchant_request_id
+        .and_then(|request_id| crate::utils::stable_idempotency_key(scope, request_id, 64))
+        .unwrap_or_else(generate_uuid_v4);
+    headers.push((
+        headers::IDEMPOTENCY_KEY.to_string(),
+        idempotency_key.into_masked(),
+    ));
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -578,7 +578,7 @@ macros::create_all_prerequisites!(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
             idempotency_scope: &str,
-            connector_request_reference_id: &str,
+            merchant_request_id: Option<&str>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
@@ -589,7 +589,7 @@ macros::create_all_prerequisites!(
             append_idempotency_header(
                 &mut header,
                 idempotency_scope,
-                connector_request_reference_id,
+                merchant_request_id,
             );
             Ok(header)
         }
@@ -809,7 +809,7 @@ macros::macro_connector_implementation!(
             append_idempotency_header(
                 &mut header,
                 "authorize",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             );
             Ok(header)
         }
@@ -885,7 +885,7 @@ macros::macro_connector_implementation!(
             append_idempotency_header(
                 &mut header,
                 "repeat_payment",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             );
             Ok(header)
         }
@@ -955,7 +955,7 @@ macros::macro_connector_implementation!(
             append_idempotency_header(
                 &mut header,
                 "payment_method_token",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             );
             Ok(header)
         }
@@ -1033,7 +1033,7 @@ macros::macro_connector_implementation!(
             append_idempotency_header(
                 &mut header,
                 "setup_mandate",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             );
             Ok(header)
         }
@@ -1104,7 +1104,7 @@ macros::macro_connector_implementation!(
             append_idempotency_header(
                 &mut header,
                 "create_connector_customer",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             );
             Ok(header)
         }
@@ -1214,7 +1214,7 @@ macros::macro_connector_implementation!(
             append_idempotency_header(
                 &mut header,
                 "capture",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             );
             Ok(header)
         }
@@ -1270,7 +1270,7 @@ macros::macro_connector_implementation!(
             append_idempotency_header(
                 &mut header,
                 "void",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             );
             Ok(header)
         }
@@ -1308,7 +1308,7 @@ macros::macro_connector_implementation!(
             self.build_headers(
                 req,
                 "incremental_authorization",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             )
         }
         fn get_url(
@@ -1371,7 +1371,7 @@ macros::macro_connector_implementation!(
             append_idempotency_header(
                 &mut header,
                 "refund",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             );
             Ok(header)
         }
@@ -1448,7 +1448,7 @@ macros::macro_connector_implementation!(
             self.build_headers(
                 req,
                 "client_authentication_token",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             )
         }
         fn get_url(
@@ -1484,7 +1484,7 @@ macros::macro_connector_implementation!(
             self.build_headers(
                 req,
                 "submit_evidence",
-                &req.resource_common_data.connector_request_reference_id,
+                None,
             )
         }
         fn get_url(
@@ -1521,7 +1521,7 @@ macros::macro_connector_implementation!(
             self.build_headers(
                 req,
                 "accept_dispute",
-                &req.resource_common_data.connector_request_reference_id,
+                None,
             )
         }
         fn get_url(

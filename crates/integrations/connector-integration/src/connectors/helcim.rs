@@ -41,8 +41,10 @@ use domain_types::errors::IntegrationError;
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
-const IDEMPOTENCY_KEY_LENGTH: usize = 32;
-const LEGACY_ID_LENGTH: usize = 22;
+// Helcim requires a 25-character idempotency key. The generated fallback keeps
+// the existing `HS_` prefix and 22-character random suffix.
+const IDEMPOTENCY_KEY_LENGTH: usize = 25;
+const ID_LENGTH: usize = 22;
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -157,7 +159,7 @@ macros::create_all_prerequisites!(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
             idempotency_scope: &str,
-            connector_request_reference_id: &str,
+            merchant_request_id: Option<&str>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
@@ -169,12 +171,15 @@ macros::create_all_prerequisites!(
             let mut api_key = self.get_auth_header(&req.connector_config)?;
 
             header.append(&mut api_key);
-            let idempotency_key = crate::utils::stable_idempotency_key(
-                idempotency_scope,
-                connector_request_reference_id,
-                IDEMPOTENCY_KEY_LENGTH,
-            )
-            .unwrap_or_else(|| generate_id(LEGACY_ID_LENGTH, "HS"));
+            let idempotency_key = merchant_request_id
+                .and_then(|request_id| {
+                    crate::utils::stable_idempotency_key(
+                        idempotency_scope,
+                        request_id,
+                        IDEMPOTENCY_KEY_LENGTH,
+                    )
+                })
+                .unwrap_or_else(|| generate_id(ID_LENGTH, "HS"));
             header.push((
                 headers::IDEMPOTENCY_KEY.to_string(),
                 idempotency_key.into_masked(),
@@ -295,7 +300,7 @@ macros::macro_connector_implementation!(
             self.build_headers(
                 req,
                 "authorize",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             )
         }
         fn get_url(
@@ -369,7 +374,7 @@ macros::macro_connector_implementation!(
             self.build_headers(
                 req,
                 "capture",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             )
         }
         fn get_url(
@@ -402,7 +407,7 @@ macros::macro_connector_implementation!(
             self.build_headers(
                 req,
                 "void",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             )
         }
         fn get_url(
@@ -435,7 +440,7 @@ macros::macro_connector_implementation!(
             self.build_headers(
                 req,
                 "refund",
-                &req.resource_common_data.connector_request_reference_id,
+                req.resource_common_data.merchant_request_id.as_deref(),
             )
         }
         fn get_url(

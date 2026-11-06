@@ -158,8 +158,7 @@ macros::create_all_prerequisites!(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let auth = multisafepay::MultisafepayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+            let auth = multisafepay::MultisafepayAuthType::try_from(&req.connector_config)?;
 
             Ok(vec![
                 (
