@@ -32,6 +32,7 @@ pub struct ElavonAuthType {
     pub(super) ssl_merchant_id: Secret<String>,
     pub(super) ssl_user_id: Secret<String>,
     pub(super) ssl_pin: Secret<String>,
+    pub(super) ssl_vendor_id: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for ElavonAuthType {
@@ -42,11 +43,13 @@ impl TryFrom<&ConnectorSpecificConfig> for ElavonAuthType {
                 ssl_merchant_id,
                 ssl_user_id,
                 ssl_pin,
+                ssl_vendor_id,
                 ..
             } => Ok(Self {
                 ssl_merchant_id: ssl_merchant_id.clone(),
                 ssl_user_id: ssl_user_id.clone(),
                 ssl_pin: ssl_pin.clone(),
+                ssl_vendor_id: ssl_vendor_id.clone(),
             }),
             _ => Err(report!(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
@@ -87,6 +90,67 @@ impl Serialize for TransactionType {
     }
 }
 
+/// `ssl_cit_mit_cof_indicator`. Converge requires it whenever `ssl_token` is sent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum CofIndicator {
+    /// Consumer initiated, credential on file (ad hoc)
+    #[serde(rename = "C01")]
+    ConsumerAdHoc,
+    #[serde(rename = "M01")]
+    MerchantUnscheduled,
+    #[serde(rename = "M02")]
+    MerchantStandingOrder,
+    #[serde(rename = "M03")]
+    MerchantSubscription,
+    #[serde(rename = "M04")]
+    MerchantInstallment,
+    #[serde(rename = "M08")]
+    MerchantResubmission,
+}
+
+impl From<Option<common_enums::MitCategory>> for CofIndicator {
+    fn from(mit_category: Option<common_enums::MitCategory>) -> Self {
+        match mit_category {
+            None | Some(common_enums::MitCategory::Unscheduled) => Self::MerchantUnscheduled,
+            Some(common_enums::MitCategory::Recurring) => Self::MerchantStandingOrder,
+            Some(common_enums::MitCategory::Subscription) => Self::MerchantSubscription,
+            Some(common_enums::MitCategory::Installment) => Self::MerchantInstallment,
+            Some(common_enums::MitCategory::Resubmission) => Self::MerchantResubmission,
+        }
+    }
+}
+
+/// Converge rejects the whole request (`5005 Field Character Limit Exceeded`) when a field is
+/// over its documented length. Keep the tail, which holds the unique part of our IDs.
+fn fit_to_length(value: &str, max_chars: usize) -> String {
+    let skip = value.chars().count().saturating_sub(max_chars);
+    value.chars().skip(skip).collect()
+}
+
+const INVOICE_NUMBER_MAX_LENGTH: usize = 25;
+const CUSTOMER_CODE_MAX_LENGTH: usize = 17;
+
+/// Serializes a request as Converge's `<txn>` XML and wraps it in the `xmldata` form field.
+fn to_xmldata<R: Serialize>(
+    request: &R,
+    flow: &str,
+) -> Result<HashMap<String, Secret<String, WithoutType>>, error_stack::Report<IntegrationError>> {
+    let xml = quick_xml::se::to_string_with_root("txn", request).map_err(|e| {
+        report!(IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Failed to serialize Elavon {flow} request to XML: {e}"
+                )),
+                ..Default::default()
+            },
+        })
+    })?;
+    Ok(HashMap::from([(
+        "xmldata".to_string(),
+        Secret::<_, WithoutType>::new(xml),
+    )]))
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct CardPaymentRequest<
@@ -96,17 +160,20 @@ pub struct CardPaymentRequest<
     pub ssl_account_id: Secret<String>,
     pub ssl_user_id: Secret<String>,
     pub ssl_pin: Secret<String>,
+    pub ssl_vendor_id: Option<Secret<String>>,
     pub ssl_amount: StringMajorUnit,
     pub ssl_card_number: RawCardNumber<T>,
     pub ssl_exp_date: Secret<String>,
     pub ssl_cvv2cvc2: Option<Secret<String>>,
     pub ssl_cvv2cvc2_indicator: Option<i32>,
+    pub ssl_first_name: Option<Secret<String>>,
+    pub ssl_last_name: Option<Secret<String>>,
     pub ssl_email: Option<common_utils::pii::Email>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ssl_add_token: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ssl_token_source: Option<String>,
-    pub ssl_get_token: Option<String>,
+    /// `Y` stores the card in Converge's Card Manager. Any other value is ignored
+    /// silently: the payment approves and no token comes back.
+    pub ssl_add_token: Option<&'static str>,
+    pub ssl_get_token: Option<&'static str>,
+    pub ssl_cit_mit_cof_indicator: Option<CofIndicator>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ssl_transaction_currency: Option<Currency>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -222,20 +289,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let customer_id_str = request_data
                     .customer_id
                     .as_ref()
-                    .map(|c| c.get_string_repr().to_string());
+                    .map(|c| fit_to_length(c.get_string_repr(), CUSTOMER_CODE_MAX_LENGTH));
 
-                let add_token =
-                    request_data
-                        .setup_future_usage
-                        .as_ref()
-                        .and_then(|sfu: &FutureUsage| {
-                            if *sfu == FutureUsage::OnSession || *sfu == FutureUsage::OffSession {
-                                Some("ADD".to_string())
-                            } else {
-                                None
-                            }
-                        });
-                let token_source = add_token.as_ref().map(|_| "ECOMMERCE".to_string());
+                let save_card = matches!(
+                    request_data.setup_future_usage,
+                    Some(FutureUsage::OnSession | FutureUsage::OffSession)
+                );
+                let save_flag = save_card.then_some("Y");
+                // Saving the card, or paying with one saved earlier, is a consumer-initiated
+                // credential-on-file payment.
+                let cof_indicator = (save_card || request_data.is_stored_credential == Some(true))
+                    .then_some(CofIndicator::ConsumerAdHoc);
+
+                let common = &router_data.resource_common_data;
+                let holder_name = card
+                    .card_holder_name
+                    .as_ref()
+                    .map(|name| name.peek().trim());
+                let first_name = common.get_optional_billing_first_name().or_else(|| {
+                    holder_name
+                        .and_then(|name| name.split_whitespace().next())
+                        .map(|first| Secret::new(first.to_string()))
+                });
+                let last_name = common.get_optional_billing_last_name().or_else(|| {
+                    holder_name
+                        .and_then(|name| name.split_once(char::is_whitespace))
+                        .map(|(_, last)| Secret::new(last.trim().to_string()))
+                });
 
                 let amount = item
                     .connector
@@ -257,15 +337,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ssl_account_id: auth_type.ssl_merchant_id.clone(),
                     ssl_user_id: auth_type.ssl_user_id.clone(),
                     ssl_pin: auth_type.ssl_pin.clone(),
+                    ssl_vendor_id: auth_type.ssl_vendor_id.clone(),
                     ssl_amount: amount,
                     ssl_card_number: card.card_number.clone(),
                     ssl_exp_date: Secret::new(exp_date),
                     ssl_cvv2cvc2: Some(card.card_cvc.clone()),
                     ssl_cvv2cvc2_indicator: Some(1),
+                    ssl_first_name: first_name,
+                    ssl_last_name: last_name,
                     ssl_email: request_data.email.clone(),
-                    ssl_add_token: add_token,
-                    ssl_token_source: token_source,
-                    ssl_get_token: None,
+                    ssl_add_token: save_flag,
+                    ssl_get_token: save_flag,
+                    ssl_cit_mit_cof_indicator: cof_indicator,
                     ssl_transaction_currency: request_data
                         .connector_feature_data
                         .as_ref()
@@ -276,7 +359,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ssl_avs_address: avs_address,
                     ssl_avs_zip: avs_zip,
                     ssl_customer_code: customer_id_str,
-                    ssl_invoice_number: Some(router_data.resource_common_data.payment_id.clone()),
+                    ssl_invoice_number: Some(fit_to_length(
+                        &common.connector_request_reference_id,
+                        INVOICE_NUMBER_MAX_LENGTH,
+                    )),
                 };
                 tracing::debug!(?card_req, "Elavon Card Payment Request");
                 Ok(Self::Card(card_req))
@@ -338,39 +424,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // directly create the ElavonPaymentsRequest from data directly
         let request = ElavonPaymentsRequest::try_from(data)
             .attach_printable("Failed to create ElavonPaymentsRequest from ElavonRouterData")?;
-
-        // Log that we're creating the XML request
-        tracing::info!("Creating XML for Elavon request using direct implementation");
-
-        // Generate XML content directly
-        let xml_content = quick_xml::se::to_string_with_root("txn", &request).map_err(|err| {
-            tracing::info!(error=?err, "XML serialization error");
-            error_stack::report!(IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Failed to serialize Elavon Authorize (ccsale/ccauthonly) request to XML"
-                            .to_string(),
-                    ),
-                    ..Default::default()
-                },
-            })
-        })?;
-
-        // Log generated XML for debugging
-        let raw_xml = xml_content.clone();
-        tracing::info!(xml=?raw_xml, "Generated raw XML");
-
-        let mut result = HashMap::new();
-        result.insert(
-            "xmldata".to_string(),
-            Secret::<_, WithoutType>::new(xml_content),
-        );
-
-        // Log form data keys
-        let keys = result.keys().collect::<Vec<_>>();
-        tracing::info!(form_keys=?keys, "Form data keys");
-
-        Ok(Self(result))
+        to_xmldata(&request, "Authorize (ccsale/ccauthonly)").map(Self)
     }
 }
 
@@ -402,38 +456,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })
             .attach_printable("Failed to create SyncRequest from RouterData")?;
-
-        // Log that we're creating the XML request for PSync
-        tracing::info!("Creating XML for Elavon PSync request using direct implementation");
-
-        // Generate XML content directly
-        let xml_content = quick_xml::se::to_string_with_root("txn", &request).map_err(|err| {
-            tracing::info!(error=?err, "XML serialization error");
-            error_stack::report!(IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Failed to serialize Elavon PSync (txnquery) request to XML".to_string(),
-                    ),
-                    ..Default::default()
-                },
-            })
-        })?;
-
-        // Log generated XML for debugging
-        let raw_xml = xml_content.clone();
-        tracing::info!(xml=?raw_xml, "Generated raw XML");
-
-        let mut result = HashMap::new();
-        result.insert(
-            "xmldata".to_string(),
-            Secret::<_, WithoutType>::new(xml_content),
-        );
-
-        // Log form data keys
-        let keys = result.keys().collect::<Vec<_>>();
-        tracing::info!(form_keys=?keys, "PSync XML data map keys");
-
-        Ok(Self(result))
+        to_xmldata(&request, "PSync (txnquery)").map(Self)
     }
 }
 
@@ -695,9 +718,11 @@ impl<
                     ),
                     redirection_data: None,
                     connector_metadata: None,
-                    network_txn_id: payment_resp_struct.ssl_approval_code.clone(),
+                    // `ssl_approval_code` is the issuer's approval code, not a network
+                    // transaction ID; reporting it as one lets it be replayed as an NTID.
+                    network_txn_id: None,
                     network_txn_link_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: payment_resp_struct.ssl_approval_code.clone(),
                     incremental_authorization_allowed: None,
                     mandate_reference,
                     status_code: http_code,
@@ -744,6 +769,8 @@ pub struct SyncRequest {
     pub ssl_account_id: Secret<String>,
     pub ssl_user_id: Secret<String>,
     pub ssl_pin: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssl_vendor_id: Option<Secret<String>>,
     pub ssl_txn_id: String,
 }
 
@@ -800,6 +827,7 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
             ssl_account_id: auth_type.ssl_merchant_id,
             ssl_user_id: auth_type.ssl_user_id,
             ssl_pin: auth_type.ssl_pin,
+            ssl_vendor_id: auth_type.ssl_vendor_id,
             ssl_txn_id: connector_txn_id,
         })
     }
@@ -812,6 +840,7 @@ pub struct ElavonCaptureRequest {
     pub ssl_account_id: Secret<String>,
     pub ssl_user_id: Secret<String>,
     pub ssl_pin: Secret<String>,
+    pub ssl_vendor_id: Option<Secret<String>>,
     pub ssl_amount: StringMajorUnit,
     pub ssl_txn_id: String,
 }
@@ -872,6 +901,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ssl_account_id: auth_type.ssl_merchant_id,
             ssl_user_id: auth_type.ssl_user_id,
             ssl_pin: auth_type.ssl_pin,
+            ssl_vendor_id: auth_type.ssl_vendor_id,
             ssl_amount: amount,
             ssl_txn_id: previous_connector_txn_id,
         })
@@ -907,28 +937,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })
             .attach_printable("Failed to create ElavonCaptureRequest")?;
-
-        // Generate XML content
-        let xml_content = quick_xml::se::to_string_with_root("txn", &request).map_err(|e| {
-            report!(IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "Failed to serialize Elavon Capture (cccomplete) request to XML: {e}"
-                    )),
-                    ..Default::default()
-                },
-            })
-            .attach_printable(format!("XML serialization failed: {e}"))
-        })?;
-
-        // Create the form data HashMap
-        let mut result = HashMap::new();
-        result.insert(
-            "xmldata".to_string(),
-            Secret::<_, WithoutType>::new(xml_content),
-        );
-
-        Ok(Self(result))
+        to_xmldata(&request, "Capture (cccomplete)").map(Self)
     }
 }
 
@@ -1026,6 +1035,7 @@ pub struct ElavonRefundRequest {
     pub ssl_account_id: Secret<String>,
     pub ssl_user_id: Secret<String>,
     pub ssl_pin: Secret<String>,
+    pub ssl_vendor_id: Option<Secret<String>>,
     pub ssl_amount: StringMajorUnit,
     pub ssl_txn_id: String,
 }
@@ -1068,6 +1078,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ssl_account_id: auth_type.ssl_merchant_id,
             ssl_user_id: auth_type.ssl_user_id,
             ssl_pin: auth_type.ssl_pin,
+            ssl_vendor_id: auth_type.ssl_vendor_id,
             ssl_amount: amount,
             ssl_txn_id: request_data.connector_transaction_id.clone(),
         })
@@ -1100,28 +1111,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })
             .attach_printable("Failed to create ElavonRefundRequest")?;
-
-        // Generate XML content
-        let xml_content = quick_xml::se::to_string_with_root("txn", &request).map_err(|e| {
-            report!(IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "Failed to serialize Elavon Refund (ccreturn) request to XML: {e}"
-                    )),
-                    ..Default::default()
-                },
-            })
-            .attach_printable(format!("XML serialization failed: {e}"))
-        })?;
-
-        // Create the form data HashMap
-        let mut result = HashMap::new();
-        result.insert(
-            "xmldata".to_string(),
-            Secret::<_, WithoutType>::new(xml_content),
-        );
-
-        Ok(Self(result))
+        to_xmldata(&request, "Refund (ccreturn)").map(Self)
     }
 }
 
@@ -1235,6 +1225,7 @@ impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsRespons
             ssl_account_id: auth_type.ssl_merchant_id,
             ssl_user_id: auth_type.ssl_user_id,
             ssl_pin: auth_type.ssl_pin,
+            ssl_vendor_id: auth_type.ssl_vendor_id,
             ssl_txn_id: connector_refund_id,
         })
     }
@@ -1268,28 +1259,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })
             .attach_printable("Failed to create SyncRequest for RSync")?;
-
-        // Generate XML content
-        let xml_content = quick_xml::se::to_string_with_root("txn", &request).map_err(|e| {
-            report!(IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "Failed to serialize Elavon RSync (txnquery) request to XML: {e}"
-                    )),
-                    ..Default::default()
-                },
-            })
-            .attach_printable(format!("XML serialization failed: {e}"))
-        })?;
-
-        // Create the form data HashMap
-        let mut result = HashMap::new();
-        result.insert(
-            "xmldata".to_string(),
-            Secret::<_, WithoutType>::new(xml_content),
-        );
-
-        Ok(Self(result))
+        to_xmldata(&request, "RSync (txnquery)").map(Self)
     }
 }
 
@@ -1444,10 +1414,10 @@ impl<F> TryFrom<ResponseRouterData<ElavonPSyncResponse, Self>>
 // ============================================================================
 //
 // Elavon uses `ssl_token` (returned during the initial card payment when
-// `ssl_add_token=ADD` is sent) as the mandate reference.  Subsequent MIT
-// payments skip the card fields entirely and pass `ssl_token` instead.
-// The `connector_mandate_id` in the authorize response carries that token;
-// the RepeatPayment request reads it back via `request.connector_mandate_id()`.
+// `ssl_add_token=Y` and `ssl_get_token=Y` are sent) as the mandate reference.
+// Subsequent MIT payments skip the card fields entirely and pass `ssl_token`
+// instead. The `connector_mandate_id` in the authorize response carries that
+// token; the RepeatPayment request reads it back via `request.connector_mandate_id()`.
 
 /// Wire request for a token-based (mandate) payment.
 #[skip_serializing_none]
@@ -1457,9 +1427,15 @@ pub struct MandatePaymentRequest {
     pub ssl_account_id: Secret<String>,
     pub ssl_user_id: Secret<String>,
     pub ssl_pin: Secret<String>,
+    pub ssl_vendor_id: Option<Secret<String>>,
     pub ssl_amount: StringMajorUnit,
     pub ssl_email: Option<common_utils::pii::Email>,
     pub ssl_token: Secret<String>,
+    pub ssl_cit_mit_cof_indicator: CofIndicator,
+    /// `1` marks a recurring payment. The installment value `2` also needs
+    /// `ssl_payment_number` and `ssl_payment_count`, which no MIT carries, so it is never sent.
+    pub ssl_recurring_flag: Option<u8>,
+    pub ssl_invoice_number: Option<String>,
 }
 
 /// Form-encoded XML wrapper for the repeat payment request.
@@ -1581,14 +1557,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
+        let cof_indicator = CofIndicator::from(request.mit_category.clone());
         Ok(Self {
             ssl_transaction_type: transaction_type,
             ssl_account_id: auth_type.ssl_merchant_id,
             ssl_user_id: auth_type.ssl_user_id,
             ssl_pin: auth_type.ssl_pin,
+            ssl_vendor_id: auth_type.ssl_vendor_id,
             ssl_amount: amount,
             ssl_email: request.email.clone(),
             ssl_token: Secret::new(ssl_token),
+            ssl_cit_mit_cof_indicator: cof_indicator,
+            ssl_recurring_flag: (cof_indicator == CofIndicator::MerchantStandingOrder).then_some(1),
+            ssl_invoice_number: Some(fit_to_length(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+                INVOICE_NUMBER_MAX_LENGTH,
+            )),
         })
     }
 }
@@ -1631,26 +1617,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ..Default::default()
                 },
             })?;
-
-        let xml_content = quick_xml::se::to_string_with_root("txn", &request).map_err(|e| {
-            report!(IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "Failed to serialize Elavon RepeatPayment request to XML: {e}"
-                    )),
-                    ..Default::default()
-                },
-            })
-            .attach_printable(format!("XML serialization failed: {e}"))
-        })?;
-
-        let mut result = HashMap::new();
-        result.insert(
-            "xmldata".to_string(),
-            Secret::<_, WithoutType>::new(xml_content),
-        );
-
-        Ok(Self(result))
+        to_xmldata(&request, "RepeatPayment").map(Self)
     }
 }
 
@@ -1680,9 +1647,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ),
                     redirection_data: None,
                     connector_metadata: None,
-                    network_txn_id: payment_resp_struct.ssl_approval_code.clone(),
+                    network_txn_id: None,
                     network_txn_link_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: payment_resp_struct.ssl_approval_code.clone(),
                     incremental_authorization_allowed: None,
                     // Token-based repeat payments do not issue a new ssl_token;
                     // the original mandate remains valid.
