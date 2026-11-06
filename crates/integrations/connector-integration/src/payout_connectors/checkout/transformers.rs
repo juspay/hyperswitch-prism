@@ -497,28 +497,41 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Some(PayoutMethodData::Wallet(Wallet::ApplePayDecrypt(token))) => {
                 CheckoutPayoutMethod::NetworkToken(Box::new(CheckoutPayoutNetworkToken {
                     token: token.dpan.clone(),
-                    expiry_month: Secret::new(token.expiry_month.peek().parse().map_err(|_| {
-                        error_stack::report!(IntegrationError::InvalidDataFormat {
-                            field_name: "apple_pay.expiry_month",
-                            context: domain_types::errors::IntegrationErrorContext {
-                                additional_context: Some(
-                                    "expiry month must be a number 1-12".to_owned(),
-                                ),
-                                ..Default::default()
-                            },
-                        })
-                    })?),
-                    expiry_year: Secret::new(token.expiry_year.peek().parse().map_err(|_| {
-                        error_stack::report!(IntegrationError::InvalidDataFormat {
-                            field_name: "apple_pay.expiry_year",
-                            context: domain_types::errors::IntegrationErrorContext {
-                                additional_context: Some(
-                                    "expiry year must be a four-digit number".to_owned(),
-                                ),
-                                ..Default::default()
-                            },
-                        })
-                    })?),
+                    expiry_month: Secret::new(
+                        token
+                            .expiry_month
+                            .peek()
+                            .parse::<u8>()
+                            .ok()
+                            .filter(|month| (1..=12).contains(month))
+                            .ok_or_else(|| {
+                                error_stack::report!(IntegrationError::InvalidDataFormat {
+                                    field_name: "apple_pay.expiry_month",
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        additional_context: Some(
+                                            "expiry month must be a number 1-12".to_owned(),
+                                        ),
+                                        ..Default::default()
+                                    },
+                                })
+                            })?,
+                    ),
+                    expiry_year: Secret::new(
+                        domain_types::utils::expand_expiry_year_to_four_digits(&token.expiry_year)
+                            .peek()
+                            .parse()
+                            .map_err(|_| {
+                                error_stack::report!(IntegrationError::InvalidDataFormat {
+                                    field_name: "apple_pay.expiry_year",
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        additional_context: Some(
+                                            "expiry year must be a number".to_owned(),
+                                        ),
+                                        ..Default::default()
+                                    },
+                                })
+                            })?,
+                    ),
                     token_type: CheckoutPayoutTokenType::Applepay,
                     cryptogram: None,
                     eci: None,

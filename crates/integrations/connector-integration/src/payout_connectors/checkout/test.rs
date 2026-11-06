@@ -42,6 +42,14 @@ mod tests {
         }
 
         #[test]
+        fn override_with_placeholder_trailing_slash_is_trimmed() {
+            let url =
+                get_checkout_payout_base_url("https://{{optional_client_id}}api.x.com/", None)
+                    .unwrap();
+            assert_eq!(url, "https://api.x.com");
+        }
+
+        #[test]
         fn malformed_client_id_is_rejected() {
             // Missing the `cli_` prefix.
             assert!(get_checkout_payout_base_url(
@@ -437,14 +445,32 @@ mod tests {
             (request, body)
         }
 
-        fn apple_pay_token() -> PayoutMethodData<DefaultPCIHolder> {
+        fn serialized_wire_body(request: &common_utils::request::Request) -> serde_json::Value {
+            let (body, _) = request
+                .body
+                .as_ref()
+                .expect("request must have a body")
+                .get_body_bytes()
+                .expect("JSON request body must serialize");
+            serde_json::from_slice(&body.expect("JSON request must contain bytes"))
+                .expect("wire request body must be valid JSON")
+        }
+
+        fn apple_pay_token_with_expiry(
+            expiry_month: &str,
+            expiry_year: &str,
+        ) -> PayoutMethodData<DefaultPCIHolder> {
             PayoutMethodData::Wallet(Wallet::ApplePayDecrypt(ApplePayDecrypt {
                 dpan: CardNumber::from_str("4242424242424242").unwrap(),
-                expiry_month: Secret::new("07".to_string()),
-                expiry_year: Secret::new("2027".to_string()),
+                expiry_month: Secret::new(expiry_month.to_string()),
+                expiry_year: Secret::new(expiry_year.to_string()),
                 card_holder_name: Some(Secret::new("Hannah Bret".to_string())),
                 card_network: None,
             }))
+        }
+
+        fn apple_pay_token() -> PayoutMethodData<DefaultPCIHolder> {
+            apple_pay_token_with_expiry("07", "2027")
         }
 
         #[test]
@@ -456,6 +482,7 @@ mod tests {
                 None,
             );
             let (request, body) = build_request_body(&req);
+            let wire_body = serialized_wire_body(&request);
 
             assert_eq!(request.url, "https://api.sandbox.checkout.com/payments");
             assert_eq!(request.method, common_utils::request::Method::Post);
@@ -477,6 +504,14 @@ mod tests {
             assert_eq!(
                 body.pointer("/destination/token_type"),
                 Some(&json!("applepay"))
+            );
+            assert_eq!(
+                wire_body.pointer("/destination/expiry_month"),
+                Some(&json!(7))
+            );
+            assert_eq!(
+                wire_body.pointer("/destination/expiry_year"),
+                Some(&json!(2027))
             );
             assert_eq!(
                 body.pointer("/destination/account_holder/type"),
@@ -505,6 +540,58 @@ mod tests {
                 body.pointer("/sender/source_of_funds"),
                 Some(&json!("debit"))
             );
+        }
+
+        #[test]
+        fn apple_pay_expiry_matches_payment_mapping() {
+            for (expiry_month, expiry_year, expected_month, expected_year) in [
+                ("12", "27", 12, 2027),
+                ("07", "999", 7, 999),
+                ("07", "10000", 7, 10000),
+            ] {
+                let req = router_data(
+                    CONNECTOR_REFERENCE.to_string(),
+                    Some(apple_pay_token_with_expiry(expiry_month, expiry_year)),
+                    Some(corporate_sender()),
+                    None,
+                );
+                let (request, _) = build_request_body(&req);
+                let body = serialized_wire_body(&request);
+
+                assert_eq!(
+                    body.pointer("/destination/expiry_month"),
+                    Some(&json!(expected_month))
+                );
+                assert_eq!(
+                    body.pointer("/destination/expiry_year"),
+                    Some(&json!(expected_year))
+                );
+            }
+        }
+
+        #[test]
+        fn invalid_apple_pay_expiry_month_is_rejected() {
+            let connector = CheckoutPayouts::<DefaultPCIHolder>::new();
+            let connector_integration: BoxedConnectorIntegrationV2<
+                '_,
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest<DefaultPCIHolder>,
+                PayoutTransferResponse,
+            > = connector.get_connector_integration_v2();
+
+            for expiry_month in ["0", "13"] {
+                let req = router_data(
+                    CONNECTOR_REFERENCE.to_string(),
+                    Some(apple_pay_token_with_expiry(expiry_month, "2027")),
+                    Some(corporate_sender()),
+                    None,
+                );
+                assert!(
+                    connector_integration.build_request_v2(&req).is_err(),
+                    "month {expiry_month} must be rejected"
+                );
+            }
         }
 
         #[test]

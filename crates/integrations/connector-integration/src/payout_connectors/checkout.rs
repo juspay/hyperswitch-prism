@@ -69,10 +69,11 @@ pub fn get_checkout_payout_base_url(
         .transpose()?
         .unwrap_or_default();
 
-    Ok(resolve_checkout_base_url(
-        configured_base_url,
-        &optional_client_id,
-    ))
+    Ok(
+        resolve_checkout_base_url(configured_base_url, &optional_client_id)
+            .trim_end_matches('/')
+            .to_string(),
+    )
 }
 
 macros::create_all_prerequisites!(
