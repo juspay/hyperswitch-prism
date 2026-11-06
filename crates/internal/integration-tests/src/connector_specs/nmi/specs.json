@@ -9,6 +9,22 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "PaymentService/SetupRecurring",
-    "PaymentService/Void"
-  ]
+    "PaymentService/Void",
+    "EventService/HandleEvent"
+  ],
+  "supported_payment_methods": [
+    "card",
+    "google_pay_sdk",
+    "apple_pay_sdk"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_google_pay_encrypted": "SANDBOX_NOT_PROVISIONED: doc:https://docs.nmi.com/docs/adding-digital-wallet-data-to-the-customer-vault — implemented, live verification blocked: the scenario token is a placeholder, and a CHARGED result needs a Google Pay token minted for a gateway merchant id registered with NMI, which no committed credential provides"
+    },
+    "EventService/HandleEvent": {
+      "payment_succeeded": "SANDBOX_NOT_PROVISIONED: doc:https://docs.nmi.com/reference/overview.md — implemented, live verification blocked: a signed positive needs the NMI webhook signing key (Merchant Portal > Settings > Webhooks) under creds key webhook_secret, which no committed credential provides, and the integration-test signer (crates/internal/integration-tests/src/webhook_signatures.rs generate_signature) has no nmi arm to compute Webhook-Signature t=<nonce>,s=<hmac>",
+      "payment_failed": "SANDBOX_NOT_PROVISIONED: doc:https://docs.nmi.com/reference/overview.md — implemented, live verification blocked: a signed positive needs the NMI webhook signing key (Merchant Portal > Settings > Webhooks) under creds key webhook_secret, which no committed credential provides, and the integration-test signer (crates/internal/integration-tests/src/webhook_signatures.rs generate_signature) has no nmi arm to compute Webhook-Signature t=<nonce>,s=<hmac>",
+      "refund_succeeded": "SANDBOX_NOT_PROVISIONED: doc:https://docs.nmi.com/reference/overview.md — implemented, live verification blocked: a signed positive needs the NMI webhook signing key (Merchant Portal > Settings > Webhooks) under creds key webhook_secret, which no committed credential provides, and the integration-test signer (crates/internal/integration-tests/src/webhook_signatures.rs generate_signature) has no nmi arm to compute Webhook-Signature t=<nonce>,s=<hmac>"
+    }
+  }
 }

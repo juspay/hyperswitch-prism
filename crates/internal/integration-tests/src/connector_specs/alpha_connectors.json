@@ -77,7 +77,9 @@
     "nexixpay": {
       "reason": "No Nexi XPay sandbox API key is configured in CI, so certification cannot run. CI also cannot cover what the server-to-server API itself rules out: card payments are 3DS-only (3-step init, browser ACS, validation, payment), so the no-3DS global suites cannot chain; Nexi sends notifications only for Hosted Payment Page, Pay-by-Link and Build orders, so webhooks are checked against fixtures, not live delivery; and Nexi has no dispute API. Adding a sandbox key to CI, together with a 3DS-aware Authorize scenario that depends on PreAuthenticate, would close the card flows; the webhook and dispute gaps are properties of the Nexi API."
     },
-    "nmi": {},
+    "nmi": {
+      "reason": "No NMI sandbox credentials are configured in CI, so certification cannot run; flows are certified locally against the NMI sandbox with the flat NmiConfig credential shape (api_key, public_key). Still uncovered: signed webhook positives (no NMI webhook signing key, and the test harness has no NMI signer), Apple Pay / Google Pay NMI-side decryption (no device or gateway-merchant wallet tokens), and disputes (NMI has no dispute API). Remove this entry once CI holds NMI credentials including a webhook_secret."
+    },
     "noon": {
       "reason": "No Noon sandbox credentials are configured in CI, so certification cannot run. Also uncovered: the positive webhook scenarios are unsigned because Noon signs a field inside the body rather than a header; Google Pay needs a test-token credential (noon.metadata.google_pay); network-transaction-id MIT, external 3DS pass-through, pre-decrypted Apple Pay / Google Pay and disputes have no Noon API. Add Noon sandbox credentials, including the webhook secret and metadata.google_pay, to CI to close this, then remove the entry."
     },
