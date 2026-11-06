@@ -1516,34 +1516,49 @@ message RequestDetails {
   HttpMethod method = 1;
 
   // URI of the request.
-  optional string uri = 2;
+  optional string legacy_uri = 2 [deprecated = true];
 
   // Headers of the HTTP request.
-  map<string, string> headers = 3;
+  map<string, string> legacy_headers = 3 [deprecated = true];
 
   // Body of the HTTP request.
-  bytes body = 4;
+  bytes legacy_body = 4 [deprecated = true];
 
   // Query parameters of the request.
-  optional string query_params = 5;
+  optional string legacy_query_params = 5 [deprecated = true];
+
+  // Secret-typed replacements. Presence takes precedence over the legacy field,
+  // including an explicitly empty body, map, URI or query string.
+  optional SecretBytes body = 6;
+  optional SecretHeaders headers = 7;
+  optional SecretString uri = 8;
+  optional SecretString query_params = 9;
 }
 
 // Secrets used for verifying connector webhooks.
 message WebhookSecrets {
   // Primary secret for webhook verification.
-  string secret = 1;
+  string legacy_secret = 1 [deprecated = true];
 
   // Additional secret, if required by the connector.
-  optional string additional_secret = 2;
+  optional string legacy_additional_secret = 2 [deprecated = true];
+
+  // Presence takes precedence over the corresponding deprecated field.
+  optional SecretString secret = 3;
+  optional SecretString additional_secret = 4;
 }
 
 // Secrets used for source verification.
 message RedirectResponseSecrets {
   // Primary secret for source verification.
-  string secret = 1;
+  string legacy_secret = 1 [deprecated = true];
 
   // Additional secret, if required by the connector.
-  optional string additional_secret = 2;
+  optional string legacy_additional_secret = 2 [deprecated = true];
+
+  // Presence takes precedence over the corresponding deprecated field.
+  optional SecretString secret = 3;
+  optional SecretString additional_secret = 4;
 }
 
 // Request for notifying connectors about events

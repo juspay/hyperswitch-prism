@@ -273,14 +273,14 @@ fn build_hmac_authorization(
 }
 
 fn get_webhook_header<'a>(
-    headers: &'a std::collections::HashMap<String, String>,
+    headers: &'a std::collections::HashMap<String, Secret<String>>,
     header_name: &'static str,
 ) -> Result<&'a str, error_stack::Report<WebhookError>> {
     headers
         .iter()
         .find_map(|(key, value)| {
             key.eq_ignore_ascii_case(header_name)
-                .then_some(value.as_str())
+                .then_some(value.peek().as_str())
         })
         .ok_or_else(|| {
             error_stack::report!(WebhookError::WebhookMissingRequiredField { field: header_name })
@@ -888,7 +888,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             get_webhook_header(&request.headers, headers::AUTHORIZATION)?.trim();
         let content_type = get_webhook_header(&request.headers, headers::CONTENT_TYPE)?.trim();
         let date = get_webhook_header(&request.headers, headers::DATE)?;
-        let path = grabpay_webhook_path(request.uri.as_deref())?;
+        let path = grabpay_webhook_path(request.uri.as_ref().map(|value| value.peek().as_str()))?;
         let method = format!("{:?}", request.method).to_uppercase();
 
         // GrabPay's Authorization header is `{partner_id}:{base64(HMAC-SHA256(canonical))}`.
@@ -913,7 +913,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let body_digest = {
             use common_utils::crypto::GenerateDigest;
             crypto::Sha256
-                .generate_digest(&request.body)
+                .generate_digest(request.body.peek())
                 .map(|digest| BASE64_ENGINE.encode(digest))
                 .change_context(WebhookError::WebhookSourceVerificationFailed)?
         };
@@ -935,6 +935,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let webhook_body: GrabpayWebhookBody = request
             .body
+            .peek()
             .parse_struct("GrabpayWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         grabpay::grabpay_webhook_event_type(&webhook_body)
@@ -946,6 +947,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
         let webhook_body: GrabpayWebhookBody = request
             .body
+            .peek()
             .parse_struct("GrabpayWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         Ok(Some(webhook_body.webhook_reference()))
@@ -960,6 +962,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let webhook_body: GrabpayWebhookBody = request
             .body
+            .peek()
             .parse_struct("GrabpayWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         if webhook_body.is_refund_event() {
@@ -987,7 +990,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code: if is_failure { reason.clone() } else { None },
             error_message: if is_failure { reason.clone() } else { None },
             error_reason: reason,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             amount_captured: None,
@@ -1005,6 +1008,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let webhook_body: GrabpayWebhookBody = request
             .body
+            .peek()
             .parse_struct("GrabpayWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         if !webhook_body.is_refund_event() {
@@ -1028,7 +1032,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: webhook_body.partner_tx_id,
             error_code: if is_failure { reason.clone() } else { None },
             error_message: if is_failure { reason } else { None },
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
         })
@@ -1041,6 +1045,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     {
         let webhook_body: GrabpayWebhookBody = request
             .body
+            .peek()
             .parse_struct("GrabpayWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         Ok(Box::new(webhook_body))
@@ -1059,7 +1064,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _secrets: Option<ConnectorSourceVerificationSecrets>,
     ) -> CustomResult<Vec<u8>, IntegrationError> {
-        Ok(request.body.clone())
+        Ok(request.body.peek().clone())
     }
 
     fn verify_redirect_response_source(
@@ -1161,7 +1166,7 @@ fn build_redirect_connector_feature_data(
 
 fn get_query_param(request: &RequestDetails, param_name: &str) -> Option<String> {
     request.query_params.as_ref().and_then(|query_params| {
-        serde_json::from_str::<serde_json::Value>(query_params)
+        serde_json::from_str::<serde_json::Value>(query_params.peek())
             .ok()
             .and_then(|value| {
                 value
@@ -1171,7 +1176,7 @@ fn get_query_param(request: &RequestDetails, param_name: &str) -> Option<String>
                     .map(str::to_owned)
             })
             .or_else(|| {
-                url::form_urlencoded::parse(query_params.as_bytes())
+                url::form_urlencoded::parse(query_params.peek().as_bytes())
                     .find(|(key, _)| key == param_name)
                     .map(|(_, value)| value.into_owned())
             })

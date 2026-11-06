@@ -67,10 +67,10 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
         "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array([123, 34, 101, 118, 101, 110, 116, 95, 116, 121, 112, 101, 34, 58, 34, 103, 117, 97, 114, 97, 110, 116, 101, 101, 100, 34, 44, 34, 101, 118, 101, 110, 116, 95, 100, 97, 116, 101, 34, 58, 34, 50, 48, 50, 54, 45, 48, 49, 45, 48, 49, 84, 48, 48, 58, 48, 48, 58, 48, 48, 90, 34, 44, 34, 101, 118, 101, 110, 116, 95, 114, 101, 115, 111, 117, 114, 99, 101, 34, 58, 34, 112, 97, 121, 109, 101, 110, 116, 115, 34, 44, 34, 100, 97, 116, 97, 34, 58, 123, 34, 112, 97, 121, 109, 101, 110, 116, 95, 105, 100, 34, 58, 34, 112, 114, 111, 98, 101, 95, 112, 97, 121, 95, 48, 48, 49, 34, 44, 34, 115, 116, 97, 116, 117, 115, 34, 58, 34, 103, 117, 97, 114, 97, 110, 116, 101, 101, 100, 34, 44, 34, 101, 120, 116, 101, 114, 110, 97, 108, 95, 114, 101, 102, 101, 114, 101, 110, 99, 101, 34, 58, 34, 112, 114, 111, 98, 101, 95, 114, 101, 102, 95, 48, 48, 49, 34, 125, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }
@@ -79,10 +79,10 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
     return {
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array([123, 34, 101, 118, 101, 110, 116, 95, 116, 121, 112, 101, 34, 58, 34, 103, 117, 97, 114, 97, 110, 116, 101, 101, 100, 34, 44, 34, 101, 118, 101, 110, 116, 95, 100, 97, 116, 101, 34, 58, 34, 50, 48, 50, 54, 45, 48, 49, 45, 48, 49, 84, 48, 48, 58, 48, 48, 58, 48, 48, 90, 34, 44, 34, 101, 118, 101, 110, 116, 95, 114, 101, 115, 111, 117, 114, 99, 101, 34, 58, 34, 112, 97, 121, 109, 101, 110, 116, 115, 34, 44, 34, 100, 97, 116, 97, 34, 58, 123, 34, 112, 97, 121, 109, 101, 110, 116, 95, 105, 100, 34, 58, 34, 112, 114, 111, 98, 101, 95, 112, 97, 121, 95, 48, 48, 49, 34, 44, 34, 115, 116, 97, 116, 117, 115, 34, 58, 34, 103, 117, 97, 114, 97, 110, 116, 101, 101, 100, 34, 44, 34, 101, 120, 116, 101, 114, 110, 97, 108, 95, 114, 101, 102, 101, 114, 101, 110, 99, 101, 34, 58, 34, 112, 114, 111, 98, 101, 95, 114, 101, 102, 95, 48, 48, 49, 34, 125, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }

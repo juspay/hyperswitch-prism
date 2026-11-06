@@ -18,8 +18,9 @@
 use grpc_api_types::payments::{
     event_context::EventContext as EventContextVariant, AdyenConfig, ConnectorConfig,
     ConnectorSpecificConfig, Environment, EventContext, EventServiceHandleRequest,
-    EventServiceParseRequest, PaymentEventContext, RequestDetails, SdkOptions,
+    EventServiceParseRequest, PaymentEventContext, RequestDetails, SdkOptions, SecretHeaders,
 };
+use hyperswitch_masking::Secret;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
@@ -121,9 +122,14 @@ fn build_config() -> ConnectorConfig {
 fn make_request_details(body: Vec<u8>) -> RequestDetails {
     RequestDetails {
         method: HTTP_METHOD_POST,
-        uri: Some("/webhooks/adyen".to_string()),
-        headers: adyen_headers(),
-        body,
+        uri: Some(Secret::new("/webhooks/adyen".to_string())),
+        headers: Some(SecretHeaders {
+            values: adyen_headers()
+                .into_iter()
+                .map(|(key, value)| (key, Secret::new(value)))
+                .collect(),
+        }),
+        body: Some(Secret::new(body)),
         ..Default::default()
     }
 }

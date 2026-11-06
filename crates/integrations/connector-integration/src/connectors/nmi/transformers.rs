@@ -2219,7 +2219,7 @@ pub(crate) fn get_nmi_webhook_signature_header(
         .headers
         .iter()
         .find(|(key, _)| key.eq_ignore_ascii_case("webhook-signature"))
-        .map(|(_, value)| value.as_str())
+        .map(|(_, value)| value.peek().as_str())
         .ok_or_else(|| {
             error_stack::report!(domain_types::errors::WebhookError::WebhookSignatureNotFound)
         })

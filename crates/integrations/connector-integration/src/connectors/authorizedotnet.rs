@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use hyperswitch_masking::PeekInterface;
+
 use common_enums;
 use common_utils::{
     consts,
@@ -127,8 +129,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let signature_header = match request
             .headers
             .get("X-ANET-Signature")
-            .or_else(|| request.headers.get("x-anet-signature"))
-        {
+            .map(PeekInterface::peek)
+            .or_else(|| {
+                request
+                    .headers
+                    .get("x-anet-signature")
+                    .map(PeekInterface::peek)
+            }) {
             Some(header) => header,
             None => {
                 tracing::warn!(
@@ -147,8 +154,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(_) | None => {
                 tracing::warn!(
                     target: "authorizedotnet_webhook",
-                    "Invalid signature format in X-ANET-Signature header, expected 'sha512=<hex>' but got: '{}' - verification failed but continuing processing",
-                    signature_header
+                    "Invalid signature format in X-ANET-Signature header, expected 'sha512=<hex>' - verification failed but continuing processing"
                 );
                 return Ok(false); // Invalid format -> verification fails but continue processing
             }
@@ -160,8 +166,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Err(hex_error) => {
                 tracing::warn!(
                     target: "authorizedotnet_webhook",
-                    "Failed to decode hex signature from X-ANET-Signature header: '{}', error: {} - verification failed but continuing processing",
-                    signature_hex,
+                    "Failed to decode hex signature from X-ANET-Signature header, error: {} - verification failed but continuing processing",
                     hex_error
                 );
                 return Ok(false); // Invalid hex -> verification fails but continue processing
@@ -170,7 +175,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // HMAC-SHA512 over the raw request body bytes, keyed with the Signature Key as
         // stored. `verify_signature` does the comparison in constant time.
-        match HmacSha512.verify_signature(&webhook_secret, &expected_signature, &request.body) {
+        match HmacSha512.verify_signature(
+            webhook_secret.peek(),
+            &expected_signature,
+            request.body.peek(),
+        ) {
             Ok(verified) => Ok(verified),
             Err(crypto_error) => {
                 tracing::error!(
@@ -193,12 +202,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         // An empty body is the endpoint check, not an event (techspec "IncomingWebhook",
         // "Expected result (empty body)").
-        if request.body.is_empty() {
+        if request.body.peek().is_empty() {
             return Ok(EventType::EndpointVerification);
         }
 
         let webhook_body: AuthorizedotnetWebhookEventType = request
             .body
+            .peek()
             .parse_struct("AuthorizedotnetWebhookEventType")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable_lazy(|| {
@@ -246,12 +256,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
         // Endpoint verification carries no resource.
-        if request.body.is_empty() {
+        if request.body.peek().is_empty() {
             return Ok(None);
         }
 
         let webhook_body: AuthorizedotnetWebhookObjectId = request
             .body
+            .peek()
             .parse_struct("AuthorizedotnetWebhookObjectId")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable_lazy(|| {
@@ -317,9 +328,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let request_body_copy = request.body.clone();
+        let request_body_copy = request.body.peek().clone();
         let webhook_body: AuthorizedotnetWebhookObjectId = request
             .body
+            .peek()
             .parse_struct("AuthorizedotnetWebhookObjectId")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable_lazy(|| {
@@ -372,9 +384,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let request_body_copy = request.body.clone();
+        let request_body_copy = request.body.peek().clone();
         let webhook_body: AuthorizedotnetWebhookObjectId = request
             .body
+            .peek()
             .parse_struct("AuthorizedotnetWebhookObjectId")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable_lazy(|| {

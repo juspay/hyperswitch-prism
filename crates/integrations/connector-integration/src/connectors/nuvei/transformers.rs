@@ -3870,23 +3870,28 @@ pub(super) fn process_nuvei_redirect(
         params: request
             .query_params
             .clone()
-            .filter(|value| !value.is_empty())
-            .or_else(|| String::from_utf8(request.body.clone()).ok())
-            .map(Secret::new),
-        payload: (!request.body.is_empty()).then(|| {
+            .filter(|value| !value.peek().is_empty())
+            .or_else(|| {
+                String::from_utf8(request.body.peek().clone())
+                    .ok()
+                    .map(Secret::new)
+            }),
+        payload: (!request.body.peek().is_empty()).then(|| {
             Secret::new(
-                serde_json::from_slice::<serde_json::Value>(&request.body).unwrap_or_else(|_| {
-                    serde_json::Value::Object(
-                        url::form_urlencoded::parse(&request.body)
-                            .map(|(name, value)| {
-                                (
-                                    name.into_owned(),
-                                    serde_json::Value::String(value.into_owned()),
-                                )
-                            })
-                            .collect(),
-                    )
-                }),
+                serde_json::from_slice::<serde_json::Value>(request.body.peek()).unwrap_or_else(
+                    |_| {
+                        serde_json::Value::Object(
+                            url::form_urlencoded::parse(request.body.peek())
+                                .map(|(name, value)| {
+                                    (
+                                        name.into_owned(),
+                                        serde_json::Value::String(value.into_owned()),
+                                    )
+                                })
+                                .collect(),
+                        )
+                    },
+                ),
             )
         }),
     };

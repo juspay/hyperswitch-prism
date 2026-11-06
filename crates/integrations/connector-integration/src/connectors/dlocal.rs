@@ -137,7 +137,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let x_date = get_header_case_insensitive(request, headers::X_DATE)
             .ok_or_else(|| report!(WebhookError::WebhookSourceVerificationFailed))?;
         let mut message = format!("{x_login}{x_date}").into_bytes();
-        message.extend_from_slice(&request.body);
+        message.extend_from_slice(request.body.peek());
         Ok(message)
     }
 
@@ -162,7 +162,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
         crypto::HmacSha256
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .verify_signature(
+                connector_webhook_secrets.secret.peek(),
+                &signature,
+                &message,
+            )
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
@@ -176,6 +180,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let body: DlocalWebhookBody = request
             .body
+            .peek()
             .parse_struct("DlocalWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         Ok(EventType::from(&body))
@@ -187,6 +192,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
         let body: DlocalWebhookBody = request
             .body
+            .peek()
             .parse_struct("DlocalWebhookBody")
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
         Ok(Some(WebhookResourceReference::Payment(
@@ -208,6 +214,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     {
         let body: DlocalWebhookBody = request
             .body
+            .peek()
             .parse_struct("DlocalWebhookBody")
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(body))
@@ -222,6 +229,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let body: DlocalWebhookBody = request
             .body
+            .peek()
             .parse_struct("DlocalWebhookBody")
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
@@ -277,7 +285,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .flatten(),
             error_message: is_failure.then(|| body.status_detail.clone()).flatten(),
             error_reason: is_failure.then_some(body.status_detail).flatten(),
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             amount_captured: None,
@@ -295,7 +303,7 @@ fn get_header_case_insensitive(request: &RequestDetails, name: &str) -> Option<S
         .headers
         .iter()
         .find(|(k, _)| k.eq_ignore_ascii_case(name))
-        .map(|(_, v)| v.clone())
+        .map(|(_, v)| v.peek().clone())
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Dlocal<T>

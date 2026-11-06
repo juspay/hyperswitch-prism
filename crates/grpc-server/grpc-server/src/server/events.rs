@@ -43,6 +43,7 @@ use grpc_api_types::payments::{
     EventServiceParseRequest, EventServiceParseResponse, NotifyConnectorRequest,
     NotifyConnectorResponse,
 };
+use hyperswitch_masking::Secret;
 use interfaces::connector_integration_v2::BoxedConnectorIntegrationV2;
 use ucs_env::{
     configs::Config,
@@ -1059,7 +1060,7 @@ async fn verify_webhook_source_external(
 
     let merchant_secret =
         webhook_secrets.unwrap_or_else(|| domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: "default_secret".to_string().into_bytes(),
+            secret: Secret::new(b"default_secret".to_vec()),
             additional_secret: None,
         });
 

@@ -11,7 +11,7 @@ from payments import PaymentClient
 from payments import MerchantAuthenticationClient
 from payments import EventClient
 from payments import RefundClient
-from payments.generated import common_types_pb2, events_pb2, payment_pb2, sdk_config_pb2
+from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
 SUPPORTED_FLOWS = ["capture", "create_order", "create_server_session_authentication_token", "get", "parse_event", "refund", "refund_get"]
 
@@ -68,9 +68,9 @@ def _build_parse_event_request():
     return events_pb2.EventServiceParseRequest(
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
-            uri="https://example.com/webhook",  # URI of the request.
-            headers={},  # Headers of the HTTP request.
-            body="{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}".encode(),  # Body of the HTTP request.
+            legacy_headers={},  # Headers of the HTTP request.
+            body=payment_methods_pb2.SecretBytes(value="{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}".encode()),  # Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uri=payment_methods_pb2.SecretString(value="https://example.com/webhook"),
         ),
     )
 

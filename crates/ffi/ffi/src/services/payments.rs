@@ -34,6 +34,7 @@ use grpc_api_types::payments::{
     RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
     RecurringPaymentServiceRevokeResponse, RefundResponse, RefundServiceGetRequest,
 };
+use hyperswitch_masking::Secret;
 
 use domain_types::{
     connector_flow::{
@@ -1061,6 +1062,7 @@ pub fn verify_redirect_response_transformer(
     let decoded_body = connector_data
         .connector
         .decode_redirect_response_body(&request_details, secrets.clone())
+        .map(Secret::new)
         .unwrap_or_else(|_| request_details.body.clone());
 
     let updated_request_details = RequestDetails {
