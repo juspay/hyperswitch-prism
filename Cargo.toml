@@ -83,7 +83,7 @@ tonic = "0.14"
 tonic-build = "0.14"
 tonic-prost = "0.14"
 tracing = "0.1"
-uuid = "=1.20.0"
+uuid = "1.23"
 vergen = "=9.0.6"
 
 [workspace.lints.rust]
