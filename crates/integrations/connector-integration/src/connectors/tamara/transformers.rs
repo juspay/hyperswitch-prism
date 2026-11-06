@@ -455,9 +455,7 @@ impl From<&TravelData> for TrainsItinerary {
         Self {
             origin: first_segment.and_then(|segment| segment.origin.clone()),
             destination: first_segment.and_then(|segment| segment.destination.clone()),
-            class: first_segment
-                .and_then(|segment| segment.travel_class)
-                .map(|travel_class| travel_class.to_string()),
+            class: first_segment.and_then(|segment| segment.travel_class.clone()),
             carrier: travel_data.carrier_name.clone(),
             number_of_passengers: travel_data.number_of_passengers,
             name_of_passengers: tamara_name_map(

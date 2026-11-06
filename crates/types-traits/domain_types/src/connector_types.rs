@@ -5316,8 +5316,8 @@ pub struct TravelSegment {
     pub origin: Option<String>,
     /// Destination station / port.
     pub destination: Option<String>,
-    /// Cabin / service class.
-    pub travel_class: Option<common_enums::TravelClass>,
+    /// Cabin / service class (free-form, e.g. "ECONOMY", "semi-leito").
+    pub travel_class: Option<String>,
     /// Passenger details for this leg.
     pub passengers: Vec<Traveller>,
     /// Arrival timestamp (RFC 3339).
