@@ -74,6 +74,19 @@ const ADYEN_HEADERS: Record<string, string> = {
   "accept": "*/*",
 };
 
+function buildRequestDetails(body: string): types.IRequestDetails {
+  return {
+    method: HttpMethod.HTTP_METHOD_POST,
+    uri: { value: "/webhooks/adyen" },
+    headers: {
+      values: Object.fromEntries(
+        Object.entries(ADYEN_HEADERS).map(([key, value]) => [key, { value }]),
+      ),
+    },
+    body: { value: new TextEncoder().encode(body) },
+  };
+}
+
 // ── Connector identity only — no API creds, no webhook secret ─────────────────
 function buildConfig(): types.IConnectorConfig {
   return {
@@ -89,12 +102,7 @@ async function testHandleEvent(): Promise<boolean> {
 
   const request: types.IEventServiceHandleRequest = {
     merchantEventId: "smoke_wh_adyen_auth",
-    requestDetails: {
-      method: HttpMethod.HTTP_METHOD_POST,
-      uri: "/webhooks/adyen",
-      headers: ADYEN_HEADERS,
-      body: new TextEncoder().encode(ADYEN_WEBHOOK_BODY),
-    },
+    requestDetails: buildRequestDetails(ADYEN_WEBHOOK_BODY),
     // capture_method is the EventContext use case:
     // Adyen AUTHORISATION maps to AUTHORIZED (manual) or CAPTURED (automatic)
     eventContext: {
@@ -126,12 +134,7 @@ async function testParseEvent(): Promise<boolean> {
   const client = new EventClient(buildConfig());
 
   const request: types.IEventServiceParseRequest = {
-    requestDetails: {
-      method: HttpMethod.HTTP_METHOD_POST,
-      uri: "/webhooks/adyen",
-      headers: ADYEN_HEADERS,
-      body: new TextEncoder().encode(ADYEN_WEBHOOK_BODY),
-    },
+    requestDetails: buildRequestDetails(ADYEN_WEBHOOK_BODY),
   };
 
   try {
@@ -152,12 +155,7 @@ async function testMalformedBody(): Promise<boolean> {
   const client = new EventClient(buildConfig());
 
   const request: types.IEventServiceHandleRequest = {
-    requestDetails: {
-      method: HttpMethod.HTTP_METHOD_POST,
-      uri: "/webhooks/adyen",
-      headers: ADYEN_HEADERS,
-      body: new TextEncoder().encode("not valid json {{{{"),
-    },
+    requestDetails: buildRequestDetails("not valid json {{{{"),
   };
 
   try {
@@ -183,12 +181,7 @@ async function testUnknownEventCode(): Promise<boolean> {
   body.notificationItems[0].NotificationRequestItem.eventCode = "SOME_UNKNOWN_EVENT";
 
   const request: types.IEventServiceHandleRequest = {
-    requestDetails: {
-      method: HttpMethod.HTTP_METHOD_POST,
-      uri: "/webhooks/adyen",
-      headers: ADYEN_HEADERS,
-      body: new TextEncoder().encode(JSON.stringify(body)),
-    },
+    requestDetails: buildRequestDetails(JSON.stringify(body)),
   };
 
   try {
