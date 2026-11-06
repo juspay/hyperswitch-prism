@@ -27,12 +27,31 @@ use domain_types::{
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::{collections::HashMap, str::FromStr};
 pub use xml_utils::preprocess_xml_response_bytes;
 
 type Error = Report<IntegrationError>;
 use common_enums::enums;
 use serde::{Deserialize, Serialize};
+
+/// Derive a stable, connector-safe idempotency key from a request reference.
+///
+/// The hexadecimal SHA-256 output is deterministic across retries, contains
+/// only characters accepted by the supported connector APIs, and does not
+/// expose the caller's reference identifier on the wire.
+pub(crate) fn stable_idempotency_key(
+    scope: &str,
+    connector_request_reference_id: &str,
+    length: usize,
+) -> Option<String> {
+    if connector_request_reference_id.is_empty() {
+        return None;
+    }
+
+    let digest = Sha256::digest(format!("{scope}:{connector_request_reference_id}").as_bytes());
+    Some(hex::encode(digest).chars().take(length.min(64)).collect())
+}
 
 /// For example, 2.5 with a multiplier of 100.0 becomes "250".
 pub fn scaled_percentage_to_string(percentage: f64, multiplier: f64) -> String {

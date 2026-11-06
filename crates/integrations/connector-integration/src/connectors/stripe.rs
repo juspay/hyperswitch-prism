@@ -64,9 +64,25 @@ use crate::{types::ResponseRouterData, with_error_response_body};
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
+    pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
     pub(crate) const STRIPE_COMPATIBLE_CONNECT_ACCOUNT: &str = "Stripe-Account";
 }
 use stripe::auth_headers;
+
+fn append_idempotency_header(
+    headers: &mut Vec<(String, Maskable<String>)>,
+    scope: &str,
+    connector_request_reference_id: &str,
+) {
+    if let Some(idempotency_key) =
+        crate::utils::stable_idempotency_key(scope, connector_request_reference_id, 64)
+    {
+        headers.push((
+            headers::IDEMPOTENCY_KEY.to_string(),
+            idempotency_key.into_masked(),
+        ));
+    }
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ClientAuthentication for Stripe<T>
@@ -561,6 +577,8 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
+            idempotency_scope: &str,
+            connector_request_reference_id: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
@@ -568,6 +586,11 @@ macros::create_all_prerequisites!(
             )];
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
+            append_idempotency_header(
+                &mut header,
+                idempotency_scope,
+                connector_request_reference_id,
+            );
             Ok(header)
         }
 
@@ -783,6 +806,11 @@ macros::macro_connector_implementation!(
                 )];
                 header.append(&mut customer_account_header);
             }
+            append_idempotency_header(
+                &mut header,
+                "authorize",
+                &req.resource_common_data.connector_request_reference_id,
+            );
             Ok(header)
         }
 
@@ -854,6 +882,11 @@ macros::macro_connector_implementation!(
                 )];
                 header.append(&mut customer_account_header);
             };
+            append_idempotency_header(
+                &mut header,
+                "repeat_payment",
+                &req.resource_common_data.connector_request_reference_id,
+            );
             Ok(header)
         }
 
@@ -919,6 +952,11 @@ macros::macro_connector_implementation!(
 
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
+            append_idempotency_header(
+                &mut header,
+                "payment_method_token",
+                &req.resource_common_data.connector_request_reference_id,
+            );
             Ok(header)
         }
         fn get_url(
@@ -992,6 +1030,11 @@ macros::macro_connector_implementation!(
 
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
+            append_idempotency_header(
+                &mut header,
+                "setup_mandate",
+                &req.resource_common_data.connector_request_reference_id,
+            );
             Ok(header)
         }
         fn get_url(
@@ -1058,6 +1101,11 @@ macros::macro_connector_implementation!(
 
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
+            append_idempotency_header(
+                &mut header,
+                "create_connector_customer",
+                &req.resource_common_data.connector_request_reference_id,
+            );
             Ok(header)
         }
         fn get_url(
@@ -1163,6 +1211,11 @@ macros::macro_connector_implementation!(
                 );
             }
             header.append(&mut api_key);
+            append_idempotency_header(
+                &mut header,
+                "capture",
+                &req.resource_common_data.connector_request_reference_id,
+            );
             Ok(header)
         }
         fn get_url(
@@ -1214,6 +1267,11 @@ macros::macro_connector_implementation!(
                 );
             }
             header.append(&mut api_key);
+            append_idempotency_header(
+                &mut header,
+                "void",
+                &req.resource_common_data.connector_request_reference_id,
+            );
             Ok(header)
         }
         fn get_url(
@@ -1247,7 +1305,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(
+                req,
+                "incremental_authorization",
+                &req.resource_common_data.connector_request_reference_id,
+            )
         }
         fn get_url(
             &self,
@@ -1306,6 +1368,11 @@ macros::macro_connector_implementation!(
                     }
                 }
             }
+            append_idempotency_header(
+                &mut header,
+                "refund",
+                &req.resource_common_data.connector_request_reference_id,
+            );
             Ok(header)
         }
         fn get_url(
@@ -1378,7 +1445,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(
+                req,
+                "client_authentication_token",
+                &req.resource_common_data.connector_request_reference_id,
+            )
         }
         fn get_url(
             &self,
@@ -1410,7 +1481,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(
+                req,
+                "submit_evidence",
+                &req.resource_common_data.connector_request_reference_id,
+            )
         }
         fn get_url(
             &self,
@@ -1443,7 +1518,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(
+                req,
+                "accept_dispute",
+                &req.resource_common_data.connector_request_reference_id,
+            )
         }
         fn get_url(
             &self,
