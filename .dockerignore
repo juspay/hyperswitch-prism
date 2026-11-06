@@ -2,8 +2,8 @@
 target/
 **/target/
 
-# Version-control metadata is not part of the build input
-.git/
+# Keep version-control metadata in the builder context. The Rust build scripts
+# use it to populate the compile-time VERGEN_* version fields.
 
 # Local environment files and credential material
 **/.env
