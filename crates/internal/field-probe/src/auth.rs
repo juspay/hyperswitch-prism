@@ -453,6 +453,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             base_url: None,
             dispute_base_url: None,
             endpoint_prefix: None,
+            native_three_ds: Some(true),
         },
         ConnectorEnum::Bankofamerica => ConnectorSpecificConfig::BankOfAmerica {
             api_key: k(),

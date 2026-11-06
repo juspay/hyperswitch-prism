@@ -21823,7 +21823,7 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                 None => grpc_api_types::payments::PaymentStatus::Unspecified,
             };
             PaymentMethodAuthenticationServicePreAuthenticateResponse {
-                connector_transaction_id: None,
+                connector_transaction_id: err.connector_transaction_id.clone(),
                 redirection_data: None,
                 network_transaction_id: None,
                 merchant_order_id: None,
