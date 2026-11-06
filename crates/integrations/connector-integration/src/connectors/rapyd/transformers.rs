@@ -2014,7 +2014,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn try_from(
         item: ResponseRouterData<RapydSetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let mut mapped = Self::try_from(ResponseRouterData {
+        let mapped = Self::try_from(ResponseRouterData {
             response: RapydPaymentsResponse {
                 status: item.response.status,
                 data: item.response.data,
@@ -2022,16 +2022,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data: item.router_data,
             http_code: item.http_code,
         })?;
-        if let Ok(PaymentsResponseData::TransactionResponse { network_txn_id, .. }) =
-            &mut mapped.response
+        if mapped.resource_common_data.status != common_enums::AttemptStatus::Authorized
+            || !matches!(
+                &mapped.response,
+                Ok(PaymentsResponseData::TransactionResponse { .. })
+            )
         {
-            *network_txn_id = None;
-            // A successful zero-value verification has no funds to capture.
-            if mapped.resource_common_data.status == common_enums::AttemptStatus::Authorized {
-                mapped.resource_common_data.status = common_enums::AttemptStatus::Charged;
-            }
+            return Ok(mapped);
         }
-        Ok(mapped)
+        // A successful zero-value verification has no funds to capture.
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: common_enums::AttemptStatus::Charged,
+                ..mapped.resource_common_data
+            },
+            ..mapped
+        })
     }
 }
 
