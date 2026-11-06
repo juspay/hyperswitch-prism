@@ -268,10 +268,9 @@ mod tests {
             payouts::{
                 payout_method_data::{ApplePayDecrypt, Passthrough, PayoutMethodData, Wallet},
                 payouts_types::{
-                    AdditionalPayoutConnectorDetails, CheckoutAdditionalPayoutInformation,
-                    CheckoutPayoutFundsTransferType, PayoutAddress, PayoutFlowData,
-                    PayoutSourceOfFunds, PayoutTransferRequest, PayoutTransferResponse,
-                    PayoutVendorAccountDetails, PayoutVendorDetails,
+                    PayoutAddress, PayoutFlowData, PayoutFundsTransferType, PayoutSourceOfFunds,
+                    PayoutTransferRequest, PayoutTransferResponse, PayoutVendorAccountDetails,
+                    PayoutVendorDetails,
                 },
             },
             router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -396,15 +395,7 @@ mod tests {
                     connector_eligibility_reference_id: None,
                     payout_connector_metadata: None,
                     billing_descriptor: None,
-                    additional_payout_connector_details: Some(
-                        AdditionalPayoutConnectorDetails::Checkout(
-                            CheckoutAdditionalPayoutInformation {
-                                funds_transfer_type: Some(
-                                    CheckoutPayoutFundsTransferType::AccountToAccount,
-                                ),
-                            },
-                        ),
-                    ),
+                    funds_transfer_type: Some(PayoutFundsTransferType::AccountToAccount),
                     vendor_account_details,
                 },
                 response: Err(ErrorResponse::default()),

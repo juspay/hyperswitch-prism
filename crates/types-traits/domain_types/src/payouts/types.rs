@@ -1597,9 +1597,13 @@ where
             billing_descriptor: value.billing_descriptor.as_ref().map(|descriptor| {
                 crate::connector_types::BillingDescriptor::from((descriptor, None, None))
             }),
-            additional_payout_connector_details: value
-                .additional_payout_connector_details
-                .map(payouts::payouts_types::AdditionalPayoutConnectorDetails::foreign_try_from)
+            funds_transfer_type: value
+                .funds_transfer_type
+                .filter(|value| {
+                    *value
+                        != i32::from(grpc_api_types::payouts::PayoutFundsTransferType::Unspecified)
+                })
+                .map(payouts::payouts_types::PayoutFundsTransferType::foreign_try_from)
                 .transpose()?,
             vendor_account_details: value
                 .vendor_account_details
@@ -1644,68 +1648,22 @@ fn payout_source_of_funds_from_proto(
         .map(Option::flatten)
 }
 
-impl ForeignTryFrom<grpc_api_types::payouts::AdditionalPayoutConnectorDetails>
-    for payouts::payouts_types::AdditionalPayoutConnectorDetails
-{
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        value: grpc_api_types::payouts::AdditionalPayoutConnectorDetails,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        use grpc_api_types::payouts::additional_payout_connector_details::Connector;
-
-        match value.connector.ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "additional_payout_connector_details.connector",
-                context: crate::errors::IntegrationErrorContext {
-                    additional_context: Some(
-                        "additional_payout_connector_details was sent without a connector variant"
-                            .to_owned(),
-                    ),
-                    ..Default::default()
-                },
-            })
-        })? {
-            Connector::Checkout(checkout) => Ok(Self::Checkout(
-                payouts::payouts_types::CheckoutAdditionalPayoutInformation::foreign_try_from(
-                    checkout,
-                )?,
-            )),
-        }
-    }
-}
-
-impl ForeignTryFrom<grpc_api_types::payouts::CheckoutAdditionalPayoutInformation>
-    for payouts::payouts_types::CheckoutAdditionalPayoutInformation
-{
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        value: grpc_api_types::payouts::CheckoutAdditionalPayoutInformation,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        Ok(Self {
-            funds_transfer_type: value
-                .funds_transfer_type
-                .map(payouts::payouts_types::CheckoutPayoutFundsTransferType::foreign_try_from)
-                .transpose()?,
-        })
-    }
-}
-
-impl ForeignTryFrom<i32> for payouts::payouts_types::CheckoutPayoutFundsTransferType {
+impl ForeignTryFrom<i32> for payouts::payouts_types::PayoutFundsTransferType {
     type Error = IntegrationError;
 
     fn foreign_try_from(value: i32) -> Result<Self, error_stack::Report<Self::Error>> {
-        use grpc_api_types::payouts::checkout_additional_payout_information::FundsTransferType as Ftt;
+        use grpc_api_types::payouts::PayoutFundsTransferType as Ftt;
+
         let invalid = || IntegrationError::InvalidDataFormat {
-            field_name: "additional_payout_connector_details.checkout.funds_transfer_type",
+            field_name: "funds_transfer_type",
             context: crate::errors::IntegrationErrorContext {
                 additional_context: Some(format!(
-                    "Unknown Checkout FundsTransferType enum value: {value}"
+                    "Unknown PayoutFundsTransferType enum value: {value}"
                 )),
                 ..Default::default()
             },
         };
+
         match Ftt::try_from(value).change_context(invalid())? {
             Ftt::AccountToAccount => Ok(Self::AccountToAccount),
             Ftt::FundsTransfer => Ok(Self::FundsTransfer),

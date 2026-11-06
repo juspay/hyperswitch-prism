@@ -148,7 +148,8 @@ pub struct PayoutTransferRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub connector_eligibility_reference_id: Option<String>,
     pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
     pub billing_descriptor: Option<crate::connector_types::BillingDescriptor>,
-    pub additional_payout_connector_details: Option<AdditionalPayoutConnectorDetails>,
+    /// Merchant-supplied funds-transfer classification assigned by the payment processor.
+    pub funds_transfer_type: Option<PayoutFundsTransferType>,
     /// Common funding-party details normalized by Hyperswitch before calling UCS.
     pub vendor_account_details: Option<PayoutVendorAccountDetails>,
 }
@@ -163,62 +164,37 @@ pub enum PayoutSourceOfFunds {
     Cash,
 }
 
-/// Merchant-supplied configuration for the payout connector selected by routing.
-#[derive(Debug, Clone)]
-pub enum AdditionalPayoutConnectorDetails {
-    Checkout(CheckoutAdditionalPayoutInformation),
-}
-
-#[derive(Debug, Clone)]
-pub struct CheckoutAdditionalPayoutInformation {
-    /// Funds Transfer Type explicitly assigned by Checkout.com; never defaulted.
-    pub funds_transfer_type: Option<CheckoutPayoutFundsTransferType>,
-}
-
-/// Checkout-assigned Funds Transfer Type for Visa Direct and Mastercard Send payouts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum CheckoutPayoutFundsTransferType {
-    /// Visa Direct account-to-account transfer.
-    #[serde(rename = "AA")]
+/// Merchant-supplied funds-transfer classification assigned by the payment processor.
+/// Connector-specific wire values are mapped by each connector.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PayoutFundsTransferType {
+    /// Account-to-account transfer.
     AccountToAccount,
-    /// Visa Direct funds transfer.
-    #[serde(rename = "FT")]
+    /// Funds transfer.
     FundsTransfer,
-    /// Visa Direct cross-border money transfer.
-    #[serde(rename = "LA")]
+    /// Cross-border money transfer.
     CrossBorderMoneyTransfer,
-    /// Visa Direct peer-to-peer transfer.
-    #[serde(rename = "PP")]
+    /// Peer-to-peer transfer.
     PeerToPeer,
-    /// Visa Direct staged digital-wallet transfer.
-    #[serde(rename = "WT")]
+    /// Staged digital-wallet transfer.
     StagedDigitalWalletTransfer,
-    /// Visa Direct funds disbursement.
-    #[serde(rename = "FD")]
+    /// Funds disbursement.
     FundsDisbursement,
-    /// Visa Direct loyalty payment.
-    #[serde(rename = "LO")]
+    /// Loyalty payment.
     LoyaltyPayments,
-    /// Visa Direct payroll or pension disbursement.
-    #[serde(rename = "PD")]
+    /// Payroll or pension disbursement.
     PayrollAndPensionDisbursements,
-    /// Visa Direct online-gambling transfer.
-    #[serde(rename = "OG")]
+    /// Online-gambling transfer.
     OnlineGambling,
-    /// Mastercard Send person-to-person transfer.
-    #[serde(rename = "C07")]
+    /// Person-to-person transfer.
     MastercardPersonToPerson,
-    /// Mastercard Send transfer to the recipient's own account.
-    #[serde(rename = "C52")]
+    /// Transfer to the recipient's own account.
     MastercardTransferToOwnAccount,
-    /// Mastercard Send business disbursement.
-    #[serde(rename = "C55")]
+    /// Business disbursement.
     MastercardBusinessDisbursement,
-    /// Mastercard Send business-to-business transfer.
-    #[serde(rename = "C65")]
+    /// Business-to-business transfer.
     MastercardBusinessToBusiness,
-    /// Mastercard Send gaming repayment.
-    #[serde(rename = "C04")]
+    /// Gaming repayment.
     MastercardGamingRepay,
 }
 

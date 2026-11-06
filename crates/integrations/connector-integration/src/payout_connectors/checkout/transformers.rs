@@ -13,9 +13,9 @@ use domain_types::{
     payouts::{
         payout_method_data::{PayoutMethodData, Wallet},
         payouts_types::{
-            PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutIndividualDetails,
-            PayoutSourceOfFunds, PayoutTransferRequest, PayoutTransferResponse,
-            PayoutVendorDetails,
+            PayoutFlowData, PayoutFundsTransferType, PayoutGetRequest, PayoutGetResponse,
+            PayoutIndividualDetails, PayoutSourceOfFunds, PayoutTransferRequest,
+            PayoutTransferResponse, PayoutVendorDetails,
         },
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -130,8 +130,71 @@ struct CheckoutPayoutAddress {
 #[derive(Debug, Serialize)]
 struct CheckoutPayoutInstruction {
     // Checkout assigns this value. Absence must serialize as null.
-    funds_transfer_type:
-        Option<domain_types::payouts::payouts_types::CheckoutPayoutFundsTransferType>,
+    funds_transfer_type: Option<CheckoutPayoutFundsTransferType>,
+}
+
+/// Checkout-specific wire representation of the common funds-transfer classification.
+#[derive(Debug, Clone, Copy, Serialize)]
+enum CheckoutPayoutFundsTransferType {
+    #[serde(rename = "AA")]
+    AccountToAccount,
+    #[serde(rename = "FT")]
+    FundsTransfer,
+    #[serde(rename = "LA")]
+    CrossBorderMoneyTransfer,
+    #[serde(rename = "PP")]
+    PeerToPeer,
+    #[serde(rename = "WT")]
+    StagedDigitalWalletTransfer,
+    #[serde(rename = "FD")]
+    FundsDisbursement,
+    #[serde(rename = "LO")]
+    LoyaltyPayments,
+    #[serde(rename = "PD")]
+    PayrollAndPensionDisbursements,
+    #[serde(rename = "OG")]
+    OnlineGambling,
+    #[serde(rename = "C07")]
+    MastercardPersonToPerson,
+    #[serde(rename = "C52")]
+    MastercardTransferToOwnAccount,
+    #[serde(rename = "C55")]
+    MastercardBusinessDisbursement,
+    #[serde(rename = "C65")]
+    MastercardBusinessToBusiness,
+    #[serde(rename = "C04")]
+    MastercardGamingRepay,
+}
+
+impl From<PayoutFundsTransferType> for CheckoutPayoutFundsTransferType {
+    fn from(value: PayoutFundsTransferType) -> Self {
+        match value {
+            PayoutFundsTransferType::AccountToAccount => Self::AccountToAccount,
+            PayoutFundsTransferType::FundsTransfer => Self::FundsTransfer,
+            PayoutFundsTransferType::CrossBorderMoneyTransfer => Self::CrossBorderMoneyTransfer,
+            PayoutFundsTransferType::PeerToPeer => Self::PeerToPeer,
+            PayoutFundsTransferType::StagedDigitalWalletTransfer => {
+                Self::StagedDigitalWalletTransfer
+            }
+            PayoutFundsTransferType::FundsDisbursement => Self::FundsDisbursement,
+            PayoutFundsTransferType::LoyaltyPayments => Self::LoyaltyPayments,
+            PayoutFundsTransferType::PayrollAndPensionDisbursements => {
+                Self::PayrollAndPensionDisbursements
+            }
+            PayoutFundsTransferType::OnlineGambling => Self::OnlineGambling,
+            PayoutFundsTransferType::MastercardPersonToPerson => Self::MastercardPersonToPerson,
+            PayoutFundsTransferType::MastercardTransferToOwnAccount => {
+                Self::MastercardTransferToOwnAccount
+            }
+            PayoutFundsTransferType::MastercardBusinessDisbursement => {
+                Self::MastercardBusinessDisbursement
+            }
+            PayoutFundsTransferType::MastercardBusinessToBusiness => {
+                Self::MastercardBusinessToBusiness
+            }
+            PayoutFundsTransferType::MastercardGamingRepay => Self::MastercardGamingRepay,
+        }
+    }
 }
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -506,15 +569,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .clone(),
             processing_channel_id: creds.processing_channel_id.clone(),
             instruction: CheckoutPayoutInstruction {
-                funds_transfer_type: data
-                    .request
-                    .additional_payout_connector_details
-                    .as_ref()
-                    .and_then(|details| match details {
-                        domain_types::payouts::payouts_types::AdditionalPayoutConnectorDetails::Checkout(
-                            checkout,
-                        ) => checkout.funds_transfer_type,
-                    }),
+                funds_transfer_type: data.request.funds_transfer_type.map(Into::into),
             },
             sender: CheckoutPayoutSender::try_from(&data.request)?,
         })
