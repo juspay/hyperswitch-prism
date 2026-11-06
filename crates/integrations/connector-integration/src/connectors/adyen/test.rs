@@ -172,6 +172,7 @@ mod tests {
                     is_stored_credential: None,
                     browser_info: Some(
                         domain_types::router_request_types::BrowserInformation {
+                            challenge_window_size: None,
                             color_depth: Some(24),
                             java_enabled: Some(false),
                             screen_height: Some(1080),

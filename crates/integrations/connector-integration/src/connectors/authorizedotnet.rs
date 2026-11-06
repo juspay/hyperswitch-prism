@@ -343,6 +343,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let merchant_reference_id = webhook_body.payload.merchant_reference_id.clone();
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: transaction_id
                 .clone()
@@ -387,6 +389,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })?;
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(transaction_id.clone()),
             merchant_transaction_id: None,
             status: common_enums::RefundStatus::Success, // Authorize.Net only sends successful refund webhooks

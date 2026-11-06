@@ -3120,6 +3120,9 @@ pub struct RedirectDetailsResponse {
 
 #[derive(Debug, Clone)]
 pub struct WebhookDetailsResponse {
+    pub raw_connector_status: Option<RawConnectorStatus>,
+    /// Transaction amount and currency reported by the provider.
+    pub amount: Option<Money>,
     pub resource_id: Option<ResponseId>,
     pub status: AttemptStatus,
     pub connector_response_reference_id: Option<String>,
@@ -3216,6 +3219,7 @@ pub struct PayoutWebhookReference {
 
 #[derive(Debug, Clone)]
 pub struct RefundWebhookDetailsResponse {
+    pub raw_connector_status: Option<RawConnectorStatus>,
     pub connector_refund_id: Option<String>,
     pub merchant_transaction_id: Option<String>,
     pub status: common_enums::RefundStatus,
@@ -3890,6 +3894,7 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<SecretSerdeValue>,
+    pub domain_data: Option<DomainData>,
     pub order_tax_amount: Option<Money>,
     pub merchant_order_id: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
@@ -5137,6 +5142,7 @@ pub struct AirlineData {
 #[derive(Debug, Clone, Default)]
 pub struct AirlineSegment {
     pub sequence_no: Option<u32>,
+    pub journey_no: Option<u32>,
     pub marketing_carrier_code: Option<String>,
     pub flight_number: Option<String>,
     pub flight_type: Option<String>,
@@ -5311,8 +5317,8 @@ pub struct TravelSegment {
     pub origin: Option<String>,
     /// Destination station / port.
     pub destination: Option<String>,
-    /// Cabin / service class.
-    pub travel_class: Option<common_enums::TravelClass>,
+    /// Cabin / service class (free-form, e.g. "ECONOMY", "semi-leito").
+    pub travel_class: Option<String>,
     /// Passenger details for this leg.
     pub passengers: Vec<Traveller>,
     /// Arrival timestamp (RFC 3339).

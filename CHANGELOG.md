@@ -19,6 +19,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.06.1
+
+### Features
+
+- **rapyd:**
+  - Send wallet recurring purpose marker ([#2654](https://github.com/juspay/connector-service/pull/2654)) ([`a108579`](https://github.com/juspay/connector-service/commit/a108579aa86219a1e6e335165e6ead16156fc4cc))
+  - Charge external network tokens ([#2655](https://github.com/juspay/connector-service/pull/2655)) ([`a965af9`](https://github.com/juspay/connector-service/commit/a965af9fea03c99395ddf7db1801a54b4da87677))
+
+### Bug Fixes
+
+- **connectors:** Enable jsonwebtoken crypto provider ([#2705](https://github.com/juspay/connector-service/pull/2705)) ([`96fe24d`](https://github.com/juspay/connector-service/commit/96fe24da2d733b3f2fd6f4b3f02f94f6ed58a74f))
+- **deps:** Apply compatible Rust security patches ([#2684](https://github.com/juspay/connector-service/pull/2684)) ([`cb005a2`](https://github.com/juspay/connector-service/commit/cb005a286fad67b320bbda3ad48eb059814a9702))
+
+### Refactors
+
+- **connector:** Travel_class enum to free-form string on TravelSegment ([#2704](https://github.com/juspay/connector-service/pull/2704)) ([`017dfac`](https://github.com/juspay/connector-service/commit/017dfac529b462b729742242c58e5d9526267d7c))
+
+**Full Changelog:** [`2026.11.06.0...2026.11.06.1`](https://github.com/juspay/connector-service/compare/2026.11.06.0...2026.11.06.1)
+
+- - -
+
+## 2026.11.06.0
+
+### Testing
+
+- **e2e:** Add Adyen one-time card payment ([#2636](https://github.com/juspay/connector-service/pull/2636)) ([`39e279e`](https://github.com/juspay/connector-service/commit/39e279ec18c5882379b75f462c18b1576056796d))
+
+**Full Changelog:** [`2026.11.05.2...2026.11.06.0`](https://github.com/juspay/connector-service/compare/2026.11.05.2...2026.11.06.0)
+
+- - -
+
+## 2026.11.05.2
+
+### Bug Fixes
+
+- **connector:** [stripe] zero-pad single-digit eci for decrypted apple pay / google pay tokens ([#2701](https://github.com/juspay/connector-service/pull/2701)) ([`3d36b63`](https://github.com/juspay/connector-service/commit/3d36b632d98289b9871264accbb5bd140f272349))
+- **deps:** Upgrade jsonwebtoken to version 10 ([#2687](https://github.com/juspay/connector-service/pull/2687)) ([`b775bc4`](https://github.com/juspay/connector-service/commit/b775bc4a1914578d70a0ec06aaf7ec6fe20d51cb))
+
+### Build System / Dependencies
+
+- **deps-dev:** Bump vite from 6.4.4 to 6.4.5 in /grace/grace-workspace/packages/dashboard in the npm_and_yarn group across 1 directory ([#2671](https://github.com/juspay/connector-service/pull/2671)) ([`82c16f0`](https://github.com/juspay/connector-service/commit/82c16f04e6234c2264c6c17f410b8f09ef5f3750))
+
+**Full Changelog:** [`2026.11.05.1...2026.11.05.2`](https://github.com/juspay/connector-service/compare/2026.11.05.1...2026.11.05.2)
+
+- - -
+
+## 2026.11.05.1
+
+### Features
+
+- **connector:**
+  - Fiserv commercehub pass through 3DS, googlepay setup mandate & over capture ([#2679](https://github.com/juspay/connector-service/pull/2679)) ([`6aad14e`](https://github.com/juspay/connector-service/commit/6aad14edd100f472e264dd3b8aab1a9b40c14e5c))
+  - [Nuvei] extend REST 1.0 payment flows ([#2662](https://github.com/juspay/connector-service/pull/2662)) ([`857c315`](https://github.com/juspay/connector-service/commit/857c315148bbd80d2c60807d854d7aafd4d8abd1))
+  - [ClearSaleBr] Source reservationDate from travel data instead of connector_feature_data ([#2696](https://github.com/juspay/connector-service/pull/2696)) ([`d4f6d67`](https://github.com/juspay/connector-service/commit/d4f6d67a6621b25b299901c481cdf7177c503cc1))
+- **rapyd:** Pass through external 3DS authentication results ([#2653](https://github.com/juspay/connector-service/pull/2653)) ([`1dfadb8`](https://github.com/juspay/connector-service/commit/1dfadb8f11e3ebf9103d62590c4e3315ab391fde))
+
+### Bug Fixes
+
+- **deps:**
+  - Update Rustls to 0.23.46 ([#2650](https://github.com/juspay/connector-service/pull/2650)) ([`be007fa`](https://github.com/juspay/connector-service/commit/be007fa12fa0de0a8c558e791e0046650f6e0595))
+  - Upgrade Prometheus protobuf runtime ([#2685](https://github.com/juspay/connector-service/pull/2685)) ([`1eecf79`](https://github.com/juspay/connector-service/commit/1eecf7907c3a579b5274a315c7f33a12fd5d214a))
+  - Remove unused transitive Diesel ([#2688](https://github.com/juspay/connector-service/pull/2688)) ([`51f619f`](https://github.com/juspay/connector-service/commit/51f619f8323f77d21fa0c01568f2e1e9a2c70e7a))
+  - Migrate dashboard to React Router 7 ([#2686](https://github.com/juspay/connector-service/pull/2686)) ([`1f9ca2b`](https://github.com/juspay/connector-service/commit/1f9ca2bc76eca35454e014ef7645d6feadaa5b33))
+- **fiservcommercehub:** Preserve sync reference on errors ([#2680](https://github.com/juspay/connector-service/pull/2680)) ([`276f911`](https://github.com/juspay/connector-service/commit/276f911fa4303acd1bfb241cb86eaa6930ba3c0b))
+- **grace:** Require auth on the supervisor control socket ([#2694](https://github.com/juspay/connector-service/pull/2694)) ([`514fef9`](https://github.com/juspay/connector-service/commit/514fef9ee4a6b83bf76139f1382ed080e0fbe146))
+
+**Full Changelog:** [`2026.11.05.0...2026.11.05.1`](https://github.com/juspay/connector-service/compare/2026.11.05.0...2026.11.05.1)
+
+- - -
+
 ## 2026.11.05.0
 
 ### Features

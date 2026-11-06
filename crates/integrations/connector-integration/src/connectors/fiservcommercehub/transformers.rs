@@ -1320,6 +1320,7 @@ pub enum FiservcommercehubTransactionState {
     Captured,
     Authorized,
     Pending,
+    Timeout,
     Declined,
     Rejected,
     Failed,
@@ -1332,7 +1333,8 @@ impl From<&FiservcommercehubTransactionState> for AttemptStatus {
             FiservcommercehubTransactionState::Approved
             | FiservcommercehubTransactionState::Captured => Self::Charged,
             FiservcommercehubTransactionState::Authorized => Self::Authorized,
-            FiservcommercehubTransactionState::Pending => Self::Pending,
+            FiservcommercehubTransactionState::Pending
+            | FiservcommercehubTransactionState::Timeout => Self::Pending,
             FiservcommercehubTransactionState::Declined
             | FiservcommercehubTransactionState::Rejected
             | FiservcommercehubTransactionState::Failed => Self::Failure,

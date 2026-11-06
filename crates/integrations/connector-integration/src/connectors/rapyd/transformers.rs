@@ -18,11 +18,14 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+        Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
+    router_request_types::AuthenticationData,
     router_response_types::RedirectForm,
+    utils::{get_card_issuer, CardIssuer},
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -111,65 +114,106 @@ fn parse_card_network(
         IntegrationError::NotSupported {
             message: format!("rapyd wallet card network: {network}"),
             connector: "rapyd",
-            context: Default::default(),
+            context: crate::utils::integration_ctx(
+                "The wallet card network could not be parsed",
+                "Provide the actual card network from the Apple Pay or Google Pay payload.",
+            ),
         },
     )
 }
 
-/// Rapyd `payment_method.type` identifier. Rapyd's types are country-prefixed
-/// (`<country>_<network>_card`) and enumerated per-country by the List Payment
-/// Methods endpoint; this connector covers the India (`in_`) set.
-///
-/// Raw card payments use `InAmexCard` as a fixed placeholder: resolving the
-/// correct per-country/per-funding type from a bare PAN is not implemented yet,
-/// and the sandbox merchant accepts `in_amex_card`. Digital wallets carry their
-/// network + funding, so they derive the funding-specific type
-/// (`in_credit_visa_card` / `in_debit_visa_card`, etc.) via `try_from_wallet_network`.
-///
-/// Reference: https://docs.rapyd.net/en/list-payment-methods-by-country.html
-#[derive(Debug, Clone, Copy, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RapydPaymentMethodType {
-    InAmexCard,
-    InCreditVisaCard,
-    InDebitVisaCard,
-    InCreditMastercardCard,
-    InDebitMastercardCard,
+/// Rapyd assigns the merchant's country prefix during onboarding.
+#[derive(Debug, Clone, Serialize)]
+#[serde(transparent)]
+pub struct RapydPaymentMethodType(String);
+
+impl TryFrom<(&ConnectorSpecificConfig, &common_enums::CardNetwork)> for RapydPaymentMethodType {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        (config, network): (&ConnectorSpecificConfig, &common_enums::CardNetwork),
+    ) -> Result<Self, Self::Error> {
+        let ConnectorSpecificConfig::Rapyd {
+            country_of_incorporation,
+            ..
+        } = config
+        else {
+            return Err(IntegrationError::FailedToObtainAuthType {
+                context: crate::utils::integration_ctx(
+                    "Rapyd payment method selection requires Rapyd connector configuration",
+                    "Pass the connector configuration for the selected Rapyd merchant account.",
+                ),
+            }
+            .into());
+        };
+        let country = country_of_incorporation.ok_or_else(|| {
+            IntegrationError::MissingRequiredField {
+                field_name: "country_of_incorporation",
+                context: crate::utils::integration_ctx(
+                    "Rapyd payment method selection requires the merchant's country of incorporation",
+                    "Configure the country assigned by Rapyd during merchant onboarding.",
+                ),
+            }
+        })?;
+        let network = match network {
+            common_enums::CardNetwork::Visa => "visa",
+            common_enums::CardNetwork::Mastercard => "mastercard",
+            common_enums::CardNetwork::AmericanExpress => "amex",
+            network => {
+                return Err(IntegrationError::NotSupported {
+                    message: format!("card network: {network}"),
+                    connector: "rapyd",
+                    context: crate::utils::integration_ctx(
+                        "Rapyd card method construction supports Visa, Mastercard, and American Express",
+                        "Supply the actual card network supported by this Rapyd integration.",
+                    ),
+                }
+                .into())
+            }
+        };
+        Ok(Self(format!(
+            "{}_{network}_card",
+            country.to_string().to_ascii_lowercase()
+        )))
+    }
 }
 
-impl RapydPaymentMethodType {
-    /// Resolve the Rapyd `payment_method.type` for a digital-wallet card from
-    /// its network and funding. Wallets carry only the network and credit/debit
-    /// funding (the PAN lives in the decrypted payload), so the type is derived
-    /// from those.
-    fn try_from_wallet_network(
-        network: &str,
-        card_type: Option<&str>,
-    ) -> Result<Self, error_stack::Report<IntegrationError>> {
-        let is_debit = matches!(card_type.map(str::to_lowercase).as_deref(), Some("debit"));
-        match network.to_lowercase().as_str() {
-            "visa" if is_debit => Ok(Self::InDebitVisaCard),
-            "visa" => Ok(Self::InCreditVisaCard),
-            "mastercard" | "master" if is_debit => Ok(Self::InDebitMastercardCard),
-            "mastercard" | "master" => Ok(Self::InCreditMastercardCard),
-            "amex" | "americanexpress" | "american express" => Ok(Self::InAmexCard),
-            other => Err(IntegrationError::NotSupported {
-                message: format!("rapyd wallet card network: {other}"),
-                connector: "rapyd",
-                context: Default::default(),
-            })?,
-        }
+impl<T: PaymentMethodDataTypes> TryFrom<(&ConnectorSpecificConfig, &Card<T>)>
+    for RapydPaymentMethodType
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from((config, card): (&ConnectorSpecificConfig, &Card<T>)) -> Result<Self, Self::Error> {
+        let network = match card.card_network.as_ref() {
+            Some(network) => network.clone(),
+            None => match get_card_issuer(card.card_number.peek())? {
+                CardIssuer::Master => common_enums::CardNetwork::Mastercard,
+                issuer => issuer
+                    .to_string()
+                    .parse::<common_enums::CardNetwork>()
+                    .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "card_network",
+                    context: crate::utils::integration_ctx(
+                        "The detected card issuer has no matching card network representation",
+                        "Supply the card's actual card_network using a supported network value.",
+                    ),
+                })?,
+            },
+        };
+        Self::try_from((config, &network))
     }
 }
 
 /// Rapyd `initiation_type` for `/v1/payments`. MIT replays go out as
-/// `recurring`; the full Rapyd vocabulary also includes `customer_present`,
-/// `installment`, `moto`, and `unscheduled`, but only `recurring` is used
-/// on this path today.
+/// `recurring`, and customer-initiated external network token payments go
+/// out as `customer_present`. The full Rapyd vocabulary also includes
+/// `installment`, `moto`, and `unscheduled`, which are not used on this
+/// path today.
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RapydInitiationType {
     Recurring,
+    CustomerPresent,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
@@ -335,7 +379,7 @@ pub struct RapydPaymentsRequest<
     pub amount: StringMajorUnit,
     pub currency: common_enums::Currency,
     pub payment_method: RapydPaymentMethodData<T>,
-    pub payment_method_options: Option<PaymentMethodOptions>,
+    pub payment_method_options: Option<RapydPaymentMethodOptions>,
     pub merchant_reference_id: Option<String>,
     pub capture: Option<bool>,
     pub description: Option<String>,
@@ -399,11 +443,92 @@ pub struct PaymentMethodOptions {
     pub three_ds: bool,
 }
 
+/// Rapyd `payment_method_options` carries one of these shapes:
+///
+/// - hosted 3DS: `{"3d_required": bool}`, driven by the requested auth type;
+/// - external 3DS: `{"3d_version", "cavv", "eci", "ds_trans_id"?}` built from
+///   a completed third-party authentication result, with `3d_required`
+///   omitted entirely.
+/// - network token: `tavv`, with external 3DS fields when supplied.
+///
+/// Reference: https://docs.rapyd.net/en/creating-a-card-payment-with-3ds-authentication---external-3ds.html
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum RapydPaymentMethodOptions {
+    Hosted(PaymentMethodOptions),
+    External(RapydExternal3DsOptions),
+    NetworkToken(RapydNetworkTokenOptions),
+}
+
+/// Rapyd `payment_method_options.tavv` for customer-present payments with an
+/// externally provisioned network token; it replaces the CVV.
+///
+/// Reference: https://docs.rapyd.net/en/external-network-tokenization.html
+#[derive(Debug, Serialize)]
+pub struct RapydNetworkTokenOptions {
+    pub tavv: Secret<String>,
+    #[serde(flatten)]
+    pub external_3ds: Option<RapydExternal3DsOptions>,
+}
+
+/// External (third-party) 3DS authentication result forwarded to Rapyd under
+/// `payment_method_options`. `cavv` is kept as a secret end to end.
+#[derive(Debug, Serialize)]
+pub struct RapydExternal3DsOptions {
+    #[serde(rename = "3d_version")]
+    pub three_ds_version: String,
+    pub cavv: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_trans_id: Option<String>,
+}
+
+/// Builds Rapyd's external-3DS `payment_method_options` from a completed
+/// authentication result. Rapyd requires `3d_version` and `cavv`; `eci` and
+/// `ds_trans_id` are forwarded when present. Existing non-external flows keep
+/// the hosted `3d_required` flag.
+pub fn build_external_3ds_options(
+    authentication_data: &AuthenticationData,
+) -> Result<RapydExternal3DsOptions, error_stack::Report<IntegrationError>> {
+    // Reference: https://docs.rapyd.net/en/creating-a-card-payment-with-3ds-authentication---external-3ds.html
+    let message_version = authentication_data
+        .message_version
+        .as_ref()
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name: "authentication_data.message_version",
+            context: crate::utils::integration_ctx(
+                "Rapyd external 3DS requires the 3DS version from the authentication result",
+                "Send a completed external 3DS result that includes the 3DS version.",
+            ),
+        })?;
+    let three_ds_version = message_version.to_string();
+    let cavv =
+        authentication_data
+            .cavv
+            .clone()
+            .ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name: "authentication_data.cavv",
+                context: crate::utils::integration_ctx(
+                    "Rapyd external 3DS requires the cavv from the authentication result",
+                    "Send a completed external 3DS result that includes the cavv.",
+                ),
+            })?;
+    let eci = authentication_data.eci.clone();
+    let ds_trans_id = authentication_data.ds_trans_id.clone();
+    Ok(RapydExternal3DsOptions {
+        three_ds_version,
+        cavv,
+        eci,
+        ds_trans_id,
+    })
+}
+
 #[derive(Debug, Serialize)]
 pub struct PaymentMethod<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
     #[serde(rename = "type")]
     pub pm_type: RapydPaymentMethodType,
-    pub fields: Option<PaymentFields<T>>,
+    pub fields: Option<RapydPaymentMethodFields<T>>,
     pub address: Option<Address>,
     pub digital_wallet: Option<RapydWallet>,
 }
@@ -415,6 +540,77 @@ pub struct PaymentFields<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
     pub expiration_year: Secret<String>,
     pub name: Secret<String>,
     pub cvv: Secret<String>,
+}
+
+/// Rapyd `payment_method.fields` differs by method type: the PAN fields for
+/// raw cards, and the recurring-purpose marker when a digital wallet is
+/// saved for recurring use.
+///
+/// Reference: https://docs.rapyd.net/en/recurring-digital-wallet-payments.html
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum RapydPaymentMethodFields<
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+> {
+    Card(PaymentFields<T>),
+    WalletRecurring(RapydWalletRecurringFields),
+    NetworkToken(RapydNetworkTokenFields),
+}
+
+#[derive(Debug, Serialize)]
+pub struct RapydWalletRecurringFields {
+    pub recurrence_type: RapydRecurrenceType,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RapydRecurrenceType {
+    Recurring,
+}
+
+/// Rapyd `payment_method.fields.number_type` for externally provisioned
+/// network tokens: `TPAN` marks the token number as a tokenized PAN.
+///
+/// Reference: https://docs.rapyd.net/en/external-network-tokenization.html
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum RapydNumberType {
+    Tpan,
+}
+
+/// Rapyd `payment_method.fields` for a network token replacing the PAN.
+/// There is no CVV equivalent on this shape: the TAVV cryptogram travels in
+/// `payment_method_options.tavv` instead.
+///
+/// Reference: https://docs.rapyd.net/en/external-network-tokenization.html
+#[derive(Debug, Serialize)]
+pub struct RapydNetworkTokenFields {
+    pub number: cards::NetworkToken,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub name: Secret<String>,
+    pub number_type: RapydNumberType,
+}
+
+/// Decides Rapyd's wallet `recurrence_type` purpose from the caller's
+/// future-usage intent. Saving a wallet for recurring use requires
+/// `payment_method.fields.recurrence_type = "recurring"` on the initial
+/// payment. Off-session usage is recurring when the caller selects the
+/// recurring or subscription category, or does not select a category;
+/// one-time and customer-present (OnSession) wallets stay unmarked.
+pub fn is_recurring_wallet_intent(
+    setup_future_usage: Option<common_enums::FutureUsage>,
+    mit_category: Option<common_enums::MitCategory>,
+) -> bool {
+    match setup_future_usage {
+        None | Some(common_enums::FutureUsage::OnSession) => false,
+        Some(common_enums::FutureUsage::OffSession) => matches!(
+            mit_category,
+            None | Some(
+                common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription
+            )
+        ),
+    }
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -560,30 +756,86 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ),
             })?;
 
-        // Capture intent applies to every payment method; the `three_ds`
-        // option is card-only (wallets carry their own authentication).
+        // Capture intent applies to every payment method. Wallets carry
+        // their own authentication.
         let capture = Some(item.router_data.request.is_auto_capture());
-        let payment_method_options = matches!(
-            item.router_data.resource_common_data.payment_method,
-            common_enums::PaymentMethod::Card
-        )
-        .then(|| PaymentMethodOptions {
-            three_ds: matches!(
-                item.router_data.resource_common_data.auth_type,
-                common_enums::AuthenticationType::ThreeDs
-            ),
-        });
+        // The payment method data is the discriminator: the shared flow data
+        // reports `Card` for customer-present network token requests.
+        let is_card = matches!(
+            &item.router_data.request.payment_method_data,
+            PaymentMethodData::Card(_)
+        ) || matches!(
+            &item.router_data.request.payment_method_data,
+            PaymentMethodData::PaymentMethodToken(token)
+                if token.token_payment_method_type.is_none()
+        );
+        // Network tokens require a fresh TAVV and retain any supplied
+        // external 3DS result. Cards carry the hosted flag or external 3DS.
+        let is_network_token = matches!(
+            item.router_data.request.payment_method_data,
+            PaymentMethodData::NetworkToken(_)
+        );
+        // Completed external 3DS results are forwarded under
+        // `payment_method_options` and never combined with the hosted
+        // `3d_required` flag. Requests without external results keep the
+        // existing auth-type-driven flag.
+        // Reference: https://docs.rapyd.net/en/creating-a-card-payment-with-3ds-authentication---external-3ds.html
+        let payment_method_options = if is_card {
+            Some(
+                match item.router_data.request.authentication_data.as_ref() {
+                    Some(authentication_data) => RapydPaymentMethodOptions::External(
+                        build_external_3ds_options(authentication_data)?,
+                    ),
+                    None => RapydPaymentMethodOptions::Hosted(PaymentMethodOptions {
+                        three_ds: matches!(
+                            item.router_data.resource_common_data.auth_type,
+                            common_enums::AuthenticationType::ThreeDs
+                        ),
+                    }),
+                },
+            )
+        } else if is_network_token {
+            match &item.router_data.request.payment_method_data {
+                PaymentMethodData::NetworkToken(token_data) => {
+                    let tavv = token_data.token_cryptogram.clone().ok_or_else(|| {
+                        IntegrationError::MissingRequiredField {
+                            field_name: "network_token.token_cryptogram",
+                            context: crate::utils::integration_ctx(
+                                "Rapyd customer-present network token payments require the TAVV cryptogram under payment_method_options",
+                                "Send the fresh network token cryptogram (TAVV) from the token requestor.",
+                            ),
+                        }
+                    })?;
+                    Some(RapydPaymentMethodOptions::NetworkToken(
+                        RapydNetworkTokenOptions {
+                            tavv,
+                            external_3ds: item
+                                .router_data
+                                .request
+                                .authentication_data
+                                .as_ref()
+                                .map(build_external_3ds_options)
+                                .transpose()?,
+                        },
+                    ))
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
+        // Only network token authorizations carry a request-level initiation
+        // type on this path.
+        let mut initiation_type = None;
         let payment_method = match item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref ccard) => {
                 Some(RapydPaymentMethodData::PaymentMethod(Box::new(
                     PaymentMethod {
-                        // Placeholder India type. Rapyd's valid `payment_method.type`
-                        // is country- and merchant-specific (this sandbox enables
-                        // `in_amex_card`, not plain `in_visa_card`), so the correct
-                        // per-network/funding mapping is deferred; sandbox is lenient
-                        // about the card BIN.
-                        pm_type: RapydPaymentMethodType::InAmexCard,
-                        fields: Some(PaymentFields {
+                        pm_type: RapydPaymentMethodType::try_from((
+                            &item.router_data.connector_config,
+                            ccard,
+                        ))?,
+                        fields: Some(RapydPaymentMethodFields::Card(PaymentFields {
                             number: ccard.card_number.to_owned(),
                             expiration_month: ccard.card_exp_month.to_owned(),
                             expiration_year: ccard.card_exp_year.to_owned(),
@@ -594,7 +846,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 .to_owned()
                                 .unwrap_or(Secret::new("".to_string())),
                             cvv: ccard.card_cvc.to_owned(),
-                        }),
+                        })),
                         address: None,
                         digital_wallet: None,
                     },
@@ -676,10 +928,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 ))
                             }
                         };
-                        let pm_type = RapydPaymentMethodType::try_from_wallet_network(
-                            &data.info.card_network,
-                            None,
-                        )?;
+                        let network = match &details {
+                            RapydWalletDetails::GooglePayDecrypted(details) => {
+                                details.brand_data.card_network.clone()
+                            }
+                            _ => parse_card_network(&data.info.card_network)?,
+                        };
+                        let pm_type = RapydPaymentMethodType::try_from((
+                            &item.router_data.connector_config,
+                            &network,
+                        ))?;
                         (
                             RapydWallet {
                                 payment_type: WALLET_TYPE_GOOGLE_PAY.to_string(),
@@ -790,10 +1048,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 ))
                             }
                         };
-                        let pm_type = RapydPaymentMethodType::try_from_wallet_network(
-                            &data.payment_method.network,
-                            Some(data.payment_method.pm_type.as_str()),
-                        )?;
+                        let network = match &details {
+                            RapydWalletDetails::ApplePayDecrypted(details) => {
+                                details.brand_data.network.clone()
+                            }
+                            _ => parse_card_network(&data.payment_method.network)?,
+                        };
+                        let pm_type = RapydPaymentMethodType::try_from((
+                            &item.router_data.connector_config,
+                            &network,
+                        ))?;
                         (
                             RapydWallet {
                                 payment_type: WALLET_TYPE_APPLE_PAY.to_string(),
@@ -808,12 +1072,56 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         context: Default::default(),
                     })?,
                 };
+                // Wallet saved-token recurring payments require the
+                // recurring purpose marker in `payment_method.fields` on the
+                // initial payment; one-time wallets keep `fields` absent.
+                // Reference: https://docs.rapyd.net/en/recurring-digital-wallet-payments.html
+                let wallet_fields = is_recurring_wallet_intent(
+                    item.router_data.request.setup_future_usage,
+                    item.router_data.request.mit_category.clone(),
+                )
+                .then_some(RapydPaymentMethodFields::WalletRecurring(
+                    RapydWalletRecurringFields {
+                        recurrence_type: RapydRecurrenceType::Recurring,
+                    },
+                ));
                 Some(RapydPaymentMethodData::PaymentMethod(Box::new(
                     PaymentMethod {
                         pm_type,
-                        fields: None,
+                        fields: wallet_fields,
                         address: None,
                         digital_wallet: Some(rapyd_wallet),
+                    },
+                )))
+            }
+            PaymentMethodData::NetworkToken(ref token_data) => {
+                let network = token_data.card_network.as_ref().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "network_token.card_network",
+                        context: Default::default(),
+                    },
+                )?;
+                let pm_type = RapydPaymentMethodType::try_from((
+                    &item.router_data.connector_config,
+                    network,
+                ))?;
+                let fields = RapydNetworkTokenFields {
+                    number: token_data.token_number.clone(),
+                    expiration_month: token_data.token_exp_month.clone(),
+                    expiration_year: token_data.get_token_expiry_year_2_digit()?,
+                    name: item
+                        .router_data
+                        .resource_common_data
+                        .get_billing_full_name()?,
+                    number_type: RapydNumberType::Tpan,
+                };
+                initiation_type = Some(RapydInitiationType::CustomerPresent);
+                Some(RapydPaymentMethodData::PaymentMethod(Box::new(
+                    PaymentMethod {
+                        pm_type,
+                        fields: Some(RapydPaymentMethodFields::NetworkToken(fields)),
+                        address: None,
+                        digital_wallet: None,
                     },
                 )))
             }
@@ -861,7 +1169,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             complete_payment_url: Some(return_url),
             customer,
             save_payment_method,
-            initiation_type: None,
+            initiation_type,
         })
     }
 }
@@ -1529,9 +1837,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let payment_method = match &request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
-                // Placeholder India type — see the Authorize flow: the sandbox
-                // merchant enables `in_amex_card`, not the per-network types.
-                let pm_type = RapydPaymentMethodType::InAmexCard;
                 // Rapyd documents `payment_method.fields.name` as required
                 // (https://docs.rapyd.net/en/create-card-payment-method.html).
                 // Prefer the cardholder name on the card itself; fall back to
@@ -1551,14 +1856,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         context: Default::default(),
                     })?;
                 RapydPaymentMethodData::PaymentMethod(Box::new(PaymentMethod {
-                    pm_type,
-                    fields: Some(PaymentFields {
+                    pm_type: RapydPaymentMethodType::try_from((
+                        &router_data.connector_config,
+                        ccard,
+                    ))?,
+                    fields: Some(RapydPaymentMethodFields::Card(PaymentFields {
                         number: ccard.card_number.to_owned(),
                         expiration_month: ccard.card_exp_month.to_owned(),
                         expiration_year: ccard.card_exp_year.to_owned(),
                         name: cardholder_name,
                         cvv: ccard.card_cvc.to_owned(),
-                    }),
+                    })),
                     address: None,
                     digital_wallet: None,
                 }))
@@ -1575,8 +1883,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.resource_common_data.auth_type,
             common_enums::AuthenticationType::ThreeDs
         );
-        let payment_method_options = Some(PaymentMethodOptions {
-            three_ds: three_ds_enabled,
+        // Completed external 3DS results take precedence and omit the hosted
+        // `3d_required` flag, matching the Authorize flow.
+        // Reference: https://docs.rapyd.net/en/creating-a-card-payment-with-3ds-authentication---external-3ds.html
+        let payment_method_options = Some(match request.authentication_data.as_ref() {
+            Some(authentication_data) => RapydPaymentMethodOptions::External(
+                build_external_3ds_options(authentication_data)?,
+            ),
+            None => RapydPaymentMethodOptions::Hosted(PaymentMethodOptions {
+                three_ds: three_ds_enabled,
+            }),
         });
 
         // Rapyd REQUIRES a customer to save a payment method. We pass an
@@ -1612,12 +1928,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             email: customer_email,
         };
 
-        let return_url = router_data.resource_common_data.return_url.clone().ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "return_url",
-                context: Default::default(),
-            },
-        )?;
+        let return_url = request.get_router_return_url()?;
 
         Ok(Self {
             amount,
@@ -1856,9 +2167,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.resource_common_data.auth_type,
             common_enums::AuthenticationType::ThreeDs
         );
-        let payment_method_options = Some(PaymentMethodOptions {
-            three_ds: three_ds_enabled,
-        });
+        let payment_method_options =
+            Some(RapydPaymentMethodOptions::Hosted(PaymentMethodOptions {
+                three_ds: three_ds_enabled,
+            }));
 
         // On Charge, return_url arrives on `request.router_return_url`;
         // `PaymentFlowData.return_url` is hardcoded to None for this flow.

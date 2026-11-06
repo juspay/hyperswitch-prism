@@ -684,6 +684,9 @@ impl Connectors {
             ConnectorEnum::Novalnet => {
                 patched.novalnet.apply(params_patch);
             }
+            ConnectorEnum::Nuvei => {
+                patched.nuvei.apply(params_patch);
+            }
             ConnectorEnum::Forte => {
                 patched.forte.apply(params_patch);
             }
@@ -4772,12 +4775,6 @@ impl_enum_foreign_from! {
         Bus => Bus,
         Ferry => Ferry,
     },
-    TravelClass => TravelClass {
-        Economy => Economy,
-        PremiumEconomy => PremiumEconomy,
-        Business => Business,
-        First => First,
-    },
     Gender => Gender {
         Male => Male,
         Female => Female,
@@ -5132,6 +5129,7 @@ impl ForeignTryFrom<grpc_payment_types::AirlineSegment> for connector_types::Air
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             sequence_no: segment.sequence_no,
+            journey_no: segment.journey_no,
             marketing_carrier_code: segment.marketing_carrier_code,
             flight_number: segment.flight_number,
             flight_type: segment.flight_type,
@@ -5444,13 +5442,10 @@ impl ForeignTryFrom<grpc_payment_types::TravelSegment> for connector_types::Trav
     fn foreign_try_from(
         segment: grpc_payment_types::TravelSegment,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        // Read enum getters (which borrow `segment`) before moving fields out.
-        let travel_class =
-            Option::<common_enums::TravelClass>::foreign_from(segment.travel_class());
         Ok(Self {
             origin: segment.origin,
             destination: segment.destination,
-            travel_class,
+            travel_class: segment.travel_class,
             passengers: segment
                 .passengers
                 .into_iter()
@@ -11321,7 +11316,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
         });
         Ok(Self {
             split_settlement: None,
-            raw_connector_status: None,
+            raw_connector_status: value.raw_connector_status.map(ForeignFrom::foreign_from),
             connector_transaction_id: extract_connector_request_reference_id(
                 &value
                     .resource_id
@@ -11347,7 +11342,11 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             }),
             network_transaction_id: value.network_txn_id,
             network_txn_link_id: None,
-            amount: None,
+            amount: value
+                .amount
+                .as_ref()
+                .map(connector_money_to_grpc)
+                .transpose()?,
             captured_amount: value
                 .amount_captured
                 .as_ref()
@@ -11359,7 +11358,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                 .transpose()?,
             // Webhook details don't carry a capturable amount.
             capturable_money: None,
-            // Webhook details don't carry the connector-reported amount used by the integrity check.
+            // Webhook amounts do not represent a separate authorized amount.
             authorized_money: None,
             payment_method_type: None,
             capture_method: None,
@@ -12055,7 +12054,7 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
 
         Ok(Self {
             split_settlement: None,
-            raw_connector_status: None,
+            raw_connector_status: value.raw_connector_status.map(ForeignFrom::foreign_from),
             connector_transaction_id: None,
             connector_refund_id: value.connector_refund_id.unwrap_or_default(),
             status: status.into(),
@@ -13331,6 +13330,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
                 .map(connector_types::SplitSettlement::foreign_try_from)
                 .transpose()?
                 .map(Box::new),
+            domain_data: value
+                .domain_data
+                .map(connector_types::DomainData::foreign_try_from)
+                .transpose()?,
             amount_to_capture: amount.clone(),
             currency: amount.currency,
             connector_transaction_id,
@@ -16081,6 +16084,7 @@ impl ForeignTryFrom<grpc_api_types::payments::BrowserInformation> for BrowserInf
         value: grpc_api_types::payments::BrowserInformation,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
+            challenge_window_size: value.challenge_window_size,
             color_depth: value.color_depth.map(|cd| cd as u8),
             java_enabled: value.java_enabled,
             java_script_enabled: value.java_script_enabled,
