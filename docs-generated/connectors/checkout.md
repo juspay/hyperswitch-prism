@@ -27,8 +27,8 @@ config = sdk_config_pb2.ConnectorConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
             processing_channel_id=payment_methods_pb2.SecretString(value="YOUR_PROCESSING_CHANNEL_ID"),
-            connector_client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
-            connector_currency_account_id=payment_methods_pb2.SecretString(value="YOUR_CURRENCY_ACCOUNT_ID"),
+            connector_client_id=payment_methods_pb2.SecretString(value="YOUR_CONNECTOR_CLIENT_ID"),
+            connector_currency_account_id=payment_methods_pb2.SecretString(value="YOUR_CONNECTOR_CURRENCY_ACCOUNT_ID"),
             base_url="YOUR_BASE_URL",
         ),
     ),
@@ -55,8 +55,8 @@ const config = ConnectorConfig.create({
             apiKey: { value: 'YOUR_API_KEY' },
             apiSecret: { value: 'YOUR_API_SECRET' },
             processingChannelId: { value: 'YOUR_PROCESSING_CHANNEL_ID' },
-            clientId: { value: 'YOUR_CLIENT_ID' },
-            currencyAccountId: { value: 'YOUR_CURRENCY_ACCOUNT_ID' },
+            connectorClientId: { value: 'YOUR_CONNECTOR_CLIENT_ID' },
+            connectorCurrencyAccountId: { value: 'YOUR_CONNECTOR_CURRENCY_ACCOUNT_ID' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -79,8 +79,8 @@ val config = ConnectorConfig.newBuilder()
                 .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
                 .setApiSecret(SecretString.newBuilder().setValue("YOUR_API_SECRET").build())
                 .setProcessingChannelId(SecretString.newBuilder().setValue("YOUR_PROCESSING_CHANNEL_ID").build())
-                .setClientId(SecretString.newBuilder().setValue("YOUR_CLIENT_ID").build())
-                .setCurrencyAccountId(SecretString.newBuilder().setValue("YOUR_CURRENCY_ACCOUNT_ID").build())
+                .setConnectorClientId(SecretString.newBuilder().setValue("YOUR_CONNECTOR_CLIENT_ID").build())
+                .setConnectorCurrencyAccountId(SecretString.newBuilder().setValue("YOUR_CONNECTOR_CURRENCY_ACCOUNT_ID").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
@@ -105,8 +105,8 @@ let config = ConnectorConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
                 processing_channel_id: Some(hyperswitch_masking::Secret::new("YOUR_PROCESSING_CHANNEL_ID".to_string())),  // Authentication credential
-                connector_client_id: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_ID".to_string())),  // Authentication credential
-                connector_currency_account_id: Some(hyperswitch_masking::Secret::new("YOUR_CURRENCY_ACCOUNT_ID".to_string())),  // Authentication credential
+                connector_client_id: Some(hyperswitch_masking::Secret::new("YOUR_CONNECTOR_CLIENT_ID".to_string())),  // Authentication credential
+                connector_currency_account_id: Some(hyperswitch_masking::Secret::new("YOUR_CONNECTOR_CURRENCY_ACCOUNT_ID".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),
