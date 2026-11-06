@@ -86,13 +86,13 @@ def build_request_details(body: bytes):
     return payment_pb2.RequestDetails(
         method=payment_pb2.HttpMethod.HTTP_METHOD_POST,
         uri=payment_methods_pb2.SecretString(value="/webhooks/adyen"),
-        headers=payment_pb2.SecretHeaders(
+        headers=payment_methods_pb2.SecretHeaders(
             values={
                 key: payment_methods_pb2.SecretString(value=value)
                 for key, value in ADYEN_HEADERS.items()
             }
         ),
-        body=payment_pb2.SecretBytes(value=body),
+        body=payment_methods_pb2.SecretBytes(value=body),
     )
 
 
