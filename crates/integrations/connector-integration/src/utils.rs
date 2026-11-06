@@ -35,21 +35,21 @@ type Error = Report<IntegrationError>;
 use common_enums::enums;
 use serde::{Deserialize, Serialize};
 
-/// Derive a stable, connector-safe idempotency key from a request reference.
+/// Derive a stable, connector-safe idempotency key from a merchant request ID.
 ///
 /// The hexadecimal SHA-256 output is deterministic across retries, contains
 /// only characters accepted by the supported connector APIs, and does not
-/// expose the caller's reference identifier on the wire.
+/// expose the caller's merchant request ID on the wire.
 pub(crate) fn stable_idempotency_key(
     scope: &str,
-    connector_request_reference_id: &str,
+    merchant_request_id: &str,
     length: usize,
 ) -> Option<String> {
-    if connector_request_reference_id.is_empty() {
+    if merchant_request_id.is_empty() {
         return None;
     }
 
-    let digest = Sha256::digest(format!("{scope}:{connector_request_reference_id}").as_bytes());
+    let digest = Sha256::digest(format!("{scope}:{merchant_request_id}").as_bytes());
     Some(hex::encode(digest).chars().take(length.min(64)).collect())
 }
 
