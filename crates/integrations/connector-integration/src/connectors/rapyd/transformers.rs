@@ -33,8 +33,10 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Debug;
 use url::Url;
+use NO_ERROR_MESSAGE;
 
 use crate::types::ResponseRouterData;
+use crate::utils;
 
 use super::RapydRouterData;
 
@@ -87,7 +89,10 @@ impl TryFrom<&str> for RapydCardFunding {
             other => Err(IntegrationError::NotSupported {
                 message: format!("rapyd wallet card funding: {other}"),
                 connector: "rapyd",
-                context: Default::default(),
+                context: utils::integration_ctx(
+                    "The wallet card funding type is not supported",
+                    "Provide the funding type reported by the wallet: credit, debit, or prepaid.",
+                ),
             })?,
         }
     }
@@ -123,7 +128,7 @@ fn parse_card_network(
     .change_context(IntegrationError::NotSupported {
         message: format!("rapyd wallet card network: {network}"),
         connector: "rapyd",
-        context: crate::utils::integration_ctx(
+        context: utils::integration_ctx(
             "The wallet card network could not be parsed",
             "Provide the actual card network from the Apple Pay or Google Pay payload.",
         ),
@@ -147,7 +152,7 @@ impl TryFrom<(&ConnectorSpecificConfig, &common_enums::CardNetwork)> for RapydPa
         } = config
         else {
             return Err(IntegrationError::FailedToObtainAuthType {
-                context: crate::utils::integration_ctx(
+                context: utils::integration_ctx(
                     "Rapyd payment method selection requires Rapyd connector configuration",
                     "Pass the connector configuration for the selected Rapyd merchant account.",
                 ),
@@ -157,7 +162,7 @@ impl TryFrom<(&ConnectorSpecificConfig, &common_enums::CardNetwork)> for RapydPa
         let country = country_of_incorporation.ok_or_else(|| {
             IntegrationError::MissingRequiredField {
                 field_name: "country_of_incorporation",
-                context: crate::utils::integration_ctx(
+                context: utils::integration_ctx(
                     "Rapyd payment method selection requires the merchant's country of incorporation",
                     "Configure the country assigned by Rapyd during merchant onboarding.",
                 ),
@@ -171,7 +176,7 @@ impl TryFrom<(&ConnectorSpecificConfig, &common_enums::CardNetwork)> for RapydPa
                 return Err(IntegrationError::NotSupported {
                     message: format!("card network: {network}"),
                     connector: "rapyd",
-                    context: crate::utils::integration_ctx(
+                    context: utils::integration_ctx(
                         "Rapyd card method construction supports Visa, Mastercard, and American Express",
                         "Supply the actual card network supported by this Rapyd integration.",
                     ),
@@ -201,7 +206,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<(&ConnectorSpecificConfig, &Card<T>)>
                     .parse::<common_enums::CardNetwork>()
                     .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "card_network",
-                    context: crate::utils::integration_ctx(
+                    context: utils::integration_ctx(
                         "The detected card issuer has no matching card network representation",
                         "Supply the card's actual card_network using a supported network value.",
                     ),
@@ -244,9 +249,12 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                                 .to_owned()
                                 .unwrap_or(item.response.status.error_code),
                             status_code: item.http_code,
-                            message: item.response.status.status.clone().unwrap_or_else(|| {
-                                common_utils::consts::NO_ERROR_MESSAGE.to_string()
-                            }),
+                            message: item
+                                .response
+                                .status
+                                .status
+                                .clone()
+                                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                             reason: data.failure_message.to_owned(),
                             attempt_status: None,
                             connector_transaction_id: Some(data.id.clone()),
@@ -266,7 +274,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                             .filter(|redirect_str| !redirect_str.is_empty())
                             .map(|url| {
                                 Url::parse(url).change_context(
-                                    crate::utils::response_handling_fail_for_connector(
+                                    utils::response_handling_fail_for_connector(
                                         item.http_code,
                                         "rapyd",
                                     ),
@@ -325,7 +333,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                         .response
                         .status
                         .status
-                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                     reason: item.response.status.message,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -401,7 +409,10 @@ impl TryFrom<&ConnectorSpecificConfig> for RapydAuthType {
                 secret_key: secret_key.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: utils::integration_ctx(
+                    "The Rapyd authentication type is not supported",
+                    "Configure the Rapyd access key and secret key for this merchant account.",
+                ),
             })?,
         }
     }
@@ -521,7 +532,7 @@ pub fn build_external_3ds_options(
         .as_ref()
         .ok_or_else(|| IntegrationError::MissingRequiredField {
             field_name: "authentication_data.message_version",
-            context: crate::utils::integration_ctx(
+            context: utils::integration_ctx(
                 "Rapyd external 3DS requires the 3DS version from the authentication result",
                 "Send a completed external 3DS result that includes the 3DS version.",
             ),
@@ -533,7 +544,7 @@ pub fn build_external_3ds_options(
             .clone()
             .ok_or_else(|| IntegrationError::MissingRequiredField {
                 field_name: "authentication_data.cavv",
-                context: crate::utils::integration_ctx(
+                context: utils::integration_ctx(
                     "Rapyd external 3DS requires the cavv from the authentication result",
                     "Send a completed external 3DS result that includes the cavv.",
                 ),
@@ -773,7 +784,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .amount_converter
             .convert(&item.router_data.request.amount)
             .change_context(IntegrationError::AmountConversionFailed {
-                context: crate::utils::amount_conversion_ctx(
+                context: utils::amount_conversion_ctx(
                     "rapyd authorize",
                     &item.router_data.request.amount.amount,
                     &item.router_data.request.currency,
@@ -820,7 +831,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             let tavv = token_data.token_cryptogram.clone().ok_or_else(|| {
                         IntegrationError::MissingRequiredField {
                             field_name: "network_token.token_cryptogram",
-                            context: crate::utils::integration_ctx(
+                            context: utils::integration_ctx(
                                 "Rapyd customer-present network token payments require the TAVV cryptogram under payment_method_options",
                                 "Send the fresh network token cryptogram (TAVV) from the token requestor.",
                             ),
@@ -895,7 +906,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                                     .change_context(
                                                         IntegrationError::MissingRequiredField {
                                                             field_name: "gpay expiration_year",
-                                                            context: crate::utils::integration_ctx(
+                                                            context: utils::integration_ctx(
                                                                 "Google Pay decrypted token has no 4-digit expiry year",
                                                                 "Ensure the Google Pay payload was decrypted with the card expiry.",
                                                             ),
@@ -906,7 +917,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                                     .change_context(
                                                     IntegrationError::MissingRequiredField {
                                                         field_name: "gpay expiration_month",
-                                                        context: crate::utils::integration_ctx(
+                                                        context: utils::integration_ctx(
                                                             "Google Pay decrypted token has no expiry month",
                                                             "Ensure the Google Pay payload was decrypted with the card expiry.",
                                                         ),
@@ -937,7 +948,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                         .get_encrypted_google_pay_token()
                                         .change_context(IntegrationError::MissingRequiredField {
                                             field_name: "gpay wallet_token",
-                                            context: crate::utils::integration_ctx(
+                                            context: utils::integration_ctx(
                                                 "Encrypted Google Pay payload has no wallet token",
                                                 "Ensure the Google Pay tokenization data includes the token.",
                                             ),
@@ -976,7 +987,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 // month + year (via the shared expiry helpers), so append
                                 // the last day of the expiry month (leap-aware).
                                 let ctx = || {
-                                    crate::utils::integration_ctx(
+                                    utils::integration_ctx(
                                         "Apple Pay decrypted token has an invalid card expiry",
                                         "Ensure the Apple Pay payload was decrypted with the card expiry.",
                                     )
@@ -1057,7 +1068,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                     .get_encrypted_apple_pay_payment_data_mandatory()
                                     .change_context(IntegrationError::MissingRequiredField {
                                         field_name: "Apple pay encrypted data",
-                                        context: crate::utils::integration_ctx(
+                                        context: utils::integration_ctx(
                                             "Apple Pay payload is neither decrypted nor a usable encrypted token",
                                             "Provide a decryptable Apple Pay token, or configure connector-side decryption.",
                                         ),
@@ -1088,7 +1099,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     _ => Err(IntegrationError::NotSupported {
                         message: "Selected wallet is not supported by rapyd".to_string(),
                         connector: "rapyd",
-                        context: Default::default(),
+                        context: utils::integration_ctx(
+                            "The selected wallet is not supported by Rapyd",
+                            "Use Apple Pay or Google Pay with a supported card network.",
+                        ),
                     })?,
                 };
                 // Wallet saved-token recurring payments require the
@@ -1115,7 +1129,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 let network = token_data.card_network.as_ref().ok_or_else(|| {
                     IntegrationError::MissingRequiredField {
                         field_name: "network_token.card_network",
-                        context: Default::default(),
+                        context: utils::integration_ctx(
+                            "The network token is missing its card network",
+                            "Provide network_token.card_network from the tokenized payload.",
+                        ),
                     }
                 })?;
                 let pm_type = RapydPaymentMethodType::try_from((
@@ -1146,7 +1163,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => {
                 return Err(IntegrationError::NotImplemented(
                     "payment_method".to_owned(),
-                    Default::default(),
+                    utils::integration_ctx(
+                        "The payment method is not supported by Rapyd",
+                        "Use a card, wallet, network token, or saved payment method supported by Rapyd.",
+                    ),
                 )
                 .into());
             }
@@ -1260,7 +1280,10 @@ impl Status {
     fn to_error_response(&self, status_code: u16) -> ErrorResponse {
         ErrorResponse {
             code: self.error_code.clone(),
-            message: self.status.clone().unwrap_or_default(),
+            message: self
+                .status
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: self.message.clone(),
             status_code,
             attempt_status: None,
@@ -1348,7 +1371,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .amount_converter
             .convert(&item.router_data.request.amount_to_capture)
             .change_context(IntegrationError::AmountConversionFailed {
-                context: crate::utils::amount_conversion_ctx(
+                context: utils::amount_conversion_ctx(
                     "rapyd capture",
                     &item.router_data.request.amount_to_capture.amount,
                     &item.router_data.request.currency,
@@ -1383,7 +1406,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .amount_converter
             .convert(&item.router_data.request.refund_amount)
             .change_context(IntegrationError::AmountConversionFailed {
-                context: crate::utils::amount_conversion_ctx(
+                context: utils::amount_conversion_ctx(
                     "rapyd refund",
                     &item.router_data.request.refund_amount.amount,
                     &item.router_data.request.currency,
@@ -1684,7 +1707,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .amount_converter
             .convert(&router_data.request.amount)
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: utils::integration_ctx(
+                    "The payment amount could not be encoded",
+                    "Provide an amount and currency supported by Rapyd.",
+                ),
             })?;
 
         let country = match router_data
@@ -1700,7 +1726,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     serde_json::from_value::<RapydCreateOrderMetadata>(meta.clone().expose())
                         .change_context(IntegrationError::InvalidDataFormat {
                             field_name: "connector_feature_data",
-                            context: Default::default(),
+                            context: utils::integration_ctx(
+                                "The connector feature data could not be parsed",
+                                "Provide valid JSON with an optional country field.",
+                            ),
                         })
                 })
                 .transpose()?
@@ -1709,7 +1738,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         .ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "billing_country or connector_feature_data.country",
-                context: Default::default(),
+                context: utils::integration_ctx(
+                    "The merchant country is missing",
+                    "Provide billing_country or connector_feature_data.country.",
+                ),
             })
         })?;
 
@@ -1858,7 +1890,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let minor_amount = request.amount.as_ref().map(|money| money.amount).ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "minor_amount",
-                context: Default::default(),
+                context: utils::integration_ctx(
+                    "The setup mandate amount is missing",
+                    "Provide minor_amount for the zero-value setup.",
+                ),
             },
         )?;
         // A setup mandate is a zero-value verification. A funded request
@@ -1899,7 +1934,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     })
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "card.card_holder_name / billing.full_name",
-                        context: Default::default(),
+                        context: utils::integration_ctx(
+                            "The cardholder name is missing",
+                            "Provide card.card_holder_name or billing.full_name.",
+                        ),
                     })?;
                 RapydPaymentMethodData::PaymentMethod(Box::new(PaymentMethod {
                     pm_type: RapydPaymentMethodType::try_from((
@@ -1920,7 +1958,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => {
                 return Err(IntegrationError::NotImplemented(
                     "payment_method for rapyd SetupMandate".to_owned(),
-                    Default::default(),
+                    utils::integration_ctx(
+                        "The setup mandate payment method is not supported",
+                        "Use a card payment method for SetupMandate.",
+                    ),
                 ))?;
             }
         };
@@ -1953,7 +1994,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .clone()
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "customer.name",
-                    context: crate::utils::integration_ctx(
+                    context: utils::integration_ctx(
                         "Rapyd creates an inline customer to save the card, which requires a name",
                         "Send the customer name on the setup-mandate request.",
                     ),
@@ -1964,7 +2005,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .clone()
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "customer.email",
-                    context: crate::utils::integration_ctx(
+                    context: utils::integration_ctx(
                         "Rapyd's inline customer requires an email",
                         "Send the customer email on the setup-mandate request.",
                     ),
@@ -2093,7 +2134,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .amount_converter
                 .convert(&request.amount)
                 .change_context(IntegrationError::AmountConversionFailed {
-                    context: crate::utils::amount_conversion_ctx(
+                    context: utils::amount_conversion_ctx(
                         "rapyd repeat payment",
                         &request.amount.amount,
                         &request.currency,
@@ -2108,14 +2149,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => {
                 return Err(IntegrationError::NotImplemented(
                     "non-connector mandate for rapyd RepeatPayment".to_owned(),
-                    Default::default(),
+                    utils::integration_ctx(
+                        "The repeat payment mandate is not supported",
+                        "Use the saved Rapyd connector mandate for RepeatPayment.",
+                    ),
                 ))?;
             }
         };
         let card_id = connector_mandate.get_connector_mandate_id().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "mandate_reference.connector_mandate_id",
-                context: Default::default(),
+                context: utils::integration_ctx(
+                    "The connector mandate reference is missing",
+                    "Provide mandate_reference.connector_mandate_id from the saved mandate.",
+                ),
             },
         )?;
 
@@ -2136,7 +2183,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .or_else(|| router_data.resource_common_data.return_url.clone())
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "return_url",
-                context: Default::default(),
+                context: utils::integration_ctx(
+                    "The return URL is missing",
+                    "Provide router_return_url or return_url for the redirect flow.",
+                ),
             })?;
 
         Ok(Self {
