@@ -3,8 +3,9 @@
 This directory contains provider implementations of
 `interfaces::webhook_common::WebhookCommon`. ParseEvent extracts the event type
 and reference; HandleEvent uses common classification, local source verification,
-ACK generation, and integrity-check declarations. Resource normalization remains
-in the existing payment connectors, including their payout webhook processing.
+ACK generation, and integrity-check declarations. Payment, refund, and dispute
+normalization uses the existing payment connectors. Migrated payout events use
+`PayoutServiceTrait::process_payout_webhook` in the payout connector directory.
 
 The original `interfaces::webhook_parse::WebhookParse` and boxed connector paths
 remain compatibility re-exports. Existing parse-only implementations compile
@@ -70,3 +71,16 @@ TrueLayer and Trustly are available for both payment and payout variants.
 Their shared payload types and parsing mappings live in this directory; the
 existing handlers reuse those types through re-exports. Registration alone does
 not enable migration for existing headers; the rollout list controls that choice.
+
+After classification, `get_webhook_resource_connector_data` returns a payment or
+payout resource enum. Payout dispatch requires the common migration path, a
+payout event, and registration in `payout_connectors::get_webhook_connector`.
+TrueLayer and Trustly are registered. Other events retain payment dispatch, even
+when supplied with gated payout metadata. Legacy payout methods remain available
+and delegate to the payout implementation. The payout trait method defaults to
+unsupported, preserving existing implementations. Errors never retry another path.
+
+HandleEvent accepts migrated TrueLayer/Trustly payout metadata. It retains a
+payment compatibility context for other resource families and the existing gRPC
+external verifier; registering a purely payout-only provider needs that context
+to be addressed separately.

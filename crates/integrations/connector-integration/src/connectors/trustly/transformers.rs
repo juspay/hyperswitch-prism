@@ -1,3 +1,4 @@
+pub use crate::payout_connectors::trustly::transformers::get_trustly_payout_webhook_status;
 pub use crate::webhook_connectors::trustly::transformers::{
     generate_trustly_signature, get_webhook_event, is_payment_webhook_event,
     is_payout_webhook_event, is_refund_webhook_event, verify_webhook_signature,
@@ -935,24 +936,5 @@ pub fn get_trustly_refund_webhook_status(
         | TrustlyWebhookMethod::Cancel
         | TrustlyWebhookMethod::Account
         | TrustlyWebhookMethod::Pending => Err(unexpected_webhook_event(event, "refund")),
-    }
-}
-
-pub fn get_trustly_payout_webhook_status(
-    event: &TrustlyWebhookMethod,
-    message_id: &str,
-) -> error_stack::Result<common_enums::PayoutStatus, errors::WebhookError> {
-    if !is_payout_webhook_event(event, message_id) {
-        return Err(unexpected_webhook_event(event, "payout"));
-    }
-
-    match event {
-        TrustlyWebhookMethod::PayoutConfirmation => Ok(common_enums::PayoutStatus::Success),
-        TrustlyWebhookMethod::PayoutFailed => Ok(common_enums::PayoutStatus::Failure),
-        TrustlyWebhookMethod::Credit => Ok(common_enums::PayoutStatus::Reversed),
-        TrustlyWebhookMethod::Cancel => Ok(common_enums::PayoutStatus::Cancelled),
-        TrustlyWebhookMethod::Debit
-        | TrustlyWebhookMethod::Account
-        | TrustlyWebhookMethod::Pending => Err(unexpected_webhook_event(event, "payout")),
     }
 }

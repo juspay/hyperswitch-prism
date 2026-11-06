@@ -38,17 +38,21 @@ sequenceDiagram
 ## Adding a connector webhook
 
 1. Implement [`WebhookCommon`](../../../crates/types-traits/interfaces/src/webhook_common.rs) in `webhook_connectors/<connector>.rs`, with payload types and event/reference mappings in `<connector>/transformers.rs`. Register the parser in [`webhook_connectors.rs`](../../../crates/integrations/connector-integration/src/webhook_connectors.rs). TrueLayer and Trustly have standalone implementations for both payment and payout metadata. Existing headers retain the legacy [`IncomingWebhook`](../../../crates/types-traits/interfaces/src/connector_types.rs) parsing path until the provider is enabled in `webhook_parse.migrated_connectors`. Keep parent payment IDs distinct from the event's own ID.
-2. Implement the matching `process_payment_webhook`, `process_refund_webhook`, `process_dispute_webhook`, or `process_payout_webhook` method. Map status and IDs into the normalized `HandleEvent` content. Keep resource normalization on the existing payment connector in this phase, and provide `sample_webhook_body` there for probes.
+2. Implement the matching `process_payment_webhook`, `process_refund_webhook`, `process_dispute_webhook`, or `process_payout_webhook` method. Map status and IDs into the normalized `HandleEvent` content. Payment, refund, and dispute methods belong to `IncomingWebhook` on the payment connector. Implement payout normalization on `PayoutServiceTrait` in the payout connector and register it in `payout_connectors::get_webhook_connector`; retain the legacy payment payout method as a delegate. Provide `sample_webhook_body` on the existing payment connector for probes.
 3. For local signature checks and provider-specific ACKs, implement `WebhookCommon::verify_webhook_source` and `WebhookCommon::get_webhook_api_response`. Keep legacy `IncomingWebhook` entry points available during migration. If verification calls the connector API, implement `VerifyWebhookSourceV2` **and** `ConnectorIntegrationV2<VerifyWebhookSource, ...>`, map the API result to `VerifyWebhookStatus`, and enable `webhook_source_verification_call.connectors_with_webhook_source_verification_call`. [PayPal](../../../crates/integrations/connector-integration/src/connectors/paypal.rs) is an example.
 4. Test `ParseEvent` and `HandleEvent` with real-shaped success, failure, and invalid-signature payloads; assert the IDs, status, verification result, and ACK.
 
 The migration enum selects either the common provider implementation or the
 legacy payment connector for both ParseEvent and HandleEvent. Migrated common
 operations include classification, local verification, ACK generation, and
-integrity-check declarations. Resource normalization remains on the existing
-payment connector for payment, refund, dispute, and payout events. The gRPC
-external source-verification integration also stays on its existing path.
-Payout metadata remains unsupported by HandleEvent in this first step.
+integrity-check declarations. A resource enum then selects the registered payout
+connector for migrated payout events; payment, refund, dispute, and other events
+retain payment dispatch. TrueLayer and Trustly provide payout handlers, including
+when HandleEvent receives gated payout metadata. The event classification decides
+the resource family. Legacy requests retain their original dispatch and payout
+entry points. Selected handler errors never retry through the other resource path.
+The gRPC external source-verification integration retains a payment compatibility
+context. Supporting a purely payout-only provider requires addressing that context.
 
 Existing `IncomingWebhook` methods, the `WebhookParse` trait path, the original
 ParseEvent resolver, and the original `process_webhook_event` helper remain

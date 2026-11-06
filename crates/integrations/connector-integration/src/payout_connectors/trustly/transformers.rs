@@ -1,5 +1,6 @@
 use super::TrustlyPayoutsRouterData;
 use crate::types::ResponseRouterData;
+use crate::webhook_connectors::trustly::transformers::is_payout_webhook_event;
 use base64::{engine::general_purpose, Engine};
 use common_utils::types::{StringMajorUnit, StringMajorUnitForConnector};
 use domain_types::{
@@ -928,5 +929,36 @@ fn build_error_from_response(
         raw_connector_response: None,
         raw_connector_request: None,
         typed_connector_request: None,
+    }
+}
+
+pub fn get_trustly_payout_webhook_status(
+    event: &TrustlyWebhookMethod,
+    message_id: &str,
+) -> error_stack::Result<common_enums::PayoutStatus, domain_types::errors::WebhookError> {
+    if !is_payout_webhook_event(event, message_id) {
+        return Err(error_stack::report!(
+            domain_types::errors::WebhookError::WebhookEventTypeNotFound
+        )
+        .attach_printable(format!(
+            "trustly: `{}` notification is not a payout event",
+            event.as_str()
+        )));
+    }
+
+    match event {
+        TrustlyWebhookMethod::PayoutConfirmation => Ok(common_enums::PayoutStatus::Success),
+        TrustlyWebhookMethod::PayoutFailed => Ok(common_enums::PayoutStatus::Failure),
+        TrustlyWebhookMethod::Credit => Ok(common_enums::PayoutStatus::Reversed),
+        TrustlyWebhookMethod::Cancel => Ok(common_enums::PayoutStatus::Cancelled),
+        TrustlyWebhookMethod::Debit
+        | TrustlyWebhookMethod::Account
+        | TrustlyWebhookMethod::Pending => Err(error_stack::report!(
+            domain_types::errors::WebhookError::WebhookEventTypeNotFound
+        )
+        .attach_printable(format!(
+            "trustly: `{}` notification is not a payout event",
+            event.as_str()
+        ))),
     }
 }

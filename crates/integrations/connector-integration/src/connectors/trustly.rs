@@ -386,23 +386,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::PayoutWebhookDetailsResponse,
         error_stack::Report<errors::WebhookError>,
     > {
-        let details: TrustlyWebhookBody = request
-            .body
-            .parse_struct("TrustlyWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        let message_id = details.params.data.messageid.clone().expose();
-        let status = trustly::get_trustly_payout_webhook_status(&details.method, &message_id)?;
-
-        Ok(
-            domain_types::connector_types::PayoutWebhookDetailsResponse {
-                connector_payout_id: Some(details.params.data.orderid.clone()),
-                merchant_payout_id: None,
-                status,
-                error_code: details.params.data.errorcode.clone(),
-                error_message: details.params.data.errormessage.clone(),
-                status_code: 200,
-            },
+        <crate::payout_connectors::TrustlyPayouts<T> as connector_types::PayoutServiceTrait<T>>::process_payout_webhook(
+            crate::payout_connectors::TrustlyPayouts::<T>::new(), request, _connector_webhook_secret, _connector_account_details,
         )
     }
 

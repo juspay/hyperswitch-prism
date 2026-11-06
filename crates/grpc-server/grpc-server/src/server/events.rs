@@ -50,7 +50,9 @@ use ucs_env::{
     configs::Config,
     error::{ReportExtGrpcError, ResultExtGrpc, ResultExtGrpcError},
 };
-use ucs_interface_common::webhooks::{get_parse_event_connector_data, get_webhook_connector_data};
+use ucs_interface_common::webhooks::{
+    get_parse_event_connector_data, get_webhook_connector_data, get_webhook_payment_connector_data,
+};
 
 #[derive(Debug, Clone)]
 pub struct EventServiceImpl;
@@ -180,22 +182,6 @@ impl EventService for EventServiceImpl {
                 Box::pin(async move {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
-                    let connector = metadata_payload.connector.clone().as_payment().ok_or_else(|| {
-                        ucs_env::error::GrpcError::from(
-                            domain_types::errors::IntegrationError::FlowNotSupported {
-                                flow: FlowName::IncomingWebhook.to_string(),
-                                connector: metadata_payload.connector.get_connector_name(),
-                                context: domain_types::errors::IntegrationErrorContext {
-                                    suggested_action: Some(
-                                        "Check connector rollout/configuration and call only flows implemented for this connector"
-                                            .to_string(),
-                                    ),
-                                    doc_url: None,
-                                    additional_context: None,
-                                },
-                            },
-                        )
-                    })?;
                     let _request_id = &metadata_payload.request_id;
                     let connector_config = &metadata_payload.connector_config;
                     let request_details = payload
@@ -230,7 +216,7 @@ impl EventService for EventServiceImpl {
                     ).to_grpc_error()?;
                     let (connector_data, webhook_common) = match common_data {
                         ParseEventConnectorData::Webhook(common) => (
-                            ConnectorData::<DefaultPCIHolder>::get_connector_by_name(&connector), Some(common),
+                            get_webhook_payment_connector_data(&metadata_payload.connector).to_grpc_error()?, Some(common),
                         ),
                         ParseEventConnectorData::Payment(payment) => (payment, None),
                     };

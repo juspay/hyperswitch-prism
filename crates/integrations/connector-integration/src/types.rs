@@ -22,6 +22,30 @@ pub struct ConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sy
     pub connector_name: ConnectorEnum,
 }
 
+/// Selected normalization implementation, independent of common protocol operations.
+pub enum WebhookResourceConnectorData<
+    T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static,
+> {
+    Payment(ConnectorData<T>),
+    Payout(PayoutConnectorData<T>),
+}
+
+pub fn get_webhook_resource_connector_data<T>(
+    connector: &ConnectorData<T>,
+    event_type: &domain_types::connector_types::EventType,
+    webhook_common: Option<&dyn interfaces::webhook_common::WebhookCommon>,
+) -> WebhookResourceConnectorData<T>
+where
+    T: PaymentMethodDataTypes + Debug + Default + Send + Sync + Clone + serde::Serialize + 'static,
+{
+    if webhook_common.is_some() && event_type.is_payout_event() {
+        if let Some(payout) = payout_connectors::get_webhook_connector(connector.connector_name) {
+            return WebhookResourceConnectorData::Payout(payout);
+        }
+    }
+    WebhookResourceConnectorData::Payment(connector.clone())
+}
+
 /// Migration selection for common webhook operations.
 pub enum ParseEventConnectorData {
     Webhook(WebhookConnectorData),

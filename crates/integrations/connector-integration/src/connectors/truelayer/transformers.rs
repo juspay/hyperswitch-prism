@@ -1,3 +1,4 @@
+pub use crate::payout_connectors::truelayer::transformers::get_truelayer_payout_webhook_status;
 pub use crate::webhook_connectors::truelayer::transformers::{
     get_webhook_event, TruelayerAccountIdentifier, TruelayerAccountIdentifierType,
     TruelayerPaymentMethod, TruelayerPaymentSource, TruelayerPayoutWebhookBody,
@@ -1863,27 +1864,6 @@ pub fn get_truelayer_refund_webhook_status(
         | TruelayerWebhookEventType::PaymentSettlementStalled
         | TruelayerWebhookEventType::PayoutExecuted
         | TruelayerWebhookEventType::PayoutFailed
-        | TruelayerWebhookEventType::Unknown => Err(WebhookError::WebhookBodyDecodingFailed),
-    }
-}
-
-pub fn get_truelayer_payout_webhook_status(
-    event: TruelayerWebhookEventType,
-) -> Result<common_enums::PayoutStatus, WebhookError> {
-    match event {
-        TruelayerWebhookEventType::PayoutExecuted => Ok(common_enums::PayoutStatus::Success),
-        TruelayerWebhookEventType::PayoutFailed => Ok(common_enums::PayoutStatus::Failure),
-        TruelayerWebhookEventType::PaymentAuthorized
-        | TruelayerWebhookEventType::PaymentFailed
-        | TruelayerWebhookEventType::PaymentSettled
-        | TruelayerWebhookEventType::PaymentCreditable
-        | TruelayerWebhookEventType::PaymentDisputed
-        | TruelayerWebhookEventType::PaymentExecuted
-        | TruelayerWebhookEventType::PaymentFundsReceived
-        | TruelayerWebhookEventType::PaymentReversed
-        | TruelayerWebhookEventType::PaymentSettlementStalled
-        | TruelayerWebhookEventType::RefundExecuted
-        | TruelayerWebhookEventType::RefundFailed
         | TruelayerWebhookEventType::Unknown => Err(WebhookError::WebhookBodyDecodingFailed),
     }
 }

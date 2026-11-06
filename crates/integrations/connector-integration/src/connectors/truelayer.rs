@@ -894,31 +894,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::PayoutWebhookDetailsResponse,
         error_stack::Report<WebhookError>,
     > {
-        let details: truelayer::TruelayerPayoutWebhookBody = request
-            .body
-            .parse_struct("TruelayerPayoutWebhookBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        let status = truelayer::get_truelayer_payout_webhook_status(details._type)?;
-
-        let (error_code, error_message) = if status == common_enums::PayoutStatus::Failure {
-            (
-                details.failure_reason.clone(),
-                details.failure_reason.clone(),
-            )
-        } else {
-            (None, None)
-        };
-
-        Ok(
-            domain_types::connector_types::PayoutWebhookDetailsResponse {
-                connector_payout_id: Some(details.payout_id),
-                merchant_payout_id: None,
-                status,
-                error_code,
-                error_message,
-                status_code: 200,
-            },
+        <crate::payout_connectors::TruelayerPayouts as connector_types::PayoutServiceTrait<T>>::process_payout_webhook(
+            crate::payout_connectors::TruelayerPayouts::new(), request, _connector_webhook_secret, _connector_account_details,
         )
     }
 

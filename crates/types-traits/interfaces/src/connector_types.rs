@@ -184,6 +184,18 @@ pub trait PayoutServiceTrait<
     + PayoutEnrollDisburseAccountV2<T>
     + PayoutEligibilityV2<T>
 {
+    /// Normalize payout notifications independently of payment webhook processing.
+    fn process_payout_webhook(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<PayoutWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        Err(WebhookError::WebhooksNotImplemented {
+            operation: "process_payout_webhook",
+        }
+        .into())
+    }
 }
 
 pub trait PaymentVoidV2:
