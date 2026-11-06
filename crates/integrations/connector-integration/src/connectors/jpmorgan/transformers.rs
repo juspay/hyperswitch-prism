@@ -3226,3 +3226,37 @@ impl<T: PaymentMethodDataTypes>
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+
+    use super::*;
+    use openssl::{pkey::PKey, rsa::Rsa};
+
+    #[test]
+    fn token_request_signs_client_assertion_with_rsa() {
+        let rsa = Rsa::generate(2048).expect("generate RSA key");
+        let private_key = PKey::from_rsa(rsa)
+            .expect("create private key")
+            .private_key_to_pem_pkcs8()
+            .expect("encode private key");
+        let auth = JpmorganAuthType {
+            client_id: Secret::new("test-client".to_string()),
+            thumbprint: Secret::new("A1B2C3D4".to_string()),
+            private_key: Secret::new(super::super::BASE64_ENGINE.encode(private_key)),
+            resource_id: Secret::new("test-resource".to_string()),
+            merchant_id: HashMap::new(),
+            company_name: None,
+            product_name: None,
+            merchant_purchase_description: None,
+            statement_descriptor: None,
+        };
+
+        let request = auth
+            .token_request(Some("https://example.com"))
+            .expect("sign client assertion");
+
+        assert_eq!(request.client_assertion.peek().split('.').count(), 3);
+    }
+}
