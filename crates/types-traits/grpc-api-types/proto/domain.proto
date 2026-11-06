@@ -158,6 +158,16 @@ message AirlineData {
 
   repeated AirlineSegment flight_segments = 40; // Flight legs, in itinerary order
   repeated AirlinePassenger passengers = 41;    // Passengers on the ticket
+  repeated AirlineJourneyDetails flight_journeys = 42; // Journeys in itinerary order, supplied by Txns from MTI
+}
+
+// One journey from MTI journeysDetail, populated by Txns.
+// departure/arrival reuse AirlineLocation; journey_no links its flight_segments.
+message AirlineJourneyDetails {
+  optional uint32 journey_no = 1;     // 1-based journey order, matching AirlineSegment.journey_no
+  AirlineLocation departure = 2;      // Journey departure endpoint and local scheduled time
+  AirlineLocation arrival = 3;        // Journey arrival endpoint and local scheduled time
+  optional string utc_departure = 5;  // UTC departure timestamp from MTI journeydetail.utcdeparture
 }
 
 // One flight leg. departure/arrival reuse the shared AirlineLocation, mirroring
