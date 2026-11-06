@@ -3143,6 +3143,14 @@ pub struct WebhookDetailsResponse {
     pub connector_returned_payment_method_details: Option<PaymentMethodData<DefaultPCIHolder>>,
 }
 
+/// Event classification and resource reference extracted without credentials or business context.
+#[derive(Debug, Clone)]
+pub struct WebhookParseResponse {
+    pub event_type: EventType,
+    /// Absent for notifications that do not identify a supported resource.
+    pub reference: Option<WebhookResourceReference>,
+}
+
 /// Typed reference extracted from a webhook payload during the stateless ParseEvent phase.
 ///
 /// Mirrors the proto `EventReference` oneof. Each variant carries only the IDs that are

@@ -502,7 +502,7 @@ fn generate_parse_event_probe(f: &mut fs::File) {
     writeln!(f, "        }};").unwrap();
     writeln!(
         f,
-        "        match ffi::services::payments::parse_event_transformer(req, config, connector.clone(), Some(auth), metadata) {{"
+        "        match ffi::services::payments::parse_event_transformer(req, config, domain_types::connector_types::ConnectorVariant::Payment(*connector), Some(auth), metadata) {{"
     )
     .unwrap();
     writeln!(

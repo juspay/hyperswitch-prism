@@ -39,3 +39,20 @@ pub use self::gotyme_sanlam::GotymeSanlamPayouts;
 
 pub mod mifinity;
 pub use self::mifinity::MifinityPayouts;
+
+/// Register payout webhook normalization here as providers migrate.
+/// No providers are registered by this framework change.
+pub fn get_webhook_connector<T>(
+    _connector: domain_types::connector_types::ConnectorEnum,
+) -> Option<crate::types::PayoutConnectorData<T>>
+where
+    T: domain_types::payment_method_data::PaymentMethodDataTypes
+        + std::fmt::Debug
+        + Default
+        + Send
+        + Sync
+        + serde::Serialize
+        + 'static,
+{
+    None
+}

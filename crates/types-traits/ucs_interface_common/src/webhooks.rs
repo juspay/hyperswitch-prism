@@ -1,0 +1,94 @@
+//! Migration selection for common webhook operations, shared by transports.
+
+use common_utils::{
+    consts::X_WEBHOOK_CONNECTOR_NAME, errors::CustomResult, metadata::MaskedMetadata,
+};
+use connector_integration::types::{
+    ConnectorData, ConnectorDataProvider, ParseEventConnectorData, WebhookConnectorData,
+};
+use domain_types::{
+    connector_types::ConnectorVariant,
+    errors::{IntegrationError, IntegrationErrorContext},
+};
+use error_stack::Report;
+use std::str::FromStr;
+use ucs_env::configs::Config;
+
+/// Resolve routing policy once; callers only match the returned connector data.
+/// An explicitly selected standalone implementation never falls back to payments.
+pub fn get_webhook_connector_data(
+    connector: &ConnectorVariant,
+    config: &Config,
+    metadata: &MaskedMetadata,
+) -> CustomResult<ParseEventConnectorData, IntegrationError> {
+    let explicit_name = metadata.get_raw(X_WEBHOOK_CONNECTOR_NAME);
+    let explicit_connector = explicit_name
+        .as_deref()
+        .map(crate::metadata::webhook_connector_from_name)
+        .transpose()?;
+    let connector = match explicit_connector.as_ref() {
+        Some(explicit) => {
+            if explicit.get_connector_name() != connector.get_connector_name() {
+                return Err(Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: X_WEBHOOK_CONNECTOR_NAME,
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Webhook connector must match the typed connector configuration"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }));
+            }
+            explicit
+        }
+        None => connector,
+    };
+
+    let connector_data =
+        if explicit_connector.is_some() || config.webhook_parse.is_migrated(connector) {
+            WebhookConnectorData::from_connector_variant(connector)
+                .map(ParseEventConnectorData::Webhook)
+        } else {
+            ConnectorData::from_connector_variant(connector).map(ParseEventConnectorData::Payment)
+        };
+
+    connector_data.ok_or_else(|| {
+        Report::new(IntegrationError::InvalidDataFormat {
+            field_name: "connector",
+            context: IntegrationErrorContext {
+                additional_context: Some(connector.get_connector_name()),
+                ..Default::default()
+            },
+        })
+    })
+}
+
+/// Compatibility entry point for existing ParseEvent callers.
+pub use get_webhook_connector_data as get_parse_event_connector_data;
+
+/// Payment compatibility context for resource families and the existing external verifier.
+/// Resource ownership is selected later from the classified event, not this header variant.
+pub fn get_webhook_payment_connector_data(
+    connector: &ConnectorVariant,
+) -> CustomResult<
+    ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
+    IntegrationError,
+> {
+    let payment = match connector {
+        ConnectorVariant::Payment(payment) => Some(*payment),
+        ConnectorVariant::Payout(_) => {
+            domain_types::connector_types::ConnectorEnum::from_str(&connector.get_connector_name())
+                .ok()
+        }
+        _ => None,
+    }
+    .ok_or_else(|| {
+        Report::new(IntegrationError::FlowNotSupported {
+            flow: "IncomingWebhook".to_string(),
+            connector: connector.get_connector_name(),
+            context: IntegrationErrorContext::default(),
+        })
+    })?;
+    Ok(ConnectorData::get_connector_by_name(&payment))
+}

@@ -52,6 +52,9 @@ pub struct Config {
     pub api_tags: ApiTagConfig,
     #[serde(default)]
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
+    /// Opt-in rollout for common ParseEvent and HandleEvent operations.
+    #[serde(default)]
+    pub webhook_parse: WebhookParseConfig,
     #[serde(default)]
     pub connector_request_kafka: ConnectorRequestKafkaConfig,
     /// Deployment / runtime identity stamped on every event. `application_name` / `deployment_id` /
@@ -353,6 +356,23 @@ where
     }
 }
 
+/// Existing connector headers use legacy webhook operations unless listed here.
+/// Only enable providers after registering their standalone implementation.
+#[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
+pub struct WebhookParseConfig {
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    #[patch(ignore)]
+    pub migrated_connectors: Option<HashSet<String>>,
+}
+
+impl WebhookParseConfig {
+    pub fn is_migrated(&self, connector: &domain_types::connector_types::ConnectorVariant) -> bool {
+        self.migrated_connectors
+            .as_ref()
+            .is_some_and(|connectors| connectors.contains(&connector.get_connector_name()))
+    }
+}
+
 /// Configuration for connectors that require external API calls for webhook source verification
 /// (e.g., PayPal's verify-webhook-signature endpoint)
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
@@ -417,6 +437,20 @@ impl Config {
         let config_builder =
             Self::builder(&env)?.add_source(config::File::from(config_path).required(false));
 
+        Self::load_from_builder(config_builder)
+    }
+
+    /// Load embedded TOML with the same environment overrides and validation as the server.
+    pub fn from_embedded_config(embedded_config: &str) -> Result<Self, config::ConfigError> {
+        Self::load_from_builder(config::Config::builder().add_source(config::File::from_str(
+            embedded_config,
+            config::FileFormat::Toml,
+        )))
+    }
+
+    fn load_from_builder(
+        config_builder: config::ConfigBuilder<config::builder::DefaultState>,
+    ) -> Result<Self, config::ConfigError> {
         let environment_source = config::Environment::with_prefix(consts::ENV_PREFIX)
             .try_parsing(true)
             .separator("__")

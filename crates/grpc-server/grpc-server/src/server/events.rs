@@ -7,8 +7,10 @@ use crate::utils::{self, get_config_from_request, grpc_logging_wrapper_with_pars
 use common_enums;
 use common_utils::events::FlowName;
 use connector_integration::types::{
-    ConnectorData, ConnectorDataProvider, FrmConnectorData, SurchargeConnectorData,
+    ConnectorData, ConnectorDataProvider, FrmConnectorData, ParseEventConnectorData,
+    SurchargeConnectorData,
 };
+use connector_integration::webhook_utils::{parse_payment_webhook_event, parse_webhook_event};
 use domain_types::{
     connector_flow::{
         FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, SurchargePaymentSucceeded,
@@ -48,6 +50,9 @@ use ucs_env::{
     configs::Config,
     error::{ReportExtGrpcError, ResultExtGrpc, ResultExtGrpcError},
 };
+use ucs_interface_common::webhooks::{
+    get_parse_event_connector_data, get_webhook_connector_data, get_webhook_payment_connector_data,
+};
 
 #[derive(Debug, Clone)]
 pub struct EventServiceImpl;
@@ -85,13 +90,14 @@ impl EventService for EventServiceImpl {
             .cloned()
             .unwrap_or_else(|| "EventService".to_string());
         let config = get_config_from_request(&request).into_grpc_status()?;
+        let parse_event_config = config.clone();
         grpc_logging_wrapper_with_parser(
             request,
             &service_name,
             config,
             FlowName::IncomingWebhook,
-            RequestData::from_grpc_request_unauthenticated,
-            |request_data| {
+            RequestData::from_grpc_parse_event_request,
+            move |request_data| {
                 Box::pin(async move {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
@@ -110,27 +116,21 @@ impl EventService for EventServiceImpl {
                         )
                         .to_grpc_error()?;
 
-                    let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::from_connector_variant(&metadata_payload.connector)
-                            .ok_or_else(|| {
-                                ucs_env::error::GrpcError::from(
-                                    domain_types::errors::IntegrationError::InvalidDataFormat {
-                                        field_name: "connector",
-                                        context: domain_types::errors::IntegrationErrorContext {
-                                            suggested_action: None,
-                                            doc_url: None,
-                                            additional_context: Some(
-                                                metadata_payload.connector.get_connector_name(),
-                                            ),
-                                        },
-                                    },
-                                )
-                            })?;
-
-                    let response = connector_integration::webhook_utils::parse_webhook_event(
-                        connector_data,
-                        request_details,
+                    let connector_data = get_parse_event_connector_data(
+                        &metadata_payload.connector,
+                        &parse_event_config,
+                        &request_data.masked_metadata,
                     )
+                    .to_grpc_error()?;
+
+                    let response = match connector_data {
+                        ParseEventConnectorData::Webhook(connector) => {
+                            parse_webhook_event(connector, request_details)
+                        }
+                        ParseEventConnectorData::Payment(connector) => {
+                            parse_payment_webhook_event(connector, request_details)
+                        }
+                    }
                     .to_grpc_error()?;
 
                     Ok(tonic::Response::new(response))
@@ -176,28 +176,12 @@ impl EventService for EventServiceImpl {
             &service_name,
             config.clone(),
             FlowName::IncomingWebhook,
-            RequestData::from_grpc_request_unauthenticated,
+            RequestData::from_grpc_webhook_request,
             |request_data| {
                 let service_name_clone = service_name.clone();
                 Box::pin(async move {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
-                    let connector = metadata_payload.connector.clone().as_payment().ok_or_else(|| {
-                        ucs_env::error::GrpcError::from(
-                            domain_types::errors::IntegrationError::FlowNotSupported {
-                                flow: FlowName::IncomingWebhook.to_string(),
-                                connector: metadata_payload.connector.get_connector_name(),
-                                context: domain_types::errors::IntegrationErrorContext {
-                                    suggested_action: Some(
-                                        "Check connector rollout/configuration and call only flows implemented for this connector"
-                                            .to_string(),
-                                    ),
-                                    doc_url: None,
-                                    additional_context: None,
-                                },
-                            },
-                        )
-                    })?;
                     let _request_id = &metadata_payload.request_id;
                     let connector_config = &metadata_payload.connector_config;
                     let request_details = payload
@@ -227,9 +211,15 @@ impl EventService for EventServiceImpl {
                         .map_err(|e: error_stack::Report<WebhookError>| {
                             e.to_grpc_error()
                         })?;
-                    //get connector data
-                    let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&connector);
+                    let common_data = get_webhook_connector_data(
+                        &metadata_payload.connector, &config, &request_data.masked_metadata,
+                    ).to_grpc_error()?;
+                    let (connector_data, webhook_common) = match common_data {
+                        ParseEventConnectorData::Webhook(common) => (
+                            get_webhook_payment_connector_data(&metadata_payload.connector).to_grpc_error()?, Some(common),
+                        ),
+                        ParseEventConnectorData::Payment(payment) => (payment, None),
+                    };
 
                     let requires_external_verification = connector_data
                         .connector
@@ -250,13 +240,15 @@ impl EventService for EventServiceImpl {
                         )
                         .await?
                      } else {
-                        match connector_data
-                            .connector
-                            .verify_webhook_source(
-                                request_details.clone(),
-                                webhook_secrets.clone(),
-                                Some(connector_config.clone()),
-                            )
+                        let verification = match webhook_common.as_ref() {
+                            Some(common) => common.connector.verify_webhook_source(
+                                request_details.clone(), webhook_secrets.clone(), Some(connector_config.clone()),
+                            ),
+                            None => connector_data.connector.verify_webhook_source(
+                                request_details.clone(), webhook_secrets.clone(), Some(connector_config.clone()),
+                            ),
+                        };
+                        match verification
                         {
                             Ok(result) => result,
                             Err(err) => {
@@ -269,18 +261,22 @@ impl EventService for EventServiceImpl {
                         }
                     };
 
-                    let supported_integrity_checks: Vec<WebhookIntegrityCheck> = connector_data
-                        .connector
-                        .get_webhook_integrity_checks();
+                    let supported_integrity_checks: Vec<WebhookIntegrityCheck> = match webhook_common.as_ref() {
+                        Some(common) => common.connector.get_webhook_integrity_checks(),
+                        None => connector_data.connector.get_webhook_integrity_checks(),
+                    };
 
-                    let mut response = connector_integration::webhook_utils::process_webhook_event(
+                    let mut response = connector_integration::webhook_utils::process_webhook_event_with_common(
                         connector_data,
                         request_details,
-                        webhook_secrets,
-                        Some(connector_config.clone()),
-                        source_verified,
-                        payload.merchant_event_id,
-                        event_context,
+                        connector_integration::webhook_utils::WebhookHandlingContext {
+                            webhook_secrets,
+                            connector_config: Some(connector_config.clone()),
+                            source_verified,
+                            merchant_event_id: payload.merchant_event_id,
+                            event_context,
+                        },
+                        webhook_common.as_ref().map(|common| common.connector.as_ref()),
                     )
                     .to_grpc_error()?;
 
