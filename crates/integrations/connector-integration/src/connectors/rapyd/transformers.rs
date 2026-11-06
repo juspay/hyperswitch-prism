@@ -1,3 +1,4 @@
+use common_utils::consts::NO_ERROR_MESSAGE;
 use common_utils::{
     pii::Email, request::Method, types::MinorUnit, FloatMajorUnit, StringMajorUnit,
 };
@@ -33,7 +34,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Debug;
 use url::Url;
-use NO_ERROR_MESSAGE;
 
 use crate::types::ResponseRouterData;
 use crate::utils;
@@ -866,14 +866,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         number: ccard.card_number.to_owned(),
                         expiration_month: ccard.card_exp_month.to_owned(),
                         expiration_year: ccard.card_exp_year.to_owned(),
-                        name: ccard
-                            .card_holder_name
-                            .clone()
+                        name: item
+                            .router_data
+                            .resource_common_data
+                            .get_optional_payment_billing()
+                            .and_then(|billing| billing.get_optional_full_name())
                             .or_else(|| {
                                 item.router_data
                                     .resource_common_data
-                                    .get_optional_billing_full_name()
+                                    .address
+                                    .get_request_payment_method_billing()
+                                    .and_then(|billing| billing.get_optional_full_name())
                             })
+                            .or_else(|| ccard.card_holder_name.clone())
                             .unwrap_or(Secret::new("".to_string())),
                         cvv: ccard.card_cvc.to_owned(),
                     })),
@@ -1920,23 +1925,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::Card(ccard) => {
                 // Rapyd documents `payment_method.fields.name` as required
                 // (https://docs.rapyd.net/en/create-card-payment-method.html).
-                // Prefer the cardholder name on the card itself; fall back to
-                // the billing full name. We deliberately do not fall back to
-                // `customer_name`, which describes the Rapyd customer object
-                // (inline `{name, email}`) — not the cardholder.
-                let cardholder_name = ccard
-                    .card_holder_name
-                    .clone()
+                // Prefer the billing full name, then the payment method billing
+                // full name, then the cardholder name on the card. We
+                // deliberately do not fall back to `customer_name`, which
+                // describes the Rapyd customer object (inline `{name, email}`)
+                // — not the cardholder.
+                let cardholder_name = router_data
+                    .resource_common_data
+                    .get_optional_payment_billing()
+                    .and_then(|billing| billing.get_optional_full_name())
                     .or_else(|| {
                         router_data
                             .resource_common_data
-                            .get_optional_billing_full_name()
+                            .address
+                            .get_request_payment_method_billing()
+                            .and_then(|billing| billing.get_optional_full_name())
                     })
+                    .or_else(|| ccard.card_holder_name.clone())
                     .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "card.card_holder_name / billing.full_name",
+                        field_name:
+                            "billing.full_name / payment_method_data.billing.full_name / card.card_holder_name",
                         context: utils::integration_ctx(
                             "The cardholder name is missing",
-                            "Provide card.card_holder_name or billing.full_name.",
+                            "Provide the billing full name, the payment method billing full name, or card.card_holder_name.",
                         ),
                     })?;
                 RapydPaymentMethodData::PaymentMethod(Box::new(PaymentMethod {
