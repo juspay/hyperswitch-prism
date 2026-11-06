@@ -19,6 +19,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.06.1
+
+### Features
+
+- **rapyd:**
+  - Send wallet recurring purpose marker ([#2654](https://github.com/juspay/connector-service/pull/2654)) ([`a108579`](https://github.com/juspay/connector-service/commit/a108579aa86219a1e6e335165e6ead16156fc4cc))
+  - Charge external network tokens ([#2655](https://github.com/juspay/connector-service/pull/2655)) ([`a965af9`](https://github.com/juspay/connector-service/commit/a965af9fea03c99395ddf7db1801a54b4da87677))
+
+### Bug Fixes
+
+- **connectors:** Enable jsonwebtoken crypto provider ([#2705](https://github.com/juspay/connector-service/pull/2705)) ([`96fe24d`](https://github.com/juspay/connector-service/commit/96fe24da2d733b3f2fd6f4b3f02f94f6ed58a74f))
+- **deps:** Apply compatible Rust security patches ([#2684](https://github.com/juspay/connector-service/pull/2684)) ([`cb005a2`](https://github.com/juspay/connector-service/commit/cb005a286fad67b320bbda3ad48eb059814a9702))
+
+### Refactors
+
+- **connector:** Travel_class enum to free-form string on TravelSegment ([#2704](https://github.com/juspay/connector-service/pull/2704)) ([`017dfac`](https://github.com/juspay/connector-service/commit/017dfac529b462b729742242c58e5d9526267d7c))
+
+**Full Changelog:** [`2026.11.06.0...2026.11.06.1`](https://github.com/juspay/connector-service/compare/2026.11.06.0...2026.11.06.1)
+
+- - -
+
 ## 2026.11.06.0
 
 ### Testing
