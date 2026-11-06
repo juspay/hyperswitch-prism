@@ -41,7 +41,9 @@ use domain_types::errors::IntegrationError;
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
-// Helcim requires an Idempotency Key of length 25. We prefix every ID by "HS_".
+// Helcim requires a 25-character idempotency key. The generated fallback keeps
+// the existing `HS_` prefix and 22-character random suffix.
+const IDEMPOTENCY_KEY_LENGTH: usize = 25;
 const ID_LENGTH: usize = 22;
 
 pub(crate) mod headers {
@@ -156,6 +158,8 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
+            idempotency_scope: &str,
+            merchant_request_id: Option<&str>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
@@ -166,14 +170,20 @@ macros::create_all_prerequisites!(
             )];
             let mut api_key = self.get_auth_header(&req.connector_config)?;
 
-            // Helcim requires an Idempotency Key of length 25. We prefix every ID by "HS_".
-            let mut idempotency_key = vec![(
-                headers::IDEMPOTENCY_KEY.to_string(),
-                generate_id(ID_LENGTH, "HS").into_masked(),
-            )];
-
             header.append(&mut api_key);
-            header.append(&mut idempotency_key);
+            let idempotency_key = merchant_request_id
+                .and_then(|request_id| {
+                    crate::utils::stable_idempotency_key(
+                        idempotency_scope,
+                        request_id,
+                        IDEMPOTENCY_KEY_LENGTH,
+                    )
+                })
+                .unwrap_or_else(|| generate_id(ID_LENGTH, "HS"));
+            header.push((
+                headers::IDEMPOTENCY_KEY.to_string(),
+                idempotency_key.into_masked(),
+            ));
             Ok(header)
         }
 
@@ -287,7 +297,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(
+                req,
+                "authorize",
+                req.resource_common_data.merchant_request_id.as_deref(),
+            )
         }
         fn get_url(
             &self,
@@ -357,7 +371,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(
+                req,
+                "capture",
+                req.resource_common_data.merchant_request_id.as_deref(),
+            )
         }
         fn get_url(
             &self,
@@ -386,7 +404,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(
+                req,
+                "void",
+                req.resource_common_data.merchant_request_id.as_deref(),
+            )
         }
         fn get_url(
             &self,
@@ -415,7 +437,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            self.build_headers(
+                req,
+                "refund",
+                req.resource_common_data.merchant_request_id.as_deref(),
+            )
         }
         fn get_url(
             &self,
