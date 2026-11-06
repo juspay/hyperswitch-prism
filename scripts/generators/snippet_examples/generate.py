@@ -213,6 +213,8 @@ def _generate_connector_config_rust(connector_name: str) -> str:
             field_lines.append(f'                {field_name}: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls')
         elif field_type == 'bool':
             field_lines.append(f'                {field_name}: Some(false),  // Feature flag')
+        elif field_type == 'CountryAlpha2':
+            field_lines.append(f'                {field_name}: Some(CountryAlpha2::Is.into()),  // Replace with the country assigned during onboarding')
     
     if not field_lines:
         return None
@@ -257,6 +259,8 @@ def _generate_connector_config_python(connector_name: str) -> str:
             field_lines.append(f'            {field_name}="YOUR_{field_name.upper()}",')
         elif field_type == "bool":
             field_lines.append(f'            {field_name}=False,')
+        elif field_type == "CountryAlpha2":
+            field_lines.append(f'            {field_name}=payment_methods_pb2.CountryAlpha2.Value("IS"),  # Replace with the country assigned during onboarding')
 
     if field_lines:
         fields_str = "\n".join(field_lines)
@@ -307,6 +311,8 @@ def _generate_connector_config_typescript(
             field_lines.append(f"            {camel}: 'YOUR_{field_name.upper()}',")
         elif field_type == "bool":
             field_lines.append(f"            {camel}: false,")
+        elif field_type == "CountryAlpha2":
+            field_lines.append(f"            {camel}: types.CountryAlpha2.IS, // Replace with the country assigned during onboarding")
 
     if field_lines:
         fields_str = "\n".join(field_lines)
@@ -356,6 +362,8 @@ def _generate_connector_config_kotlin(connector_name: str, indent: str = "    ")
             field_lines.append(f"{i}            .{setter}(\"YOUR_{field_name.upper()}\")")
         elif field_type == "bool":
             field_lines.append(f"{i}            .{setter}(false)")
+        elif field_type == "CountryAlpha2":
+            field_lines.append(f"{i}            .{setter}(types.PaymentMethods.CountryAlpha2.IS) // Replace with the country assigned during onboarding")
 
     if field_lines:
         fields_str = "\n".join(field_lines)
@@ -3297,6 +3305,11 @@ def render_consolidated_kotlin(
         grpc_req = flow_metadata.get(flow_key, {}).get("grpc_request", "")
         if grpc_req and grpc_req not in grpc_req_types:
             grpc_req_types.append(grpc_req)
+    dispute_proto_import = (
+        "import types.Dispute.*\n"
+        if any(req.startswith("DisputeService") for req in grpc_req_types)
+        else ""
+    )
 
     # Collect enum types used in payload fields (for Currency.USD, CaptureMethod.MANUAL, etc.)
     enum_types: set[str] = set()
@@ -3547,7 +3560,7 @@ def render_consolidated_kotlin(
 package examples.{connector_name}
 
 import types.Payment.*
-import types.Events.*
+{dispute_proto_import}import types.Events.*
 import types.PaymentMethods.*
 {imports}
 import payments.ConnectorConfig

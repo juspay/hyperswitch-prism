@@ -25,6 +25,7 @@ mod tests {
         frm::frm_types::{PostRiskCheckRequest, PreRiskCheckRequest},
         payment_address::{
             Address, AddressDetails, OrderDetailsWithAmount, PaymentAddress, PhoneDetails,
+            StateDetails,
         },
         payment_method_data::{
             ApplePayPaymentData, ApplePayWalletData, ApplepayPaymentMethod, BankDebitData,
@@ -70,7 +71,7 @@ mod tests {
             line1: Some(Secret::new("Rua Augusta, 1234".to_owned())),
             line2: Some(Secret::new("Consolação".to_owned())),
             city: Some(Secret::new("São Paulo".to_owned())),
-            state: Some(Secret::new("SP".to_owned())),
+            state: Some(StateDetails::from_code(Secret::new("SP".to_owned()))),
             zip: Some(Secret::new("01304-001".to_owned())),
             country: Some(common_enums::CountryAlpha2::BR),
             first_name: Some(Secret::new("Maria".to_owned())),
@@ -729,7 +730,7 @@ mod tests {
         );
 
         let details = AddressDetails {
-            state: Some(Secret::new("SP".to_owned())),
+            state: Some(StateDetails::from_code(Secret::new("SP".to_owned()))),
             ..details
         };
         let err =
@@ -763,7 +764,7 @@ mod tests {
             line1: Some(Secret::new("Rua Augusta, 1234".to_owned())),
             line2: Some(Secret::new("Consolação".to_owned())),
             city: Some(Secret::new("Rio Branco".to_owned())),
-            state: Some(Secret::new("Acre".to_owned())),
+            state: Some(StateDetails::from_name(Secret::new("Acre".to_owned()))),
             zip: Some(Secret::new("69900-000".to_owned())),
             country: Some(common_enums::CountryAlpha2::BR),
             ..AddressDetails::default()
@@ -772,14 +773,14 @@ mod tests {
         assert_eq!(address.state.peek(), "AC");
 
         let details = AddressDetails {
-            state: Some(Secret::new("sp".to_owned())),
+            state: Some(StateDetails::from_code(Secret::new("sp".to_owned()))),
             ..details
         };
         let address = build_clear_sale_address("billing", Some(&details)).expect("SP passes");
         assert_eq!(address.state.peek(), "SP");
 
         let details = AddressDetails {
-            state: Some(Secret::new("Narnia".to_owned())),
+            state: Some(StateDetails::from_code(Secret::new("Narnia".to_owned()))),
             ..details
         };
         let err = build_clear_sale_address("billing", Some(&details))
@@ -1429,9 +1430,17 @@ mod tests {
         let h = accommodation_to_clear_sale(hotels[0]).expect("hotel name present");
         assert_eq!(h.name, "Hotel Rio");
 
+        // reservationDate comes from `TravelData.travel_date`, not from
+        // `connector_feature_data`.
+        assert_eq!(
+            travel.reservation_date.as_deref(),
+            Some("2025-06-01T00:00:00.000")
+        );
+
         // No travel/hotel blocks at all → not a travel order.
         let empty = DomainData::default();
         let bare_travel = ClearSaleTravelData::from_domain_data(Some(&empty));
+        assert!(bare_travel.reservation_date.is_none());
         assert!(bare_travel.passengers.is_none());
         assert!(bare_travel.travel_segments.is_none());
         assert!(bare_travel.accommodations.is_none());

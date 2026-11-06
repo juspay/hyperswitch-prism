@@ -1593,6 +1593,7 @@ mod satispay_request_tests {
                 mandate_id: None,
                 setup_future_usage: None,
                 off_session: None,
+                is_stored_credential: None,
                 browser_info: None,
                 order_category: None,
                 session_token: None,
@@ -1634,6 +1635,7 @@ mod satispay_request_tests {
                 customer: None,
                 business_country: None,
                 enable_avs_check: None,
+                enable_account_name_verification: None,
             },
             response: Err(ErrorResponse::default()),
         }

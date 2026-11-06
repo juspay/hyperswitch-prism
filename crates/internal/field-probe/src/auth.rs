@@ -307,6 +307,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Rapyd => ConnectorSpecificConfig::Rapyd {
             access_key: k(),
             secret_key: s(),
+            country_of_incorporation: Some(common_enums::CountryAlpha2::IS),
             base_url: None,
         },
         ConnectorEnum::Authipay => ConnectorSpecificConfig::Authipay {
@@ -607,7 +608,8 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Worldpayvantiv => ConnectorSpecificConfig::Worldpayvantiv {
             user: u(),
             password: p(),
-            merchant_id: m(),
+            merchant_id: Some(m()),
+            merchant_id_by_currency: None,
             base_url: None,
             report_group: None,
             merchant_config_currency: None,
@@ -905,6 +907,18 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_id: k(),
             app_secret: k(),
             merchant_secret: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Betterpayment => ConnectorSpecificConfig::Betterpayment {
+            api_key: k(),
+            api_password: k(),
+            webhook_key: Some(k()),
+            base_url: None,
+        },
+        ConnectorEnum::Reddot => ConnectorSpecificConfig::Reddot {
+            mid: k(),
+            secret: k(),
+            acquirer_cybersource: "false".to_string(),
             base_url: None,
         },
         // `project_id` must be numeric: the connector parses it into the integer

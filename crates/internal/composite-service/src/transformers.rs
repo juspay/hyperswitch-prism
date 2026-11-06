@@ -248,6 +248,7 @@ impl
         Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
         Option<&CustomerServiceCreateResponse>,
         Option<&PaymentServiceCreateOrderResponse>,
+        Option<&PaymentMethodAuthenticationServicePreAuthenticateResponse>,
         Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
         Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
     )> for PaymentServiceAuthorizeRequest
@@ -260,6 +261,7 @@ impl
             session_token_response,
             create_customer_response,
             create_order_response,
+            pre_authenticate_response,
             authenticate_response,
             post_authenticate_response,
         ): (
@@ -268,6 +270,7 @@ impl
             Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
             Option<&CustomerServiceCreateResponse>,
             Option<&PaymentServiceCreateOrderResponse>,
+            Option<&PaymentMethodAuthenticationServicePreAuthenticateResponse>,
             Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
             Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
         ),
@@ -298,10 +301,12 @@ impl
             .or_else(|| authenticate_response.and_then(|r| r.authentication_data.clone()))
             .or_else(|| item.authentication_data.clone());
 
-        // Prefer connector_feature_data from post-auth, then authenticate, then request
+        // Prefer metadata from the latest completed authentication step. Nuvei
+        // goes directly from PreAuthenticate to Authorize, without Authenticate.
         let connector_feature_data = post_authenticate_response
             .and_then(|r| r.connector_feature_data.clone())
             .or_else(|| authenticate_response.and_then(|r| r.connector_feature_data.clone()))
+            .or_else(|| pre_authenticate_response.and_then(|r| r.connector_feature_data.clone()))
             .or_else(|| item.connector_feature_data.clone());
 
         // Prefer connector_order_id from create_order_response, then from request
@@ -334,6 +339,7 @@ impl
             merchant_order_id: item.merchant_order_id.clone(),
             setup_future_usage: item.setup_future_usage,
             off_session: item.off_session,
+            is_stored_credential: item.is_stored_credential,
             request_incremental_authorization: item.request_incremental_authorization,
             request_extended_authorization: item.request_extended_authorization,
             enable_partial_authorization: item.enable_partial_authorization,
@@ -368,6 +374,7 @@ impl
             additional_connector_details: item.additional_connector_details.clone(),
             business_country: item.business_country.clone(),
             enable_avs_check: item.enable_avs_check,
+            enable_account_name_verification: item.enable_account_name_verification,
         }
     }
 }
@@ -853,6 +860,7 @@ impl
             connector_transaction_id: item.connector_transaction_id.clone(),
             amount_to_capture: item.amount_to_capture,
             metadata: item.metadata.clone(),
+            domain_data: item.domain_data.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             multiple_capture_data: item.multiple_capture_data.clone(),
             browser_info: item.browser_info.clone(),
@@ -1281,6 +1289,7 @@ impl
             order_category: request.order_category.clone(),
             setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
+            is_stored_credential: request.is_stored_credential,
             request_incremental_authorization: request.request_incremental_authorization,
             request_extended_authorization: request.request_extended_authorization,
             enable_partial_authorization: request.enable_partial_authorization,
@@ -1304,7 +1313,7 @@ impl
             l2_l3_data: request.l2_l3_data.clone(),
             connector_order_id: request.connector_order_id.clone(),
             merchant_request_id: request.merchant_request_id.clone(),
-            domain_data: None,
+            domain_data: request.domain_data.clone(),
             risk_assessment_data: request.risk_assessment_data.clone(),
             split_payments: request.split_payments.clone(),
             partner_merchant_identifier_details: request
@@ -1316,6 +1325,7 @@ impl
             additional_connector_details: request.additional_connector_details.clone(),
             business_country: request.business_country.clone(),
             enable_avs_check: request.enable_avs_check,
+            enable_account_name_verification: request.enable_account_name_verification,
         }
     }
 }

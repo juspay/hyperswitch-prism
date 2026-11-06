@@ -1161,7 +1161,12 @@ pub(crate) fn build_clear_sale_address(
     };
     let county = required_value(n_county, address_details.and_then(|d| d.line2.as_ref()))?;
     let city = required_value(n_city, address_details.and_then(|d| d.city.as_ref()))?;
-    let state_raw = required_value(n_state, address_details.and_then(|d| d.state.as_ref()))?;
+    let state_raw = required_value(
+        n_state,
+        address_details
+            .and_then(|d| d.state.as_ref())
+            .and_then(domain_types::payment_address::StateDetails::code_or_name),
+    )?;
     let zipcode = required_value(n_zipcode, address_details.and_then(|d| d.zip.as_ref()))?;
     // Spec §5.1: `state` is the 2-char UF. `"Acre"` must go on the wire as `AC`.
     let state = clearsale_state_uf(label, state_raw.peek())?;
@@ -1745,10 +1750,7 @@ pub(crate) fn build_order_request(
             status: feature_data.status,
             origin,
             channel_id,
-            reservation_date: feature_data
-                .reservation_date
-                .as_deref()
-                .map(to_clearsale_datetime),
+            reservation_date: travel_data.reservation_date.clone(),
             country: country.clone().or_else(|| Some("Brasil".to_owned())),
             nationality: feature_data.nationality.clone(),
             product,
@@ -1808,8 +1810,6 @@ pub struct ClearSaleFeatureData {
     pub observation: Option<String>,
     #[serde(default)]
     pub status: Option<u32>,
-    #[serde(default, rename = "reservationDate")]
-    pub reservation_date: Option<String>,
     /// Custom SLA for the analysis decision, in seconds.
     #[serde(default, rename = "customSla")]
     pub custom_sla: Option<u32>,
@@ -1834,6 +1834,7 @@ pub struct ClearSaleTravelData<'a> {
     pub passengers: Option<Vec<Traveller>>,
     pub travel_segments: Option<Vec<(&'a TravelData, &'a TravelSegment)>>,
     pub accommodations: Option<Vec<&'a HotelSegment>>,
+    pub reservation_date: Option<String>,
 }
 
 fn traveller_identity(p: &Traveller) -> (String, String, String) {
@@ -1878,10 +1879,16 @@ impl<'a> ClearSaleTravelData<'a> {
             .as_ref()
             .map(|booking| booking.hotel_segments.iter().collect())
             .unwrap_or_default();
+        let reservation_date = domain_data
+            .travel_data
+            .as_ref()
+            .and_then(|travel| travel.travel_date.clone())
+            .map(|travel_date| to_clearsale_datetime(&travel_date));
         Self {
             passengers: (!passengers.is_empty()).then_some(passengers),
             travel_segments: (!travel_segments.is_empty()).then_some(travel_segments),
             accommodations: (!segments.is_empty()).then_some(segments),
+            reservation_date,
         }
     }
 }

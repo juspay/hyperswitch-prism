@@ -121,88 +121,148 @@ where
     E: EventService + Clone + Send + Sync + 'static,
     MA: MerchantAuthenticationService + Clone + Send + Sync + 'static,
 {
+    #[tracing::instrument(name = "composite_events_handle_event", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn handle_event(
         &self,
         request: tonic::Request<CompositeEventHandleRequest>,
     ) -> Result<tonic::Response<CompositeEventHandleResponse>, tonic::Status> {
-        let (metadata, extensions, payload) = request.into_parts();
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositeEventService",
+            common_utils::events::FlowName::IncomingWebhook,
+            |request| async move {
+                let (metadata, extensions, payload) = request.into_parts();
 
-        // Phase 1: ParseEvent — extract reference and event type from the raw payload.
-        let mut parse_req = tonic::Request::new(EventServiceParseRequest {
-            request_details: payload.request_details.clone(),
-        });
-        *parse_req.metadata_mut() = metadata.clone();
-        *parse_req.extensions_mut() = extensions.clone();
-        let parse_resp = self
-            .event_service
-            .parse_event(parse_req)
-            .await?
-            .into_inner();
+                // Phase 1: ParseEvent — extract reference and event type from the raw payload.
+                let mut parse_req = tonic::Request::new(EventServiceParseRequest {
+                    request_details: payload.request_details.clone(),
+                });
+                *parse_req.metadata_mut() = metadata.clone();
+                *parse_req.extensions_mut() = extensions.clone();
+                let parse_resp = self
+                    .event_service
+                    .parse_event(parse_req)
+                    .await?
+                    .into_inner();
 
-        // Phase 2: HandleEvent — source verification + unified event content.
-        let mut handle_req = tonic::Request::new(EventServiceHandleRequest {
-            merchant_event_id: payload.merchant_event_id,
-            request_details: payload.request_details,
-            webhook_secrets: payload.webhook_secrets,
-            access_token: payload.access_token,
-            event_context: payload.event_context,
-        });
-        *handle_req.metadata_mut() = metadata;
-        *handle_req.extensions_mut() = extensions;
-        let handle_resp = self
-            .event_service
-            .handle_event(handle_req)
-            .await?
-            .into_inner();
+                // Phase 2: HandleEvent — source verification + unified event content.
+                let mut handle_req = tonic::Request::new(EventServiceHandleRequest {
+                    merchant_event_id: payload.merchant_event_id,
+                    request_details: payload.request_details,
+                    webhook_secrets: payload.webhook_secrets,
+                    access_token: payload.access_token,
+                    event_context: payload.event_context,
+                });
+                *handle_req.metadata_mut() = metadata;
+                *handle_req.extensions_mut() = extensions;
+                let handle_resp = self
+                    .event_service
+                    .handle_event(handle_req)
+                    .await?
+                    .into_inner();
 
-        Ok(tonic::Response::new(CompositeEventHandleResponse {
-            reference: parse_resp.reference,
-            event_type: handle_resp.event_type,
-            event_content: handle_resp.event_content,
-            source_verified: handle_resp.source_verified,
-            merchant_event_id: handle_resp.merchant_event_id,
-            event_ack_response: handle_resp.event_ack_response,
-        }))
+                Ok(tonic::Response::new(CompositeEventHandleResponse {
+                    reference: parse_resp.reference,
+                    event_type: handle_resp.event_type,
+                    event_content: handle_resp.event_content,
+                    source_verified: handle_resp.source_verified,
+                    merchant_event_id: handle_resp.merchant_event_id,
+                    event_ack_response: handle_resp.event_ack_response,
+                }))
+            },
+        )
+        .await
     }
 
     /// FRM Notify endpoint with access token bootstrapping.
     /// Delegates to EventService.NotifyConnector for actual event handling.
+    #[tracing::instrument(name = "composite_events_notify", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn notify(
         &self,
         request: tonic::Request<CompositeNotifyRequest>,
     ) -> Result<tonic::Response<CompositeNotifyResponse>, tonic::Status> {
-        let (metadata, extensions, payload) = request.into_parts();
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositeEventService",
+            common_utils::events::FlowName::NotifyConnector,
+            |request| async move {
+                let (metadata, extensions, payload) = request.into_parts();
 
-        // Validate event_type so malformed requests are rejected without an unnecessary auth call.
-        NotifyEventType::try_from(payload.event_type).map_err(|_| {
-            tonic::Status::invalid_argument(format!(
-                "unsupported event type: {}",
-                payload.event_type
-            ))
-        })?;
+                // Validate event_type so malformed requests are rejected without an unnecessary auth call.
+                NotifyEventType::try_from(payload.event_type).map_err(|_| {
+                    tonic::Status::invalid_argument(format!(
+                        "unsupported event type: {}",
+                        payload.event_type
+                    ))
+                })?;
 
-        let connector = connector_variant_from_composite_metadata(&metadata).map_err(|err| *err)?;
+                let connector =
+                    connector_variant_from_composite_metadata(&metadata).map_err(|err| *err)?;
 
-        let access_token_response = self
-            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
-            .await?;
+                let access_token_response = self
+                    .create_server_authentication_token(
+                        &connector,
+                        &payload,
+                        &metadata,
+                        &extensions,
+                    )
+                    .await?;
 
-        // Build the underlying NotifyConnectorRequest using ForeignFrom
-        let inner =
-            NotifyConnectorRequest::foreign_from((&payload, access_token_response.as_ref()));
-        let mut inner_request = tonic::Request::new(inner);
-        *inner_request.metadata_mut() = metadata;
-        *inner_request.extensions_mut() = extensions;
+                // Build the underlying NotifyConnectorRequest using ForeignFrom
+                let inner = NotifyConnectorRequest::foreign_from((
+                    &payload,
+                    access_token_response.as_ref(),
+                ));
+                let mut inner_request = tonic::Request::new(inner);
+                *inner_request.metadata_mut() = metadata;
+                *inner_request.extensions_mut() = extensions;
 
-        let notify_response = self
-            .event_service
-            .notify_connector(inner_request)
-            .await?
-            .into_inner();
+                let notify_response = self
+                    .event_service
+                    .notify_connector(inner_request)
+                    .await?
+                    .into_inner();
 
-        Ok(tonic::Response::new(CompositeNotifyResponse {
-            notify_response: Some(notify_response),
-            access_token_response,
-        }))
+                Ok(tonic::Response::new(CompositeNotifyResponse {
+                    notify_response: Some(notify_response),
+                    access_token_response,
+                }))
+            },
+        )
+        .await
     }
 }

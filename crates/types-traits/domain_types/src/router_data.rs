@@ -512,6 +512,7 @@ pub enum ConnectorSpecificConfig {
     Rapyd {
         access_key: Secret<String>,
         secret_key: Secret<String>,
+        country_of_incorporation: Option<common_enums::CountryAlpha2>,
         base_url: Option<String>,
     },
     Authipay {
@@ -769,7 +770,10 @@ pub enum ConnectorSpecificConfig {
     Worldpayvantiv {
         user: Secret<String>,
         password: Secret<String>,
-        merchant_id: Secret<String>,
+        /// Single merchant ID used for every currency.
+        merchant_id: Option<Secret<String>>,
+        /// Merchant IDs keyed by currency; used when `merchant_id` is not set.
+        merchant_id_by_currency: Option<HashMap<common_enums::Currency, Secret<String>>>,
         base_url: Option<String>,
         secondary_base_url: Option<String>,
         report_group: Option<String>,
@@ -1153,6 +1157,18 @@ pub enum ConnectorSpecificConfig {
     /// `Ver1.0/Header/SecretAPIKey`, never in an HTTP header.
     GlobalpaymentsHeartland {
         api_key: Secret<String>,
+        base_url: Option<String>,
+    },
+    Betterpayment {
+        api_key: Secret<String>,
+        api_password: Secret<String>,
+        webhook_key: Option<Secret<String>>,
+        base_url: Option<String>,
+    },
+    Reddot {
+        mid: Secret<String>,
+        secret: Secret<String>,
+        acquirer_cybersource: String,
         base_url: Option<String>,
     },
     /// Ecommpay Gate API v2.
@@ -1608,6 +1624,17 @@ impl ConnectorSpecificConfig {
                 merchant_id,
                 app_secret,
                 merchant_secret,
+                base_url
+            },
+            Betterpayment {
+                api_key,
+                api_password,
+                webhook_key
+            },
+            Reddot {
+                mid,
+                secret,
+                acquirer_cybersource,
                 base_url
             },
             Ecommpay {
@@ -2154,6 +2181,17 @@ impl ConnectorSpecificConfig {
                     merchant_secret,
                     base_url
                 },
+                Betterpayment {
+                    api_key,
+                    api_password,
+                    webhook_key
+                },
+                Reddot {
+                    mid,
+                    secret,
+                    acquirer_cybersource,
+                    base_url
+                },
                 Ecommpay {
                     project_id,
                     secret_key
@@ -2475,6 +2513,32 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Rapyd(rapyd) => Ok(Self::Rapyd {
                 access_key: rapyd.access_key.ok_or_else(err)?,
                 secret_key: rapyd.secret_key.ok_or_else(err)?,
+                country_of_incorporation: rapyd
+                    .country_of_incorporation
+                    .map(|country| {
+                        let invalid_country = || errors::IntegrationError::InvalidConnectorConfig {
+                            config: "country_of_incorporation",
+                            context: errors::IntegrationErrorContext {
+                                additional_context: Some(
+                                    "The Rapyd country is unspecified or is not a recognized ISO country."
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Set country_of_incorporation to the country assigned by Rapyd during merchant onboarding."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        };
+                        let country = grpc_api_types::payments::CountryAlpha2::try_from(country)
+                            .map_err(|_| invalid_country())?;
+                        if country == grpc_api_types::payments::CountryAlpha2::Unspecified {
+                            return Err(invalid_country().into());
+                        }
+                        common_enums::CountryAlpha2::foreign_try_from(country)
+                            .change_context(invalid_country())
+                    })
+                    .transpose()?,
                 base_url: rapyd.base_url,
             }),
             AuthType::AbsaSanlam(absa_sanlam) => Ok(Self::AbsaSanlam {
@@ -2542,7 +2606,19 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Worldpayvantiv(worldpayvantiv) => Ok(Self::Worldpayvantiv {
                 user: worldpayvantiv.user.ok_or_else(err)?,
                 password: worldpayvantiv.password.ok_or_else(err)?,
-                merchant_id: worldpayvantiv.merchant_id.ok_or_else(err)?,
+                merchant_id: worldpayvantiv.merchant_id,
+                merchant_id_by_currency: if worldpayvantiv.merchant_id_by_currency.is_empty() {
+                    None
+                } else {
+                    Some(
+                        serde_json::to_value(worldpayvantiv.merchant_id_by_currency)
+                            .and_then(serde_json::from_value)
+                            .change_context(errors::IntegrationError::InvalidConnectorConfig {
+                                config: "merchant_id_by_currency",
+                                context: Default::default(),
+                            })?,
+                    )
+                },
                 base_url: worldpayvantiv.base_url,
                 secondary_base_url: worldpayvantiv.secondary_base_url,
                 report_group: worldpayvantiv.report_group,
@@ -2905,6 +2981,18 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 app_secret: payhere.app_secret.ok_or_else(err)?,
                 merchant_secret: payhere.merchant_secret.ok_or_else(err)?,
                 base_url: payhere.base_url,
+            }),
+            AuthType::Betterpayment(betterpayment) => Ok(Self::Betterpayment {
+                api_key: betterpayment.api_key.ok_or_else(err)?,
+                api_password: betterpayment.api_password.ok_or_else(err)?,
+                webhook_key: betterpayment.webhook_key,
+                base_url: betterpayment.base_url,
+            }),
+            AuthType::Reddot(reddot) => Ok(Self::Reddot {
+                mid: reddot.mid.ok_or_else(err)?,
+                secret: reddot.secret.ok_or_else(err)?,
+                acquirer_cybersource: reddot.acquirer_cybersource,
+                base_url: reddot.base_url,
             }),
             AuthType::Ecommpay(ecommpay) => Ok(Self::Ecommpay {
                 project_id: ecommpay.project_id.ok_or_else(err)?,
@@ -3350,6 +3438,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Rapyd {
                         access_key: api_key.clone(),
                         secret_key: key1.clone(),
+                        // Legacy credentials do not carry merchant onboarding metadata.
+                        // Fresh payment-method objects require typed Rapyd configuration.
+                        country_of_incorporation: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -3856,7 +3947,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     } => Ok(Self::Worldpayvantiv {
                         user: api_key.clone(),
                         password: api_secret.clone(),
-                        merchant_id: key1.clone(),
+                        merchant_id: Some(key1.clone()),
+                        merchant_id_by_currency: None,
                         base_url: None,
                         secondary_base_url: None,
                         report_group: None,
@@ -3870,7 +3962,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     } => Ok(Self::Worldpayvantiv {
                         user: api_key.clone(),
                         password: api_secret.clone(),
-                        merchant_id: key1.clone(),
+                        merchant_id: Some(key1.clone()),
+                        merchant_id_by_currency: None,
                         base_url: None,
                         secondary_base_url: None,
                         report_group: None,
@@ -4328,6 +4421,38 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Betterpayment => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Betterpayment {
+                        api_key: api_key.clone(),
+                        api_password: key1.clone(),
+                        webhook_key: Some(api_secret.clone()),
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Betterpayment {
+                        api_key: api_key.clone(),
+                        api_password: key1.clone(),
+                        webhook_key: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Reddot => Err(errors::IntegrationError::FailedToObtainAuthType {
+                    context: crate::errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Legacy RedDot auth cannot specify acquirer_cybersource".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Use typed RedDot config with mid, secret, and acquirer_cybersource"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into()),
                 ConnectorEnum::Ecommpay => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
                         secret_key: api_key.clone(),
@@ -4887,6 +5012,7 @@ impl ConnectorResponseData {
             common_enums::PaymentMethodType::GooglePay => {
                 AdditionalPaymentMethodConnectorResponse::GooglePay {
                     auth_code: Some(auth_code),
+                    payment_checks: None,
                     device_pan_bin: None,
                     card_bin: None,
                     card_subtype: None,
@@ -4900,6 +5026,7 @@ impl ConnectorResponseData {
             common_enums::PaymentMethodType::ApplePay => {
                 AdditionalPaymentMethodConnectorResponse::ApplePay {
                     auth_code: Some(auth_code),
+                    payment_checks: None,
                     device_pan_bin: None,
                     card_bin: None,
                     card_subtype: None,
@@ -4997,6 +5124,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     GooglePay {
         auth_code: Option<String>,
+        /// Various payment checks that are done for a payment
+        payment_checks: Option<serde_json::Value>,
         /// Bin of the DPAN (device PAN), as returned by the connector
         device_pan_bin: Option<String>,
         /// Bin of the underlying card, as returned by the connector
@@ -5016,6 +5145,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     ApplePay {
         auth_code: Option<String>,
+        /// Various payment checks that are done for a payment
+        payment_checks: Option<serde_json::Value>,
         /// Bin of the DPAN (device PAN), as returned by the connector
         device_pan_bin: Option<String>,
         /// Bin of the underlying card, as returned by the connector

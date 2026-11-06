@@ -32,7 +32,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_masking::Maskable;
+use hyperswitch_masking::{ExposeInterface, Maskable};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -90,6 +90,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Nuvei<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Nuvei<T>
@@ -120,8 +127,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
     fn should_do_session_token(
         &self,
-        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+        connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> bool {
+        !transformers::has_nuvei_session_token(connector_feature_data)
+    }
+
+    fn requires_authorize_post_redirect(&self) -> bool {
+        true
+    }
+
+    fn requires_authentication_payment_method_data(
+        &self,
+        payment_method: common_enums::PaymentMethod,
+    ) -> bool {
+        payment_method == common_enums::PaymentMethod::Wallet
+    }
+
+    fn requires_authentication_data(&self) -> bool {
         true
     }
 
@@ -139,11 +161,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         payment_method: common_enums::PaymentMethod,
         redirect_state: connector_types::RedirectState,
         completed_step: Option<connector_types::AuthenticationStep>,
+        payment_method_data: Option<
+            &domain_types::payment_method_data::PaymentMethodData<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >,
+        >,
+        authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> connector_types::AuthenticationStep {
         use connector_types::{AuthenticationStep, RedirectState};
 
         if auth_type == common_enums::AuthenticationType::ThreeDs
-            && payment_method == common_enums::PaymentMethod::Card
+            && !authentication_data.is_some_and(|data| data.has_external_authentication())
+            && (payment_method == common_enums::PaymentMethod::Card
+                || matches!(
+                    payment_method_data,
+                    Some(domain_types::payment_method_data::PaymentMethodData::Wallet(wallet))
+                        if matches!(wallet, domain_types::payment_method_data::WalletData::GooglePay(_) | domain_types::payment_method_data::WalletData::ApplePay(_))
+                            && !wallet.is_authenticated()
+                ))
         {
             match (redirect_state, completed_step) {
                 (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
@@ -173,44 +208,77 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
+        connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, Report<WebhookError>> {
-        let secrets =
-            connector_webhook_secret.ok_or(WebhookError::WebhookVerificationSecretNotFound)?;
+        // Payment DMNs use the same merchant secret as REST requests. Existing
+        // txns calls already supply it through the resolved connector config.
+        let secrets = connector_webhook_secret
+            .or_else(|| match connector_account_details {
+                Some(ConnectorSpecificConfig::Nuvei {
+                    merchant_secret, ..
+                }) => Some(ConnectorWebhookSecrets {
+                    secret: merchant_secret.expose().into_bytes(),
+                    additional_secret: None,
+                }),
+                _ => None,
+            })
+            .ok_or(WebhookError::WebhookVerificationSecretNotFound)?;
+        if secrets.secret.is_empty() {
+            return Err(WebhookError::WebhookVerificationSecretInvalid.into());
+        }
         let secret = std::str::from_utf8(&secrets.secret)
             .change_context(WebhookError::WebhookVerificationSecretInvalid)?;
 
-        let message_and_signature = match transformers::parse_nuvei_webhook(&request.body)? {
-            transformers::NuveiWebhook::PaymentDmn(notification) => {
-                transformers::payment_dmn_checksum_message(&notification, secret)
-                    .zip(notification.advance_response_checksum.clone())
-            }
-            transformers::NuveiWebhook::Chargeback(_) => request
-                .headers
-                .iter()
-                .find(|(name, _)| name.eq_ignore_ascii_case(NUVEI_CHARGEBACK_CHECKSUM_HEADER))
-                .map(|(_, signature)| {
-                    transformers::chargeback_checksum_message(&request.body, secret)
-                        .map(|message| (message, signature.clone()))
-                })
-                .transpose()?,
-        };
+        let (message_and_signature, payment_dmn) =
+            match transformers::parse_nuvei_webhook(&request.body)? {
+                transformers::NuveiWebhook::PaymentDmn(notification) => (
+                    transformers::payment_dmn_checksum_message(&notification, secret)
+                        .zip(notification.advance_response_checksum.clone()),
+                    true,
+                ),
+                transformers::NuveiWebhook::Chargeback(_) => (
+                    request
+                        .headers
+                        .iter()
+                        .find(|(name, _)| {
+                            name.eq_ignore_ascii_case(NUVEI_CHARGEBACK_CHECKSUM_HEADER)
+                        })
+                        .map(|(_, signature)| {
+                            transformers::chargeback_checksum_message(&request.body, secret)
+                                .map(|message| (message, signature.clone()))
+                        })
+                        .transpose()?,
+                    false,
+                ),
+            };
 
         match message_and_signature {
             Some((message, signature)) => match hex::decode(signature.trim()) {
-                Ok(signature) => crypto::Sha256
+                // Nuvei payment DMNs support SHA-256 or legacy MD5 depending
+                // on site configuration. Event/chargeback DMNs use SHA-256.
+                Ok(signature) if signature.len() == 32 => crypto::Sha256
                     .verify_signature(&secrets.secret, &signature, message.as_bytes())
                     .change_context(WebhookError::WebhookSourceVerificationFailed),
+                Ok(signature) if payment_dmn && signature.len() == 16 => crypto::Md5
+                    .verify_signature(&secrets.secret, &signature, message.as_bytes())
+                    .change_context(WebhookError::WebhookSourceVerificationFailed),
+                Ok(_) => Ok(false),
                 Err(_) => Ok(false),
             },
             None => Ok(false),
         }
     }
 
+    // The verified DMN and its payment/refund reference drive the status update.
+    // Use the default empty tracker-check list: optional money must not block
+    // an authenticated event, and refunds do not carry the parent payment ID.
+
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
         match transformers::parse_nuvei_webhook(&request.body)? {
             transformers::NuveiWebhook::PaymentDmn(notification) => {
-                if transformers::is_payout_dmn(&notification) {
+                if transformers::is_payout_dmn(&notification)
+                    || notification.has_conflicting_status()
+                {
                     return Err(WebhookError::WebhookEventTypeNotFound.into());
                 }
                 match (
@@ -239,6 +307,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 if transformers::is_payout_dmn(&notification) {
                     return Err(WebhookError::WebhookEventTypeNotFound.into());
                 }
+                let payment_reference = notification.transaction_id.clone();
                 match notification.transaction_type {
                     Some(NuveiTransactionType::Auth)
                     | Some(NuveiTransactionType::Sale)
@@ -246,11 +315,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     | Some(NuveiTransactionType::Void) => Ok(Some(
                         WebhookResourceReference::Payment(PaymentWebhookReference {
                             connector_transaction_id: Some(
-                                notification
-                                    .transaction_id
+                                payment_reference
                                     .ok_or(WebhookError::WebhookReferenceIdNotFound)?,
                             ),
-                            merchant_transaction_id: None,
+                            merchant_transaction_id: notification.merchant_reference(),
                             connector_preprocessing_id: None,
                         }),
                     )),
@@ -380,6 +448,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Nuvei<T>
 {
+    fn process_redirect_response(
+        &self,
+        request: &RequestDetails,
+        connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> CustomResult<domain_types::connector_types::RedirectDetailsResponse, IntegrationError>
+    {
+        transformers::process_nuvei_redirect(request, connector_feature_data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for Nuvei<T>
