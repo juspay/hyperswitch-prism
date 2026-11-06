@@ -1,0 +1,177 @@
+{
+  "_webhook_config": {
+    "webhook_secret_key": "fixture_webhook_secret",
+    "note": "Deterministic offline fixtures signed with integration_test_webhook_secret, supplied in grpc_req.webhook_secrets (cryptopay precedent). Trustpay signs inside the body: Signature = uppercase hex HMAC-SHA256(secret, '/'.join(sorted(all leaf values except Signature))), numbers formatted with 2 decimals (utils::collect_and_sort_values_by_removing_signature). fixture_webhook_secret is absent from creds.json so no live secret is injected. No signature_header: the signature is a body field.",
+    "signature_algorithm": "HMAC-SHA256 over sorted '/'-joined body values, uppercase hex in body field Signature"
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/trustpay",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "PaymentMethod": "Card",
+          "MerchantIdentification": {
+            "ProjectId": "4101111111"
+          },
+          "PaymentInformation": {
+            "Amount": {
+              "Amount": 10.0,
+              "Currency": "EUR"
+            },
+            "CreditDebitIndicator": "CRDT",
+            "Status": "Paid",
+            "References": {
+              "MerchantReference": "trustpay_fixture_payment_001",
+              "PaymentRequestId": "72750",
+              "PaymentId": "5551001"
+            },
+            "CardTransaction": {
+              "Card": {
+                "MaskedPan": "420000******0000",
+                "ExpiryDate": "12/30"
+              }
+            }
+          },
+          "Signature": "6C2DB9C56E6C6ACAEB1F6A0F5355259949C95EE782506434970DF9F49AA5A6FE"
+        }
+      },
+      "merchant_event_id": "trustpay_webhook_payment_succeeded",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/trustpay",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "PaymentMethod": "Card",
+          "MerchantIdentification": {
+            "ProjectId": "4101111111"
+          },
+          "PaymentInformation": {
+            "Amount": {
+              "Amount": 10.0,
+              "Currency": "EUR"
+            },
+            "CreditDebitIndicator": "CRDT",
+            "Status": "Rejected",
+            "References": {
+              "MerchantReference": "trustpay_fixture_payment_002",
+              "PaymentRequestId": "72750"
+            },
+            "CardTransaction": {
+              "Card": {
+                "MaskedPan": "420000******0000",
+                "ExpiryDate": "12/30"
+              }
+            },
+            "StatusReasonInformation": {
+              "Reason": {
+                "Code": "100.390.103",
+                "RejectReason": "PARes Validation failed - problem with signature"
+              }
+            }
+          },
+          "Signature": "ED294A6107C541BC66BC453D0F9EECA2A52858CC57FC4F9E7B4A6C84170AB3C0"
+        }
+      },
+      "merchant_event_id": "trustpay_webhook_payment_failed",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/trustpay",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "PaymentMethod": "Card",
+          "MerchantIdentification": {
+            "ProjectId": "4101111111"
+          },
+          "PaymentInformation": {
+            "Amount": {
+              "Amount": 10.0,
+              "Currency": "EUR"
+            },
+            "CreditDebitIndicator": "DBIT",
+            "Status": "Paid",
+            "References": {
+              "MerchantReference": "trustpay_fixture_refund_001",
+              "PaymentRequestId": "72750",
+              "PaymentId": "5551002",
+              "OriginalPaymentId": "5551001"
+            },
+            "CardTransaction": {
+              "Card": {
+                "MaskedPan": "420000******0000",
+                "ExpiryDate": "12/30"
+              }
+            }
+          },
+          "Signature": "DC9CABE9AF815A20C988EDA964EDA41FCCFCAD1E08DC751A5B3B556E77669F44"
+        }
+      },
+      "merchant_event_id": "trustpay_webhook_refund_succeeded",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/trustpay",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "PaymentMethod": "Card",
+          "MerchantIdentification": {
+            "ProjectId": "4101111111"
+          },
+          "PaymentInformation": {
+            "Amount": {
+              "Amount": 10.0,
+              "Currency": "EUR"
+            },
+            "CreditDebitIndicator": "CRDT",
+            "Status": "Paid",
+            "References": {
+              "MerchantReference": "trustpay_fixture_payment_001",
+              "PaymentRequestId": "72750",
+              "PaymentId": "5551001"
+            },
+            "CardTransaction": {
+              "Card": {
+                "MaskedPan": "420000******0000",
+                "ExpiryDate": "12/30"
+              }
+            }
+          },
+          "Signature": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      "merchant_event_id": "trustpay_webhook_invalid_signature",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  }
+}

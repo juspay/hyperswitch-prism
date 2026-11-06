@@ -14,7 +14,7 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["authorize", "create_order", "create_server_authentication_token", "get", "parse_event", "proxy_authorize", "recurring_charge", "refund", "refund_get"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "create_server_authentication_token", "get", "parse_event", "proxy_authorize", "recurring_charge", "refund", "refund_get", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -53,19 +53,30 @@ def _build_authorize_request(capture_method: str):
             email=payment_methods_pb2.SecretString(value="test@example.com"),
         ),
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=common_types_pb2.Address(
-                first_name=payment_methods_pb2.SecretString(value="John"),
-                line1=payment_methods_pb2.SecretString(value="123 Main St"),
-                city=payment_methods_pb2.SecretString(value="Seattle"),
-                zip_code=payment_methods_pb2.SecretString(value="98101"),
-                country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
-            ),
+            billing_address=common_types_pb2.Address(),
         ),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
         return_url="https://example.com/return",  # URLs for Redirection and Webhooks.
         browser_info=payment_pb2.BrowserInformation(
             user_agent="Mozilla/5.0 (probe-bot)",
             ip_address="1.2.3.4",  # Device Information.
+        ),
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
+
+def _build_capture_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceCaptureRequest(
+        merchant_capture_id="probe_capture_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount_to_capture=common_types_pb2.Money(  # Capture Details.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
         state=payment_pb2.ConnectorState(  # State Information.
             access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
@@ -119,7 +130,7 @@ def _build_parse_event_request():
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
             headers={},  # Headers of the HTTP request.
-            body="{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}".encode(),  # Body of the HTTP request.
+            body="{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"MerchantReference\":\"probe_txn_001\",\"PaymentRequestId\":\"72750\"},\"Status\":\"Paid\",\"Amount\":{\"Amount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}".encode(),  # Body of the HTTP request.
         ),
     )
 
@@ -142,13 +153,7 @@ def _build_proxy_authorize_request():
             email=payment_methods_pb2.SecretString(value="test@example.com"),
         ),
         address=payment_pb2.PaymentAddress(
-            billing_address=common_types_pb2.Address(
-                first_name=payment_methods_pb2.SecretString(value="John"),
-                line1=payment_methods_pb2.SecretString(value="123 Main St"),
-                city=payment_methods_pb2.SecretString(value="Seattle"),
-                zip_code=payment_methods_pb2.SecretString(value="98101"),
-                country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
-            ),
+            billing_address=common_types_pb2.Address(),
         ),
         capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
@@ -227,6 +232,19 @@ def _build_refund_get_request():
             ),
         ),
     )
+
+def _build_void_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceVoidRequest(
+        merchant_void_id="probe_void_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
 async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """One-step Payment (Authorize + Capture)
 
@@ -244,6 +262,31 @@ async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk
         return {"status": "pending", "transaction_id": authorize_response.connector_transaction_id}
 
     return {"status": getattr(authorize_response, "status", ""), "transaction_id": getattr(authorize_response, "connector_transaction_id", ""), "error": getattr(authorize_response, "error", None)}
+
+
+async def process_checkout_card(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Card Payment (Authorize + Capture)
+
+    Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
+    """
+    payment_client = PaymentClient(config)
+
+    # Step 1: Authorize — reserve funds on the payment method
+    authorize_response = await payment_client.authorize(_build_authorize_request("MANUAL"))
+
+    if authorize_response.status == "FAILED":
+        raise RuntimeError(f"Payment failed: {authorize_response.error}")
+    if authorize_response.status == "PENDING":
+        # Awaiting async confirmation — handle via webhook
+        return {"status": "pending", "transaction_id": authorize_response.connector_transaction_id}
+
+    # Step 2: Capture — settle the reserved funds
+    capture_response = await payment_client.capture(_build_capture_request(authorize_response.connector_transaction_id))
+
+    if capture_response.status == "FAILED":
+        raise RuntimeError(f"Capture failed: {capture_response.error}")
+
+    return {"status": getattr(capture_response, "status", ""), "transaction_id": getattr(authorize_response, "connector_transaction_id", ""), "error": getattr(capture_response, "error", None)}
 
 
 async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
@@ -269,6 +312,28 @@ async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.Co
         raise RuntimeError(f"Refund failed: {refund_response.error}")
 
     return {"status": getattr(refund_response, "status", ""), "error": getattr(refund_response, "error", None)}
+
+
+async def process_void_payment(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Void Payment
+
+    Cancel an authorized but not-yet-captured payment.
+    """
+    payment_client = PaymentClient(config)
+
+    # Step 1: Authorize — reserve funds on the payment method
+    authorize_response = await payment_client.authorize(_build_authorize_request("MANUAL"))
+
+    if authorize_response.status == "FAILED":
+        raise RuntimeError(f"Payment failed: {authorize_response.error}")
+    if authorize_response.status == "PENDING":
+        # Awaiting async confirmation — handle via webhook
+        return {"status": "pending", "transaction_id": authorize_response.connector_transaction_id}
+
+    # Step 2: Void — release reserved funds (cancel authorization)
+    void_response = await payment_client.void(_build_void_request(authorize_response.connector_transaction_id))
+
+    return {"status": getattr(void_response, "status", ""), "transaction_id": getattr(authorize_response, "connector_transaction_id", ""), "error": getattr(void_response, "error", None)}
 
 
 async def process_get_payment(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
@@ -300,6 +365,15 @@ async def process_authorize(merchant_transaction_id: str, config: sdk_config_pb2
     authorize_response = await payment_client.authorize(_build_authorize_request("AUTOMATIC"))
 
     return {"status": authorize_response.status, "transaction_id": authorize_response.connector_transaction_id}
+
+
+async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.Capture"""
+    payment_client = PaymentClient(config)
+
+    capture_response = await payment_client.capture(_build_capture_request("probe_connector_txn_001"))
+
+    return {"status": capture_response.status}
 
 
 async def process_create_order(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
@@ -363,6 +437,15 @@ async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb
     refund_response = await refund_client.refund_get(_build_refund_get_request())
 
     return {"status": refund_response.status}
+
+
+async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.Void"""
+    payment_client = PaymentClient(config)
+
+    void_response = await payment_client.void(_build_void_request("probe_connector_txn_001"))
+
+    return {"status": void_response.status}
 
 if __name__ == "__main__":
     scenario = sys.argv[1] if len(sys.argv) > 1 else "checkout_autocapture"

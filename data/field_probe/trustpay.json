@@ -30,23 +30,88 @@
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "ApplePay": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "Encrypted Apple Pay token on Authorize is not supported by trustpay. Trustpay has no server-to-server API for encrypted wallet tokens; api/v1/purchase accepts only a decrypted DPAN (IsTokenized=true)."
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id",
+                  "device_manufacturer_identifier": "040010030273"
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "ip_address": "1.2.3.4"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://test-tpgw.trustpay.eu/api/v1/purchase",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "amount=10.00&currency=USD&pan=4111111111111111&exp=03%2F30&IsTokenized=true&TokenizedBy=Wallet&CardSource=ApplePay&TokenSecure.Eci=05&TokenSecure.Cryptogram=AAAAAA%3D%3D&threeDSecure.Eci=05&threeDSecure.VerificationId=AAAAAA%3D%3D&paymentAction=Purchase&reference=probe_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&billing%5Bcity%5D=Seattle&billing%5Bcountry%5D=US&billing%5Bstreet1%5D=123+Main+St&billing%5Bpostcode%5D=98101&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Bacs": {
         "status": "not_supported",
@@ -70,7 +135,7 @@
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Bizum": {
         "status": "not_implemented",
@@ -125,7 +190,7 @@
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
@@ -161,13 +226,7 @@
             "email": "test@example.com"
           },
           "address": {
-            "billing_address": {
-              "first_name": "John",
-              "line1": "123 Main St",
-              "city": "Seattle",
-              "zip_code": "98101",
-              "country_alpha2_code": "US"
-            }
+            "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
@@ -191,16 +250,16 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "amount=10.00&currency=USD&pan=4111111111111111&cvv=737&exp=03%2F30&cardholder=John&reference=probe_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&billing%5Bcity%5D=Seattle&billing%5Bcountry%5D=US&billing%5Bstreet1%5D=123+Main+St&billing%5Bpostcode%5D=98101&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1&browser%5BpaymentType%5D=Plain"
+          "body": "amount=10.00&currency=USD&pan=4111111111111111&cvv=737&exp=03%2F30&cardholder=John+Doe&reference=probe_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1&paymentAction=Purchase&browser%5BpaymentType%5D=Plain"
         }
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
@@ -216,7 +275,7 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -232,7 +291,7 @@
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Efecty": {
         "status": "not_supported",
@@ -290,7 +349,7 @@
       },
       "GCash": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Giropay": {
         "status": "supported",
@@ -340,19 +399,80 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "GooglePay": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "Encrypted Google Pay token on Authorize is not supported by trustpay. Trustpay has no server-to-server API for encrypted wallet tokens; api/v1/purchase accepts only a decrypted DPAN (IsTokenized=true)."
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "ip_address": "1.2.3.4"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://test-tpgw.trustpay.eu/api/v1/purchase",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "amount=10.00&currency=USD&pan=4111111111111111&exp=03%2F30&IsTokenized=true&TokenizedBy=Wallet&CardSource=GooglePay&TokenSecure.Eci=05&TokenSecure.Cryptogram=AAAAAA%3D%3D&threeDSecure.Eci=05&threeDSecure.VerificationId=AAAAAA%3D%3D&paymentAction=Purchase&reference=probe_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&billing%5Bcity%5D=Seattle&billing%5Bcountry%5D=US&billing%5Bstreet1%5D=123+Main+St&billing%5Bpostcode%5D=98101&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Ideal": {
         "status": "supported",
@@ -545,7 +665,7 @@
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Klarna": {
         "status": "not_supported",
@@ -557,7 +677,7 @@
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
@@ -573,11 +693,11 @@
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "MiniStop": {
         "status": "not_supported",
@@ -589,7 +709,7 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
@@ -653,15 +773,15 @@
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Paysera": {
         "status": "not_implemented",
@@ -677,7 +797,7 @@
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Pix": {
         "status": "not_supported",
@@ -701,15 +821,15 @@
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Seicomart": {
         "status": "not_supported",
@@ -774,7 +894,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Sofort": {
         "status": "supported",
@@ -820,11 +940,11 @@
       },
       "Swish": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Trustly": {
         "status": "not_implemented",
@@ -832,7 +952,7 @@
       },
       "Twint": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "UpiCollect": {
         "status": "not_supported",
@@ -848,11 +968,11 @@
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       },
       "Webpay": {
         "status": "not_supported",
@@ -860,13 +980,37 @@
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Selected payment method through trustpay is not supported by trustpay"
+        "error": "This wallet on Authorize is not supported by trustpay. Trustpay token transactions support only CardSource ApplePay / GooglePay."
       }
     },
     "capture": {
       "default": {
-        "status": "not_supported",
-        "error": "capture flow not supported by trustpay connector"
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://test-tpgw.trustpay.eu/api/v1/Capture",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "instanceId=probe_connector_txn_001&amount=10.00&currency=USD&reference=probe_capture_001"
+        }
       }
     },
     "create_client_authentication_token": {
@@ -1006,14 +1150,14 @@
             "method": "HTTP_METHOD_POST",
             "uri": "https://example.com/webhook",
             "headers": {},
-            "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
+            "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"MerchantReference\":\"probe_txn_001\",\"PaymentRequestId\":\"72750\"},\"Status\":\"Paid\",\"Amount\":{\"Amount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
           }
         },
         "sample": {
           "url": "",
           "method": "Post",
           "headers": {},
-          "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
+          "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"MerchantReference\":\"probe_txn_001\",\"PaymentRequestId\":\"72750\"},\"Status\":\"Paid\",\"Amount\":{\"Amount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
         }
       }
     },
@@ -1031,14 +1175,14 @@
             "method": "HTTP_METHOD_POST",
             "uri": "https://example.com/webhook",
             "headers": {},
-            "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
+            "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"MerchantReference\":\"probe_txn_001\",\"PaymentRequestId\":\"72750\"},\"Status\":\"Paid\",\"Amount\":{\"Amount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
           }
         },
         "sample": {
           "url": "",
           "method": "Post",
           "headers": {},
-          "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
+          "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"MerchantReference\":\"probe_txn_001\",\"PaymentRequestId\":\"72750\"},\"Status\":\"Paid\",\"Amount\":{\"Amount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
         }
       }
     },
@@ -1080,13 +1224,7 @@
             "email": "test@example.com"
           },
           "address": {
-            "billing_address": {
-              "first_name": "John",
-              "line1": "123 Main St",
-              "city": "Seattle",
-              "zip_code": "98101",
-              "country_alpha2_code": "US"
-            }
+            "billing_address": {}
           },
           "capture_method": "AUTOMATIC",
           "auth_type": "NO_THREE_DS",
@@ -1111,7 +1249,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "amount=10.00&currency=USD&pan=%7B%7B%24card_number%7D%7D&cvv=%7B%7B%24card_cvc%7D%7D&exp=03%2F30&cardholder=John&reference=probe_proxy_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&billing%5Bcity%5D=Seattle&billing%5Bcountry%5D=US&billing%5Bstreet1%5D=123+Main+St&billing%5Bpostcode%5D=98101&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1&browser%5BpaymentType%5D=Plain"
+          "body": "amount=10.00&currency=USD&pan=%7B%7B%24card_number%7D%7D&cvv=%7B%7B%24card_cvc%7D%7D&exp=03%2F30&cardholder=John+Doe&reference=probe_proxy_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1&paymentAction=Purchase&browser%5BpaymentType%5D=Plain"
         }
       }
     },
@@ -1161,7 +1299,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "amount=10.00&currency=USD&InstanceId=probe-mandate-123&reference=&PaymentType=RecurringSubsequent"
+          "body": "amount=10.00&currency=USD&InstanceId=probe-mandate-123&reference=&PaymentType=RecurringSubsequent&paymentAction=Purchase"
         }
       }
     },
@@ -1266,8 +1404,28 @@
     },
     "void": {
       "default": {
-        "status": "not_supported",
-        "error": "void flow not supported by trustpay connector"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://test-tpgw.trustpay.eu/api/v1/Reverse",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "instanceId=probe_connector_txn_001&reference=probe_void_001"
+        }
       }
     }
   }
