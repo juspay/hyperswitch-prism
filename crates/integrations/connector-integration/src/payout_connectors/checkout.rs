@@ -54,7 +54,7 @@ pub fn get_checkout_payout_base_url(
                 .map(|prefix| format!("{prefix}."))
                 .ok_or_else(|| {
                     error_stack::report!(IntegrationError::InvalidDataFormat {
-                        field_name: "checkout.connector_config.client_id",
+                        field_name: "checkout.connector_config.connector_client_id",
                         context: domain_types::errors::IntegrationErrorContext {
                             additional_context: Some(
                                 "Client ID must look like `cli_<id>`; its eight-character \
@@ -122,9 +122,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event: Option<&mut events::Event>,
         config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        // Reuse the payment connector's body parsing, then remap for money movement: a 4xx
+        // Reuse the payment connector's body parsing, then remap PayoutTransfer errors: a 4xx
         // rejection terminally fails the payout (409/429 stay retryable), 5xx stays pending,
         // and the payment-side `request_id` must not leak into `connector_payout_id`.
+        // PayoutGet clears this inferred status in its `get_error_response_v2` override.
         let mut error =
             crate::connectors::Checkout::<T>::new().build_error_response(res, event, config)?;
         error.attempt_status = match error.status_code {
@@ -179,17 +180,29 @@ macros::macro_connector_implementation!(
         fn get_url(&self, req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>) -> CustomResult<String, IntegrationError> {
             let credentials = transformers::credentials(&req.connector_config)?;
             let configured_base_url = self.base_url(req.resource_common_data.connectors.as_ref());
-            Ok(format!("{}/payments", get_checkout_payout_base_url(configured_base_url, credentials.client_id)?))
+            Ok(format!("{}/payments", get_checkout_payout_base_url(configured_base_url, credentials.connector_client_id)?))
         }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: CheckoutPayouts, curl_response: CheckoutPayoutGetResponse,
     flow_name: PayoutGet, resource_common_data: PayoutFlowData, flow_request: PayoutGetRequest, flow_response: PayoutGetResponse,
     http_method: Get, generic_type: T, [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            // A status-sync HTTP error says nothing about whether Checkout already paid the
+            // payout, so it must not be turned into a terminal payout state.
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            error.attempt_status = None;
+            Ok(error)
+        }
         fn get_headers(&self, req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.get_auth_header(&req.connector_config)
         }
@@ -198,7 +211,7 @@ macros::macro_connector_implementation!(
                 .ok_or_else(|| domain_types::utils::missing_field_err("connector_payout_id")())?;
             let credentials = transformers::credentials(&req.connector_config)?;
             let configured_base_url = self.base_url(req.resource_common_data.connectors.as_ref());
-            Ok(format!("{}/payments/{id}", get_checkout_payout_base_url(configured_base_url, credentials.client_id)?))
+            Ok(format!("{}/payments/{id}", get_checkout_payout_base_url(configured_base_url, credentials.connector_client_id)?))
         }
     }
 );

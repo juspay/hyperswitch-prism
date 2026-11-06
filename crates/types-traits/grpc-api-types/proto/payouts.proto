@@ -724,17 +724,22 @@ message VendorDetails {
   // Whether the transfers capability is requested
   optional bool transfers_enabled = 9;
   // Additional corporate party fields; existing fields/tags remain unchanged.
+  // Corporate tax identifier; Hyperswitch populates this from merchant sender/KYC details.
   optional SecretString company_tax_id = 10;
-  optional Address address = 12;
-  optional SecretString email = 13;
-  optional SecretString phone_number = 14;
-  optional string phone_country_code = 15;
+  // Corporate address; Hyperswitch populates this from merchant sender details.
+  optional Address address = 11;
+  // Corporate contact email; Hyperswitch populates this from merchant sender details.
+  optional SecretString email = 12;
+  // Corporate contact phone number; Hyperswitch populates this from merchant sender details.
+  optional SecretString phone_number = 13;
+  // Corporate phone country calling code; Hyperswitch populates this from merchant sender details.
+  optional string phone_country_code = 14;
   // Merchant-created reference for the sending party, forwarded to the connector as the
   // sender reference (e.g. Checkout `sender.reference`).
-  optional SecretString merchant_sender_reference_id = 16;
+  optional SecretString merchant_sender_reference_id = 15;
   // Merchant-declared classification of the funds the sender supplies, forwarded to the
   // connector as Visa Direct / Mastercard Send `sender.source_of_funds`.
-  optional PayoutSourceOfFunds source_of_funds = 17;
+  optional PayoutSourceOfFunds source_of_funds = 16;
 }
 
 // Individual / KYC details for the connected account
@@ -758,15 +763,18 @@ message IndividualDetails {
   // Unix timestamp of the terms-of-service acceptance
   optional int64 tos_acceptance_date = 11;
   // Additional individual party fields; reuse phone = 3 for the phone number.
+  // Individual address; Hyperswitch populates this from merchant sender/KYC details.
   optional Address address = 12;
+  // Individual contact email; Hyperswitch populates this from merchant sender/KYC details.
   optional SecretString email = 13;
-  optional string phone_country_code = 15;
+  // Country calling code for phone = 3; Hyperswitch populates this from merchant sender details.
+  optional string phone_country_code = 14;
   // Merchant-created reference for the sending party, forwarded to the connector as the
   // sender reference (e.g. Checkout `sender.reference`).
-  optional SecretString merchant_sender_reference_id = 16;
+  optional SecretString merchant_sender_reference_id = 15;
   // Merchant-declared classification of the funds the sender supplies, forwarded to the
   // connector as Visa Direct / Mastercard Send `sender.source_of_funds`.
-  optional PayoutSourceOfFunds source_of_funds = 17;
+  optional PayoutSourceOfFunds source_of_funds = 16;
 }
 
 // Response message for creating recipient account

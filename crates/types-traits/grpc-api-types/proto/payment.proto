@@ -5035,10 +5035,10 @@ message CheckoutConfig {
   SecretString processing_channel_id = 3;
   // Optional Checkout client ID sourced from Hyperswitch MCA metadata.
   // Consumed only by Checkout payout URL resolution.
-  optional SecretString client_id = 4;
+  optional SecretString connector_client_id = 4;
   // Optional Checkout currency account (`ca_...`) used as the payout `source.id`.
   // Payout-only; kept separate from `api_key` (the payment public key).
-  optional SecretString currency_account_id = 5;
+  optional SecretString connector_currency_account_id = 5;
   optional string base_url = 50;
 }
 

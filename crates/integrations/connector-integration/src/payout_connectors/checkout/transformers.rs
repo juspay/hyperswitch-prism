@@ -29,13 +29,13 @@ use std::fmt::Debug;
 /// Checkout payout credentials resolved from the connector config. Deliberately excludes
 /// `api_key`: that field holds the payment **public** key (`pk_...`, used only by
 /// `POST /tokens`), and a payout must never send it — the funding source is
-/// `currency_account_id` instead.
+/// `connector_currency_account_id` instead.
 pub struct CheckoutPayoutCredentials<'a> {
     pub api_secret: &'a Secret<String>,
     pub processing_channel_id: &'a Secret<String>,
-    pub client_id: Option<&'a Secret<String>>,
+    pub connector_client_id: Option<&'a Secret<String>>,
     /// Checkout currency account (`ca_...`) used as the payout `source.id`.
-    pub currency_account_id: Option<&'a Secret<String>>,
+    pub connector_currency_account_id: Option<&'a Secret<String>>,
 }
 
 pub fn credentials(
@@ -46,14 +46,14 @@ pub fn credentials(
             api_key: _,
             api_secret,
             processing_channel_id,
-            client_id,
-            currency_account_id,
+            connector_client_id,
+            connector_currency_account_id,
             ..
         } => Ok(CheckoutPayoutCredentials {
             api_secret,
             processing_channel_id,
-            client_id: client_id.as_ref(),
-            currency_account_id: currency_account_id.as_ref(),
+            connector_client_id: connector_client_id.as_ref(),
+            connector_currency_account_id: connector_currency_account_id.as_ref(),
         }),
         _ => Err(missing_field_err("checkout.connector_config")()),
     }
@@ -491,9 +491,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // The payout origin is the merchant's Checkout currency account, a
                 // payout-only credential — never the payment public key in `api_key`.
                 id: creds
-                    .currency_account_id
+                    .connector_currency_account_id
                     .ok_or_else(missing_field_err(
-                        "checkout.connector_config.currency_account_id",
+                        "checkout.connector_config.connector_currency_account_id",
                     ))?
                     .clone(),
             }),

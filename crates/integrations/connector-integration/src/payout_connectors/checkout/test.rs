@@ -172,6 +172,89 @@ mod tests {
         }
     }
 
+    pub mod error_response {
+        use common_enums::PayoutStatus;
+        use domain_types::{
+            connector_flow::{PayoutGet, PayoutTransfer},
+            payment_method_data::DefaultPCIHolder,
+            payouts::payouts_types::{
+                PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
+                PayoutTransferResponse,
+            },
+            router_data::{ConnectorSpecificConfig, FlowStatus},
+            router_response_types::Response,
+        };
+        use hyperswitch_masking::Secret;
+        use interfaces::connector_integration_v2::{
+            BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2,
+        };
+
+        use crate::payout_connectors::CheckoutPayouts;
+
+        fn connector_config() -> ConnectorSpecificConfig {
+            ConnectorSpecificConfig::Checkout {
+                api_key: Secret::new("pk_test_publickey".to_string()),
+                api_secret: Secret::new("sk_test_secret".to_string()),
+                processing_channel_id: Secret::new("pc_test_channel".to_string()),
+                connector_client_id: None,
+                connector_currency_account_id: None,
+                base_url: None,
+            }
+        }
+
+        fn http_error(status_code: u16) -> Response {
+            Response {
+                headers: None,
+                response: Vec::new().into(),
+                status_code,
+            }
+        }
+
+        #[test]
+        fn payout_transfer_authentication_error_fails_payout() {
+            let connector = CheckoutPayouts::<DefaultPCIHolder>::new();
+            let integration: BoxedConnectorIntegrationV2<
+                '_,
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest<DefaultPCIHolder>,
+                PayoutTransferResponse,
+            > = connector.get_connector_integration_v2();
+
+            let error = integration
+                .get_error_response_v2(http_error(401), None, &connector_config())
+                .unwrap();
+
+            assert!(matches!(
+                error.attempt_status,
+                Some(FlowStatus::Payout(PayoutStatus::Failure))
+            ));
+        }
+
+        #[test]
+        fn payout_get_http_errors_do_not_infer_payout_status() {
+            let connector = CheckoutPayouts::<DefaultPCIHolder>::new();
+            let integration: BoxedConnectorIntegrationV2<
+                '_,
+                PayoutGet,
+                PayoutFlowData,
+                PayoutGetRequest,
+                PayoutGetResponse,
+            > = connector.get_connector_integration_v2();
+            let config = connector_config();
+
+            for status_code in [400, 401, 403, 404, 500] {
+                let error = integration
+                    .get_error_response_v2(http_error(status_code), None, &config)
+                    .unwrap();
+                assert!(
+                    error.attempt_status.is_none(),
+                    "HTTP {status_code} must not infer a payout status"
+                );
+            }
+        }
+    }
+
     pub mod payout_transfer {
         use std::{marker::PhantomData, str::FromStr};
 
@@ -284,8 +367,10 @@ mod tests {
                     api_key: Secret::new("pk_test_publickey".to_string()),
                     api_secret: Secret::new("sk_test_secret".to_string()),
                     processing_channel_id: Secret::new("pc_test_channel".to_string()),
-                    client_id,
-                    currency_account_id: Some(Secret::new("ca_testcurrencyaccount".to_string())),
+                    connector_client_id: client_id,
+                    connector_currency_account_id: Some(Secret::new(
+                        "ca_testcurrencyaccount".to_string(),
+                    )),
                     base_url: None,
                 },
                 request: PayoutTransferRequest {
@@ -465,7 +550,7 @@ mod tests {
         }
 
         #[test]
-        fn missing_currency_account_id_fails() {
+        fn missing_connector_currency_account_id_fails() {
             let mut req = router_data(
                 CONNECTOR_REFERENCE.to_string(),
                 Some(apple_pay_token()),
@@ -476,8 +561,8 @@ mod tests {
                 api_key: Secret::new("pk_test_publickey".to_string()),
                 api_secret: Secret::new("sk_test_secret".to_string()),
                 processing_channel_id: Secret::new("pc_test_channel".to_string()),
-                client_id: None,
-                currency_account_id: None,
+                connector_client_id: None,
+                connector_currency_account_id: None,
                 base_url: None,
             };
             let connector = CheckoutPayouts::<DefaultPCIHolder>::new();
