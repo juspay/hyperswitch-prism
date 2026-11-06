@@ -358,8 +358,9 @@ if status == "PASS":
       success predicate (`utils::is_payment_failure`)
 - [ ] Amount unit type matches the vendor's documented wire format (one of the
       five in `common_utils::types`), not a default guess
-- [ ] Capture flow uses `amount_to_capture` / `minor_amount_to_capture` — there is
-      no `payment_amount` field and `amount_to_capture` is not an `Option`
+- [ ] Capture flow uses `amount_to_capture: Money` (minor units via `.amount`) —
+      there is no `payment_amount` field, no `minor_amount_to_capture`, and
+      `amount_to_capture` is not an `Option`
 - [ ] Webhook methods return `WebhookError` and use the real argument counts
       (`get_event_type`: 1 arg; `process_payment_webhook`: 4 args); no
       `transformation_status` / `WebhookTransformationStatus`

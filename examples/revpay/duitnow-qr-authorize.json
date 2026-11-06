@@ -1,0 +1,18 @@
+{
+  "merchant_transaction_id": "revpay-duitnow-qr-REPLACE-WITH-UNIQUE-REFERENCE",
+  "test_mode": true,
+  "amount": {
+    "minor_amount": 1234,
+    "currency": "MYR"
+  },
+  "payment_method": {
+    "payment_method": {
+      "duit_now": {}
+    }
+  },
+  "address": {},
+  "auth_type": "NO_THREE_DS",
+  "return_url": "https://merchant.example/return",
+  "webhook_url": "https://merchant.example/webhook",
+  "order_details": []
+}

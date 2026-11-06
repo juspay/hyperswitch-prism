@@ -521,6 +521,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<&WalletData> for PaymentDetails<T> {
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::AliPayPlusRedirect {}
+            | WalletData::BoostRedirect {}
             | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_)
@@ -623,6 +625,8 @@ fn get_decrypted_wallet_card(
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
         | WalletData::PaymayaRedirect(_)
+        | WalletData::AliPayPlusRedirect {}
+        | WalletData::BoostRedirect {}
         | WalletData::PayhereRedirect {}
         | WalletData::QwikcilverWalletDirect(_)
         | WalletData::Skrill(_)

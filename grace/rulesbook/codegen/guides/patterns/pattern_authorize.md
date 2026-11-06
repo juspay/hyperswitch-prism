@@ -706,7 +706,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> CustomResult<Option<RequestContent>, errors::IntegrationError> {
         let converted_amount = self
             .amount_converter
-            .convert(req.request.minor_amount, req.request.currency)
+            .convert(req.request.amount.amount, req.request.currency)
             .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?;
         
         let connector_router_data = {ConnectorName}RouterData::try_from((converted_amount, req))?;

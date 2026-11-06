@@ -479,6 +479,7 @@ pub struct Connectors {
     pub betterpayment: ConnectorParams,
     pub reddot: ConnectorParams,
     pub ecommpay: ConnectorParams,
+    pub revpay: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -893,6 +894,9 @@ impl Connectors {
             ConnectorEnum::Ecommpay => {
                 patched.ecommpay.apply(params_patch);
             }
+            ConnectorEnum::Revpay => {
+                patched.revpay.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -900,7 +904,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, ppro, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, ecommpay, betterpayment",
+                             Supported connectors: stripe, ppro, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, ecommpay, betterpayment, revpay",
                             connector
                         )),
                         ..Default::default()
@@ -1186,6 +1190,7 @@ impl ForeignTryFrom<grpc_api_types::payments::CardNetwork> for CardNetwork {
             grpc_api_types::payments::CardNetwork::EftposAustralia => Ok(Self::EftposAustralia),
             grpc_api_types::payments::CardNetwork::GeCapital => Ok(Self::GeCapital),
             grpc_api_types::payments::CardNetwork::Uatp => Ok(Self::Uatp),
+            grpc_api_types::payments::CardNetwork::Mydebit => Ok(Self::MyDebit),
             grpc_api_types::payments::CardNetwork::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "card_network",
@@ -1967,6 +1972,12 @@ impl<
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::PayhereRedirect {}))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::BoostRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::BoostRedirect {}))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::AliPayPlusRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::AliPayPlusRedirect {}))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CashappQr(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::CashappQr(
@@ -3099,6 +3110,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::Payhere)
             }
             grpc_api_types::payments::PaymentMethodType::Cashapp => Ok(PaymentMethodType::Cashapp),
+            grpc_api_types::payments::PaymentMethodType::BoostWallet => {
+                Ok(PaymentMethodType::Boost)
+            }
+            grpc_api_types::payments::PaymentMethodType::AliPayPlus => {
+                Ok(PaymentMethodType::AliPayPlus)
+            }
             grpc_api_types::payments::PaymentMethodType::SepaBankTransfer => {
                 Ok(PaymentMethodType::SepaBankTransfer)
             }
@@ -3477,6 +3494,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::PayseraRedirect(_) => Ok(Some(PaymentMethodType::Paysera)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_) => Ok(Some(PaymentMethodType::Paymaya)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_) => Ok(Some(PaymentMethodType::Payhere)),
+                grpc_api_types::payments::payment_method::PaymentMethod::BoostRedirect(_) => Ok(Some(PaymentMethodType::Boost)),
+                grpc_api_types::payments::payment_method::PaymentMethod::AliPayPlusRedirect(_) => Ok(Some(PaymentMethodType::AliPayPlus)),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_) => Ok(Some(PaymentMethodType::RevolutPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SatispayRedirect(_) => Ok(Some(PaymentMethodType::Satispay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_) => Ok(Some(PaymentMethodType::Wero)),
@@ -8112,6 +8131,7 @@ impl ForeignFrom<CardNetwork> for grpc_payment_types::CardNetwork {
             CardNetwork::EftposAustralia => Self::EftposAustralia,
             CardNetwork::GeCapital => Self::GeCapital,
             CardNetwork::Uatp => Self::Uatp,
+            CardNetwork::MyDebit => Self::Mydebit,
         }
     }
 }
@@ -8703,6 +8723,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::BoostRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::AliPayPlusRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -10579,6 +10607,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::PayHere
             | grpc_api_types::payments::PaymentMethodType::PayhereWallet => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::BoostWallet => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::AliPayPlus => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
             grpc_api_types::payments::PaymentMethodType::UpiIntent => Ok(Self::Upi),
@@ -15765,6 +15795,8 @@ pub enum PaymentMethodDataType {
     EaseBuzzRedirect,
     PaymayaRedirect,
     PayhereRedirect,
+    BoostRedirect,
+    AliPayPlusRedirect,
     SepaGuaranteedBankDebit,
     IndonesianBankTransfer,
     Netbanking,

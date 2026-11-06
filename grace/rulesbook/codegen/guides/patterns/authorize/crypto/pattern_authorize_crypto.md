@@ -225,7 +225,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
                 // Convert amount to StringMajorUnit
                 let amount = CryptoAmountConvertor::convert(
-                    item.router_data.request.minor_amount,
+                    item.router_data.request.amount.amount,
                     item.router_data.request.currency,
                 )?;
 

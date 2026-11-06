@@ -181,6 +181,7 @@ pub enum ConnectorEnum {
     Payhere,
     Betterpayment,
     Ecommpay,
+    Revpay,
 }
 
 // snake case for enum variants
@@ -585,6 +586,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Payhere => Ok(Self::Payhere),
             grpc_api_types::payments::Connector::Betterpayment => Ok(Self::Betterpayment),
             grpc_api_types::payments::Connector::Ecommpay => Ok(Self::Ecommpay),
+            grpc_api_types::payments::Connector::Revpay => Ok(Self::Revpay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -4564,6 +4566,8 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
                 payment_method_data::WalletData::PaymayaRedirect(_) => Self::PaymayaRedirect,
                 payment_method_data::WalletData::PayhereRedirect {} => Self::PayhereRedirect,
+                payment_method_data::WalletData::BoostRedirect {} => Self::BoostRedirect,
+                payment_method_data::WalletData::AliPayPlusRedirect {} => Self::AliPayPlusRedirect,
                 payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
                     Self::QwikcilverWalletDirect
                 }
@@ -6612,6 +6616,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
             AuthType::Betterpayment(_) => Ok(Self::Payment(ConnectorEnum::Betterpayment)),
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
+            AuthType::Revpay(_) => Ok(Self::Payment(ConnectorEnum::Revpay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::GlobalpaymentsRealex(_) => {
