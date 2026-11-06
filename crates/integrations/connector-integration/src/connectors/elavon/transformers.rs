@@ -1,17 +1,21 @@
 use std::collections::HashMap;
 
-use common_enums::{AttemptStatus, CaptureMethod, Currency, FutureUsage};
+use common_enums::{AttemptStatus, AuthorizationStatus, CaptureMethod, Currency, FutureUsage};
 use common_utils::{consts::NO_ERROR_CODE, types::StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment},
+    connector_flow::{
+        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment,
+        SetupMandate, Void, VoidPC,
+    },
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId as DomainResponseId,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId as DomainResponseId, SetupMandateRequestData,
     },
     payment_address::PaymentAddress,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
@@ -71,6 +75,9 @@ pub enum TransactionType {
     CcAuthOnly,
     CcComplete,
     CcReturn,
+    CcDelete,
+    CcVoid,
+    CcGetToken,
     TxnQuery,
 }
 
@@ -84,6 +91,9 @@ impl Serialize for TransactionType {
             Self::CcAuthOnly => "ccauthonly",
             Self::CcComplete => "cccomplete",
             Self::CcReturn => "ccreturn",
+            Self::CcDelete => "ccdelete",
+            Self::CcVoid => "ccvoid",
+            Self::CcGetToken => "ccgettoken",
             Self::TxnQuery => "txnquery",
         };
         serializer.serialize_str(value)
@@ -213,6 +223,42 @@ fn get_avs_details_from_payment_address(
         .unwrap_or((None, None))
 }
 
+/// `ssl_exp_date` in Converge's MMYY format.
+fn get_card_exp_date<T: PaymentMethodDataTypes>(card: &Card<T>) -> Secret<String> {
+    let exp_month = card.card_exp_month.peek().to_string();
+    let formatted_exp_month = format!("{exp_month:0>2}");
+
+    let exp_year = card.card_exp_year.peek().to_string();
+    let formatted_exp_year = if exp_year.len() == 4 {
+        &exp_year[2..]
+    } else {
+        &exp_year
+    };
+    Secret::new(format!("{formatted_exp_month}{formatted_exp_year}"))
+}
+
+/// Billing first/last name, falling back to a split of the card holder name.
+fn get_first_and_last_name<T: PaymentMethodDataTypes>(
+    common: &PaymentFlowData,
+    card: &Card<T>,
+) -> (Option<Secret<String>>, Option<Secret<String>>) {
+    let holder_name = card
+        .card_holder_name
+        .as_ref()
+        .map(|name| name.peek().trim());
+    let first_name = common.get_optional_billing_first_name().or_else(|| {
+        holder_name
+            .and_then(|name| name.split_whitespace().next())
+            .map(|first| Secret::new(first.to_string()))
+    });
+    let last_name = common.get_optional_billing_last_name().or_else(|| {
+        holder_name
+            .and_then(|name| name.split_once(char::is_whitespace))
+            .map(|(_, last)| Secret::new(last.trim().to_string()))
+    });
+    (first_name, last_name)
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         ElavonRouterData<
@@ -265,17 +311,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 };
 
-                let exp_month = card.card_exp_month.peek().to_string();
-                let formatted_exp_month = format!("{exp_month:0>2}");
-
-                let exp_year = card.card_exp_year.peek().to_string();
-                let formatted_exp_year = if exp_year.len() == 4 {
-                    &exp_year[2..]
-                } else {
-                    &exp_year
-                };
-                let exp_date = format!("{formatted_exp_month}{formatted_exp_year}");
-
                 let (avs_address, avs_zip) = get_avs_details_from_payment_address(Some(
                     &router_data.resource_common_data.address,
                 ));
@@ -302,20 +337,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .then_some(CofIndicator::ConsumerAdHoc);
 
                 let common = &router_data.resource_common_data;
-                let holder_name = card
-                    .card_holder_name
-                    .as_ref()
-                    .map(|name| name.peek().trim());
-                let first_name = common.get_optional_billing_first_name().or_else(|| {
-                    holder_name
-                        .and_then(|name| name.split_whitespace().next())
-                        .map(|first| Secret::new(first.to_string()))
-                });
-                let last_name = common.get_optional_billing_last_name().or_else(|| {
-                    holder_name
-                        .and_then(|name| name.split_once(char::is_whitespace))
-                        .map(|(_, last)| Secret::new(last.trim().to_string()))
-                });
+                let (first_name, last_name) = get_first_and_last_name(common, card);
 
                 let amount = item
                     .connector
@@ -340,7 +362,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ssl_vendor_id: auth_type.ssl_vendor_id.clone(),
                     ssl_amount: amount,
                     ssl_card_number: card.card_number.clone(),
-                    ssl_exp_date: Secret::new(exp_date),
+                    ssl_exp_date: get_card_exp_date(card),
                     ssl_cvv2cvc2: Some(card.card_cvc.clone()),
                     ssl_cvv2cvc2_indicator: Some(1),
                     ssl_first_name: first_name,
@@ -386,6 +408,12 @@ pub struct XMLPSyncRequest(pub HashMap<String, Secret<String, WithoutType>>);
 // Define dedicated types for Capture, Refund, and RSync XML requests
 #[derive(Debug, Serialize)]
 pub struct XMLCaptureRequest(pub HashMap<String, Secret<String, WithoutType>>);
+
+#[derive(Debug, Serialize)]
+pub struct XMLVoidRequest(pub HashMap<String, Secret<String, WithoutType>>);
+
+#[derive(Debug, Serialize)]
+pub struct XMLVoidPCRequest(pub HashMap<String, Secret<String, WithoutType>>);
 
 #[derive(Debug, Serialize)]
 pub struct XMLRefundRequest(pub HashMap<String, Secret<String, WithoutType>>);
@@ -603,6 +631,11 @@ pub struct ElavonCaptureResponse {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct ElavonVoidResponse {
+    pub result: ElavonResult,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ElavonRefundResponse {
     pub result: ElavonResult,
 }
@@ -616,6 +649,25 @@ impl<'de> Deserialize<'de> for ElavonPaymentsResponse {
 }
 
 impl<'de> Deserialize<'de> for ElavonCaptureResponse {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        xml_response_into_elavon_result(ElavonXmlResponse::deserialize(deserializer)?)
+            .map(|result| Self { result })
+    }
+}
+
+impl<'de> Deserialize<'de> for ElavonVoidResponse {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        xml_response_into_elavon_result(ElavonXmlResponse::deserialize(deserializer)?)
+            .map(|result| Self { result })
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ElavonVoidPCResponse {
+    pub result: ElavonResult,
+}
+
+impl<'de> Deserialize<'de> for ElavonVoidPCResponse {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         xml_response_into_elavon_result(ElavonXmlResponse::deserialize(deserializer)?)
             .map(|result| Self { result })
@@ -723,7 +775,10 @@ impl<
                     network_txn_id: None,
                     network_txn_link_id: None,
                     connector_response_reference_id: payment_resp_struct.ssl_approval_code.clone(),
-                    incremental_authorization_allowed: None,
+                    // A ccauthonly can be extended by a later ccauthonly on its ssl_txn_id.
+                    incremental_authorization_allowed: (attempt_status
+                        == AttemptStatus::Authorized)
+                        .then_some(true),
                     mandate_reference,
                     status_code: http_code,
                     splits: None,
@@ -1020,6 +1075,286 @@ impl<F> TryFrom<ResponseRouterData<ElavonCaptureResponse, Self>>
             response: response_data,
             resource_common_data: PaymentFlowData {
                 status: final_status,
+                ..router_data.resource_common_data
+            },
+            ..router_data
+        })
+    }
+}
+
+// Void uses ccdelete: ccvoid rejects an auth-only transaction (error 5040)
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct ElavonVoidRequest {
+    pub ssl_transaction_type: TransactionType,
+    pub ssl_account_id: Secret<String>,
+    pub ssl_user_id: Secret<String>,
+    pub ssl_pin: Secret<String>,
+    pub ssl_vendor_id: Option<Secret<String>>,
+    pub ssl_txn_id: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    > for ElavonVoidRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: ElavonRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth_type = ElavonAuthType::try_from(&router_data.connector_config)?;
+
+        Ok(Self {
+            ssl_transaction_type: TransactionType::CcDelete,
+            ssl_account_id: auth_type.ssl_merchant_id,
+            ssl_user_id: auth_type.ssl_user_id,
+            ssl_pin: auth_type.ssl_pin,
+            ssl_vendor_id: auth_type.ssl_vendor_id,
+            ssl_txn_id: router_data.request.connector_transaction_id.clone(),
+        })
+    }
+}
+
+// Implementation for XMLVoidRequest
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    > for XMLVoidRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        data: ElavonRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = ElavonVoidRequest::try_from(data)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to build ElavonVoidRequest (ccdelete) for Elavon Void flow"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })
+            .attach_printable("Failed to create ElavonVoidRequest")?;
+        to_xmldata(&request, "Void (ccdelete)").map(Self)
+    }
+}
+
+// Response handling for Void flow. get_elavon_attempt_status is not used here:
+// it maps an approved response of unknown type to Charged.
+impl<F> TryFrom<ResponseRouterData<ElavonVoidResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(value: ResponseRouterData<ElavonVoidResponse, Self>) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        let (status, response_data) = match response.result {
+            ElavonResult::Success(payment_response) => (
+                AttemptStatus::Voided,
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: DomainResponseId::ConnectorTransactionId(
+                        payment_response.ssl_txn_id,
+                    ),
+                    redirection_data: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: payment_response.ssl_approval_code,
+                    incremental_authorization_allowed: None,
+                    mandate_reference: None,
+                    status_code: http_code,
+                    splits: None,
+                    payment_account_reference: None,
+                }),
+            ),
+            ElavonResult::Error(error_payload) => (
+                AttemptStatus::VoidFailed,
+                Err(ErrorResponse {
+                    status_code: http_code,
+                    code: error_payload
+                        .error_code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: error_payload.error_message,
+                    reason: error_payload.error_name,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
+                    connector_transaction_id: error_payload.ssl_txn_id,
+                    ..Default::default()
+                }),
+            ),
+        };
+
+        Ok(Self {
+            response: response_data,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            ..router_data
+        })
+    }
+}
+
+// VoidPC uses ccvoid: removes a captured sale from the open batch before settlement
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct ElavonVoidPCRequest {
+    pub ssl_transaction_type: TransactionType,
+    pub ssl_account_id: Secret<String>,
+    pub ssl_user_id: Secret<String>,
+    pub ssl_pin: Secret<String>,
+    pub ssl_vendor_id: Option<Secret<String>>,
+    pub ssl_txn_id: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for ElavonVoidPCRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: ElavonRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth_type = ElavonAuthType::try_from(&router_data.connector_config)?;
+
+        Ok(Self {
+            ssl_transaction_type: TransactionType::CcVoid,
+            ssl_account_id: auth_type.ssl_merchant_id,
+            ssl_user_id: auth_type.ssl_user_id,
+            ssl_pin: auth_type.ssl_pin,
+            ssl_vendor_id: auth_type.ssl_vendor_id,
+            ssl_txn_id: router_data.request.connector_transaction_id.clone(),
+        })
+    }
+}
+
+// Implementation for XMLVoidPCRequest
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for XMLVoidPCRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        data: ElavonRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = ElavonVoidPCRequest::try_from(data)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to build ElavonVoidPCRequest (ccvoid) for Elavon VoidPC flow"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })
+            .attach_printable("Failed to create ElavonVoidPCRequest")?;
+        to_xmldata(&request, "VoidPC (ccvoid)").map(Self)
+    }
+}
+
+// Response handling for VoidPC flow. On approval ssl_txn_id is a new id for the
+// void record. A declined ccvoid (e.g. 5040 after settlement) leaves the payment as it was.
+impl<F> TryFrom<ResponseRouterData<ElavonVoidPCResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<ElavonVoidPCResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        let (status, response_data) = match response.result {
+            ElavonResult::Success(payment_response) => (
+                AttemptStatus::VoidedPostCapture,
+                Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                    post_capture_void_status: common_enums::PostCaptureVoidStatus::Succeeded,
+                    connector_reference_id: Some(payment_response.ssl_txn_id),
+                    status_code: http_code,
+                }),
+            ),
+            ElavonResult::Error(error_payload) => (
+                router_data.resource_common_data.status,
+                Err(ErrorResponse {
+                    status_code: http_code,
+                    code: error_payload
+                        .error_code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: error_payload.error_message,
+                    reason: error_payload.error_name,
+                    attempt_status: None,
+                    connector_transaction_id: error_payload.ssl_txn_id,
+                    ..Default::default()
+                }),
+            ),
+        };
+
+        Ok(Self {
+            response: response_data,
+            resource_common_data: PaymentFlowData {
+                status,
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -1688,5 +2023,482 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             ..router_data
         })
+    }
+}
+
+// SetupMandate uses ccgettoken with ssl_verify=Y: a $0 account verification that stores
+// the card in Card Manager and returns its token. It never charges the card.
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct ElavonSetupMandateRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    pub ssl_transaction_type: TransactionType,
+    pub ssl_account_id: Secret<String>,
+    pub ssl_user_id: Secret<String>,
+    pub ssl_pin: Secret<String>,
+    pub ssl_vendor_id: Option<Secret<String>>,
+    pub ssl_card_number: RawCardNumber<T>,
+    pub ssl_exp_date: Secret<String>,
+    pub ssl_cvv2cvc2: Secret<String>,
+    pub ssl_cvv2cvc2_indicator: i32,
+    pub ssl_avs_address: Option<Secret<String>>,
+    pub ssl_avs_zip: Option<Secret<String>>,
+    pub ssl_first_name: Option<Secret<String>>,
+    pub ssl_last_name: Option<Secret<String>>,
+    pub ssl_verify: &'static str,
+    pub ssl_add_token: &'static str,
+    pub ssl_customer_code: Option<String>,
+    pub ssl_invoice_number: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for ElavonSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: ElavonRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let request_data = &router_data.request;
+
+        // ccgettoken takes no amount, so a non-zero setup would report a charge that never happened.
+        if request_data
+            .money
+            .as_ref()
+            .is_some_and(|money| money.amount() > common_utils::types::MinorUnit::zero())
+        {
+            return Err(report!(IntegrationError::FlowNotSupported {
+                flow: "SetupMandate with a non-zero amount".to_string(),
+                connector: "Elavon".to_string(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Elavon SetupMandate (ccgettoken) is a $0 card verification and \
+                         cannot charge an amount"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }));
+        }
+
+        let card = match &request_data.payment_method_data {
+            PaymentMethodData::Card(card) => card,
+            _ => {
+                return Err(report!(IntegrationError::NotImplemented(
+                    "Only card payments are supported for Elavon SetupMandate".to_string(),
+                    Default::default()
+                )))
+            }
+        };
+
+        let auth_type = ElavonAuthType::try_from(&router_data.connector_config)?;
+        let common = &router_data.resource_common_data;
+        let (avs_address, avs_zip) = get_avs_details_from_payment_address(Some(&common.address));
+        let (first_name, last_name) = get_first_and_last_name(common, card);
+
+        Ok(Self {
+            ssl_transaction_type: TransactionType::CcGetToken,
+            ssl_account_id: auth_type.ssl_merchant_id,
+            ssl_user_id: auth_type.ssl_user_id,
+            ssl_pin: auth_type.ssl_pin,
+            ssl_vendor_id: auth_type.ssl_vendor_id,
+            ssl_card_number: card.card_number.clone(),
+            ssl_exp_date: get_card_exp_date(card),
+            ssl_cvv2cvc2: card.card_cvc.clone(),
+            ssl_cvv2cvc2_indicator: 1,
+            ssl_avs_address: avs_address,
+            ssl_avs_zip: avs_zip,
+            ssl_first_name: first_name,
+            ssl_last_name: last_name,
+            ssl_verify: "Y",
+            ssl_add_token: "Y",
+            ssl_customer_code: request_data
+                .customer_id
+                .as_ref()
+                .map(|c| fit_to_length(c.get_string_repr(), CUSTOMER_CODE_MAX_LENGTH)),
+            ssl_invoice_number: fit_to_length(
+                &common.connector_request_reference_id,
+                INVOICE_NUMBER_MAX_LENGTH,
+            ),
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct XMLSetupMandateRequest(pub HashMap<String, Secret<String, WithoutType>>);
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for XMLSetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        data: ElavonRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = ElavonSetupMandateRequest::try_from(data)
+            .attach_printable("Failed to create ElavonSetupMandateRequest")?;
+        to_xmldata(&request, "SetupMandate (ccgettoken)").map(Self)
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ElavonSetupMandateResponse {
+    pub result: ElavonResult,
+}
+
+impl<'de> Deserialize<'de> for ElavonSetupMandateResponse {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        xml_response_into_elavon_result(ElavonXmlResponse::deserialize(deserializer)?)
+            .map(|result| Self { result })
+    }
+}
+
+// Response handling for SetupMandate flow. A declined verification arrives as ssl_result=1
+// ("Acct Verification Failed"), which xml_response_into_elavon_result turns into Error.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<ElavonSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<ElavonSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        let (status, response_data) = match response.result {
+            ElavonResult::Success(payment_response) => {
+                let token = if payment_response.ssl_token_response.as_deref() == Some("SUCCESS") {
+                    payment_response
+                        .ssl_token
+                        .as_ref()
+                        .map(|t| t.peek().to_string())
+                } else {
+                    None
+                };
+                match token {
+                    Some(token) => (
+                        AttemptStatus::Charged,
+                        Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: DomainResponseId::ConnectorTransactionId(
+                                payment_response.ssl_txn_id,
+                            ),
+                            redirection_data: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            network_txn_link_id: None,
+                            connector_response_reference_id: payment_response.ssl_approval_code,
+                            incremental_authorization_allowed: None,
+                            mandate_reference: Some(Box::new(MandateReference {
+                                connector_mandate_id: Some(token),
+                                payment_method_id: None,
+                                connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
+                            })),
+                            status_code: http_code,
+                            splits: None,
+                            payment_account_reference: None,
+                        }),
+                    ),
+                    // Never report a saved card without its token.
+                    None => (
+                        AttemptStatus::Failure,
+                        Err(ErrorResponse {
+                            status_code: http_code,
+                            code: NO_ERROR_CODE.to_string(),
+                            message: format!(
+                                "Converge approved the card verification but returned no card \
+                                 token (ssl_token_response: {})",
+                                payment_response
+                                    .ssl_token_response
+                                    .as_deref()
+                                    .unwrap_or("absent")
+                            ),
+                            reason: None,
+                            attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                            connector_transaction_id: Some(payment_response.ssl_txn_id),
+                            ..Default::default()
+                        }),
+                    ),
+                }
+            }
+            ElavonResult::Error(error_payload) => (
+                AttemptStatus::Failure,
+                Err(ErrorResponse {
+                    status_code: http_code,
+                    code: error_payload
+                        .error_code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: error_payload.error_message,
+                    reason: error_payload.error_name,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    connector_transaction_id: error_payload.ssl_txn_id,
+                    ..Default::default()
+                }),
+            ),
+        };
+
+        Ok(Self {
+            response: response_data,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            ..router_data
+        })
+    }
+}
+
+// IncrementalAuthorization reuses ccauthonly with the original auth's ssl_txn_id; ssl_amount
+// is the increase (delta), not the new total. Capture and void keep using the original ID.
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct ElavonIncrementalAuthorizationRequest {
+    pub ssl_transaction_type: TransactionType,
+    pub ssl_account_id: Secret<String>,
+    pub ssl_user_id: Secret<String>,
+    pub ssl_pin: Secret<String>,
+    pub ssl_vendor_id: Option<Secret<String>>,
+    pub ssl_txn_id: String,
+    pub ssl_amount: StringMajorUnit,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for ElavonIncrementalAuthorizationRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: ElavonRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth_type = ElavonAuthType::try_from(&router_data.connector_config)?;
+
+        let original_connector_txn_id = match &router_data.request.connector_transaction_id {
+            DomainResponseId::ConnectorTransactionId(id) => id.clone(),
+            _ => {
+                return Err(report!(IntegrationError::MissingConnectorTransactionID {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Elavon IncrementalAuthorization (ccauthonly) requires the ssl_txn_id \
+                             of the original auth-only transaction as connector_transaction_id"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }))
+            }
+        };
+
+        // `amount` is the new total; Converge wants only the increase.
+        let additional_amount = router_data
+            .request
+            .additional_money
+            .clone()
+            .ok_or_else(|| {
+                report!(IntegrationError::MissingRequiredField {
+                    field_name: "additional_amount",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Elavon IncrementalAuthorization (ccauthonly) sends the increase as \
+                         ssl_amount, not the new total"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+            })?;
+
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(&additional_amount)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Failed to convert additional amount {} {} to major unit for \
+                         Elavon IncrementalAuthorization (ccauthonly) request",
+                        additional_amount.amount(),
+                        additional_amount.currency()
+                    )),
+                    ..Default::default()
+                },
+            })?;
+
+        Ok(Self {
+            ssl_transaction_type: TransactionType::CcAuthOnly,
+            ssl_account_id: auth_type.ssl_merchant_id,
+            ssl_user_id: auth_type.ssl_user_id,
+            ssl_pin: auth_type.ssl_pin,
+            ssl_vendor_id: auth_type.ssl_vendor_id,
+            ssl_txn_id: original_connector_txn_id,
+            ssl_amount: amount,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct XMLIncrementalAuthorizationRequest(pub HashMap<String, Secret<String, WithoutType>>);
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for XMLIncrementalAuthorizationRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        data: ElavonRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = ElavonIncrementalAuthorizationRequest::try_from(data)
+            .attach_printable("Failed to create ElavonIncrementalAuthorizationRequest")?;
+        to_xmldata(&request, "IncrementalAuthorization (ccauthonly)").map(Self)
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ElavonIncrementalAuthorizationResponse {
+    pub result: ElavonResult,
+}
+
+impl<'de> Deserialize<'de> for ElavonIncrementalAuthorizationResponse {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        xml_response_into_elavon_result(ElavonXmlResponse::deserialize(deserializer)?)
+            .map(|result| Self { result })
+    }
+}
+
+// Response handling for IncrementalAuthorization flow. A refused increment leaves the
+// original authorization intact, so the error carries no attempt_status and the payment
+// status is left untouched.
+impl TryFrom<ResponseRouterData<ElavonIncrementalAuthorizationResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<ElavonIncrementalAuthorizationResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        match response.result {
+            // ssl_txn_id here is a new ID for the increment; txnquery cannot read it.
+            ElavonResult::Success(payment_response) => Ok(Self {
+                response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                    status: AuthorizationStatus::Success,
+                    connector_authorization_id: Some(payment_response.ssl_txn_id),
+                    status_code: http_code,
+                }),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Authorized,
+                    ..router_data.resource_common_data
+                },
+                ..router_data
+            }),
+            ElavonResult::Error(error_payload) => Ok(Self {
+                response: Err(ErrorResponse {
+                    status_code: http_code,
+                    code: error_payload
+                        .error_code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: error_payload.error_message,
+                    reason: error_payload.error_name,
+                    attempt_status: None,
+                    connector_transaction_id: error_payload.ssl_txn_id,
+                    ..Default::default()
+                }),
+                ..router_data
+            }),
+        }
     }
 }
