@@ -766,10 +766,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: domain_types::connector_types::RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
-        interfaces::webhook_common::WebhookCommon::get_event_type(
-            &crate::webhook_connectors::TruelayerWebhook::new(),
-            request,
-        )
+        let webhook_body: truelayer::TruelayerWebhookEventTypeBody = request
+            .body
+            .parse_struct("TruelayerPayoutsWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+        Ok(truelayer::get_webhook_event(webhook_body._type))
     }
 
     fn get_webhook_event_reference(
@@ -779,8 +781,74 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Option<domain_types::connector_types::WebhookResourceReference>,
         error_stack::Report<WebhookError>,
     > {
-        crate::webhook_connectors::truelayer::transformers::parse_event(&request)
-            .map(|parsed| parsed.reference)
+        let event_type_body: truelayer::TruelayerWebhookEventTypeBody = request
+            .body
+            .parse_struct("TruelayerWebhookEventTypeBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+        // Payout webhooks carry `payout_id` and no `payment_id`, so each arm
+        // deserializes the body shape that matches its event family.
+        match event_type_body._type {
+            truelayer::TruelayerWebhookEventType::PayoutExecuted
+            | truelayer::TruelayerWebhookEventType::PayoutFailed => {
+                let payout_body: truelayer::TruelayerPayoutWebhookBody = request
+                    .body
+                    .parse_struct("TruelayerPayoutWebhookBody")
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+                Ok(Some(
+                    domain_types::connector_types::WebhookResourceReference::Payout(
+                        domain_types::connector_types::PayoutWebhookReference {
+                            connector_payout_id: Some(payout_body.payout_id),
+                            merchant_payout_id: None,
+                        },
+                    ),
+                ))
+            }
+            truelayer::TruelayerWebhookEventType::PaymentAuthorized
+            | truelayer::TruelayerWebhookEventType::PaymentExecuted
+            | truelayer::TruelayerWebhookEventType::PaymentReversed
+            | truelayer::TruelayerWebhookEventType::PaymentFailed
+            | truelayer::TruelayerWebhookEventType::PaymentSettlementStalled
+            | truelayer::TruelayerWebhookEventType::PaymentSettled
+            | truelayer::TruelayerWebhookEventType::PaymentCreditable
+            | truelayer::TruelayerWebhookEventType::PaymentFundsReceived => {
+                let webhook_body: truelayer::TruelayerWebhookBody = request
+                    .body
+                    .parse_struct("TruelayerWebhookBody")
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+                Ok(Some(
+                    domain_types::connector_types::WebhookResourceReference::Payment(
+                        domain_types::connector_types::PaymentWebhookReference {
+                            connector_transaction_id: Some(webhook_body.payment_id),
+                            merchant_transaction_id: None,
+                            connector_preprocessing_id: None,
+                        },
+                    ),
+                ))
+            }
+            truelayer::TruelayerWebhookEventType::RefundExecuted
+            | truelayer::TruelayerWebhookEventType::RefundFailed => {
+                let webhook_body: truelayer::TruelayerWebhookBody = request
+                    .body
+                    .parse_struct("TruelayerWebhookBody")
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+                Ok(Some(
+                    domain_types::connector_types::WebhookResourceReference::Refund(
+                        domain_types::connector_types::RefundWebhookReference {
+                            connector_refund_id: webhook_body.refund_id,
+                            merchant_refund_id: None,
+                            connector_transaction_id: Some(webhook_body.payment_id),
+                            merchant_transaction_id: None,
+                        },
+                    ),
+                ))
+            }
+            truelayer::TruelayerWebhookEventType::PaymentDisputed
+            | truelayer::TruelayerWebhookEventType::Unknown => Ok(None),
+        }
     }
 
     fn process_payment_webhook(
@@ -894,8 +962,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::PayoutWebhookDetailsResponse,
         error_stack::Report<WebhookError>,
     > {
-        <crate::payout_connectors::TruelayerPayouts as connector_types::PayoutServiceTrait<T>>::process_payout_webhook(
-            crate::payout_connectors::TruelayerPayouts::new(), request, _connector_webhook_secret, _connector_account_details,
+        let details: truelayer::TruelayerPayoutWebhookBody = request
+            .body
+            .parse_struct("TruelayerPayoutWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+        let status = truelayer::get_truelayer_payout_webhook_status(details._type)?;
+
+        let (error_code, error_message) = if status == common_enums::PayoutStatus::Failure {
+            (
+                details.failure_reason.clone(),
+                details.failure_reason.clone(),
+            )
+        } else {
+            (None, None)
+        };
+
+        Ok(
+            domain_types::connector_types::PayoutWebhookDetailsResponse {
+                connector_payout_id: Some(details.payout_id),
+                merchant_payout_id: None,
+                status,
+                error_code,
+                error_message,
+                status_code: 200,
+            },
         )
     }
 

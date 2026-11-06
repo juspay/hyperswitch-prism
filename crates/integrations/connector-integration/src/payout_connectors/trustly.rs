@@ -10,12 +10,11 @@ use domain_types::{
         ServerAuthenticationToken,
     },
     connector_types::{
-        ConnectorWebhookSecrets, PayoutWebhookDetailsResponse, RequestDetails,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors::{
         ConnectorError, IntegrationError, IntegrationErrorContext,
-        ResponseTransformationErrorContext, WebhookError,
+        ResponseTransformationErrorContext,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -30,7 +29,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Maskable};
+use hyperswitch_masking::Maskable;
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -45,7 +44,6 @@ use super::super::connectors::macros;
 // Reuse the shared Trustly error-response type for parsing connector errors.
 use crate::connectors::trustly::transformers::TrustlyErrorResponse;
 use crate::types::ResponseRouterData;
-use crate::webhook_connectors::trustly::transformers::TrustlyWebhookBody;
 use transformers::{
     AccountPayoutRequest, AccountPayoutResponse, RegisterAccountRequest, RegisterAccountResponse,
     TrustlyPayoutSyncRequest, TrustlyPayoutSyncResponse,
@@ -199,29 +197,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutServiceTrait<T>
     for TrustlyPayouts<T>
 {
-    fn process_payout_webhook(
-        &self,
-        request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<PayoutWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let details: TrustlyWebhookBody = request
-            .body
-            .parse_struct("TrustlyWebhookBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        let message_id = details.params.data.messageid.clone().expose();
-        let status = transformers::get_trustly_payout_webhook_status(&details.method, &message_id)?;
-
-        Ok(PayoutWebhookDetailsResponse {
-            connector_payout_id: Some(details.params.data.orderid.clone()),
-            merchant_payout_id: None,
-            status,
-            error_code: details.params.data.errorcode.clone(),
-            error_message: details.params.data.errormessage.clone(),
-            status_code: 200,
-        })
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

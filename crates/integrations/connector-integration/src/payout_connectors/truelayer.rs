@@ -17,12 +17,11 @@ use domain_types::{
         ServerAuthenticationToken,
     },
     connector_types::{
-        ConnectorWebhookSecrets, PayoutWebhookDetailsResponse, RequestDetails,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors::{
         ConnectorError, IntegrationError, IntegrationErrorContext,
-        ResponseTransformationErrorContext, WebhookError,
+        ResponseTransformationErrorContext,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::payouts_types::{
@@ -50,7 +49,6 @@ use interfaces::{
     },
 };
 
-use crate::webhook_connectors::truelayer::transformers::TruelayerPayoutWebhookBody;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use transformers as truelayer;
 use transformers::{
@@ -225,37 +223,6 @@ impl ConnectorCommon for TruelayerPayouts {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde::Serialize>
     PayoutServiceTrait<T> for TruelayerPayouts
 {
-    fn process_payout_webhook(
-        &self,
-        request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<PayoutWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let details: TruelayerPayoutWebhookBody = request
-            .body
-            .parse_struct("TruelayerPayoutWebhookBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        let status = truelayer::get_truelayer_payout_webhook_status(details._type)?;
-
-        let (error_code, error_message) = if status == common_enums::PayoutStatus::Failure {
-            (
-                details.failure_reason.clone(),
-                details.failure_reason.clone(),
-            )
-        } else {
-            (None, None)
-        };
-
-        Ok(PayoutWebhookDetailsResponse {
-            connector_payout_id: Some(details.payout_id),
-            merchant_payout_id: None,
-            status,
-            error_code,
-            error_message,
-            status_code: 200,
-        })
-    }
 }
 impl ServerAuthentication for TruelayerPayouts {}
 

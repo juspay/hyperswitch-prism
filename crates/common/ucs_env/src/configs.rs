@@ -52,7 +52,7 @@ pub struct Config {
     pub api_tags: ApiTagConfig,
     #[serde(default)]
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
-    /// Opt-in rollout for standalone ParseEvent implementations.
+    /// Opt-in rollout for common ParseEvent and HandleEvent operations.
     #[serde(default)]
     pub webhook_parse: WebhookParseConfig,
     #[serde(default)]
@@ -356,8 +356,8 @@ where
     }
 }
 
-/// Existing connector headers use the legacy parser unless the provider is listed here.
-/// Set CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS="trustly,truelayer" to opt in.
+/// Existing connector headers use legacy webhook operations unless listed here.
+/// Only enable providers after registering their standalone implementation.
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct WebhookParseConfig {
     #[serde(default, deserialize_with = "deserialize_hashset")]

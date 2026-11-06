@@ -1,5 +1,3 @@
-use crate::webhook_connectors::truelayer::transformers::TruelayerWebhookEventType;
-use domain_types::errors::WebhookError;
 use domain_types::payment_method_data::PaymentMethodDataTypes;
 use std::collections::BTreeMap;
 
@@ -646,25 +644,4 @@ fn build_payload(
     }
 
     payload
-}
-
-pub fn get_truelayer_payout_webhook_status(
-    event: TruelayerWebhookEventType,
-) -> Result<PayoutStatus, WebhookError> {
-    match event {
-        TruelayerWebhookEventType::PayoutExecuted => Ok(PayoutStatus::Success),
-        TruelayerWebhookEventType::PayoutFailed => Ok(PayoutStatus::Failure),
-        TruelayerWebhookEventType::PaymentAuthorized
-        | TruelayerWebhookEventType::PaymentFailed
-        | TruelayerWebhookEventType::PaymentSettled
-        | TruelayerWebhookEventType::PaymentCreditable
-        | TruelayerWebhookEventType::PaymentDisputed
-        | TruelayerWebhookEventType::PaymentExecuted
-        | TruelayerWebhookEventType::PaymentFundsReceived
-        | TruelayerWebhookEventType::PaymentReversed
-        | TruelayerWebhookEventType::PaymentSettlementStalled
-        | TruelayerWebhookEventType::RefundExecuted
-        | TruelayerWebhookEventType::RefundFailed
-        | TruelayerWebhookEventType::Unknown => Err(WebhookError::WebhookBodyDecodingFailed),
-    }
 }

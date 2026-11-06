@@ -1,11 +1,3 @@
-pub use crate::payout_connectors::truelayer::transformers::get_truelayer_payout_webhook_status;
-pub use crate::webhook_connectors::truelayer::transformers::{
-    get_webhook_event, TruelayerAccountIdentifier, TruelayerAccountIdentifierType,
-    TruelayerPaymentMethod, TruelayerPaymentSource, TruelayerPayoutWebhookBody,
-    TruelayerProviderSelection, TruelayerWebhookBody, TruelayerWebhookEventType,
-    TruelayerWebhookEventTypeBody,
-};
-
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use common_enums::{self, AttemptStatus, CountryAlpha2, Currency};
 use common_utils::{consts, pii, request::Method, types::MinorUnit};
@@ -276,6 +268,16 @@ struct SchemeSelection {
 struct Remitter {
     account_identifier: TruelayerAccountIdentifier,
     account_holder_name: Option<Secret<String>>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerAccountIdentifier {
+    #[serde(rename = "type")]
+    identifier_type: TruelayerAccountIdentifierType,
+    sort_code: Option<Secret<String>>,
+    account_number: Option<Secret<String>>,
+    iban: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -642,6 +644,28 @@ pub struct TruelayerPSyncResponse {
     failure_stage: Option<String>,
     payment_source: Option<TruelayerPaymentSource>,
     payment_method: Option<TruelayerPaymentMethod>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerPaymentMethod {
+    provider_selection: Option<TruelayerProviderSelection>,
+    /// Webhook payloads flatten `provider_id` onto `payment_method`, while the
+    /// payments API nests it under `provider_selection`. Accept both shapes.
+    provider_id: Option<String>,
+}
+
+impl TruelayerPaymentMethod {
+    fn get_provider_id(&self) -> Option<String> {
+        self.provider_selection
+            .as_ref()
+            .and_then(|selection| selection.provider_id.clone())
+            .or_else(|| self.provider_id.clone())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerProviderSelection {
+    provider_id: Option<String>,
 }
 
 fn map_truelayer_provider_id_to_bank_name(
@@ -1764,6 +1788,81 @@ fn get_refund_status(item: TruelayerRefundStatus) -> common_enums::RefundStatus 
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TruelayerWebhookEventType {
+    PaymentAuthorized,
+    PaymentFailed,
+    PaymentSettled,
+    PaymentExecuted,
+    PaymentCreditable,
+    PaymentSettlementStalled,
+    RefundExecuted,
+    RefundFailed,
+    PaymentDisputed,
+    PaymentReversed,
+    PaymentFundsReceived,
+    PayoutExecuted,
+    PayoutFailed,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerWebhookEventTypeBody {
+    #[serde(rename = "type")]
+    pub _type: TruelayerWebhookEventType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerWebhookBody {
+    #[serde(rename = "type")]
+    pub _type: TruelayerWebhookEventType,
+    pub event_version: i32,
+    pub event_id: String,
+    pub payment_id: String,
+    pub refund_id: Option<String>,
+    pub failure_reason: Option<String>,
+    pub failure_stage: Option<String>,
+    pub user_id: Option<String>,
+    pub payment_source: Option<TruelayerPaymentSource>,
+    pub payment_method: Option<TruelayerPaymentMethod>,
+}
+
+/// Body of a Truelayer payout webhook.
+///
+/// Payout notifications share the envelope of payment and refund webhooks but
+/// carry `payout_id` in place of `payment_id`, so they need their own struct.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerPayoutWebhookBody {
+    #[serde(rename = "type")]
+    pub _type: TruelayerWebhookEventType,
+    pub event_version: i32,
+    pub event_id: String,
+    pub payout_id: String,
+    pub executed_at: Option<String>,
+    pub failed_at: Option<String>,
+    pub failure_reason: Option<String>,
+    pub scheme_id: Option<String>,
+}
+
+/// Discriminator for the type of account identifier provided in a payment source.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TruelayerAccountIdentifierType {
+    SortCodeAccountNumber,
+    Iban,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerPaymentSource {
+    pub id: Option<String>,
+    pub account_holder_name: Option<Secret<String>>,
+    pub account_identifiers: Option<Vec<TruelayerAccountIdentifier>>,
+}
+
 pub fn extract_returned_open_banking_details(
     payment_source: Option<&TruelayerPaymentSource>,
     payment_method: Option<&TruelayerPaymentMethod>,
@@ -1826,6 +1925,44 @@ pub fn extract_returned_open_banking_details(
     }
 }
 
+pub fn get_webhook_event(
+    event: TruelayerWebhookEventType,
+) -> domain_types::connector_types::EventType {
+    match event {
+        TruelayerWebhookEventType::PaymentExecuted
+        | TruelayerWebhookEventType::PaymentAuthorized
+        | TruelayerWebhookEventType::PaymentCreditable
+        | TruelayerWebhookEventType::PaymentFundsReceived
+        | TruelayerWebhookEventType::PaymentSettlementStalled => {
+            domain_types::connector_types::EventType::PaymentIntentProcessing
+        }
+        TruelayerWebhookEventType::PaymentSettled => {
+            domain_types::connector_types::EventType::PaymentIntentSuccess
+        }
+        TruelayerWebhookEventType::PaymentFailed => {
+            domain_types::connector_types::EventType::PaymentIntentFailure
+        }
+        TruelayerWebhookEventType::RefundExecuted => {
+            domain_types::connector_types::EventType::RefundSuccess
+        }
+        TruelayerWebhookEventType::RefundFailed => {
+            domain_types::connector_types::EventType::RefundFailure
+        }
+        TruelayerWebhookEventType::PaymentReversed => {
+            domain_types::connector_types::EventType::PaymentIntentCancelled
+        }
+        TruelayerWebhookEventType::PayoutExecuted => {
+            domain_types::connector_types::EventType::PayoutSuccess
+        }
+        TruelayerWebhookEventType::PayoutFailed => {
+            domain_types::connector_types::EventType::PayoutFailure
+        }
+        TruelayerWebhookEventType::PaymentDisputed | TruelayerWebhookEventType::Unknown => {
+            domain_types::connector_types::EventType::IncomingWebhookEventUnspecified
+        }
+    }
+}
+
 pub fn get_truelayer_payment_webhook_status(
     event: TruelayerWebhookEventType,
 ) -> Result<AttemptStatus, WebhookError> {
@@ -1864,6 +2001,27 @@ pub fn get_truelayer_refund_webhook_status(
         | TruelayerWebhookEventType::PaymentSettlementStalled
         | TruelayerWebhookEventType::PayoutExecuted
         | TruelayerWebhookEventType::PayoutFailed
+        | TruelayerWebhookEventType::Unknown => Err(WebhookError::WebhookBodyDecodingFailed),
+    }
+}
+
+pub fn get_truelayer_payout_webhook_status(
+    event: TruelayerWebhookEventType,
+) -> Result<common_enums::PayoutStatus, WebhookError> {
+    match event {
+        TruelayerWebhookEventType::PayoutExecuted => Ok(common_enums::PayoutStatus::Success),
+        TruelayerWebhookEventType::PayoutFailed => Ok(common_enums::PayoutStatus::Failure),
+        TruelayerWebhookEventType::PaymentAuthorized
+        | TruelayerWebhookEventType::PaymentFailed
+        | TruelayerWebhookEventType::PaymentSettled
+        | TruelayerWebhookEventType::PaymentCreditable
+        | TruelayerWebhookEventType::PaymentDisputed
+        | TruelayerWebhookEventType::PaymentExecuted
+        | TruelayerWebhookEventType::PaymentFundsReceived
+        | TruelayerWebhookEventType::PaymentReversed
+        | TruelayerWebhookEventType::PaymentSettlementStalled
+        | TruelayerWebhookEventType::RefundExecuted
+        | TruelayerWebhookEventType::RefundFailed
         | TruelayerWebhookEventType::Unknown => Err(WebhookError::WebhookBodyDecodingFailed),
     }
 }
