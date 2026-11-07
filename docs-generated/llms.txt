@@ -331,7 +331,7 @@ connector_id: fiservcommercehub
 doc: docs/connectors/fiservcommercehub.md
 scenarios: none
 payment_methods: none
-flows: capture, create_server_authentication_token, get, recurring_charge, refund, refund_get, void
+flows: capture, create_server_authentication_token, get, incremental_authorization, recurring_charge, refund, refund_get, reverse, void
 examples_python: none
 
 ## Fiservemea
