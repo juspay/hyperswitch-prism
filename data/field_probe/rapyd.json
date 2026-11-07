@@ -10,31 +10,31 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "ApplePay": {
         "status": "supported",
@@ -136,55 +136,55 @@
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Card": {
         "status": "supported",
@@ -228,19 +228,19 @@
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -248,11 +248,11 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -260,35 +260,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "GCash": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Givex": {
         "status": "not_implemented",
@@ -296,7 +296,7 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "GooglePay": {
         "status": "supported",
@@ -397,75 +397,75 @@
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -473,43 +473,43 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -517,35 +517,35 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -557,115 +557,115 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Swish": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Twint": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       },
       "Webpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "error": "This feature is not implemented: payment_method. The payment method is not supported by Rapyd"
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd. The selected wallet is not supported by Rapyd"
       }
     },
     "capture": {
@@ -1144,7 +1144,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method for rapyd SetupMandate"
+        "error": "This feature is not implemented: payment_method for rapyd SetupMandate. The setup mandate payment method is not supported"
       }
     },
     "verify_redirect": {
