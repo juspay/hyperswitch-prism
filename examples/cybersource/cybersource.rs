@@ -94,8 +94,8 @@ pub fn build_authenticate_request() -> PaymentMethodAuthenticationServiceAuthent
             }),
             ..Default::default()
         }),
-        metadata: Some(Secret::new("{\"device_channel\":\"BRW\"}".to_string())), // Additional metadata for the connector.
-        return_url: Some("https://example.com/3ds-return".to_string()), // URLs for Redirection.
+        metadata: Some(Secret::new("{\"device_channel\":\"BRW\"}".to_string())), // Connector-specific passthrough. Must NOT carry 3DS values: those have dedicated fields (17-24) and are never read from here.
+        return_url: Some("https://example.com/3ds-return".to_string()), // URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
         continue_redirection_url: Some("https://example.com/3ds-continue".to_string()),
         browser_info: Some(BrowserInformation {
             // Contextual Information.

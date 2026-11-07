@@ -48,8 +48,8 @@ function _buildAuthenticateRequest(): types.IPaymentMethodAuthenticationServiceA
             "billingAddress": {
             }
         },
-        "metadata": {"value": "{\"device_channel\":\"BRW\"}"},  // Additional metadata for the connector.
-        "returnUrl": "https://example.com/3ds-return",  // URLs for Redirection.
+        "metadata": {"value": "{\"device_channel\":\"BRW\"}"},  // Connector-specific passthrough. Must NOT carry 3DS values: those have dedicated fields (17-24) and are never read from here.
+        "returnUrl": "https://example.com/3ds-return",  // URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
         "continueRedirectionUrl": "https://example.com/3ds-continue",
         "browserInfo": {  // Contextual Information.
             "colorDepth": 24,  // Display Information.
