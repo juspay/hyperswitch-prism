@@ -926,6 +926,7 @@ impl Connectors {
         };
         match connector {
             PayoutConnectorEnum::Nuvei => patched.nuvei.apply(params_patch),
+            PayoutConnectorEnum::Checkout => patched.checkout.apply(params_patch),
             PayoutConnectorEnum::Loonio => patched.loonio.apply(params_patch),
             PayoutConnectorEnum::Paypal => patched.paypal.apply(params_patch),
             PayoutConnectorEnum::Itaubank => patched.itaubank.apply(params_patch),
@@ -4775,12 +4776,6 @@ impl_enum_foreign_from! {
         Bus => Bus,
         Ferry => Ferry,
     },
-    TravelClass => TravelClass {
-        Economy => Economy,
-        PremiumEconomy => PremiumEconomy,
-        Business => Business,
-        First => First,
-    },
     Gender => Gender {
         Male => Male,
         Female => Female,
@@ -5448,13 +5443,10 @@ impl ForeignTryFrom<grpc_payment_types::TravelSegment> for connector_types::Trav
     fn foreign_try_from(
         segment: grpc_payment_types::TravelSegment,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        // Read enum getters (which borrow `segment`) before moving fields out.
-        let travel_class =
-            Option::<common_enums::TravelClass>::foreign_from(segment.travel_class());
         Ok(Self {
             origin: segment.origin,
             destination: segment.destination,
-            travel_class,
+            travel_class: segment.travel_class,
             passengers: segment
                 .passengers
                 .into_iter()
