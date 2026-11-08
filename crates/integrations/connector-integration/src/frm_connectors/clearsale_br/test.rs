@@ -439,6 +439,7 @@ mod tests {
                 boarding: Some("2017-10-10T00:00:00.000".to_string()),
                 arriving: Some("2017-10-10T00:00:00.000".to_string()),
                 fare_class: Some("First Class".to_string()),
+                type_of_trip: None,
             }]),
             hotels: Some(vec![ClearSaleHotel {
                 name: "Hotel Name".to_string(),
@@ -1449,6 +1450,7 @@ mod tests {
                     origin: Some("SAO".to_owned()),
                     destination: Some("RIO".to_owned()),
                     travel_class: Some("semi-leito".to_owned()),
+                    trip_type: Some("ONE_WAY".to_owned()),
                     passengers: vec![Traveller {
                         first_name: Some(Secret::new("Joao".to_owned())),
                         last_name: Some(Secret::new("Silva".to_owned())),
@@ -1516,6 +1518,11 @@ mod tests {
         assert_eq!(c.arriving.as_deref(), Some("2025-06-01T12:00:00"));
         // Free-form seat class passes through verbatim (e.g. Buser's "semi-leito").
         assert_eq!(c.seat_class.as_deref(), Some("semi-leito"));
+        assert_eq!(c.type_of_trip.as_deref(), Some("ONE_WAY"));
+        assert_eq!(
+            serde_json::to_value(&c).expect("connection serializes")["typeOfTrip"],
+            "ONE_WAY"
+        );
         // "G3-1234" is not numeric — no identificationNumber on the wire.
         // Booking-level `carrier_name` ("LA") wins over the identifier prefix.
         let c2 = travel_segment_to_clear_sale_connection(segments[1].0, segments[1].1)

@@ -693,8 +693,7 @@ pub struct ClearSaleConnection {
     #[serde(rename = "fareClass", skip_serializing_if = "Option::is_none")]
     pub fare_class: Option<String>,
     #[serde(rename = "typeOfTrip", skip_serializing_if = "Option::is_none")]
-    pub type_of_trip: Option<String>
-
+    pub type_of_trip: Option<String>,
 }
 
 /// Order `hotels[]` block (spec §5.1).
