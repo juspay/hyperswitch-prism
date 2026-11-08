@@ -5331,6 +5331,8 @@ pub struct TravelSegment {
     pub departure_date_time: Option<String>,
     /// Trip / service / coach / flight number.
     pub identification_number: Option<String>,
+
+    pub trip_type : Option<String>,
 }
 
 /// A passenger on a ground / sea travel booking.
