@@ -1838,10 +1838,7 @@ fn create_stripe_card_payment_method<
     ),
     error_stack::Report<IntegrationError>,
 > {
-    let payment_method_auth_type = match payment_request_details.auth_type {
-        common_enums::AuthenticationType::ThreeDs => Auth3ds::Any,
-        common_enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
-    };
+    let payment_method_auth_type = Auth3ds::from(payment_request_details.auth_type);
     Ok((
         StripePaymentMethodData::try_from((
             card_details,
@@ -6549,10 +6546,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ),
     ) -> Result<Self, Self::Error> {
         let pm_data = &item.router_data.request.payment_method_data;
-        let payment_method_auth_type = match auth_type {
-            common_enums::AuthenticationType::ThreeDs => Auth3ds::Any,
-            common_enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
-        };
+        let payment_method_auth_type = Auth3ds::from(auth_type);
         match pm_data {
             PaymentMethodData::Card(card) => Ok(Self::try_from((
                 StripeCardDetails::from(card),
