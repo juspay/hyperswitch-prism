@@ -5456,6 +5456,7 @@ impl ForeignTryFrom<grpc_payment_types::TravelSegment> for connector_types::Trav
             boarding_date_time: segment.boarding_date_time,
             departure_date_time: segment.departure_date_time,
             identification_number: segment.identification_number,
+            trip_type: segment.trip_type,
         })
     }
 }

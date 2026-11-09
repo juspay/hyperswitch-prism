@@ -566,6 +566,7 @@ pub struct ClearSaleOrderRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping: Option<ClearSalePerson>,
     pub payments: Vec<ClearSalePayment>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<ClearSaleItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub list: Option<ClearSaleList>,
@@ -691,6 +692,8 @@ pub struct ClearSaleConnection {
     pub arriving: Option<String>,
     #[serde(rename = "fareClass", skip_serializing_if = "Option::is_none")]
     pub fare_class: Option<String>,
+    #[serde(rename = "typeOfTrip", skip_serializing_if = "Option::is_none")]
+    pub type_of_trip: Option<String>,
 }
 
 /// Order `hotels[]` block (spec §5.1).
@@ -1299,6 +1302,10 @@ pub(crate) fn primary_document(document: Option<&Secret<String>>) -> Option<Secr
         .cloned()
 }
 
+fn is_present(value: Option<&Secret<String>>) -> bool {
+    value.is_some_and(|value| !value.peek().trim().is_empty())
+}
+
 /// Build one `billing`/`shipping` person block. Required fields fail at the
 /// access site via [`missing_field_err`] — nothing is batched or deferred.
 pub(crate) fn build_person(
@@ -1650,9 +1657,10 @@ pub(crate) fn build_clear_sale_items(
     order_is_gift: Option<bool>,
 ) -> Result<Vec<ClearSaleItem>, Error> {
     order_details
-        .filter(|details| !details.is_empty())
-        .ok_or_else(|| missing_field_err("order_details"))?
+        .map(Vec::as_slice)
+        .unwrap_or_default()
         .iter()
+        .filter(|detail| !detail.product_name.trim().is_empty())
         .map(|detail| {
             Ok(ClearSaleItem {
                 name: detail.product_name.clone(),
@@ -1699,6 +1707,9 @@ pub(crate) struct OrderRequestParts {
 }
 
 fn items_subtotal(items: &[ClearSaleItem]) -> Option<FloatMajorUnit> {
+    if items.is_empty() {
+        return None;
+    }
     let mut subtotal = 0.0;
     for item in items {
         let unit_value = item.value?.0;
@@ -1996,6 +2007,7 @@ pub(crate) fn travel_segment_to_clear_sale_connection(
         // No separate fare-basis carrier on `TravelSegment` — `travel_class`
         // already feeds `seatClass`.
         fare_class: None,
+        type_of_trip: segment.trip_type.clone(),
     })
 }
 
@@ -2133,17 +2145,32 @@ pub(crate) fn order_from_common(
         feature_data,
     )?;
 
-    let shipping = match address.and_then(|addr| addr.get_shipping()) {
-        None => None,
-        Some(shipping_addr) => Some(build_person(
-            "shipping",
-            Some(shipping_addr),
-            customer_info,
-            shipping_document.as_ref(),
-            shipping_document_kind.as_ref(),
-            feature_data,
-        )?),
-    };
+    let shipping = address
+        .and_then(|addr| addr.get_shipping())
+        .filter(|shipping_addr| {
+            shipping_addr.address.as_ref().is_some_and(|details| {
+                is_present(details.line1.as_ref())
+                    && is_present(details.line2.as_ref())
+                    && is_present(details.city.as_ref())
+                    && details
+                        .state
+                        .as_ref()
+                        .and_then(domain_types::payment_address::StateDetails::code_or_name)
+                        .is_some_and(|state| !state.peek().trim().is_empty())
+                    && is_present(details.zip.as_ref())
+            })
+        })
+        .map(|shipping_addr| {
+            build_person(
+                "shipping",
+                Some(shipping_addr),
+                customer_info,
+                shipping_document.as_ref(),
+                shipping_document_kind.as_ref(),
+                feature_data,
+            )
+        })
+        .transpose()?;
 
     let now = to_clearsale_datetime(
         &common_utils::date_time::now()
