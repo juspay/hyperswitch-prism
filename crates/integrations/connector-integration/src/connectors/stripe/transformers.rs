@@ -113,7 +113,7 @@ fn get_stripe_moto_flag<T: PaymentMethodDataTypes>(
     // are wallets, which `is_card_payment()` excludes too. Same reading as the Authorize
     // transformer below.
     let is_card_payment = match payment_method_data {
-        PaymentMethodData::Card(_) => true,
+        PaymentMethodData::Card(_) | PaymentMethodData::CardWithNoCvc(_) => true,
         PaymentMethodData::PaymentMethodToken(token_data) => {
             token_data.token_payment_method_type.is_none()
         }
@@ -228,7 +228,9 @@ where
 {
     matches!(
         &request.payment_method_data,
-        PaymentMethodData::Card(_) | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        PaymentMethodData::Card(_)
+            | PaymentMethodData::CardWithNoCvc(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
     )
 }
 
@@ -916,7 +918,7 @@ pub struct StripeCardToken<T: PaymentMethodDataTypes + Debug + Sync + Send + 'st
     #[serde(rename = "card[exp_year]")]
     pub token_card_exp_year: Secret<String>,
     #[serde(rename = "card[cvc]")]
-    pub token_card_cvc: Secret<String>,
+    pub token_card_cvc: Option<Secret<String>>,
     #[serde(flatten)]
     pub billing: StripeBillingAddressCardToken,
 }
@@ -1822,6 +1824,38 @@ pub struct PaymentRequestDetails {
     pub request_overcapture: Option<StripeRequestOvercaptureBool>,
 }
 
+fn create_stripe_card_payment_method<
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+>(
+    card_details: StripeCardDetails<T>,
+    payment_request_details: PaymentRequestDetails,
+    authentication_data: Option<&AuthenticationData>,
+) -> Result<
+    (
+        StripePaymentMethodData<T>,
+        Option<StripePaymentMethodType>,
+        StripeBillingAddress,
+    ),
+    error_stack::Report<IntegrationError>,
+> {
+    let payment_method_auth_type = match payment_request_details.auth_type {
+        common_enums::AuthenticationType::ThreeDs => Auth3ds::Any,
+        common_enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
+    };
+    Ok((
+        StripePaymentMethodData::try_from((
+            card_details,
+            payment_method_auth_type,
+            authentication_data,
+            payment_request_details.request_incremental_authorization,
+            payment_request_details.request_extended_authorization,
+            payment_request_details.request_overcapture,
+        ))?,
+        Some(StripePaymentMethodType::Card),
+        payment_request_details.billing_address,
+    ))
+}
+
 fn create_stripe_payment_method<
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 >(
@@ -1837,24 +1871,17 @@ fn create_stripe_payment_method<
     error_stack::Report<IntegrationError>,
 > {
     match payment_method_data {
-        PaymentMethodData::Card(card_details) => {
-            let payment_method_auth_type = match payment_request_details.auth_type {
-                common_enums::AuthenticationType::ThreeDs => Auth3ds::Any,
-                common_enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
-            };
-            Ok((
-                StripePaymentMethodData::try_from((
-                    card_details,
-                    payment_method_auth_type,
-                    authentication_data,
-                    payment_request_details.request_incremental_authorization,
-                    payment_request_details.request_extended_authorization,
-                    payment_request_details.request_overcapture,
-                ))?,
-                Some(StripePaymentMethodType::Card),
-                payment_request_details.billing_address,
-            ))
-        }
+        PaymentMethodData::Card(card) => create_stripe_card_payment_method(
+            card.into(),
+            payment_request_details,
+            authentication_data,
+        ),
+        // A card collected without a CVC: same PaymentIntent card request, `cvc` omitted.
+        PaymentMethodData::CardWithNoCvc(card) => create_stripe_card_payment_method(
+            card.into(),
+            payment_request_details,
+            authentication_data,
+        ),
         // Merchant-initiated / off-session card-on-file payment authenticated by network
         // transaction ID rather than CVC -- no cardholder is present, so (matching the existing
         // RepeatPayment handling of the same domain type) no 3DS challenge is requested either.
@@ -2070,7 +2097,6 @@ fn create_stripe_payment_method<
 
         PaymentMethodData::Upi(_)
         | PaymentMethodData::RealTimePayment(_)
-        | PaymentMethodData::CardWithNoCvc(_)
         | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::MandatePayment
         | PaymentMethodData::OpenBanking(_)
@@ -2201,9 +2227,47 @@ fn external_three_ds_informational_not_corroborated() -> IntegrationError {
     }
 }
 
+/// The card fields the Stripe card request (`payment_method_data[card][...]`) is built from.
+///
+/// A `CardWithNoCvc` carries no CVC, so `cvc` is `None` and `payment_method_data[card][cvc]`
+/// is left out of the body; Stripe documents `cvc` as optional there. Everything else (3DS,
+/// preferred network, incremental/extended auth, overcapture) is the same as for a `Card`.
+#[derive(Debug)]
+pub struct StripeCardDetails<T: PaymentMethodDataTypes> {
+    number: RawCardNumber<T>,
+    exp_month: Secret<String>,
+    exp_year: Secret<String>,
+    cvc: Option<Secret<String>>,
+    network: Option<common_enums::CardNetwork>,
+}
+
+impl<T: PaymentMethodDataTypes> From<&Card<T>> for StripeCardDetails<T> {
+    fn from(card: &Card<T>) -> Self {
+        Self {
+            number: card.card_number.clone(),
+            exp_month: card.card_exp_month.clone(),
+            exp_year: card.card_exp_year.clone(),
+            cvc: Some(card.card_cvc.clone()),
+            network: card.card_network.clone(),
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes> From<&payment_method_data::CardWithNoCvc> for StripeCardDetails<T> {
+    fn from(card: &payment_method_data::CardWithNoCvc) -> Self {
+        Self {
+            number: RawCardNumber(T::inner_from_card_number(card.card_number.clone())),
+            exp_month: card.card_exp_month.clone(),
+            exp_year: card.card_exp_year.clone(),
+            cvc: None,
+            network: card.card_network.clone(),
+        }
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<(
-        &Card<T>,
+        StripeCardDetails<T>,
         Auth3ds,
         Option<&AuthenticationData>,
         bool,
@@ -2221,7 +2285,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             request_extended_authorization,
             request_overcapture,
         ): (
-            &Card<T>,
+            StripeCardDetails<T>,
             Auth3ds,
             Option<&AuthenticationData>,
             bool,
@@ -2248,7 +2312,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     // with `05` / `02` is reported and charged as `authenticated`
                     // (https://docs.stripe.com/payments/payment-intents/three-d-secure-import).
                     Some(common_enums::TransactionStatus::InformationOnly) => {
-                        match (data.eci.as_deref(), card.card_network.as_ref()) {
+                        match (data.eci.as_deref(), card.network.as_ref()) {
                             (Some("06"), _) => {}
                             (Some("07"), Some(common_enums::CardNetwork::Mastercard)) => {
                                 Err(external_three_ds_informational_not_corroborated())?
@@ -2346,14 +2410,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
-            payment_method_data_card_number: card.card_number.clone(),
-            payment_method_data_card_exp_month: card.card_exp_month.clone(),
-            payment_method_data_card_exp_year: card.card_exp_year.clone(),
-            payment_method_data_card_cvc: Some(card.card_cvc.clone()),
+            payment_method_data_card_number: card.number,
+            payment_method_data_card_exp_month: card.exp_month,
+            payment_method_data_card_exp_year: card.exp_year,
+            payment_method_data_card_cvc: card.cvc,
             payment_method_auth_type,
             payment_method_data_card_preferred_network: card
-                .card_network
-                .clone()
+                .network
                 .and_then(get_stripe_card_network),
             request_incremental_authorization: if request_incremental_authorization {
                 Some(StripeRequestIncrementalAuthorization::IfAvailable)
@@ -2706,7 +2769,7 @@ fn validate_three_ds_return_url<T: PaymentMethodDataTypes>(
     has_external_three_ds_result: bool,
 ) -> Result<(), IntegrationError> {
     let may_be_challenged = match payment_method_data {
-        PaymentMethodData::Card(_) => true,
+        PaymentMethodData::Card(_) | PaymentMethodData::CardWithNoCvc(_) => true,
         PaymentMethodData::PaymentMethodToken(token) => !matches!(
             token.token_payment_method_type,
             Some(
@@ -6486,21 +6549,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ),
     ) -> Result<Self, Self::Error> {
         let pm_data = &item.router_data.request.payment_method_data;
+        let payment_method_auth_type = match auth_type {
+            common_enums::AuthenticationType::ThreeDs => Auth3ds::Any,
+            common_enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
+        };
         match pm_data {
-            PaymentMethodData::Card(ref ccard) => {
-                let payment_method_auth_type = match auth_type {
-                    common_enums::AuthenticationType::ThreeDs => Auth3ds::Any,
-                    common_enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
-                };
-                Ok(Self::try_from((
-                    ccard,
-                    payment_method_auth_type,
-                    None,
-                    item.router_data.request.request_incremental_authorization,
-                    None,
-                    None,
-                ))?)
-            }
+            PaymentMethodData::Card(card) => Ok(Self::try_from((
+                StripeCardDetails::from(card),
+                payment_method_auth_type,
+                None,
+                item.router_data.request.request_incremental_authorization,
+                None,
+                None,
+            ))?),
+            // A card collected without a CVC: same SetupIntent card request, `cvc` omitted.
+            PaymentMethodData::CardWithNoCvc(card) => Ok(Self::try_from((
+                StripeCardDetails::from(card),
+                payment_method_auth_type,
+                None,
+                item.router_data.request.request_incremental_authorization,
+                None,
+                None,
+            ))?),
             // Merchant-initiated / off-session card-on-file mandate setup authenticated by
             // network transaction ID rather than CVC -- no cardholder is present, so (matching
             // the existing RepeatPayment handling of the same domain type) no 3DS challenge is
@@ -6608,7 +6678,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
-            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::Upi(_)
@@ -7340,7 +7409,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     token_card_number: card_details.card_number.clone(),
                     token_card_exp_month: card_details.card_exp_month.clone(),
                     token_card_exp_year: card_details.card_exp_year.clone(),
-                    token_card_cvc: card_details.card_cvc.clone(),
+                    token_card_cvc: Some(card_details.card_cvc.clone()),
+                    billing: billing_address,
+                })
+            }
+            // A card collected without a CVC: same POST /v1/payment_methods body, no card[cvc].
+            PaymentMethodData::CardWithNoCvc(card_details) => {
+                StripePaymentMethodData::CardToken(StripeCardToken {
+                    payment_method_type: Some(StripePaymentMethodType::Card),
+                    token_card_number: RawCardNumber(T::inner_from_card_number(
+                        card_details.card_number.clone(),
+                    )),
+                    token_card_exp_month: card_details.card_exp_month.clone(),
+                    token_card_exp_year: card_details.card_exp_year.clone(),
+                    token_card_cvc: None,
                     billing: billing_address,
                 })
             }
@@ -7803,5 +7885,126 @@ mod dispute_network_details_tests {
             "a dispute with no network_details must parse"
         );
         assert!(object.and_then(|o| o.network_details).is_none());
+    }
+}
+
+#[cfg(test)]
+mod card_with_no_cvc_tests {
+    use std::str::FromStr;
+
+    use domain_types::payment_method_data::{
+        Card, CardWithNoCvc, DefaultPCIHolder, PaymentMethodData, RawCardNumber,
+    };
+    use hyperswitch_masking::Secret;
+
+    use super::{
+        create_stripe_payment_method, PaymentRequestDetails, StripeBillingAddress,
+        StripeBillingAddressCardToken, StripeCardToken, StripePaymentMethodData,
+        StripePaymentMethodType,
+    };
+
+    const PAN: &str = "4242424242424242";
+
+    fn pan() -> cards::CardNumber {
+        cards::CardNumber::from_str(PAN).unwrap_or_default()
+    }
+
+    fn card_with_no_cvc() -> PaymentMethodData<DefaultPCIHolder> {
+        PaymentMethodData::CardWithNoCvc(CardWithNoCvc {
+            card_number: pan(),
+            card_exp_month: Secret::new("12".to_string()),
+            card_exp_year: Secret::new("2030".to_string()),
+            ..Default::default()
+        })
+    }
+
+    fn card_with_cvc() -> PaymentMethodData<DefaultPCIHolder> {
+        PaymentMethodData::Card(Card {
+            card_number: RawCardNumber(pan()),
+            card_exp_month: Secret::new("12".to_string()),
+            card_exp_year: Secret::new("2030".to_string()),
+            card_cvc: Secret::new("123".to_string()),
+            ..Default::default()
+        })
+    }
+
+    /// The PaymentIntent card body (Authorize) as Stripe receives it, form-encoded. Any
+    /// failure yields an empty body, which the card-number assertions then catch.
+    fn payment_intent_body(pm: &PaymentMethodData<DefaultPCIHolder>) -> String {
+        create_stripe_payment_method(
+            pm,
+            PaymentRequestDetails {
+                auth_type: common_enums::AuthenticationType::NoThreeDs,
+                is_customer_initiated_mandate_payment: None,
+                billing_address: StripeBillingAddress::default(),
+                request_incremental_authorization: false,
+                request_extended_authorization: None,
+                request_overcapture: None,
+            },
+            None,
+        )
+        .ok()
+        .and_then(|(data, _, _)| serde_urlencoded::to_string(data).ok())
+        .unwrap_or_default()
+    }
+
+    fn token_body(cvc: Option<&str>) -> String {
+        serde_urlencoded::to_string(StripePaymentMethodData::<DefaultPCIHolder>::CardToken(
+            StripeCardToken {
+                payment_method_type: Some(StripePaymentMethodType::Card),
+                token_card_number: RawCardNumber(pan()),
+                token_card_exp_month: Secret::new("12".to_string()),
+                token_card_exp_year: Secret::new("2030".to_string()),
+                token_card_cvc: cvc.map(|c| Secret::new(c.to_string())),
+                billing: StripeBillingAddressCardToken::default(),
+            },
+        ))
+        .unwrap_or_default()
+    }
+
+    /// Previously rejected as an unsupported payment method; now a card request with no
+    /// `cvc` key at all (not an empty `cvc=`).
+    #[test]
+    fn payment_intent_sends_card_with_no_cvc_without_cvc_key() {
+        let body = payment_intent_body(&card_with_no_cvc());
+        assert!(
+            body.contains(&format!("payment_method_data%5Bcard%5D%5Bnumber%5D={PAN}")),
+            "body did not encode: {body}"
+        );
+        assert!(
+            body.contains("payment_method_data%5Btype%5D=card"),
+            "got: {body}"
+        );
+        assert!(
+            body.contains("payment_method_data%5Bcard%5D%5Bexp_year%5D=2030"),
+            "got: {body}"
+        );
+        assert!(!body.contains("cvc"), "cvc key must be absent, got: {body}");
+    }
+
+    /// The `Card` path is unchanged by the refactor: its CVC still reaches Stripe.
+    #[test]
+    fn payment_intent_still_sends_cvc_for_card() {
+        let body = payment_intent_body(&card_with_cvc());
+        assert!(
+            body.contains("payment_method_data%5Bcard%5D%5Bcvc%5D=123"),
+            "got: {body}"
+        );
+    }
+
+    #[test]
+    fn token_body_omits_cvc_key_when_none() {
+        let body = token_body(None);
+        assert!(
+            body.contains(&format!("card%5Bnumber%5D={PAN}")),
+            "body did not encode: {body}"
+        );
+        assert!(!body.contains("cvc"), "cvc key must be absent, got: {body}");
+    }
+
+    #[test]
+    fn token_body_sends_cvc_when_present() {
+        let body = token_body(Some("123"));
+        assert!(body.contains("card%5Bcvc%5D=123"), "got: {body}");
     }
 }
