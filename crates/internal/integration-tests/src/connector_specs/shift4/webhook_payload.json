@@ -1,0 +1,119 @@
+{
+  "_webhook_config": {
+    "note": "Shift4 publishes no webhook signature header, algorithm or secret (spec: Webhook Authentication & Signature Verification); the connector does not verify the source, so no signature is computed. Bodies are the documented charge object (spec: Create a Charge, Response 200) wrapped in the {id, type, data} event envelope."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "evt_shift4_payment_succeeded",
+          "type": "CHARGE_SUCCEEDED",
+          "data": {
+            "id": "char_ORVCrwOrTkGsDwM3H50OIW7Q",
+            "created": 1415810511,
+            "objectType": "charge",
+            "amount": 499,
+            "currency": "USD",
+            "type": "customer_initiated",
+            "status": "successful",
+            "captured": true,
+            "refunded": false,
+            "refunds": [],
+            "disputed": false
+          }
+        }
+      },
+      "merchant_event_id": "shift4_webhook_payment_succeeded"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "evt_shift4_payment_failed",
+          "type": "CHARGE_FAILED",
+          "data": {
+            "id": "char_ORVCrwOrTkGsDwM3H50OIW7Q",
+            "created": 1415810511,
+            "objectType": "charge",
+            "amount": 499,
+            "currency": "USD",
+            "type": "customer_initiated",
+            "status": "failed",
+            "captured": false,
+            "refunded": false,
+            "refunds": [],
+            "disputed": false,
+            "failureCode": "card_declined",
+            "failureMessage": "The card was declined."
+          }
+        }
+      },
+      "merchant_event_id": "shift4_webhook_payment_failed"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "evt_shift4_refund_succeeded",
+          "type": "CHARGE_REFUNDED",
+          "data": {
+            "id": "char_ORVCrwOrTkGsDwM3H50OIW7Q",
+            "created": 1415810511,
+            "objectType": "charge",
+            "amount": 499,
+            "currency": "USD",
+            "type": "customer_initiated",
+            "status": "successful",
+            "captured": true,
+            "refunded": true,
+            "refunds": [
+              {
+                "id": "re_shift4_webhook_refund_1"
+              }
+            ],
+            "disputed": false
+          }
+        }
+      },
+      "merchant_event_id": "shift4_webhook_refund_succeeded"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "evt_shift4_invalid_signature",
+          "type": "CHARGE_SUCCEEDED",
+          "data": {
+            "id": "char_ORVCrwOrTkGsDwM3H50OIW7Q",
+            "created": 1415810511,
+            "objectType": "charge",
+            "amount": 499,
+            "currency": "USD",
+            "type": "customer_initiated",
+            "status": "successful",
+            "captured": true,
+            "refunded": false,
+            "refunds": [],
+            "disputed": false
+          }
+        }
+      },
+      "merchant_event_id": "shift4_webhook_invalid_signature"
+    }
+  }
+}
