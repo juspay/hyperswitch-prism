@@ -950,9 +950,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.payment_id),
-                incremental_authorization_allowed: Some(
-                    item.router_data.request.request_incremental_authorization == Some(true),
-                ),
+                incremental_authorization_allowed: item
+                    .router_data
+                    .request
+                    .request_incremental_authorization,
                 splits: None,
                 status_code: item.http_code,
                 payment_account_reference: None,
@@ -980,16 +981,33 @@ pub enum MonerisPaymentStatus {
     Declined,
     DeclinedRetry,
     Authorized,
+    Incremented,
 }
 
 impl From<MonerisPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: MonerisPaymentStatus) -> Self {
         match item {
             MonerisPaymentStatus::Succeeded => Self::Charged,
-            MonerisPaymentStatus::Authorized => Self::Authorized,
+            MonerisPaymentStatus::Authorized | MonerisPaymentStatus::Incremented => {
+                Self::Authorized
+            }
             MonerisPaymentStatus::Canceled => Self::Voided,
             MonerisPaymentStatus::Declined | MonerisPaymentStatus::DeclinedRetry => Self::Failure,
             MonerisPaymentStatus::Processing => Self::Pending,
+        }
+    }
+}
+
+impl From<MonerisPaymentStatus> for common_enums::AuthorizationStatus {
+    fn from(item: MonerisPaymentStatus) -> Self {
+        match item {
+            MonerisPaymentStatus::Incremented
+            | MonerisPaymentStatus::Authorized
+            | MonerisPaymentStatus::Succeeded => Self::Success,
+            MonerisPaymentStatus::Processing => Self::Processing,
+            MonerisPaymentStatus::Canceled
+            | MonerisPaymentStatus::Declined
+            | MonerisPaymentStatus::DeclinedRetry => Self::Failure,
         }
     }
 }
@@ -1152,10 +1170,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisIncrementalAuthorizationResponse {
-    payment_id: Option<String>,
+    payment_status: MonerisPaymentStatus,
+    payment_id: String,
+    payment_method: MonerisPaymentMethodData,
 }
 
 impl TryFrom<ResponseRouterData<MonerisIncrementalAuthorizationResponse, Self>>
@@ -1171,28 +1191,13 @@ impl TryFrom<ResponseRouterData<MonerisIncrementalAuthorizationResponse, Self>>
     fn try_from(
         item: ResponseRouterData<MonerisIncrementalAuthorizationResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let connector_authorization_id = match item.response.payment_id {
-            Some(payment_id) => payment_id,
-            None => item
-                .router_data
-                .request
-                .connector_transaction_id
-                .get_connector_transaction_id()
-                .change_context(ConnectorError::ResponseDeserializationFailed {
-                    context: ResponseTransformationErrorContext {
-                        http_status_code: Some(item.http_code),
-                        additional_context: Some(
-                            "Moneris Increment Payment response omitted paymentId, and the original connector transaction ID was unavailable."
-                                .to_string(),
-                        ),
-                    },
-                })?,
-        };
+        let authorization_status =
+            common_enums::AuthorizationStatus::from(item.response.payment_status);
 
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
-                status: common_enums::AuthorizationStatus::Success,
-                connector_authorization_id: Some(connector_authorization_id),
+                status: authorization_status,
+                connector_authorization_id: Some(item.response.payment_id),
                 status_code: item.http_code,
             }),
             ..item.router_data
