@@ -75,15 +75,14 @@ prost-build = "0.14"
 prost-types = "0.14"
 serde = {version = "1.0.228", features = ["derive"]}
 serde_json = "1.0.107"
-# TODO: Use a published release containing the Superposition SDK runtime fixes.
-superposition_core = { git = "https://github.com/juspay/superposition", rev = "c098135d718a97e17618d59980ce2127a5a653a1" }
-superposition_provider = { git = "https://github.com/juspay/superposition", rev = "c098135d718a97e17618d59980ce2127a5a653a1" }
+superposition_core = "=0.119.0"
+superposition_provider = "=0.119.0"
 thiserror = "1"
 tonic = "0.14"
 tonic-build = "0.14"
 tonic-prost = "0.14"
 tracing = "0.1"
-uuid = "1.23"
+uuid = "=1.20.0"
 vergen = "=9.0.6"
 
 [workspace.lints.rust]
@@ -115,3 +114,6 @@ use_self = "warn"
 
 # Lints to allow
 option_map_unit_fn = "allow"
+
+[patch.crates-io]
+hyperswitch_masking = { git = "https://github.com/juspay/framework-libs-rs", rev = "f1c0ee2abdb56d0aec81c2bf13f2026ecaa010f6" }

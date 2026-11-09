@@ -1982,7 +1982,7 @@ pub(crate) fn travel_segment_to_clear_sale_connection(
         company,
         identification_number,
         date: Some(date),
-        seat_class: segment.travel_class.map(|class| class.to_string()),
+        seat_class: segment.travel_class.clone(),
         origin: segment.origin.as_deref()?.trim().to_owned(),
         destination: segment.destination.as_deref()?.trim().to_owned(),
         boarding: segment

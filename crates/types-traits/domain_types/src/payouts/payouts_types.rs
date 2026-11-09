@@ -148,6 +148,54 @@ pub struct PayoutTransferRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub connector_eligibility_reference_id: Option<String>,
     pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
     pub billing_descriptor: Option<crate::connector_types::BillingDescriptor>,
+    /// Merchant-supplied funds-transfer classification assigned by the payment processor.
+    pub funds_transfer_type: Option<PayoutFundsTransferType>,
+    /// Common funding-party details normalized by Hyperswitch before calling UCS.
+    pub vendor_account_details: Option<PayoutVendorAccountDetails>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum PayoutSourceOfFunds {
+    Credit,
+    Debit,
+    Prepaid,
+    DepositAccount,
+    MobileMoneyAccount,
+    Cash,
+}
+
+/// Merchant-supplied funds-transfer classification assigned by the payment processor.
+/// Connector-specific wire values are mapped by each connector.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PayoutFundsTransferType {
+    /// Account-to-account transfer.
+    AccountToAccount,
+    /// Funds transfer.
+    FundsTransfer,
+    /// Cross-border money transfer.
+    CrossBorderMoneyTransfer,
+    /// Peer-to-peer transfer.
+    PeerToPeer,
+    /// Staged digital-wallet transfer.
+    StagedDigitalWalletTransfer,
+    /// Funds disbursement.
+    FundsDisbursement,
+    /// Loyalty payment.
+    LoyaltyPayments,
+    /// Payroll or pension disbursement.
+    PayrollAndPensionDisbursements,
+    /// Online-gambling transfer.
+    OnlineGambling,
+    /// Person-to-person transfer.
+    MastercardPersonToPerson,
+    /// Transfer to the recipient's own account.
+    MastercardTransferToOwnAccount,
+    /// Business disbursement.
+    MastercardBusinessDisbursement,
+    /// Business-to-business transfer.
+    MastercardBusinessToBusiness,
+    /// Gaming repayment.
+    MastercardGamingRepay,
 }
 
 impl<T: PaymentMethodDataTypes> PayoutTransferRequest<T> {
@@ -469,6 +517,8 @@ pub enum PayoutAccountType {
 }
 
 #[derive(Debug, Clone, Default)]
+/// Caller-normalized common party/account data. UCS never consumes SenderDetails.
+/// The flow determines the role: funding party for transfer, account party for enrollment.
 pub struct PayoutVendorAccountDetails {
     pub vendor_details: Option<PayoutVendorDetails>,
     pub individual_details: Option<PayoutIndividualDetails>,
@@ -484,6 +534,13 @@ pub struct PayoutVendorDetails {
     pub owners_provided: Option<bool>,
     pub card_payments_enabled: Option<bool>,
     pub transfers_enabled: Option<bool>,
+    /// Additional funding-party fields; existing vendor_name carries company name.
+    pub company_tax_id: Option<Secret<String>>,
+    pub address: Option<crate::payment_address::Address>,
+    /// Merchant-created reference for the sending party, forwarded to the connector as the
+    /// sender reference (e.g. Checkout `sender.reference`).
+    pub merchant_sender_reference_id: Option<Secret<String>>,
+    pub source_of_funds: Option<PayoutSourceOfFunds>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -497,6 +554,12 @@ pub struct PayoutIndividualDetails {
     pub tos_acceptance_date: Option<i64>,
     pub tos_acceptance_ip: Option<Secret<String>>,
     pub external_account_account_holder_type: Option<common_enums::BankHolderType>,
+    /// Additional funding-party fields; reuse the existing phone field.
+    pub address: Option<crate::payment_address::Address>,
+    /// Merchant-created reference for the sending party, forwarded to the connector as the
+    /// sender reference (e.g. Checkout `sender.reference`).
+    pub merchant_sender_reference_id: Option<Secret<String>>,
+    pub source_of_funds: Option<PayoutSourceOfFunds>,
 }
 
 pub type IdNumberOrSsnLast4 = (Option<Secret<String>>, Option<Secret<String>>);
