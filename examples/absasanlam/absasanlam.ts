@@ -31,7 +31,7 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
             "uri": {"value": "https://example.com/webhook"},
             "headers": {
             },
-            "body": {"value": new Uint8Array([123, 125])}  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "body": {"value": new Uint8Array(Buffer.from("{}", "utf-8"))}  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
         }
     };
 }
@@ -43,7 +43,7 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
             "uri": {"value": "https://example.com/webhook"},
             "headers": {
             },
-            "body": {"value": new Uint8Array([123, 125])}  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "body": {"value": new Uint8Array(Buffer.from("{}", "utf-8"))}  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
         }
     };
 }

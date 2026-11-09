@@ -134,7 +134,7 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": {"value": new Uint8Array([123, 34, 101, 118, 101, 110, 116, 95, 116, 121, 112, 101, 34, 58, 34, 80, 65, 89, 77, 69, 78, 84, 46, 67, 65, 80, 84, 85, 82, 69, 46, 67, 79, 77, 80, 76, 69, 84, 69, 68, 34, 44, 34, 114, 101, 115, 111, 117, 114, 99, 101, 34, 58, 123, 34, 105, 100, 34, 58, 34, 112, 114, 111, 98, 101, 95, 99, 97, 112, 116, 117, 114, 101, 95, 48, 48, 49, 34, 44, 34, 115, 116, 97, 116, 117, 115, 34, 58, 34, 67, 79, 77, 80, 76, 69, 84, 69, 68, 34, 44, 34, 97, 109, 111, 117, 110, 116, 34, 58, 123, 34, 118, 97, 108, 117, 101, 34, 58, 34, 49, 48, 46, 48, 48, 34, 44, 34, 99, 117, 114, 114, 101, 110, 99, 121, 95, 99, 111, 100, 101, 34, 58, 34, 85, 83, 68, 34, 125, 125, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "body": {"value": new Uint8Array(Buffer.from("{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
             "uri": {"value": "https://example.com/webhook"}
         }
     };
@@ -146,7 +146,7 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": {"value": new Uint8Array([123, 34, 101, 118, 101, 110, 116, 95, 116, 121, 112, 101, 34, 58, 34, 80, 65, 89, 77, 69, 78, 84, 46, 67, 65, 80, 84, 85, 82, 69, 46, 67, 79, 77, 80, 76, 69, 84, 69, 68, 34, 44, 34, 114, 101, 115, 111, 117, 114, 99, 101, 34, 58, 123, 34, 105, 100, 34, 58, 34, 112, 114, 111, 98, 101, 95, 99, 97, 112, 116, 117, 114, 101, 95, 48, 48, 49, 34, 44, 34, 115, 116, 97, 116, 117, 115, 34, 58, 34, 67, 79, 77, 80, 76, 69, 84, 69, 68, 34, 44, 34, 97, 109, 111, 117, 110, 116, 34, 58, 123, 34, 118, 97, 108, 117, 101, 34, 58, 34, 49, 48, 46, 48, 48, 34, 44, 34, 99, 117, 114, 114, 101, 110, 99, 121, 95, 99, 111, 100, 101, 34, 58, 34, 85, 83, 68, 34, 125, 125, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "body": {"value": new Uint8Array(Buffer.from("{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
             "uri": {"value": "https://example.com/webhook"}
         }
     };

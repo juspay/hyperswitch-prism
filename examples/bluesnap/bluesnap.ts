@@ -90,7 +90,7 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": {"value": new Uint8Array([116, 114, 97, 110, 115, 97, 99, 116, 105, 111, 110, 84, 121, 112, 101, 61, 67, 72, 65, 82, 71, 69, 38, 114, 101, 102, 101, 114, 101, 110, 99, 101, 78, 117, 109, 98, 101, 114, 61, 112, 114, 111, 98, 101, 95, 114, 101, 102, 95, 48, 48, 49, 38, 109, 101, 114, 99, 104, 97, 110, 116, 84, 114, 97, 110, 115, 97, 99, 116, 105, 111, 110, 73, 100, 61, 112, 114, 111, 98, 101, 95, 116, 120, 110, 95, 48, 48, 49, 38, 105, 110, 118, 111, 105, 99, 101, 73, 100, 61, 112, 114, 111, 98, 101, 95, 105, 110, 118, 111, 105, 99, 101, 95, 48, 48, 49, 38, 99, 97, 114, 100, 76, 97, 115, 116, 70, 111, 117, 114, 68, 105, 103, 105, 116, 115, 61, 49, 49, 49, 49, 38, 97, 109, 111, 117, 110, 116, 61, 49, 48, 46, 48, 48, 38, 99, 117, 114, 114, 101, 110, 99, 121, 61, 85, 83, 68])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "body": {"value": new Uint8Array(Buffer.from("transactionType=CHARGE&referenceNumber=probe_ref_001&merchantTransactionId=probe_txn_001&invoiceId=probe_invoice_001&cardLastFourDigits=1111&amount=10.00&currency=USD", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
             "uri": {"value": "https://example.com/webhook"}
         }
     };
@@ -102,7 +102,7 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": {"value": new Uint8Array([116, 114, 97, 110, 115, 97, 99, 116, 105, 111, 110, 84, 121, 112, 101, 61, 67, 72, 65, 82, 71, 69, 38, 114, 101, 102, 101, 114, 101, 110, 99, 101, 78, 117, 109, 98, 101, 114, 61, 112, 114, 111, 98, 101, 95, 114, 101, 102, 95, 48, 48, 49, 38, 109, 101, 114, 99, 104, 97, 110, 116, 84, 114, 97, 110, 115, 97, 99, 116, 105, 111, 110, 73, 100, 61, 112, 114, 111, 98, 101, 95, 116, 120, 110, 95, 48, 48, 49, 38, 105, 110, 118, 111, 105, 99, 101, 73, 100, 61, 112, 114, 111, 98, 101, 95, 105, 110, 118, 111, 105, 99, 101, 95, 48, 48, 49, 38, 99, 97, 114, 100, 76, 97, 115, 116, 70, 111, 117, 114, 68, 105, 103, 105, 116, 115, 61, 49, 49, 49, 49, 38, 97, 109, 111, 117, 110, 116, 61, 49, 48, 46, 48, 48, 38, 99, 117, 114, 114, 101, 110, 99, 121, 61, 85, 83, 68])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "body": {"value": new Uint8Array(Buffer.from("transactionType=CHARGE&referenceNumber=probe_ref_001&merchantTransactionId=probe_txn_001&invoiceId=probe_invoice_001&cardLastFourDigits=1111&amount=10.00&currency=USD", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
             "uri": {"value": "https://example.com/webhook"}
         }
     };

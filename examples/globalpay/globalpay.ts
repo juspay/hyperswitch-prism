@@ -118,7 +118,7 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": {"value": new Uint8Array([123, 34, 105, 100, 34, 58, 34, 84, 82, 78, 95, 112, 114, 111, 98, 101, 95, 48, 48, 49, 34, 44, 34, 115, 116, 97, 116, 117, 115, 34, 58, 34, 67, 65, 80, 84, 85, 82, 69, 68, 34, 44, 34, 116, 121, 112, 101, 34, 58, 34, 83, 65, 76, 69, 34, 44, 34, 97, 109, 111, 117, 110, 116, 34, 58, 34, 49, 48, 57, 57, 34, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "body": {"value": new Uint8Array(Buffer.from("{\"id\":\"TRN_probe_001\",\"status\":\"CAPTURED\",\"type\":\"SALE\",\"amount\":\"1099\"}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
             "uri": {"value": "https://example.com/webhook"}
         }
     };
@@ -130,7 +130,7 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": {"value": new Uint8Array([123, 34, 105, 100, 34, 58, 34, 84, 82, 78, 95, 112, 114, 111, 98, 101, 95, 48, 48, 49, 34, 44, 34, 115, 116, 97, 116, 117, 115, 34, 58, 34, 67, 65, 80, 84, 85, 82, 69, 68, 34, 44, 34, 116, 121, 112, 101, 34, 58, 34, 83, 65, 76, 69, 34, 44, 34, 97, 109, 111, 117, 110, 116, 34, 58, 34, 49, 48, 57, 57, 34, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "body": {"value": new Uint8Array(Buffer.from("{\"id\":\"TRN_probe_001\",\"status\":\"CAPTURED\",\"type\":\"SALE\",\"amount\":\"1099\"}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
             "uri": {"value": "https://example.com/webhook"}
         }
     };

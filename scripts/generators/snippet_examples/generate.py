@@ -991,6 +991,8 @@ def _wrapper_scalar(value, message_type: str, js: bool) -> str:
     if _PROTO_FIELD_TYPES.get(message_type, {}).get("value") == "bytes":
         raw = value.encode() if isinstance(value, str) else bytes(value)
         if js:
+            if isinstance(value, str):
+                return f'new Uint8Array(Buffer.from({json.dumps(value)}, "utf-8"))'
             return f"new Uint8Array({json.dumps(list(raw))})"
         return json.dumps(base64.b64encode(raw).decode())
     return _json_scalar(value, js=js)

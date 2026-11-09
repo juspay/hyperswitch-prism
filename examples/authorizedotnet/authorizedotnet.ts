@@ -140,7 +140,7 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": {"value": new Uint8Array([123, 34, 119, 101, 98, 104, 111, 111, 107, 73, 100, 34, 58, 34, 112, 114, 111, 98, 101, 95, 119, 101, 98, 104, 111, 111, 107, 95, 48, 48, 49, 34, 44, 34, 101, 118, 101, 110, 116, 84, 121, 112, 101, 34, 58, 34, 110, 101, 116, 46, 97, 117, 116, 104, 111, 114, 105, 122, 101, 46, 112, 97, 121, 109, 101, 110, 116, 46, 97, 117, 116, 104, 99, 97, 112, 116, 117, 114, 101, 46, 99, 114, 101, 97, 116, 101, 100, 34, 44, 34, 112, 97, 121, 108, 111, 97, 100, 34, 58, 123, 34, 105, 100, 34, 58, 34, 112, 114, 111, 98, 101, 95, 116, 120, 110, 95, 48, 48, 49, 34, 44, 34, 114, 101, 115, 112, 111, 110, 115, 101, 67, 111, 100, 101, 34, 58, 49, 44, 34, 97, 117, 116, 104, 67, 111, 100, 101, 34, 58, 34, 112, 114, 111, 98, 101, 95, 97, 117, 116, 104, 34, 125, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "body": {"value": new Uint8Array(Buffer.from("{\"webhookId\":\"probe_webhook_001\",\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
             "uri": {"value": "https://example.com/webhook"}
         }
     };
@@ -152,7 +152,7 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": {"value": new Uint8Array([123, 34, 119, 101, 98, 104, 111, 111, 107, 73, 100, 34, 58, 34, 112, 114, 111, 98, 101, 95, 119, 101, 98, 104, 111, 111, 107, 95, 48, 48, 49, 34, 44, 34, 101, 118, 101, 110, 116, 84, 121, 112, 101, 34, 58, 34, 110, 101, 116, 46, 97, 117, 116, 104, 111, 114, 105, 122, 101, 46, 112, 97, 121, 109, 101, 110, 116, 46, 97, 117, 116, 104, 99, 97, 112, 116, 117, 114, 101, 46, 99, 114, 101, 97, 116, 101, 100, 34, 44, 34, 112, 97, 121, 108, 111, 97, 100, 34, 58, 123, 34, 105, 100, 34, 58, 34, 112, 114, 111, 98, 101, 95, 116, 120, 110, 95, 48, 48, 49, 34, 44, 34, 114, 101, 115, 112, 111, 110, 115, 101, 67, 111, 100, 101, 34, 58, 49, 44, 34, 97, 117, 116, 104, 67, 111, 100, 101, 34, 58, 34, 112, 114, 111, 98, 101, 95, 97, 117, 116, 104, 34, 125, 125])},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "body": {"value": new Uint8Array(Buffer.from("{\"webhookId\":\"probe_webhook_001\",\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
             "uri": {"value": "https://example.com/webhook"}
         }
     };
