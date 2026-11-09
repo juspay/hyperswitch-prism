@@ -19,6 +19,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.09.0
+
+### Features
+
+- **connector:**
+  - [Authorizedotnet] support MOTO payments ([#2695](https://github.com/juspay/connector-service/pull/2695)) ([`8148957`](https://github.com/juspay/connector-service/commit/814895773ad6c6d7c250c02510dea33a9cb2e81e))
+  - Add moneris IncrementalAuthorization flow ([#2711](https://github.com/juspay/connector-service/pull/2711)) ([`e218ddd`](https://github.com/juspay/connector-service/commit/e218ddd1376213b2f6c2a5bb2e9fde6c4a6a7a8e))
+
+### Bug Fixes
+
+- **telemetry:** Upgrade direct OpenTelemetry runtime ([#2707](https://github.com/juspay/connector-service/pull/2707)) ([`95d617c`](https://github.com/juspay/connector-service/commit/95d617c8ef0e35b78a9ab73edb49c879d6aab5ea))
+
+### Miscellaneous Tasks
+
+- **ci:** Pin download-artifact release ([#2712](https://github.com/juspay/connector-service/pull/2712)) ([`7a841d2`](https://github.com/juspay/connector-service/commit/7a841d2670e6f93dddd54c17c0888a80bae96807))
+- **deps:** Update Superposition runtime dependencies ([#2702](https://github.com/juspay/connector-service/pull/2702)) ([`c1d731e`](https://github.com/juspay/connector-service/commit/c1d731e4a0b5a81b7455eaa2e8fd2351b049cc6c))
+
+**Full Changelog:** [`2026.11.06.2...2026.11.09.0`](https://github.com/juspay/connector-service/compare/2026.11.06.2...2026.11.09.0)
+
+- - -
+
 ## 2026.11.06.2
 
 ### Features
