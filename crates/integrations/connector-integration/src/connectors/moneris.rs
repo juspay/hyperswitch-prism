@@ -127,10 +127,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 domain_types::payment_method_data::DefaultPCIHolder,
             >,
         >,
-        _authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
+        authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> AuthenticationStep {
         if auth_type == common_enums::AuthenticationType::ThreeDs
             && matches!(payment_method, common_enums::PaymentMethod::Card)
+            && !authentication_data.is_some_and(|data| data.has_external_authentication())
         {
             match (redirect_state, completed_step) {
                 (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,

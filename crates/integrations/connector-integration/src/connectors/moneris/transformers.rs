@@ -191,14 +191,14 @@ fn derive_ecommerce_indicator(
     channel: Option<&PaymentChannel>,
     mit_category: Option<&MitCategory>,
     is_three_ds: bool,
-    has_authentication_cavv: bool,
+    is_authenticated: bool,
     is_recurring: bool,
 ) -> EcommerceIndicator {
     if !matches!(
         channel,
         Some(PaymentChannel::MailOrder | PaymentChannel::TelephoneOrder)
     ) {
-        return match (is_three_ds, has_authentication_cavv) {
+        return match (is_three_ds, is_authenticated) {
             (true, true) => EcommerceIndicator::AuthenticatedEcommerce,
             (true, false) => EcommerceIndicator::NonAuthenticatedEcommerce,
             (false, _) => EcommerceIndicator::SslMerchant,
@@ -227,9 +227,10 @@ pub struct MonerisThreeDSecureAuthenticationId {
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisThreeDSecureCryptogramData {
-    three_d_secure_cryptogram: Secret<String>,
-    three_d_secure_version: String,
-    three_d_secure_server_transaction_id: String,
+    three_d_secure_authentication_value: Option<Secret<String>>,
+    three_d_secure_version: Option<String>,
+    three_d_secure_server_transaction_id: Option<String>,
+    three_d_secure_directory_server_transaction_id: String,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -592,14 +593,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         StorePaymentMethod::DoNotStore
                     },
                 });
-                let is_three_ds = item.router_data.resource_common_data.is_three_ds();
+                let authentication_data = item.router_data.request.authentication_data.as_ref();
+                let has_external_authentication = authentication_data
+                    .is_some_and(AuthenticationData::has_external_authentication);
+                let is_three_ds = item.router_data.resource_common_data.is_three_ds()
+                    || has_external_authentication;
                 let is_recurring = item.router_data.request.is_mandate_payment();
-                let has_authentication_cavv = item
-                    .router_data
-                    .request
-                    .authentication_data
-                    .as_ref()
-                    .is_some_and(|a| a.cavv.is_some());
+                let is_authenticated = authentication_data.is_some_and(|auth| {
+                    auth.trans_status.as_ref().map_or_else(
+                        || auth.cavv.is_some(),
+                        |status| *status == common_enums::TransactionStatus::Success,
+                    )
+                });
                 let amount = Money {
                     amount: item.router_data.request.amount.amount,
                     currency: item.router_data.request.currency,
@@ -608,11 +613,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     item.router_data.request.payment_channel.as_ref(),
                     item.router_data.request.mit_category.as_ref(),
                     is_three_ds,
-                    has_authentication_cavv,
+                    is_authenticated,
                     is_recurring,
                 ));
-                let three_d_secure_data =
-                    build_three_d_secure_data(&item.router_data.request.authentication_data);
+                let three_d_secure_data = build_three_d_secure_data(authentication_data)?;
 
                 Ok(Self {
                     idempotency_key,
@@ -1531,31 +1535,53 @@ pub struct MonerisAuthErrorResponse {
 // ===== 3DS FLOW TYPES =====
 
 pub fn build_three_d_secure_data(
-    authentication_data: &Option<AuthenticationData>,
-) -> Option<MonerisThreeDSecureData> {
-    let auth = authentication_data.as_ref()?;
+    authentication_data: Option<&AuthenticationData>,
+) -> Result<Option<MonerisThreeDSecureData>, Report<IntegrationError>> {
+    let Some(auth) = authentication_data else {
+        return Ok(None);
+    };
 
-    // Prefer Option A (authentication ID): Moneris resolves CAVV/ECI internally,
-    // keeping the Authorize request lean. Fall back to Option B (cryptogram) only
-    // when the authentication ID is absent (e.g. externally-authenticated 3DS).
-    if let Some(auth_id) = auth.transaction_id.clone() {
-        Some(MonerisThreeDSecureData::AuthenticationId(
+    if let Some(auth_id) = auth.transaction_id.as_ref() {
+        return Ok(Some(MonerisThreeDSecureData::AuthenticationId(
             MonerisThreeDSecureAuthenticationId {
-                three_d_secure_authentication_id: auth_id,
+                three_d_secure_authentication_id: auth_id.clone(),
             },
-        ))
-    } else {
-        auth.cavv.clone().map(|cavv| {
-            MonerisThreeDSecureData::Cryptogram(MonerisThreeDSecureCryptogramData {
-                three_d_secure_cryptogram: cavv,
-                three_d_secure_version: "V2".to_string(),
-                three_d_secure_server_transaction_id: auth
-                    .threeds_server_transaction_id
-                    .clone()
-                    .unwrap_or_default(),
-            })
-        })
+        )));
     }
+
+    if !auth.has_external_authentication() {
+        return Ok(None);
+    }
+    let directory_server_transaction_id = auth.ds_trans_id.clone().ok_or(
+        IntegrationError::MissingRequiredField {
+            field_name: "authentication_data.ds_trans_id",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Pass the Directory Server Transaction ID returned by the external 3DS service."
+                        .to_string(),
+                ),
+                doc_url: None,
+                additional_context: Some(
+                    "Moneris requires threeDSecureDirectoryServerTransactionId when Create Payment receives external 3DS authentication data."
+                        .to_string(),
+                ),
+            },
+        },
+    )?;
+    let server_transaction_id = auth
+        .threeds_server_transaction_id
+        .as_ref()
+        .filter(|server_id| auth.ds_trans_id.as_ref() != Some(*server_id))
+        .cloned();
+
+    Ok(Some(MonerisThreeDSecureData::Cryptogram(
+        MonerisThreeDSecureCryptogramData {
+            three_d_secure_authentication_value: auth.cavv.clone(),
+            three_d_secure_version: auth.message_version.as_ref().map(ToString::to_string),
+            three_d_secure_server_transaction_id: server_transaction_id,
+            three_d_secure_directory_server_transaction_id: directory_server_transaction_id,
+        },
+    )))
 }
 
 // ---- 3DS Enums ----
