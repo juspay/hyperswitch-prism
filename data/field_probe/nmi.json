@@ -65,12 +65,90 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&applepay_payment_data=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+        }
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id",
+                  "device_manufacturer_identifier": "040010030273"
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&decrypted_applepay_data=1&ccnumber=4111111111111111&ccexp=0330&cavv=AAAAAA%3D%3D&eci=05"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
@@ -268,7 +346,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&payment_token=%7B%22id%22%3A%22tok_probe_gpay%22%2C%22object%22%3A%22token%22%2C%22type%22%3A%22card%22%7D"
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&googlepay_payment_data=%7B%22id%22%3A%22tok_probe_gpay%22%2C%22object%22%3A%22token%22%2C%22type%22%3A%22card%22%7D"
         }
       },
       "GooglePayDecrypted": {
@@ -776,7 +854,8 @@
             }
           },
           "enrolled_for_3ds": false,
-          "return_url": "https://example.com/3ds-return"
+          "return_url": "https://example.com/3ds-return",
+          "continue_redirection_url": "https://example.com/3ds-continue"
         },
         "sample": {
           "url": "https://secure.nmi.com/api/transact.php",

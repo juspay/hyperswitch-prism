@@ -1,0 +1,168 @@
+{
+  "_webhook_config": {
+    "signature_header": "webhook-signature",
+    "webhook_secret_key": "webhook_secret"
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "event_id": "9b312dfd-3174-4748-9447-d63c8744305a",
+          "event_type": "transaction.sale.success",
+          "event_body": {
+            "merchant": {
+              "id": "1234",
+              "name": "Test Account"
+            },
+            "features": {
+              "is_test_mode": true
+            },
+            "transaction_id": "1234560000",
+            "transaction_type": "cc",
+            "condition": "pendingsettlement",
+            "processor_id": "ccprocessora",
+            "order_id": "12345678",
+            "currency": "USD",
+            "requested_amount": "54.04",
+            "action": {
+              "amount": "54.04",
+              "action_type": "sale",
+              "date": "20200406175755",
+              "success": "1",
+              "source": "virtual_terminal",
+              "api_method": "virtual_terminal",
+              "response_text": "SUCCESS",
+              "response_code": "100",
+              "processor_response_text": "",
+              "processor_response_code": ""
+            }
+          }
+        }
+      },
+      "merchant_event_id": "nmi_webhook_payment_succeeded"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "event_id": "9b312dfd-3174-4748-9447-d63c8744305a",
+          "event_type": "transaction.sale.failure",
+          "event_body": {
+            "merchant": {
+              "id": "1234",
+              "name": "Test Account"
+            },
+            "features": {
+              "is_test_mode": true
+            },
+            "transaction_id": "1234560001",
+            "transaction_type": "cc",
+            "condition": "failed",
+            "processor_id": "ccprocessora",
+            "order_id": "12345679",
+            "currency": "USD",
+            "requested_amount": "54.04",
+            "action": {
+              "amount": "54.04",
+              "action_type": "sale",
+              "date": "20200406175755",
+              "success": "0",
+              "source": "virtual_terminal",
+              "api_method": "virtual_terminal",
+              "response_text": "DECLINE",
+              "response_code": "200",
+              "processor_response_text": "",
+              "processor_response_code": ""
+            }
+          }
+        }
+      },
+      "merchant_event_id": "nmi_webhook_payment_failed"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "event_id": "9b312dfd-3174-4748-9447-d63c8744305a",
+          "event_type": "transaction.refund.success",
+          "event_body": {
+            "merchant": {
+              "id": "1234",
+              "name": "Test Account"
+            },
+            "features": {
+              "is_test_mode": true
+            },
+            "transaction_id": "8597047042",
+            "transaction_type": "cc",
+            "condition": "pendingsettlement",
+            "processor_id": "ccprocessora",
+            "order_id": "12345680",
+            "currency": "USD",
+            "requested_amount": "-1.50",
+            "action": {
+              "amount": "-1.50",
+              "action_type": "refund",
+              "date": "20200406175755",
+              "success": "1",
+              "source": "virtual_terminal",
+              "api_method": "virtual_terminal",
+              "response_text": "SUCCESS",
+              "response_code": "100",
+              "processor_response_text": "",
+              "processor_response_code": ""
+            }
+          }
+        }
+      },
+      "merchant_event_id": "nmi_webhook_refund_succeeded"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "webhook-signature": "t=1700000000,s=0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "body": {
+          "event_id": "9b312dfd-3174-4748-9447-d63c8744305a",
+          "event_type": "transaction.sale.success",
+          "event_body": {
+            "merchant": {
+              "id": "1234",
+              "name": "Test Account"
+            },
+            "features": {
+              "is_test_mode": true
+            },
+            "transaction_id": "1234560000",
+            "transaction_type": "cc",
+            "condition": "pendingsettlement",
+            "processor_id": "ccprocessora",
+            "order_id": "12345678",
+            "currency": "USD",
+            "requested_amount": "54.04",
+            "action": {
+              "amount": "54.04",
+              "action_type": "sale",
+              "date": "20200406175755",
+              "success": "1",
+              "source": "virtual_terminal",
+              "api_method": "virtual_terminal",
+              "response_text": "SUCCESS",
+              "response_code": "100",
+              "processor_response_text": "",
+              "processor_response_code": ""
+            }
+          }
+        }
+      },
+      "merchant_event_id": "nmi_webhook_invalid_signature"
+    }
+  }
+}

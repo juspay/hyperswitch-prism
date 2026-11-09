@@ -661,7 +661,7 @@
     "pre_authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: continue_redirection_url. The Nexi ACS form posts PaRes back to ReturnUrl; it is required — Missing required field: continue_redirection_url. The Nexi ACS form posts PaRes back to ReturnUrl; it is required (Hyperswitch requires complete_authorize_url)."
+        "error": "Stuck on field: connector_request_reference_id. Nexi order.orderId is derived from the merchant reference; an empty reference cannot identify the order. — Missing required field: connector_request_reference_id. Nexi order.orderId is derived from the merchant reference; an empty reference cannot identify the order."
       }
     },
     "proxy_authorize": {

@@ -8,6 +8,37 @@
               "value": "4751271111111118"
             }
           }
+        },
+        "l2_l3_data": {
+          "order_info": {
+            "shipping_cost": 100,
+            "duty_amount": 50,
+            "discount_amount": 25,
+            "merchant_order_reference_id": "PO12345",
+            "order_details": [
+              {
+                "product_name": "Widget",
+                "quantity": 1,
+                "amount": 1000,
+                "product_id": "SKU1",
+                "unit_of_measure": "EA"
+              }
+            ]
+          },
+          "tax_info": {
+            "order_tax_amount": 80,
+            "customer_tax_registration_id": {
+              "value": "CUSTVAT1"
+            },
+            "merchant_tax_registration_id": {
+              "value": "MERCHVAT1"
+            }
+          }
+        }
+      },
+      "assert": {
+        "raw_connector_request.value": {
+          "contains": "tax=0.8&shipping=1.0&duty_amount=0.5&discount_amount=0.25&ponumber=PO12345"
         }
       }
     },
@@ -28,8 +59,26 @@
           "card": {
             "card_number": {
               "value": "4532111111111112"
+            },
+            "card_cvc": {
+              "value": "999"
             }
           }
+        },
+        "address": {
+          "billing_address": {
+            "line1": {
+              "value": "888"
+            },
+            "zip_code": {
+              "value": "77777"
+            }
+          }
+        }
+      },
+      "assert": {
+        "connector_response.additional_payment_method_data.card.payment_checks": {
+          "must_exist": true
         }
       }
     },
@@ -82,6 +131,62 @@
       "grpc_req": {
         "setup_future_usage": "OFF_SESSION"
       }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "10"
+            },
+            "card_exp_year": {
+              "value": "29"
+            },
+            "card_cvc": {
+              "value": "999"
+            }
+          }
+        },
+        "authentication_data": {
+          "cavv": "Y2FyZGluYWxjb21tZXJjZWF1dGg=",
+          "eci": "05",
+          "message_version": "2.2.0",
+          "ds_transaction_id": "3f6fb1f8-f719-46c9-905b-bab446f4de30",
+          "threeds_server_transaction_id": "8a7c2e44-1b9d-4f3e-a6c5-0d2e9b7f4a11",
+          "trans_status": "TRANSACTION_STATUS_SUCCESS"
+        }
+      },
+      "assert": {
+        "raw_connector_request.value": {
+          "contains": "&eci=05&three_ds_version=2.2.0&directory_server_id=3f6fb1f8-f719-46c9-905b-bab446f4de30"
+        },
+        "rawConnectorRequest.value": {
+          "contains": "cavv="
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 50
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "FAILURE"
+          ]
+        },
+        "error.connector_details.code": {
+          "equals": "200"
+        },
+        "error.issuer_details.network_details.advice_code": {
+          "must_not_exist": true
+        }
+      }
     }
   },
   "PaymentService/SetupRecurring": {
@@ -96,6 +201,23 @@
       "grpc_req": {
         "amount": {
           "minor_amount": 0
+        },
+        "address": {
+          "billing_address": {
+            "email": {
+              "value": "billing.nmi@example.com"
+            }
+          }
+        },
+        "customer": {
+          "email": {
+            "value": "customer.nmi@example.com"
+          }
+        }
+      },
+      "assert": {
+        "raw_connector_request.value": {
+          "contains": "&email=billing.nmi%40example.com"
         }
       }
     },
@@ -103,6 +225,18 @@
       "grpc_req": {
         "amount": {
           "minor_amount": 0
+        },
+        "address": {
+          "billing_address": {
+            "phone_number": {
+              "value": "4155552671"
+            }
+          }
+        }
+      },
+      "assert": {
+        "raw_connector_request.value": {
+          "contains": "&phone=4155552671"
         }
       }
     },
@@ -117,49 +251,43 @@
   "RecurringPaymentService/Charge": {
     "RecurringPaymentService/Charge": {
       "grpc_req": {
-        "payment_method": {
-          "card": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "08",
-            "card_exp_year": "30",
-            "card_cvc": "999"
-          }
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
         }
       }
     },
     "recurring_charge": {
       "grpc_req": {
-        "payment_method": {
-          "card": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "08",
-            "card_exp_year": "30",
-            "card_cvc": "999"
-          }
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
         }
       }
     },
     "recurring_charge_low_amount": {
       "grpc_req": {
-        "payment_method": {
-          "card": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "08",
-            "card_exp_year": "30",
-            "card_cvc": "999"
-          }
+        "amount": {
+          "minor_amount": 1000,
+          "currency": "USD"
         }
       }
     },
     "recurring_charge_with_order_context": {
       "grpc_req": {
-        "payment_method": {
-          "card": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "08",
-            "card_exp_year": "30",
-            "card_cvc": "999"
-          }
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "USD"
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "invalid_signature": {
+      "assert": {
+        "event_status": null,
+        "source_verified": {
+          "must_not_exist": true
         }
       }
     }
