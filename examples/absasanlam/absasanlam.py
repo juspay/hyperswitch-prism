@@ -31,7 +31,7 @@ def _build_parse_event_request():
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri=payment_methods_pb2.SecretString(value="https://example.com/webhook"),
-            headers=payment_methods_pb2.SecretHeaders(),
+            headers=payment_methods_pb2.SecretStringMap(),
             body=payment_methods_pb2.SecretBytes(value="{}".encode()),  # Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
         ),
     )

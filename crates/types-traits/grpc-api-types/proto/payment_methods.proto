@@ -1425,8 +1425,8 @@ message SecretBytes {
   bytes value = 1;
 }
 
-// Preserves absent versus explicitly empty header maps.
-message SecretHeaders {
+// Preserves absent versus explicitly empty maps with secret string values.
+message SecretStringMap {
   map<string, SecretString> values = 1;
 }
 

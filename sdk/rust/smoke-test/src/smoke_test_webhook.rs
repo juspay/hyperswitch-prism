@@ -18,7 +18,7 @@
 use grpc_api_types::payments::{
     event_context::EventContext as EventContextVariant, AdyenConfig, ConnectorConfig,
     ConnectorSpecificConfig, Environment, EventContext, EventServiceHandleRequest,
-    EventServiceParseRequest, PaymentEventContext, RequestDetails, SdkOptions, SecretHeaders,
+    EventServiceParseRequest, PaymentEventContext, RequestDetails, SdkOptions, SecretStringMap,
 };
 use hyperswitch_masking::Secret;
 use hyperswitch_payments_client::ConnectorClient;
@@ -123,7 +123,7 @@ fn make_request_details(body: Vec<u8>) -> RequestDetails {
     RequestDetails {
         method: HTTP_METHOD_POST,
         uri: Some(Secret::new("/webhooks/adyen".to_string())),
-        headers: Some(SecretHeaders {
+        headers: Some(SecretStringMap {
             values: adyen_headers()
                 .into_iter()
                 .map(|(key, value)| (key, Secret::new(value)))

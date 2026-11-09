@@ -43,7 +43,7 @@ pub fn build_handle_event_request() -> EventServiceHandleRequest {
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(), // HTTP method of the request (e.g., GET, POST).
             uri: Some(Secret::new("https://example.com/webhook".to_string())),
-            headers: Some(SecretHeaders {
+            headers: Some(SecretStringMap {
                 ..Default::default()
             }),
             body: Some(Secret::new("{}".as_bytes().to_vec())), // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
@@ -58,7 +58,7 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(), // HTTP method of the request (e.g., GET, POST).
             uri: Some(Secret::new("https://example.com/webhook".to_string())),
-            headers: Some(SecretHeaders {
+            headers: Some(SecretStringMap {
                 ..Default::default()
             }),
             body: Some(Secret::new("{}".as_bytes().to_vec())), // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.

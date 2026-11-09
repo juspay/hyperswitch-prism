@@ -88,7 +88,7 @@ private fun webhookRequestDetails(body: String): RequestDetails =
         .setMethod(HttpMethod.HTTP_METHOD_POST)
         .setUri(SecretString.newBuilder().setValue("/webhooks/adyen").build())
         .setHeaders(
-            SecretHeaders.newBuilder()
+            SecretStringMap.newBuilder()
                 .putAllValues(ADYEN_HEADERS.mapValues { (_, value) ->
                     SecretString.newBuilder().setValue(value).build()
                 })
