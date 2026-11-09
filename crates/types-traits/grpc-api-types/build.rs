@@ -77,7 +77,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "::hyperswitch_masking::Secret<Vec<u8>>",
     );
 
-    // TODO: Remove these attributes and the lib.rs helpers with the legacy webhook fields.
+    // TODO: Remove these attributes and the lib.rs helpers after all HTTP/gRPC callers and
+    // rollback versions have migrated off the legacy webhook fields.
     for field in [
         ".types.WebhookSecrets.legacy_secret",
         ".types.RedirectResponseSecrets.legacy_secret",
@@ -85,7 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ] {
         config.field_attribute(
             field,
-            "#[serde(serialize_with = \"crate::serialize_legacy_secret\")]",
+            "#[serde(default, serialize_with = \"crate::serialize_legacy_secret\")]",
         );
     }
     for field in [
@@ -101,19 +102,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     config.field_attribute(
         ".types.RequestDetails.legacy_headers",
-        "#[serde(serialize_with = \"crate::serialize_legacy_headers\")]",
+        "#[serde(default, serialize_with = \"crate::serialize_legacy_headers\")]",
     );
-
-    // HTTP callers using only the replacement fields may omit legacy scalars.
-    // Match protobuf's defaults instead of requiring those fields in Serde JSON.
-    // TODO: Remove these defaults with the legacy fields after all webhook/redirect clients migrate.
-    for message in [
-        "RequestDetails",
-        "WebhookSecrets",
-        "RedirectResponseSecrets",
-    ] {
-        config.type_attribute(format!(".types.{message}"), "#[serde(default)]");
-    }
     // Preserve the existing flat HTTP header map. This remains necessary after migration.
     config.type_attribute(".types.SecretStringMap", "#[serde(transparent)]");
     // Add serde rename_all = "snake_case" for oneof enum types to output proper proto JSON
