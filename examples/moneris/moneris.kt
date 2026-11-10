@@ -17,6 +17,7 @@ import payments.RefundClient
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.CardNetwork
+import payments.CountryAlpha2
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
@@ -25,7 +26,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.MonerisConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_server_authentication_token", "get", "incremental_authorization", "post_authenticate", "proxy_authorize", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_server_authentication_token", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -348,6 +349,46 @@ fun postAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
+fun preAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodAuthenticationClient(config)
+    val request = PaymentMethodAuthenticationServicePreAuthenticateRequest.newBuilder().apply {
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L
+            currency = Currency.USD
+        }
+        paymentMethodBuilder.apply {  // Payment Method.
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+                line1Builder.value = "123 Main St"
+                cityBuilder.value = "Seattle"
+                zipCodeBuilder.value = "98101"
+                countryAlpha2Code = CountryAlpha2.US
+                stateCodeIsoBuilder.value = "WA"
+            }
+        }
+        enrolledFor3Ds = false  // Authentication Details.
+        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    }.build()
+    val response = client.pre_authenticate(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.ProxyAuthorize
 fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -439,10 +480,11 @@ fun main(args: Array<String>) {
         "get" -> get(txnId)
         "incrementalAuthorization" -> incrementalAuthorization(txnId)
         "postAuthenticate" -> postAuthenticate(txnId)
+        "preAuthenticate" -> preAuthenticate(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, incrementalAuthorization, postAuthenticate, proxyAuthorize, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, incrementalAuthorization, postAuthenticate, preAuthenticate, proxyAuthorize, refund, refundGet, void")
     }
 }

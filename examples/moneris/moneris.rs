@@ -21,6 +21,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "get",
     "incremental_authorization",
     "post_authenticate",
+    "pre_authenticate",
     "proxy_authorize",
     "refund",
     "refund_get",
@@ -226,6 +227,54 @@ pub fn build_post_authenticate_request() -> PaymentMethodAuthenticationServicePo
             payload: [("transaction_id".to_string(), "probe_txn_123".to_string())]
                 .into_iter()
                 .collect::<HashMap<_, _>>(),
+        }),
+        ..Default::default()
+    }
+}
+
+pub fn build_pre_authenticate_request() -> PaymentMethodAuthenticationServicePreAuthenticateRequest
+{
+    PaymentMethodAuthenticationServicePreAuthenticateRequest {
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
+        }),
+        payment_method: Some(PaymentMethod {
+            // Payment Method.
+            payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
+                card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+                card_exp_month: Some(Secret::new("03".to_string())),
+                card_exp_year: Some(Secret::new("2030".to_string())),
+                card_cvc: Some(Secret::new("737".to_string())),
+                card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+                ..Default::default()
+            })),
+            ..Default::default()
+        }),
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                line1: Some(Secret::new("123 Main St".to_string())),
+                city: Some(Secret::new("Seattle".to_string())),
+                zip_code: Some(Secret::new("98101".to_string())),
+                country_alpha2_code: Some(CountryAlpha2::Us.into()),
+                state_code_iso: Some(Secret::new("WA".to_string())),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        enrolled_for_3ds: false, // Authentication Details.
+        return_url: Some("https://example.com/3ds-return".to_string()), // URLs for Redirection.
+        state: Some(ConnectorState {
+            // State Information.
+            access_token: Some(AccessToken {
+                // Access token obtained from connector.
+                token: Some(Secret::new("probe_access_token".to_string())), // The token string.
+                expires_in_seconds: Some(3600), // Expiration timestamp (seconds since epoch).
+                token_type: Some("Bearer".to_string()), // Token type (e.g., "Bearer", "Basic").
+            }),
+            ..Default::default()
         }),
         ..Default::default()
     }
@@ -620,6 +669,18 @@ pub async fn process_post_authenticate(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
+#[allow(dead_code)]
+pub async fn process_pre_authenticate(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .pre_authenticate(build_pre_authenticate_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn process_proxy_authorize(
@@ -683,11 +744,12 @@ async fn main() {
             process_incremental_authorization(&client, "txn_001").await
         }
         "process_post_authenticate" => process_post_authenticate(&client, "txn_001").await,
+        "process_pre_authenticate" => process_pre_authenticate(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_server_authentication_token, process_get, process_incremental_authorization, process_post_authenticate, process_proxy_authorize, process_refund_get, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_server_authentication_token, process_get, process_incremental_authorization, process_post_authenticate, process_pre_authenticate, process_proxy_authorize, process_refund_get, process_void", flow);
             return;
         }
     };
