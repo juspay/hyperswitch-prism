@@ -54,6 +54,7 @@ pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const X_CORRELATION_ID: &str = "X-Correlation-Id";
+    pub(crate) const USER_AGENT: &str = "User-Agent";
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -115,6 +116,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Moneris<T>
 {
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
+        true
+    }
+
+    fn requires_authentication_data(&self) -> bool {
         true
     }
 
@@ -328,6 +333,7 @@ macros::create_all_prerequisites!(
             &self,
             access_token: &str,
             connector_config: &ConnectorSpecificConfig,
+            correlation_id: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = moneris::MonerisAuthType::try_from(connector_config)?;
             let mut header = vec![
@@ -341,7 +347,7 @@ macros::create_all_prerequisites!(
                 ),
                 (
                     headers::X_CORRELATION_ID.to_string(),
-                    common_utils::fp_utils::generate_uuid_v4().into(),
+                    correlation_id.to_string().into(),
                 ),
                 (
                     moneris::auth_headers::API_VERSION.to_string(),
@@ -353,6 +359,9 @@ macros::create_all_prerequisites!(
                     moneris::auth_headers::X_MERCHANT_ID.to_string(),
                     auth.merchant_id.expose().into_masked(),
                 ),
+                // reqwest does not set a User-Agent by default. Moneris' staging edge
+                // blocks requests without one; match the local curl control request.
+                (headers::USER_AGENT.to_string(), "curl/8.7.1".to_string().into()),
             ];
             let auth_header = (
                 headers::AUTHORIZATION.to_string(),
@@ -366,6 +375,7 @@ macros::create_all_prerequisites!(
             &self,
             access_token: Option<ServerAuthenticationTokenResponseData>,
             connector_config: &ConnectorSpecificConfig,
+            correlation_id: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let token = access_token.ok_or_else(|| IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
@@ -382,7 +392,7 @@ macros::create_all_prerequisites!(
                     ),
                 },
             })?;
-            self.build_headers(&token.access_token.expose(), connector_config)
+            self.build_headers(&token.access_token.expose(), connector_config, correlation_id)
         }
 
         pub fn connector_base_url_payments<'a, F, Req, Res>(
@@ -488,6 +498,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -519,6 +530,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
 
@@ -550,6 +562,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -585,6 +598,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -620,6 +634,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -671,6 +686,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -706,6 +722,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -736,6 +753,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -768,6 +786,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -802,6 +821,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
