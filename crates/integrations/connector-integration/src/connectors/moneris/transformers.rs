@@ -1639,25 +1639,19 @@ pub enum ThreeDSecureChallengeWindowSize {
     FullScreen,
 }
 
-// ---- 3DS Billing Address ----
+// ---- 3DS Address ----
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct MonerisBillingAddress {
+pub struct MonerisThreeDSAddress {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_number: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub street_number: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub street_name: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub province: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub postal_code: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub country: Option<common_enums::CountryAlpha2>,
+    pub street_number: Secret<String>,
+    pub street_name: Secret<String>,
+    pub city: Secret<String>,
+    pub province: Secret<String>,
+    pub postal_code: Secret<String>,
+    pub country: common_enums::CountryAlpha2,
 }
 
 // ---- 3DS Transaction Status ----
@@ -1666,12 +1660,72 @@ pub struct MonerisBillingAddress {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MonerisThreeDSecureTransactionStatus {
     Authenticated,
-    AuthenticatedAttempted,
+    #[serde(alias = "AUTHENTICATED_ATTEMPTED")]
+    AuthenticationAttempted,
     ChallengeAuthenticationRequired,
+    #[serde(alias = "DECOUPLED")]
+    ChallengeDecoupledAuthenticationConfirmed,
+    TechnicalIssue,
     NotAuthenticated,
     Rejected,
-    InformationOnly,
-    Decoupled,
+    #[serde(alias = "INFORMATION_ONLY")]
+    ChallengePreferenceAcknowledged,
+}
+
+impl MonerisThreeDSecureTransactionStatus {
+    fn as_api_value(&self) -> &'static str {
+        match self {
+            Self::Authenticated => "AUTHENTICATED",
+            Self::AuthenticationAttempted => "AUTHENTICATION_ATTEMPTED",
+            Self::ChallengeAuthenticationRequired => "CHALLENGE_AUTHENTICATION_REQUIRED",
+            Self::ChallengeDecoupledAuthenticationConfirmed => {
+                "CHALLENGE_DECOUPLED_AUTHENTICATION_CONFIRMED"
+            }
+            Self::TechnicalIssue => "TECHNICAL_ISSUE",
+            Self::NotAuthenticated => "NOT_AUTHENTICATED",
+            Self::Rejected => "REJECTED",
+            Self::ChallengePreferenceAcknowledged => "CHALLENGE_PREFERENCE_ACKNOWLEDGED",
+        }
+    }
+
+    fn to_transaction_status(&self) -> common_enums::TransactionStatus {
+        match self {
+            Self::Authenticated => common_enums::TransactionStatus::Success,
+            Self::AuthenticationAttempted => common_enums::TransactionStatus::NotVerified,
+            Self::ChallengeAuthenticationRequired => {
+                common_enums::TransactionStatus::ChallengeRequired
+            }
+            Self::ChallengeDecoupledAuthenticationConfirmed => {
+                common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            }
+            Self::TechnicalIssue => common_enums::TransactionStatus::VerificationNotPerformed,
+            Self::NotAuthenticated => common_enums::TransactionStatus::Failure,
+            Self::Rejected => common_enums::TransactionStatus::Rejected,
+            Self::ChallengePreferenceAcknowledged => {
+                common_enums::TransactionStatus::InformationOnly
+            }
+        }
+    }
+
+    fn to_attempt_status(&self) -> common_enums::AttemptStatus {
+        match self {
+            Self::Authenticated | Self::AuthenticationAttempted => {
+                common_enums::AttemptStatus::AuthenticationSuccessful
+            }
+            Self::ChallengeAuthenticationRequired => {
+                common_enums::AttemptStatus::AuthenticationPending
+            }
+            // These outcomes do not provide a browser challenge redirect that Prism can
+            // complete. Fail closed so the composite flow does not proceed to payment.
+            Self::ChallengeDecoupledAuthenticationConfirmed
+            | Self::TechnicalIssue
+            | Self::NotAuthenticated
+            | Self::Rejected
+            | Self::ChallengePreferenceAcknowledged => {
+                common_enums::AttemptStatus::AuthenticationFailed
+            }
+        }
+    }
 }
 
 // ---- 3DS Payment Method (no store_payment_method for auth requests) ----
@@ -1715,34 +1769,227 @@ pub struct MonerisPreAuthenticateRequest<
     pub idempotency_key: String,
     pub amount: Money,
     pub cardholder_name: Secret<String>,
-    pub cardholder_email: Email,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cardholder_phone_number: Option<Secret<String>>,
-    pub billing_address: MonerisBillingAddress,
+    pub cardholder_email: Option<Email>,
+    pub cardholder_phone_number: Secret<String>,
+    pub billing_address: MonerisThreeDSAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_address: Option<MonerisThreeDSAddress>,
     pub payment_method: Moneris3DSPaymentMethod<T>,
     pub three_d_secure_message_category: ThreeDSecureMessageCategory,
     pub three_d_secure_device_channel: ThreeDSecureDeviceChannel,
     pub three_d_secure_request_type: ThreeDSecureRequestType,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub three_d_secure_notification_url: Option<String>,
+    pub three_d_secure_notification_url: String,
     pub three_d_secure_completion_indicator: ThreeDSecureCompletionIndicator,
     pub three_d_secure_challenge_requested: ThreeDSecureChallengeRequested,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_d_secure_challenge_window_size: Option<ThreeDSecureChallengeWindowSize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_ip_address: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub browser_user_agent: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub browser_java_enabled: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub browser_javascript_enabled: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub browser_screen_height: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub browser_screen_width: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub browser_language: Option<String>,
+    pub browser_user_agent: String,
+    pub browser_java_enabled: bool,
+    pub browser_javascript_enabled: bool,
+    pub browser_screen_height: i32,
+    pub browser_screen_width: i32,
+    pub browser_language: String,
+}
+
+fn missing_moneris_three_ds_field(
+    field_name: &'static str,
+    suggested_action: &'static str,
+) -> IntegrationError {
+    IntegrationError::MissingRequiredField {
+        field_name,
+        context: utils::integration_ctx(
+            format!("Moneris 3DS authentication requires {field_name}."),
+            suggested_action,
+        ),
+    }
+}
+
+fn invalid_moneris_street_address(
+    field_name: &'static str,
+    address_type: &'static str,
+) -> IntegrationError {
+    IntegrationError::InvalidDataFormat {
+        field_name,
+        context: utils::integration_ctx(
+            "Moneris Create Authentication requires separate streetNumber and streetName fields.",
+            format!(
+                "Provide {address_type} address line1 as a street number followed by the street name."
+            ),
+        ),
+    }
+}
+
+fn split_moneris_street_address(
+    street_line: Secret<String>,
+    field_name: &'static str,
+    address_type: &'static str,
+) -> Result<(Secret<String>, Secret<String>), Report<IntegrationError>> {
+    let street_line = street_line.peek().trim();
+    let (street_number, street_name) = street_line
+        .split_once(char::is_whitespace)
+        .map(|(street_number, street_name)| (street_number.trim(), street_name.trim()))
+        .filter(|(street_number, street_name)| {
+            !street_number.is_empty()
+                && street_number
+                    .chars()
+                    .any(|character| character.is_ascii_digit())
+                && !street_name.is_empty()
+        })
+        .ok_or_else(|| invalid_moneris_street_address(field_name, address_type))?;
+
+    Ok((
+        Secret::new(street_number.to_string()),
+        Secret::new(street_name.to_string()),
+    ))
+}
+
+fn build_moneris_billing_address(
+    resource: &PaymentFlowData,
+) -> Result<MonerisThreeDSAddress, Report<IntegrationError>> {
+    let street_line = resource.get_optional_billing_line1().ok_or_else(|| {
+        missing_moneris_three_ds_field(
+            "billing.address.line1",
+            "Provide a billing street number and street name for Moneris 3DS authentication.",
+        )
+    })?;
+    let (street_number, street_name) =
+        split_moneris_street_address(street_line, "billing.address.line1", "billing")?;
+    let city = resource.get_optional_billing_city().ok_or_else(|| {
+        missing_moneris_three_ds_field(
+            "billing.address.city",
+            "Provide the billing city for Moneris 3DS authentication.",
+        )
+    })?;
+    let province = resource
+        .get_optional_billing_state_code_iso()
+        .ok_or_else(|| {
+            missing_moneris_three_ds_field(
+                "billing.address.state",
+                "Provide an ISO subdivision code for the billing province/state.",
+            )
+        })?;
+    let postal_code = resource.get_optional_billing_zip().ok_or_else(|| {
+        missing_moneris_three_ds_field(
+            "billing.address.postal_code",
+            "Provide the billing postal code for Moneris 3DS authentication.",
+        )
+    })?;
+    let country = resource.get_optional_billing_country().ok_or_else(|| {
+        missing_moneris_three_ds_field(
+            "billing.address.country",
+            "Provide the billing country for Moneris 3DS authentication.",
+        )
+    })?;
+
+    Ok(MonerisThreeDSAddress {
+        unit_number: resource.get_optional_billing_line2(),
+        street_number,
+        street_name,
+        city,
+        province,
+        postal_code,
+        country,
+    })
+}
+
+fn build_moneris_shipping_address(
+    resource: &PaymentFlowData,
+) -> Result<Option<MonerisThreeDSAddress>, Report<IntegrationError>> {
+    let has_shipping_address = resource
+        .get_optional_shipping()
+        .is_some_and(|shipping| shipping.address.is_some());
+    if !has_shipping_address {
+        return Ok(None);
+    }
+
+    let street_line = resource.get_optional_shipping_line1().ok_or_else(|| {
+        missing_moneris_three_ds_field(
+            "shipping.address.line1",
+            "Provide a shipping street number and street name for Moneris 3DS authentication.",
+        )
+    })?;
+    let (street_number, street_name) =
+        split_moneris_street_address(street_line, "shipping.address.line1", "shipping")?;
+    let city = resource.get_optional_shipping_city().ok_or_else(|| {
+        missing_moneris_three_ds_field(
+            "shipping.address.city",
+            "Provide the shipping city for Moneris 3DS authentication.",
+        )
+    })?;
+    let province = resource
+        .get_optional_shipping()
+        .and_then(|shipping| shipping.address.as_ref())
+        .and_then(|address| address.get_optional_state_code_iso())
+        .ok_or_else(|| {
+            missing_moneris_three_ds_field(
+                "shipping.address.state",
+                "Provide an ISO subdivision code for the shipping province/state.",
+            )
+        })?;
+    let postal_code = resource.get_optional_shipping_zip().ok_or_else(|| {
+        missing_moneris_three_ds_field(
+            "shipping.address.postal_code",
+            "Provide the shipping postal code for Moneris 3DS authentication.",
+        )
+    })?;
+    let country = resource.get_optional_shipping_country().ok_or_else(|| {
+        missing_moneris_three_ds_field(
+            "shipping.address.country",
+            "Provide the shipping country for Moneris 3DS authentication.",
+        )
+    })?;
+
+    Ok(Some(MonerisThreeDSAddress {
+        unit_number: resource.get_optional_shipping_line2(),
+        street_number,
+        street_name,
+        city,
+        province,
+        postal_code,
+        country,
+    }))
+}
+
+fn required_browser_dimension(
+    value: Option<u32>,
+    field_name: &'static str,
+) -> Result<i32, Report<IntegrationError>> {
+    let value = value.ok_or_else(|| {
+        missing_moneris_three_ds_field(
+            field_name,
+            "Provide browser screen dimensions for Moneris browser-channel 3DS.",
+        )
+    })?;
+    i32::try_from(value).change_context(IntegrationError::InvalidDataFormat {
+        field_name,
+        context: utils::integration_ctx(
+            "Moneris represents browser screen dimensions as signed 32-bit integers.",
+            "Provide browser screen dimensions within Moneris's supported integer range.",
+        ),
+    })
+}
+
+fn validate_moneris_phone_number(
+    phone_number: Secret<String>,
+) -> Result<Secret<String>, Report<IntegrationError>> {
+    let is_valid_e164 = phone_number.peek().strip_prefix('+').is_some_and(|digits| {
+        (2..=15).contains(&digits.len())
+            && !digits.starts_with('0')
+            && digits.bytes().all(|digit| digit.is_ascii_digit())
+    });
+
+    is_valid_e164.then_some(phone_number).ok_or_else(|| {
+        IntegrationError::InvalidDataFormat {
+            field_name: "billing.phone",
+            context: utils::integration_ctx(
+                "Moneris requires cardholderPhoneNumber as a plus sign followed by 2 to 15 digits.",
+                "Provide the cardholder phone number in E.164 format with a leading plus sign and country code.",
+            ),
+        }
+        .into()
+    })
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1860,16 +2107,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let cardholder_email = req
             .email
             .clone()
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "email",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Provide cardholder email for Moneris 3DS authentication.".to_string(),
-                    ),
-                    doc_url: None,
-                    additional_context: None,
-                },
-            })?;
+            .or_else(|| resource.get_optional_billing_email());
 
         let cardholder_name = match &payment_method_data {
             PaymentMethodData::Card(card) => card.card_holder_name.clone(),
@@ -1889,76 +2127,98 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
         })?;
 
-        let billing_address = MonerisBillingAddress {
-            street_name: resource.get_optional_billing_line1(),
-            unit_number: resource.get_optional_billing_line2(),
-            street_number: None,
-            city: resource.get_optional_billing_city(),
-            province: resource.get_optional_billing_state(),
-            postal_code: resource.get_optional_billing_zip(),
-            country: resource.get_optional_billing_country(),
-        };
+        let billing_address = build_moneris_billing_address(resource)?;
+        let shipping_address = build_moneris_shipping_address(resource)?;
 
         let amount = Money {
-            currency: req.currency.unwrap_or_default(),
+            currency: req.currency.ok_or_else(|| {
+                missing_moneris_three_ds_field(
+                    "currency",
+                    "Provide the currency for Moneris 3DS authentication.",
+                )
+            })?,
             amount: req.amount.amount,
         };
 
-        let idempotency_key = format!("3ds_{}", resource.connector_request_reference_id);
+        let idempotency_key = format!("pre_auth_{}", resource.connector_request_reference_id);
 
         let three_d_secure_notification_url = req
             .router_return_url
             .as_ref()
-            .map(|url| url.as_str().to_owned());
+            .ok_or_else(|| {
+                missing_moneris_three_ds_field(
+                    "router_return_url",
+                    "Provide a callback URL that can receive the issuer ACS cres POST.",
+                )
+            })
+            .map(|url| urlencoding::encode(url.as_str()).into_owned())?;
 
-        let (
-            device_channel,
-            browser_ip_address,
-            browser_screen_height,
-            browser_screen_width,
-            browser_user_agent,
-            browser_java_enabled,
-            browser_javascript_enabled,
-            browser_language,
-        ) = match &req.browser_info {
-            Some(info) => (
-                ThreeDSecureDeviceChannel::Browser,
-                info.ip_address.map(|ip| Secret::new(ip.to_string())),
-                info.screen_height.and_then(|h| i32::try_from(h).ok()),
-                info.screen_width.and_then(|w| i32::try_from(w).ok()),
-                info.user_agent.clone(),
-                info.java_enabled,
-                info.java_script_enabled,
-                info.language.clone(),
-            ),
-            // Without browser context this is a server-initiated (3RI) flow.
-            None => (
-                ThreeDSecureDeviceChannel::ThreeDSecureRequestorInitiated,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            ),
-        };
+        let browser_info = req.browser_info.as_ref().ok_or_else(|| {
+            missing_moneris_three_ds_field(
+                "browser_info",
+                "Provide browser information for Moneris browser-channel 3DS.",
+            )
+        })?;
+        let browser_ip_address = browser_info
+            .ip_address
+            .filter(|ip| ip.is_ipv4())
+            .map(|ip| Secret::new(ip.to_string()));
+        let browser_screen_height =
+            required_browser_dimension(browser_info.screen_height, "browser_info.screen_height")?;
+        let browser_screen_width =
+            required_browser_dimension(browser_info.screen_width, "browser_info.screen_width")?;
+        let browser_user_agent = browser_info
+            .user_agent
+            .as_ref()
+            .filter(|user_agent| !user_agent.is_empty())
+            .ok_or_else(|| {
+                missing_moneris_three_ds_field(
+                    "browser_info.user_agent",
+                    "Provide the shopper browser's user-agent for Moneris 3DS.",
+                )
+            })?
+            .chars()
+            .take(2048)
+            .collect();
+        let browser_java_enabled = browser_info.java_enabled.ok_or_else(|| {
+            missing_moneris_three_ds_field(
+                "browser_info.java_enabled",
+                "Provide the shopper browser's Java-enabled value for Moneris 3DS.",
+            )
+        })?;
+        let browser_javascript_enabled = browser_info.java_script_enabled.ok_or_else(|| {
+            missing_moneris_three_ds_field(
+                "browser_info.java_script_enabled",
+                "Provide the shopper browser's JavaScript-enabled value for Moneris 3DS.",
+            )
+        })?;
+        let browser_language = browser_info
+            .language
+            .as_ref()
+            .filter(|language| language.len() == 2 && language.is_ascii())
+            .cloned()
+            .ok_or_else(|| {
+                missing_moneris_three_ds_field(
+                    "browser_info.language",
+                    "Provide a two-letter ISO 639-1 browser language for Moneris 3DS.",
+                )
+            })?;
 
-        let cardholder_phone_number = resource.get_optional_billing_phone_number();
-
-        // For a browser flow the cardholder is present and may receive a challenge;
-        // for a 3RI flow (server-initiated, no browser) there is no cardholder interaction
-        // so the request type becomes RECURRING and the challenge window is irrelevant.
-        let (three_d_secure_request_type, three_d_secure_challenge_window_size) =
-            match &device_channel {
-                ThreeDSecureDeviceChannel::Browser => (
-                    ThreeDSecureRequestType::Cardholder,
-                    Some(ThreeDSecureChallengeWindowSize::FullScreen),
-                ),
-                ThreeDSecureDeviceChannel::ThreeDSecureRequestorInitiated => {
-                    (ThreeDSecureRequestType::Recurring, None)
-                }
-            };
+        let cardholder_phone_number = resource
+            .get_optional_billing()
+            .and_then(|billing| billing.phone.as_ref())
+            .and_then(|phone| phone.get_e123_phone_number())
+            .ok_or_else(|| {
+                missing_moneris_three_ds_field(
+                    "billing.phone",
+                    "Provide the cardholder phone number with its country code in E.164 format.",
+                )
+            })?;
+        let cardholder_phone_number = validate_moneris_phone_number(cardholder_phone_number)?;
+        let device_channel = ThreeDSecureDeviceChannel::Browser;
+        let three_d_secure_request_type = ThreeDSecureRequestType::Cardholder;
+        let three_d_secure_challenge_window_size =
+            Some(ThreeDSecureChallengeWindowSize::FullScreen);
 
         Ok(Self {
             idempotency_key,
@@ -1967,12 +2227,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             cardholder_email,
             cardholder_phone_number,
             billing_address,
+            shipping_address,
             payment_method,
             three_d_secure_message_category: ThreeDSecureMessageCategory::Payment,
             three_d_secure_device_channel: device_channel,
             three_d_secure_request_type,
             three_d_secure_notification_url,
-            three_d_secure_completion_indicator: ThreeDSecureCompletionIndicator::Unavailable,
+            three_d_secure_completion_indicator: ThreeDSecureCompletionIndicator::Success,
             three_d_secure_challenge_requested: ThreeDSecureChallengeRequested::NoPreference,
             three_d_secure_challenge_window_size,
             browser_ip_address,
@@ -1991,14 +2252,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisPreAuthenticateResponse {
-    pub authentication_id: String,
+    pub three_d_secure_authentication_id: String,
     pub three_d_secure_transaction_status: MonerisThreeDSecureTransactionStatus,
+    pub three_d_secure_transaction_status_reason: Option<String>,
     pub three_d_secure_authentication_value: Option<Secret<String>>,
-    pub ecommerce_indicator: Option<String>,
+    pub ecommerce_indicator: String,
     pub three_d_secure_server_transaction_id: Option<String>,
+    pub three_d_secure_directory_server_transaction_id: Option<String>,
+    pub three_d_secure_access_control_server_transaction_id: Option<String>,
     pub three_d_secure_version: Option<String>,
-    pub challenge_url: Option<String>,
-    pub challenge_data: Option<String>,
+    pub three_d_secure_challenge_url: Option<String>,
+    pub three_d_secure_challenge_data: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -2019,20 +2283,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let (status, response_data) = match response.three_d_secure_transaction_status {
             MonerisThreeDSecureTransactionStatus::Authenticated
-            | MonerisThreeDSecureTransactionStatus::AuthenticatedAttempted
-            | MonerisThreeDSecureTransactionStatus::InformationOnly => {
+            | MonerisThreeDSecureTransactionStatus::AuthenticationAttempted => {
                 let authentication_data = Some(AuthenticationData {
-                    trans_status: Some(common_enums::TransactionStatus::Success),
-                    eci: response.ecommerce_indicator.clone(),
+                    trans_status: Some(
+                        response
+                            .three_d_secure_transaction_status
+                            .to_transaction_status(),
+                    ),
+                    eci: Some(response.ecommerce_indicator.clone()),
                     cavv: response.three_d_secure_authentication_value.clone(),
                     threeds_server_transaction_id: response
                         .three_d_secure_server_transaction_id
                         .clone(),
-                    transaction_id: Some(response.authentication_id.clone()),
+                    message_version: response
+                        .three_d_secure_version
+                        .as_deref()
+                        .and_then(|version| version.parse().ok()),
+                    ds_trans_id: response
+                        .three_d_secure_directory_server_transaction_id
+                        .clone(),
+                    acs_transaction_id: response
+                        .three_d_secure_access_control_server_transaction_id
+                        .clone(),
+                    transaction_id: Some(response.three_d_secure_authentication_id.clone()),
                     ucaf_collection_indicator: None,
-                    message_version: None,
-                    ds_trans_id: None,
-                    acs_transaction_id: None,
                     network_params: None,
                     exemption_indicator: None,
                     created_at: None,
@@ -2044,43 +2318,55 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 });
                 let response_data = PaymentsResponseData::PreAuthenticateResponse {
                     resource_id: Some(ResponseId::ConnectorTransactionId(
-                        response.authentication_id.clone(),
+                        response.three_d_secure_authentication_id.clone(),
                     )),
                     authentication_data,
                     redirection_data: None,
-                    connector_response_reference_id: Some(response.authentication_id.clone()),
+                    connector_response_reference_id: Some(
+                        response.three_d_secure_authentication_id.clone(),
+                    ),
                     status_code: item.http_code,
                 };
                 (
-                    common_enums::AttemptStatus::AuthenticationSuccessful,
+                    response
+                        .three_d_secure_transaction_status
+                        .to_attempt_status(),
                     response_data,
                 )
             }
             MonerisThreeDSecureTransactionStatus::ChallengeAuthenticationRequired => {
-                let challenge_url = response.challenge_url.clone().ok_or_else(|| {
-                    error_stack::report!(ConnectorError::ResponseDeserializationFailed {
-                        context: ResponseTransformationErrorContext {
-                            http_status_code: Some(item.http_code),
-                            additional_context: Some(
-                                "Moneris returned CHALLENGE_AUTHENTICATION_REQUIRED but \
+                let challenge_url =
+                    response
+                        .three_d_secure_challenge_url
+                        .clone()
+                        .ok_or_else(|| {
+                            error_stack::report!(ConnectorError::ResponseDeserializationFailed {
+                                context: ResponseTransformationErrorContext {
+                                    http_status_code: Some(item.http_code),
+                                    additional_context: Some(
+                                        "Moneris returned CHALLENGE_AUTHENTICATION_REQUIRED but \
                                  challenge_url was missing in the response."
-                                    .to_string(),
-                            ),
-                        },
-                    })
-                })?;
-                let challenge_data = response.challenge_data.clone().ok_or_else(|| {
-                    error_stack::report!(ConnectorError::ResponseDeserializationFailed {
-                        context: ResponseTransformationErrorContext {
-                            http_status_code: Some(item.http_code),
-                            additional_context: Some(
-                                "Moneris returned CHALLENGE_AUTHENTICATION_REQUIRED but \
+                                            .to_string(),
+                                    ),
+                                },
+                            })
+                        })?;
+                let challenge_data =
+                    response
+                        .three_d_secure_challenge_data
+                        .clone()
+                        .ok_or_else(|| {
+                            error_stack::report!(ConnectorError::ResponseDeserializationFailed {
+                                context: ResponseTransformationErrorContext {
+                                    http_status_code: Some(item.http_code),
+                                    additional_context: Some(
+                                        "Moneris returned CHALLENGE_AUTHENTICATION_REQUIRED but \
                                  challenge_data (creq) was missing in the response."
-                                    .to_string(),
-                            ),
-                        },
-                    })
-                })?;
+                                            .to_string(),
+                                    ),
+                                },
+                            })
+                        })?;
                 let mut form_fields = HashMap::new();
                 form_fields.insert("creq".to_string(), challenge_data);
                 let redirection_data = Some(Box::new(
@@ -2092,49 +2378,74 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ));
                 let response_data = PaymentsResponseData::PreAuthenticateResponse {
                     resource_id: Some(ResponseId::ConnectorTransactionId(
-                        response.authentication_id.clone(),
+                        response.three_d_secure_authentication_id.clone(),
                     )),
                     authentication_data: None,
                     redirection_data,
-                    connector_response_reference_id: Some(response.authentication_id.clone()),
+                    connector_response_reference_id: Some(
+                        response.three_d_secure_authentication_id.clone(),
+                    ),
                     status_code: item.http_code,
                 };
                 (
-                    common_enums::AttemptStatus::AuthenticationPending,
+                    response
+                        .three_d_secure_transaction_status
+                        .to_attempt_status(),
                     response_data,
                 )
             }
             MonerisThreeDSecureTransactionStatus::NotAuthenticated
-            | MonerisThreeDSecureTransactionStatus::Rejected => {
+            | MonerisThreeDSecureTransactionStatus::Rejected
+            | MonerisThreeDSecureTransactionStatus::TechnicalIssue
+            | MonerisThreeDSecureTransactionStatus::ChallengeDecoupledAuthenticationConfirmed
+            | MonerisThreeDSecureTransactionStatus::ChallengePreferenceAcknowledged => {
+                let authentication_data = Some(AuthenticationData {
+                    trans_status: Some(
+                        response
+                            .three_d_secure_transaction_status
+                            .to_transaction_status(),
+                    ),
+                    eci: Some(response.ecommerce_indicator.clone()),
+                    cavv: response.three_d_secure_authentication_value.clone(),
+                    threeds_server_transaction_id: response
+                        .three_d_secure_server_transaction_id
+                        .clone(),
+                    message_version: response
+                        .three_d_secure_version
+                        .as_deref()
+                        .and_then(|version| version.parse().ok()),
+                    ds_trans_id: response
+                        .three_d_secure_directory_server_transaction_id
+                        .clone(),
+                    acs_transaction_id: response
+                        .three_d_secure_access_control_server_transaction_id
+                        .clone(),
+                    transaction_id: Some(response.three_d_secure_authentication_id.clone()),
+                    ucaf_collection_indicator: None,
+                    network_params: None,
+                    exemption_indicator: None,
+                    created_at: None,
+                    challenge_code: None,
+                    challenge_cancel: None,
+                    challenge_code_reason: None,
+                    message_extension: None,
+                    authentication_type: None,
+                });
                 let response_data = PaymentsResponseData::PreAuthenticateResponse {
                     resource_id: Some(ResponseId::ConnectorTransactionId(
-                        response.authentication_id.clone(),
+                        response.three_d_secure_authentication_id.clone(),
                     )),
-                    authentication_data: None,
+                    authentication_data,
                     redirection_data: None,
-                    connector_response_reference_id: Some(response.authentication_id.clone()),
+                    connector_response_reference_id: Some(
+                        response.three_d_secure_authentication_id.clone(),
+                    ),
                     status_code: item.http_code,
                 };
                 (
-                    common_enums::AttemptStatus::AuthenticationFailed,
-                    response_data,
-                )
-            }
-            // Decoupled = cardholder authenticates out-of-band via their bank's app.
-            // No redirect URL is issued; the ACS notifies Moneris asynchronously.
-            // This is not a failure — it is a pending state waiting for ACS confirmation.
-            MonerisThreeDSecureTransactionStatus::Decoupled => {
-                let response_data = PaymentsResponseData::PreAuthenticateResponse {
-                    resource_id: Some(ResponseId::ConnectorTransactionId(
-                        response.authentication_id.clone(),
-                    )),
-                    authentication_data: None,
-                    redirection_data: None,
-                    connector_response_reference_id: Some(response.authentication_id.clone()),
-                    status_code: item.http_code,
-                };
-                (
-                    common_enums::AttemptStatus::AuthenticationPending,
+                    response
+                        .three_d_secure_transaction_status
+                        .to_attempt_status(),
                     response_data,
                 )
             }
@@ -2239,7 +2550,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let idempotency_key = format!(
-            "postauth_{}",
+            "post_auth_{}",
             item.router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -2257,10 +2568,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisPostAuthenticateResponse {
+    pub three_d_secure_authentication_id: String,
     pub three_d_secure_authentication_value: Option<Secret<String>>,
-    pub ecommerce_indicator: Option<String>,
+    pub ecommerce_indicator: String,
     pub three_d_secure_server_transaction_id: Option<String>,
-    pub three_d_secure_transaction_status: Option<MonerisThreeDSecureTransactionStatus>,
+    pub three_d_secure_directory_server_transaction_id: Option<String>,
+    pub three_d_secure_access_control_server_transaction_id: Option<String>,
+    pub three_d_secure_version: Option<String>,
+    pub three_d_secure_transaction_status: MonerisThreeDSecureTransactionStatus,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -2280,32 +2595,44 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response = &item.response;
 
         let status = match &response.three_d_secure_transaction_status {
-            Some(MonerisThreeDSecureTransactionStatus::Authenticated)
-            | Some(MonerisThreeDSecureTransactionStatus::AuthenticatedAttempted)
-            | Some(MonerisThreeDSecureTransactionStatus::InformationOnly) => {
+            MonerisThreeDSecureTransactionStatus::Authenticated
+            | MonerisThreeDSecureTransactionStatus::AuthenticationAttempted => {
                 common_enums::AttemptStatus::AuthenticationSuccessful
             }
-            Some(MonerisThreeDSecureTransactionStatus::NotAuthenticated)
-            | Some(MonerisThreeDSecureTransactionStatus::Rejected) => {
-                common_enums::AttemptStatus::AuthenticationFailed
+            status => {
+                return Err(error_stack::report!(ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: Some(item.http_code),
+                        additional_context: Some(format!(
+                            "Moneris Authentication Value Lookup returned 3DS status {}. Payment authorization was stopped.",
+                            status.as_api_value()
+                        )),
+                    },
+                }));
             }
-            Some(MonerisThreeDSecureTransactionStatus::Decoupled)
-            | Some(MonerisThreeDSecureTransactionStatus::ChallengeAuthenticationRequired) => {
-                common_enums::AttemptStatus::AuthenticationPending
-            }
-            None => common_enums::AttemptStatus::AuthenticationFailed,
         };
 
         let authentication_data = Some(AuthenticationData {
-            trans_status: None,
-            eci: response.ecommerce_indicator.clone(),
+            trans_status: Some(
+                response
+                    .three_d_secure_transaction_status
+                    .to_transaction_status(),
+            ),
+            eci: Some(response.ecommerce_indicator.clone()),
             cavv: response.three_d_secure_authentication_value.clone(),
             threeds_server_transaction_id: response.three_d_secure_server_transaction_id.clone(),
-            transaction_id: None,
+            message_version: response
+                .three_d_secure_version
+                .as_deref()
+                .and_then(|version| version.parse().ok()),
+            ds_trans_id: response
+                .three_d_secure_directory_server_transaction_id
+                .clone(),
+            acs_transaction_id: response
+                .three_d_secure_access_control_server_transaction_id
+                .clone(),
+            transaction_id: Some(response.three_d_secure_authentication_id.clone()),
             ucaf_collection_indicator: None,
-            message_version: None,
-            ds_trans_id: None,
-            acs_transaction_id: None,
             network_params: None,
             exemption_indicator: None,
             created_at: None,
@@ -2323,7 +2650,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             response: Ok(PaymentsResponseData::PostAuthenticateResponse {
                 authentication_data,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    response.three_d_secure_authentication_id.clone(),
+                ),
                 status_code: item.http_code,
             }),
             ..item.router_data

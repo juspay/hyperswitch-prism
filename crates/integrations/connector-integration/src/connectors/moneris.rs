@@ -50,8 +50,10 @@ use super::macros;
 use crate::{types::ResponseRouterData, utils, with_error_response_body};
 
 pub(crate) mod headers {
+    pub(crate) const ACCEPT: &str = "Accept";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
+    pub(crate) const X_CORRELATION_ID: &str = "X-Correlation-Id";
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -134,6 +136,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             && !authentication_data.is_some_and(|data| data.has_external_authentication())
         {
             match (redirect_state, completed_step) {
+                // PostAuthenticate completed after the ACS callback → authorize only
+                // after the connector has accepted the Authentication Value Lookup result.
+                (_, Some(AuthenticationStep::PostAuthenticate)) => AuthenticationStep::Authorize,
                 (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
                 // Frictionless: PreAuthenticate completed with no redirect → go straight to Authorize
                 (RedirectState::InitialRequest, Some(AuthenticationStep::PreAuthenticate)) => {
@@ -143,8 +148,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 (RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams, _) => {
                     AuthenticationStep::PostAuthenticate
                 }
-                // After PostAuthenticate → Authorize
-                (_, Some(AuthenticationStep::PostAuthenticate)) => AuthenticationStep::Authorize,
                 _ => AuthenticationStep::Authorize,
             }
         } else {
@@ -331,6 +334,14 @@ macros::create_all_prerequisites!(
                 (
                     headers::CONTENT_TYPE.to_string(),
                     self.common_get_content_type().to_string().into(),
+                ),
+                (
+                    headers::ACCEPT.to_string(),
+                    self.common_get_content_type().to_string().into(),
+                ),
+                (
+                    headers::X_CORRELATION_ID.to_string(),
+                    common_utils::fp_utils::generate_uuid_v4().into(),
                 ),
                 (
                     moneris::auth_headers::API_VERSION.to_string(),
