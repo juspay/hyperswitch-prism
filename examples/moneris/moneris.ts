@@ -7,7 +7,7 @@
 
 import { PaymentClient, MerchantAuthenticationClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_server_authentication_token", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_server_authentication_token", "get", "incremental_authorization", "post_authenticate", "proxy_authorize", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -150,40 +150,6 @@ function _buildPostAuthenticateRequest(): types.IPaymentMethodAuthenticationServ
         "redirectionResponse": {  // Redirection Information after DDC step.
             "params": "probe_redirect_params",
             "payload": {
-            }
-        }
-    };
-}
-
-function _buildPreAuthenticateRequest(): types.IPaymentMethodAuthenticationServicePreAuthenticateRequest {
-    return {
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,
-            "currency": Currency.USD
-        },
-        "paymentMethod": {  // Payment Method.
-            "card": {  // Generic card payment.
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
-            }
-        },
-        "customer": {  // Customer Information.
-            "email": {"value": "test@example.com"}
-        },
-        "address": {  // Address Information.
-            "billingAddress": {
-            }
-        },
-        "enrolledFor_3ds": false,  // Authentication Details.
-        "returnUrl": "https://example.com/3ds-return",  // URLs for Redirection.
-        "state": {  // State Information.
-            "accessToken": {  // Access token obtained from connector.
-                "token": {"value": "probe_access_token"},  // The token string.
-                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
-                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
     };
@@ -441,15 +407,6 @@ async function postAuthenticate(merchantTransactionId: string, config: types.ICo
     return postResponse;
 }
 
-// Flow: PaymentMethodAuthenticationService.PreAuthenticate
-async function preAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
-
-    const preResponse = await paymentMethodAuthenticationClient.preAuthenticate(_buildPreAuthenticateRequest());
-
-    return preResponse;
-}
-
 // Flow: PaymentService.ProxyAuthorize
 async function proxyAuthorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -489,7 +446,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, incrementalAuthorization, postAuthenticate, preAuthenticate, proxyAuthorize, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, incrementalAuthorization, postAuthenticate, proxyAuthorize, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildPostAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner
