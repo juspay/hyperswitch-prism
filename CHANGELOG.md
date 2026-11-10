@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.10.0
+
+### Features
+
+- **connector:** Add Fiserv Commercehub void post capture & Incremental auth flow ([#2708](https://github.com/juspay/connector-service/pull/2708)) ([`e83560f`](https://github.com/juspay/connector-service/commit/e83560fecd1e6b944689c22bb9cfb6c8476787ba))
+
+### Refactors
+
+- **connector:** [clearsale_br] update on connections and items h… ([#2710](https://github.com/juspay/connector-service/pull/2710)) ([`866a823`](https://github.com/juspay/connector-service/commit/866a823043781e26e1da148119b888f6c3ceaa23))
+
+**Full Changelog:** [`2026.11.09.0...2026.11.10.0`](https://github.com/juspay/connector-service/compare/2026.11.09.0...2026.11.10.0)
+
+- - -
+
 ## 2026.11.09.0
 
 ### Features
