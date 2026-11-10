@@ -858,8 +858,55 @@
     },
     "pre_authenticate": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: billing.address.state. Moneris 3DS authentication requires billing.address.state. — Missing required field: billing.address.state. Moneris 3DS authentication requires billing.address.state."
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US",
+              "state_code_iso": "WA"
+            }
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/three-d-secure/authentications",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "user-agent": "curl/8.7.1",
+            "via": "HyperSwitch",
+            "x-correlation-id": "",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"pre_auth_\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"cardholderName\":\"John Doe\",\"billingAddress\":{\"streetNumber\":\"123\",\"streetName\":\"Main St\",\"city\":\"Seattle\",\"province\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"}},\"threeDSecureMessageCategory\":\"PAYMENT\",\"threeDSecureDeviceChannel\":\"THREE_D_SECURE_REQUESTOR_INITIATED\",\"threeDSecureRequestType\":\"RECURRING\",\"threeDSecureNotificationUrl\":\"https%3A%2F%2Fexample.com%2F3ds-return\",\"threeDSecureCompletionIndicator\":\"UNAVAILABLE\",\"threeDSecureChallengeRequested\":\"NO_PREFERENCE\",\"browserIpAddress\":null}"
+        }
       }
     },
     "proxy_authorize": {
